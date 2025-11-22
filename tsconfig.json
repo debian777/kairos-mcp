@@ -1,0 +1,51 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "lib": [
+            "ES2022"
+        ],
+        "moduleResolution": "NodeNext",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "allowJs": true,
+        "checkJs": false,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "removeComments": false,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "isolatedModules": true,
+        "noEmit": false,
+        "typeRoots": [
+            "./node_modules/@types"
+        ],
+        "incremental": true,
+        "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+    ]
+}

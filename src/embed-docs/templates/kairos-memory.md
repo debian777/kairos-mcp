@@ -1,0 +1,1 @@
+Retrieves a KAIROS memory by UUID

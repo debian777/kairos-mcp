@@ -1,0 +1,42 @@
+# npm publish ignore – we publish built dist/ instead of source
+
+# Source and development files to exclude
+src/
+tests/
+/tests/
+/tests/_new/
+**/__tests__/
+docs/test-data/
+
+# Scripts and local dev tools
+scripts/
+Dockerfile
+.dockerignore
+
+# Ignore local environment and caches
+.env
+.env.*
+.DS_Store
+.vscode
+.idea
+
+# Built artifacts that are not part of the npm package
+coverage/
+reports/
+
+# Logs and temporary files
+logs
+tmp
+*.log
+
+# Ignore transpiled source if you're building to dist (keep dist)
+# Leave dist included
+
+# Ignore CI and config that are not needed
+.gitignore
+
+# Keep README, package.json, license
+!README.md
+!package.json
+!LICENSE
+!dist/**

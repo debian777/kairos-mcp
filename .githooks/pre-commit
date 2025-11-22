@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-commit hook: Prevent commits on main/master branches
+# This enforces Rule 2: Branching Strategy
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+    echo "❌ BLOCKED: You are on the '$BRANCH' branch"
+    echo ""
+    echo "Rule 2 Enforcement: All work must be on feature branches"
+    echo ""
+    echo "To fix this:"
+    echo "  1. Create a feature branch: git checkout -b feature/your-feature-name"
+    echo "  2. Cherry-pick your commits (if needed): git cherry-pick <commit-hash>"
+    echo "  3. Reset main: git checkout main && git reset --hard HEAD~<count>"
+    echo ""
+    exit 1
+fi
+
+exit 0

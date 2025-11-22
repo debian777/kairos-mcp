@@ -1,0 +1,57 @@
+# Docker build context ignore
+# Keep the context small: exclude node_modules, dist, tests, and other non-essential files
+
+# Node dependencies (install inside image)
+node_modules
+
+# Build output
+dist
+build
+coverage
+
+# System files
+.DS_Store
+*.swp
+
+# Git metadata
+.git
+.gitignore
+
+# Local environment
+.env
+.env.*
+
+# Logs and tmp
+logs
+tmp
+*.log
+
+# Tests and reports
+/tests
+/tests/**
+/tests/_new
+reports
+
+# Editor / OS
+.vscode
+.idea
+
+# Docker and pipeline files (not needed inside context)
+Dockerfile
+.dockerignore
+
+# Misc cache
+.cache
+
+# Keep package.json and package-lock.json and tsconfig.json (needed by Docker build)
+!package.json
+!package-lock.json
+!tsconfig.json
+
+# Allow docs and scripts to be copied for build-time embedding
+!/docs
+!/scripts
+
+# Allow package.json (overrides) — ensure reproduible installs
+!package.json
+!package-lock.json

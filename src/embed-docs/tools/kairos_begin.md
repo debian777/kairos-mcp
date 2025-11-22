@@ -1,0 +1,1 @@
+Returns chain heads (position=1) matching a query.

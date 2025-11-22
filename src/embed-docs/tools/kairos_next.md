@@ -1,0 +1,1 @@
+Returns the next step in a memory chain for sequential execution.

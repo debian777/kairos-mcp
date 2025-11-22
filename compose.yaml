@@ -1,0 +1,112 @@
+services:
+  redis:
+    profiles:
+      - infrastructure
+    image: redis:7-alpine
+    pull_policy: missing
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - kairos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  redisinsight:
+    profiles:
+      - infrastructure
+    image: redis/redisinsight:latest
+    pull_policy: missing
+    depends_on:
+      - redis
+    ports:
+      - "5540:5540"
+    environment:
+      - RI_REDIS_HOST*=redis
+      - RI_REDIS_PORT*=6379
+      - RI_REDIS_ALIAS*=kairosRedis
+    volumes:
+      - ./data/redisinsight:/data
+    networks:
+      - kairos-network
+    restart: unless-stopped
+
+  qdrant:
+    profiles:
+      - infrastructure
+    image: qdrant/qdrant:latest
+    pull_policy: missing
+    ports:
+      - "6333:6333"
+      - "6344:6344"
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    env_file:
+      - .env.qa
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6534
+      # - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
+      # - QDRANT__SERVICE__API_KEY_INSECURE_ALLOWED=true
+      # Performance optimization for production
+      - QDRANT__LOG_LEVEL=INFO
+      - QDRANT__SERVICE__MAX_WORKING_MEMORY_MB=4096
+    networks:
+      - kairos-network
+    restart: unless-stopped
+
+    #
+    healthcheck:
+      test: >
+        fgrep -qa ':18BD ' /proc/net/tcp
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    #   start_period: 3s
+
+  app-qa:
+    image: debian777/kairos-mcp:latest
+    #pull_policy: always
+    labels:
+      - "environment=qa"
+    env_file:
+      - .env.qa
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      # Overrides to access real localhost services from within Docker container
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379
+    # depends_on:
+    #   - qdrant
+    #   - redis
+
+    networks:
+      - kairos-network
+    restart: unless-stopped
+    # Health check covering both transports
+    healthcheck:
+      test: >
+        wget --quiet --tries=1 --timeout=5 --spider http://127.0.0.1:$$PORT/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+
+
+networks:
+  kairos-network:
+    name: kairos-network
+    driver: bridge

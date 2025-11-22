@@ -1,0 +1,218 @@
+import { createMcpConnection } from '../utils/mcp-client-utils.js';
+
+describe('Kairos Mint Qdrant Integration', () => {
+  let mcpConnection: any;
+  let qdrantClient: any;
+
+  beforeAll(async () => {
+    mcpConnection = await createMcpConnection();
+    // Dynamic import now that mocking is removed
+    const { QdrantClient } = await import('@qdrant/js-client-rest');
+    qdrantClient = new QdrantClient({
+      url: process.env.QDRANT_URL || 'http://127.0.0.1:6333',
+      apiKey: process.env.QDRANT_API_KEY,
+    });
+  });
+
+  afterAll(async () => {
+    if (mcpConnection) {
+      await mcpConnection.close();
+    }
+  });
+
+  function expectValidJsonResult(result: any) {
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(result.content[0].text);
+    } catch (e) {
+      // Log full MCP result to make debugging easier, but rethrow
+      // the original JSON.parse error instead of wrapping it.
+      // eslint-disable-next-line no-console
+      console.error('kairos_mint Qdrant test raw MCP result (JSON.parse failed):', result);
+      throw e;
+    }
+    return parsed;
+  }
+
+  test('kairos_mint stores data that can be retrieved directly from Qdrant', async () => {
+    const testContent = 'This is a test memory for Qdrant integration verification.';
+    const collectionName = process.env.QDRANT_COLLECTION || 'kairos_dec';
+
+    // First, store data using kairos_mint MCP tool
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: testContent,
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+
+    const response = expectValidJsonResult(result);
+
+    expect(response).toHaveProperty('items');
+    expect(Array.isArray(response.items)).toBe(true);
+    expect(response.items).toHaveLength(1);
+
+    const item = response.items[0];
+    expect(item).toHaveProperty('memory_uuid');
+    const memoryUuid = item.memory_uuid;
+
+    // Now verify the data exists directly in Qdrant
+    const points = await qdrantClient.retrieve(collectionName, {
+      ids: [memoryUuid],
+      with_payload: true,
+      with_vector: true
+    });
+
+    expect(points).toHaveLength(1);
+    const point = points[0];
+    expect(point.id).toBe(memoryUuid);
+
+    const payload = point.payload as any;
+    expect(payload).toBeDefined();
+    expect(payload.text).toBe(testContent);
+    expect(payload.llm_model_id).toBe('minimax/minimax-m2:free');
+
+    // Verify metadata is present
+    expect(payload.label).toBeDefined();
+    expect(typeof payload.label).toBe('string');
+    expect(payload.label.length).toBeGreaterThan(0);
+    expect(Array.isArray(payload.tags)).toBe(true);
+    expect(payload.tags.length).toBeGreaterThan(0);
+
+    // Verify vector data exists
+    expect(point.vector).toBeDefined();
+    expect(Array.isArray(point.vector)).toBe(true);
+    expect(point.vector.length).toBeGreaterThan(0);
+
+    // Cleanup test data
+    await cleanupTestMemory(memoryUuid);
+  });
+
+  test('kairos_mint stores longer text that can be retrieved from Qdrant', async () => {
+    const testContents = [
+      'First test memory for multiple item verification.',
+      'Second test memory for multiple item verification.',
+      'Third test memory for multiple item verification.'
+    ].join('\n\n');
+    const collectionName = process.env.QDRANT_COLLECTION || 'kairos_dec';
+
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: testContents,
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+
+    const response = expectValidJsonResult(result);
+    expect(response.items).toHaveLength(1);
+
+    const memoryUuid = response.items[0].memory_uuid;
+
+    const points = await qdrantClient.retrieve(collectionName, {
+      ids: [memoryUuid],
+      with_payload: true,
+      with_vector: true
+    });
+
+    expect(points).toHaveLength(1);
+    const point = points[0];
+    const payload = point.payload as any;
+
+    expect(point.id).toBe(memoryUuid);
+    expect(payload.text).toBe(testContents);
+    expect(payload.llm_model_id).toBe('minimax/minimax-m2:free');
+
+    // Verify metadata
+    expect(payload.label).toBeDefined();
+    expect(Array.isArray(payload.tags)).toBe(true);
+
+    // Verify vector data
+    expect(point.vector).toBeDefined();
+    expect(Array.isArray(point.vector)).toBe(true);
+
+    await cleanupTestMemory(memoryUuid);
+  });
+
+  test('kairos_mint creates linked memory chains in Qdrant', async () => {
+    // Single markdown document with H2 sections → stored as a chain.
+    const chainMarkdown = [
+      '# Kairos Chain Test',
+      '',
+      '## First memory in chain.',
+      'Content for first memory.',
+      '',
+      '## Second memory in chain.',
+      'Content for second memory.',
+      '',
+      '## Third memory in chain.',
+      'Content for third memory.'
+    ].join('\n');
+
+    const collectionName = process.env.QDRANT_COLLECTION || 'kairos_dec';
+
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: chainMarkdown,
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+
+    const response = expectValidJsonResult(result);
+    const memoryUuids = response.items.map((item: any) => item.memory_uuid);
+
+    expect(memoryUuids.length).toBe(3);
+
+    // Verify chain linking in Qdrant
+    for (let i = 0; i < memoryUuids.length; i++) {
+      const points = await qdrantClient.retrieve(collectionName, {
+        ids: [memoryUuids[i]],
+        with_payload: true,
+        with_vector: true
+      });
+
+      expect(points).toHaveLength(1);
+      const payload = points[0].payload as any;
+
+      if (i === 0) {
+        // First memory should have no previous, but next
+        expect(payload.previous_memory_uuid).toBeNull();
+        expect(payload.next_memory_uuid).toBe(memoryUuids[i + 1]);
+      } else if (i === memoryUuids.length - 1) {
+        // Last memory should have previous, but no next
+        expect(payload.previous_memory_uuid).toBe(memoryUuids[i - 1]);
+        expect(payload.next_memory_uuid).toBeNull();
+      } else {
+        // Middle memories should have both
+        expect(payload.previous_memory_uuid).toBe(memoryUuids[i - 1]);
+        expect(payload.next_memory_uuid).toBe(memoryUuids[i + 1]);
+      }
+    }
+
+    // Cleanup all test data
+    for (const uuid of memoryUuids) {
+      await cleanupTestMemory(uuid);
+    }
+  });
+
+  /**
+   * Clean up test memory from Qdrant
+   */
+  async function cleanupTestMemory(memoryUuid: string) {
+    const collectionName = process.env.QDRANT_COLLECTION || 'kairos_dec';
+
+    try {
+      await qdrantClient.delete(collectionName, { points: [memoryUuid] });
+    } catch (error) {
+      // Ignore cleanup errors in tests
+      console.warn(`Failed to cleanup memory ${memoryUuid}:`, error);
+    }
+  }
+});

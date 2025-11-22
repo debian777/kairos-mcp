@@ -1,0 +1,1 @@
+Attests completion or failure of a protocol step.

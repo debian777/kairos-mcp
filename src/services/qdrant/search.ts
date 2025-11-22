@@ -1,0 +1,59 @@
+import { QdrantConnection } from './connection.js';
+import { embeddingService } from '../embedding/service.js';
+import { logger } from '../../utils/logger.js';
+
+/**
+ * searchMemory - vector similarity search wrapper
+ */
+export async function searchMemory(conn: QdrantConnection, query: string, limit?: number, domain?: string) {
+  return conn.executeWithReconnect(async () => {
+    logger.info(`DEBUG: searchKnowledge called with query: "${query}", domain: "${domain || 'all'}", limit: ${limit || 10}`);
+    const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
+    const queryVector = queryEmbeddingResult.embedding;
+    logger.info(`DEBUG: Query embedding generated, length: ${queryVector.length}`);
+
+    const searchParams: any = {
+      vector: { name: `vs${queryVector.length}`, vector: queryVector },
+      limit: limit || 10,
+      params: { quantization: { rescore: conn.rescoreEnabled } }
+    };
+
+    if (domain) {
+      searchParams.filter = { must: [{ key: 'domain', match: { value: domain } }] };
+    }
+
+    logger.debug(`[Qdrant][search] collection=${conn.collectionName} req=${JSON.stringify(searchParams)}`);
+    const searchResult = await conn.client.search(conn.collectionName, searchParams);
+    logger.info(`DEBUG: Qdrant search returned ${searchResult?.length || 0} results`);
+
+    if (searchResult && searchResult.length > 0) {
+      return searchResult.map((result: any) => {
+        const payload = result.payload as any;
+        return {
+          id: result.id.toString(),
+          description: payload.label || 'Memory',
+          content: typeof payload.text === 'string' ? payload.text : (payload.description_full || ''),
+          confidence: result.score,
+          relevance: result.score,
+          domain: payload.domain || 'general',
+          task: payload.task || 'search_result',
+          type: payload.type || 'context',
+          tags: Array.isArray(payload.tags) ? payload.tags : [],
+          created_at: typeof payload.created_at === 'string' ? payload.created_at : new Date().toISOString(),
+          protocol: payload.protocol,
+          uri: payload.uri,
+          memory_uuid: result.id.toString(),
+          step_number: payload.protocol?.step,
+          gem_metadata: payload.gem_metadata || {
+            step_gem_potential: 1,
+            step_quality: 'quality',
+            workflow_total_potential: 0,
+            workflow_quality: '',
+            motivational_text: 'This knowledge pattern contributes to your learning journey.'
+          }
+        };
+      });
+    }
+    return [];
+  });
+}

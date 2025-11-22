@@ -1,0 +1,263 @@
+/**
+ * Embed MCP Resources Script
+ *
+ * Scans src/embed-docs/* recursively and embeds all directories
+ * into a structured TypeScript module for runtime access by the MCP server.
+ * Keys are extracted from filenames as-is (e.g., {key}.md -> key).
+ * 
+ * The script dynamically reflects the directory structure:
+ * - prompts/ -> mcpResources.prompts (flat)
+ * - tools/ -> mcpResources.tools (flat)
+ * - resources/ -> mcpResources.resources (nested structure)
+ * - templates/ -> mcpResources.templates (flat)
+ * - Any other top-level directory -> mcpResources.{dirname} (flat)
+ *
+ * Usage: npx ts-node scripts/embed-docs.ts
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// Logger shim for build-time embedding (avoid importing runtime logger)
+const logger = {
+  info: (...args) => console.log('[embed-docs]', ...args),
+  warn: (...args) => console.warn('[embed-docs]', ...args)
+};
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const baseDir = path.join(__dirname, '../src/embed-docs');
+const outputFile = path.join(__dirname, '../src/resources/embedded-mcp-resources.ts');
+
+/**
+ * Extract key from filename as-is (just remove .md extension)
+ */
+function extractKey(filePath: string): string {
+  return path.basename(filePath, '.md');
+}
+
+/**
+ * Read markdown file content
+ */
+function readMarkdown(filePath: string): string {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    logger.warn(`Failed to read ${filePath}: ${String(err)}`);
+    return '';
+  }
+}
+
+/**
+ * Recursively collect all markdown files from a directory into a flat object
+ * Keys are extracted from filenames as-is
+ */
+function collectDirFlat(dir: string, result: Record<string, string>): void {
+  if (!fs.existsSync(dir)) return;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      // Recurse into subdirectories
+      collectDirFlat(fullPath, result);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      const key = extractKey(entry.name);
+      const content = readMarkdown(fullPath);
+      result[key] = content;
+      logger.info(`Found: ${path.relative(baseDir, fullPath)} -> ${key}`);
+    }
+  }
+}
+
+/**
+ * Recursively collect resources preserving directory structure
+ * Subdirectories become nested objects
+ */
+function collectResourcesRecursive(dir: string, baseDir: string, result: Record<string, any>): void {
+  if (!fs.existsSync(dir)) return;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      // Create nested object for subdirectory
+      if (!result[entry.name]) {
+        result[entry.name] = {};
+      }
+      collectResourcesRecursive(fullPath, baseDir, result[entry.name]);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      const key = extractKey(entry.name);
+      const content = readMarkdown(fullPath);
+      result[key] = content;
+      logger.info(`Found resource: ${path.relative(baseDir, fullPath)} -> ${key}`);
+    }
+  }
+}
+
+function main() {
+  if (!fs.existsSync(baseDir)) {
+    logger.warn(`Base docs directory not found: ${baseDir}`);
+    return;
+  }
+
+  // Start with known categories
+  const mcpResources: Record<string, any> = {
+    prompts: {},
+    resources: {},
+    templates: {},
+    tools: {}
+  };
+
+  // Collect known categories with their specific logic
+  const promptsDir = path.join(baseDir, 'prompts');
+  if (fs.existsSync(promptsDir)) {
+    collectDirFlat(promptsDir, mcpResources.prompts);
+  }
+
+  const toolsDir = path.join(baseDir, 'tools');
+  if (fs.existsSync(toolsDir)) {
+    collectDirFlat(toolsDir, mcpResources.tools);
+  }
+
+  const resourcesDir = path.join(baseDir, 'resources');
+  if (fs.existsSync(resourcesDir)) {
+    collectResourcesRecursive(resourcesDir, baseDir, mcpResources.resources);
+  }
+
+  const templatesDir = path.join(baseDir, 'templates');
+  if (fs.existsSync(templatesDir)) {
+    collectDirFlat(templatesDir, mcpResources.templates);
+  }
+
+  // Discover any other top-level directories and add them as flat collections
+  const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+  const knownDirs = new Set(['prompts', 'tools', 'resources', 'templates']);
+  
+  for (const entry of entries) {
+    if (entry.isDirectory() && !knownDirs.has(entry.name)) {
+      const dirPath = path.join(baseDir, entry.name);
+      mcpResources[entry.name] = {};
+      collectDirFlat(dirPath, mcpResources[entry.name]);
+      logger.info(`Discovered top-level directory: ${entry.name}`);
+    }
+  }
+
+  const header = `/**
+ * AUTO-GENERATED FILE - DO NOT EDIT
+ *
+ * Generated by: scripts/embed-docs.ts
+ * Contains: MCP guide resources dynamically embedded at build time
+ * Structure reflects src/embed-docs/ directory structure
+ *
+ * To update: npm run build (or manually run ts-node scripts/embed-docs.ts)
+ */
+ 
+`;
+
+  // Generate getters for all top-level categories
+  const categoryNames = Object.keys(mcpResources);
+  const getters = categoryNames.map(cat => {
+    const camelName = cat.charAt(0).toUpperCase() + cat.slice(1);
+    return `/**
+ * Get ${cat} object
+ */
+export function get${camelName}(): Record<string, any> {
+  return mcpResources.${cat} || {};
+}`;
+  }).join('\n\n');
+
+  const body = `export const mcpResources = ${JSON.stringify(mcpResources, null, 2)};
+ 
+${getters}
+
+/**
+ * Get a prompt by key (e.g. 'contextual-prompt')
+ */
+export function getPrompt(key: string): string | undefined {
+  const prompts = (mcpResources.prompts || {}) as Record<string, string>;
+  return prompts[key];
+}
+
+/**
+ * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.00000000-0000-0000-0000-000000000001')
+ */
+export function getResource(key: string): string | any | undefined {
+  const resources = (mcpResources.resources || {}) as Record<string, any>;
+  const parts = key.split('.');
+  let current: any = resources;
+  for (const part of parts) {
+    if (current && typeof current === 'object') {
+      current = current[part];
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
+
+/**
+ * Get a template by key (e.g. 'kairos-memory')
+ */
+export function getTemplate(key: string): string | undefined {
+  const templates = (mcpResources.templates || {}) as Record<string, string>;
+  return templates[key];
+}
+
+/**
+ * Get a tool doc by key (e.g. 'kairos_begin')
+ */
+export function getToolDoc(key: string): string | undefined {
+  const tools = (mcpResources.tools || {}) as Record<string, string>;
+  return tools[key];
+}
+
+/**
+ * Get all available resource categories and names
+ */
+export function listResourceKeys(): Record<string, string[]> {
+  const prompts = Object.keys((mcpResources.prompts || {}) as Record<string, unknown>);
+  const resources = collectAllKeys((mcpResources.resources || {}) as Record<string, unknown>);
+  const templates = Object.keys((mcpResources.templates || {}) as Record<string, unknown>);
+  const tools = Object.keys((mcpResources.tools || {}) as Record<string, unknown>);
+  
+  const result: Record<string, string[]> = { prompts, resources, templates, tools };
+  
+  // Add any other top-level categories
+  for (const [key, value] of Object.entries(mcpResources)) {
+    if (!['prompts', 'resources', 'templates', 'tools'].includes(key)) {
+      if (typeof value === 'object' && value !== null) {
+        result[key] = Object.keys(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  return result;
+}
+
+function collectAllKeys(obj: any, prefix: string = '', keys: string[] = []): string[] {
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? \`\${prefix}.\${key}\` : key;
+    if (typeof value === 'string') {
+      keys.push(fullKey);
+    } else if (typeof value === 'object' && value !== null) {
+      collectAllKeys(value, fullKey, keys);
+    }
+  }
+  return keys;
+}
+`;
+
+  fs.writeFileSync(outputFile, header + body, 'utf8');
+  logger.info(`Embedded MCP docs from ${path.relative(process.cwd(), baseDir)} into ${path.relative(process.cwd(), outputFile)}`);
+  logger.info(`Discovered categories: ${categoryNames.join(', ')}`);
+  logger.info(`Generated getters: ${categoryNames.map(c => `get${c.charAt(0).toUpperCase() + c.slice(1)}()`).join(', ')}`);
+}
+
+main();

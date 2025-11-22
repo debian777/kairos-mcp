@@ -1,0 +1,64 @@
+/**
+ * Jest Configuration for kairos MCP Server
+ * Fixed for working test discovery
+ */
+
+const strict = process.env.STRICT_COVERAGE === 'true';
+
+export default {
+    preset: 'ts-jest/presets/default-esm',
+    testEnvironment: 'node',
+    extensionsToTreatAsEsm: ['.ts'],
+    roots: ['<rootDir>/src', '<rootDir>/tests'],
+    testMatch: [
+        '**/*.test.ts',
+        '**/*.test.js',
+        '**/*.spec.ts',
+        '**/*.spec.js',
+    ],
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+    transform: {
+        '^.+\\.tsx?$': ['ts-jest', {
+            useESM: true,
+            tsconfig: {
+                target: 'ES2022',
+                module: 'ES2022',
+                moduleResolution: 'NodeNext',
+                isolatedModules: true,
+            },
+        }],
+    },
+    moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+        '^nanoid$': '<rootDir>/tests/unit/mocks/nanoid.ts',
+        '^uuid$': '<rootDir>/tests/unit/mocks/uuid.ts',
+    },
+    collectCoverageFrom: [
+        'src/**/*.{ts,tsx}',
+        '!src/**/*.d.ts',
+        '!src/**/__tests__/**',
+        '!tests/**',
+    ],
+    coverageDirectory: 'coverage',
+    coverageReporters: ['text', 'lcov', 'html'],
+    coverageThreshold: {
+        global: strict ? {
+            branches: 100,
+            functions: 100,
+            lines: 100,
+            statements: 100,
+        } : {
+            // 99% target passes tests; report shows if below 100%
+            branches: 99,
+            functions: 99,
+            lines: 99,
+            statements: 99,
+        },
+    },
+    // Load .env before any test runs to satisfy integration suites
+    setupFiles: ['dotenv/config'],
+    // Global test setup runs before all tests
+    setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+    // Global test timeout
+    testTimeout: 10000,
+};

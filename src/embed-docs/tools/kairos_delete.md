@@ -1,0 +1,1 @@
+Delete one or more memories from the KAIROS.

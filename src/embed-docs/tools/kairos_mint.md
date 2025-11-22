@@ -1,0 +1,1 @@
+Stores markdown documents as KAIROS memories with automatic header-based organization.
