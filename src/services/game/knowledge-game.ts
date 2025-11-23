@@ -19,6 +19,13 @@ import { logger } from '../../utils/logger.js';
 import { redisService } from '../redis.js';
 import type { QualityMetrics } from '../../types/index.js';
 import type { GemScore, GameLeaderboard, GameStats, Achievement, RecentDiscovery } from './types.js';
+import {
+  agentContributions,
+  agentImplementationBonus,
+  agentRareSuccesses,
+  agentQualityScore
+} from '../metrics/agent-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 import {
     loadLeaderboard as lbLoad,
@@ -144,6 +151,21 @@ export class KnowledgeGameService {
         const { finalBonus, rareSuccess } = result;
 
         if (outcome === 'success' && finalBonus > 0) {
+            const tenantId = getTenantId();
+            
+            // Update metrics instead of leaderboard
+            agentImplementationBonus.inc({ 
+                agent_id: llm_model_id, 
+                tenant_id: tenantId 
+            }, finalBonus);
+            
+            if (rareSuccess) {
+                agentRareSuccesses.inc({ 
+                    agent_id: llm_model_id, 
+                    tenant_id: tenantId 
+                });
+            }
+
             // Accumulate totals
             this.implementationBonusTotals[llm_model_id] = (this.implementationBonusTotals[llm_model_id] || 0) + finalBonus;
 
@@ -192,6 +214,26 @@ export class KnowledgeGameService {
 
     async processGemDiscovery(llm_model_id: string, gemScore: GemScore, description: string): Promise<void> {
         if (gemScore.total < 20) return;
+
+        const tenantId = getTenantId();
+        
+        // Map old quality to new quality labels
+        const quality = gemScore.quality === 'legendary' ? 'excellent' :
+                       gemScore.quality === 'rare' ? 'high' :
+                       gemScore.quality === 'quality' ? 'standard' : 'basic';
+        
+        // Update metrics instead of leaderboard
+        agentContributions.inc({ 
+            agent_id: llm_model_id, 
+            quality, 
+            tenant_id: tenantId 
+        });
+        
+        agentQualityScore.observe({ 
+            agent_id: llm_model_id, 
+            quality_tier: quality,
+            tenant_id: tenantId 
+        }, gemScore.total);
 
         incrementTotalGems(this.leaderboard, llm_model_id);
 

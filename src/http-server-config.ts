@@ -1,5 +1,6 @@
 import express from 'express';
 import { httpLogger } from './utils/structured-logger.js';
+import { httpMetricsMiddleware } from './http-metrics-middleware.js';
 
 // Global context interface for MCP requests
 declare global {
@@ -14,5 +15,7 @@ declare global {
 export function configureMiddleware(app: express.Express) {
     // Structured HTTP access logging middleware
     app.use(httpLogger);
+    // HTTP metrics middleware for Prometheus
+    app.use(httpMetricsMiddleware);
     app.use(express.json());
 }

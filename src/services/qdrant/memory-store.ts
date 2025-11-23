@@ -4,6 +4,8 @@ import { IDGenerator } from '../id-generator.js';
 import { sanitizeAndUpsert } from './utils.js';
 import { logger } from '../../utils/logger.js';
 import { redisCacheService } from '../redis-cache.js';
+import { qdrantOperations, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 /**
  * storeMemory - stores a single memory point in Qdrant
@@ -22,6 +24,10 @@ export async function storeMemory(
   uuid?: string
 ): Promise<{ qdrantId: string }> {
   return conn.executeWithReconnect(async () => {
+    const tenantId = getTenantId();
+    const timer = qdrantUpsertDuration.startTimer({ tenant_id: tenantId });
+    
+    try {
     let qdrantId: string;
     let humanUri: string | undefined;
 
@@ -96,6 +102,23 @@ export async function storeMemory(
     await redisCacheService.invalidateMemoryCache(qdrantId);
     await redisCacheService.invalidateSearchCache();
     
+    qdrantOperations.inc({ 
+      operation: 'upsert', 
+      status: 'success',
+      tenant_id: tenantId 
+    });
+    
+    timer({ tenant_id: tenantId });
+    
     return { qdrantId };
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'upsert', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ tenant_id: tenantId });
+      throw error;
+    }
   });
 }

@@ -1,5 +1,7 @@
 import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
+import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 /**
  * Retrieval helpers
@@ -7,12 +9,39 @@ import { validateAndConvertId } from './utils.js';
 
 export async function retrieveById(conn: QdrantConnection, uuid: string): Promise<{ uuid: string; payload: any } | null> {
   return conn.executeWithReconnect(async () => {
-    const validatedId = validateAndConvertId(uuid);
-    const points = await conn.client.retrieve(conn.collectionName, { ids: [validatedId], with_payload: true, with_vector: false });
-    if (!points || points.length === 0) return null;
-    const point = points[0];
-    if (!point) return null;
-    return { uuid: point.id.toString(), payload: point.payload };
+    const tenantId = getTenantId();
+    const timer = qdrantOperationDuration.startTimer({ operation: 'retrieve', tenant_id: tenantId });
+    
+    try {
+      const validatedId = validateAndConvertId(uuid);
+      const points = await conn.client.retrieve(conn.collectionName, { ids: [validatedId], with_payload: true, with_vector: false });
+      if (!points || points.length === 0) {
+        timer({ operation: 'retrieve', tenant_id: tenantId });
+        return null;
+      }
+      const point = points[0];
+      if (!point) {
+        timer({ operation: 'retrieve', tenant_id: tenantId });
+        return null;
+      }
+      
+      qdrantOperations.inc({ 
+        operation: 'retrieve', 
+        status: 'success',
+        tenant_id: tenantId 
+      });
+      
+      timer({ operation: 'retrieve', tenant_id: tenantId });
+      return { uuid: point.id.toString(), payload: point.payload };
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'retrieve', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ operation: 'retrieve', tenant_id: tenantId });
+      throw error;
+    }
   });
 }
 

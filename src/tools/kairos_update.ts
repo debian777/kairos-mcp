@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { qdrantService as qdrantServiceSingleton } from '../services/qdrant/index.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 // Removed legacy registerUpdateTool (no backward compatibility)
 
@@ -28,13 +30,25 @@ export function registerKairosUpdateTool(server: any, toolName = 'kairos_update'
             })
         },
         async (params: any) => {
-            const uris = params?.uris;
-            const markdownDoc: string[] | undefined = params.markdown_doc;
-            const updates: Record<string, any> | undefined = params.updates;
+            const tenantId = getTenantId();
+            const inputSize = JSON.stringify(params).length;
+            mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+            
+            const timer = mcpToolDuration.startTimer({ 
+              tool: toolName,
+              tenant_id: tenantId 
+            });
+            
+            let result: any;
+            
+            try {
+                const uris = params?.uris;
+                const markdownDoc: string[] | undefined = params.markdown_doc;
+                const updates: Record<string, any> | undefined = params.updates;
 
-            if (!Array.isArray(uris) || uris.length === 0) {
-                throw new Error('uris must be a non-empty array of strings');
-            }
+                if (!Array.isArray(uris) || uris.length === 0) {
+                    throw new Error('uris must be a non-empty array of strings');
+                }
 
             const results: any[] = [];
             let totalUpdated = 0;
@@ -90,16 +104,51 @@ export function registerKairosUpdateTool(server: any, toolName = 'kairos_update'
                 }
             }
 
-            const result = {
+            result = {
                 results,
                 total_updated: totalUpdated,
                 total_failed: totalFailed
             };
 
-            return {
+            const finalResult = {
                 content: [{ type: 'text', text: JSON.stringify(result) }],
                 structuredContent: result
             };
+            
+            mcpToolCalls.inc({ 
+              tool: toolName, 
+              status: 'success',
+              tenant_id: tenantId 
+            });
+            
+            const outputSize = JSON.stringify(finalResult).length;
+            mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+            
+            timer({ 
+              tool: toolName, 
+              status: 'success',
+              tenant_id: tenantId 
+            });
+            
+            return finalResult;
+            } catch (error) {
+                mcpToolCalls.inc({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                mcpToolErrors.inc({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                timer({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                throw error;
+            }
         }
     );
 }

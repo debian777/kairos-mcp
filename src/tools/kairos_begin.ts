@@ -7,6 +7,8 @@ import { resolveFirstStep as resolveChainFirstStep } from '../services/chain-uti
 import { redisCacheService } from '../services/redis-cache.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { SCORE_THRESHOLD } from '../config.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 interface RegisterBeginOptions {
   toolName?: string;
@@ -54,8 +56,20 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       outputSchema
     },
     async (params: any) => {
-      const { query } = params as { query: string };
-      const normalizedQuery = (query || '').trim().toLowerCase();
+      const tenantId = getTenantId();
+      const inputSize = JSON.stringify(params).length;
+      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+      
+      const timer = mcpToolDuration.startTimer({ 
+        tool: toolName,
+        tenant_id: tenantId 
+      });
+      
+      let result: any;
+      
+      try {
+        const { query } = params as { query: string };
+        const normalizedQuery = (query || '').trim().toLowerCase();
 
       // Check cache first
       const parseEnvBool = (name: string, defaultVal: boolean) => {
@@ -71,12 +85,29 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       const cachedResult = await redisCacheService.get(cacheKey);
       if (cachedResult) {
         const parsed = JSON.parse(cachedResult);
-        return {
+        result = {
           content: [{
             type: 'text', text: JSON.stringify(parsed)
           }],
           structuredContent: parsed
         };
+        
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        const outputSize = JSON.stringify(result).length;
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+        
+        timer({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        return result;
       }
 
       // Cache miss - perform search
@@ -120,12 +151,29 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           message: "I couldn't find any relevant protocol for your request.",
           suggestion: "Would you like to create a new one?"
         };
-        return {
+        result = {
           content: [{
             type: 'text', text: JSON.stringify(output)
           }],
           structuredContent: output
         };
+        
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        const outputSize = JSON.stringify(result).length;
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+        
+        timer({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        return result;
       }
 
       // Create results array with memory + score pairs
@@ -150,12 +198,29 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           suggestion: "Would you like to create a new one?"
         };
         await redisCacheService.set(cacheKey, JSON.stringify(output), 300); // 5 min cache
-        return {
+        result = {
           content: [{
             type: 'text', text: JSON.stringify(output)
           }],
           structuredContent: output
         };
+        
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        const outputSize = JSON.stringify(result).length;
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+        
+        timer({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        return result;
       }
 
       // Filter for perfect matches (score >= 1.0, always)
@@ -215,12 +280,47 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       // Cache the result (simplified)
       await redisCacheService.set(cacheKey, JSON.stringify(output), 300); // 5 min cache
 
-      return {
+      result = {
         content: [{
           type: 'text', text: JSON.stringify(output)
         }],
         structuredContent: output
       };
+      
+      mcpToolCalls.inc({ 
+        tool: toolName, 
+        status: 'success',
+        tenant_id: tenantId 
+      });
+      
+      const outputSize = JSON.stringify(result).length;
+      mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+      
+      timer({ 
+        tool: toolName, 
+        status: 'success',
+        tenant_id: tenantId 
+      });
+      
+      return result;
+      } catch (error) {
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        mcpToolErrors.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        timer({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        throw error;
+      }
     }
   );
 }

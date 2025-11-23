@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
@@ -15,6 +16,8 @@ import {
   generateTags
 } from '../../utils/memory-store-utils.js';
 import { getEmbeddingDimension } from '../../config.js';
+import { memoryStore, memoryStoreDuration, memoryChainSize } from '../metrics/memory-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 export class MemoryQdrantStoreChain {
   constructor(
@@ -41,9 +44,13 @@ export class MemoryQdrantStoreChain {
   }
 
   async storeChain(docs: string[], llmModelId: string, options: { forceUpdate?: boolean } = {}): Promise<Memory[]> {
-    if (!Array.isArray(docs) || docs.length === 0) {
-      return [];
-    }
+    const tenantId = getTenantId();
+    const timer = memoryStoreDuration.startTimer({ tenant_id: tenantId });
+    
+    try {
+      if (!Array.isArray(docs) || docs.length === 0) {
+        return [];
+      }
 
     // Normalize inputs: support both plain markdown strings and JSON-stringified markdown.
     const normalizedDocs = docs.map(normalizeMarkdownBlob);
@@ -183,6 +190,17 @@ export class MemoryQdrantStoreChain {
             const { task, type } = this.deriveDomainTaskType(memory.label, memory.text, memory.tags);
             const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
             await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+            
+            // Track memory store with quality
+            const quality = score.quality === 'legendary' ? 'excellent' :
+                           score.quality === 'rare' ? 'high' :
+                           score.quality === 'quality' ? 'standard' : 'basic';
+            memoryStore.inc({ quality, tenant_id: tenantId });
+            
+            // Track chain size
+            if (memory.chain) {
+              memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
+            }
           } catch { }
         }
 
@@ -333,9 +351,24 @@ export class MemoryQdrantStoreChain {
         const type = /```/.test(memory.text) || ltags.includes('pattern') ? 'pattern' : (ltags.includes('rule') ? 'rule' : 'context');
         const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
         await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+        
+        // Track memory store with quality
+        const quality = score.quality === 'legendary' ? 'excellent' :
+                       score.quality === 'rare' ? 'high' :
+                       score.quality === 'quality' ? 'standard' : 'basic';
+        memoryStore.inc({ quality, tenant_id: tenantId });
+        
+        // Track chain size
+        if (memory.chain) {
+          memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
+        }
       } catch { }
     }
 
     return memories;
+    } finally {
+      // End duration timer
+      timer({ tenant_id: tenantId });
+    }
   }
 }
