@@ -1,17 +1,13 @@
-/* eslint-disable max-lines */
 /**
- * KnowledgeGameService (orchestrator)
+ * ModelStatsService (orchestrator)
  *
- * Replaces the previous monolithic implementation and delegates responsibilities
- * to modular submodules:
- * - game-types.ts
- * - game-leaderboard.ts (inlined in Phase 4)
- * - game-achievements.ts
- * - game-scoring.ts
- * - game-bonuses.ts
- * - game-healer.ts
- * - game-motivation.ts
- * - game-protocol.ts
+ * Manages model performance statistics and quality scoring.
+ * Delegates to modular submodules:
+ * - stats-types.ts
+ * - stats-scoring.ts
+ * - stats-bonuses.ts
+ * - stats-healer.ts
+ * - stats-protocol.ts
  *
  * The orchestrator keeps minimal state and coordinates persistence via redis.
  */
@@ -19,7 +15,7 @@
 import { logger } from '../../utils/logger.js';
 import { redisService } from '../redis.js';
 import type { QualityMetrics } from '../../types/index.js';
-import type { GemScore, GameLeaderboard, GameStats, Achievement, RecentDiscovery } from './types.js';
+import type { QualityScore, GameLeaderboard, ModelStats, RecentDiscovery } from './types.js';
 import {
   agentContributions,
   agentImplementationBonus,
@@ -30,11 +26,11 @@ import { getTenantId } from '../../utils/tenant-context.js';
 
 // Leaderboard helper functions (inlined - leaderboard.ts removed in Phase 4)
 async function loadLeaderboard(): Promise<GameLeaderboard | null> {
-    return await redisService.getJson<GameLeaderboard>('game:leaderboard');
+    return await redisService.getJson<GameLeaderboard>('stats:leaderboard');
 }
 
 async function saveLeaderboard(leaderboard: GameLeaderboard): Promise<void> {
-    await redisService.setJson('game:leaderboard', leaderboard);
+    await redisService.setJson('stats:leaderboard', leaderboard);
 }
 
 function ensureLeaderboardShape(leaderboard?: Partial<GameLeaderboard>): GameLeaderboard {
@@ -73,17 +69,15 @@ function incrementLegendaryGems(leaderboard: GameLeaderboard, llm_model_id: stri
     leaderboard.legendaryGems[llm_model_id] = (leaderboard.legendaryGems[llm_model_id] || 0) + 1;
 }
 
-import { createDefaultAchievements } from './achievements.js';
 import {
-    calculateGemScore as scoringCalculateGemScore,
-    calculateStepGemMetadata as scoringCalculateStepGemMetadata
+    calculateQualityScore as scoringCalculateQualityScore,
+    calculateStepQualityMetadata as scoringCalculateStepQualityMetadata
 } from './scoring.js';
 import { computeImplementationBonus } from './bonuses.js';
 import { calculateHealerBonus as healerCalculate } from './healer.js';
-import { generateGemResponse as motivationGenerateGemResponse } from './motivation.js';
 import { calculateProtocolGemMetadata as protocolCalculate } from './protocol.js';
 
-export class KnowledgeGameService {
+export class ModelStatsService {
     private leaderboard: GameLeaderboard = ensureLeaderboardShape();
     private initialized = false;
 
@@ -91,16 +85,7 @@ export class KnowledgeGameService {
     private implementationBonusTotals: { [llm_model_id: string]: number } = {};
     private rareSuccessCounts: { [llm_model_id: string]: number } = {};
 
-    private achievements: Achievement[] = [];
-
     constructor() {
-        // build achievements with accessors bound to this instance
-        this.achievements = createDefaultAchievements(
-            this.getImplementationBonusTotal.bind(this),
-            this.getRareSuccesses.bind(this),
-            this.getHealingActions.bind(this)
-        );
-
         void this.init();
     }
 
@@ -120,15 +105,15 @@ export class KnowledgeGameService {
             this.leaderboard.healerBonuses = this.leaderboard.healerBonuses || {};
 
             this.initialized = true;
-            logger.info('KnowledgeGameService initialized with Redis persistence');
+            logger.info('ModelStatsService initialized with Redis persistence');
         } catch (error) {
-            logger.error('Failed to initialize KnowledgeGameService with Redis:', error);
+            logger.error('Failed to initialize ModelStatsService with Redis:', error);
             // proceed with in-memory defaults
         }
     }
 
     private async loadImplementationBonusTotals(): Promise<void> {
-        const data = await redisService.hgetall('game:implementationBonusTotals');
+        const data = await redisService.hgetall('stats:implementationBonusTotals');
         if (data) {
             for (const [llm_model_id, totalStr] of Object.entries(data)) {
                 this.implementationBonusTotals[llm_model_id] = parseInt(totalStr) || 0;
@@ -142,12 +127,12 @@ export class KnowledgeGameService {
             data[llm_model_id] = total.toString();
         }
         if (Object.keys(data).length > 0) {
-            await redisService.hsetall('game:implementationBonusTotals', data);
+            await redisService.hsetall('stats:implementationBonusTotals', data);
         }
     }
 
     private async loadRareSuccessCounts(): Promise<void> {
-        const data = await redisService.hgetall('game:rareSuccessCounts');
+        const data = await redisService.hgetall('stats:rareSuccessCounts');
         if (data) {
             for (const [llm_model_id, countStr] of Object.entries(data)) {
                 this.rareSuccessCounts[llm_model_id] = parseInt(countStr) || 0;
@@ -161,7 +146,7 @@ export class KnowledgeGameService {
             data[llm_model_id] = count.toString();
         }
         if (Object.keys(data).length > 0) {
-            await redisService.hsetall('game:rareSuccessCounts', data);
+            await redisService.hsetall('stats:rareSuccessCounts', data);
         }
     }
 
@@ -169,8 +154,8 @@ export class KnowledgeGameService {
     // Scoring and metadata
     // -----------------------
 
-    calculateGemScore(description: string, task: string, type: string, tags: string[]): GemScore {
-        return scoringCalculateGemScore(description, task, type, tags);
+    calculateQualityScore(description: string, task: string, type: string, tags: string[]): QualityScore {
+        return scoringCalculateQualityScore(description, task, type, tags);
     }
 
     /**
@@ -247,17 +232,15 @@ export class KnowledgeGameService {
         await updateHealerBonusHelper(this.leaderboard, llm_model_id, bonusPoints);
     }
 
-    async processGemDiscovery(llm_model_id: string, gemScore: GemScore, description: string): Promise<void> {
-        if (gemScore.total < 20) return;
+    async processContribution(llm_model_id: string, qualityScore: QualityScore, description: string): Promise<void> {
+        if (qualityScore.total < 20) return;
 
         const tenantId = getTenantId();
         
-        // Map old quality to new quality labels
-        const quality = gemScore.quality === 'legendary' ? 'excellent' :
-                       gemScore.quality === 'rare' ? 'high' :
-                       gemScore.quality === 'quality' ? 'standard' : 'basic';
+        // Use new quality labels directly
+        const quality = qualityScore.quality;
         
-        // Update metrics instead of leaderboard
+        // Update metrics
         agentContributions.inc({ 
             agent_id: llm_model_id, 
             quality, 
@@ -268,19 +251,20 @@ export class KnowledgeGameService {
             agent_id: llm_model_id, 
             quality_tier: quality,
             tenant_id: tenantId 
-        }, gemScore.total);
+        }, qualityScore.total);
 
         incrementTotalGems(this.leaderboard, llm_model_id);
 
-        if (gemScore.quality === 'legendary') {
+        // Map new quality back to old for backward compatibility with leaderboard
+        if (qualityScore.quality === 'excellent') {
             incrementLegendaryGems(this.leaderboard, llm_model_id);
         }
 
         const discovery: RecentDiscovery = {
             agent: llm_model_id,
             title: (description && description.trim() ? description : 'Knowledge pattern stored').substring(0, 50) + '...',
-            score: gemScore.total,
-            quality: gemScore.quality,
+            score: qualityScore.total,
+            quality: qualityScore.quality,
             timestamp: new Date()
         };
 
@@ -289,47 +273,35 @@ export class KnowledgeGameService {
         await saveLeaderboard(this.leaderboard);
     }
 
-    getAgentAchievements(llm_model_id: string): Achievement[] {
-        const stats = this.getAgentStats(llm_model_id);
-        return this.achievements.filter(a => a.condition(stats, llm_model_id));
-    }
-
     getLeaderboard(): GameLeaderboard {
         return this.leaderboard;
     }
 
-    getAgentStats(llm_model_id: string): GameStats {
+    getAgentStats(llm_model_id: string): ModelStats {
         const totalGems = this.leaderboard.totalGems[llm_model_id] || 0;
         const legendaryGems = this.leaderboard.legendaryGems[llm_model_id] || 0;
 
         const recentGems = this.leaderboard.recentDiscoveries.filter(d => d.agent === llm_model_id);
-        const rareGems = recentGems.filter(d => d.quality === 'rare').length;
-        const qualityGems = recentGems.filter(d => d.quality === 'quality').length;
-        const commonGems = recentGems.filter(d => d.quality === 'common').length;
+        const excellentContributions = recentGems.filter(d => d.quality === 'excellent').length;
+        const highContributions = recentGems.filter(d => d.quality === 'high').length;
+        const standardContributions = recentGems.filter(d => d.quality === 'standard').length;
+        const basicContributions = recentGems.filter(d => d.quality === 'basic').length;
 
         return {
-            totalGems,
-            legendaryGems,
-            rareGems,
-            qualityGems,
-            commonGems,
+            totalContributions: totalGems,
+            excellentContributions: excellentContributions || (legendaryGems > 0 ? 1 : 0),
+            highContributions,
+            standardContributions,
+            basicContributions,
             lastUpdated: new Date()
         };
-    }
-
-    // -----------------------
-    // Motivation / responses
-    // -----------------------
-
-    generateGemResponse(llm_model_id: string, gemScore: GemScore): string {
-        return motivationGenerateGemResponse(llm_model_id, gemScore);
     }
 
     // -----------------------
     // Protocol helpers
     // -----------------------
 
-    calculateStepGemMetadata(
+    calculateStepQualityMetadata(
         description: string,
         domain: string,
         task: string,
@@ -337,7 +309,7 @@ export class KnowledgeGameService {
         tags: string[],
         executionSuccess?: 'success' | 'partial' | 'failure'
     ) {
-        return scoringCalculateStepGemMetadata(description, domain, task, type, tags, executionSuccess);
+        return scoringCalculateStepQualityMetadata(description, domain, task, type, tags, executionSuccess);
     }
 
     async calculateProtocolGemMetadata(protocolId: string) {
@@ -370,4 +342,4 @@ export class KnowledgeGameService {
     }
 }
 
-export const knowledgeGame = new KnowledgeGameService();
+export const modelStats = new ModelStatsService();

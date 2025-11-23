@@ -93,6 +93,10 @@ export class QdrantService {
     return quality.updateGemMetadata(this.conn, id, gemMetadata);
   }
 
+  updateQualityMetadata(id: string, qualityMetadata: any) {
+    return quality.updateQualityMetadata(this.conn, id, qualityMetadata);
+  }
+
   trackPendingValidation(id: string, modelId: string, protocolStep?: number) {
     return quality.trackPendingValidation(this.conn, id, modelId, protocolStep);
   }

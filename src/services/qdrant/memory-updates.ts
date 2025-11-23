@@ -104,20 +104,24 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
 
-    let newGemMetadata = existingPayload.gem_metadata;
-    const shouldRecalculateGem = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
-    if (shouldRecalculateGem) {
-      const { knowledgeGame } = await import('../game/knowledge-game.js');
-      newGemMetadata = knowledgeGame.calculateStepGemMetadata(
+    let newQualityMetadata = existingPayload.quality_metadata || existingPayload.gem_metadata;
+    const shouldRecalculateQuality = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
+    if (shouldRecalculateQuality) {
+      const { modelStats } = await import('../stats/model-stats.js');
+      const qualityMetadata = modelStats.calculateStepQualityMetadata(
         updates.description_short || existingPayload.description_short || '',
         updates.domain || existingPayload.domain || 'general',
         updates.task || existingPayload.task || 'general-task',
         updates.type || existingPayload.type || 'context',
         updates.tags || existingPayload.tags || []
       );
+      newQualityMetadata = {
+        step_quality_score: qualityMetadata.step_quality_score,
+        step_quality: qualityMetadata.step_quality
+      };
     }
 
-    const updatedPayload = { ...existingPayload, ...updates, updated_at: new Date().toISOString(), gem_metadata: newGemMetadata };
+    const updatedPayload = { ...existingPayload, ...updates, updated_at: new Date().toISOString(), quality_metadata: newQualityMetadata };
 
     let vector: number[] = [];
     let existingVectorObj: any = undefined;

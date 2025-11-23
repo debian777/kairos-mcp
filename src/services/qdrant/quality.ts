@@ -6,7 +6,8 @@ import { logger } from '../../utils/logger.js';
 /**
  * Quality management functions:
  * - updateQualityMetrics
- * - updateGemMetadata
+ * - updateGemMetadata (deprecated, use updateQualityMetadata)
+ * - updateQualityMetadata
  * - trackPendingValidation
  */
 
@@ -52,6 +53,20 @@ export async function updateGemMetadata(conn: QdrantConnection, id: string, gemM
     const existingPayload = existingPoint.payload as any;
     const updatedGemMetadata = { ...existingPayload.gem_metadata, ...gemMetadata };
     const updatedPayload = { ...existingPayload, gem_metadata: updatedGemMetadata, updated_at: new Date().toISOString() };
+    await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id, vector: existingPoint.vector as any, payload: updatedPayload }]);
+  });
+}
+
+export async function updateQualityMetadata(conn: QdrantConnection, id: string, qualityMetadata: { step_quality_score: number; step_quality: 'excellent' | 'high' | 'standard' | 'basic'; }): Promise<void> {
+  return conn.executeWithReconnect(async () => {
+    const retrieveResult = await conn.client.retrieve(conn.collectionName, { ids: [id], with_payload: true, with_vector: true });
+    if (!retrieveResult || retrieveResult.length === 0) {
+      throw new KairosError(`Memory with ID ${id} not found for quality metadata update`, 'MEMORY_NOT_FOUND', 404);
+    }
+    const existingPoint = retrieveResult[0]!;
+    const existingPayload = existingPoint.payload as any;
+    const updatedQualityMetadata = { ...(existingPayload.quality_metadata || existingPayload.gem_metadata || {}), ...qualityMetadata };
+    const updatedPayload = { ...existingPayload, quality_metadata: updatedQualityMetadata, updated_at: new Date().toISOString() };
     await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id, vector: existingPoint.vector as any, payload: updatedPayload }]);
   });
 }

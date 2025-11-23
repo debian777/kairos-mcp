@@ -8,7 +8,7 @@ import { KairosError } from '../../types/index.js';
 import { embeddingService } from '../embedding/service.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { MemoryQdrantStoreMethods } from './store-methods.js';
-import { knowledgeGame } from '../game/knowledge-game.js';
+import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import {
   normalizeMarkdownBlob,
@@ -131,7 +131,7 @@ export class MemoryQdrantStoreChain {
 
         const points = headerChainMemories.map((memory, i) => {
           const dtt = this.deriveDomainTaskType(memory.label, memory.text, memory.tags);
-          const gem = knowledgeGame.calculateStepGemMetadata(
+          const qualityMetadata = modelStats.calculateStepQualityMetadata(
             memory.label,
             'general',
             dtt.task,
@@ -147,14 +147,13 @@ export class MemoryQdrantStoreChain {
               text: memory.text,
               llm_model_id: memory.llm_model_id,
               created_at: memory.created_at,
-              // basic classification for game + filtering (domain removed)
+              // basic classification for stats + filtering (domain removed)
               task: dtt.task,
               type: dtt.type,
-              // gem metadata (no execution context on store)
-              gem_metadata: {
-                step_gem_potential: gem.step_gem_potential,
-                step_quality: gem.step_quality,
-                motivational_text: gem.motivational_text
+              // quality metadata (no execution context on store)
+              quality_metadata: {
+                step_quality_score: qualityMetadata.step_quality_score,
+                step_quality: qualityMetadata.step_quality
               },
               // memory chain metadata (nested object)
               chain: {
@@ -184,17 +183,15 @@ export class MemoryQdrantStoreChain {
         // Invalidate local in-process cache so searches see new points
         this.methods.invalidateLocalCache();
 
-        // Update Knowledge Mining Game leaderboard for each stored step
+        // Update model statistics for each stored step
         for (const memory of headerChainMemories) {
           try {
             const { task, type } = this.deriveDomainTaskType(memory.label, memory.text, memory.tags);
-            const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
-            await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+            const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
+            await modelStats.processContribution(memory.llm_model_id, score, memory.label);
             
             // Track memory store with quality
-            const quality = score.quality === 'legendary' ? 'excellent' :
-                           score.quality === 'rare' ? 'high' :
-                           score.quality === 'quality' ? 'standard' : 'basic';
+            const quality = score.quality;
             memoryStore.inc({ quality, tenant_id: tenantId });
             
             // Track chain size
@@ -289,9 +286,9 @@ export class MemoryQdrantStoreChain {
     });
 
     const points = memories.map((memory, index) => {
-      // classify + gem metadata
+      // classify + quality metadata
       const { task, type } = this.deriveDomainTaskType(memory.label, memory.text, memory.tags);
-      const gem = knowledgeGame.calculateStepGemMetadata(
+      const qualityMetadata = modelStats.calculateStepQualityMetadata(
         memory.label,
         'general',
         task,
@@ -309,10 +306,9 @@ export class MemoryQdrantStoreChain {
           created_at: memory.created_at,
           task,
           type,
-          gem_metadata: {
-            step_gem_potential: gem.step_gem_potential,
-            step_quality: gem.step_quality,
-            motivational_text: gem.motivational_text
+          quality_metadata: {
+            step_quality_score: qualityMetadata.step_quality_score,
+            step_quality: qualityMetadata.step_quality
           },
           // memory chain metadata (nested object)
           chain: {
@@ -342,20 +338,18 @@ export class MemoryQdrantStoreChain {
     // Invalidate local in-process cache so searches see new points
     this.methods.invalidateLocalCache();
 
-    // Update Knowledge Mining Game leaderboard for each stored memory
+    // Update model statistics for each stored memory
     for (const memory of memories) {
       try {
         const ltags = (memory.tags || []).map(t => t.toLowerCase());
         const knownTasks = new Set(['networking', 'security', 'optimization', 'troubleshooting', 'error-handling', 'installation', 'configuration', 'testing', 'deployment', 'database']);
         const task = ltags.find(t => knownTasks.has(t)) || 'general';
         const type = /```/.test(memory.text) || ltags.includes('pattern') ? 'pattern' : (ltags.includes('rule') ? 'rule' : 'context');
-        const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
-        await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+        const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
+        await modelStats.processContribution(memory.llm_model_id, score, memory.label);
         
         // Track memory store with quality
-        const quality = score.quality === 'legendary' ? 'excellent' :
-                       score.quality === 'rare' ? 'high' :
-                       score.quality === 'quality' ? 'standard' : 'basic';
+        const quality = score.quality;
         memoryStore.inc({ quality, tenant_id: tenantId });
         
         // Track chain size

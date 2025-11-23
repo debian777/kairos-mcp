@@ -1,10 +1,9 @@
 /**
- * Core gem scoring algorithms extracted from KnowledgeGameService.
+ * Core quality scoring algorithms extracted from ModelStatsService.
  * Pure functions that compute component scores and aggregate quality.
  */
 
-import type { GemScore } from './types.js';
-import { generateStepMotivation } from './motivation.js';
+import type { QualityScore } from './types.js';
 
 export function calculateSpecificity(description: string, task: string, type: string): number {
     let score = 5;
@@ -46,20 +45,20 @@ export function calculateLongevity(description: string, type: string): number {
     return Math.max(0, Math.min(10, score));
 }
 
-export function determineQuality(total: number): GemScore['quality'] {
-    if (total >= 30) return 'legendary';
-    if (total >= 25) return 'rare';
-    if (total >= 20) return 'quality';
-    if (total >= 15) return 'common';
-    return 'not_gem';
+export function determineQuality(total: number): QualityScore['quality'] {
+    if (total >= 30) return 'excellent';
+    if (total >= 25) return 'high';
+    if (total >= 20) return 'standard';
+    if (total >= 15) return 'basic';
+    return 'below_threshold';
 }
 
-export function calculateGemScore(
+export function calculateQualityScore(
     description: string,
     task: string,
     type: string,
     tags: string[]
-): GemScore {
+): QualityScore {
     const specificity = calculateSpecificity(description, task, type);
     const expertValue = calculateExpertValue(task, tags);
     const broadUtility = calculateBroadUtility(task, tags);
@@ -70,10 +69,9 @@ export function calculateGemScore(
 }
 
 /**
- * Calculate step-level gem metadata. This function delegates motivational text
- * generation to the motivation module (to avoid duplicating templates).
+ * Calculate step-level quality metadata.
  */
-export function calculateStepGemMetadata(
+export function calculateStepQualityMetadata(
     description: string,
     domain: string,
     task: string,
@@ -81,31 +79,28 @@ export function calculateStepGemMetadata(
     tags: string[],
     executionSuccess?: 'success' | 'partial' | 'failure'
 ): {
-    step_gem_potential: number;
-    step_quality: 'quality' | 'rare' | 'legendary';
-    motivational_text: string;
+    step_quality_score: number;
+    step_quality: 'excellent' | 'high' | 'standard' | 'basic';
 } {
-    const gemScore = calculateGemScore(description, task, type, tags);
+    const qualityScore = calculateQualityScore(description, task, type, tags);
 
     let executionMultiplier = 1.0;
     if (executionSuccess === 'success') executionMultiplier = 3.0;
     else if (executionSuccess === 'partial') executionMultiplier = 1.5;
     else if (executionSuccess === 'failure') executionMultiplier = 0.5;
 
-    const basePotential = Math.max(1, Math.round(gemScore.total / 10));
-    const stepGemPotential = Math.round(basePotential * executionMultiplier);
-    const adjustedScore = gemScore.total * executionMultiplier;
+    const baseScore = Math.max(1, Math.round(qualityScore.total / 10));
+    const stepQualityScore = Math.round(baseScore * executionMultiplier);
+    const adjustedScore = qualityScore.total * executionMultiplier;
 
-    let stepQuality: 'quality' | 'rare' | 'legendary';
-    if (adjustedScore >= 60 || (executionSuccess === 'success' && adjustedScore >= 40)) stepQuality = 'legendary';
-    else if (adjustedScore >= 35 || (executionSuccess === 'success' && adjustedScore >= 25)) stepQuality = 'rare';
-    else stepQuality = 'quality';
-
-    const motivationalText = generateStepMotivation(gemScore, domain, task, executionSuccess);
+    let stepQuality: 'excellent' | 'high' | 'standard' | 'basic';
+    if (adjustedScore >= 60 || (executionSuccess === 'success' && adjustedScore >= 40)) stepQuality = 'excellent';
+    else if (adjustedScore >= 35 || (executionSuccess === 'success' && adjustedScore >= 25)) stepQuality = 'high';
+    else if (adjustedScore >= 20) stepQuality = 'standard';
+    else stepQuality = 'basic';
 
     return {
-        step_gem_potential: stepGemPotential,
-        step_quality: stepQuality,
-        motivational_text: motivationalText
+        step_quality_score: stepQualityScore,
+        step_quality: stepQuality
     };
 }

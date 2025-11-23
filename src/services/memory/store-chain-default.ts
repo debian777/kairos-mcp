@@ -7,7 +7,7 @@ import { KairosError } from '../../types/index.js';
 import { embeddingService } from '../embedding/service.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { MemoryQdrantStoreMethods } from './store-methods.js';
-import { knowledgeGame } from '../game/knowledge-game.js';
+import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import {
   generateLabel,
@@ -119,9 +119,9 @@ export async function processDefaultChain(
   });
 
   const points = memories.map((memory, index) => {
-    // classify + gem metadata
+    // classify + quality metadata
     const { task, type } = deriveDomainTaskType(memory.label, memory.text, memory.tags);
-    const gem = knowledgeGame.calculateStepGemMetadata(
+    const qualityMetadata = modelStats.calculateStepQualityMetadata(
       memory.label,
       'general',
       task,
@@ -139,10 +139,9 @@ export async function processDefaultChain(
         created_at: memory.created_at,
         task,
         type,
-        gem_metadata: {
-          step_gem_potential: gem.step_gem_potential,
-          step_quality: gem.step_quality,
-          motivational_text: gem.motivational_text
+        quality_metadata: {
+          step_quality_score: qualityMetadata.step_quality_score,
+          step_quality: qualityMetadata.step_quality
         },
         // memory chain metadata (nested object)
         chain: {
@@ -172,15 +171,15 @@ export async function processDefaultChain(
   // Invalidate local in-process cache so searches see new points
   methods.invalidateLocalCache();
 
-  // Update Knowledge Mining Game leaderboard for each stored memory
+  // Update model statistics for each stored memory
   for (const memory of memories) {
     try {
       const ltags = (memory.tags || []).map(t => t.toLowerCase());
       const knownTasks = new Set(['networking', 'security', 'optimization', 'troubleshooting', 'error-handling', 'installation', 'configuration', 'testing', 'deployment', 'database']);
       const task = ltags.find(t => knownTasks.has(t)) || 'general';
       const type = /```/.test(memory.text) || ltags.includes('pattern') ? 'pattern' : (ltags.includes('rule') ? 'rule' : 'context');
-      const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
-      await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+      const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
+      await modelStats.processContribution(memory.llm_model_id, score, memory.label);
     } catch { }
   }
 

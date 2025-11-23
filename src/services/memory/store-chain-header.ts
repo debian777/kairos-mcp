@@ -5,7 +5,7 @@ import { IDGenerator } from '../id-generator.js';
 import { KairosError } from '../../types/index.js';
 import { embeddingService } from '../embedding/service.js';
 import { MemoryQdrantStoreMethods } from './store-methods.js';
-import { knowledgeGame } from '../game/knowledge-game.js';
+import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { getEmbeddingDimension } from '../../config.js';
 
@@ -103,7 +103,7 @@ export async function processHeaderBasedChain(
 
   const points = headerChainMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
-    const gem = knowledgeGame.calculateStepGemMetadata(
+    const qualityMetadata = modelStats.calculateStepQualityMetadata(
       memory.label,
       'general',
       dtt.task,
@@ -119,14 +119,13 @@ export async function processHeaderBasedChain(
         text: memory.text,
         llm_model_id: memory.llm_model_id,
         created_at: memory.created_at,
-        // basic classification for game + filtering (domain removed)
+        // basic classification for stats + filtering (domain removed)
         task: dtt.task,
         type: dtt.type,
-        // gem metadata (no execution context on store)
-        gem_metadata: {
-          step_gem_potential: gem.step_gem_potential,
-          step_quality: gem.step_quality,
-          motivational_text: gem.motivational_text
+        // quality metadata (no execution context on store)
+        quality_metadata: {
+          step_quality_score: qualityMetadata.step_quality_score,
+          step_quality: qualityMetadata.step_quality
         },
         // memory chain metadata (nested object)
         chain: {
@@ -156,12 +155,12 @@ export async function processHeaderBasedChain(
   // Invalidate local in-process cache so searches see new points
   methods.invalidateLocalCache();
 
-  // Update Knowledge Mining Game leaderboard for each stored step
+  // Update model statistics for each stored step
   for (const memory of headerChainMemories) {
     try {
       const { task, type } = deriveDomainTaskType(memory.label, memory.text, memory.tags);
-      const score = knowledgeGame.calculateGemScore(memory.label, task, type, memory.tags);
-      await knowledgeGame.processGemDiscovery(memory.llm_model_id, score, memory.label);
+      const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
+      await modelStats.processContribution(memory.llm_model_id, score, memory.label);
     } catch { }
   }
 

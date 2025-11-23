@@ -27,17 +27,17 @@ export async function calculateProtocolGemMetadata(protocolId: string): Promise<
         const stepQualities: string[] = [];
 
         for (const step of protocolSteps) {
-            const stepGem = step.payload?.gem_metadata;
-            if (stepGem) {
-                totalPotential += stepGem.step_gem_potential || 1;
-                stepQualities.push(stepGem.step_quality || 'quality');
+            const stepQuality = step.payload?.quality_metadata || step.payload?.gem_metadata;
+            if (stepQuality) {
+                totalPotential += stepQuality.step_quality_score || stepQuality.step_gem_potential || 1;
+                stepQualities.push(stepQuality.step_quality || 'standard');
             } else {
                 totalPotential += 1;
                 stepQualities.push('quality');
             }
         }
 
-        const maxPotential = Math.max(...protocolSteps.map(s => s.payload?.gem_metadata?.step_gem_potential || 1));
+        const maxPotential = Math.max(...protocolSteps.map(s => (s.payload?.quality_metadata?.step_quality_score || s.payload?.gem_metadata?.step_gem_potential || 1)));
 
         let workflowQuality: string;
         if (maxPotential >= 5 && totalPotential >= 15) workflowQuality = 'Legendary Workflow';
@@ -50,7 +50,7 @@ export async function calculateProtocolGemMetadata(protocolId: string): Promise<
             workflow_quality: workflowQuality
         };
     } catch (error) {
-        logger.warn(`Failed to calculate protocol gem metadata for ${protocolId}: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(`Failed to calculate protocol quality metadata for ${protocolId}: ${error instanceof Error ? error.message : String(error)}`);
         return {
             workflow_total_potential: 3,
             workflow_quality: 'Standard Protocol'

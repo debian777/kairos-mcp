@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { QdrantService } from '../services/qdrant/service.js';
 import { IDGenerator } from '../services/id-generator.js';
-import { knowledgeGame } from '../services/game/knowledge-game.js';
+import { modelStats } from '../services/stats/model-stats.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
@@ -93,7 +93,7 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
             const currentMetrics = currentPoint?.payload?.quality_metrics || {};
 
             // Calculate implementation success bonus
-            const implementationBonus = await knowledgeGame.calculateImplementationBonus(
+            const implementationBonus = await modelStats.calculateImplementationBonus(
               currentMetrics,
               modelIdentity.modelId,
               outcome
@@ -118,42 +118,41 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
 
             await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
 
-            // Recalculate gem metadata with execution success context!
-            // Successful executions dramatically boost gem potential
+            // Recalculate quality metadata with execution success context!
+            // Successful executions dramatically boost quality score
             if (currentPoint?.payload) {
               const { description_short, domain, task, type, tags } = currentPoint.payload;
 
-              // Calculate new gem metadata with execution success
-              const updatedGemMetadata = knowledgeGame.calculateStepGemMetadata(
+              // Calculate new quality metadata with execution success
+              const updatedQualityMetadata = modelStats.calculateStepQualityMetadata(
                 description_short || 'Knowledge step',
                 domain || 'general',
                 task || 'general',
                 type || 'context',
                 tags || [],
-                outcome // Pass execution success to boost gem potential!
+                outcome // Pass execution success to boost quality score!
               );
 
-              // Update gem metadata in Qdrant
-              await qdrantService.updateGemMetadata(qdrantUuid, {
-                step_gem_potential: updatedGemMetadata.step_gem_potential,
-                step_quality: updatedGemMetadata.step_quality,
-                motivational_text: updatedGemMetadata.motivational_text
+              // Update quality metadata in Qdrant
+              await qdrantService.updateQualityMetadata(qdrantUuid, {
+                step_quality_score: updatedQualityMetadata.step_quality_score,
+                step_quality: updatedQualityMetadata.step_quality
               });
 
-              logger.info(`attest: Updated gem metadata for ${uri} with execution ${outcome} - potential: ${updatedGemMetadata.step_gem_potential} (${updatedGemMetadata.step_quality})`);
+              logger.info(`attest: Updated quality metadata for ${uri} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`);
             }
 
-            // Process quality feedback for the game
-            await knowledgeGame.processQualityFeedback(
+            // Process quality feedback
+            await modelStats.processQualityFeedback(
               modelIdentity.modelId,
               uri,
               outcome,
               totalQualityBonus
             );
 
-            // Update implementation bonuses in leaderboard
+            // Update implementation bonuses
             if (implementationBonus > 0) {
-              await knowledgeGame.updateImplementationBonus(modelIdentity.modelId, implementationBonus);
+              await modelStats.updateImplementationBonus(modelIdentity.modelId, implementationBonus);
             }
 
             results.push({
