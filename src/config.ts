@@ -3,6 +3,8 @@
  * This file contains all environment variable parsing logic.
  */
 
+import os from 'os';
+
 function getEnvString(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
 }
@@ -57,6 +59,7 @@ export const QDRANT_RESCORE_STRING = getEnvString('QDRANT_RESCORE', 'true');
 // Int configurations
 export const PORT = getEnvInt('PORT', 3000);
 export const BATCH_SIZE = getEnvInt('BATCH_SIZE', 100);
+export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);
 
 // Float configurations
 export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.7);
@@ -90,3 +93,5 @@ export function getTeiDimension(defaultValue = 0): number {
 // Derived configurations
 export const TRUSTED_PROXY_CIDRS = TRUSTED_PROXY_CIDRS_STRING.split(',').filter(Boolean);
 export const ENABLE_GROUP_COLLAPSE = KAIROS_ENABLE_GROUP_COLLAPSE !== 'false' && KAIROS_ENABLE_GROUP_COLLAPSE !== '0';
+export const INSTANCE_ID = getEnvString('INSTANCE_ID', os.hostname() || 'unknown');
+export const DEFAULT_TENANT_ID = getEnvString('DEFAULT_TENANT_ID', 'default');

@@ -11,6 +11,8 @@ import { MemoryQdrantStore } from './services/memory/store.js';
 import { createServer } from './server.js';
 import { startServer } from './http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
+import { startMetricsServer } from './metrics-server.js';
+import { PORT, METRICS_PORT } from './config.js';
 
 /**
  * Wait for Qdrant to be available with retries
@@ -58,6 +60,13 @@ async function main(): Promise<void> {
         // Inject mem resources from embedded-mcp-resources into Qdrant at boot
         // Use force=true to allow override in new versions
         await injectMemResourcesAtBoot(memoryStore, { force: true });
+
+        // Start dedicated metrics server on separate port
+        // This runs independently from the main application server
+        startMetricsServer();
+
+        structuredLogger.info(`Application server: ${PORT}`);
+        structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
 
         const server = createServer(memoryStore);
         await startServer(server, memoryStore);
