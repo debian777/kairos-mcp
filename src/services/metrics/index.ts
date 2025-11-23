@@ -3,21 +3,35 @@
  * 
  * This module exports the Prometheus registry and provides
  * access to all metric collectors.
- * 
- * Metrics are organized by category:
- * - MCP tool metrics (mcp-metrics.ts)
- * - Memory operation metrics (memory-metrics.ts)
- * - Qdrant metrics (qdrant-metrics.ts)
- * - Agent performance metrics (agent-metrics.ts)
- * - Quality metrics (quality-metrics.ts)
- * - Embedding metrics (embedding-metrics.ts)
- * - HTTP metrics (http-metrics.ts)
- * - System metrics (system-metrics.ts)
- * - Redis metrics (redis-metrics.ts)
  */
 
 export { register } from './registry.js';
+export * from './types.js';
 
-// Metric modules will be imported here as they are created
-// For Phase 1, we only export the registry
+// MCP metrics
+export * from './mcp-metrics.js';
+
+// Memory metrics
+export * from './memory-metrics.js';
+
+// Qdrant metrics
+export * from './qdrant-metrics.js';
+
+// Agent metrics
+export * from './agent-metrics.js';
+
+// Quality metrics
+export * from './quality-metrics.js';
+
+// Embedding metrics
+export * from './embedding-metrics.js';
+
+// HTTP metrics
+export * from './http-metrics.js';
+
+// System metrics
+export * from './system-metrics.js';
+
+// Redis metrics
+export * from './redis-metrics.js';
 
