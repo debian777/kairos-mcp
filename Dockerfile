@@ -47,8 +47,12 @@ USER kairos
 ARG PORT=3500
 ENV PORT=${PORT}
 
-# Expose port for HTTP/WebSocket transports
-EXPOSE ${PORT}
+# Metrics port configuration
+ARG METRICS_PORT=9090
+ENV METRICS_PORT=${METRICS_PORT}
+
+# Expose ports for HTTP/WebSocket transports and metrics
+EXPOSE ${PORT} ${METRICS_PORT}
 
 # Health check (Node.js based, no curl/wget needed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

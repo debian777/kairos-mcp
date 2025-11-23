@@ -84,10 +84,12 @@ services:
       - .env.qa
     ports:
       - "${PORT}:${PORT}"
+      - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
     environment:
       # Overrides to access real localhost services from within Docker container
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
+      - METRICS_PORT=${METRICS_PORT:-9090}
     # depends_on:
     #   - qdrant
     #   - redis
