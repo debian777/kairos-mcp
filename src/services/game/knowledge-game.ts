@@ -1,10 +1,11 @@
+/* eslint-disable max-lines */
 /**
  * KnowledgeGameService (orchestrator)
  *
  * Replaces the previous monolithic implementation and delegates responsibilities
  * to modular submodules:
  * - game-types.ts
- * - game-leaderboard.ts
+ * - game-leaderboard.ts (inlined in Phase 4)
  * - game-achievements.ts
  * - game-scoring.ts
  * - game-bonuses.ts
@@ -27,16 +28,50 @@ import {
 } from '../metrics/agent-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
 
-import {
-    loadLeaderboard as lbLoad,
-    saveLeaderboard as lbSave,
-    ensureLeaderboardShape,
-    addRecentDiscovery,
-    incrementTotalGems,
-    incrementLegendaryGems,
-    updateImplementationBonus as lbUpdateImpl,
-    updateHealerBonus as lbUpdateHealer
-} from './leaderboard.js';
+// Leaderboard helper functions (inlined - leaderboard.ts removed in Phase 4)
+async function loadLeaderboard(): Promise<GameLeaderboard | null> {
+    return await redisService.getJson<GameLeaderboard>('game:leaderboard');
+}
+
+async function saveLeaderboard(leaderboard: GameLeaderboard): Promise<void> {
+    await redisService.setJson('game:leaderboard', leaderboard);
+}
+
+function ensureLeaderboardShape(leaderboard?: Partial<GameLeaderboard>): GameLeaderboard {
+    return {
+        totalGems: (leaderboard && leaderboard.totalGems) || {},
+        legendaryGems: (leaderboard && leaderboard.legendaryGems) || {},
+        recentDiscoveries: (leaderboard && leaderboard.recentDiscoveries) || [],
+        implementationBonuses: (leaderboard && leaderboard.implementationBonuses) || {},
+        healerBonuses: (leaderboard && leaderboard.healerBonuses) || {}
+    };
+}
+
+function addRecentDiscovery(leaderboard: GameLeaderboard, discovery: RecentDiscovery): void {
+    leaderboard.recentDiscoveries.unshift(discovery);
+    leaderboard.recentDiscoveries = leaderboard.recentDiscoveries.slice(0, 20);
+    logger.info(`Added recent discovery by ${discovery.agent} (${discovery.score}pts)`);
+}
+
+async function updateImplementationBonusHelper(leaderboard: GameLeaderboard, llm_model_id: string, bonusPoints: number): Promise<void> {
+    leaderboard.implementationBonuses[llm_model_id] = (leaderboard.implementationBonuses[llm_model_id] || 0) + bonusPoints;
+    logger.info(`Implementation bonus: ${llm_model_id} earned ${bonusPoints} points`);
+    await saveLeaderboard(leaderboard);
+}
+
+async function updateHealerBonusHelper(leaderboard: GameLeaderboard, llm_model_id: string, bonusPoints: number): Promise<void> {
+    leaderboard.healerBonuses[llm_model_id] = (leaderboard.healerBonuses[llm_model_id] || 0) + bonusPoints;
+    logger.info(`Healer bonus: ${llm_model_id} earned ${bonusPoints} points`);
+    await saveLeaderboard(leaderboard);
+}
+
+function incrementTotalGems(leaderboard: GameLeaderboard, llm_model_id: string): void {
+    leaderboard.totalGems[llm_model_id] = (leaderboard.totalGems[llm_model_id] || 0) + 1;
+}
+
+function incrementLegendaryGems(leaderboard: GameLeaderboard, llm_model_id: string): void {
+    leaderboard.legendaryGems[llm_model_id] = (leaderboard.legendaryGems[llm_model_id] || 0) + 1;
+}
 
 import { createDefaultAchievements } from './achievements.js';
 import {
@@ -74,7 +109,7 @@ export class KnowledgeGameService {
         try {
             await redisService.connect();
 
-            const maybe = await lbLoad();
+            const maybe = await loadLeaderboard();
             if (maybe) this.leaderboard = ensureLeaderboardShape(maybe);
 
             await this.loadImplementationBonusTotals();
@@ -174,7 +209,7 @@ export class KnowledgeGameService {
             }
 
             // Update leaderboard display state (persisted by leaderboard helper)
-            await lbUpdateImpl(this.leaderboard, llm_model_id, finalBonus);
+            await updateImplementationBonusHelper(this.leaderboard, llm_model_id, finalBonus);
 
             // Persist totals
             await this.saveImplementationBonusTotals();
@@ -195,7 +230,7 @@ export class KnowledgeGameService {
         const bonus = healerCalculate(qualityMetrics, llm_model_id, improvementType);
         if (bonus > 0) {
             // Update leaderboard (async fire-and-forget acceptable, but await to keep consistency)
-            void lbUpdateHealer(this.leaderboard, llm_model_id, bonus);
+            void updateHealerBonusHelper(this.leaderboard, llm_model_id, bonus);
         }
         return bonus;
     }
@@ -205,11 +240,11 @@ export class KnowledgeGameService {
     // -----------------------
 
     async updateImplementationBonus(llm_model_id: string, bonusPoints: number): Promise<void> {
-        await lbUpdateImpl(this.leaderboard, llm_model_id, bonusPoints);
+        await updateImplementationBonusHelper(this.leaderboard, llm_model_id, bonusPoints);
     }
 
     async updateHealerBonus(llm_model_id: string, bonusPoints: number): Promise<void> {
-        await lbUpdateHealer(this.leaderboard, llm_model_id, bonusPoints);
+        await updateHealerBonusHelper(this.leaderboard, llm_model_id, bonusPoints);
     }
 
     async processGemDiscovery(llm_model_id: string, gemScore: GemScore, description: string): Promise<void> {
@@ -251,7 +286,7 @@ export class KnowledgeGameService {
 
         addRecentDiscovery(this.leaderboard, discovery);
 
-        await lbSave(this.leaderboard);
+        await saveLeaderboard(this.leaderboard);
     }
 
     getAgentAchievements(llm_model_id: string): Achievement[] {

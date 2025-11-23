@@ -1,49 +1,14 @@
 import getRawBody from 'raw-body';
 import express from 'express';
 import { MemoryQdrantStore } from './services/memory/store.js';
-import { leaderboardHtml } from './resources/content/leaderboard.js';
 import { structuredLogger } from './utils/structured-logger.js';
 
 /**
- * Set up API routes for leaderboard, achievements, and raw markdown ingestion
+ * Set up API routes for raw markdown ingestion
  * @param app Express application instance
  * @param memoryStore Memory store instance
  */
 export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantStore) {
-    // Modern Leaderboard Interface for Humans
-    app.get('/leaderboard', (req, res) => {
-        try {
-            res.setHeader('Content-Type', 'text/html');
-            res.send(leaderboardHtml);
-        } catch (err) {
-            structuredLogger.error('Failed to send embedded leaderboard HTML', err instanceof Error ? err.message : String(err));
-            res.status(500).send('<h1>Failed to load leaderboard</h1>');
-        }
-    });
-
-    // Direct API endpoint for leaderboard data (bypassing MCP)
-    app.get('/api/leaderboard', async (req, res) => {
-        try {
-            const { getLeaderboardData } = await import('./services/game/leaderboard-api.js');
-            const data = await getLeaderboardData();
-            res.json(data);
-        } catch (err) {
-            structuredLogger.error('Failed to fetch leaderboard data', err instanceof Error ? err.message : String(err));
-            res.status(500).json({ error: 'Failed to fetch leaderboard data' });
-        }
-    });
-
-    // Direct API endpoint for achievements data (bypassing MCP)
-    app.get('/api/achievements', async (req, res) => {
-        try {
-            const { getAchievementsData } = await import('./services/game/leaderboard-api.js');
-            const data = getAchievementsData();
-            res.json(data);
-        } catch (err) {
-            structuredLogger.error('Failed to fetch achievements data', err instanceof Error ? err.message : String(err));
-            res.status(500).json({ error: 'Failed to fetch achievements data' });
-        }
-    });
 
     // REST API endpoint for raw markdown ingestion
     app.post('/api/kairos_mint/raw', async (req, res) => {

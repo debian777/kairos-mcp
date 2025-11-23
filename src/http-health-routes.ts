@@ -75,8 +75,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             transports: ['http'],
             endpoints: {
                 health: '/health',
-                mcp: '/mcp',
-                leaderboard: '/leaderboard'
+                mcp: '/mcp'
             },
             note: 'Use POST /mcp for MCP protocol communication'
         });
