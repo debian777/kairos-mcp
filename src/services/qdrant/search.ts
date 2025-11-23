@@ -1,30 +1,44 @@
 import { QdrantConnection } from './connection.js';
 import { embeddingService } from '../embedding/service.js';
 import { logger } from '../../utils/logger.js';
+import { qdrantOperations, qdrantQueryDuration } from '../metrics/qdrant-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 /**
  * searchMemory - vector similarity search wrapper
  */
 export async function searchMemory(conn: QdrantConnection, query: string, limit?: number, domain?: string) {
   return conn.executeWithReconnect(async () => {
-    logger.info(`DEBUG: searchKnowledge called with query: "${query}", domain: "${domain || 'all'}", limit: ${limit || 10}`);
-    const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
-    const queryVector = queryEmbeddingResult.embedding;
-    logger.info(`DEBUG: Query embedding generated, length: ${queryVector.length}`);
+    const tenantId = getTenantId();
+    const timer = qdrantQueryDuration.startTimer({ tenant_id: tenantId });
+    
+    try {
+      logger.info(`DEBUG: searchKnowledge called with query: "${query}", domain: "${domain || 'all'}", limit: ${limit || 10}`);
+      const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
+      const queryVector = queryEmbeddingResult.embedding;
+      logger.info(`DEBUG: Query embedding generated, length: ${queryVector.length}`);
 
-    const searchParams: any = {
-      vector: { name: `vs${queryVector.length}`, vector: queryVector },
-      limit: limit || 10,
-      params: { quantization: { rescore: conn.rescoreEnabled } }
-    };
+      const searchParams: any = {
+        vector: { name: `vs${queryVector.length}`, vector: queryVector },
+        limit: limit || 10,
+        params: { quantization: { rescore: conn.rescoreEnabled } }
+      };
 
-    if (domain) {
-      searchParams.filter = { must: [{ key: 'domain', match: { value: domain } }] };
-    }
+      if (domain) {
+        searchParams.filter = { must: [{ key: 'domain', match: { value: domain } }] };
+      }
 
-    logger.debug(`[Qdrant][search] collection=${conn.collectionName} req=${JSON.stringify(searchParams)}`);
-    const searchResult = await conn.client.search(conn.collectionName, searchParams);
-    logger.info(`DEBUG: Qdrant search returned ${searchResult?.length || 0} results`);
+      logger.debug(`[Qdrant][search] collection=${conn.collectionName} req=${JSON.stringify(searchParams)}`);
+      const searchResult = await conn.client.search(conn.collectionName, searchParams);
+      logger.info(`DEBUG: Qdrant search returned ${searchResult?.length || 0} results`);
+      
+      qdrantOperations.inc({ 
+        operation: 'search', 
+        status: 'success',
+        tenant_id: tenantId 
+      });
+      
+      timer({ tenant_id: tenantId });
 
     if (searchResult && searchResult.length > 0) {
       return searchResult.map((result: any) => {
@@ -55,5 +69,14 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
       });
     }
     return [];
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'search', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ tenant_id: tenantId });
+      throw error;
+    }
   });
 }

@@ -5,6 +5,8 @@ import { sanitizeAndUpsert, validateAndConvertId } from './utils.js';
 import { redisCacheService } from '../redis-cache.js';
 import { logger } from '../../utils/logger.js';
 import { KairosError } from '../../types/index.js';
+import { qdrantOperations, qdrantOperationDuration, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 /**
  * Update memory by UUID (for protocol reconstruction) and general update/delete
@@ -12,7 +14,11 @@ import { KairosError } from '../../types/index.js';
 
 export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, updates: any): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const existing = await retrieveById(conn, uuid);
+    const tenantId = getTenantId();
+    const timer = qdrantUpsertDuration.startTimer({ tenant_id: tenantId });
+    
+    try {
+      const existing = await retrieveById(conn, uuid);
     if (!existing) {
       throw new KairosError(`Memory with UUID ${uuid} not found`, 'MEMORY_NOT_FOUND', 404);
     }
@@ -64,12 +70,33 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
     // Invalidate cache after update
     await redisCacheService.invalidateMemoryCache(uuid);
     await redisCacheService.invalidateSearchCache();
+    
+    qdrantOperations.inc({ 
+      operation: 'update', 
+      status: 'success',
+      tenant_id: tenantId 
+    });
+    
+    timer({ tenant_id: tenantId });
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'update', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ tenant_id: tenantId });
+      throw error;
+    }
   });
 }
 
 export async function updateMemory(conn: QdrantConnection, id: string, updates: any): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const validatedId = validateAndConvertId(id);
+    const tenantId = getTenantId();
+    const timer = qdrantUpsertDuration.startTimer({ tenant_id: tenantId });
+    
+    try {
+      const validatedId = validateAndConvertId(id);
     const retrieveResult = await conn.client.retrieve(conn.collectionName, { ids: [validatedId], with_payload: true, with_vector: true });
     if (!retrieveResult || retrieveResult.length === 0) {
       throw new KairosError(`Memory with ID ${id} not found`, 'MEMORY_NOT_FOUND', 404);
@@ -125,17 +152,55 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     // Invalidate cache after update
     await redisCacheService.invalidateMemoryCache(validatedId);
     await redisCacheService.invalidateSearchCache();
+    
+    qdrantOperations.inc({ 
+      operation: 'update', 
+      status: 'success',
+      tenant_id: tenantId 
+    });
+    
+    timer({ tenant_id: tenantId });
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'update', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ tenant_id: tenantId });
+      throw error;
+    }
   });
 }
 
 export async function deleteMemory(conn: QdrantConnection, id: string): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const validatedId = validateAndConvertId(id);
-    await conn.client.delete(conn.collectionName, { points: [validatedId] });
+    const tenantId = getTenantId();
+    const timer = qdrantOperationDuration.startTimer({ operation: 'delete', tenant_id: tenantId });
     
-    // Invalidate cache after deletion
-    await redisCacheService.invalidateMemoryCache(validatedId);
-    await redisCacheService.invalidateSearchCache();
+    try {
+      const validatedId = validateAndConvertId(id);
+      await conn.client.delete(conn.collectionName, { points: [validatedId] });
+      
+      // Invalidate cache after deletion
+      await redisCacheService.invalidateMemoryCache(validatedId);
+      await redisCacheService.invalidateSearchCache();
+      
+      qdrantOperations.inc({ 
+        operation: 'delete', 
+        status: 'success',
+        tenant_id: tenantId 
+      });
+      
+      timer({ operation: 'delete', tenant_id: tenantId });
+    } catch (error) {
+      qdrantOperations.inc({ 
+        operation: 'delete', 
+        status: 'error',
+        tenant_id: tenantId 
+      });
+      timer({ operation: 'delete', tenant_id: tenantId });
+      throw error;
+    }
   });
 }
 

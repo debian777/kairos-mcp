@@ -4,6 +4,8 @@ import { IDGenerator } from '../services/id-generator.js';
 import { knowledgeGame } from '../services/game/knowledge-game.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 interface RegisterAttestOptions {
   toolName?: string;
@@ -42,7 +44,19 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       outputSchema
     },
     async (params: any) => {
-      const { uri, completion_status, context: usageContext, llm_model_id } = params;
+      const tenantId = getTenantId();
+      const inputSize = JSON.stringify(params).length;
+      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+      
+      const timer = mcpToolDuration.startTimer({ 
+        tool: toolName,
+        tenant_id: tenantId 
+      });
+      
+      let result: any;
+      
+      try {
+        const { uri, completion_status, context: usageContext, llm_model_id } = params;
 
       // Use provided model identity
       const modelIdentity = {
@@ -61,7 +75,6 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
 
       logger.tool('rate', 'rate', `single rating of ${uri} with outcome="${outcome}" model="${modelIdentity.modelId}"`);
 
-      try {
         const results: any[] = [];
         let totalRated = 0;
         let totalFailed = 0;
@@ -168,21 +181,54 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
         }
 
         // Always return bulk response with results and totals
-        const result = {
+        result = {
           results,
           total_rated: totalRated,
           total_failed: totalFailed
         };
 
-        return {
+        const finalResult = {
           content: [{
             type: 'text',
             text: JSON.stringify(result, null, 2)
           }],
           structuredContent: result
         };
+        
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        const outputSize = JSON.stringify(finalResult).length;
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+        
+        timer({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        return finalResult;
       } catch (error) {
         logger.error('attest failed', error);
+        
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        mcpToolErrors.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        timer({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
 
         return {
           content: [{

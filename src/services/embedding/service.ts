@@ -17,6 +17,14 @@ import { EMBEDDING_PROVIDER, OPENAI_API_KEY, TEI_BASE_URL, TEI_MODEL, TEI_API_KE
 import { DEFAULT_MODEL, DEFAULT_DIMENSION, TEI_EMBEDDING_ENDPOINT } from './config.js';
 import { postEmbeddings, postEmbeddingsOpenAI, postEmbeddingsTEI } from './providers.js';
 import type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
+import {
+  embeddingRequests,
+  embeddingDuration,
+  embeddingErrors,
+  embeddingVectorSize,
+  embeddingBatchSize
+} from '../metrics/embedding-metrics.js';
+import { getTenantId } from '../../utils/tenant-context.js';
 
 // Re-export types
 export type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
@@ -29,33 +37,105 @@ export class EmbeddingService {
     }
 
     async generateEmbedding(text: string): Promise<EmbeddingResult> {
-        if (!text || text.trim().length === 0) throw new Error('Text cannot be empty for embedding generation');
-        const vectors = await postEmbeddings(text.trim());
-        const embedding = vectors?.[0];
-        if (!Array.isArray(embedding)) throw new Error('OpenAI returned no embedding');
-        if (embedding.length !== this.embeddingDimension) throw new Error(`Embedding dimension mismatch: got ${embedding.length}, expected ${this.embeddingDimension}`);
-        return {
-            embedding,
-            model: DEFAULT_MODEL,
-            usage: { prompt_tokens: 0, total_tokens: 0 },
-        };
+        const tenantId = getTenantId();
+        const provider = this.getProvider();
+        const timer = embeddingDuration.startTimer({ provider, tenant_id: tenantId });
+        
+        try {
+            if (!text || text.trim().length === 0) throw new Error('Text cannot be empty for embedding generation');
+            const vectors = await postEmbeddings(text.trim());
+            const embedding = vectors?.[0];
+            if (!Array.isArray(embedding)) throw new Error('OpenAI returned no embedding');
+            if (embedding.length !== this.embeddingDimension) throw new Error(`Embedding dimension mismatch: got ${embedding.length}, expected ${this.embeddingDimension}`);
+            
+            embeddingRequests.inc({ 
+                provider, 
+                status: 'success',
+                tenant_id: tenantId 
+            });
+            
+            // Track vector size (assuming float32, 4 bytes per float)
+            const vectorSize = embedding.length * 4;
+            embeddingVectorSize.observe({ provider, tenant_id: tenantId }, vectorSize);
+            
+            timer({ provider, tenant_id: tenantId });
+            
+            return {
+                embedding,
+                model: DEFAULT_MODEL,
+                usage: { prompt_tokens: 0, total_tokens: 0 },
+            };
+        } catch (error) {
+            embeddingRequests.inc({ 
+                provider, 
+                status: 'error',
+                tenant_id: tenantId 
+            });
+            embeddingErrors.inc({ 
+                provider, 
+                status: 'error',
+                tenant_id: tenantId 
+            });
+            timer({ provider, tenant_id: tenantId });
+            throw error;
+        }
     }
 
     async generateBatchEmbeddings(texts: string[]): Promise<BatchEmbeddingResult> {
-        const valid = texts.filter(t => t && t.trim().length > 0);
-        if (valid.length === 0) throw new Error('No valid texts provided for batch embedding');
-        const vectors = await postEmbeddings(valid);
-        // Validate each vector length
-        const wrongDim = vectors.some(v => !Array.isArray(v) || v.length !== this.embeddingDimension);
-        if (wrongDim) {
-            logger.error('[EmbeddingService] One or more embeddings returned with unexpected dimension');
-            throw new Error('One or more embeddings have unexpected dimension from OpenAI');
+        const tenantId = getTenantId();
+        const provider = this.getProvider();
+        const timer = embeddingDuration.startTimer({ provider, tenant_id: tenantId });
+        
+        try {
+            const valid = texts.filter(t => t && t.trim().length > 0);
+            if (valid.length === 0) throw new Error('No valid texts provided for batch embedding');
+            
+            // Track batch size
+            embeddingBatchSize.observe({ tenant_id: tenantId }, valid.length);
+            
+            const vectors = await postEmbeddings(valid);
+            // Validate each vector length
+            const wrongDim = vectors.some(v => !Array.isArray(v) || v.length !== this.embeddingDimension);
+            if (wrongDim) {
+                logger.error('[EmbeddingService] One or more embeddings returned with unexpected dimension');
+                throw new Error('One or more embeddings have unexpected dimension from OpenAI');
+            }
+            
+            embeddingRequests.inc({ 
+                provider, 
+                status: 'success',
+                tenant_id: tenantId 
+            });
+            
+            // Track vector size for each embedding
+            for (const embedding of vectors) {
+                if (Array.isArray(embedding)) {
+                    const vectorSize = embedding.length * 4; // float32 = 4 bytes
+                    embeddingVectorSize.observe({ provider, tenant_id: tenantId }, vectorSize);
+                }
+            }
+            
+            timer({ provider, tenant_id: tenantId });
+            
+            return {
+                embeddings: vectors,
+                model: DEFAULT_MODEL,
+                usage: { prompt_tokens: 0, total_tokens: 0 },
+            };
+        } catch (error) {
+            embeddingRequests.inc({ 
+                provider, 
+                status: 'error',
+                tenant_id: tenantId 
+            });
+            embeddingErrors.inc({ 
+                provider, 
+                status: 'error',
+                tenant_id: tenantId 
+            });
+            timer({ provider, tenant_id: tenantId });
+            throw error;
         }
-        return {
-            embeddings: vectors,
-            model: DEFAULT_MODEL,
-            usage: { prompt_tokens: 0, total_tokens: 0 },
-        };
     }
 
     calculateCosineSimilarity(embedding1: number[] | undefined, embedding2: number[] | undefined): number {
@@ -203,6 +283,15 @@ export class EmbeddingService {
             const msg = err instanceof Error ? err.message : String(err);
             return { healthy: false, message: `Embedding health check error: ${msg}` };
         }
+    }
+
+    getProvider(): 'openai' | 'tei' | 'local' {
+        const pref = EMBEDDING_PROVIDER;
+        if (pref === 'openai') return 'openai';
+        if (pref === 'tei') return 'tei';
+        if (OPENAI_API_KEY && DEFAULT_MODEL) return 'openai';
+        if (TEI_BASE_URL && TEI_MODEL) return 'tei';
+        return 'local'; // fallback
     }
 
     getConfig() {

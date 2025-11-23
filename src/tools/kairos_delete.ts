@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { qdrantService } from '../services/qdrant/index.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete') {
     server.registerTool(
@@ -25,11 +27,23 @@ export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete'
             })
         },
         async (params: any) => {
-            const { uris } = params || {};
-            if (!Array.isArray(uris) || uris.length === 0) {
-                throw new Error('uris must be a non-empty array of strings');
-            }
-            const uriArray: string[] = uris;
+            const tenantId = getTenantId();
+            const inputSize = JSON.stringify(params).length;
+            mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+            
+            const timer = mcpToolDuration.startTimer({ 
+              tool: toolName,
+              tenant_id: tenantId 
+            });
+            
+            let result: any;
+            
+            try {
+                const { uris } = params || {};
+                if (!Array.isArray(uris) || uris.length === 0) {
+                    throw new Error('uris must be a non-empty array of strings');
+                }
+                const uriArray: string[] = uris;
 
             const results: any[] = [];
             let totalDeleted = 0;
@@ -61,16 +75,51 @@ export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete'
                 }
             }
 
-            const result = {
+            result = {
                 results,
                 total_deleted: totalDeleted,
                 total_failed: totalFailed
             };
 
-            return {
+            const finalResult = {
                 content: [{ type: 'text', text: JSON.stringify(result) }],
                 structuredContent: result
             };
+            
+            mcpToolCalls.inc({ 
+              tool: toolName, 
+              status: 'success',
+              tenant_id: tenantId 
+            });
+            
+            const outputSize = JSON.stringify(finalResult).length;
+            mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+            
+            timer({ 
+              tool: toolName, 
+              status: 'success',
+              tenant_id: tenantId 
+            });
+            
+            return finalResult;
+            } catch (error) {
+                mcpToolCalls.inc({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                mcpToolErrors.inc({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                timer({ 
+                  tool: toolName, 
+                  status: 'error',
+                  tenant_id: tenantId 
+                });
+                throw error;
+            }
         }
     );
 }

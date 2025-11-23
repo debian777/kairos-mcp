@@ -3,6 +3,8 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 interface RegisterKairosMintOptions {
   toolName?: string;
@@ -38,43 +40,124 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
       outputSchema
     },
     async (params: any) => {
-      const { markdown_doc, llm_model_id, force_update } = params as { markdown_doc: string; llm_model_id: string; force_update?: boolean };
-      const docs = [markdown_doc];
-      let memories: Memory[] = [];
+      const tenantId = getTenantId();
+      const inputSize = JSON.stringify(params).length;
+      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+      
+      const timer = mcpToolDuration.startTimer({ 
+        tool: toolName,
+        tenant_id: tenantId 
+      });
+      
+      let result: any;
+      
       try {
-        memories = await memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update });
-      } catch (error) {
-        // Handle duplicate chain error explicitly
-        const err = error as any;
-        if (err && (err.code === 'DUPLICATE_CHAIN' || err.code === 'DUPLICATE_KEY')) {
-          const body = {
-            error: 'DUPLICATE_CHAIN',
-            ...(err.details || {})
-          };
-          return {
+        const { markdown_doc, llm_model_id, force_update } = params as { markdown_doc: string; llm_model_id: string; force_update?: boolean };
+        const docs = [markdown_doc];
+        let memories: Memory[] = [];
+        try {
+          memories = await memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update });
+        } catch (error) {
+          // Handle duplicate chain error explicitly
+          const err = error as any;
+          if (err && (err.code === 'DUPLICATE_CHAIN' || err.code === 'DUPLICATE_KEY')) {
+            const body = {
+              error: 'DUPLICATE_CHAIN',
+              ...(err.details || {})
+            };
+            result = {
+              isError: true,
+              content: [{ type: 'text', text: JSON.stringify(body) }]
+            } as any;
+            mcpToolCalls.inc({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            mcpToolErrors.inc({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            timer({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            return result;
+          }
+          logger.error(`[kairos_mint] Failed to store memory chain (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
+          result = {
             isError: true,
-            content: [{ type: 'text', text: JSON.stringify(body) }]
+            content: [{ type: 'text', text: JSON.stringify({ error: 'STORE_FAILED', message: err?.message || String(err) }) }]
           } as any;
+          mcpToolCalls.inc({ 
+            tool: toolName, 
+            status: 'error',
+            tenant_id: tenantId 
+          });
+          mcpToolErrors.inc({ 
+            tool: toolName, 
+            status: 'error',
+            tenant_id: tenantId 
+          });
+          timer({ 
+            tool: toolName, 
+            status: 'error',
+            tenant_id: tenantId 
+          });
+          return result;
         }
-        logger.error(`[kairos_mint] Failed to store memory chain (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
-        return {
-          isError: true,
-          content: [{ type: 'text', text: JSON.stringify({ error: 'STORE_FAILED', message: err?.message || String(err) }) }]
-        } as any;
+        const output = {
+          items: memories.map(memory => ({
+            uri: `kairos://mem/${memory.memory_uuid}`,
+            memory_uuid: memory.memory_uuid,
+            label: memory.label,
+            tags: memory.tags
+          })),
+          status: 'stored'
+        };
+        result = {
+          content: [{ type: 'text', text: JSON.stringify(output) }],
+          structuredContent: output
+        };
+        
+        // Track success
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        // Track output size
+        const outputSize = JSON.stringify(result).length;
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
+        
+        timer({ 
+          tool: toolName, 
+          status: 'success',
+          tenant_id: tenantId 
+        });
+        
+        return result;
+      } catch (error) {
+        mcpToolCalls.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        mcpToolErrors.inc({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        timer({ 
+          tool: toolName, 
+          status: 'error',
+          tenant_id: tenantId 
+        });
+        throw error;
       }
-      const output = {
-        items: memories.map(memory => ({
-          uri: `kairos://mem/${memory.memory_uuid}`,
-          memory_uuid: memory.memory_uuid,
-          label: memory.label,
-          tags: memory.tags
-        })),
-        status: 'stored'
-      };
-      return {
-        content: [{ type: 'text', text: JSON.stringify(output) }],
-        structuredContent: output
-      };
     }
   );
 }
