@@ -13,6 +13,8 @@ import { startServer } from './http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import { PORT, METRICS_PORT } from './config.js';
+// Import system metrics to ensure they're initialized
+import './services/metrics/system-metrics.js';
 
 /**
  * Wait for Qdrant to be available with retries

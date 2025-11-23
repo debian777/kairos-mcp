@@ -2,6 +2,8 @@ import express from 'express';
 import { register } from './services/metrics/registry.js';
 import { structuredLogger } from './utils/structured-logger.js';
 import { METRICS_PORT } from './config.js';
+// Import system metrics to ensure they're initialized
+import './services/metrics/system-metrics.js';
 
 /**
  * Start dedicated metrics server on separate port.
