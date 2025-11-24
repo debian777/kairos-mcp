@@ -1,5 +1,5 @@
- # AI CODING RULES ” KAIROS ENFORCEMENT EDITION
-November 20, 2025
+ # AI CODING RULES
+November 24, 2025
 
 It is the law for every agent that writes code.  
 Every change MUST follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST (foundational rule) and then sections 0-10 in exact order. 

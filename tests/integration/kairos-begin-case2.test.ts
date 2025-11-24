@@ -96,7 +96,7 @@ describe('Kairos Begin - CASE 2: MULTIPLE PERFECT MATCHES', () => {
           }
         }
 
-        // FORBIDDEN: Should NOT have these in CASE 2
+        // Should not force execution data when multiple perfect matches exist
         expect(parsed.start_here).toBeUndefined();
         expect(parsed.chain_label).toBeUndefined();
         expect(parsed.total_steps).toBeUndefined();

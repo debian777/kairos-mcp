@@ -20,13 +20,9 @@ describe('Embedded MCP Resources', () => {
     }
   });
 
-  test('mcpResources contains templates', () => {
+  test('mcpResources templates are empty (resource templates removed)', () => {
     expect(mcpResources).toHaveProperty('templates');
-    expect(Object.keys(mcpResources.templates).length).toBeGreaterThan(0);
-    for (const [, content] of Object.entries(mcpResources.templates)) {
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(10);
-    }
+    expect(Object.keys(mcpResources.templates).length).toBe(0);
   });
 });
 
@@ -58,43 +54,6 @@ describe('MCP Tools and Resources', () => {
     if (mcp) await mcp.close();
   });
   
-  describe('MCP client resource listing', () => {
-    let mcp;
-    beforeAll(async () => {
-      mcp = await createMcpConnection();
-    }, 45000);
-  
-    afterAll(async () => {
-      if (mcp) await mcp.close();
-    });
-  
-    test('listResources includes mem resources', async () => {
-      const resources = await mcp.client.listResources();
-      const memKeys = Object.keys(mcpResources.mem || {});
-      
-      // Resources are registered as kairos://mem/{filename} via registerDocsResources
-      // Check if any mem resources exist
-      const memResources = resources.resources.filter((r: any) => r.uri?.startsWith('kairos://mem/'));
-      
-      // Verify that mem resources from embedded resources are registered
-      if (memKeys.length > 0) {
-        // At least one mem resource should be found if registration is working
-        expect(memResources.length).toBeGreaterThanOrEqual(0);
-        
-        // If mem resources are registered, verify each expected one exists
-        for (const memKey of memKeys) {
-          const expectedUri = `kairos://mem/${memKey}`;
-          const found = resources.resources.find((r: any) => r.uri === expectedUri);
-          // Note: This test may fail if registerDocsResources is not called or resources are empty
-          // The test verifies the structure is correct when resources are registered
-          if (memResources.length > 0) {
-            expect(found).toBeDefined();
-          }
-        }
-      }
-    }, 30000);
-  });
-
   test('tools match mcpResources.tools', async () => {
     const tools = await mcp.client.listTools();
     const expectedTools = Object.entries(mcpResources.tools).map(([name, description]) => ({
@@ -109,10 +68,16 @@ describe('MCP Tools and Resources', () => {
     }
   }, 30000);
 
-  test('resource templates match mcpResources.templates', async () => {
+  test('resources/list returns empty array when no resources are registered', async () => {
+    const resources = await mcp.client.listResources();
+    expect(Array.isArray(resources.resources)).toBe(true);
+    expect(resources.resources.length).toBe(0);
+  }, 30000);
+
+  test('resources/templates/list returns empty array when no templates are registered', async () => {
     const templates = await mcp.client.listResourceTemplates();
-    const expectedLength = Object.keys(mcpResources.templates || {}).length;
-    expect(templates.resourceTemplates).toHaveLength(expectedLength);
+    expect(Array.isArray(templates.resourceTemplates)).toBe(true);
+    expect(templates.resourceTemplates.length).toBe(0);
   }, 30000);
 });
 

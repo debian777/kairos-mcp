@@ -159,7 +159,7 @@ describe('Kairos Begin Perfect Matches', () => {
           }
         }
         
-        // Should NOT have start_here, chain_label, total_steps in choice mode
+        // Should not provide obedience fields in choice mode
         expect(parsed.start_here).toBeUndefined();
         expect(parsed.chain_label).toBeUndefined();
         expect(parsed.total_steps).toBeUndefined();

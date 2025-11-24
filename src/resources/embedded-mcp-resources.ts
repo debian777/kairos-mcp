@@ -15,9 +15,7 @@ export const mcpResources = {
   "resources": {
     "doc": {}
   },
-  "templates": {
-    "kairos-memory": "Retrieves a KAIROS memory by UUID"
-  },
+  "templates": {},
   "tools": {
     "kairos_attest": "Attests completion or failure of a protocol step.",
     "kairos_begin": "Returns chain heads (position=1) matching a query.",

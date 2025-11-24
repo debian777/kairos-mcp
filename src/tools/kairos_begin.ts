@@ -242,7 +242,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       } else if (perfectMatches.length > 1) {
         // MULTIPLE PERFECT MATCHES → positive choice mode
         // Resolve chain first step for each perfect match
-        const choices = await Promise.all(perfectMatches.map(async (match) => {
+        const resolvedHeads = await Promise.all(perfectMatches.map(async (match) => {
           const head = (await resolveChainFirstStep(match.memory, options.qdrantService)) ?? { uri: match.uri, label: match.label };
           return {
             uri: head.uri,
@@ -254,7 +254,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           must_obey: false,
           multiple_perfect_matches: perfectMatches.length,
           message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Which one would you like to use?`,
-          choices,
+          choices: resolvedHeads,
           protocol_status: "initiated"
         };
       } else {

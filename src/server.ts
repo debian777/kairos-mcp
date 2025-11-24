@@ -1,9 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { logger } from './utils/logger.js';
 import { structuredLogger } from './utils/structured-logger.js';
-import { registerMemoryResource } from './resources/memory-resource.js';
 import { registerDocsResources } from './resources/docs-resources.js';
 import { registerPromptResources } from './resources/prompt-resources.js';
+import { bootstrapEmptyResourceHandlers } from './resources/resource-bootstrap.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { getBuildVersion } from './utils/build-version.js';
@@ -42,9 +42,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerKairosDeleteTool(server);
 
     // Register resources
-    // Register memory template
-    registerMemoryResource(server, memoryStore);
-
+    bootstrapEmptyResourceHandlers(server);
     // Register docs resources (from embedded-mcp-resources)
     registerDocsResources(server);
 

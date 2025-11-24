@@ -73,38 +73,4 @@ describe('Kairos Mint Advanced Functionality', () => {
     }, 'kairos_begin call + raw result');
   }, 20000);
 
-  test('kairos://mem/{uuid} render includes KAIROS markers and UUID', async () => {
-    const content = `# CacheResourceDoc ${Date.now()}\n\nResource cache behavior validation.`;
-    const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
-      arguments: {
-        markdown_doc: JSON.stringify(content),
-        llm_model_id: 'minimax/minimax-m2:free'
-      }
-    });
-    const storeResponse = expectValidJsonResult(storeResult);
-    expect(storeResponse.status).toBe('stored');
-    expect(storeResponse.items.length).toBeGreaterThan(0);
-    const memUri = storeResponse.items[0].uri;
-
-    const firstRead = await mcpConnection.client.readResource({ uri: memUri });
-    expect(firstRead).toBeDefined();
-    const body1 = firstRead.contents?.[0]?.text || '';
-    expect(body1).toContain('<!-- KAIROS:HEADER -->');
-    expect(body1).toContain('<!-- KAIROS:BODY-START -->');
-    expect(body1).toContain('<!-- KAIROS:BODY-END -->');
-    expect(body1).toContain('<!-- KAIROS:FOOTER -->');
-    // UUID line should match the requested mem UUID
-    const uuidMatch = body1.match(/UUID:\s*([0-9a-f-]+)/i);
-    expect(uuidMatch && uuidMatch[1]).toBeDefined();
-
-    // Second read should return the same structure (no cache marker assertions in v2 format)
-    const secondRead = await mcpConnection.client.readResource({ uri: memUri });
-    expect(secondRead).toBeDefined();
-    const body2 = secondRead.contents?.[0]?.text || '';
-    expect(body2).toContain('<!-- KAIROS:HEADER -->');
-    expect(body2).toContain('<!-- KAIROS:BODY-START -->');
-    expect(body2).toContain('<!-- KAIROS:BODY-END -->');
-    expect(body2).toContain('<!-- KAIROS:FOOTER -->');
-  }, 20000);
 });

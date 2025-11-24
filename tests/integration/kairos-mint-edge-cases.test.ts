@@ -60,37 +60,4 @@ describe('Kairos Mint Edge Cases', () => {
     expect(response.status).toBe('stored');
   });
 
-  test('memory resource caching works', async () => {
-    // Store a simple memory
-    const simpleContent = `Test memory for caching verification ${Date.now()}.`;
-
-    const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
-      arguments: {
-        markdown_doc: simpleContent,
-        llm_model_id: 'minimax/minimax-m2:free'
-      }
-    });
-
-    const storeResponse = expectValidJsonResult(storeResult);
-    expect(storeResponse.status).toBe('stored');
-    expect(storeResponse.items).toHaveLength(1);
-
-    const memoryUri = storeResponse.items[0].uri;
-    // Accessing memory_uuid is not required for cache validation
-
-    // Read the memory resource to trigger caching
-    const readResult = await mcpConnection.client.readResource({
-      uri: memoryUri
-    });
-
-    expect(readResult).toBeDefined();
-    expect(readResult.contents).toBeDefined();
-    expect(readResult.contents).toHaveLength(1);
-    expect(readResult.contents[0].mimeType).toBe('text/markdown');
-    expect(readResult.contents[0].text).toContain('Test memory for caching verification');
-
-    // The memory resource caching is verified by the successful read operation
-    // The cache stores the memory on first access (cache miss scenario)
-  });
 });

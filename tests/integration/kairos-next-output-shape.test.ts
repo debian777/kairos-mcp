@@ -1,82 +1,78 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
-import { withRawOnFail } from '../utils/expect-with-raw.js';
+import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 
-describe('kairos_begin output shape (minimal)', () => {
+describe('kairos_next response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
-  });
+  }, 30000);
 
   afterAll(async () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  function expectValidJsonResult(result) {
-    try {
-      expect(result).toBeDefined();
-      expect(result.content).toBeDefined();
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe('text');
-      // structuredContent should be present; we focus assertions there
-      expect(result.structuredContent).toBeDefined();
-      return result.structuredContent;
-    } catch (err) {
+  async function mintTwoStepProtocol(label: string) {
+    const doc = `# ${label}
 
-      console.debug('kairos_begin raw MCP result (assertion failed):', JSON.stringify(result));
-      throw err;
-    }
+## Step One
+First body for ${label}.
+
+## Step Two
+Second body for ${label}.`;
+
+    const storeResult = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next' }
+    });
+
+    const parsed = parseMcpJson(storeResult, '[kairos_next tests] kairos_mint');
+    expect(parsed.status).toBe('stored');
+    expect(parsed.items.length).toBeGreaterThanOrEqual(2);
+    return parsed.items;
   }
 
-  test('returns single chain head with must_obey, start_here, chain_label, total_steps, protocol_status', async () => {
-    // Ensure there is at least one relevant memory; store a tiny doc
+  test('returns continue payload with current_step + next_step', async () => {
     const ts = Date.now();
-    const md = `# You are a specialized AI expert: Design Principle: Keep MCP Simple, Move Logic to App ${ts}\n\n## Rule\nKeep MCP minimal and push app-specific logic to the client.`;
-    await mcpConnection.client.callTool({
-      name: 'kairos_mint',
-      arguments: { markdown_doc: JSON.stringify(md), llm_model_id: 'minimax/minimax-m2:free' }
-    });
+    const items = await mintTwoStepProtocol(`Kairos Next Schema ${ts}`);
+    const firstUri = items[0].uri;
+    const secondUri = items[1].uri;
 
-    const call = { name: 'kairos_begin', arguments: { query: String(ts), limit: 1 } };
-    const result = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
-      arguments: call.arguments
-    });
-    const callAndRaw = { call, result };
+    const call = { name: 'kairos_next', arguments: { uri: firstUri } };
+    const result = await mcpConnection.client.callTool(call);
+    const payload = parseMcpJson(result, '[kairos_next] continue payload');
 
-    const sc = expectValidJsonResult(result);
-    withRawOnFail(callAndRaw, () => {
-      expect(sc).toHaveProperty('must_obey');
-      expect(sc).toHaveProperty('protocol_status');
-      
-      // Handle different protocol status cases
-      if (sc.protocol_status === 'no_protocol') {
-        // No chain heads found - this shouldn't happen normally but can occur due to timing
-        // In this case, must_obey should be false
-        expect(sc.must_obey).toBe(false);
-        // Allow retry or skip this assertion for timing issues
-        return;
-      }
-      
-      expect(sc.protocol_status).toBe('initiated');
-      
-      // If multiple perfect matches, must_obey should be false and choices should be present
-      if (sc.multiple_perfect_matches && sc.multiple_perfect_matches > 1) {
-        expect(sc.must_obey).toBe(false);
-        expect(sc).toHaveProperty('choices');
-        expect(Array.isArray(sc.choices)).toBe(true);
-        expect(sc.choices.length).toBeGreaterThan(0);
-      } else {
-        // Single match or fallback case - must_obey should be true
-        expect(sc.must_obey).toBe(true);
-        expect(sc).toHaveProperty('start_here');
-        expect(typeof sc.start_here).toBe('string');
-        expect(sc.start_here.startsWith('kairos://mem/')).toBe(true);
-        expect(sc).toHaveProperty('chain_label');
-        expect(typeof sc.chain_label).toBe('string');
-        expect(sc).toHaveProperty('total_steps');
-        expect(typeof sc.total_steps).toBe('number');
-      }
-    }, 'kairos_begin call + raw MCP result (post-parse assertion failed)');
-  }, 20000);
+    withRawOnFail({ call, result }, () => {
+      expect(payload.must_obey).toBe(true);
+      expect(payload.protocol_status).toBe('continue');
+      expect(payload.current_step).toBeDefined();
+      expect(payload.current_step.uri).toBe(firstUri);
+      expect(payload.current_step.mimeType).toBe('text/markdown');
+      expect(payload.current_step.content).toContain('First body');
+
+      expect(payload.next_step).toBeDefined();
+      expect(payload.next_step.uri).toBe(secondUri);
+      expect(payload.next_step.position).toBe('2/2');
+      expect(typeof payload.next_step.label).toBe('string');
+      expect(payload.next_step.label.length).toBeGreaterThan(0);
+    }, '[kairos_next] continue payload with raw result');
+  }, 30000);
+
+  test('returns completed payload when final step', async () => {
+    const ts = Date.now();
+    const items = await mintTwoStepProtocol(`Kairos Next Final ${ts}`);
+    const lastUri = items[items.length - 1].uri;
+
+    const call = { name: 'kairos_next', arguments: { uri: lastUri } };
+    const result = await mcpConnection.client.callTool(call);
+    const payload = parseMcpJson(result, '[kairos_next] completed payload');
+
+    withRawOnFail({ call, result }, () => {
+      expect(payload.must_obey).toBe(true);
+      expect(payload.protocol_status).toBe('completed');
+      expect(payload.current_step.uri).toBe(lastUri);
+      expect(payload.current_step.content).toContain('Second body');
+      expect(payload.next_step).toBeNull();
+    }, '[kairos_next] completed payload with raw result');
+  }, 30000);
 });
