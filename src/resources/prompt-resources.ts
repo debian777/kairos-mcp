@@ -2,6 +2,20 @@ import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 import { getPrompts, getPrompt } from './embedded-mcp-resources.js';
 import { logger } from '../utils/logger.js';
 
+type PromptOverride = {
+  title?: string;
+  description?: string;
+  resultDescription?: string;
+};
+
+const promptOverrides: Record<string, PromptOverride> = {
+  'contextual-prompt': {
+    title: 'KAIROS Core Execution Engine',
+    description: 'Universal KAIROS identity and natural language translator bootstrap',
+    resultDescription: 'KAIROS Core Identity + Natural Language Execution Engine'
+  }
+};
+
 /**
  * Register all prompts from embedded-mcp-resources
  */
@@ -11,8 +25,11 @@ export function registerPromptResources(server: any) {
   const prompts = getPrompts();
 
   for (const [key, text] of Object.entries(prompts)) {
-    const title = key.replace(/[-_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-    const description = `Prompt: ${title}`;
+    const override = promptOverrides[key] ?? {};
+    const title =
+      override.title || key.replace(/[-_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const description = override.description || `Prompt: ${title}`;
+    const resultDescription = override.resultDescription || description;
 
     server.registerPrompt(
       key,
@@ -23,7 +40,7 @@ export function registerPromptResources(server: any) {
       async (): Promise<GetPromptResult> => {
         const promptText = getPrompt(key) || text;
         const result: GetPromptResult = {
-          description,
+          description: resultDescription,
           messages: [
             {
               role: 'user',
