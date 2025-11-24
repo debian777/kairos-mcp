@@ -344,21 +344,26 @@ test() {
         args=("${args[@]:1}")
     fi
 
+    LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
+    REPORT_LOG_FILE="reports/tests/test-$(date +%Y%m%d-%H%M%S).log"
+    echo "$LAST_COMMIT" > "$REPORT_LOG_FILE"
+    echo "--------------------------------" >> "$REPORT_LOG_FILE"
+
     case "$ENV" in
         dev)
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern tests/integration/
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern tests/integration/ 2>&1  | tee -a "$REPORT_LOG_FILE" 
             else
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             fi
             ;;
         qa)
             # deploy - now need to run manually: npm run qa:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern tests/integration/
+                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern tests/integration/ 2>&1  | tee -a "$REPORT_LOG_FILE" 
             else
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}"
+                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             fi
             ;;
     esac
@@ -450,7 +455,7 @@ ensure_coding_rules() {
         print_success "Test report contains Test Suites information: $latest_test_report"
         
         # Check for failures in latest report file
-        if grep -wqf 'FAIL|failed' "$latest_test_report" 2>/dev/null; then
+        if egrep 'FAIL|failed'"$latest_test_report" 2>/dev/null; then
           print_error "Failures found in latest report file (AI coding rules -> NO FAILURES REQUIRED)."
           exit 1
         fi
