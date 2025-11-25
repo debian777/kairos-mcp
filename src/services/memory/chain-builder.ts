@@ -6,7 +6,8 @@ import {
   generateTags,
 } from '../../utils/memory-store-utils.js';
 
-const PROOF_LINE_REGEX = /^PROOF OF WORK:\s*(.+)$/im;
+// Allow "Proof of work" lines even when preceded by bullets or emphasis
+const PROOF_LINE_REGEX = /^(?:[*\-+>\u2022]\s*)?(?:\*\*)?\s*PROOF OF WORK:\s*(.+)$/im;
 
 function hasProofOfWork(markdownDoc: string): boolean {
   return PROOF_LINE_REGEX.test(markdownDoc);
