@@ -447,20 +447,26 @@ ensure_coding_rules() {
     print_warning "No reports/tests/ directory found (test reports may not have been generated)"
   else
     commit_hash=$(git rev-parse HEAD)
-    log_files=$(find reports/tests -type f -name "*.log")
-    if [ -z "$log_files" ]; then
+
+    mapfile -t all_log_files < <(find reports/tests -type f -name "*.log")
+    if [ ${#all_log_files[@]} -eq 0 ]; then
       print_error "No test report files found in reports/tests/ (run tests to generate proof)."
       exit 1
     fi
-    commit_report=$(find reports/tests -type f -name "*.log" -print0 | xargs -0 grep -l "$commit_hash" 2>/dev/null | head -n 1)
-    if [ -z "$commit_report" ]; then
+
+    mapfile -t report_log_files < <(grep -Fl "$commit_hash" "${all_log_files[@]}" 2>/dev/null || true)
+    if [ ${#report_log_files[@]} -eq 0 ]; then
       print_error "No proof-of-work test report references commit $commit_hash (run tests and archive logs)."
       exit 1
     fi
-    print_success "Proof-of-work test report found for commit $commit_hash: $commit_report"
+    latest_test_report=$(printf '%s\0' "${report_log_files[@]}" | xargs -0 stat -f "%m:%N" 2>/dev/null | sort -rn | head -n 1 | cut -d':' -f2-)
+    if [ -z "$latest_test_report" ]; then
+      print_error "Unable to determine latest test report for commit $commit_hash."
+      exit 1
+    fi
+    print_success "Proof-of-work test report found for commit $commit_hash: $latest_test_report"
 
-    # Check if there are any recent test report files
-    latest_test_report=$(find reports/tests -type f -name "*.log" | sort -r | head -n 1)
+    # Check the newest proof-of-work report for failures
     if [ -n "$latest_test_report" ]; then
       print_success "Test reports found in reports/tests/ directory"
       # Check if latest report contains "Test Suites:" (indicates test run completed)
