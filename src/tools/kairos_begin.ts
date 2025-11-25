@@ -17,6 +17,9 @@ interface RegisterBeginOptions {
 
 export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterBeginOptions = {}) {
   const toolName = options.toolName || 'kairos_begin';
+  const memoryUriSchema = z
+    .string()
+    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const inputSchema = z.object({
     query: z.string().min(1).describe('Search query for chain heads')
@@ -24,7 +27,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
 
   const outputSchema = z.object({
     must_obey: z.boolean(),
-    start_here: z.string().optional().nullable(),
+    start_here: memoryUriSchema.optional().nullable(),
     chain_label: z.string().optional().nullable(),
     total_steps: z.number().optional().nullable(),
     protocol_status: z.string(),
@@ -32,15 +35,17 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
     message: z.string().optional().nullable(),
     suggestion: z.string().optional().nullable(),
     hint: z.string().optional().nullable(),
-    best_match: z.object({
-      uri: z.string(),
-      label: z.string(),
-      score: z.number(),
-      total_steps: z.number()
-    }).optional().nullable(),
+        best_match: z.object({
+          uri: memoryUriSchema,
+          label: z.string(),
+          chain_label: z.string().optional().nullable(),
+          score: z.number(),
+          total_steps: z.number()
+        }).optional().nullable(),
     choices: z.array(z.object({
-      uri: z.string(),
+      uri: memoryUriSchema,
       label: z.string(),
+      chain_label: z.string().optional().nullable(),
       tags: z.array(z.string()).optional()
     })).optional().nullable()
   });
@@ -190,6 +195,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
         .filter(r => r.score >= SCORE_THRESHOLD);
 
       // If no results after filtering by score_threshold, return no_protocol
+      // DO NOT cache negative results - they become stale immediately when new chains are minted
       if (results.length === 0) {
         const output = {
           must_obey: false,
@@ -197,7 +203,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           message: "I couldn't find any relevant protocol for your request.",
           suggestion: "Would you like to create a new one?"
         };
-        await redisCacheService.set(cacheKey, JSON.stringify(output), 300); // 5 min cache
+        // No caching of negative results
         result = {
           content: [{
             type: 'text', text: JSON.stringify(output)
@@ -235,7 +241,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
         output = {
           must_obey: true,
           start_here: head.uri,
-          chain_label: head.label || match.label,
+          chain_label: match.memory.chain?.label || null,
           total_steps: match.total_steps,
           protocol_status: "initiated"
         };
@@ -247,6 +253,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           return {
             uri: head.uri,
             label: head.label || match.label,
+            chain_label: match.memory.chain?.label || null,
             tags: match.tags
           };
         }));
@@ -269,6 +276,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           best_match: {
             uri: head.uri,
             label: head.label || topResult.label,
+            chain_label: topResult.memory.chain?.label || null,
             score: topResult.score || 0,
             total_steps: topResult.total_steps
           },
