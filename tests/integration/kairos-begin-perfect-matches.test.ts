@@ -32,8 +32,9 @@ describe('Kairos Begin Perfect Matches', () => {
     // Create a unique protocol with exact title match
     const ts = Date.now();
     const uniqueTitle = `SinglePerfectMatchProtocol ${ts}`;
+    const stepHeading = `Step 1 — ${uniqueTitle}`;
     const content = buildProofMarkdown(uniqueTitle, [
-      { heading: 'Step 1 — Initialize', body: 'Set up the environment for a perfect match.', proofCmd: 'echo prepare-perfect' }
+      { heading: stepHeading, body: 'Set up the environment for a perfect match.', proofCmd: 'echo prepare-perfect' }
     ]);
 
     // Store the protocol
@@ -46,6 +47,8 @@ describe('Kairos Begin Perfect Matches', () => {
     });
     const storeResponse = expectValidJsonResult(storeResult);
     expect(storeResponse.status).toBe('stored');
+    // Allow Qdrant/Redis to index the new chain before querying for perfect match
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Search with exact title (should be perfect match)
     const call = {

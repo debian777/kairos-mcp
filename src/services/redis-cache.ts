@@ -1,6 +1,7 @@
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { redisService } from './redis.js';
+import { KAIROS_REDIS_PREFIX } from '../config.js';
 
 export interface SearchResult {
   memories: Memory[];
@@ -75,8 +76,9 @@ export class RedisCacheService {
         logger.debug('[RedisCacheService] No search cache keys to delete');
         return;
       }
-      // The redisService.del expects key without prefix; we return fully-qualified keys from keys(), so we need to strip prefix before deleting via redisService.del.
-      const prefix = redisService['prefix'] || '';
+      // Keys returned from redisService.keys() already have the prefix applied
+      // We need to strip it before calling del() which adds it back
+      const prefix = KAIROS_REDIS_PREFIX;
       const stripped: string[] = keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k);
       await Promise.all(stripped.map(k => redisService.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
@@ -168,10 +170,35 @@ export class RedisCacheService {
     }
   }
 
+  // Invalidate begin cache (kairos_begin tool results)
+  async invalidateBeginCache(): Promise<void> {
+    try {
+      logger.info(`[RedisCacheService] Begin cache invalidation requested`);
+      // Delete keys matching begin cache pattern
+      const keys = await redisService.keys('begin:*');
+      if (!keys || keys.length === 0) {
+        logger.debug('[RedisCacheService] No begin cache keys to delete');
+        return;
+      }
+      // Keys returned from redisService.keys() already have the prefix applied
+      // We need to strip it before calling del() which adds it back
+      const prefix = KAIROS_REDIS_PREFIX;
+      const stripped: string[] = keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k);
+      await Promise.all(stripped.map(k => redisService.del(k)));
+      logger.info(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
+    } catch (error) {
+      logger.error('[RedisCacheService] Failed to invalidate begin cache:', error);
+    }
+  }
+
   // For atomic operations as per plan
+  // System is mostly read-heavy, so invalidate aggressively on writes
   async invalidateAfterUpdate(): Promise<void> {
-    // Simplified invalidation - just log for now
-    logger.debug('[RedisCacheService] Cache invalidation after update requested');
+    logger.info('[RedisCacheService] Cache invalidation after Qdrant update - clearing all search and begin caches');
+    await Promise.all([
+      this.invalidateSearchCache(),
+      this.invalidateBeginCache()
+    ]);
   }
 
   // Generic get and set methods for arbitrary caching

@@ -13,9 +13,12 @@ interface RegisterAttestOptions {
 
 export function registerKairosAttestTool(server: any, qdrantService: QdrantService, options: RegisterAttestOptions = {}) {
   const toolName = options.toolName || 'kairos_attest';
+  const memoryUriSchema = z
+    .string()
+    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const inputSchema = z.object({
-    uri: z.string().min(1).describe('URI of the completed memory step'),
+    uri: memoryUriSchema.describe('URI of the completed memory step'),
     outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
     quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     message: z.string().min(1).describe('Attestation summary message'),
@@ -24,7 +27,7 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
 
   const outputSchema = z.object({
     results: z.array(z.object({
-      uri: z.string(),
+      uri: memoryUriSchema,
       outcome: z.string(),
       quality_bonus: z.number(),
       message: z.string(),

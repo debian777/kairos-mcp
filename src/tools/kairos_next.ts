@@ -200,9 +200,12 @@ async function handleProofSubmission(
 }
 export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterNextOptions = {}) {
   const toolName = options.toolName || 'kairos_next';
+  const memoryUriSchema = z
+    .string()
+    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const proofSubmissionSchema = z.object({
-    uri: z.string().min(1).describe('URI of the step that produced this result'),
+    uri: memoryUriSchema.describe('URI of the step that produced this result'),
     exit_code: z.number().describe('Exit code from the proof-of-work command'),
     stdout: z.string().optional().describe('Captured stdout (optional)'),
     stderr: z.string().optional().describe('Captured stderr (optional)'),
@@ -211,8 +214,10 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
   });
 
   const inputSchema = z.object({
-    uri: z.string().min(1).describe('URI of the current memory step'),
-    proof_of_work_result: proofSubmissionSchema.optional().describe('Optional proof-of-work submission for a completed step')
+    uri: memoryUriSchema.describe('URI of the current memory step'),
+    proof_of_work_result: proofSubmissionSchema
+      .optional()
+      .describe('Include only when reporting proof-of-work output for a completed step; omit entirely otherwise.')
   });
 
   const proofResultSchema = z.object({
@@ -228,13 +233,13 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
   const outputSchema = z.object({
     must_obey: z.boolean(),
     current_step: z.object({
-      uri: z.string().regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i),
+      uri: memoryUriSchema,
       content: z.string(),
       mimeType: z.literal('text/markdown')
     }).optional().nullable(),
     next_step: z.union([
       z.object({
-        uri: z.string().regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i),
+        uri: memoryUriSchema,
         position: z.string().regex(/^\d+\/\d+$/),
         label: z.string().min(1)
       }),

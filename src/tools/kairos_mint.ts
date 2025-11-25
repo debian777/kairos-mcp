@@ -12,6 +12,9 @@ interface RegisterKairosMintOptions {
 
 export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterKairosMintOptions = {}) {
   const toolName = options.toolName || 'kairos_mint';
+  const memoryUriSchema = z
+    .string()
+    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const inputSchema = z.object({
     markdown_doc: z.string().min(1).describe('Markdown document to store'),
@@ -21,7 +24,7 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
 
   const outputSchema = z.object({
     items: z.array(z.object({
-      uri: z.string(),
+      uri: memoryUriSchema,
       memory_uuid: z.string(),
       label: z.string(),
       tags: z.array(z.string())

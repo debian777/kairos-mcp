@@ -5,6 +5,9 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { getTenantId } from '../utils/tenant-context.js';
 
 export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete') {
+    const memoryUriSchema = z
+        .string()
+        .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
     server.registerTool(
         toolName,
         {
@@ -12,13 +15,13 @@ export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete'
             description: getToolDoc('kairos_delete'),
             inputSchema: z.object({
                 uris: z
-                    .array(z.string().min(1))
+                    .array(memoryUriSchema)
                     .nonempty()
                     .describe('Non-empty array of kairos://mem/{uuid} URIs to delete')
             }),
             outputSchema: z.object({
                 results: z.array(z.object({
-                    uri: z.string(),
+                    uri: memoryUriSchema,
                     status: z.enum(['deleted', 'error']),
                     message: z.string()
                 })),

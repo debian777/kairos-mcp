@@ -38,6 +38,8 @@ Execute.
 
 This rule applies to ALL subsequent numbered sections that require Build, Deploy, or Test operations.
 
+Proof of work: rg -n "Build|Deploy|Test" README.md
+
 ---
 
 ## ESTABLISH BASELINE
@@ -47,6 +49,8 @@ This rule applies to ALL subsequent numbered sections that require Build, Deploy
 2. Run the documented test command (e.g., `npm run dev:test` or `npm run qa:test`)
 3. Archive output: `reports/tests/baseline-<timestamp>.log`
 4. Record commit hash and branch
+
+Proof of work: stat `reports/tests/baseline-<timestamp>.log`
 
 **CRITICAL: Only proceed if ALL tests pass with zero failures.**
 - If ANY test fails in baseline ← STOP immediately and escalate to human
@@ -72,9 +76,13 @@ If baseline has any failures ← STOP and escalate to human. Do not proceed.
 
 No work ever happens on main or any shared branch.
 
+Proof of work: git rev-parse --abbrev-ref HEAD | grep -v main
+
 ## WRITE A 3': BULLET PLAN
 Scope, files touched, success criteria.  
 Post the plan. Wait for acknowledgment if scope is unclear.
+
+Proof of work: post the exact 3' bullet plan in the log before coding.
 
 ## REPRODUCE OR SPECIFY TARGET BEHAVIOR
 For bugs: reproduce deterministically.  
@@ -82,9 +90,13 @@ For features: add a failing test that encodes the desired outcome.
 
 No implementation before the test exists or failure is proven.
 
+Proof of work: capture failing test output or repro steps in `reports/tests/repro-<timestamp>.log`.
+
 ## MINIMAL IMPLEMENTATION
 Change the smallest possible surface.  
 Touch only planned files. Keep existing style. No unrelated cleanups.
+
+Proof of work: run `git diff --stat` to prove the surface stayed minimal.
 
 ## RUN FULL TEST SUITE
 **Follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST: Check README.md for test commands. Use ONLY the documented npm scripts.**
@@ -102,8 +114,12 @@ Touch only planned files. Keep existing style. No unrelated cleanups.
 
 If any test fails → return to REPRODUCE OR SPECIFY TARGET BEHAVIOR or MINIMAL IMPLEMENTATION. Do not weaken assertions.
 
+Proof of work: `tail -n 20 reports/tests/test-<timestamp>.log` showing all suites/tests passed.
+
 ## HYGIENE
 Run linters/formatters. Remove debug prints. Scan for secrets. No dead code.
+
+Proof of work: `npm run lint -- --max-warnings=0` and archive the final summary.
 
 ## SINGLE FOCUSED COMMIT (PROOF OF WORK)
 **Proof of work = git commit + test log stored locally in temporary files**
@@ -150,6 +166,8 @@ Optional body explaining what and why (not how).
 
 No commit is valid without a corresponding green test log in temporary files.
 
+Proof of work: `git show --stat HEAD` linked to the matching test log.
+
 ## FINAL VERIFICATION (PROOF OF WORK VALIDATION)
 **Proof of work is only accepted when:**
 - A git commit exists
@@ -173,6 +191,8 @@ All of the following must be true:
 
 If any item fails → return to the numbered section that failed.
 
+Proof of work: record the commit hash + test log path inside the implementation log.
+
 ## HANDOFF
 Provide:
 - One-sentence summary of what changed
@@ -180,3 +200,5 @@ Provide:
 - Direct path to the green test log
 - Commit hash
 - Any remaining risks
+
+Proof of work: final response must include summary, validation commands, test log path, and risks.

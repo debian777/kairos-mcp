@@ -1,7 +1,10 @@
+console.debug('kairos-next-output-shape.test.ts');
+
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
+console.debug('kairos-next-output-shape.test.ts');
 describe('kairos_next response schema', () => {
   let mcpConnection;
 
@@ -29,6 +32,7 @@ describe('kairos_next response schema', () => {
     expect(parsed.items.length).toBeGreaterThanOrEqual(2);
     return parsed.items;
   }
+  console.debug('mcpConnection', mcpConnection);
 
   test('returns continue payload with current_step + next_step', async () => {
     const ts = Date.now();
@@ -37,7 +41,9 @@ describe('kairos_next response schema', () => {
     const secondUri = items[1].uri;
 
     const call = { name: 'kairos_next', arguments: { uri: firstUri } };
+    console.debug('call', call);
     const result = await mcpConnection.client.callTool(call);
+    console.debug('result', result);
     const payload = parseMcpJson(result, '[kairos_next] continue payload');
 
     withRawOnFail({ call, result }, () => {

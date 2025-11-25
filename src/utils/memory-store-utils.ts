@@ -129,7 +129,9 @@ export function isCodeIdentifier(tag: string): boolean {
 }
 
 export function scoreMemory(memory: Memory, normalizedQuery: string): number {
-  const label = memory.label.toLowerCase();
+  const baseLabel = (memory.label || '').toLowerCase();
+  const chainLabel = typeof memory.chain?.label === 'string' ? memory.chain.label.toLowerCase() : '';
+  const label = chainLabel ? `${baseLabel} ${chainLabel}`.trim() : baseLabel;
   const text = memory.text.toLowerCase();
   const tags = memory.tags.map(tag => tag.toLowerCase());
 
@@ -144,6 +146,9 @@ export function scoreMemory(memory: Memory, normalizedQuery: string): number {
   }
   if (text.includes(normalizedQuery)) {
     score += 200;
+  }
+  if (chainLabel && chainLabel.includes(normalizedQuery)) {
+    score += 250;
   }
 
   // 2. Tag matches

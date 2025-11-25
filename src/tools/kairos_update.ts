@@ -9,19 +9,22 @@ import { getTenantId } from '../utils/tenant-context.js';
 // Simple KAIROS update tool focused on cache correctness
 export function registerKairosUpdateTool(server: any, toolName = 'kairos_update') {
     const qdrantService = qdrantServiceSingleton;
+    const memoryUriSchema = z
+        .string()
+        .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
     server.registerTool(
         toolName,
         {
             title: 'Update KAIROS Memory(s)',
             description: getToolDoc('kairos_update'),
             inputSchema: z.object({
-                uris: z.array(z.string().min(1)).nonempty().describe('Non-empty array of kairos://mem/{uuid} URIs to update'),
+                uris: z.array(memoryUriSchema).nonempty().describe('Non-empty array of kairos://mem/{uuid} URIs to update'),
                 markdown_doc: z.array(z.string().min(1)).optional().describe('Array of Markdown BODY or full KAIROS render; BODY will be extracted and stored for each URI'),
                 updates: z.record(z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes')
             }),
             outputSchema: z.object({
                 results: z.array(z.object({
-                    uri: z.string(),
+                    uri: memoryUriSchema,
                     status: z.enum(['updated', 'error']),
                     message: z.string()
                 })),
