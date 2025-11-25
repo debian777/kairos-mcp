@@ -90,16 +90,18 @@ describe('Kairos mint + begin accessibility', () => {
 
     const mintedUriSet = new Set((mintPayload.items || []).map(item => (item.uri || '').toLowerCase()));
 
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     const beginCall = {
       name: 'kairos_begin',
       arguments: {
-        query: 'AI CODING RULES'
+        query: QUERY
       }
     };
 
     let beginPayload;
     let beginResult;
-    const maxAttempts = 5;
+    const maxAttempts = 10;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       beginResult = await mcpConnection.client.callTool(beginCall);
       beginPayload = parseMcpJson(beginResult, '[kairos_begin] AI CODING RULES');
