@@ -9,10 +9,6 @@ import {
 // Allow "Proof of work" lines even when preceded by bullets or emphasis
 const PROOF_LINE_REGEX = /^(?:[*\-+>\u2022]\s*)?(?:\*\*)?\s*PROOF OF WORK:\s*(.+)$/im;
 
-function hasProofOfWork(markdownDoc: string): boolean {
-  return PROOF_LINE_REGEX.test(markdownDoc);
-}
-
 function parseTimeout(token?: string | null): number {
   if (!token) return 60;
   const lower = token.toLowerCase();
@@ -102,139 +98,200 @@ function sanitizeHeading(line: string): string {
 }
 
 /**
- * Process a single H1 section into a chain of memories.
- * Each H1 becomes a chain label; H2 sections within it become steps.
+ * Process a single H1 section into a chain of memories using Option 2 algorithm.
+ * Slices by proof-of-work lines instead of H2 headers.
+ * Each H1 becomes a chain label; proof-of-work lines define step boundaries.
  */
 function processH1Section(
   h1Title: string,
   h1Content: string,
   llmModelId: string,
   now: Date,
-  codeBlockProcessor: CodeBlockProcessor,
-  options: { proofMode?: boolean }
+  codeBlockProcessor: CodeBlockProcessor
 ): Memory[] {
   const lines = h1Content.split(/\r?\n/);
-  const sections: Array<{ title: string; content: string }> = [];
-
-  let preambleActive = true;
-  let preamble: string[] = [];
-  let currentSection: { title: string; content: string[] } | null = null;
-
+  
+  // Option 2: Single-pass algorithm - slice by proof-of-work
+  interface StepData {
+    chain_label: string;
+    step_label: string;
+    markdown_doc: string[];
+    proof_of_work?: { cmd: string; timeout_seconds: number };
+  }
+  
+  const full_markdown: Record<number, StepData> = {};
+  let step = 1;
+  
+  // Initialize first step
+  full_markdown[step] = {
+    chain_label: h1Title,
+    step_label: '',
+    markdown_doc: []
+  };
+  
   for (const raw of lines) {
     const line = raw; // preserve formatting
     const trimmed = line.trim();
-
-    // On encountering a new H2, finalize any preamble or previous section
+    
+    // Ensure current step exists
+    if (!full_markdown[step]) {
+      full_markdown[step] = {
+        chain_label: h1Title,
+        step_label: '',
+        markdown_doc: []
+      };
+    }
+    const currentStep = full_markdown[step]!;
+    
+    // H1 is already handled by caller, but check for safety
+    if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+      currentStep.chain_label = trimmed.substring(2).trim();
+      continue;
+    }
+    
+    // Check for proof-of-work line
+    const proof = parseProofLine(line);
+    if (proof) {
+      currentStep.proof_of_work = proof;
+      currentStep.markdown_doc.push(line); // Include proof line in content
+      continue;
+    }
+    
+    // Check for H2 header
     if (trimmed.startsWith('## ')) {
-      // Finalize H1 preamble section if active and non-empty
-      if (preambleActive) {
-        const pre = preamble.join('\n');
-        if (pre.trim().length > 0 && !options.proofMode) {
-          sections.push({ title: h1Title, content: pre });
-        }
-        preambleActive = false;
-        preamble = [];
-      }
-
-      // Finalize previous H2 section only if it has body
-      if (currentSection) {
-        const body = currentSection.content.join('\n');
-        if (body.trim().length > 0) {
-          sections.push({ title: currentSection.title, content: body });
+      const h2Title = trimmed.substring(3).trim();
+      // If current step has proof, this H2 is for the NEXT step
+      if (currentStep.proof_of_work) {
+        step += 1;
+        // Initialize next step if it doesn't exist
+        if (!full_markdown[step]) {
+          full_markdown[step] = {
+            chain_label: h1Title,
+            step_label: '',
+            markdown_doc: []
+          };
         }
       }
-
-      // Start a new H2 section
-      currentSection = { title: trimmed.substring(3).trim(), content: [] };
-      if (options.proofMode && preambleActive && preamble.length > 0) {
-        currentSection.content.push(...preamble);
-        preamble = [];
+      // Get current step (may have changed)
+      const stepForH2 = full_markdown[step]!;
+      // Append H2 to current step's label (with separator if label exists)
+      if (stepForH2.step_label) {
+        stepForH2.step_label += ' / ' + h2Title;
+      } else {
+        stepForH2.step_label = h2Title;
       }
       continue;
     }
-
-    // Regular content lines
-    if (preambleActive) {
-      preamble.push(line);
-    } else if (currentSection) {
-      currentSection.content.push(line);
-    } else {
-      // After H1 but before any H2 appeared, keep collecting as preamble
-      preambleActive = true;
-      preamble.push(line);
+    
+    // Regular content line
+    currentStep.markdown_doc.push(line);
+  }
+  
+  // After parsing: if step == 1 at end, single memory (no proof or proof at end)
+  // If step > 1, multiple steps created by proofs
+  // Filter out empty steps (step 2+ that were created but have no content)
+  const steps = Object.keys(full_markdown)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .filter(stepNum => {
+      const stepData = full_markdown[stepNum]!;
+      // Keep step if it has content or if it's the only step
+      return stepData.markdown_doc.length > 0 || stepNum === 1;
+    });
+  
+  // If proof is at end, last step will be empty - remove it and treat as single memory
+  if (steps.length > 1) {
+    const lastStep = steps[steps.length - 1]!;
+    const lastStepData = full_markdown[lastStep]!;
+    // If last step has no content and no proof, it was created by proof at end
+    if (lastStepData.markdown_doc.length === 0 && !lastStepData.proof_of_work) {
+      steps.pop(); // Remove empty last step
     }
   }
-
-  // End of section: finalize whichever collector is active
-  if (currentSection) {
-    const body = currentSection.content.join('\n');
-    if (body.trim().length > 0) {
-      sections.push({ title: currentSection.title, content: body });
-    }
-  } else if (preambleActive) {
-    const pre = preamble.join('\n');
-    if (pre.trim().length > 0 && !options.proofMode) {
-      sections.push({ title: h1Title, content: pre });
-    }
+  
+  // If only step 1 exists (no proof or proof at end), return single memory
+  if (steps.length === 1 && steps[0] === 1) {
+    // Single memory case - return as-is
+    const stepData = full_markdown[1]!;
+    const content = stepData.markdown_doc.join('\n');
+    const label = stepData.step_label || stepData.chain_label; // Fallback to chain_label if no H2
+    
+    const { cleaned } = extractProofOfWork(content);
+    const codeResult = codeBlockProcessor.processMarkdown(cleaned);
+    const baseTags = generateTags(cleaned);
+    const codeTags = codeResult.allIdentifiers.slice(0, 5);
+    const allTags = [...baseTags, ...codeTags];
+    
+    return [{
+      memory_uuid: crypto.randomUUID(),
+      label,
+      tags: allTags,
+      text: cleaned,
+      llm_model_id: llmModelId,
+      created_at: now.toISOString(),
+      chain: {
+        id: '', // Will be set by store function
+        label: stepData.chain_label,
+        step_index: 1,
+        step_count: 1
+      } as any
+    }];
   }
-
-  if (!sections.length) {
-    return [];
-  }
-
+  
+  // Multiple steps: require proof for all steps
   const nowIso = now.toISOString();
-  const uuids = sections.map(() => crypto.randomUUID());
-
-  return sections.map((section, index) => {
-    const { cleaned, proof } = extractProofOfWork(section.content);
-    const proofRequired = !!options.proofMode && index >= 1;
-
-    if (options.proofMode) {
-      if (proofRequired && !proof) {
-        throw new Error(`Missing PROOF OF WORK line in step "${section.title}"`);
-      }
+  const uuids = steps.map(() => crypto.randomUUID());
+  
+  return steps.map((stepNum, index) => {
+    const stepData = full_markdown[stepNum]!;
+    const content = stepData.markdown_doc.join('\n');
+    const { cleaned, proof } = extractProofOfWork(content);
+    
+    // All steps must have proof, except the last step (which can be without proof)
+    const isLastStep = index === steps.length - 1;
+    if (!proof && steps.length > 1 && !isLastStep) {
+      throw new Error(`Missing PROOF OF WORK line in step "${stepData.step_label || stepData.chain_label}"`);
     }
-
+    
     const memory_uuid = uuids[index]!;
-    const label = section.title; // H1 for preamble, H2 for others
-
+    const label = stepData.step_label || stepData.chain_label; // Fallback to chain_label if no H2
+    
     // Process code blocks for enhanced searchability
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
-
+    
     // Generate tags including code identifiers
     const baseTags = generateTags(cleaned);
-    const codeTags = codeResult.allIdentifiers.slice(0, 5); // Limit to prevent tag explosion
+    const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-
-    const contentToStore = cleaned;
+    
     let proofMetadata: ProofOfWorkDefinition | undefined;
     if (proof) {
       proofMetadata = {
         cmd: proof.cmd,
         timeout_seconds: proof.timeout_seconds,
-        required: proofRequired
+        required: true
       };
     }
-
+    
     const obj: any = {
       memory_uuid,
       label,
       tags: allTags,
-      text: contentToStore,
+      text: cleaned,
       llm_model_id: llmModelId,
       created_at: nowIso
     };
     if (proofMetadata) {
       obj.proof_of_work = proofMetadata;
     }
-    // Store chain label in chain object (only if H1 title is provided)
-    // Note: step_index and step_count are required for chain detection in kairos_begin
+    // Store chain label in chain object (id will be set by store function)
     if (h1Title) {
       obj.chain = {
+        id: '', // Will be set by store function
         label: h1Title,
         step_index: index + 1,
-        step_count: sections.length
-      };
+        step_count: steps.length
+      } as any;
     }
     return obj as Memory;
   });
@@ -246,10 +303,6 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     .split(/\r?\n/)
     .map(line => sanitizeHeading(line))
     .join('\n');
-  const proofMode = hasProofOfWork(cleanMarkdown);
-  if (!proofMode) {
-    return [];
-  }
 
   const lines = cleanMarkdown.split(/\r?\n/);
   
@@ -266,11 +319,12 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
   if (h1Positions.length === 0) {
     const structure = parseMarkdownStructure(cleanMarkdown);
     if (structure.h2Items.length === 0) {
+      // No H1, no H2 - return empty (no structure to process)
       return [];
     }
     // Process as single chain without H1 - use first H2 as chain label or empty
     const firstH2 = structure.h2Items[0] || '';
-    return processH1Section(firstH2, cleanMarkdown, llmModelId, now, codeBlockProcessor, { proofMode: true });
+    return processH1Section(firstH2, cleanMarkdown, llmModelId, now, codeBlockProcessor);
   }
 
   // Split document by H1 headings - each H1 becomes a separate chain
@@ -285,8 +339,8 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     const h1SectionLines = lines.slice(h1Start + 1, h1End);
     const h1Content = h1SectionLines.join('\n');
     
-    // Process this H1 section as a separate chain
-    const chainMemories = processH1Section(h1Title, h1Content, llmModelId, now, codeBlockProcessor, { proofMode: true });
+    // Process this H1 section as a separate chain (Option 2: proof-based slicing)
+    const chainMemories = processH1Section(h1Title, h1Content, llmModelId, now, codeBlockProcessor);
     allMemories.push(...chainMemories);
   }
 
