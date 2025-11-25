@@ -446,6 +446,19 @@ ensure_coding_rules() {
   if [ ! -d "reports/tests" ]; then
     print_warning "No reports/tests/ directory found (test reports may not have been generated)"
   else
+    commit_hash=$(git rev-parse HEAD)
+    log_files=$(find reports/tests -type f -name "*.log")
+    if [ -z "$log_files" ]; then
+      print_error "No test report files found in reports/tests/ (run tests to generate proof)."
+      exit 1
+    fi
+    commit_report=$(find reports/tests -type f -name "*.log" -print0 | xargs -0 grep -l "$commit_hash" 2>/dev/null | head -n 1)
+    if [ -z "$commit_report" ]; then
+      print_error "No proof-of-work test report references commit $commit_hash (run tests and archive logs)."
+      exit 1
+    fi
+    print_success "Proof-of-work test report found for commit $commit_hash: $commit_report"
+
     # Check if there are any recent test report files
     latest_test_report=$(find reports/tests -type f -name "*.log" | sort -r | head -n 1)
     if [ -n "$latest_test_report" ]; then
@@ -455,7 +468,7 @@ ensure_coding_rules() {
         print_success "Test report contains Test Suites information: $latest_test_report"
         
         # Check for failures in latest report file
-        if egrep 'FAIL|failed'"$latest_test_report" 2>/dev/null; then
+        if grep -Eq 'FAIL|failed' "$latest_test_report" 2>/dev/null; then
           print_error "Failures found in latest report file (AI coding rules -> NO FAILURES REQUIRED)."
           exit 1
         fi
