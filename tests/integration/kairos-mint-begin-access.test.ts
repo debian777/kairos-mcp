@@ -5,6 +5,54 @@ import { join } from 'path';
 
 describe('Kairos mint + begin accessibility', () => {
   let mcpConnection;
+  const QUERY = 'AI CODING RULES';
+
+  async function purgeExistingProtocols() {
+    const maxRounds = 5;
+    for (let round = 0; round < maxRounds; round++) {
+      const beginCall = {
+        name: 'kairos_begin',
+        arguments: {
+          query: QUERY
+        }
+      };
+      const beginResult = await mcpConnection.client.callTool(beginCall);
+      const beginPayload = parseMcpJson(beginResult, '[kairos_begin] cleanup AI CODING RULES');
+      if (beginPayload.protocol_status === 'no_protocol') {
+        break;
+      }
+
+      const uris = new Set<string>();
+      if (typeof beginPayload.start_here === 'string') {
+        uris.add(beginPayload.start_here);
+      }
+      if (Array.isArray(beginPayload.choices)) {
+        for (const choice of beginPayload.choices) {
+          if (choice?.uri) {
+            uris.add(choice.uri);
+          }
+        }
+      }
+      if (beginPayload.best_match?.uri) {
+        uris.add(beginPayload.best_match.uri);
+      }
+
+      if (uris.size === 0) {
+        break;
+      }
+
+      const deleteCall = {
+        name: 'kairos_delete',
+        arguments: {
+          uris: Array.from(uris)
+        }
+      };
+      const deleteResult = await mcpConnection.client.callTool(deleteCall);
+      const deletePayload = parseMcpJson(deleteResult, '[kairos_delete] cleanup result');
+      expect(deletePayload.total_deleted).toBeGreaterThan(0);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
 
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
@@ -17,6 +65,9 @@ describe('Kairos mint + begin accessibility', () => {
   });
 
   test('AI CODING RULES markdown is retrievable via kairos_begin after mint', async () => {
+    // Ensure previous AI CODING RULES chains are cleared to avoid false positives from older data
+    await purgeExistingProtocols();
+
     const docPath = join(process.cwd(), 'tests', 'test-data', 'AI_CODING_RULES.md');
     const markdownDoc = readFileSync(docPath, 'utf-8');
 
