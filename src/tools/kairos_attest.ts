@@ -16,9 +16,10 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
 
   const inputSchema = z.object({
     uri: z.string().min(1).describe('URI of the completed memory step'),
-    completion_status: z.enum(['completed', 'failed']).describe('Status of the step execution'),
-    context: z.string().optional().describe('Optional usage context'),
-    llm_model_id: z.string().describe('Use your REAL LLM model ID')
+    outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
+    quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
+    message: z.string().min(1).describe('Attestation summary message'),
+    llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
   });
 
   const outputSchema = z.object({
@@ -56,11 +57,11 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       let result: any;
       
       try {
-        const { uri, completion_status, context: usageContext, llm_model_id } = params;
+        const { uri, outcome, quality_bonus = 0, message, llm_model_id } = params;
 
       // Use provided model identity
       const modelIdentity = {
-        modelId: llm_model_id,
+        modelId: llm_model_id || 'kairos-attest',
         provider: 'unknown', // Will be determined from model ID if needed
         family: 'unknown'   // Will be determined from model ID if needed
       };
@@ -70,7 +71,6 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
         throw new Error('uri must be a string');
       }
       const uris = [uri];
-      const outcome = completion_status === 'completed' ? 'success' : 'failure';
       const uriArray: string[] = uris;
 
       logger.tool('rate', 'rate', `single rating of ${uri} with outcome="${outcome}" model="${modelIdentity.modelId}"`);
@@ -100,7 +100,7 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
             );
 
             // Total bonus combines basic quality + implementation success
-            const totalQualityBonus = basicQualityBonus + implementationBonus;
+            const totalQualityBonus = basicQualityBonus + implementationBonus + quality_bonus;
 
             // Update quality metrics in Qdrant
             const metricsUpdate: any = {
@@ -112,8 +112,8 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
               qualityBonus: totalQualityBonus
             };
 
-            if (usageContext) {
-              metricsUpdate.usageContext = usageContext;
+            if (message) {
+              metricsUpdate.usageContext = message;
             }
 
             await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
@@ -159,7 +159,7 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
               uri: uri,
               outcome: outcome,
               quality_bonus: totalQualityBonus,
-              message: `Quality feedback recorded for ${modelIdentity.modelId}`,
+              message,
               rated_at: new Date().toISOString()
             });
             totalRated++;

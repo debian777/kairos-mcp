@@ -5,6 +5,12 @@ export interface ChainInfo {
   step_count: number;              // Total number of steps in the chain
 }
 
+export interface ProofOfWorkDefinition {
+  cmd: string;
+  timeout_seconds: number;
+  required: boolean;
+}
+
 export interface Memory {
   memory_uuid: string;
   label: string;
@@ -13,4 +19,5 @@ export interface Memory {
   llm_model_id: string;
   created_at: string;
   chain?: ChainInfo;               // Memory chain metadata (formerly protocol)
+  proof_of_work?: ProofOfWorkDefinition;
 }

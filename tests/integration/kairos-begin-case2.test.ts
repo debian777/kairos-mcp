@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
 /**
  * CASE 2 — MULTIPLE PERFECT MATCHES (score = 1.0 × N)
@@ -31,9 +32,18 @@ describe('Kairos Begin - CASE 2: MULTIPLE PERFECT MATCHES', () => {
 
     // Create 3 protocols with different H1 titles, all containing the query string
     const protocols = [
-      `# Protocol A ${queryString}\n\n## Step 1\nFirst step.\n\n## Step 2\nSecond step.\n\nThis protocol covers ${queryString} implementation.`,
-      `# Protocol B ${queryString}\n\n## Step 1\nFirst step.\n\n## Step 2\nSecond step.\n\nThis protocol covers ${queryString} implementation.`,
-      `# Protocol C ${queryString}\n\n## Step 1\nFirst step.\n\n## Step 2\nSecond step.\n\nThis protocol covers ${queryString} implementation.`
+      buildProofMarkdown(`Protocol A ${queryString}`, [
+        { heading: 'Step 1 — Setup', body: `First step for ${queryString}.`, proofCmd: 'echo setup-a' },
+        { heading: 'Step 2 — Execute', body: `Second step. This protocol covers ${queryString} implementation.`, proofCmd: 'echo run-a' }
+      ]),
+      buildProofMarkdown(`Protocol B ${queryString}`, [
+        { heading: 'Step 1 — Setup', body: `First step for ${queryString}.`, proofCmd: 'echo setup-b' },
+        { heading: 'Step 2 — Execute', body: `Second step. This protocol covers ${queryString} implementation.`, proofCmd: 'echo run-b' }
+      ]),
+      buildProofMarkdown(`Protocol C ${queryString}`, [
+        { heading: 'Step 1 — Setup', body: `First step for ${queryString}.`, proofCmd: 'echo setup-c' },
+        { heading: 'Step 2 — Execute', body: `Second step. This protocol covers ${queryString} implementation.`, proofCmd: 'echo run-c' }
+      ])
     ];
 
     // Store all protocols (each with unique H1 = unique chain)

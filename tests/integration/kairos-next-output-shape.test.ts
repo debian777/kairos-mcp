@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
 describe('kairos_next response schema', () => {
   let mcpConnection;
@@ -13,13 +14,10 @@ describe('kairos_next response schema', () => {
   });
 
   async function mintTwoStepProtocol(label: string) {
-    const doc = `# ${label}
-
-## Step One
-First body for ${label}.
-
-## Step Two
-Second body for ${label}.`;
+    const doc = buildProofMarkdown(label, [
+      { heading: 'Step One', body: `First body for ${label}.`, proofCmd: 'echo step1' },
+      { heading: 'Step Two', body: `Second body for ${label}.`, proofCmd: 'echo step2' }
+    ]);
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
@@ -49,6 +47,10 @@ Second body for ${label}.`;
       expect(payload.current_step.uri).toBe(firstUri);
       expect(payload.current_step.mimeType).toBe('text/markdown');
       expect(payload.current_step.content).toContain('First body');
+      expect(payload.proof_of_work).toBeDefined();
+      expect(payload.proof_of_work!.cmd).toContain('step1');
+      expect(payload.proof_of_work!.timeout_seconds).toBe(30);
+      expect(payload.proof_of_work_result).toBeUndefined();
 
       expect(payload.next_step).toBeDefined();
       expect(payload.next_step.uri).toBe(secondUri);
@@ -63,7 +65,12 @@ Second body for ${label}.`;
     const items = await mintTwoStepProtocol(`Kairos Next Final ${ts}`);
     const lastUri = items[items.length - 1].uri;
 
-    const call = { name: 'kairos_next', arguments: { uri: lastUri } };
+    const submission = {
+      uri: items[0].uri,
+      exit_code: 0,
+      stdout: 'setup ok'
+    };
+    const call = { name: 'kairos_next', arguments: { uri: lastUri, proof_of_work_result: submission } };
     const result = await mcpConnection.client.callTool(call);
     const payload = parseMcpJson(result, '[kairos_next] completed payload');
 
@@ -73,6 +80,9 @@ Second body for ${label}.`;
       expect(payload.current_step.uri).toBe(lastUri);
       expect(payload.current_step.content).toContain('Second body');
       expect(payload.next_step).toBeNull();
+      expect(payload.proof_of_work).toBeDefined();
+      expect(payload.proof_of_work!.cmd).toContain('step2');
+      expect(payload.proof_of_work_result).toBeUndefined();
     }, '[kairos_next] completed payload with raw result');
   }, 30000);
 });

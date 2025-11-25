@@ -1,10 +1,89 @@
 import crypto from 'node:crypto';
-import type { Memory } from '../../types/memory.js';
+import type { Memory, ProofOfWorkDefinition } from '../../types/memory.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import {
   parseMarkdownStructure,
   generateTags,
 } from '../../utils/memory-store-utils.js';
+
+const PROOF_LINE_REGEX = /^PROOF OF WORK:\s*(.+)$/im;
+
+function hasProofOfWork(markdownDoc: string): boolean {
+  return PROOF_LINE_REGEX.test(markdownDoc);
+}
+
+function parseTimeout(token?: string | null): number {
+  if (!token) return 60;
+  const lower = token.toLowerCase();
+  if (lower.endsWith('ms')) {
+    const value = parseFloat(lower.replace(/ms$/, ''));
+    return Number.isFinite(value) ? Math.max(1, Math.round(value / 1000)) : 60;
+  }
+  if (lower.endsWith('h')) {
+    const value = parseFloat(lower.replace(/h$/, ''));
+    return Number.isFinite(value) ? Math.max(1, Math.round(value * 3600)) : 60;
+  }
+  if (lower.endsWith('m')) {
+    const value = parseFloat(lower.replace(/m$/, ''));
+    return Number.isFinite(value) ? Math.max(1, Math.round(value * 60)) : 60;
+  }
+  if (lower.endsWith('s')) {
+    const value = parseFloat(lower.replace(/s$/, ''));
+    return Number.isFinite(value) ? Math.max(1, Math.round(value)) : 60;
+  }
+  const asNumber = parseFloat(lower);
+  return Number.isFinite(asNumber) ? Math.max(1, Math.round(asNumber)) : 60;
+}
+
+function parseProofLine(line: string): { cmd: string; timeout_seconds: number } | null {
+  const match = line.trim().match(PROOF_LINE_REGEX);
+  if (!match) {
+    return null;
+  }
+  const remainder = (match[1] || '').trim();
+  if (!remainder) {
+    return null;
+  }
+
+  const timeoutMatch = remainder.match(/^timeout\s+([0-9]+[a-zA-Z]*)\s+(.*)$/i);
+  if (timeoutMatch && timeoutMatch[2]) {
+    const timeoutToken = timeoutMatch[1];
+    const cmd = timeoutMatch[2].trim();
+    if (!cmd) return null;
+    return {
+      cmd,
+      timeout_seconds: parseTimeout(timeoutToken)
+    };
+  }
+
+  return {
+    cmd: remainder,
+    timeout_seconds: 60
+  };
+}
+
+function extractProofOfWork(content: string): { cleaned: string; proof?: Omit<ProofOfWorkDefinition, 'required'> } {
+  const lines = content.split(/\r?\n/);
+  let proof: Omit<ProofOfWorkDefinition, 'required'> | undefined;
+  const filtered: string[] = [];
+
+  for (const line of lines) {
+    if (!proof) {
+      const parsed = parseProofLine(line);
+      if (parsed) {
+        proof = parsed;
+        continue;
+      }
+    }
+    filtered.push(line);
+  }
+
+  const cleaned = filtered.join('\n').trim();
+  if (proof) {
+    return { cleaned, proof };
+  }
+  return { cleaned };
+}
 
 /**
  * Sanitize H2 headings to remove STEP patterns and numbering that break chain order.
@@ -30,7 +109,8 @@ function processH1Section(
   h1Content: string,
   llmModelId: string,
   now: Date,
-  codeBlockProcessor: CodeBlockProcessor
+  codeBlockProcessor: CodeBlockProcessor,
+  options: { proofMode?: boolean }
 ): Memory[] {
   const lines = h1Content.split(/\r?\n/);
   const sections: Array<{ title: string; content: string }> = [];
@@ -47,8 +127,8 @@ function processH1Section(
     if (trimmed.startsWith('## ')) {
       // Finalize H1 preamble section if active and non-empty
       if (preambleActive) {
-        const pre = preamble.join('\n').trim();
-        if (pre.length > 0) {
+        const pre = preamble.join('\n');
+        if (pre.trim().length > 0 && !options.proofMode) {
           sections.push({ title: h1Title, content: pre });
         }
         preambleActive = false;
@@ -57,14 +137,18 @@ function processH1Section(
 
       // Finalize previous H2 section only if it has body
       if (currentSection) {
-        const body = currentSection.content.join('\n').trim();
-        if (body.length > 0) {
+        const body = currentSection.content.join('\n');
+        if (body.trim().length > 0) {
           sections.push({ title: currentSection.title, content: body });
         }
       }
 
       // Start a new H2 section
       currentSection = { title: trimmed.substring(3).trim(), content: [] };
+      if (options.proofMode && preambleActive && preamble.length > 0) {
+        currentSection.content.push(...preamble);
+        preamble = [];
+      }
       continue;
     }
 
@@ -82,13 +166,13 @@ function processH1Section(
 
   // End of section: finalize whichever collector is active
   if (currentSection) {
-    const body = currentSection.content.join('\n').trim();
-    if (body.length > 0) {
+    const body = currentSection.content.join('\n');
+    if (body.trim().length > 0) {
       sections.push({ title: currentSection.title, content: body });
     }
   } else if (preambleActive) {
-    const pre = preamble.join('\n').trim();
-    if (pre.length > 0) {
+    const pre = preamble.join('\n');
+    if (pre.trim().length > 0 && !options.proofMode) {
       sections.push({ title: h1Title, content: pre });
     }
   }
@@ -101,18 +185,35 @@ function processH1Section(
   const uuids = sections.map(() => crypto.randomUUID());
 
   return sections.map((section, index) => {
+    const { cleaned, proof } = extractProofOfWork(section.content);
+    const proofRequired = !!options.proofMode && index >= 1;
+
+    if (options.proofMode) {
+      if (proofRequired && !proof) {
+        throw new Error(`Missing PROOF OF WORK line in step "${section.title}"`);
+      }
+    }
+
     const memory_uuid = uuids[index]!;
     const label = section.title; // H1 for preamble, H2 for others
 
     // Process code blocks for enhanced searchability
-    const codeResult = codeBlockProcessor.processMarkdown(section.content);
+    const codeResult = codeBlockProcessor.processMarkdown(cleaned);
 
     // Generate tags including code identifiers
-    const baseTags = generateTags(section.content);
+    const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5); // Limit to prevent tag explosion
     const allTags = [...baseTags, ...codeTags];
 
-    const contentToStore = section.content;
+    const contentToStore = cleaned;
+    let proofMetadata: ProofOfWorkDefinition | undefined;
+    if (proof) {
+      proofMetadata = {
+        cmd: proof.cmd,
+        timeout_seconds: proof.timeout_seconds,
+        required: proofRequired
+      };
+    }
 
     const obj: any = {
       memory_uuid,
@@ -122,6 +223,9 @@ function processH1Section(
       llm_model_id: llmModelId,
       created_at: nowIso
     };
+    if (proofMetadata) {
+      obj.proof_of_work = proofMetadata;
+    }
     // Store chain label in chain object (only if H1 title is provided)
     // Note: step_index and step_count are required for chain detection in kairos_begin
     if (h1Title) {
@@ -141,6 +245,10 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     .split(/\r?\n/)
     .map(line => sanitizeHeading(line))
     .join('\n');
+  const proofMode = hasProofOfWork(cleanMarkdown);
+  if (!proofMode) {
+    return [];
+  }
 
   const lines = cleanMarkdown.split(/\r?\n/);
   
@@ -161,7 +269,7 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     }
     // Process as single chain without H1 - use first H2 as chain label or empty
     const firstH2 = structure.h2Items[0] || '';
-    return processH1Section(firstH2, cleanMarkdown, llmModelId, now, codeBlockProcessor);
+    return processH1Section(firstH2, cleanMarkdown, llmModelId, now, codeBlockProcessor, { proofMode: true });
   }
 
   // Split document by H1 headings - each H1 becomes a separate chain
@@ -177,7 +285,7 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     const h1Content = h1SectionLines.join('\n');
     
     // Process this H1 section as a separate chain
-    const chainMemories = processH1Section(h1Title, h1Content, llmModelId, now, codeBlockProcessor);
+    const chainMemories = processH1Section(h1Title, h1Content, llmModelId, now, codeBlockProcessor, { proofMode: true });
     allMemories.push(...chainMemories);
   }
 

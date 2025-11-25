@@ -147,6 +147,7 @@ export class MemoryQdrantStoreChain {
               text: memory.text,
               llm_model_id: memory.llm_model_id,
               created_at: memory.created_at,
+              proof_of_work: memory.proof_of_work,
               // basic classification for stats + filtering (domain removed)
               task: dtt.task,
               type: dtt.type,
@@ -304,6 +305,7 @@ export class MemoryQdrantStoreChain {
           text: memory.text,
           llm_model_id: memory.llm_model_id,
           created_at: memory.created_at,
+          proof_of_work: memory.proof_of_work,
           task,
           type,
           quality_metadata: {

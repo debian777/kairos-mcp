@@ -28,7 +28,11 @@ describe('Kairos Mint Basic Functionality', () => {
     const ts = Date.now();
     const h1 = `# ${titlePrefix} ${ts}`;
     const body = sections
-      .map(s => `\n\n## ${s.h2}\n${s.body}`)
+      .map((s, index) => {
+        const proofCmd = s.proof || `echo step-${index + 1}`;
+        const timeout = s.timeout || 30;
+        return `\n\n## ${s.h2}\n${s.body}\n\nPROOF OF WORK: timeout ${timeout}s ${proofCmd}`;
+      })
       .join('');
     return `${h1}${body}`;
   }
@@ -76,7 +80,7 @@ describe('Kairos Mint Basic Functionality', () => {
   test('kairos_mint duplicate policy with label-based chain UUID and force_update', async () => {
     // 1) Create timestamp for unique chain label
     const ts = Date.now().toString();
-    const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\n## Step 2\nBeta`;
+    const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\nPROOF OF WORK: timeout 5s echo alpha\n\n## Step 2\nBeta\n\nPROOF OF WORK: timeout 5s echo beta`;
 
     // 2) First store → stored
     const first = await mcpConnection.client.callTool({
@@ -129,7 +133,6 @@ describe('Kairos Mint Basic Functionality', () => {
     const codeContent = `# Code Example Documentation ${ts}
 
 ## Function Implementation
-
 Here's how to implement a data processor:
 
 \`\`\`typescript
@@ -146,6 +149,8 @@ class DataProcessor {
 }
 \`\`\`
 
+PROOF OF WORK: timeout 45s echo implement-processor
+
 ## Usage Example
 
 \`\`\`javascript
@@ -154,7 +159,9 @@ const result = processor.processAll();
 console.log(result); // ['HELLO', 'WORLD']
 \`\`\`
 
-This demonstrates the data processing functionality.`;
+This demonstrates the data processing functionality.
+
+PROOF OF WORK: timeout 45s echo run-processor`;
 
     // Store the document
     const storeResult = await mcpConnection.client.callTool({

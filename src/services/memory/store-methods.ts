@@ -176,6 +176,15 @@ export class MemoryQdrantStoreMethods {
         step_count: typeof payload.chain_step_count === 'number' ? payload.chain_step_count : 1
       };
     }
+    if (payload.proof_of_work && typeof payload.proof_of_work.cmd === 'string') {
+      base.proof_of_work = {
+        cmd: payload.proof_of_work.cmd,
+        timeout_seconds: typeof payload.proof_of_work.timeout_seconds === 'number'
+          ? payload.proof_of_work.timeout_seconds
+          : 60,
+        required: Boolean(payload.proof_of_work.required)
+      };
+    }
     return base as Memory;
   }
 
