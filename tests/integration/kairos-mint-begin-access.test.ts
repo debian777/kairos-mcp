@@ -67,6 +67,9 @@ describe('Kairos mint + begin accessibility', () => {
   test('AI CODING RULES markdown is retrievable via kairos_begin after mint', async () => {
     // Ensure previous AI CODING RULES chains are cleared to avoid false positives from older data
     await purgeExistingProtocols();
+    
+    // Wait for purge operations to fully complete and Qdrant to update indexes
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const docPath = join(process.cwd(), 'tests', 'test-data', 'AI_CODING_RULES.md');
     const markdownDoc = readFileSync(docPath, 'utf-8');
