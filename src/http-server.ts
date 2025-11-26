@@ -10,6 +10,7 @@ import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
+import { qdrantService } from './services/qdrant/index.js';
 
 export function startHttpServer(port: number, server: any, memoryStore: MemoryQdrantStore) {
     const app = express();
@@ -19,7 +20,7 @@ export function startHttpServer(port: number, server: any, memoryStore: MemoryQd
 
     // Set up all route handlers
     setupHealthRoutes(app, memoryStore);
-    setupApiRoutes(app, memoryStore);
+    setupApiRoutes(app, memoryStore, { qdrantService });
     setupMcpRoutes(app, server);
     setupErrorHandlers(app);
 

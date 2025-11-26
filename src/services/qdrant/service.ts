@@ -39,6 +39,10 @@ export class QdrantService {
     return this.conn.qdrantUrl;
   }
 
+  public get apiKey(): string {
+    return this.conn.apiKey;
+  }
+
   initialize(): Promise<void> {
     return init.initializeCollection(this.conn);
   }

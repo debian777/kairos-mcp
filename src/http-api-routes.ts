@@ -2,13 +2,17 @@ import getRawBody from 'raw-body';
 import express from 'express';
 import { MemoryQdrantStore } from './services/memory/store.js';
 import { structuredLogger } from './utils/structured-logger.js';
+import type { QdrantService } from './services/qdrant/service.js';
+import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
+import { QDRANT_SNAPSHOT_DIR } from './config.js';
 
 /**
  * Set up API routes for raw markdown ingestion
  * @param app Express application instance
  * @param memoryStore Memory store instance
  */
-export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantStore) {
+export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantStore, deps: { qdrantService: QdrantService }) {
+    const { qdrantService } = deps;
 
     // REST API endpoint for raw markdown ingestion
     app.post('/api/kairos_mint/raw', async (req, res) => {
@@ -92,6 +96,34 @@ export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 error: 'STORE_FAILED',
                 message: err?.message || 'Failed to store markdown',
                 duration_ms: duration
+            });
+        }
+    });
+
+    app.post('/api/snapshot', async (_req, res) => {
+        try {
+            const result = await triggerQdrantSnapshot(qdrantService, {
+                enabled: true,
+                directory: QDRANT_SNAPSHOT_DIR,
+                reason: 'api'
+            });
+
+            const statusCode = result.success ? 200 : result.skipped ? 202 : 502;
+            res.status(statusCode).json({
+                status: result.success ? 'completed' : result.skipped ? 'skipped' : 'failed',
+                target: 'qdrant',
+                snapshotName: result.snapshotName,
+                filePath: result.filePath,
+                bytesWritten: result.bytesWritten,
+                durationMs: result.durationMs,
+                message: result.message
+            });
+        } catch (error) {
+            structuredLogger.error('Snapshot endpoint crashed', error);
+            res.status(500).json({
+                status: 'failed',
+                target: 'qdrant',
+                message: error instanceof Error ? error.message : 'Snapshot pipeline crashed'
             });
         }
     });

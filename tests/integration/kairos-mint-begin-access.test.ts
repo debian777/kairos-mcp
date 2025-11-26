@@ -90,7 +90,9 @@ describe('Kairos mint + begin accessibility', () => {
 
     const mintedUriSet = new Set((mintPayload.items || []).map(item => (item.uri || '').toLowerCase()));
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for Qdrant to index the newly minted vectors
+    // Qdrant may need time to make vectors searchable after upsert
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const beginCall = {
       name: 'kairos_begin',
@@ -101,7 +103,7 @@ describe('Kairos mint + begin accessibility', () => {
 
     let beginPayload;
     let beginResult;
-    const maxAttempts = 10;
+    const maxAttempts = 15;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       beginResult = await mcpConnection.client.callTool(beginCall);
       beginPayload = parseMcpJson(beginResult, '[kairos_begin] AI CODING RULES');
@@ -111,7 +113,8 @@ describe('Kairos mint + begin accessibility', () => {
       if (attempt === maxAttempts) {
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Increase retry delay to allow more time for Qdrant indexing
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
 
     withRawOnFail({ call: beginCall, result: beginResult }, () => {
@@ -139,6 +142,6 @@ describe('Kairos mint + begin accessibility', () => {
         throw new Error(`Unexpected kairos_begin response: ${JSON.stringify(beginPayload)}`);
       }
     }, '[kairos_begin] AI CODING RULES raw response');
-  }, 45000);
+  }, 60000);
 });
 

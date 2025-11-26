@@ -12,7 +12,9 @@ import { createServer } from './server.js';
 import { startServer } from './http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
-import { PORT, METRICS_PORT } from './config.js';
+import { PORT, METRICS_PORT, QDRANT_SNAPSHOT_ON_START, QDRANT_SNAPSHOT_DIR } from './config.js';
+import { qdrantService } from './services/qdrant/index.js';
+import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
 // Import system metrics to ensure they're initialized
 import './services/metrics/system-metrics.js';
 
@@ -58,6 +60,20 @@ async function main(): Promise<void> {
         structuredLogger.info('Initializing Qdrant memory store...');
         await memoryStore.init();
         structuredLogger.info('Memory store ready');
+
+        if (QDRANT_SNAPSHOT_ON_START) {
+            const snapshotResult = await triggerQdrantSnapshot(qdrantService, {
+                enabled: true,
+                directory: QDRANT_SNAPSHOT_DIR,
+                reason: 'startup'
+            });
+
+            if (!snapshotResult.success) {
+                structuredLogger.warn(`Startup snapshot failed: ${snapshotResult.message || 'unknown error'}`);
+            }
+        } else {
+            structuredLogger.info('Startup snapshot disabled (QDRANT_SNAPSHOT_ON_START=false)');
+        }
 
         // Inject mem resources from embedded-mcp-resources into Qdrant at boot
         // Use force=true to allow override in new versions

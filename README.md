@@ -97,6 +97,11 @@ npm run qa:redis-cli
 npm run qa:qdrant-curl
 ```
 
+## Snapshot Management
+
+- Enable automatic Qdrant backups on boot by setting `QDRANT_SNAPSHOT_ON_START=true`. Use `QDRANT_SNAPSHOT_DIR` to control where snapshot files are written (defaults to `data/qdrant/snapshots`).
+- Trigger an on-demand snapshot against the running server with `POST /api/snapshot`. The response includes the snapshot file path, byte size, and status so you can plug it into backup automation.
+
 ### Code Quality
 
 ```bash

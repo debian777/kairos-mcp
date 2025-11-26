@@ -4,6 +4,7 @@
  */
 
 import os from 'os';
+import path from 'path';
 
 function getEnvString(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
@@ -55,6 +56,10 @@ export const STRICT_COVERAGE = getEnvBoolean('STRICT_COVERAGE', false);
 export const MCP_URL = getEnvString('MCP_URL', 'http://localhost:3300/mcp');
 export const HEALTH_URL = getEnvString('HEALTH_URL', MCP_URL.replace('/mcp', '/health'));
 export const QDRANT_RESCORE_STRING = getEnvString('QDRANT_RESCORE', 'true');
+const DEFAULT_SNAPSHOT_DIR = path.resolve(process.cwd(), 'data/qdrant/snapshots');
+export const QDRANT_SNAPSHOT_ON_START = getEnvBoolean('QDRANT_SNAPSHOT_ON_START', false);
+const QDRANT_SNAPSHOT_DIR_RAW = getEnvString('QDRANT_SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR);
+export const QDRANT_SNAPSHOT_DIR = path.isAbsolute(QDRANT_SNAPSHOT_DIR_RAW) ? QDRANT_SNAPSHOT_DIR_RAW : path.resolve(QDRANT_SNAPSHOT_DIR_RAW);
 
 // Int configurations
 export const PORT = getEnvInt('PORT', 3000);
@@ -65,8 +70,7 @@ export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);
 export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.7);
 
 // Boolean configurations
-export const HTTP_ENABLED = getEnvBoolean('HTTP_ENABLED', true);
-export const STDIO_ENABLED = getEnvBoolean('STDIO_ENABLED', true);
+export const HTTP_ENABLED = true;
 export const QDRANT_RESCORE = getEnvBoolean('QDRANT_RESCORE', true);
 
 // Functions for variables with varying defaults
@@ -80,10 +84,6 @@ export function getQdrantCollection(defaultValue = 'kb_resources'): string {
 
 export function getEmbeddingDimension(defaultValue = 1024): number {
   return getEnvInt('EMBEDDING_DIMENSION', defaultValue);
-}
-
-export function getTransportType(defaultValue = 'stdio'): string {
-  return getEnvString('TRANSPORT_TYPE', defaultValue);
 }
 
 export function getTeiDimension(defaultValue = 0): number {

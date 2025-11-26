@@ -90,6 +90,8 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
+    volumes:
+      - ./data/qa/qdrant/snapshosts:/snapshots
     # depends_on:
     #   - qdrant
     #   - redis

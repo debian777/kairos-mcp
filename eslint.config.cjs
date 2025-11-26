@@ -60,12 +60,14 @@ module.exports = [
       '**/*.log',
       '**/tools.txt',
       '**/compose.yaml',
-      '**/AGENTS.md',
       '**/reports/**',
       '**/.kilocodeignore',
       '**/*.disabled',
       '**/*.sh',
       '**/.cursorrules',
+      'env.example.txt',
+      '**/snapshots/**',
+      '**/*.snapshot'
     ],
   },
 

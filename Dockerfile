@@ -24,6 +24,8 @@ RUN npm run build
 # Production stage - Multi-arch support
 FROM node:24-alpine AS production
 
+VOLUME /snapshots
+
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S kairos -u 1001

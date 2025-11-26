@@ -8,7 +8,7 @@ import { MemoryQdrantStore } from './services/memory/store.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { getBuildVersion } from './utils/build-version.js';
 import { registerKairosMintTool } from './tools/kairos_mint.js';
-import { LOG_LEVEL, LOG_FORMAT, getTransportType, HTTP_ENABLED, STDIO_ENABLED, getQdrantUrl, getQdrantCollection, QDRANT_API_KEY, QDRANT_RESCORE_STRING, TEI_URL, TEI_MODEL, getEmbeddingDimension, getTeiDimension, KAIROS_SEARCH_OVERFETCH_FACTOR, KAIROS_SEARCH_MAX_FETCH, KAIROS_ENABLE_GROUP_COLLAPSE } from './config.js';
+import { LOG_LEVEL, LOG_FORMAT, HTTP_ENABLED, getQdrantUrl, getQdrantCollection, QDRANT_API_KEY, QDRANT_RESCORE_STRING, TEI_URL, TEI_MODEL, getEmbeddingDimension, getTeiDimension, KAIROS_SEARCH_OVERFETCH_FACTOR, KAIROS_SEARCH_MAX_FETCH, KAIROS_ENABLE_GROUP_COLLAPSE } from './config.js';
 // removed: debug tools (kb_version, kb_cache_stats)
 import { registerKairosUpdateTool } from './tools/kairos_update.js';
 import { registerKairosDeleteTool } from './tools/kairos_delete.js';
@@ -57,9 +57,8 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
             format: LOG_FORMAT,
         },
         transport: {
-            type: getTransportType(),
+            type: 'http',
             http: HTTP_ENABLED,
-            stdio: STDIO_ENABLED,
         },
         qdrant: {
             url: getQdrantUrl(),
