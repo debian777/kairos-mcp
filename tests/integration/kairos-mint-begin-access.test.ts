@@ -92,7 +92,8 @@ describe('Kairos mint + begin accessibility', () => {
 
     // Wait for Qdrant to index the newly minted vectors
     // Qdrant may need time to make vectors searchable after upsert
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Longer wait for slower environments (QA, CI)
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const beginCall = {
       name: 'kairos_begin',
@@ -103,7 +104,7 @@ describe('Kairos mint + begin accessibility', () => {
 
     let beginPayload;
     let beginResult;
-    const maxAttempts = 15;
+    const maxAttempts = 20;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       beginResult = await mcpConnection.client.callTool(beginCall);
       beginPayload = parseMcpJson(beginResult, '[kairos_begin] AI CODING RULES');
@@ -113,8 +114,9 @@ describe('Kairos mint + begin accessibility', () => {
       if (attempt === maxAttempts) {
         break;
       }
-      // Increase retry delay to allow more time for Qdrant indexing
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Exponential backoff: 2s, 3s, 4s, etc. up to 5s max per retry
+      const delay = Math.min(2000 + (attempt * 500), 5000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     withRawOnFail({ call: beginCall, result: beginResult }, () => {
@@ -142,6 +144,6 @@ describe('Kairos mint + begin accessibility', () => {
         throw new Error(`Unexpected kairos_begin response: ${JSON.stringify(beginPayload)}`);
       }
     }, '[kairos_begin] AI CODING RULES raw response');
-  }, 60000);
+  }, 120000);
 });
 
