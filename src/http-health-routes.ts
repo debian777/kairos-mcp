@@ -30,8 +30,14 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             })();
 
             // Timeout after 2000ms to avoid blocking during test setup
-            const timeout = new Promise(resolve => setTimeout(() => resolve({ healthy: false, message: 'Embedding health check timed out' }), 2000));
+            let timeoutId: NodeJS.Timeout | undefined;
+            const timeout = new Promise(resolve => {
+                timeoutId = setTimeout(() => resolve({ healthy: false, message: 'Embedding health check timed out' }), 2000);
+            });
             teiHealth = (await Promise.race([teiCheck, timeout])) as { healthy: boolean; message: string };
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         } catch {
             teiHealth = { healthy: false, message: 'Embedding health check failed' };
         }

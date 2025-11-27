@@ -115,39 +115,55 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
         return result;
       }
 
-      // Cache miss - perform search
+      // Cache miss - perform search, dedupe by chain id while preferring actual heads
       const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
-
-      // Filter to only chain heads (position=1)
-      const headMemories: Memory[] = [];
-      const headScores: number[] = [];
-      for (let i = 0; i < memories.length; i++) {
-        const m = memories[i]!;
-        if (m.chain && m.chain.step_index === 1) {
-          headMemories.push(m);
-          headScores.push(scores[i] ?? 0);
+      const candidateMap = new Map<string, { memory: Memory; score: number }>();
+      const addCandidate = (memory: Memory, score: number) => {
+        if (!memory) return;
+        const key = memory.chain?.id || memory.memory_uuid;
+        const existing = candidateMap.get(key);
+        const incomingIsHead = memory.chain?.step_index === 1;
+        if (!existing) {
+          candidateMap.set(key, { memory, score });
+          return;
         }
+        const existingIsHead = existing.memory.chain?.step_index === 1;
+        if (incomingIsHead && !existingIsHead) {
+          candidateMap.set(key, { memory, score });
+          return;
+        }
+        if (incomingIsHead === existingIsHead && score > existing.score) {
+          candidateMap.set(key, { memory, score });
+        }
+      };
+
+      memories.forEach((memory, idx) => addCandidate(memory, scores[idx] ?? 0));
+
+      if (normalizedQuery === 'ai coding rules') {
+        structuredLogger.warn(`[begin-debug] initial results=${memories.length} uniqueChains=${candidateMap.size} enableCollapse=${enableGroupCollapse}`);
       }
 
-      // If not enough heads, try without collapse to find more
-      if (headMemories.length < 10 && enableGroupCollapse) {
+      // If not enough unique chains, try without collapse to find more
+      if (candidateMap.size < 10 && enableGroupCollapse) {
         const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
-        for (let i = 0; i < moreMemories.length; i++) {
-          const m = moreMemories[i]!;
-          if (m.chain && m.chain.step_index === 1 && !headMemories.some(h => h.memory_uuid === m.memory_uuid)) {
-            headMemories.push(m);
-            headScores.push(moreScores[i] ?? 0);
-          }
+        moreMemories.forEach((memory, idx) => addCandidate(memory, moreScores[idx] ?? 0));
+        if (normalizedQuery === 'ai coding rules') {
+          structuredLogger.warn(`[begin-debug] after fallback uniqueChains=${candidateMap.size}`);
         }
       }
+
+      let headCandidates = Array.from(candidateMap.values())
+        .sort((a, b) => (b.score - a.score));
 
       // Trim to 10 results
-      if (headMemories.length > 10) {
-        headMemories.splice(10);
-        headScores.splice(10);
+      if (headCandidates.length > 10) {
+        headCandidates = headCandidates.slice(0, 10);
       }
 
-      if (headMemories.length === 0) {
+      if (headCandidates.length === 0) {
+        if (normalizedQuery === 'ai coding rules') {
+          structuredLogger.warn('[begin-debug] no head memories after filtering');
+        }
         // CASE 4 — GIBBERISH / NO RESULTS
         // Must not hallucinate — ask for clarification or mint
         const output = {
@@ -183,10 +199,10 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
 
       // Create results array with memory + score pairs
       // Filter out results below score_threshold before processing
-      const results = headMemories
-        .map((memory, index) => ({
+      const results = headCandidates
+        .map(({ memory, score }) => ({
           memory,
-          score: headScores[index] ?? 0,
+          score,
           uri: `kairos://mem/${memory.memory_uuid}`,
           label: memory.label,
           tags: memory.tags || [],

@@ -154,6 +154,8 @@ test-*.js
 
 # Vector database storage (Qdrant)
 storage/
+data/**/qdrant/snapshots/*.snapshot
+data/**/qdrant/snapshosts/*.snapshot
 
 # Docker
 docker-compose.override.yml

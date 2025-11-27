@@ -33,11 +33,18 @@ export function installGlobalErrorHandlers() {
     } catch { }
   });
 
-  process.on('multipleResolves', (type) => {
+process.on('multipleResolves', (type, promise, value) => {
+  try {
+    const stack = new Error('multipleResolves').stack?.split('\n').slice(1).join('\n') ?? 'no stack';
+    let serialized = '';
     try {
-      structuredLogger.warn(`Multiple promise resolves detected: ${type}`);
-    } catch { }
-  });
+      serialized = typeof value === 'undefined' ? 'undefined' : JSON.stringify(value);
+    } catch (err) {
+      serialized = `unserializable (${(err as Error).message})`;
+    }
+    structuredLogger.warn(`Multiple promise resolves detected: ${type} | value=${serialized} | stack:\n${stack}`);
+  } catch { }
+});
 
   // Log Node warnings (e.g., ExperimentalWarning, DeprecationWarning)
   process.on('warning', (warning) => {
