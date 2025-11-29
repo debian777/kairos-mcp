@@ -1,4 +1,4 @@
-import { structuredLogger } from './utils/structured-logger.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import express from 'express';
 
 /**

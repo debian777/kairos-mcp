@@ -5,8 +5,8 @@ import {
   httpRequestSize,
   httpResponseSize,
   httpActiveConnections
-} from './services/metrics/http-metrics.js';
-import { getTenantId } from './utils/tenant-context.js';
+} from '../services/metrics/http-metrics.js';
+import { getTenantId } from '../utils/tenant-context.js';
 
 /**
  * HTTP metrics middleware for Prometheus

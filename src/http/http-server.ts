@@ -1,7 +1,7 @@
 import express from 'express';
-import { MemoryQdrantStore } from './services/memory/store.js';
-import { structuredLogger } from './utils/structured-logger.js';
-import { PORT } from './config.js';
+import { MemoryQdrantStore } from '../services/memory/store.js';
+import { structuredLogger } from '../utils/structured-logger.js';
+import { PORT } from '../config.js';
 
 // Import modular components
 import { configureMiddleware } from './http-server-config.js';
@@ -10,7 +10,7 @@ import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
-import { qdrantService } from './services/qdrant/index.js';
+import { qdrantService } from '../services/qdrant/index.js';
 
 export function startHttpServer(port: number, server: any, memoryStore: MemoryQdrantStore) {
     const app = express();

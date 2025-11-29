@@ -1,5 +1,5 @@
 import express from 'express';
-import { httpLogger } from './utils/structured-logger.js';
+import { httpLogger } from '../utils/structured-logger.js';
 import { httpMetricsMiddleware } from './http-metrics-middleware.js';
 
 // Global context interface for MCP requests

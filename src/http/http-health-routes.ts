@@ -1,8 +1,8 @@
 import express from 'express';
-import { MemoryQdrantStore } from './services/memory/store.js';
-import { embeddingService } from './services/embedding/service.js';
-import { redisService } from './services/redis.js';
-import { getBuildVersion } from './utils/build-version.js';
+import { MemoryQdrantStore } from '../services/memory/store.js';
+import { embeddingService } from '../services/embedding/service.js';
+import { redisService } from '../services/redis.js';
+import { getBuildVersion } from '../utils/build-version.js';
 
 /**
  * Set up health check and basic info routes

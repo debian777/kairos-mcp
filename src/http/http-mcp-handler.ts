@@ -1,7 +1,7 @@
 import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { structuredLogger } from './utils/structured-logger.js';
-import { LOG_LEVEL } from './config.js';
+import { structuredLogger } from '../utils/structured-logger.js';
+import { LOG_LEVEL } from '../config.js';
 
 /**
  * Track request start times by ID for accurate cancellation timing

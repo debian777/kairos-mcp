@@ -1,5 +1,5 @@
 import express from 'express';
-import { structuredLogger } from './utils/structured-logger.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 
 /**
  * Set up error handlers and additional routes

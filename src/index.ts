@@ -9,7 +9,7 @@ import { installGlobalErrorHandlers } from './utils/global-error-handlers.js';
 import { logger } from './utils/logger.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
 import { createServer } from './server.js';
-import { startServer } from './http-server.js';
+import { startServer } from './http/http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import { PORT, METRICS_PORT, QDRANT_SNAPSHOT_ON_START, QDRANT_SNAPSHOT_DIR } from './config.js';
