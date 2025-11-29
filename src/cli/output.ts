@@ -19,3 +19,7 @@ export function writeJson(data: any): void {
     writeStdout(JSON.stringify(data, null, 2));
 }
 
+export function writeMarkdown(content: string): void {
+    writeStdout(content);
+}
+

@@ -12,9 +12,9 @@ export function attestCommand(program: Command): void {
         .description('Attest completion or failure of a KAIROS protocol step')
         .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
         .argument('<outcome>', 'Outcome: success or failure')
-        .argument('<message>', 'Attestation message')
-        .option('--quality-bonus <number>', 'Additional quality bonus', '0')
-        .option('--model <model>', 'LLM model ID')
+        .argument('<message>', 'Attestation message describing the completion or failure')
+        .option('--quality-bonus <number>', 'Additional quality bonus to apply (default: 0)', '0')
+        .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
         .action(async (
             uri: string,
             outcome: string,

@@ -12,8 +12,8 @@ export function mintCommand(program: Command): void {
         .command('mint')
         .description('Store a new markdown document in KAIROS')
         .argument('<file>', 'Path to markdown file')
-        .option('--model <model>', 'LLM model ID')
-        .option('--force', 'Force update if chain already exists')
+        .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
+        .option('--force', 'Force update if a memory chain with the same label already exists')
         .action(async (file: string, options: { model?: string; force?: boolean }) => {
             try {
                 const markdown = readFileSync(file, 'utf-8');

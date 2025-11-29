@@ -12,9 +12,9 @@ export function updateCommand(program: Command): void {
         .command('update')
         .description('Update one or more KAIROS memories')
         .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
-        .option('--file <file>', 'Path to markdown file (applied to all URIs)')
-        .option('--files <files...>', 'Paths to markdown files (one per URI)')
-        .option('--updates <json>', 'Updates object as JSON string')
+        .option('--file <file>', 'Path to markdown file to apply to all specified URIs')
+        .option('--files <files...>', 'Paths to markdown files, one per URI (must match number of URIs)')
+        .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
         .action(async (uris: string[], options: { file?: string; files?: string[]; updates?: string }) => {
             try {
                 const client = new ApiClient();
