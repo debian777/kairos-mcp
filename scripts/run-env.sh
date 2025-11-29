@@ -132,11 +132,11 @@ build() {
     cd "$PROJECT_DIR"
     if [ "$ENV" = "qa" ]; then
         print_info "Running prebuild verification (no mocks, no console.log in src)"
-        # npm run -s prebuild
+        # Docker build will run npm run build which includes prebuild
         docker build -t debian777/kairos-mcp:latest . && print_success "Docker build complete"
     else
-        print_info "Running prebuild verification (no mocks, no console.log in src)"
-        # npm run -s prebuild
+        print_info "Running prebuild (embed-docs) and verification..."
+        npm run prebuild
         npx tsc && print_success "Build complete"
     fi
 }

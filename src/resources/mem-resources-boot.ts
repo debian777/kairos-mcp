@@ -1,6 +1,6 @@
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { getMem } from './embedded-mcp-resources.js';
-import { logger } from '../utils/logger.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import { qdrantService } from '../services/qdrant/index.js';
 
 /**
@@ -12,11 +12,11 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
   const memResources = getMem();
   
   if (Object.keys(memResources).length === 0) {
-    logger.info('[mem-resources-boot] No mem resources to inject');
+    structuredLogger.info('[mem-resources-boot] No mem resources to inject');
     return;
   }
 
-  logger.info(`[mem-resources-boot] Injecting ${Object.keys(memResources).length} mem resources into Qdrant (force: ${options.force || false})`);
+  structuredLogger.info(`[mem-resources-boot] Injecting ${Object.keys(memResources).length} mem resources into Qdrant (force: ${options.force || false})`);
 
   const llmModelId = 'system-boot';
   let injectedCount = 0;
@@ -33,7 +33,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
         // Delete existing memory with target UUID if present (cache invalidation handled by deleteMemory)
         try {
           await qdrantService.deleteMemory(targetUuid);
-          logger.info(`[mem-resources-boot] Deleted existing memory ${targetUuid} (force mode)`);
+          structuredLogger.info(`[mem-resources-boot] Deleted existing memory ${targetUuid} (force mode)`);
         } catch {
           // Ignore errors if memory doesn't exist
         }
@@ -42,7 +42,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
         try {
           const existing = await qdrantService.getMemoryByUUID(targetUuid);
           if (existing) {
-            logger.info(`[mem-resources-boot] Memory ${targetUuid} already exists, skipping (use force=true to override)`);
+            structuredLogger.info(`[mem-resources-boot] Memory ${targetUuid} already exists, skipping (use force=true to override)`);
             continue;
           }
         } catch {
@@ -85,15 +85,15 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           }
         }
         injectedCount++;
-        logger.info(`[mem-resources-boot] Injected memory ${targetUuid}`);
+        structuredLogger.info(`[mem-resources-boot] Injected memory ${targetUuid}`);
       }
     } catch (err) {
-      logger.error(`[mem-resources-boot] Failed to inject memory ${targetUuid}: ${err instanceof Error ? err.message : String(err)}`);
+      structuredLogger.error(`[mem-resources-boot] Failed to inject memory ${targetUuid}: ${err instanceof Error ? err.message : String(err)}`);
       // Continue with other memories
     }
   }
 
-  logger.info(`[mem-resources-boot] Successfully injected ${injectedCount} mem resources into Qdrant`);
+  structuredLogger.info(`[mem-resources-boot] Successfully injected ${injectedCount} mem resources into Qdrant`);
   
   // Invalidate local in-process cache
   const { methods } = (memoryStore as any);

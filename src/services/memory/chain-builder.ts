@@ -121,6 +121,7 @@ function processH1Section(
   
   const full_markdown: Record<number, StepData> = {};
   let step = 1;
+  let pendingProof = false; // Track if we have a proof waiting for the next H2
   
   // Initialize first step
   full_markdown[step] = {
@@ -154,14 +155,15 @@ function processH1Section(
     if (proof) {
       currentStep.proof_of_work = proof;
       currentStep.markdown_doc.push(line); // Include proof line in content
+      pendingProof = true; // Mark that we have a proof waiting for next H2
       continue;
     }
     
     // Check for H2 header
     if (trimmed.startsWith('## ')) {
       const h2Title = trimmed.substring(3).trim();
-      // If current step has proof, this H2 is for the NEXT step
-      if (currentStep.proof_of_work) {
+      // If we have a pending proof, this H2 starts the NEXT step
+      if (pendingProof) {
         step += 1;
         // Initialize next step if it doesn't exist
         if (!full_markdown[step]) {
@@ -171,6 +173,7 @@ function processH1Section(
             markdown_doc: []
           };
         }
+        pendingProof = false; // Clear the pending proof flag
       }
       // Get current step (may have changed)
       const stepForH2 = full_markdown[step]!;
@@ -343,6 +346,5 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     const chainMemories = processH1Section(h1Title, h1Content, llmModelId, now, codeBlockProcessor);
     allMemories.push(...chainMemories);
   }
-
   return allMemories;
 }
