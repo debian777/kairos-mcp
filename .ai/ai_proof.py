@@ -408,12 +408,20 @@ def step_8_atomicity(root: Path) -> Tuple[bool, str]:
     if not commit_summary:
         return False, "Could not get last commit summary"
 
+    # Extract message part (format is "hash message" or just "message")
+    # Remove hash if present (first 7-40 chars followed by space)
+    message_part = commit_summary
+    if " " in commit_summary:
+        parts = commit_summary.split(" ", 1)
+        if len(parts) == 2 and len(parts[0]) <= 40:
+            message_part = parts[1]
+
     # Check if commit follows conventional commits format
     pattern = r"^(feat|fix|chore|docs|refactor|test|build|ci|perf|style)(\(.+\))?!?:"
-    if not re.match(pattern, commit_summary):
+    if not re.match(pattern, message_part):
         return False, f"Last commit does not follow conventional commits: {commit_summary}"
 
-    # Write to handoff.log
+    # Write to handoff.log (write the full summary as per proof-of-work requirement)
     handoff_log = root / "cache" / "proof" / "handoff.log"
     handoff_log.parent.mkdir(parents=True, exist_ok=True)
     handoff_log.write_text(commit_summary + "\n", encoding="utf-8")
