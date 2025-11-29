@@ -28,7 +28,7 @@
         "semantic-search"
     ],
     "bin": {
-        "kairos": "dist/index.js"
+        "kairos": "dist/cli/index.js"
     },
     "files": [
         "dist/",
@@ -69,6 +69,7 @@
         "@modelcontextprotocol/sdk": "^1.20.1",
         "@qdrant/js-client-rest": "^1.15.0",
         "@upstash/redis": "^1.35.6",
+        "commander": "^12.1.0",
         "express": "^5.1.0",
         "nanoid": "^5.1.6",
         "openai": "^6.7.0",

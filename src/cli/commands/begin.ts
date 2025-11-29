@@ -1,0 +1,36 @@
+/**
+ * kairos begin command
+ */
+
+import { Command } from 'commander';
+import { ApiClient } from '../api-client.js';
+import { writeError, writeJson } from '../output.js';
+
+export function beginCommand(program: Command): void {
+    program
+        .command('begin')
+        .description('Search for KAIROS protocols by query')
+        .argument('<query>', 'Search query')
+        .action(async (query: string) => {
+            try {
+                const client = new ApiClient();
+                const response = await client.begin(query);
+
+                if (response.error) {
+                    writeError(response.error);
+                    if (response.message) {
+                        writeError(response.message);
+                    }
+                    process.exit(1);
+                    return;
+                }
+
+                // Pretty print the response
+                writeJson(response);
+            } catch (error) {
+                writeError(error instanceof Error ? error.message : String(error));
+                process.exit(1);
+            }
+        });
+}
+
