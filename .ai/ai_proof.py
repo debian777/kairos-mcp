@@ -27,12 +27,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 try:
-    from dulwich import porcelain
-    from dulwich.repo import Repo
-    from dulwich.errors import NotGitRepository
-    HAS_DULWICH = True
+    from git import Repo as GitRepo
+    from git.exc import InvalidGitRepositoryError, GitCommandError
+    HAS_GITPYTHON = True
 except ImportError:
-    HAS_DULWICH = False
+    HAS_GITPYTHON = False
 
 
 @dataclass
@@ -93,7 +92,7 @@ def detect_project(root: Path) -> ProjectDetection:
 
 
 def get_git_state(root: Path) -> Dict[str, object]:
-    """Get git state using dulwich if available, otherwise use subprocess."""
+    """Get git state using GitPython if available, otherwise use subprocess."""
     state: Dict[str, object] = {
         "enabled": False,
         "error": None,
@@ -108,55 +107,20 @@ def get_git_state(root: Path) -> Dict[str, object]:
         "short_hash": None,
     }
 
-    if HAS_DULWICH:
+    if HAS_GITPYTHON:
         try:
-            repo = Repo(str(root))
-        except (NotGitRepository, Exception):
-            try:
-                repo = Repo(str(root / ".git"))
-            except Exception as exc:
-                state["error"] = f"not a git repo: {exc}"
-                return state
+            repo = GitRepo(str(root))
+            state["enabled"] = True
 
-        state["enabled"] = True
-
-        # Branch detection
-        try:
-            head_ref = repo.refs.read_ref(b"HEAD")
-            branch_name: Optional[str] = None
-            if head_ref:
-                if isinstance(head_ref, bytes):
-                    if head_ref.startswith(b"refs/heads/"):
-                        branch_name = head_ref.split(b"/")[-1].decode("utf-8", errors="replace")
-                    else:
-                        # Try to resolve symbolic ref
-                        try:
-                            resolved = repo.refs.read_ref(head_ref)
-                            if resolved and isinstance(resolved, bytes) and resolved.startswith(b"refs/heads/"):
-                                branch_name = resolved.split(b"/")[-1].decode("utf-8", errors="replace")
-                        except Exception:
-                            pass
-                elif isinstance(head_ref, str) and head_ref.startswith("refs/heads/"):
-                    branch_name = head_ref.split("/")[-1]
-            
-            # Fallback: use subprocess if dulwich didn't work
-            if not branch_name:
-                result = subprocess.run(
-                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                    cwd=root,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if result.returncode == 0:
-                    branch_name = result.stdout.strip()
-            
-            state["branch"] = branch_name
-            if branch_name in ("main", "master"):
-                state["on_main_protected"] = True
-        except Exception as exc:
-            # Fallback to subprocess
+            # Branch detection using GitPython
             try:
+                active_branch = repo.active_branch
+                branch_name = active_branch.name
+                state["branch"] = branch_name
+                if branch_name in ("main", "master"):
+                    state["on_main_protected"] = True
+            except (TypeError, AttributeError, GitCommandError) as exc:
+                # Fallback to subprocess
                 result = subprocess.run(
                     ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=root,
@@ -169,42 +133,69 @@ def get_git_state(root: Path) -> Dict[str, object]:
                     state["branch"] = branch_name
                     if branch_name in ("main", "master"):
                         state["on_main_protected"] = True
-                else:
-                    state["error"] = f"git head error: {exc}"
+
+            # Status using GitPython
+            try:
+                # Check if dirty (includes untracked files check)
+                state["is_dirty"] = repo.is_dirty()
+                
+                # Get untracked files
+                untracked = repo.untracked_files
+                state["has_untracked"] = len(untracked) > 0
+                
+                # Check staged changes (diff between index and HEAD)
+                if repo.head.is_valid():
+                    diff_index = repo.head.commit.diff(repo.index)
+                    state["has_staged"] = len(list(diff_index)) > 0
+                
+                # Check unstaged changes (diff between working tree and index)
+                diff_worktree = repo.index.diff(None)
+                state["has_unstaged"] = len(list(diff_worktree)) > 0
+                
+                # Update is_dirty if we have more specific info
+                if not state["is_dirty"]:
+                    state["is_dirty"] = state["has_unstaged"] or state["has_staged"] or state["has_untracked"]
+            except Exception as exc:
+                state["error"] = f"git status error: {exc}"
+
+            # Commit summary using GitPython
+            try:
+                commit = repo.head.commit
+                commit_hash = commit.hexsha
+                short_hash = commit_hash[:7]
+                # Use summary (first line) for commit message
+                message = commit.summary
+                state["commit_hash"] = commit_hash
+                state["short_hash"] = short_hash
+                state["commit_summary"] = f"{short_hash} {message}"
             except Exception:
-                state["error"] = f"git head error: {exc}"
+                # Fallback to subprocess
+                result = subprocess.run(
+                    ["git", "log", "-1", "--pretty=%h %s"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    state["commit_summary"] = result.stdout.strip()
+                    if " " in result.stdout:
+                        state["short_hash"] = result.stdout.split()[0]
 
-        # Status
-        try:
-            status = porcelain.status(str(root))
-            has_untracked = bool(getattr(status, "untracked", None))
-            has_unstaged = bool(getattr(status, "unstaged", None))
-            has_staged = bool(getattr(status, "staged", None))
-            state["has_untracked"] = has_untracked
-            state["has_unstaged"] = has_unstaged
-            state["has_staged"] = has_staged
-            state["is_dirty"] = has_untracked or has_unstaged or has_staged
-        except Exception as exc:
-            state["error"] = f"git status error: {exc}"
-
-        # Commit summary
-        try:
-            head = repo.head()
-            commit = repo[head]
-            commit_hash = commit.id.hex()
-            short_hash = commit_hash[:7]
-            message = commit.message.decode("utf-8", errors="replace").splitlines()[0]
-            state["commit_hash"] = commit_hash
-            state["short_hash"] = short_hash
-            state["commit_summary"] = f"{short_hash} {message}"
-        except Exception:
-            pass
+        except (InvalidGitRepositoryError, Exception) as exc:
+            state["error"] = f"not a git repo: {exc}"
+            # Fall through to subprocess fallback
     else:
-        # Fallback to subprocess
+        # Fallback to subprocess if GitPython not available
+        pass
+
+    # Subprocess fallback (if GitPython failed or not available)
+    if not state["enabled"] or state.get("error"):
         try:
             # Check if git is available
             subprocess.run(["git", "--version"], capture_output=True, check=True)
             state["enabled"] = True
+            state["error"] = None
 
             # Get branch
             result = subprocess.run(
