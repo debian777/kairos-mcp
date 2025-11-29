@@ -16,11 +16,16 @@ if [ ! -f "$BASELINE_LOG" ]; then
     # Run tests - this generates timestamped files in reports/tests/
     npm run dev:test || true
     
-    # Find the most recent test report
+    # Find the most recent test report (cross-platform compatible)
     mkdir -p cache/tests
     if [ -d "$REPORTS_DIR" ]; then
-        LATEST_REPORT=$(find "$REPORTS_DIR" -name "test-*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-        if [ -n "$LATEST_REPORT" ]; then
+        # Use stat for macOS compatibility
+        LATEST_REPORT=$(find "$REPORTS_DIR" -name "test-*.log" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        if [ -z "$LATEST_REPORT" ]; then
+            # Fallback: try ls -t (works on both macOS and Linux)
+            LATEST_REPORT=$(ls -t "$REPORTS_DIR"/test-*.log 2>/dev/null | head -1)
+        fi
+        if [ -n "$LATEST_REPORT" ] && [ -f "$LATEST_REPORT" ]; then
             echo "Baseline test report: $LATEST_REPORT" > "$BASELINE_LOG"
             echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$BASELINE_LOG"
             echo "Commit: $(git rev-parse HEAD 2>/dev/null || echo 'unknown')" >> "$BASELINE_LOG"
