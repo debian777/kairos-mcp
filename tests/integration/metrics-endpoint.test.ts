@@ -55,8 +55,12 @@ describe('Metrics Endpoint Integration', () => {
     const metrics = await response.text();
     expect(metrics).toBeTruthy();
     expect(metrics.length).toBeGreaterThan(0);
-    expect(metrics).toContain('# HELP');
-    expect(metrics).toContain('# TYPE');
+    
+    // Use prometheus parser to validate format
+    const { validatePrometheusMetrics } = await import('../utils/prometheus-parser.js');
+    const validation = validatePrometheusMetrics(metrics);
+    expect(validation.valid).toBe(true);
+    expect(validation.errors).toHaveLength(0);
   });
 
   test('metrics endpoint includes all metric categories', async () => {

@@ -1,39 +1,8 @@
 import { getSharedMcpConnection } from '../utils/mcp-client-utils.js';
+import { getMetricValue } from '../utils/prometheus-parser.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
-
-function extractMetricValue(metrics: string, metricName: string, labels?: Record<string, string>): number | null {
-  const lines = metrics.split('\n');
-  const metricLines = lines.filter(l => 
-    l.trim() && 
-    !l.startsWith('#') && 
-    l.startsWith(metricName)
-  );
-  
-  for (const line of metricLines) {
-    if (labels) {
-      // Check if all labels match
-      let matches = true;
-      for (const [key, value] of Object.entries(labels)) {
-        const labelPattern = new RegExp(`${key}="${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`);
-        if (!labelPattern.test(line)) {
-          matches = false;
-          break;
-        }
-      }
-      if (!matches) continue;
-    }
-    
-    // Extract value
-    const match = line.match(/\}\s+([\d.eE+-]+)/);
-    if (match) {
-      return parseFloat(match[1]!);
-    }
-  }
-  
-  return null;
-}
 
 describe('Metrics Operational Tests', () => {
   let mcpConnection: any;
@@ -103,7 +72,7 @@ describe('Metrics Operational Tests', () => {
     // Get initial metrics
     const beforeResponse = await fetch(METRICS_URL);
     const beforeMetrics = await beforeResponse.text();
-    const beforeCount = extractMetricValue(
+    const beforeCount = getMetricValue(
       beforeMetrics, 
       'kairos_mcp_tool_calls_total',
       { tool: 'kairos_begin', status: 'success' }
@@ -121,7 +90,7 @@ describe('Metrics Operational Tests', () => {
     // Get updated metrics
     const afterResponse = await fetch(METRICS_URL);
     const afterMetrics = await afterResponse.text();
-    const afterCount = extractMetricValue(
+    const afterCount = getMetricValue(
       afterMetrics,
       'kairos_mcp_tool_calls_total',
       { tool: 'kairos_begin', status: 'success' }

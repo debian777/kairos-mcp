@@ -1,3 +1,4 @@
+import { parsePrometheusMetrics, validatePrometheusMetrics } from '../utils/prometheus-parser.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
@@ -50,54 +51,32 @@ describe('Prometheus Scrape Validation', () => {
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     
-    // Validate Prometheus format
-    const lines = metrics.split('\n');
+    // Use prometheus parser to validate format
+    const validation = validatePrometheusMetrics(metrics);
     
-    // Should have HELP and TYPE declarations
-    const helpLines = lines.filter(l => l.startsWith('# HELP'));
-    const typeLines = lines.filter(l => l.startsWith('# TYPE'));
+    expect(validation.valid).toBe(true);
+    expect(validation.errors).toHaveLength(0);
+    expect(validation.metrics.total).toBeGreaterThan(0);
+    expect(validation.metrics.withHelp).toBeGreaterThan(0);
+    expect(validation.metrics.withType).toBeGreaterThan(0);
     
-    expect(helpLines.length).toBeGreaterThan(0);
-    expect(typeLines.length).toBeGreaterThan(0);
-    
-    // Each metric should have HELP and TYPE
-    const metricNames = new Set<string>();
-    typeLines.forEach(line => {
-      const match = line.match(/# TYPE (\w+) (\w+)/);
-      if (match) {
-        metricNames.add(match[1]!);
-      }
-    });
-    
-    expect(metricNames.size).toBeGreaterThan(0);
-    
-    // Verify metrics are properly formatted
-    metricNames.forEach(name => {
-      const metricLines = lines.filter(l => l.startsWith(name) && !l.startsWith('#'));
-      metricLines.forEach(line => {
-        // Should match Prometheus metric format: name{labels} value
-        // Allow for comments and empty lines
-        if (line.trim() && !line.startsWith('#')) {
-          expect(line).toMatch(/^[a-zA-Z_:][a-zA-Z0-9_:]*(\{[^}]*\})?\s+[\d.eE+-]+/);
-        }
-      });
-    });
+    // Verify parsed structure
+    const parsed = parsePrometheusMetrics(metrics);
+    expect(parsed.helpLines.size).toBeGreaterThan(0);
+    expect(parsed.typeLines.size).toBeGreaterThan(0);
+    expect(parsed.metricLines.length).toBeGreaterThan(0);
   });
 
   test('all metrics have tenant_id label where applicable', async () => {
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
-    const lines = metrics.split('\n');
     
-    // Find all metric lines (not comments)
-    const metricLines = lines.filter(l => 
-      l.trim() && 
-      !l.startsWith('#') && 
-      l.includes('{')
+    // Use prometheus parser to find metrics with tenant_id
+    const parsed = parsePrometheusMetrics(metrics);
+    const metricsWithTenant = parsed.metricLines.filter(m => 
+      'tenant_id' in m.labels
     );
     
-    // Most metrics should have tenant_id (system metrics may not)
-    const metricsWithTenant = metricLines.filter(l => l.includes('tenant_id='));
     // At least some metrics should have tenant_id
     expect(metricsWithTenant.length).toBeGreaterThan(0);
   });
@@ -105,36 +84,26 @@ describe('Prometheus Scrape Validation', () => {
   test('metrics have proper HELP and TYPE declarations', async () => {
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
-    const lines = metrics.split('\n');
     
-    const helpLines = lines.filter(l => l.startsWith('# HELP'));
-    const typeLines = lines.filter(l => l.startsWith('# TYPE'));
+    // Use prometheus parser to validate HELP and TYPE
+    const parsed = parsePrometheusMetrics(metrics);
+    const validation = validatePrometheusMetrics(metrics);
     
-    // Should have both HELP and TYPE for each metric
-    expect(helpLines.length).toBeGreaterThan(0);
-    expect(typeLines.length).toBeGreaterThan(0);
+    // Should have both HELP and TYPE declarations
+    expect(parsed.helpLines.size).toBeGreaterThan(0);
+    expect(parsed.typeLines.size).toBeGreaterThan(0);
     
-    // Extract metric names from TYPE lines
-    const typeMetricNames = new Set<string>();
-    typeLines.forEach(line => {
-      const match = line.match(/# TYPE (\w+)/);
-      if (match) {
-        typeMetricNames.add(match[1]!);
-      }
-    });
-    
-    // Extract metric names from HELP lines
-    const helpMetricNames = new Set<string>();
-    helpLines.forEach(line => {
-      const match = line.match(/# HELP (\w+)/);
-      if (match) {
-        helpMetricNames.add(match[1]!);
-      }
-    });
+    // Get unique metric names from metric lines
+    const metricNames = new Set(parsed.metricLines.map(m => m.name));
     
     // Most metrics should have both HELP and TYPE
-    const commonMetrics = Array.from(typeMetricNames).filter(name => helpMetricNames.has(name));
-    expect(commonMetrics.length).toBeGreaterThan(0);
+    const metricsWithBoth = Array.from(metricNames).filter(name => 
+      parsed.helpLines.has(name) && parsed.typeLines.has(name)
+    );
+    expect(metricsWithBoth.length).toBeGreaterThan(0);
+    
+    // Validation should pass
+    expect(validation.valid).toBe(true);
   });
 
   afterAll(async () => {
