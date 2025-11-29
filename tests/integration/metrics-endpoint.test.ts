@@ -1,7 +1,16 @@
+import { fetch, Agent } from 'undici';
+import { validatePrometheusMetrics } from '../utils/prometheus-parser.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 const METRICS_HEALTH_URL = `http://localhost:${METRICS_PORT}/health`;
+
+// Create an Agent with short keepAliveTimeout to ensure connections close quickly
+const fetchAgent = new Agent({
+  keepAliveTimeout: 10, // 10ms - connections close quickly after use
+  keepAliveMaxTimeout: 10,
+  maxCachedSessions: 0, // Disable connection pooling
+});
 
 describe('Metrics Endpoint Integration', () => {
   beforeAll(async () => {
@@ -12,31 +21,22 @@ describe('Metrics Endpoint Integration', () => {
     let attempts = 0;
     
     while (attempts < maxAttempts) {
-      let response: Response | null = null;
       try {
-        response = await fetch(METRICS_HEALTH_URL);
+        const response = await fetch(METRICS_HEALTH_URL, {
+          dispatcher: fetchAgent,
+        });
         if (response.ok) {
-          const healthData = await response.json();
-          // Ensure response is fully consumed
-          response = null;
+          const healthData = await response.json() as { status?: string };
+          // Response body consumed by .json()
           if (healthData.status === 'ok' || healthData.status === 'healthy') {
             return; // Metrics server is ready
           }
         } else {
           // Consume response body even on non-ok status
           await response.text().catch(() => {});
-          response = null;
         }
       } catch {
-        // Continue retrying
-        if (response) {
-          try {
-            await response.text().catch(() => {});
-          } catch {
-            // Ignore
-          }
-          response = null;
-        }
+        // Continue retrying - connection errors are expected during startup
       }
       attempts++;
       if (attempts < maxAttempts) {
@@ -48,23 +48,23 @@ describe('Metrics Endpoint Integration', () => {
   }, 20000);
 
   test('metrics endpoint returns valid Prometheus format', async () => {
-    const response = await fetch(METRICS_URL);
+    const response = await fetch(METRICS_URL, { dispatcher: fetchAgent });
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/plain');
     
     const metrics = await response.text();
+    // Response body is consumed by .text(), so no additional cleanup needed
     expect(metrics).toBeTruthy();
     expect(metrics.length).toBeGreaterThan(0);
     
     // Use prometheus parser to validate format
-    const { validatePrometheusMetrics } = await import('../utils/prometheus-parser.js');
     const validation = validatePrometheusMetrics(metrics);
     expect(validation.valid).toBe(true);
     expect(validation.errors).toHaveLength(0);
   });
 
   test('metrics endpoint includes all metric categories', async () => {
-    const response = await fetch(METRICS_URL);
+    const response = await fetch(METRICS_URL, { dispatcher: fetchAgent });
     const metrics = await response.text();
     
     // Check for all metric categories
@@ -78,7 +78,7 @@ describe('Metrics Endpoint Integration', () => {
   });
 
   test('metrics include default labels', async () => {
-    const response = await fetch(METRICS_URL);
+    const response = await fetch(METRICS_URL, { dispatcher: fetchAgent });
     const metrics = await response.text();
     
     expect(metrics).toMatch(/kairos_version=/);
@@ -89,25 +89,30 @@ describe('Metrics Endpoint Integration', () => {
   test('metrics endpoint is on separate port', async () => {
     // Main server should NOT have /metrics (or return 404)
     const mainPort = process.env.PORT || '3300';
-    const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`);
+    const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`, { dispatcher: fetchAgent });
     // Main server may not have /metrics endpoint, so 404 is expected
     expect([404, 200]).toContain(mainResponse.status);
+    // Consume response body
+    await mainResponse.text().catch(() => {});
     
     // Metrics server should have /metrics
-    const metricsResponse = await fetch(METRICS_URL);
+    const metricsResponse = await fetch(METRICS_URL, { dispatcher: fetchAgent });
     expect(metricsResponse.status).toBe(200);
+    // Consume response body
+    await metricsResponse.text().catch(() => {});
   });
 
   test('metrics health endpoint works', async () => {
-    const response = await fetch(METRICS_HEALTH_URL);
+    const response = await fetch(METRICS_HEALTH_URL, { dispatcher: fetchAgent });
     expect(response.status).toBe(200);
-    const health = await response.json();
+    const health = await response.json() as { status?: string };
+    // Response body consumed by .json()
     expect(health).toHaveProperty('status');
     expect(health.status).toBe('ok');
   });
 
   afterAll(async () => {
-    // Give connections time to close
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Close the agent to ensure all connections are closed
+    await fetchAgent.close();
   });
 });
