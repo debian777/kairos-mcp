@@ -345,7 +345,9 @@ test() {
     fi
 
     LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
-    REPORT_LOG_FILE="reports/tests/test-$(date +%Y%m%d-%H%M%S).log"
+    # Use REPORT_LOG_FILE from environment if provided, otherwise generate timestamped filename
+    REPORT_LOG_FILE="${REPORT_LOG_FILE:-reports/tests/test-$(date +%Y%m%d-%H%M%S).log}"
+    mkdir -p "$(dirname "$REPORT_LOG_FILE")"
     echo "$LAST_COMMIT" > "$REPORT_LOG_FILE"
     echo "--------------------------------" >> "$REPORT_LOG_FILE"
 
