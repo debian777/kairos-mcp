@@ -118,6 +118,14 @@ module.exports = [
       '@typescript-eslint': tsPlugin,
     },
     rules: {
+      'max-lines': [
+        'error',
+        {
+          max: 350,
+          skipBlankLines: false,
+          skipComments: false,
+        },
+      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
