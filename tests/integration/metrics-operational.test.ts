@@ -1,7 +1,7 @@
 import { getSharedMcpConnection } from '../utils/mcp-client-utils.js';
 import { waitForHealthCheck } from '../utils/health-check.js';
 
-const METRICS_PORT = process.env.METRICS_PORT || '9090';
+const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 
 function extractMetricValue(metrics: string, metricName: string, labels?: Record<string, string>): number | null {
@@ -47,10 +47,9 @@ describe('Metrics Operational Tests', () => {
         timeoutMs: 30000,
         intervalMs: 1000
       });
-    } catch (_error) {
-      // Metrics server might not be running in test environment
-      // Skip tests that require metrics server if it's not available
-      console.warn('Metrics server not available, some tests may be skipped');
+    } catch (error) {
+      // Metrics server MUST be available for these tests
+      throw new Error(`Metrics server not available at http://localhost:${METRICS_PORT}/health: ${error}`);
     }
     
     mcpConnection = await getSharedMcpConnection();
@@ -63,12 +62,10 @@ describe('Metrics Operational Tests', () => {
   });
 
   test('metrics update after MCP tool call', async () => {
-    // Skip if metrics server is not available
-    try {
-      await fetch(`http://localhost:${METRICS_PORT}/health`);
-    } catch {
-      console.warn('Skipping test - metrics server not available');
-      return;
+    // Metrics server MUST be available
+    const healthResponse = await fetch(`http://localhost:${METRICS_PORT}/health`);
+    if (!healthResponse.ok) {
+      throw new Error(`Metrics server health check failed: ${healthResponse.status}`);
     }
     // Get initial metrics
     const beforeResponse = await fetch(METRICS_URL);
@@ -102,12 +99,10 @@ describe('Metrics Operational Tests', () => {
   }, 30000);
 
   test('system metrics are present', async () => {
-    // Skip if metrics server is not available
-    try {
-      await fetch(`http://localhost:${METRICS_PORT}/health`);
-    } catch {
-      console.warn('Skipping test - metrics server not available');
-      return;
+    // Metrics server MUST be available
+    const healthResponse = await fetch(`http://localhost:${METRICS_PORT}/health`);
+    if (!healthResponse.ok) {
+      throw new Error(`Metrics server health check failed: ${healthResponse.status}`);
     }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
@@ -117,12 +112,10 @@ describe('Metrics Operational Tests', () => {
   });
 
   test('memory metrics are present', async () => {
-    // Skip if metrics server is not available
-    try {
-      await fetch(`http://localhost:${METRICS_PORT}/health`);
-    } catch {
-      console.warn('Skipping test - metrics server not available');
-      return;
+    // Metrics server MUST be available
+    const healthResponse = await fetch(`http://localhost:${METRICS_PORT}/health`);
+    if (!healthResponse.ok) {
+      throw new Error(`Metrics server health check failed: ${healthResponse.status}`);
     }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
@@ -133,12 +126,10 @@ describe('Metrics Operational Tests', () => {
   });
 
   test('qdrant metrics are present', async () => {
-    // Skip if metrics server is not available
-    try {
-      await fetch(`http://localhost:${METRICS_PORT}/health`);
-    } catch {
-      console.warn('Skipping test - metrics server not available');
-      return;
+    // Metrics server MUST be available
+    const healthResponse = await fetch(`http://localhost:${METRICS_PORT}/health`);
+    if (!healthResponse.ok) {
+      throw new Error(`Metrics server health check failed: ${healthResponse.status}`);
     }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
@@ -148,12 +139,10 @@ describe('Metrics Operational Tests', () => {
   });
 
   test('agent metrics are present', async () => {
-    // Skip if metrics server is not available
-    try {
-      await fetch(`http://localhost:${METRICS_PORT}/health`);
-    } catch {
-      console.warn('Skipping test - metrics server not available');
-      return;
+    // Metrics server MUST be available
+    const healthResponse = await fetch(`http://localhost:${METRICS_PORT}/health`);
+    if (!healthResponse.ok) {
+      throw new Error(`Metrics server health check failed: ${healthResponse.status}`);
     }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();

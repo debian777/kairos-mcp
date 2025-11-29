@@ -1,32 +1,19 @@
 import { waitForHealthCheck } from '../utils/health-check.js';
 
-const METRICS_PORT = process.env.METRICS_PORT || '9090';
+const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 
 describe('Prometheus Scrape Validation', () => {
-  let metricsServerAvailable = false;
-
   beforeAll(async () => {
-    // Wait for metrics server to be ready
-    try {
-      await waitForHealthCheck({
-        url: `http://localhost:${METRICS_PORT}/health`,
-        timeoutMs: 10000,
-        intervalMs: 500
-      });
-      metricsServerAvailable = true;
-    } catch (_error) {
-      // Metrics server might not be running in test environment
-      metricsServerAvailable = false;
-      console.warn('Metrics server not available, some tests may be skipped');
-    }
+    // Metrics server MUST be available for these tests
+    await waitForHealthCheck({
+      url: `http://localhost:${METRICS_PORT}/health`,
+      timeoutMs: 10000,
+      intervalMs: 500
+    });
   }, 20000);
 
   test('Prometheus can scrape metrics endpoint', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     
@@ -65,10 +52,6 @@ describe('Prometheus Scrape Validation', () => {
   });
 
   test('all metrics have tenant_id label where applicable', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     const lines = metrics.split('\n');
@@ -87,10 +70,6 @@ describe('Prometheus Scrape Validation', () => {
   });
 
   test('metrics have proper HELP and TYPE declarations', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     const lines = metrics.split('\n');

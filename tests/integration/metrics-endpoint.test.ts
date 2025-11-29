@@ -1,34 +1,20 @@
 import { waitForHealthCheck } from '../utils/health-check.js';
 
-const METRICS_PORT = process.env.METRICS_PORT || '9090';
+const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 const METRICS_HEALTH_URL = `http://localhost:${METRICS_PORT}/health`;
 
 describe('Metrics Endpoint Integration', () => {
-  let metricsServerAvailable = false;
-
   beforeAll(async () => {
-    // Wait for metrics server to be ready
-    try {
-      await waitForHealthCheck({
-        url: METRICS_HEALTH_URL,
-        timeoutMs: 10000,
-        intervalMs: 500
-      });
-      metricsServerAvailable = true;
-    } catch (_error) {
-      // Metrics server might not be running in test environment
-      // Tests will be skipped if server is not available
-      metricsServerAvailable = false;
-      console.warn('Metrics server not available, skipping metrics endpoint tests');
-    }
+    // Metrics server MUST be available for these tests
+    await waitForHealthCheck({
+      url: METRICS_HEALTH_URL,
+      timeoutMs: 10000,
+      intervalMs: 500
+    });
   }, 20000);
 
   test('metrics endpoint returns valid Prometheus format', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/plain');
@@ -41,10 +27,6 @@ describe('Metrics Endpoint Integration', () => {
   });
 
   test('metrics endpoint includes all metric categories', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     
@@ -59,10 +41,6 @@ describe('Metrics Endpoint Integration', () => {
   });
 
   test('metrics include default labels', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_URL);
     const metrics = await response.text();
     
@@ -72,10 +50,6 @@ describe('Metrics Endpoint Integration', () => {
   });
 
   test('metrics endpoint is on separate port', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     // Main server should NOT have /metrics (or return 404)
     const mainPort = process.env.PORT || '3300';
     const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`);
@@ -88,10 +62,6 @@ describe('Metrics Endpoint Integration', () => {
   });
 
   test('metrics health endpoint works', async () => {
-    if (!metricsServerAvailable) {
-      console.warn('Skipping test - metrics server not available');
-      return;
-    }
     const response = await fetch(METRICS_HEALTH_URL);
     expect(response.status).toBe(200);
     const health = await response.json();

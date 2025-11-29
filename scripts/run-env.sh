@@ -64,6 +64,9 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in dev|qa) ;; *) print_error "Invalid ENV: $ENV (use dev or qa)"; exit 1 ;; esac
 fi
 
+# Environment defaults
+METRICS_PORT="${METRICS_PORT:-9390}"
+
 # Health checks
 check_qdrant() {
     local url="${QDRANT_URL:-http://localhost:6333}"
@@ -85,6 +88,11 @@ check_tei() {
         return 0  # Skip check when using OpenAI
     fi
     curl -s "${TEI_BASE_URL:-http://localhost:8080}/health" >/dev/null 2>&1 && print_success "TEI OK" || print_warning "TEI DOWN"
+}
+check_metrics() {
+    curl -s "http://localhost:${METRICS_PORT}/health" >/dev/null 2>&1 \
+        && print_success "Metrics OK (port ${METRICS_PORT})" \
+        || print_warning "Metrics DOWN (port ${METRICS_PORT})"
 }
 
 # URLs overview per environment
@@ -124,6 +132,12 @@ show_urls() {
     echo "- Redis:   via redis-cli (no HTTP)"
     echo "  · URL:        ${REDIS_URL:-redis://localhost:6379}"
     echo "  · Key prefix: ${KAIROS_REDIS_PREFIX:-kb:}"
+
+    # Metrics
+    echo "- Metrics:"
+    echo "  · URL:    http://localhost:${METRICS_PORT}"
+    echo "  · Health: http://localhost:${METRICS_PORT}/health"
+    echo "  · Metrics: http://localhost:${METRICS_PORT}/metrics"
 }
 
 # Core operations
@@ -323,6 +337,7 @@ status() {
     
     check_qdrant
     check_redis
+    check_metrics
     # Only check TEI if not using OpenAI embeddings
     if [[ "${EMBEDDING_PROVIDER:-}" != "openai" ]] && [[ -z "${OPENAI_API_KEY:-}" || -n "${TEI_BASE_URL:-}" ]]; then
         check_tei
