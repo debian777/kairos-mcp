@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
