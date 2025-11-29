@@ -41,15 +41,34 @@ describe('Metrics Operational Tests', () => {
 
   beforeAll(async () => {
     // Wait for metrics server (with longer timeout for test environment)
-    try {
-      await waitForHealthCheck({
-        url: `http://localhost:${METRICS_PORT}/health`,
-        timeoutMs: 30000,
-        intervalMs: 1000
-      });
-    } catch (error) {
-      // Metrics server MUST be available for these tests
-      throw new Error(`Metrics server not available at http://localhost:${METRICS_PORT}/health: ${error}`);
+    // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly
+    const maxAttempts = 30;
+    const intervalMs = 1000;
+    let attempts = 0;
+    let metricsReady = false;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(`http://localhost:${METRICS_PORT}/health`);
+        if (response.ok) {
+          const healthData = await response.json();
+          if (healthData.status === 'ok' || healthData.status === 'healthy') {
+            metricsReady = true;
+            break; // Metrics server is ready
+          }
+        }
+      } catch {
+        // Continue retrying
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+    
+    // Metrics server MUST be available for these tests
+    if (!metricsReady) {
+      throw new Error(`Metrics server not available at http://localhost:${METRICS_PORT}/health after ${maxAttempts} attempts`);
     }
     
     mcpConnection = await getSharedMcpConnection();

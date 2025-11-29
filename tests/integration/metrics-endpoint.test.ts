@@ -7,11 +7,30 @@ const METRICS_HEALTH_URL = `http://localhost:${METRICS_PORT}/health`;
 describe('Metrics Endpoint Integration', () => {
   beforeAll(async () => {
     // Metrics server MUST be available for these tests
-    await waitForHealthCheck({
-      url: METRICS_HEALTH_URL,
-      timeoutMs: 10000,
-      intervalMs: 500
-    });
+    // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly
+    const maxAttempts = 20;
+    const intervalMs = 500;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(METRICS_HEALTH_URL);
+        if (response.ok) {
+          const healthData = await response.json();
+          if (healthData.status === 'ok' || healthData.status === 'healthy') {
+            return; // Metrics server is ready
+          }
+        }
+      } catch {
+        // Continue retrying
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+    
+    throw new Error(`Metrics server not available at ${METRICS_HEALTH_URL} after ${maxAttempts} attempts`);
   }, 20000);
 
   test('metrics endpoint returns valid Prometheus format', async () => {

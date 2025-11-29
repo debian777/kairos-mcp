@@ -6,11 +6,30 @@ const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 describe('Prometheus Scrape Validation', () => {
   beforeAll(async () => {
     // Metrics server MUST be available for these tests
-    await waitForHealthCheck({
-      url: `http://localhost:${METRICS_PORT}/health`,
-      timeoutMs: 10000,
-      intervalMs: 500
-    });
+    // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly
+    const maxAttempts = 20;
+    const intervalMs = 500;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(`http://localhost:${METRICS_PORT}/health`);
+        if (response.ok) {
+          const healthData = await response.json();
+          if (healthData.status === 'ok' || healthData.status === 'healthy') {
+            return; // Metrics server is ready
+          }
+        }
+      } catch {
+        // Continue retrying
+      }
+      attempts++;
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+    
+    throw new Error(`Metrics server not available at http://localhost:${METRICS_PORT}/health after ${maxAttempts} attempts`);
   }, 20000);
 
   test('Prometheus can scrape metrics endpoint', async () => {
