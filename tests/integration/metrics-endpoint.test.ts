@@ -12,16 +12,31 @@ describe('Metrics Endpoint Integration', () => {
     let attempts = 0;
     
     while (attempts < maxAttempts) {
+      let response: Response | null = null;
       try {
-        const response = await fetch(METRICS_HEALTH_URL);
+        response = await fetch(METRICS_HEALTH_URL);
         if (response.ok) {
           const healthData = await response.json();
+          // Ensure response is fully consumed
+          response = null;
           if (healthData.status === 'ok' || healthData.status === 'healthy') {
             return; // Metrics server is ready
           }
+        } else {
+          // Consume response body even on non-ok status
+          await response.text().catch(() => {});
+          response = null;
         }
       } catch {
         // Continue retrying
+        if (response) {
+          try {
+            await response.text().catch(() => {});
+          } catch {
+            // Ignore
+          }
+          response = null;
+        }
       }
       attempts++;
       if (attempts < maxAttempts) {
@@ -85,5 +100,10 @@ describe('Metrics Endpoint Integration', () => {
     const health = await response.json();
     expect(health).toHaveProperty('status');
     expect(health.status).toBe('ok');
+  });
+
+  afterAll(async () => {
+    // Give connections time to close
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 });

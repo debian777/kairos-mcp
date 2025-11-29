@@ -11,16 +11,31 @@ describe('Prometheus Scrape Validation', () => {
     let attempts = 0;
     
     while (attempts < maxAttempts) {
+      let response: Response | null = null;
       try {
-        const response = await fetch(`http://localhost:${METRICS_PORT}/health`);
+        response = await fetch(`http://localhost:${METRICS_PORT}/health`);
         if (response.ok) {
           const healthData = await response.json();
+          // Ensure response is fully consumed
+          response = null;
           if (healthData.status === 'ok' || healthData.status === 'healthy') {
             return; // Metrics server is ready
           }
+        } else {
+          // Consume response body even on non-ok status
+          await response.text().catch(() => {});
+          response = null;
         }
       } catch {
         // Continue retrying
+        if (response) {
+          try {
+            await response.text().catch(() => {});
+          } catch {
+            // Ignore
+          }
+          response = null;
+        }
       }
       attempts++;
       if (attempts < maxAttempts) {
@@ -120,6 +135,11 @@ describe('Prometheus Scrape Validation', () => {
     // Most metrics should have both HELP and TYPE
     const commonMetrics = Array.from(typeMetricNames).filter(name => helpMetricNames.has(name));
     expect(commonMetrics.length).toBeGreaterThan(0);
+  });
+
+  afterAll(async () => {
+    // Give connections time to close
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 });
 

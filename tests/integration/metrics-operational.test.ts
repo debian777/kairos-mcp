@@ -47,17 +47,32 @@ describe('Metrics Operational Tests', () => {
     let metricsReady = false;
     
     while (attempts < maxAttempts) {
+      let response: Response | null = null;
       try {
-        const response = await fetch(`http://localhost:${METRICS_PORT}/health`);
+        response = await fetch(`http://localhost:${METRICS_PORT}/health`);
         if (response.ok) {
           const healthData = await response.json();
+          // Ensure response is fully consumed
+          response = null;
           if (healthData.status === 'ok' || healthData.status === 'healthy') {
             metricsReady = true;
             break; // Metrics server is ready
           }
+        } else {
+          // Consume response body even on non-ok status
+          await response.text().catch(() => {});
+          response = null;
         }
       } catch {
         // Continue retrying
+        if (response) {
+          try {
+            await response.text().catch(() => {});
+          } catch {
+            // Ignore
+          }
+          response = null;
+        }
       }
       attempts++;
       if (attempts < maxAttempts) {
