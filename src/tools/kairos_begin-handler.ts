@@ -3,6 +3,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import { searchAndBuildCandidates } from './kairos_begin-search.js';
 import { createResults } from './kairos_begin-helpers.js';
 import {
@@ -208,4 +209,5 @@ export async function handleBeginTool(
     throw error;
   }
 }
+
 

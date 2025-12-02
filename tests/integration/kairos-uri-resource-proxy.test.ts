@@ -28,19 +28,13 @@ describe('Embedded MCP Resources', () => {
 });
 
 describe('Special static memory resources', () => {
-  test('mcpResources.mem contains UUID keys with valid content', () => {
+  test('mcpResources.mem is empty (mem files are read from filesystem at runtime)', () => {
     expect(mcpResources).toHaveProperty('mem');
     const mem = mcpResources.mem;
     expect(typeof mem).toBe('object');
-    for (const [key, content] of Object.entries(mem)) {
-      console.log('Testing key:', key);
-      console.log('Content preview  :', content.slice(0, 30) + '...');
-      // Keys are now just the filename (UUID), not kairos://mem/{uuid}
-      expect(typeof key).toBe('string');
-      expect(key.length).toBeGreaterThan(0);
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(10);
-    }
+    // mem/ files are now read from filesystem at runtime in mem-resources-boot.ts
+    // They are no longer embedded in the generated file
+    expect(Object.keys(mem).length).toBe(0);
   });
 });
 

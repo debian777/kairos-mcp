@@ -112,7 +112,8 @@ function main() {
     prompts: {},
     resources: {},
     templates: {},
-    tools: {}
+    tools: {},
+    mem: {} // Empty - mem files are read from filesystem at runtime
   };
 
   // Collect known categories with their specific logic
@@ -137,8 +138,9 @@ function main() {
   }
 
   // Discover any other top-level directories and add them as flat collections
+  // NOTE: mem/ directory is excluded - it's read from filesystem at runtime
   const entries = fs.readdirSync(baseDir, { withFileTypes: true });
-  const knownDirs = new Set(['prompts', 'tools', 'resources', 'templates']);
+  const knownDirs = new Set(['prompts', 'tools', 'resources', 'templates', 'mem']);
   
   for (const entry of entries) {
     if (entry.isDirectory() && !knownDirs.has(entry.name)) {
@@ -148,6 +150,9 @@ function main() {
       logger.info(`Discovered top-level directory: ${entry.name}`);
     }
   }
+  
+  // Note: mem/ directory is read from filesystem at runtime, not embedded
+  logger.info('Skipping mem/ directory (read from filesystem at runtime)');
 
   const header = `/**
  * AUTO-GENERATED FILE - DO NOT EDIT
@@ -258,6 +263,32 @@ function collectAllKeys(obj: any, prefix: string = '', keys: string[] = []): str
   logger.info(`Embedded MCP docs from ${path.relative(process.cwd(), baseDir)} into ${path.relative(process.cwd(), outputFile)}`);
   logger.info(`Discovered categories: ${categoryNames.join(', ')}`);
   logger.info(`Generated getters: ${categoryNames.map(c => `get${c.charAt(0).toUpperCase() + c.slice(1)}()`).join(', ')}`);
+  
+  // Copy mem/ directory to dist/embed-docs/mem/ for runtime access
+  const memSourceDir = path.join(baseDir, 'mem');
+  const distDir = path.join(__dirname, '../dist');
+  const memDestDir = path.join(distDir, 'embed-docs', 'mem');
+  
+  if (fs.existsSync(memSourceDir)) {
+    // Ensure destination directory exists
+    fs.mkdirSync(memDestDir, { recursive: true });
+    
+    // Copy all .md files from mem/ to dist/embed-docs/mem/
+    const memFiles = fs.readdirSync(memSourceDir, { withFileTypes: true });
+    let copiedCount = 0;
+    for (const entry of memFiles) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        const sourceFile = path.join(memSourceDir, entry.name);
+        const destFile = path.join(memDestDir, entry.name);
+        fs.copyFileSync(sourceFile, destFile);
+        copiedCount++;
+        logger.info(`Copied mem file: ${entry.name} -> ${path.relative(process.cwd(), destFile)}`);
+      }
+    }
+    logger.info(`Copied ${copiedCount} mem file(s) to ${path.relative(process.cwd(), memDestDir)}`);
+  } else {
+    logger.warn(`Mem source directory not found: ${memSourceDir}`);
+  }
 }
 
 main();

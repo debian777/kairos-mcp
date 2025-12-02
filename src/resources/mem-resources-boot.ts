@@ -1,15 +1,62 @@
 import { MemoryQdrantStore } from '../services/memory/store.js';
-import { getMem } from './embedded-mcp-resources.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { qdrantService } from '../services/qdrant/index.js';
+import { readdir, readFile } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
- * Inject mem resources from embedded-mcp-resources into Qdrant at system boot
+ * Get the directory containing mem files at runtime
+ * Works in both development (src/) and production (dist/)
+ */
+function getMemDir(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  // In dist/, this will be dist/resources/mem-resources-boot.js
+  // So we need to go up to dist/ and then to embed-docs/mem/
+  // In development (when running from src/), this would be src/resources/mem-resources-boot.ts
+  // But in production, files are in dist/embed-docs/mem/
+  const baseDir = join(__dirname, '..', 'embed-docs', 'mem');
+  return baseDir;
+}
+
+/**
+ * Read mem files from filesystem at runtime
+ * Returns a map of filename (without .md) -> content
+ */
+async function readMemFiles(): Promise<Record<string, string>> {
+  const memDir = getMemDir();
+  const memResources: Record<string, string> = {};
+
+  try {
+    const files = await readdir(memDir);
+    const mdFiles = files.filter(f => f.endsWith('.md'));
+
+    for (const file of mdFiles) {
+      const filePath = join(memDir, file);
+      const key = file.replace(/\.md$/, ''); // Remove .md extension
+      const content = await readFile(filePath, 'utf-8');
+      memResources[key] = content;
+      structuredLogger.debug(`[mem-resources-boot] Loaded mem file: ${file} -> ${key}`);
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      structuredLogger.warn(`[mem-resources-boot] Mem directory not found: ${memDir} (this is OK if no mem files exist)`);
+    } else {
+      structuredLogger.error(`[mem-resources-boot] Failed to read mem directory ${memDir}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return memResources;
+}
+
+/**
+ * Inject mem resources from filesystem into Qdrant at system boot
  * Uses the key (filename) as the UUID and supports force option for override
  * Uses storeChain for processing but updates UUID to match filename
  */
 export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, options: { force?: boolean } = {}): Promise<void> {
-  const memResources = getMem();
+  const memResources = await readMemFiles();
   
   if (Object.keys(memResources).length === 0) {
     structuredLogger.info('[mem-resources-boot] No mem resources to inject');
