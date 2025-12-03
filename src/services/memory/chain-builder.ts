@@ -194,9 +194,15 @@ function processH1Section(
     
     let proofMetadata: ProofOfWorkDefinition | undefined;
     if (proof) {
+      // Use shell object if available, otherwise fall back to backward-compatible fields
+      const cmd = proof.shell?.cmd || proof.cmd || '';
+      const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 60;
       proofMetadata = {
-        cmd: proof.cmd,
-        timeout_seconds: proof.timeout_seconds,
+        type: 'shell',
+        shell: {
+          cmd,
+          timeout_seconds: timeout
+        },
         required: true
       };
     }

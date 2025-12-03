@@ -62,7 +62,17 @@ export function extractProofOfWork(content: string): { cleaned: string; proof?: 
     if (!proof) {
       const parsed = parseProofLine(line);
       if (parsed) {
-        proof = parsed;
+        // Convert parsed result to ProofOfWorkDefinition format
+        proof = {
+          type: 'shell',
+          shell: {
+            cmd: parsed.cmd,
+            timeout_seconds: parsed.timeout_seconds
+          },
+          // Backward compatibility
+          cmd: parsed.cmd,
+          timeout_seconds: parsed.timeout_seconds
+        };
         continue;
       }
     }

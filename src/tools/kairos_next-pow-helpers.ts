@@ -88,6 +88,7 @@ export async function handleProofSubmission(
   const record: ProofOfWorkResultRecord = {
     result_id: `pow_${uuid}_${Date.now()}`,
     type: proofType,
+    status: 'success', // Will be set based on type below
     executed_at: new Date().toISOString()
   };
 
@@ -105,15 +106,15 @@ export async function handleProofSubmission(
     record.status = shell.exit_code === 0 ? 'success' : 'failed';
     record.shell = {
       exit_code: shell.exit_code,
-      stdout: shell.stdout,
-      stderr: shell.stderr,
-      duration_seconds: shell.duration_seconds
+      ...(shell.stdout !== undefined && { stdout: shell.stdout }),
+      ...(shell.stderr !== undefined && { stderr: shell.stderr }),
+      ...(shell.duration_seconds !== undefined && { duration_seconds: shell.duration_seconds })
     };
     // Backward compatibility
     record.exit_code = shell.exit_code;
-    record.stdout = shell.stdout;
-    record.stderr = shell.stderr;
-    record.duration_seconds = shell.duration_seconds;
+    if (shell.stdout !== undefined) record.stdout = shell.stdout;
+    if (shell.stderr !== undefined) record.stderr = shell.stderr;
+    if (shell.duration_seconds !== undefined) record.duration_seconds = shell.duration_seconds;
   } else if (proofType === 'mcp') {
     const mcp = submission.mcp;
     if (!mcp) {
