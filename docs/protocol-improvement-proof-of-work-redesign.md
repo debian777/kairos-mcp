@@ -1,12 +1,15 @@
 # KAIROS Protocol Improvement: Proof-of-Work Redesign
 
-**Status**: Draft Proposal  
+**Status**: ✅ **IMPLEMENTED**  
 **Date**: 2025-01-29  
+**Implementation Date**: 2025-12-03  
 **Author**: Protocol Design Team
 
 ## Executive Summary
 
-This document proposes a comprehensive redesign of the KAIROS protocol to address critical issues with proof-of-work (POW) enforcement and workflow determinism. The redesign introduces a more deterministic, flexible, and enforceable proof-of-work system that accommodates various proof types (shell commands, MCP tools, user input, etc.) while ensuring models cannot skip verification steps.
+This document describes the comprehensive redesign of the KAIROS protocol to address critical issues with proof-of-work (POW) enforcement and workflow determinism. The redesign introduces a more deterministic, flexible, and enforceable proof-of-work system that accommodates various proof types (shell commands, MCP tools, user input, etc.) while ensuring models cannot skip verification steps.
+
+**Implementation Status**: All phases completed. Backward compatibility was explicitly removed per requirements.
 
 ## Current Problems
 
@@ -554,23 +557,26 @@ For simple verification comments (fallback for steps without explicit POW).
 
 ### Phase 3: Migration Strategy
 
-1. **Backward Compatibility Period** (3 months):
+**IMPLEMENTATION DECISION**: Backward compatibility was explicitly removed per requirements. No deprecation period.
 
-   - Keep old `kairos_begin` as deprecated alias
-   - Accept old POW format in `kairos_next` (convert to new format)
-   - Log deprecation warnings
+1. **No Backward Compatibility**:
 
-2. **Update Documentation**:
+   - Old `kairos_begin` (search) completely replaced by `kairos_search`
+   - New `kairos_begin` (step 1) is a new tool, not an alias
+   - Old POW format not supported - must use new type-based system
+   - All existing code must be updated to use new tool names
 
-   - Protocol guides
-   - API documentation
-   - Example code
-   - Migration guide
+2. **Documentation Updated**:
 
-3. **Update Existing Protocols**:
-   - Convert POW markers to new type system
-   - Add type information to existing memories
-   - Test with existing protocols
+   - ✅ Protocol guides (AGENTS.md)
+   - ✅ API documentation (embed-docs)
+   - ✅ Example code
+   - ✅ CLI documentation
+
+3. **Existing Protocols**:
+   - Must be updated to use new tool names
+   - POW markers must use new type system
+   - All protocols tested with new system
 
 ### Phase 4: Testing and Validation
 
@@ -593,30 +599,37 @@ For simple verification comments (fallback for steps without explicit POW).
    - Migration path validated
    - Backward compatibility maintained
 
-## Open Questions
+## Implementation Decisions
 
-1. **Backward Compatibility**: How long should we maintain old `kairos_begin` as alias?
+1. **Backward Compatibility**: ✅ **REMOVED**
 
-   - Recommendation: 3 months deprecation period
+   - **Decision**: No backward compatibility, no deprecation period
+   - Old `kairos_begin` (search) completely replaced by `kairos_search`
+   - All code must be updated immediately
 
-2. **POW Type Detection**: How should we determine required POW type for a step?
+2. **POW Type Detection**: ✅ **IMPLEMENTED**
 
-   - Option A: From `proof_of_work` marker in markdown (parse `type:` field)
-   - Option B: Default to `shell` for existing protocols, allow override
-   - Option C: Infer from proof command (shell command → shell type, etc.)
+   - **Decision**: From `proof_of_work` marker in markdown (parse `type:` field)
+   - Defaults to `shell` if type not specified (for backward compatibility with existing protocols)
+   - Type must be one of: `shell`, `mcp`, `user_input`, `comment`
 
-3. **Comment-Type Proof**: What's the minimum length/quality for comment proofs?
+3. **Comment-Type Proof**: ✅ **IMPLEMENTED**
 
-   - Recommendation: Minimum 10 characters, must be meaningful (not just "ok" or "done")
+   - **Decision**: Minimum length enforced in `kairos_attest` validation
+   - Comment must be meaningful (not just "ok" or "done")
+   - Used when no explicit POW marker exists (allows attestation without explicit proof)
 
-4. **MCP Tool Proof**: How do we validate MCP tool results?
+4. **MCP Tool Proof**: ✅ **IMPLEMENTED**
 
-   - Option A: Compare against expected result
-   - Option B: Just verify tool was called successfully
-   - Option C: Custom validation per tool type
+   - **Decision**: Verify tool was called successfully with result
+   - Stores tool name, arguments, result, and success status
+   - No comparison against expected result (flexible approach)
 
-5. **Step 1 Exception**: Should step 1 ever require POW?
-   - Recommendation: No, keep step 1 simple. If verification needed, make it step 2.
+5. **Step 1 Exception**: ✅ **IMPLEMENTED**
+
+   - **Decision**: Step 1 never requires POW (by design)
+   - `kairos_begin` validates `step_index === 1` and rejects others
+   - If verification needed, protocol should make it step 2
 
 ## Alternatives Considered
 
@@ -668,21 +681,41 @@ For simple verification comments (fallback for steps without explicit POW).
 
 This redesign addresses all identified problems:
 
-1. ✅ **Deterministic workflow**: Clear phases with distinct requirements
-2. ✅ **Required POW**: Cannot skip verification on steps 2+
-3. ✅ **Simplified structure**: Type-specific fields, less confusion
-4. ✅ **Flexible proof types**: Supports shell, MCP, user input, comment
-5. ✅ **Better enforcement**: Schema validation and blocking behavior
+1. ✅ **Deterministic workflow**: Clear phases with distinct requirements - **IMPLEMENTED**
+2. ✅ **Required POW**: Cannot skip verification on steps 2+ - **IMPLEMENTED**
+3. ✅ **Simplified structure**: Type-specific fields, less confusion - **IMPLEMENTED**
+4. ✅ **Flexible proof types**: Supports shell, MCP, user input, comment - **IMPLEMENTED**
+5. ✅ **Better enforcement**: Schema validation and blocking behavior - **IMPLEMENTED**
 
-The proposed changes create a more robust, flexible, and enforceable protocol system while maintaining backward compatibility during migration.
+The implemented changes create a more robust, flexible, and enforceable protocol system.
 
-## Next Steps
+## Implementation Summary
 
-1. **Review and feedback** on this proposal
-2. **Finalize POW type system** (address open questions)
-3. **Create detailed implementation plan** with timelines
-4. **Begin Phase 1 implementation** (rename and create tools)
-5. **Test with existing protocols** to ensure compatibility
+**Completed Phases**:
+
+1. ✅ **Phase 1**: Renamed `kairos_begin` → `kairos_search` (search tool)
+2. ✅ **Phase 2**: Created new `kairos_begin` (step 1, no POW)
+3. ✅ **Phase 3**: Updated `kairos_next` (steps 2+, POW required)
+4. ✅ **Phase 4**: Updated `kairos_attest` (POW required)
+5. ✅ **Phase 5**: Implemented type-based POW system (shell, mcp, user_input, comment)
+6. ✅ **Phase 6**: Updated all documentation (AGENTS.md, embed-docs, CLI)
+7. ✅ **Phase 7**: Updated HTTP API routes and CLI commands
+8. ✅ **Phase 8**: Updated metrics tracking
+9. ✅ **Phase 9**: Created comprehensive CLI tests
+
+**Files Modified**:
+- Tool implementations: `kairos_search.ts`, `kairos_begin.ts`, `kairos_next.ts`, `kairos_attest.ts`
+- Type definitions: `memory.ts`, `proof-of-work-store.ts`
+- HTTP API: `http-api-search.ts` (renamed from `http-api-begin.ts`)
+- CLI: `api-client.ts`, all command files
+- Documentation: `AGENTS.md`, `embed-docs/mem/00000000-0000-0000-0000-000000000001.md`
+- Tests: Created comprehensive CLI test suite
+
+**Breaking Changes**:
+- `kairos_begin` (search) → `kairos_search` (no backward compatibility)
+- `kairos_next` now requires `proof_of_work` for steps 2+
+- `kairos_attest` now requires `proof_of_work`
+- HTTP API route `/api/kairos_begin` → `/api/kairos_search`
 
 ---
 
