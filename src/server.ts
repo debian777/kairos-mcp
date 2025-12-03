@@ -12,6 +12,7 @@ import { LOG_LEVEL, LOG_FORMAT, HTTP_ENABLED, getQdrantUrl, getQdrantCollection,
 // removed: debug tools (kb_version, kb_cache_stats)
 import { registerKairosUpdateTool } from './tools/kairos_update.js';
 import { registerKairosDeleteTool } from './tools/kairos_delete.js';
+import { registerSearchTool } from './tools/kairos_search.js';
 import { registerBeginTool } from './tools/kairos_begin.js';
 import { registerKairosNextTool } from './tools/kairos_next.js';
 import { registerKairosAttestTool } from './tools/kairos_attest.js';
@@ -34,12 +35,18 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
 
 
     // Register kairos tools
+    // New protocol workflow: search -> begin (step 1) -> next (steps 2+) -> attest
+    registerSearchTool(server, memoryStore, { qdrantService });
     registerBeginTool(server, memoryStore, { qdrantService });
     registerKairosNextTool(server, memoryStore, { qdrantService });
     registerKairosMintTool(server, memoryStore);
     registerKairosAttestTool(server, qdrantService);
     registerKairosUpdateTool(server);
     registerKairosDeleteTool(server);
+    
+    // Backward compatibility: register old kairos_begin as deprecated alias for kairos_search
+    // TODO: Remove after deprecation period (3 months)
+    registerSearchTool(server, memoryStore, { toolName: 'kairos_begin', qdrantService });
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

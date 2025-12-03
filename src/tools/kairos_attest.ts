@@ -17,11 +17,51 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
+  const proofOfWorkSubmissionSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Type of proof-of-work'),
+    shell: z.object({
+      exit_code: z.number(),
+      stdout: z.string().optional(),
+      stderr: z.string().optional(),
+      duration_seconds: z.number().optional()
+    }).optional(),
+    mcp: z.object({
+      tool_name: z.string(),
+      arguments: z.any().optional(),
+      result: z.any(),
+      success: z.boolean()
+    }).optional(),
+    user_input: z.object({
+      confirmation: z.string(),
+      timestamp: z.string().optional()
+    }).optional(),
+    comment: z.object({
+      text: z.string().min(10).describe('Verification comment (minimum 10 characters)')
+    }).optional()
+  }).refine(
+    (data) => {
+      // At least one type-specific field must be present
+      return !!(data.shell || data.mcp || data.user_input || data.comment);
+    },
+    { message: 'At least one type-specific field (shell, mcp, user_input, or comment) must be provided' }
+  ).refine(
+    (data) => {
+      // The type-specific field must match the type
+      if (data.type === 'shell' && !data.shell) return false;
+      if (data.type === 'mcp' && !data.mcp) return false;
+      if (data.type === 'user_input' && !data.user_input) return false;
+      if (data.type === 'comment' && !data.comment) return false;
+      return true;
+    },
+    { message: 'The type-specific field must match the proof type' }
+  );
+
   const inputSchema = z.object({
     uri: memoryUriSchema.describe('URI of the completed memory step'),
     outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
-    quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     message: z.string().min(1).describe('Attestation summary message'),
+    proof_of_work: proofOfWorkSubmissionSchema.describe('Proof-of-work verification (REQUIRED)'),
+    quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
   });
 
@@ -60,7 +100,19 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       let result: any;
       
       try {
-        const { uri, outcome, quality_bonus = 0, message, llm_model_id } = params;
+        const { uri, outcome, quality_bonus = 0, message, proof_of_work, llm_model_id } = params;
+
+        // Validate proof_of_work is provided
+        if (!proof_of_work) {
+          throw new Error('proof_of_work is required for kairos_attest');
+        }
+
+        // Validate comment type has minimum length
+        if (proof_of_work.type === 'comment' && proof_of_work.comment) {
+          if (proof_of_work.comment.text.length < 10) {
+            throw new Error('Comment proof must be at least 10 characters');
+          }
+        }
 
       // Use provided model identity
       const modelIdentity = {

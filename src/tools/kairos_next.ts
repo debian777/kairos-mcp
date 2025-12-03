@@ -9,7 +9,8 @@ import { getTenantId } from '../utils/tenant-context.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
-import { proofOfWorkStore, type ProofOfWorkResultRecord, type ProofOfWorkStatus } from '../services/proof-of-work-store.js';
+import { proofOfWorkStore } from '../services/proof-of-work-store.js';
+import { buildProofOfWorkRequired, handleProofSubmission, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
 
 interface RegisterNextOptions {
   toolName?: string;
@@ -70,51 +71,20 @@ function buildKairosNextPayload(
   memory: Memory | null,
   requestedUri: string,
   nextInfo?: ResolvedChainStep,
-  proof?: ProofOfWorkDefinition,
-  proofResult?: ProofOfWorkResultRecord | null
+  proof?: ProofOfWorkDefinition
 ) {
   const current_step = buildCurrentStep(memory, requestedUri);
   const next_step = buildNextStep(memory, nextInfo);
   const protocol_status = next_step ? 'continue' : 'completed';
 
-  const payload: any = {
+  return {
     must_obey: true as const,
     current_step,
     next_step,
-    protocol_status
+    protocol_status,
+    proof_of_work_required: buildProofOfWorkRequired(proof)
   };
-
-  if (proof) {
-    payload.proof_of_work = {
-      cmd: proof.cmd,
-      timeout_seconds: proof.timeout_seconds
-    };
-  }
-
-  if (proofResult) {
-    const formatted: {
-      result_id?: string;
-      status: ProofOfWorkStatus;
-      exit_code: number;
-      executed_at?: string;
-      duration_seconds?: number;
-      stdout?: string;
-      stderr?: string;
-    } = {
-      status: proofResult.status,
-      exit_code: proofResult.exit_code
-    };
-    if (proofResult.result_id) formatted.result_id = proofResult.result_id;
-    if (proofResult.executed_at) formatted.executed_at = proofResult.executed_at;
-    if (typeof proofResult.duration_seconds === 'number') formatted.duration_seconds = proofResult.duration_seconds;
-    if (proofResult.stdout) formatted.stdout = proofResult.stdout;
-    if (proofResult.stderr) formatted.stderr = proofResult.stderr;
-    payload.proof_of_work_result = formatted;
-  }
-
-  return payload;
 }
-type ProofSubmissionPayload = { uri: string; exit_code: number; stdout?: string; stderr?: string; duration_seconds?: number; executed_at?: string };
 async function ensurePreviousProofCompleted(
   memory: Memory,
   memoryStore: MemoryQdrantStore,
@@ -134,69 +104,28 @@ async function ensurePreviousProofCompleted(
   }
   const storedResult = await proofOfWorkStore.getResult(previous.uuid);
   if (!storedResult) {
+    const proofType = prevProof.type || 'shell';
+    let message = `Proof of work missing for ${prevMemory?.label || 'previous step'}.`;
+    if (proofType === 'shell') {
+      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
+      message += ` Execute "${cmd}" and report the result before continuing.`;
+    } else {
+      message += ` Complete the required ${proofType} verification before continuing.`;
+    }
     return {
       must_obey: false,
-      message: `Proof of work missing for ${prevMemory?.label || 'previous step'}. Execute "${prevProof.cmd}" and report the result before continuing.`,
+      message,
       protocol_status: 'blocked'
     };
   }
   if (storedResult.status !== 'success') {
     return {
       must_obey: false,
-      proof_of_work_result: {
-        status: storedResult.status,
-        exit_code: storedResult.exit_code
-      },
       message: 'Proof of work failed. Fix and retry.',
       protocol_status: 'blocked'
     };
   }
   return null;
-}
-async function handleProofSubmission(
-  submission: ProofSubmissionPayload,
-  memoryStore: MemoryQdrantStore
-): Promise<{ blockedPayload?: any }> {
-  if (!submission?.uri) {
-    return {};
-  }
-  const { uuid } = normalizeMemoryUri(submission.uri);
-  const memory = await loadMemoryWithCache(memoryStore, uuid);
-  if (!memory?.proof_of_work) {
-    return {};
-  }
-  const record: ProofOfWorkResultRecord = {
-    result_id: `pow_${uuid}_${Date.now()}`,
-    status: submission.exit_code === 0 ? 'success' : 'failed',
-    exit_code: submission.exit_code,
-    executed_at: submission.executed_at || new Date().toISOString()
-  };
-  if (typeof submission.duration_seconds === 'number') {
-    record.duration_seconds = submission.duration_seconds;
-  }
-  if (submission.stdout) {
-    record.stdout = submission.stdout;
-  }
-  if (submission.stderr) {
-    record.stderr = submission.stderr;
-  }
-  await proofOfWorkStore.saveResult(uuid, record);
-
-  if (memory.proof_of_work.required && record.status === 'failed') {
-    return {
-      blockedPayload: {
-        must_obey: false,
-        proof_of_work_result: {
-          status: 'failed',
-          exit_code: submission.exit_code
-        },
-        message: 'Proof of work failed. Fix and retry.',
-        protocol_status: 'blocked'
-      }
-    };
-  }
-
-  return {};
 }
 export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterNextOptions = {}) {
   const toolName = options.toolName || 'kairos_next';
@@ -204,30 +133,48 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
-  const proofSubmissionSchema = z.object({
-    uri: memoryUriSchema.describe('URI of the step that produced this result'),
-    exit_code: z.number().describe('Exit code from the proof-of-work command'),
-    stdout: z.string().optional().describe('Captured stdout (optional)'),
-    stderr: z.string().optional().describe('Captured stderr (optional)'),
-    duration_seconds: z.number().optional().describe('Execution duration in seconds'),
-    executed_at: z.string().optional().describe('ISO timestamp when command completed')
-  });
+  const proofOfWorkSubmissionSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Type of proof-of-work'),
+    shell: z.object({
+      exit_code: z.number(),
+      stdout: z.string().optional(),
+      stderr: z.string().optional(),
+      duration_seconds: z.number().optional()
+    }).optional(),
+    mcp: z.object({
+      tool_name: z.string(),
+      arguments: z.any().optional(),
+      result: z.any(),
+      success: z.boolean()
+    }).optional(),
+    user_input: z.object({
+      confirmation: z.string(),
+      timestamp: z.string().optional()
+    }).optional(),
+    comment: z.object({
+      text: z.string()
+    }).optional()
+  }).refine(
+    (data) => {
+      // At least one type-specific field must be present
+      return !!(data.shell || data.mcp || data.user_input || data.comment);
+    },
+    { message: 'At least one type-specific field (shell, mcp, user_input, or comment) must be provided' }
+  ).refine(
+    (data) => {
+      // The type-specific field must match the type
+      if (data.type === 'shell' && !data.shell) return false;
+      if (data.type === 'mcp' && !data.mcp) return false;
+      if (data.type === 'user_input' && !data.user_input) return false;
+      if (data.type === 'comment' && !data.comment) return false;
+      return true;
+    },
+    { message: 'The type-specific field must match the proof type' }
+  );
 
   const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of the current memory step'),
-    proof_of_work_result: proofSubmissionSchema
-      .optional()
-      .describe('Include only when reporting proof-of-work output for a completed step; omit entirely otherwise.')
-  });
-
-  const proofResultSchema = z.object({
-    result_id: z.string().optional(),
-    status: z.enum(['success', 'failed']),
-    exit_code: z.number(),
-    executed_at: z.string().optional(),
-    duration_seconds: z.number().optional(),
-    stdout: z.string().optional(),
-    stderr: z.string().optional()
+    uri: memoryUriSchema.describe('URI of the current memory step (must be step 2 or later)'),
+    proof_of_work: proofOfWorkSubmissionSchema.describe('Proof-of-work result (REQUIRED for steps 2+)')
   });
 
   const outputSchema = z.object({
@@ -245,11 +192,24 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       }),
       z.null()
     ]).optional().nullable(),
-    proof_of_work: z.object({
-      cmd: z.string(),
-      timeout_seconds: z.number()
-    }).optional().nullable(),
-    proof_of_work_result: proofResultSchema.optional().nullable(),
+    proof_of_work_required: z.object({
+      type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
+      description: z.string(),
+      shell: z.object({
+        cmd: z.string(),
+        timeout_seconds: z.number()
+      }).optional(),
+      mcp: z.object({
+        tool_name: z.string(),
+        expected_result: z.any().optional()
+      }).optional(),
+      user_input: z.object({
+        prompt: z.string().optional()
+      }).optional(),
+      comment: z.object({
+        min_length: z.number().optional()
+      }).optional()
+    }),
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
     message: z.string().optional()
   });
@@ -295,18 +255,37 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         return structured;
       };
       try {
-        const { uri, proof_of_work_result: submission } = params as { uri: string; proof_of_work_result?: ProofSubmissionPayload };
+        const { uri, proof_of_work } = params as { uri: string; proof_of_work: ProofOfWorkSubmission };
         const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
 
-        if (submission) {
-          const submissionOutcome = await handleProofSubmission(submission, memoryStore);
-          if (submissionOutcome.blockedPayload) {
-            return respond(submissionOutcome.blockedPayload);
-          }
+        // Validate proof_of_work is provided
+        if (!proof_of_work) {
+          return respond({
+            must_obey: false,
+            message: 'Proof of work is required for steps 2+. Use kairos_begin for step 1.',
+            protocol_status: 'blocked'
+          });
         }
 
         const memory = await loadMemoryWithCache(memoryStore, uuid);
+        
+        // Validate this is NOT step 1
+        if (memory?.chain && memory.chain.step_index === 1) {
+          return respond({
+            must_obey: false,
+            message: 'This is step 1. Use kairos_begin for step 1 (no proof-of-work required).',
+            protocol_status: 'blocked'
+          });
+        }
+
         if (memory) {
+          // Handle proof submission
+          const submissionOutcome = await handleProofSubmission(proof_of_work, memory);
+          if (submissionOutcome.blockedPayload) {
+            return respond(submissionOutcome.blockedPayload);
+          }
+
+          // Check previous step's proof (if applicable)
           const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
           if (previousBlock) {
             return respond(previousBlock);
@@ -316,9 +295,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const nextStepInfo = memory
           ? await resolveChainNextStep(memory, options.qdrantService)
           : undefined;
-        const proofResult = memory ? await proofOfWorkStore.getResult(memory.memory_uuid) : null;
 
-        const output = buildKairosNextPayload(memory, requestedUri, nextStepInfo, memory?.proof_of_work, proofResult);
+        const output = buildKairosNextPayload(memory, requestedUri, nextStepInfo, memory?.proof_of_work);
         return respond(output);
       } catch (error) {
         mcpToolCalls.inc({ 

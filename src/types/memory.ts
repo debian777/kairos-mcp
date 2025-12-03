@@ -5,10 +5,29 @@ export interface ChainInfo {
   step_count: number;              // Total number of steps in the chain
 }
 
+export type ProofOfWorkType = 'shell' | 'mcp' | 'user_input' | 'comment';
+
 export interface ProofOfWorkDefinition {
-  cmd: string;
-  timeout_seconds: number;
+  type?: ProofOfWorkType;  // Optional for backward compatibility, defaults to 'shell'
+  // Shell-specific fields (backward compatible)
+  cmd?: string;
+  timeout_seconds?: number;
   required: boolean;
+  // Type-specific fields
+  shell?: {
+    cmd: string;
+    timeout_seconds: number;
+  };
+  mcp?: {
+    tool_name: string;
+    expected_result?: any;
+  };
+  user_input?: {
+    prompt?: string;
+  };
+  comment?: {
+    min_length?: number;
+  };
 }
 
 export interface Memory {
