@@ -43,7 +43,7 @@ describe('Kairos Mint Integration', () => {
     expect(storeResponse.status).toBe('stored');
 
     // Search — expect valid response
-    const call = { name: 'kairos_begin', arguments: { query: testQuery, limit: 1 } };
+    const call = { name: 'kairos_search', arguments: { query: testQuery } };
     const result = await mcpConnection.client.callTool(call);
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);

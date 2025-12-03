@@ -14,7 +14,7 @@ describe('kairos_next input schema exposure', () => {
     }
   });
 
-  test('tools/list marks proof_of_work_result as optional with strict fields', async () => {
+  test('tools/list marks proof_of_work as required with new structure', async () => {
     const listResponse = await mcpConnection.client.listTools({});
 
     withRawOnFail(listResponse, () => {
@@ -24,15 +24,22 @@ describe('kairos_next input schema exposure', () => {
 
       const inputSchema = tool.inputSchema;
       expect(inputSchema).toBeDefined();
-      expect(inputSchema.required).toEqual(['uri']);
+      expect(inputSchema.required).toEqual(expect.arrayContaining(['uri', 'proof_of_work']));
 
-      const powSchema = inputSchema.properties?.proof_of_work_result;
+      const powSchema = inputSchema.properties?.proof_of_work;
       expect(powSchema).toBeDefined();
-      expect(typeof powSchema.description).toBe('string');
-      expect(powSchema.description.toLowerCase()).toContain('omit entirely');
-
-      expect(powSchema.required).toEqual(expect.arrayContaining(['uri', 'exit_code']));
-      expect(powSchema.properties?.uri?.pattern).toBe('^kairos:\\/\\/mem\\/[0-9a-f-]{36}$');
+      expect(powSchema.type).toBe('object');
+      expect(powSchema.required).toEqual(expect.arrayContaining(['type']));
+      
+      // Check for type enum
+      expect(powSchema.properties?.type).toBeDefined();
+      expect(powSchema.properties.type.enum).toEqual(expect.arrayContaining(['shell', 'mcp', 'user_input', 'comment']));
+      
+      // Check for type-specific fields
+      expect(powSchema.properties?.shell).toBeDefined();
+      expect(powSchema.properties?.mcp).toBeDefined();
+      expect(powSchema.properties?.user_input).toBeDefined();
+      expect(powSchema.properties?.comment).toBeDefined();
     }, '[tools/list] kairos_next schema');
   }, 30000);
 });

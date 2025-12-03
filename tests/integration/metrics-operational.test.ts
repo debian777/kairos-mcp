@@ -75,13 +75,13 @@ describe('Metrics Operational Tests', () => {
     const beforeCount = getMetricValue(
       beforeMetrics, 
       'kairos_mcp_tool_calls_total',
-      { tool: 'kairos_begin', status: 'success' }
+      { tool: 'kairos_search', status: 'success' }
     ) || 0;
     
     // Call a tool
     await mcpConnection.client.callTool({
-      name: 'kairos_begin',
-      arguments: { query: 'test query', limit: 1 }
+      name: 'kairos_search',
+      arguments: { query: 'test query' }
     });
     
     // Wait a bit for metrics to update
@@ -93,7 +93,7 @@ describe('Metrics Operational Tests', () => {
     const afterCount = getMetricValue(
       afterMetrics,
       'kairos_mcp_tool_calls_total',
-      { tool: 'kairos_begin', status: 'success' }
+      { tool: 'kairos_search', status: 'success' }
     ) || 0;
     
     // Metrics should have increased

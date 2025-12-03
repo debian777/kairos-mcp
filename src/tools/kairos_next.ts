@@ -77,13 +77,21 @@ function buildKairosNextPayload(
   const next_step = buildNextStep(memory, nextInfo);
   const protocol_status = next_step ? 'continue' : 'completed';
 
-  return {
+  const payload: any = {
     must_obey: true as const,
     current_step,
     next_step,
     protocol_status,
     proof_of_work_required: buildProofOfWorkRequired(proof)
   };
+
+  // When protocol is completed, indicate that kairos_attest should be called
+  if (protocol_status === 'completed') {
+    payload.attest_required = true;
+    payload.message = 'Protocol completed. Call kairos_attest to finalize with proof_of_work.';
+  }
+
+  return payload;
 }
 async function ensurePreviousProofCompleted(
   memory: Memory,
@@ -211,6 +219,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       }).optional()
     }),
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
+    attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
     message: z.string().optional()
   });
 

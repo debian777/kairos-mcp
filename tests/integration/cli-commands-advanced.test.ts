@@ -13,8 +13,9 @@ describe('CLI Commands Advanced --url Tests', () => {
   }, 60000);
 
   async function getMintedUri(): Promise<string | null> {
+    // Use --force to handle case where chain already exists from previous test runs
     const mintResult = await execAsync(
-      `node ${CLI_PATH} mint --url ${BASE_URL} "${TEST_FILE}"`
+      `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
     );
     const mintData = JSON.parse(mintResult.stdout);
     
@@ -31,8 +32,14 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = await getMintedUri();
       if (!uri) return;
 
+      // CLI next requires proof_of_work for steps 2+, and --output json for JSON format
+      const proofOfWork = JSON.stringify({
+        type: 'comment',
+        comment: { text: 'Test proof of work verification' }
+      });
+
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next --url ${BASE_URL} "${uri}"`
+        `node ${CLI_PATH} next --url ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -46,8 +53,14 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = await getMintedUri();
       if (!uri) return;
 
+      // CLI next requires proof_of_work for steps 2+, and --output json for JSON format
+      const proofOfWork = JSON.stringify({
+        type: 'comment',
+        comment: { text: 'Test proof of work verification' }
+      });
+
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next -u ${BASE_URL} "${uri}"`
+        `node ${CLI_PATH} next -u ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -67,7 +80,7 @@ describe('CLI Commands Advanced --url Tests', () => {
       });
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next --url ${BASE_URL} "${uri}" --proof-of-work '${proofOfWork}'`
+        `node ${CLI_PATH} next --url ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
       );
 
       expect(stderr).toBe('');

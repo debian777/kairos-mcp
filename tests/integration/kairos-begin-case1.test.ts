@@ -43,10 +43,9 @@ describe('Kairos Begin - CASE 1: ONE PERFECT MATCH', () => {
 
     // Search with exact title (should be perfect match, score = 1.0)
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: uniqueTitle.toLowerCase(),
-        limit: 10
+        query: uniqueTitle.toLowerCase()
       }
     };
     const result = await mcpConnection.client.callTool(call);

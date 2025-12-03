@@ -32,10 +32,9 @@ describe('Kairos Begin - FORBIDDEN BEHAVIOUR', () => {
   test('never returns error field', async () => {
     const ts = Date.now();
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: `NoErrorFieldTest ${ts}`,
-        limit: 10
+        query: `NoErrorFieldTest ${ts}`
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -63,10 +62,9 @@ describe('Kairos Begin - FORBIDDEN BEHAVIOUR', () => {
 
     // Search
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: uniqueTitle.toLowerCase(),
-        limit: 10
+        query: uniqueTitle.toLowerCase()
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -98,10 +96,9 @@ describe('Kairos Begin - FORBIDDEN BEHAVIOUR', () => {
 
     // Search
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: uniqueTitle.toLowerCase(),
-        limit: 10
+        query: uniqueTitle.toLowerCase()
       }
     };
     const result = await mcpConnection.client.callTool(call);

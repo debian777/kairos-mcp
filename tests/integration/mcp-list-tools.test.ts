@@ -40,6 +40,7 @@ describe('MCP Tools Listing', () => {
       const names = tools.map((t) => t.name);
       // Ensure core tools are present
       expect(names).toContain('kairos_mint');
+      expect(names).toContain('kairos_search');
       expect(names).toContain('kairos_begin');
     }, 'tools/list raw response');
   });

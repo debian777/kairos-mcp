@@ -28,8 +28,9 @@ describe('CLI Commands Environment & Error Tests', () => {
     test('mint uses KAIROS_API_URL environment variable', async () => {
       if (!serverAvailable) return;
 
+      // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} mint "${TEST_FILE}"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} mint --force "${TEST_FILE}"`
       );
 
       expect(stderr).toBe('');

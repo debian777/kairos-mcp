@@ -42,8 +42,9 @@ describe('CLI Commands Basic --url Tests', () => {
     test('mint uses --url parameter', async () => {
       if (!serverAvailable) return;
 
+      // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} "${TEST_FILE}"`
+        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
       );
 
       expect(stderr).toBe('');
@@ -54,8 +55,9 @@ describe('CLI Commands Basic --url Tests', () => {
     test('mint uses -u short form', async () => {
       if (!serverAvailable) return;
 
+      // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint -u ${BASE_URL} "${TEST_FILE}"`
+        `node ${CLI_PATH} mint -u ${BASE_URL} --force "${TEST_FILE}"`
       );
 
       expect(stderr).toBe('');
@@ -66,10 +68,10 @@ describe('CLI Commands Basic --url Tests', () => {
     test('mint with --url and --force', async () => {
       if (!serverAvailable) return;
 
-      // First mint
-      await execAsync(`node ${CLI_PATH} mint --url ${BASE_URL} "${TEST_FILE}"`);
+      // First mint with --force
+      await execAsync(`node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`);
       
-      // Second mint with --force
+      // Second mint with --force (should work even if already exists)
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
       );
@@ -82,8 +84,9 @@ describe('CLI Commands Basic --url Tests', () => {
     test('mint with --url and --model', async () => {
       if (!serverAvailable) return;
 
+      // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --model "test-model" "${TEST_FILE}"`
+        `node ${CLI_PATH} mint --url ${BASE_URL} --force --model "test-model" "${TEST_FILE}"`
       );
 
       expect(stderr).toBe('');

@@ -43,10 +43,9 @@ describe('Kairos Begin - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
 
     // Search with partial/non-exact query (should not be perfect match but score >= 0.7)
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: `partial match case3 ${ts}`,
-        limit: 10
+        query: `partial match case3 ${ts}`
       }
     };
     const result = await mcpConnection.client.callTool(call);

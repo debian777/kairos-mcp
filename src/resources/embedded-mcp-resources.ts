@@ -22,6 +22,7 @@ export const mcpResources = {
     "kairos_delete": "Delete one or more memories from the KAIROS.",
     "kairos_mint": "Stores markdown documents as KAIROS memories with automatic header-based organization.",
     "kairos_next": "Returns the next step in a memory chain for sequential execution.",
+    "kairos_search": "Returns chain heads (position=1) matching a query.",
     "kairos_update": "Update one or more memories in the KAIROS using markdown_doc or updates."
   },
   "mem": {}

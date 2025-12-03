@@ -52,10 +52,9 @@ describe('Kairos Begin Perfect Matches', () => {
 
     // Search with exact title (should be perfect match)
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: uniqueTitle.toLowerCase(), // Scoring normalizes to lowercase
-        limit: 10
+        query: uniqueTitle.toLowerCase() // Scoring normalizes to lowercase
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -129,10 +128,9 @@ describe('Kairos Begin Perfect Matches', () => {
 
     // Search with the query string (should match all 3 protocols perfectly)
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: queryString,
-        limit: 10
+        query: queryString
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -215,10 +213,9 @@ describe('Kairos Begin Perfect Matches', () => {
     // Search with query that partially matches the title (should score above threshold but below 1.0)
     // Using words from the title but not exact match
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: `NoPerfectMatchTest ${ts} partial`,
-        limit: 10
+        query: `NoPerfectMatchTest ${ts} partial`
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -289,10 +286,9 @@ describe('Kairos Begin Perfect Matches', () => {
 
     // Single match - should have start_here, not choices
     const singleResult = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: uniqueTitle.toLowerCase(),
-        limit: 10
+        query: uniqueTitle.toLowerCase()
       }
     });
     const singleParsed = expectValidJsonResult(singleResult);

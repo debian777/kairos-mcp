@@ -176,12 +176,11 @@ PROOF OF WORK: timeout 45s echo run-processor`;
     expect(storeResponse.status).toBe('stored');
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(2); // Should create at least 2 sections
 
-    // Test that kairos_begin can find the chain
+    // Test that kairos_search can find the chain
     const searchResult = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: String(ts),
-        limit: 5
+        query: String(ts)
       }
     });
 

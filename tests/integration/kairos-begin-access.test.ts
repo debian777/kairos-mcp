@@ -11,7 +11,7 @@ describe('Kairos begin accessibility', () => {
     const maxRounds = 5;
     for (let round = 0; round < maxRounds; round++) {
       const beginCall = {
-        name: 'kairos_begin',
+        name: 'kairos_search',
         arguments: { query: QUERY }
       };
       const beginResult = await mcpConnection.client.callTool(beginCall);
@@ -89,7 +89,7 @@ describe('Kairos begin accessibility', () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const beginCall = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: { query: QUERY }
     };
 

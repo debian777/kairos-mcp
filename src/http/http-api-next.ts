@@ -86,11 +86,13 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                     content: '',
                     mimeType: 'text/markdown' as const
                 };
-                const output = {
+                const output: any = {
                     must_obey: true,
                     current_step,
                     next_step: null,
-                    protocol_status: 'completed' as const
+                    protocol_status: 'completed' as const,
+                    attest_required: true,
+                    message: 'Protocol completed. Call kairos_attest to finalize with proof_of_work.'
                 };
                 const duration = Date.now() - startTime;
                 return res.status(200).json({
@@ -122,6 +124,12 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 next_step,
                 protocol_status
             };
+
+            // When protocol is completed, indicate that kairos_attest should be called
+            if (protocol_status === 'completed') {
+                output.attest_required = true;
+                output.message = 'Protocol completed. Call kairos_attest to finalize with proof_of_work.';
+            }
 
             if (memory.proof_of_work) {
                 output.proof_of_work = {

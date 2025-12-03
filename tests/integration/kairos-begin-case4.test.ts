@@ -31,10 +31,9 @@ describe('Kairos Begin - CASE 4: NO RELEVANT RESULTS', () => {
     const gibberishQuery = `XyZ123AbC789GarbageQuery${ts}NoOneWouldEverSearchForThisRandomString`;
 
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: gibberishQuery,
-        limit: 10
+        query: gibberishQuery
       }
     };
     const result = await mcpConnection.client.callTool(call);

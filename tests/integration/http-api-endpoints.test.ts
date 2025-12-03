@@ -110,7 +110,7 @@ describe('HTTP REST API Endpoints', () => {
     }, 30000);
   });
 
-  describe('POST /api/kairos_begin', () => {
+  describe('POST /api/kairos_search', () => {
     test('searches for chain heads', async () => {
       if (!serverAvailable) {
         console.warn('Skipping test - server not available');
@@ -118,7 +118,7 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       const query = `Test Query ${Date.now()}`;
-      const response = await fetch(`${API_BASE}/kairos_begin`, {
+      const response = await fetch(`${API_BASE}/kairos_search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -139,7 +139,7 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_begin`, {
+      const response = await fetch(`${API_BASE}/kairos_search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

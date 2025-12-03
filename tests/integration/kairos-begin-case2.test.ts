@@ -64,10 +64,9 @@ describe('Kairos Begin - CASE 2: MULTIPLE PERFECT MATCHES', () => {
 
     // Search with the query string (should match all 3 protocols perfectly)
     const call = {
-      name: 'kairos_begin',
+      name: 'kairos_search',
       arguments: {
-        query: queryString,
-        limit: 10
+        query: queryString
       }
     };
     const result = await mcpConnection.client.callTool(call);
