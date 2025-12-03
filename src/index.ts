@@ -76,7 +76,7 @@ async function main(): Promise<void> {
         }
 
         // Inject mem resources from embedded-mcp-resources into Qdrant at boot
-        // Use force=true to allow override in new versions
+        // Use --force flag to allow override in new versions
         await injectMemResourcesAtBoot(memoryStore, { force: true });
 
         // Start dedicated metrics server on separate port

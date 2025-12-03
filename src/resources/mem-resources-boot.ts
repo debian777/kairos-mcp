@@ -89,7 +89,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
         try {
           const existing = await qdrantService.getMemoryByUUID(targetUuid);
           if (existing) {
-            structuredLogger.info(`[mem-resources-boot] Memory ${targetUuid} already exists, skipping (use force=true to override)`);
+            structuredLogger.info(`[mem-resources-boot] Memory ${targetUuid} already exists, skipping (use --force flag to override)`);
             continue;
           }
         } catch {

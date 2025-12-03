@@ -56,7 +56,7 @@ export class ApiClient {
     }
 
     async begin(query: string): Promise<ApiResponse> {
-        return this.request('/api/kairos_begin', {
+        return this.request('/api/kairos_search', {
             method: 'POST',
             body: JSON.stringify({ query }),
         });

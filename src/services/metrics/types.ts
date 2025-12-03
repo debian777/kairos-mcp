@@ -9,7 +9,7 @@ export interface MetricLabels {
 }
 
 export interface MCPToolLabels extends MetricLabels {
-  tool: 'kairos_mint' | 'kairos_begin' | 'kairos_next' | 'kairos_attest' | 'kairos_update' | 'kairos_delete';
+  tool: 'kairos_mint' | 'kairos_search' | 'kairos_begin' | 'kairos_next' | 'kairos_attest' | 'kairos_update' | 'kairos_delete';
   status: 'success' | 'error' | 'timeout';
 }
 

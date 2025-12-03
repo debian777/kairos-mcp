@@ -78,7 +78,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 structuredLogger.warn(`✗ Duplicate chain in ${duration}ms: ${err.message}`);
                 res.status(409).json({
                     error: 'DUPLICATE_CHAIN',
-                    message: 'Memory chain with this label already exists. Use force=true to overwrite.',
+                    message: 'Memory chain with this label already exists. Use --force flag to overwrite.',
                     ...(err.details || {})
                 });
                 return;

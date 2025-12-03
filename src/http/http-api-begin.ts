@@ -8,13 +8,13 @@ import { redisCacheService } from '../services/redis-cache.js';
 import type { Memory } from '../types/memory.js';
 
 /**
- * Set up API route for kairos_begin
+ * Set up API route for kairos_search
  * @param app Express application instance
  * @param memoryStore Memory store instance
  * @param qdrantService Qdrant service instance
  */
 export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
-    app.post('/api/kairos_begin', async (req, res) => {
+    app.post('/api/kairos_search', async (req, res) => {
         const startTime = Date.now();
 
         try {
@@ -28,7 +28,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 return;
             }
 
-            structuredLogger.info(`→ POST /api/kairos_begin (query: ${query})`);
+            structuredLogger.info(`→ POST /api/kairos_search (query: ${query})`);
 
             // Replicate kairos_begin logic
             const normalizedQuery = query.trim().toLowerCase();
