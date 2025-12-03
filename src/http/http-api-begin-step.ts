@@ -88,19 +88,14 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
             const output: any = {
                 must_obey: true,
                 current_step,
-                next_step,
-                protocol_status
+                protocol_status,
+                challenge: buildChallenge(memory?.proof_of_work)
             };
 
             // When protocol is completed, indicate that kairos_attest should be called
             if (protocol_status === 'completed') {
                 output.attest_required = true;
                 output.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
-            }
-
-            // Add challenge if memory has proof_of_work requirement
-            if (memory?.proof_of_work) {
-                output.challenge = buildChallenge(memory.proof_of_work);
             }
 
             const duration = Date.now() - startTime;

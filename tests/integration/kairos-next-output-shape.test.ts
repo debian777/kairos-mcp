@@ -52,12 +52,11 @@ describe('kairos_next response schema', () => {
   }
   console.debug('mcpConnection', mcpConnection);
 
-  test('returns continue payload with current_step + next_step', async () => {
+  test('returns continue payload with current_step and challenge', async () => {
     const ts = Date.now();
     const items = await mintThreeStepProtocol(`Kairos Next Schema ${ts}`);
     const firstUri = items[0].uri;
     const secondUri = items[1].uri;
-    const thirdUri = items[2].uri;
 
     // Step 1: Use kairos_begin (no POW required)
     const beginResult = await mcpConnection.client.callTool({
@@ -65,8 +64,8 @@ describe('kairos_next response schema', () => {
       arguments: { uri: firstUri }
     });
     const beginPayload = parseMcpJson(beginResult, '[kairos_begin] step 1');
-    expect(beginPayload.next_step).toBeDefined();
-    expect(beginPayload.next_step.uri).toBe(secondUri);
+    expect(beginPayload.protocol_status).toBe('continue'); // Has next step
+    expect(beginPayload.challenge).toBeDefined();
 
     // Step 2: Use kairos_next with solution for step 1
     const solution = {
@@ -92,12 +91,7 @@ describe('kairos_next response schema', () => {
         expect(payload.challenge.shell.cmd).toContain('step2');
         expect(payload.challenge.shell.timeout_seconds).toBe(30);
       }
-
-      expect(payload.next_step).toBeDefined();
-      expect(payload.next_step.uri).toBe(thirdUri);
-      expect(payload.next_step.position).toBe('3/3');
-      expect(typeof payload.next_step.label).toBe('string');
-      expect(payload.next_step.label.length).toBeGreaterThan(0);
+      // next_step removed per v2 spec - use protocol_status instead
     }, '[kairos_next] continue payload with raw result');
   }, 30000);
 
@@ -127,7 +121,7 @@ describe('kairos_next response schema', () => {
       expect(payload.protocol_status).toBe('completed');
       expect(payload.current_step.uri).toBe(lastUri);
       expect(payload.current_step.content).toContain('Second body');
-      expect(payload.next_step).toBeNull();
+      // next_step removed per v2 spec - use protocol_status instead
       expect(payload.challenge).toBeDefined();
       // Challenge structure has type and shell fields
       if (payload.challenge.shell) {

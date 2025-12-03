@@ -121,8 +121,8 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             const output: any = {
                 must_obey: true,
                 current_step,
-                next_step,
-                protocol_status
+                protocol_status,
+                challenge: buildChallenge(memory?.proof_of_work)
             };
 
             // When protocol is completed, indicate that kairos_attest should be called
@@ -130,14 +130,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 output.attest_required = true;
                 output.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
                 // Add final_challenge on last step
-                if (memory.proof_of_work) {
-                    output.final_challenge = buildChallenge(memory.proof_of_work);
-                }
-            }
-
-            // Add challenge field
-            if (memory.proof_of_work) {
-                output.challenge = buildChallenge(memory.proof_of_work);
+                output.final_challenge = buildChallenge(memory?.proof_of_work);
             }
 
             const duration = Date.now() - startTime;

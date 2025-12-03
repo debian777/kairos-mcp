@@ -80,7 +80,6 @@ function buildKairosNextPayload(
   const payload: any = {
     must_obey: true as const,
     current_step,
-    next_step,
     protocol_status,
     challenge: buildChallenge(proof)
   };
@@ -267,6 +266,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         if (!solution) {
           return respond({
             must_obey: false,
+            current_step: buildCurrentStep(null, requestedUri),
+            challenge: buildChallenge(undefined),
             message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
             protocol_status: 'blocked'
           });
@@ -278,6 +279,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         if (memory?.chain && memory.chain.step_index === 1) {
           return respond({
             must_obey: false,
+            current_step: buildCurrentStep(memory, requestedUri),
+            challenge: buildChallenge(memory?.proof_of_work),
             message: 'This is step 1. Use kairos_begin for step 1.',
             protocol_status: 'blocked'
           });
@@ -287,13 +290,25 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           // Handle solution submission
           const submissionOutcome = await handleProofSubmission(solution, memory);
           if (submissionOutcome.blockedPayload) {
-            return respond(submissionOutcome.blockedPayload);
+            // Ensure blocked payload includes required fields
+            const blockedPayload = {
+              ...submissionOutcome.blockedPayload,
+              current_step: buildCurrentStep(memory, requestedUri),
+              challenge: buildChallenge(memory?.proof_of_work)
+            };
+            return respond(blockedPayload);
           }
 
           // Check previous step's proof (if applicable)
           const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
           if (previousBlock) {
-            return respond(previousBlock);
+            // Ensure previous block includes required fields
+            const blockedPayload = {
+              ...previousBlock,
+              current_step: buildCurrentStep(memory, requestedUri),
+              challenge: buildChallenge(memory?.proof_of_work)
+            };
+            return respond(blockedPayload);
           }
         }
 

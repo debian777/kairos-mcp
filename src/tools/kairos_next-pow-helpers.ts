@@ -62,6 +62,7 @@ export function buildChallenge(proof?: ProofOfWorkDefinition): any {
 }
 
 // Backward compatibility alias (deprecated - use buildChallenge)
+// This alias is kept for backward compatibility but should not be used in new code
 export const buildProofOfWorkRequired = buildChallenge;
 
 export async function handleProofSubmission(
