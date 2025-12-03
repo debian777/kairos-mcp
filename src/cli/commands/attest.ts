@@ -15,12 +15,12 @@ export function attestCommand(program: Command): void {
         .argument('<message>', 'Attestation message describing the completion or failure')
         .option('--quality-bonus <number>', 'Additional quality bonus to apply (default: 0)', '0')
         .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
-        .option('--proof-of-work <json>', 'Proof of work result as JSON string (required). If not provided, defaults to comment-type proof.')
+        .option('--final-solution <json>', 'Final solution result as JSON string (required). If not provided, defaults to comment-type solution.')
         .action(async (
             uri: string,
             outcome: string,
             message: string,
-            options: { qualityBonus?: string; model?: string; proofOfWork?: string }
+            options: { qualityBonus?: string; model?: string; finalSolution?: string }
         ) => {
             try {
                 if (outcome !== 'success' && outcome !== 'failure') {
@@ -38,19 +38,19 @@ export function attestCommand(program: Command): void {
 
                 const client = new ApiClient();
                 
-                // Parse proof of work or default to comment type
-                let proofOfWork: any;
-                if (options.proofOfWork) {
+                // Parse final solution or default to comment type
+                let finalSolution: any;
+                if (options.finalSolution) {
                     try {
-                        proofOfWork = JSON.parse(options.proofOfWork);
+                        finalSolution = JSON.parse(options.finalSolution);
                     } catch (_e) {
-                        writeError('Invalid JSON in --proof-of-work option');
+                        writeError('Invalid JSON in --final-solution option');
                         process.exit(1);
                         return;
                     }
                 } else {
-                    // Default to comment-type proof if not provided
-                    proofOfWork = {
+                    // Default to comment-type solution if not provided
+                    finalSolution = {
                         type: 'comment',
                         comment: {
                             text: message.length >= 10 ? message : `${message} - Attestation completed`
@@ -68,7 +68,7 @@ export function attestCommand(program: Command): void {
                     uri,
                     outcome as 'success' | 'failure',
                     message,
-                    proofOfWork,
+                    finalSolution,
                     attestOptions
                 );
 

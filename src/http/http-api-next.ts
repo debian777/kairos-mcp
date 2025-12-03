@@ -5,6 +5,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainNextStep } from '../services/chain-utils.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
+import { buildChallenge } from '../tools/kairos_next-pow-helpers.js';
 
 /**
  * Set up API route for kairos_next
@@ -17,7 +18,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
         const startTime = Date.now();
 
         try {
-            const { uri, proof_of_work } = req.body;
+            const { uri, solution } = req.body;
 
             if (!uri || typeof uri !== 'string') {
                 res.status(400).json({
@@ -41,34 +42,34 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
 
             const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
 
-            // Handle proof of work submission if provided
-            if (proof_of_work) {
-                // Get the previous step's memory to store the proof result
+            // Handle solution submission if provided
+            if (solution) {
+                // Get the previous step's memory to store the solution result
                 const memory = await memoryStore.getMemory(uuid);
                 if (memory?.proof_of_work) {
-                    // Convert new proof_of_work format to proof store record
+                    // Convert new solution format to proof store record
                     let record: any = {
                         result_id: `pow_${uuid}_${Date.now()}`,
                         executed_at: new Date().toISOString(),
-                        type: proof_of_work.type || 'shell'
+                        type: solution.type || 'shell'
                     };
 
-                    if (proof_of_work.type === 'shell' && proof_of_work.shell) {
-                        record.status = (proof_of_work.shell.exit_code === 0 ? 'success' : 'failed') as 'success' | 'failed';
-                        record.exit_code = proof_of_work.shell.exit_code;
-                        record.duration_seconds = proof_of_work.shell.duration_seconds;
-                        record.stdout = proof_of_work.shell.stdout;
-                        record.stderr = proof_of_work.shell.stderr;
-                        record.shell = proof_of_work.shell;
-                    } else if (proof_of_work.type === 'mcp' && proof_of_work.mcp) {
-                        record.status = proof_of_work.mcp.success ? 'success' : 'failed';
-                        record.mcp = proof_of_work.mcp;
-                    } else if (proof_of_work.type === 'user_input' && proof_of_work.user_input) {
+                    if (solution.type === 'shell' && solution.shell) {
+                        record.status = (solution.shell.exit_code === 0 ? 'success' : 'failed') as 'success' | 'failed';
+                        record.exit_code = solution.shell.exit_code;
+                        record.duration_seconds = solution.shell.duration_seconds;
+                        record.stdout = solution.shell.stdout;
+                        record.stderr = solution.shell.stderr;
+                        record.shell = solution.shell;
+                    } else if (solution.type === 'mcp' && solution.mcp) {
+                        record.status = solution.mcp.success ? 'success' : 'failed';
+                        record.mcp = solution.mcp;
+                    } else if (solution.type === 'user_input' && solution.user_input) {
                         record.status = 'success';
-                        record.user_input = proof_of_work.user_input;
-                    } else if (proof_of_work.type === 'comment' && proof_of_work.comment) {
+                        record.user_input = solution.user_input;
+                    } else if (solution.type === 'comment' && solution.comment) {
                         record.status = 'success';
-                        record.comment = proof_of_work.comment;
+                        record.comment = solution.comment;
                     } else {
                         // Fallback for backward compatibility
                         record.status = 'success';
@@ -92,7 +93,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                     next_step: null,
                     protocol_status: 'completed' as const,
                     attest_required: true,
-                    message: 'Protocol completed. Call kairos_attest to finalize with proof_of_work.'
+                    message: 'Protocol completed. Call kairos_attest to finalize with final_solution.'
                 };
                 const duration = Date.now() - startTime;
                 return res.status(200).json({
@@ -102,7 +103,6 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             }
 
             const nextStepInfo = await resolveChainNextStep(memory, qdrantService);
-            const proofResult = await proofOfWorkStore.getResult(memory.memory_uuid);
 
             const current_step = {
                 uri: `kairos://mem/${memory.memory_uuid}`,
@@ -128,26 +128,16 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             // When protocol is completed, indicate that kairos_attest should be called
             if (protocol_status === 'completed') {
                 output.attest_required = true;
-                output.message = 'Protocol completed. Call kairos_attest to finalize with proof_of_work.';
+                output.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
+                // Add final_challenge on last step
+                if (memory.proof_of_work) {
+                    output.final_challenge = buildChallenge(memory.proof_of_work);
+                }
             }
 
+            // Add challenge field
             if (memory.proof_of_work) {
-                output.proof_of_work = {
-                    cmd: memory.proof_of_work.cmd,
-                    timeout_seconds: memory.proof_of_work.timeout_seconds
-                };
-            }
-
-            if (proofResult) {
-                output.proof_of_work_result = {
-                    status: proofResult.status,
-                    exit_code: proofResult.exit_code,
-                    ...(proofResult.result_id && { result_id: proofResult.result_id }),
-                    ...(proofResult.executed_at && { executed_at: proofResult.executed_at }),
-                    ...(typeof proofResult.duration_seconds === 'number' && { duration_seconds: proofResult.duration_seconds }),
-                    ...(proofResult.stdout && { stdout: proofResult.stdout }),
-                    ...(proofResult.stderr && { stderr: proofResult.stderr })
-                };
+                output.challenge = buildChallenge(memory.proof_of_work);
             }
 
             const duration = Date.now() - startTime;

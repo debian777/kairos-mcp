@@ -10,7 +10,7 @@ import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildProofOfWorkRequired, handleProofSubmission, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
 
 interface RegisterNextOptions {
   toolName?: string;
@@ -82,13 +82,14 @@ function buildKairosNextPayload(
     current_step,
     next_step,
     protocol_status,
-    proof_of_work_required: buildProofOfWorkRequired(proof)
+    challenge: buildChallenge(proof)
   };
 
-  // When protocol is completed, indicate that kairos_attest should be called
+  // When protocol is completed, add final_challenge and indicate that kairos_attest should be called
   if (protocol_status === 'completed') {
+    payload.final_challenge = buildChallenge(proof);
     payload.attest_required = true;
-    payload.message = 'Protocol completed. Call kairos_attest to finalize with proof_of_work.';
+    payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
   }
 
   return payload;
@@ -141,8 +142,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
-  const proofOfWorkSubmissionSchema = z.object({
-    type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Type of proof-of-work'),
+  const solutionSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
     shell: z.object({
       exit_code: z.number(),
       stdout: z.string().optional(),
@@ -177,12 +178,31 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       if (data.type === 'comment' && !data.comment) return false;
       return true;
     },
-    { message: 'The type-specific field must match the proof type' }
+    { message: 'The type-specific field must match the solution type' }
   );
 
   const inputSchema = z.object({
     uri: memoryUriSchema.describe('URI of the current memory step (must be step 2 or later)'),
-    proof_of_work: proofOfWorkSubmissionSchema.describe('Proof-of-work result (REQUIRED for steps 2+)')
+    solution: solutionSchema
+  });
+
+  const challengeSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
+    description: z.string(),
+    shell: z.object({
+      cmd: z.string(),
+      timeout_seconds: z.number()
+    }).optional(),
+    mcp: z.object({
+      tool_name: z.string(),
+      expected_result: z.any().optional()
+    }).optional(),
+    user_input: z.object({
+      prompt: z.string().optional()
+    }).optional(),
+    comment: z.object({
+      min_length: z.number().optional()
+    }).optional()
   });
 
   const outputSchema = z.object({
@@ -192,32 +212,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       content: z.string(),
       mimeType: z.literal('text/markdown')
     }).optional().nullable(),
-    next_step: z.union([
-      z.object({
-        uri: memoryUriSchema,
-        position: z.string().regex(/^\d+\/\d+$/),
-        label: z.string().min(1)
-      }),
-      z.null()
-    ]).optional().nullable(),
-    proof_of_work_required: z.object({
-      type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
-      description: z.string(),
-      shell: z.object({
-        cmd: z.string(),
-        timeout_seconds: z.number()
-      }).optional(),
-      mcp: z.object({
-        tool_name: z.string(),
-        expected_result: z.any().optional()
-      }).optional(),
-      user_input: z.object({
-        prompt: z.string().optional()
-      }).optional(),
-      comment: z.object({
-        min_length: z.number().optional()
-      }).optional()
-    }),
+    challenge: challengeSchema,
+    final_challenge: challengeSchema.optional().describe('Only present on the last step'),
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
     message: z.string().optional()
@@ -228,8 +224,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
   server.registerTool(
     toolName,
     {
-      title: 'Get next step in chain',
-      description: getToolDoc('kairos_next'),
+      title: 'Submit solution and get next step',
+      description: getToolDoc('kairos_next') || 'Submit proof that current challenge was solved. Returns next step + next challenge.',
       inputSchema,
       outputSchema
     },
@@ -264,14 +260,14 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         return structured;
       };
       try {
-        const { uri, proof_of_work } = params as { uri: string; proof_of_work: ProofOfWorkSubmission };
+        const { uri, solution } = params as { uri: string; solution: ProofOfWorkSubmission };
         const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
 
-        // Validate proof_of_work is provided
-        if (!proof_of_work) {
+        // Validate solution is provided
+        if (!solution) {
           return respond({
             must_obey: false,
-            message: 'Proof of work is required for steps 2+. Use kairos_begin for step 1.',
+            message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
             protocol_status: 'blocked'
           });
         }
@@ -282,14 +278,14 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         if (memory?.chain && memory.chain.step_index === 1) {
           return respond({
             must_obey: false,
-            message: 'This is step 1. Use kairos_begin for step 1 (no proof-of-work required).',
+            message: 'This is step 1. Use kairos_begin for step 1.',
             protocol_status: 'blocked'
           });
         }
 
         if (memory) {
-          // Handle proof submission
-          const submissionOutcome = await handleProofSubmission(proof_of_work, memory);
+          // Handle solution submission
+          const submissionOutcome = await handleProofSubmission(solution, memory);
           if (submissionOutcome.blockedPayload) {
             return respond(submissionOutcome.blockedPayload);
           }

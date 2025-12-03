@@ -6,6 +6,7 @@ import { resolveChainNextStep } from '../services/chain-utils.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import type { Memory } from '../types/memory.js';
+import { buildChallenge } from '../tools/kairos_next-pow-helpers.js';
 
 /**
  * Set up API route for kairos_begin (step 1, no proof-of-work required)
@@ -94,7 +95,12 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
             // When protocol is completed, indicate that kairos_attest should be called
             if (protocol_status === 'completed') {
                 output.attest_required = true;
-                output.message = 'Protocol completed. Call kairos_attest to finalize with proof_of_work.';
+                output.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
+            }
+
+            // Add challenge if memory has proof_of_work requirement
+            if (memory?.proof_of_work) {
+                output.challenge = buildChallenge(memory.proof_of_work);
             }
 
             const duration = Date.now() - startTime;

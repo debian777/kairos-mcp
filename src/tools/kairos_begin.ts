@@ -9,6 +9,7 @@ import { getTenantId } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
+import { buildChallenge } from './kairos_next-pow-helpers.js';
 
 interface RegisterBeginOptions {
   toolName?: string;
@@ -76,14 +77,19 @@ function buildKairosBeginPayload(
   const next_step = buildNextStep(memory, nextInfo);
   const protocol_status = next_step ? 'continue' : 'completed';
 
-  return {
+  const payload: any = {
     must_obey: true as const,
     current_step,
     next_step,
     protocol_status
-    // NO proof_of_work field
-    // NO proof_of_work_result field
   };
+
+  // Add challenge if memory has proof_of_work requirement
+  if (memory?.proof_of_work) {
+    payload.challenge = buildChallenge(memory.proof_of_work);
+  }
+
+  return payload;
 }
 
 export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterBeginOptions = {}) {
@@ -94,6 +100,25 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
 
   const inputSchema = z.object({
     uri: memoryUriSchema.describe('URI of step 1 (from kairos_search.start_here)')
+  });
+
+  const challengeSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
+    description: z.string(),
+    shell: z.object({
+      cmd: z.string(),
+      timeout_seconds: z.number()
+    }).optional(),
+    mcp: z.object({
+      tool_name: z.string(),
+      expected_result: z.any().optional()
+    }).optional(),
+    user_input: z.object({
+      prompt: z.string().optional()
+    }).optional(),
+    comment: z.object({
+      min_length: z.number().optional()
+    }).optional()
   });
 
   const outputSchema = z.object({
@@ -111,6 +136,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       }),
       z.null()
     ]).optional().nullable(),
+    challenge: challengeSchema.optional(),
     protocol_status: z.enum(['continue', 'completed']),
     message: z.string().optional()
   });
@@ -120,8 +146,8 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
   server.registerTool(
     toolName,
     {
-      title: 'Read first step (no proof-of-work required)',
-      description: getToolDoc('kairos_begin') || 'Read and execute the first step of a protocol chain. No proof-of-work is required for step 1.',
+      title: 'Start protocol execution',
+      description: getToolDoc('kairos_begin') || 'Loads step 1 and returns the first challenge.',
       inputSchema,
       outputSchema
     },

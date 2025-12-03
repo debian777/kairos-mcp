@@ -14,7 +14,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
         const startTime = Date.now();
 
         try {
-            const { uri, outcome, quality_bonus = 0, message, proof_of_work, llm_model_id } = req.body;
+            const { uri, outcome, quality_bonus = 0, message, final_solution, llm_model_id } = req.body;
 
             if (!uri || typeof uri !== 'string') {
                 res.status(400).json({
@@ -40,10 +40,10 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
                 return;
             }
 
-            if (!proof_of_work || typeof proof_of_work !== 'object') {
+            if (!final_solution || typeof final_solution !== 'object') {
                 res.status(400).json({
                     error: 'INVALID_INPUT',
-                    message: 'proof_of_work is required and must be an object'
+                    message: 'final_solution is required and must be an object'
                 });
                 return;
             }

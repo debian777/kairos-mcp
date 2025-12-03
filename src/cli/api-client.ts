@@ -69,10 +69,10 @@ export class ApiClient {
         });
     }
 
-    async next(uri: string, proofOfWork?: any): Promise<ApiResponse> {
+    async next(uri: string, solution?: any): Promise<ApiResponse> {
         return this.request('/api/kairos_next', {
             method: 'POST',
-            body: JSON.stringify({ uri, proof_of_work: proofOfWork }),
+            body: JSON.stringify({ uri, solution }),
         });
     }
 
@@ -128,7 +128,7 @@ export class ApiClient {
         uri: string,
         outcome: 'success' | 'failure',
         message: string,
-        proofOfWork: any,
+        finalSolution: any,
         options?: { qualityBonus?: number; llmModelId?: string }
     ): Promise<ApiResponse> {
         return this.request('/api/kairos_attest', {
@@ -137,7 +137,7 @@ export class ApiClient {
                 uri,
                 outcome,
                 message,
-                proof_of_work: proofOfWork,
+                final_solution: finalSolution,
                 quality_bonus: options?.qualityBonus || 0,
                 llm_model_id: options?.llmModelId,
             }),

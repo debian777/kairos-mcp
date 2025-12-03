@@ -17,8 +17,8 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
-  const proofOfWorkSubmissionSchema = z.object({
-    type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Type of proof-of-work'),
+  const finalSolutionSchema = z.object({
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
     shell: z.object({
       exit_code: z.number(),
       stdout: z.string().optional(),
@@ -53,14 +53,14 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       if (data.type === 'comment' && !data.comment) return false;
       return true;
     },
-    { message: 'The type-specific field must match the proof type' }
+    { message: 'The type-specific field must match the solution type' }
   );
 
   const inputSchema = z.object({
     uri: memoryUriSchema.describe('URI of the completed memory step'),
     outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
     message: z.string().min(1).describe('Attestation summary message'),
-    proof_of_work: proofOfWorkSubmissionSchema.describe('Proof-of-work verification (REQUIRED)'),
+    final_solution: finalSolutionSchema.describe('Proof that the final_challenge was solved'),
     quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
   });
@@ -82,8 +82,8 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
   server.registerTool(
     toolName,
     {
-      title: 'Attest step completion',
-      description: getToolDoc('kairos_attest'),
+      title: 'Finalize protocol with final solution',
+      description: getToolDoc('kairos_attest') || 'Called once at the very end to attest full protocol completion.',
       inputSchema,
       outputSchema
     },
@@ -100,17 +100,17 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       let result: any;
       
       try {
-        const { uri, outcome, quality_bonus = 0, message, proof_of_work, llm_model_id } = params;
+        const { uri, outcome, quality_bonus = 0, message, final_solution, llm_model_id } = params;
 
-        // Validate proof_of_work is provided
-        if (!proof_of_work) {
-          throw new Error('proof_of_work is required for kairos_attest');
+        // Validate final_solution is provided
+        if (!final_solution) {
+          throw new Error('final_solution is required for kairos_attest');
         }
 
         // Validate comment type has minimum length
-        if (proof_of_work.type === 'comment' && proof_of_work.comment) {
-          if (proof_of_work.comment.text.length < 10) {
-            throw new Error('Comment proof must be at least 10 characters');
+        if (final_solution.type === 'comment' && final_solution.comment) {
+          if (final_solution.comment.text.length < 10) {
+            throw new Error('Comment solution must be at least 10 characters');
           }
         }
 

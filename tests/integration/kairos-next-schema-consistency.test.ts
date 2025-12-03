@@ -14,7 +14,7 @@ describe('kairos_next input schema exposure', () => {
     }
   });
 
-  test('tools/list marks proof_of_work as required with new structure', async () => {
+  test('tools/list marks solution as required with new structure', async () => {
     const listResponse = await mcpConnection.client.listTools({});
 
     withRawOnFail(listResponse, () => {
@@ -24,22 +24,22 @@ describe('kairos_next input schema exposure', () => {
 
       const inputSchema = tool.inputSchema;
       expect(inputSchema).toBeDefined();
-      expect(inputSchema.required).toEqual(expect.arrayContaining(['uri', 'proof_of_work']));
+      expect(inputSchema.required).toEqual(expect.arrayContaining(['uri', 'solution']));
 
-      const powSchema = inputSchema.properties?.proof_of_work;
-      expect(powSchema).toBeDefined();
-      expect(powSchema.type).toBe('object');
-      expect(powSchema.required).toEqual(expect.arrayContaining(['type']));
+      const solutionSchema = inputSchema.properties?.solution;
+      expect(solutionSchema).toBeDefined();
+      expect(solutionSchema.type).toBe('object');
+      expect(solutionSchema.required).toEqual(expect.arrayContaining(['type']));
       
       // Check for type enum
-      expect(powSchema.properties?.type).toBeDefined();
-      expect(powSchema.properties.type.enum).toEqual(expect.arrayContaining(['shell', 'mcp', 'user_input', 'comment']));
+      expect(solutionSchema.properties?.type).toBeDefined();
+      expect(solutionSchema.properties.type.enum).toEqual(expect.arrayContaining(['shell', 'mcp', 'user_input', 'comment']));
       
       // Check for type-specific fields
-      expect(powSchema.properties?.shell).toBeDefined();
-      expect(powSchema.properties?.mcp).toBeDefined();
-      expect(powSchema.properties?.user_input).toBeDefined();
-      expect(powSchema.properties?.comment).toBeDefined();
+      expect(solutionSchema.properties?.shell).toBeDefined();
+      expect(solutionSchema.properties?.mcp).toBeDefined();
+      expect(solutionSchema.properties?.user_input).toBeDefined();
+      expect(solutionSchema.properties?.comment).toBeDefined();
     }, '[tools/list] kairos_next schema');
   }, 30000);
 });

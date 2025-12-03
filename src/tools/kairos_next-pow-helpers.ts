@@ -24,7 +24,7 @@ export type ProofOfWorkSubmission = {
   };
 };
 
-export function buildProofOfWorkRequired(proof?: ProofOfWorkDefinition): any {
+export function buildChallenge(proof?: ProofOfWorkDefinition): any {
   if (!proof) {
     // Default to comment type if no proof defined
     return {
@@ -60,6 +60,9 @@ export function buildProofOfWorkRequired(proof?: ProofOfWorkDefinition): any {
 
   return result;
 }
+
+// Backward compatibility alias (deprecated - use buildChallenge)
+export const buildProofOfWorkRequired = buildChallenge;
 
 export async function handleProofSubmission(
   submission: ProofOfWorkSubmission,

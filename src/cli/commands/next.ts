@@ -11,10 +11,10 @@ export function nextCommand(program: Command): void {
         .command('next')
         .description('Get the next step in a KAIROS protocol chain')
         .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
-        .option('--proof-of-work <json>', 'Proof of work result as JSON string (for steps requiring proof)')
+        .option('--solution <json>', 'Solution result as JSON string (for steps requiring challenge)')
         .option('--follow', 'Follow all URLs in the chain until completion')
         .option('--output <format>', 'Output format: md (markdown content only) or json (full response)', 'md')
-        .action(async (uri: string, options: { proofOfWork?: string; follow?: boolean; output?: string }) => {
+        .action(async (uri: string, options: { solution?: string; follow?: boolean; output?: string }) => {
             try {
                 const outputFormat = options.output || 'md';
                 if (outputFormat !== 'md' && outputFormat !== 'json') {
@@ -24,12 +24,12 @@ export function nextCommand(program: Command): void {
                 }
 
                 const client = new ApiClient();
-                let proofOfWorkResult;
-                if (options.proofOfWork) {
+                let solutionResult;
+                if (options.solution) {
                     try {
-                        proofOfWorkResult = JSON.parse(options.proofOfWork);
+                        solutionResult = JSON.parse(options.solution);
                     } catch (_e) {
-                        writeError('Invalid JSON in --proof-of-work option');
+                        writeError('Invalid JSON in --solution option');
                         process.exit(1);
                         return;
                     }
@@ -39,7 +39,7 @@ export function nextCommand(program: Command): void {
                 const allSteps: any[] = [];
 
                 do {
-                    const response = await client.next(currentUri, proofOfWorkResult);
+                    const response = await client.next(currentUri, solutionResult);
 
                     if (response.error) {
                         writeError(response.error);
@@ -74,8 +74,8 @@ export function nextCommand(program: Command): void {
 
                         if (nextStep?.uri && protocolStatus === 'continue') {
                             currentUri = nextStep.uri;
-                            // Reset proof of work for subsequent steps (only applies to first step)
-                            proofOfWorkResult = undefined;
+                            // Reset solution for subsequent steps (only applies to first step)
+                            solutionResult = undefined;
                         } else {
                             // Chain completed or no next step
                             break;

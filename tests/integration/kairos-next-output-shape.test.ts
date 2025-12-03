@@ -68,12 +68,12 @@ describe('kairos_next response schema', () => {
     expect(beginPayload.next_step).toBeDefined();
     expect(beginPayload.next_step.uri).toBe(secondUri);
 
-    // Step 2: Use kairos_next with proof_of_work for step 1
-    const proofOfWork = {
+    // Step 2: Use kairos_next with solution for step 1
+    const solution = {
       type: 'comment',
-      comment: { text: 'Test proof of work for step 1 completion' }
+      comment: { text: 'Test solution for step 1 completion' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: secondUri, proof_of_work: proofOfWork } };
+    const call = { name: 'kairos_next', arguments: { uri: secondUri, solution: solution } };
     console.debug('call', call);
     const result = await mcpConnection.client.callTool(call);
     console.debug('result', result);
@@ -86,17 +86,12 @@ describe('kairos_next response schema', () => {
       expect(payload.current_step.uri).toBe(secondUri);
       expect(payload.current_step.mimeType).toBe('text/markdown');
       expect(payload.current_step.content).toContain('Second body');
-      expect(payload.proof_of_work_required).toBeDefined();
-      // New structure: proof_of_work_required has type and shell fields
-      if (payload.proof_of_work_required.shell) {
-        expect(payload.proof_of_work_required.shell.cmd).toContain('step2');
-        expect(payload.proof_of_work_required.shell.timeout_seconds).toBe(30);
-      } else if (payload.proof_of_work_required.cmd) {
-        // Backward compatibility
-        expect(payload.proof_of_work_required.cmd).toContain('step2');
-        expect(payload.proof_of_work_required.timeout_seconds).toBe(30);
+      expect(payload.challenge).toBeDefined();
+      // Challenge structure has type and shell fields
+      if (payload.challenge.shell) {
+        expect(payload.challenge.shell.cmd).toContain('step2');
+        expect(payload.challenge.shell.timeout_seconds).toBe(30);
       }
-      expect(payload.proof_of_work_result).toBeUndefined();
 
       expect(payload.next_step).toBeDefined();
       expect(payload.next_step.uri).toBe(thirdUri);
@@ -118,12 +113,12 @@ describe('kairos_next response schema', () => {
       arguments: { uri: firstUri }
     });
 
-    // Step 2: Use kairos_next with proof_of_work for step 1
+    // Step 2: Use kairos_next with solution for step 1
     const submission = {
       type: 'comment',
-      comment: { text: 'Test proof of work for step 1 completion' }
+      comment: { text: 'Test solution for step 1 completion' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: lastUri, proof_of_work: submission } };
+    const call = { name: 'kairos_next', arguments: { uri: lastUri, solution: submission } };
     const result = await mcpConnection.client.callTool(call);
     const payload = parseMcpJson(result, '[kairos_next] completed payload');
 
@@ -133,15 +128,16 @@ describe('kairos_next response schema', () => {
       expect(payload.current_step.uri).toBe(lastUri);
       expect(payload.current_step.content).toContain('Second body');
       expect(payload.next_step).toBeNull();
-      expect(payload.proof_of_work_required).toBeDefined();
-      // New structure: proof_of_work_required has type and shell fields
-      if (payload.proof_of_work_required.shell) {
-        expect(payload.proof_of_work_required.shell.cmd).toContain('step2');
-      } else if (payload.proof_of_work_required.cmd) {
-        // Backward compatibility
-        expect(payload.proof_of_work_required.cmd).toContain('step2');
+      expect(payload.challenge).toBeDefined();
+      // Challenge structure has type and shell fields
+      if (payload.challenge.shell) {
+        expect(payload.challenge.shell.cmd).toContain('step2');
       }
-      expect(payload.proof_of_work_result).toBeUndefined();
+      // Final challenge should be present on last step
+      expect(payload.final_challenge).toBeDefined();
+      if (payload.final_challenge.shell) {
+        expect(payload.final_challenge.shell.cmd).toContain('step2');
+      }
     }, '[kairos_next] completed payload with raw result');
   }, 30000);
 });

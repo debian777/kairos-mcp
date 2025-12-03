@@ -32,14 +32,14 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = await getMintedUri();
       if (!uri) return;
 
-      // CLI next requires proof_of_work for steps 2+, and --output json for JSON format
-      const proofOfWork = JSON.stringify({
+      // CLI next requires solution for steps 2+, and --output json for JSON format
+      const solution = JSON.stringify({
         type: 'comment',
-        comment: { text: 'Test proof of work verification' }
+        comment: { text: 'Test solution verification' }
       });
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next --url ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
+        `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -53,14 +53,14 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = await getMintedUri();
       if (!uri) return;
 
-      // CLI next requires proof_of_work for steps 2+, and --output json for JSON format
-      const proofOfWork = JSON.stringify({
+      // CLI next requires solution for steps 2+, and --output json for JSON format
+      const solution = JSON.stringify({
         type: 'comment',
-        comment: { text: 'Test proof of work verification' }
+        comment: { text: 'Test solution verification' }
       });
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next -u ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
+        `node ${CLI_PATH} next -u ${BASE_URL} --output json --solution '${solution}' "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -68,19 +68,19 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(result).toHaveProperty('protocol_status');
     }, 30000);
 
-    test('next with --url and --proof-of-work', async () => {
+    test('next with --url and --solution', async () => {
       if (!serverAvailable) return;
 
       const uri = await getMintedUri();
       if (!uri) return;
 
-      const proofOfWork = JSON.stringify({
+      const solution = JSON.stringify({
         type: 'comment',
-        comment: { text: 'Test proof of work verification' }
+        comment: { text: 'Test solution verification' }
       });
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} next --url ${BASE_URL} --output json --proof-of-work '${proofOfWork}' "${uri}"`
+        `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
       );
 
       expect(stderr).toBe('');
