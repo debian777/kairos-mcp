@@ -33,10 +33,20 @@ export function parseMarkdownStructure(text: string): MarkdownStructure {
   const lines = text.split(/\r?\n/);
   let h1: string | null = null;
   const h2Items: string[] = [];
+  let inCodeBlock = false; // Track code block state to avoid interpreting comments as headers
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+
+    // Toggle code block state when encountering code block delimiters
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+
+    // Only check for headers when not inside a code block
+    if (inCodeBlock) continue;
 
     // Find H1 header
     if (trimmed.startsWith('# ') && h1 === null) {

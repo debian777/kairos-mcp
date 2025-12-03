@@ -47,6 +47,7 @@ function processH1Section(
   const full_markdown: Record<number, StepData> = {};
   let step = 1;
   let pendingProof = false; // Track if we have a proof waiting for the next H2
+  let inCodeBlock = false; // Track code block state to avoid interpreting comments as headers
   
   // Initialize first step
   full_markdown[step] = {
@@ -59,6 +60,15 @@ function processH1Section(
     const line = raw; // preserve formatting
     const trimmed = line.trim();
     
+    // Toggle code block state when encountering code block delimiters
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      // Include code block delimiter in content
+      const currentStep = full_markdown[step]!;
+      currentStep.markdown_doc.push(line);
+      continue;
+    }
+    
     // Ensure current step exists
     if (!full_markdown[step]) {
       full_markdown[step] = {
@@ -70,7 +80,8 @@ function processH1Section(
     const currentStep = full_markdown[step]!;
     
     // H1 is already handled by caller, but check for safety
-    if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+    // Only check when not inside a code block
+    if (!inCodeBlock && trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
       currentStep.chain_label = trimmed.substring(2).trim();
       continue;
     }
@@ -84,8 +95,8 @@ function processH1Section(
       continue;
     }
     
-    // Check for H2 header
-    if (trimmed.startsWith('## ')) {
+    // Check for H2 header (only when not inside a code block)
+    if (!inCodeBlock && trimmed.startsWith('## ')) {
       const h2Title = trimmed.substring(3).trim();
       // If we have a pending proof, this H2 starts the NEXT step
       if (pendingProof) {
@@ -241,10 +252,20 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
   const lines = cleanMarkdown.split(/\r?\n/);
   
   // Find all H1 positions to split document into separate chains
+  // Track code block state to avoid interpreting comments inside code blocks as headers
   const h1Positions: Array<{ index: number; title: string }> = [];
+  let inCodeBlock = false;
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i]!.trim();
-    if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+    
+    // Toggle code block state when encountering code block delimiters
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    
+    // Only check for H1 headers when not inside a code block
+    if (!inCodeBlock && trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
       h1Positions.push({ index: i, title: trimmed.substring(2).trim() });
     }
   }
