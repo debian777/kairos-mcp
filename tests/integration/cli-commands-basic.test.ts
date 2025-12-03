@@ -12,12 +12,12 @@ describe('CLI Commands Basic --url Tests', () => {
     serverAvailable = await setupServerCheck();
   }, 60000);
 
-  describe('begin command', () => {
-    test('begin uses --url parameter', async () => {
+  describe('search command', () => {
+    test('search uses --url parameter', async () => {
       if (!serverAvailable) return;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} begin --url ${BASE_URL} "test query"`
+        `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
       );
 
       expect(stderr).toBe('');
@@ -25,11 +25,51 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('protocol_status');
     }, 30000);
 
-    test('begin uses -u short form', async () => {
+    test('search uses -u short form', async () => {
       if (!serverAvailable) return;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} begin -u ${BASE_URL} "test query"`
+        `node ${CLI_PATH} search -u ${BASE_URL} "test query"`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(result).toHaveProperty('protocol_status');
+    }, 30000);
+  });
+
+  describe('begin command', () => {
+    test('begin uses --url parameter with URI', async () => {
+      if (!serverAvailable) return;
+
+      // First search to get a URI
+      const searchResult = await execAsync(
+        `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
+      );
+      const searchData = JSON.parse(searchResult.stdout);
+      const uri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} begin --url ${BASE_URL} "${uri}"`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(result).toHaveProperty('protocol_status');
+    }, 30000);
+
+    test('begin uses -u short form with URI', async () => {
+      if (!serverAvailable) return;
+
+      // First search to get a URI
+      const searchResult = await execAsync(
+        `node ${CLI_PATH} search -u ${BASE_URL} "test query"`
+      );
+      const searchData = JSON.parse(searchResult.stdout);
+      const uri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} begin -u ${BASE_URL} "${uri}"`
       );
 
       expect(stderr).toBe('');

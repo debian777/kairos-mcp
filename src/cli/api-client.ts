@@ -55,10 +55,17 @@ export class ApiClient {
         return data;
     }
 
-    async begin(query: string): Promise<ApiResponse> {
+    async search(query: string): Promise<ApiResponse> {
         return this.request('/api/kairos_search', {
             method: 'POST',
             body: JSON.stringify({ query }),
+        });
+    }
+
+    async begin(uri: string): Promise<ApiResponse> {
+        return this.request('/api/kairos_begin', {
+            method: 'POST',
+            body: JSON.stringify({ uri }),
         });
     }
 

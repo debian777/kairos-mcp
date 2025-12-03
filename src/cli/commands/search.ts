@@ -1,20 +1,20 @@
 /**
- * kairos begin command - Read step 1 (no proof-of-work required)
+ * kairos search command
  */
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
 import { writeError, writeJson } from '../output.js';
 
-export function beginCommand(program: Command): void {
+export function searchCommand(program: Command): void {
     program
-        .command('begin')
-        .description('Read the first step of a KAIROS protocol chain (no proof-of-work required)')
-        .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
-        .action(async (uri: string) => {
+        .command('search')
+        .description('Search for KAIROS protocols by query')
+        .argument('<query>', 'Search query')
+        .action(async (query: string) => {
             try {
                 const client = new ApiClient();
-                const response = await client.begin(uri);
+                const response = await client.search(query);
 
                 if (response.error) {
                     writeError(response.error);

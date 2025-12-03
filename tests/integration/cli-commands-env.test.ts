@@ -13,11 +13,30 @@ describe('CLI Commands Environment & Error Tests', () => {
   }, 60000);
 
   describe('KAIROS_API_URL environment variable', () => {
-    test('begin uses KAIROS_API_URL environment variable', async () => {
+    test('search uses KAIROS_API_URL environment variable', async () => {
       if (!serverAvailable) return;
 
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} begin "test query"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} search "test query"`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(result).toHaveProperty('protocol_status');
+    }, 30000);
+
+    test('begin uses KAIROS_API_URL environment variable with URI', async () => {
+      if (!serverAvailable) return;
+
+      // First search to get a URI
+      const searchResult = await execAsync(
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} search "test query"`
+      );
+      const searchData = JSON.parse(searchResult.stdout);
+      const uri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+
+      const { stdout, stderr } = await execAsync(
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} begin "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -43,7 +62,7 @@ describe('CLI Commands Environment & Error Tests', () => {
 
       // Set env var to wrong URL, but --url should override
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=http://wrong-url:9999 node ${CLI_PATH} begin --url ${BASE_URL} "test query"`
+        `KAIROS_API_URL=http://wrong-url:9999 node ${CLI_PATH} search --url ${BASE_URL} "test query"`
       );
 
       expect(stderr).toBe('');
@@ -53,11 +72,19 @@ describe('CLI Commands Environment & Error Tests', () => {
   });
 
   describe('Error handling with --url', () => {
+    test('search fails with invalid --url', async () => {
+      if (!serverAvailable) return;
+
+      await expect(
+        execAsync(`node ${CLI_PATH} search --url http://invalid-url:9999 "test query"`)
+      ).rejects.toThrow();
+    }, 30000);
+
     test('begin fails with invalid --url', async () => {
       if (!serverAvailable) return;
 
       await expect(
-        execAsync(`node ${CLI_PATH} begin --url http://invalid-url:9999 "test query"`)
+        execAsync(`node ${CLI_PATH} begin --url http://invalid-url:9999 "kairos://mem/00000000-0000-0000-0000-000000000001"`)
       ).rejects.toThrow();
     }, 30000);
 

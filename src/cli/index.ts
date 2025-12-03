@@ -4,6 +4,7 @@
  */
 
 import { Command } from 'commander';
+import { searchCommand } from './commands/search.js';
 import { beginCommand } from './commands/begin.js';
 import { nextCommand } from './commands/next.js';
 import { mintCommand } from './commands/mint.js';
@@ -27,13 +28,14 @@ program
         }
     });
 
-// Register commands
-beginCommand(program);
-nextCommand(program);
-mintCommand(program);
-updateCommand(program);
-deleteCommand(program);
-attestCommand(program);
+// Register commands (matching MCP tool names 1:1)
+searchCommand(program);  // kairos_search
+beginCommand(program);   // kairos_begin (step 1)
+nextCommand(program);    // kairos_next (steps 2+)
+mintCommand(program);     // kairos_mint
+updateCommand(program);   // kairos_update
+deleteCommand(program);  // kairos_delete
+attestCommand(program);   // kairos_attest
 
 // Parse arguments
 program.parse();
