@@ -43,10 +43,6 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerKairosAttestTool(server, qdrantService);
     registerKairosUpdateTool(server);
     registerKairosDeleteTool(server);
-    
-    // Backward compatibility: register old kairos_begin as deprecated alias for kairos_search
-    // TODO: Remove after deprecation period (3 months)
-    registerSearchTool(server, memoryStore, { toolName: 'kairos_begin', qdrantService });
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);
