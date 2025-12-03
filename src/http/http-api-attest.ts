@@ -14,7 +14,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
         const startTime = Date.now();
 
         try {
-            const { uri, outcome, quality_bonus = 0, message, llm_model_id } = req.body;
+            const { uri, outcome, quality_bonus = 0, message, proof_of_work, llm_model_id } = req.body;
 
             if (!uri || typeof uri !== 'string') {
                 res.status(400).json({
@@ -36,6 +36,14 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
                 res.status(400).json({
                     error: 'INVALID_INPUT',
                     message: 'message is required and must be a string'
+                });
+                return;
+            }
+
+            if (!proof_of_work || typeof proof_of_work !== 'object') {
+                res.status(400).json({
+                    error: 'INVALID_INPUT',
+                    message: 'proof_of_work is required and must be an object'
                 });
                 return;
             }

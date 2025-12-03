@@ -217,16 +217,17 @@ start() {
             ;;
     esac
     # Health check after server startup with retries
+        ATTEMPTS=30
         print_info "Performing post-startup health check with retries..."
         attempt=1
-        while [ $attempt -le 15 ]; do
-            print_info "Health check attempt $attempt/15..."
+        while [ $attempt -le $ATTEMPTS ]; do
+            print_info "Health check attempt $attempt/$ATTEMPTS..."
             if curl -s "http://localhost:$PORT/health" >/dev/null 2>&1; then
                 print_success "Server health check passed on attempt $attempt"
                 break
             else
-                if [ $attempt -eq 15 ]; then
-                    print_error "Server health check failed after 15 attempts"
+                if [ $attempt -eq $ATTEMPTS ]; then
+                    print_error "Server health check failed after $ATTEMPTS attempts"
                     exit 1
                 fi
                 sleep 2

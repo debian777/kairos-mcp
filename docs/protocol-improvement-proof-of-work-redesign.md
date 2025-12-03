@@ -704,6 +704,7 @@ The implemented changes create a more robust, flexible, and enforceable protocol
 9. ✅ **Phase 9**: Created comprehensive CLI tests
 
 **Files Modified**:
+
 - Tool implementations: `kairos_search.ts`, `kairos_begin.ts`, `kairos_next.ts`, `kairos_attest.ts`
 - Type definitions: `memory.ts`, `proof-of-work-store.ts`
 - HTTP API: `http-api-search.ts` (renamed from `http-api-begin.ts`)
@@ -712,6 +713,7 @@ The implemented changes create a more robust, flexible, and enforceable protocol
 - Tests: Created comprehensive CLI test suite
 
 **Breaking Changes**:
+
 - `kairos_begin` (search) → `kairos_search` (no backward compatibility)
 - `kairos_next` now requires `proof_of_work` for steps 2+
 - `kairos_attest` now requires `proof_of_work`

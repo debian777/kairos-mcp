@@ -17,7 +17,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
         const startTime = Date.now();
 
         try {
-            const { uri, proof_of_work_result } = req.body;
+            const { uri, proof_of_work } = req.body;
 
             if (!uri || typeof uri !== 'string') {
                 res.status(400).json({
@@ -42,20 +42,39 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
 
             // Handle proof of work submission if provided
-            if (proof_of_work_result) {
-                const { uuid: powUuid } = normalizeMemoryUri(proof_of_work_result.uri);
-                const memory = await memoryStore.getMemory(powUuid);
+            if (proof_of_work) {
+                // Get the previous step's memory to store the proof result
+                const memory = await memoryStore.getMemory(uuid);
                 if (memory?.proof_of_work) {
-                    const record = {
-                        result_id: `pow_${powUuid}_${Date.now()}`,
-                        status: (proof_of_work_result.exit_code === 0 ? 'success' : 'failed') as 'success' | 'failed',
-                        exit_code: proof_of_work_result.exit_code,
-                        executed_at: proof_of_work_result.executed_at || new Date().toISOString(),
-                        duration_seconds: proof_of_work_result.duration_seconds,
-                        stdout: proof_of_work_result.stdout,
-                        stderr: proof_of_work_result.stderr
+                    // Convert new proof_of_work format to proof store record
+                    let record: any = {
+                        result_id: `pow_${uuid}_${Date.now()}`,
+                        executed_at: new Date().toISOString(),
+                        type: proof_of_work.type || 'shell'
                     };
-                    await proofOfWorkStore.saveResult(powUuid, record);
+
+                    if (proof_of_work.type === 'shell' && proof_of_work.shell) {
+                        record.status = (proof_of_work.shell.exit_code === 0 ? 'success' : 'failed') as 'success' | 'failed';
+                        record.exit_code = proof_of_work.shell.exit_code;
+                        record.duration_seconds = proof_of_work.shell.duration_seconds;
+                        record.stdout = proof_of_work.shell.stdout;
+                        record.stderr = proof_of_work.shell.stderr;
+                        record.shell = proof_of_work.shell;
+                    } else if (proof_of_work.type === 'mcp' && proof_of_work.mcp) {
+                        record.status = proof_of_work.mcp.success ? 'success' : 'failed';
+                        record.mcp = proof_of_work.mcp;
+                    } else if (proof_of_work.type === 'user_input' && proof_of_work.user_input) {
+                        record.status = 'success';
+                        record.user_input = proof_of_work.user_input;
+                    } else if (proof_of_work.type === 'comment' && proof_of_work.comment) {
+                        record.status = 'success';
+                        record.comment = proof_of_work.comment;
+                    } else {
+                        // Fallback for backward compatibility
+                        record.status = 'success';
+                    }
+
+                    await proofOfWorkStore.saveResult(uuid, record);
                 }
             }
 

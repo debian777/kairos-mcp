@@ -15,11 +15,12 @@ export function attestCommand(program: Command): void {
         .argument('<message>', 'Attestation message describing the completion or failure')
         .option('--quality-bonus <number>', 'Additional quality bonus to apply (default: 0)', '0')
         .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
+        .option('--proof-of-work <json>', 'Proof of work result as JSON string (required). If not provided, defaults to comment-type proof.')
         .action(async (
             uri: string,
             outcome: string,
             message: string,
-            options: { qualityBonus?: string; model?: string }
+            options: { qualityBonus?: string; model?: string; proofOfWork?: string }
         ) => {
             try {
                 if (outcome !== 'success' && outcome !== 'failure') {
@@ -36,6 +37,27 @@ export function attestCommand(program: Command): void {
                 }
 
                 const client = new ApiClient();
+                
+                // Parse proof of work or default to comment type
+                let proofOfWork: any;
+                if (options.proofOfWork) {
+                    try {
+                        proofOfWork = JSON.parse(options.proofOfWork);
+                    } catch (_e) {
+                        writeError('Invalid JSON in --proof-of-work option');
+                        process.exit(1);
+                        return;
+                    }
+                } else {
+                    // Default to comment-type proof if not provided
+                    proofOfWork = {
+                        type: 'comment',
+                        comment: {
+                            text: message.length >= 10 ? message : `${message} - Attestation completed`
+                        }
+                    };
+                }
+
                 const attestOptions: { qualityBonus?: number; llmModelId?: string } = {
                     qualityBonus,
                 };
@@ -46,6 +68,7 @@ export function attestCommand(program: Command): void {
                     uri,
                     outcome as 'success' | 'failure',
                     message,
+                    proofOfWork,
                     attestOptions
                 );
 
