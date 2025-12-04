@@ -70,6 +70,9 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
     // Invalidate cache after update
     await redisCacheService.invalidateMemoryCache(uuid);
     await redisCacheService.invalidateSearchCache();
+    // Publish invalidation event via pub/sub
+    await redisCacheService.publishInvalidation('memory');
+    await redisCacheService.publishInvalidation('search');
     
     qdrantOperations.inc({ 
       operation: 'update', 
@@ -156,6 +159,9 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     // Invalidate cache after update
     await redisCacheService.invalidateMemoryCache(validatedId);
     await redisCacheService.invalidateSearchCache();
+    // Publish invalidation event via pub/sub
+    await redisCacheService.publishInvalidation('memory');
+    await redisCacheService.publishInvalidation('search');
     
     qdrantOperations.inc({ 
       operation: 'update', 
@@ -188,6 +194,9 @@ export async function deleteMemory(conn: QdrantConnection, id: string): Promise<
       // Invalidate cache after deletion
       await redisCacheService.invalidateMemoryCache(validatedId);
       await redisCacheService.invalidateSearchCache();
+      // Publish invalidation event via pub/sub
+      await redisCacheService.publishInvalidation('memory');
+      await redisCacheService.publishInvalidation('search');
       
       qdrantOperations.inc({ 
         operation: 'delete', 

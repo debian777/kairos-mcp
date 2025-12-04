@@ -101,6 +101,9 @@ export async function storeMemory(
     // Invalidate cache after creation
     await redisCacheService.invalidateMemoryCache(qdrantId);
     await redisCacheService.invalidateSearchCache();
+    // Publish invalidation event via pub/sub
+    await redisCacheService.publishInvalidation('memory');
+    await redisCacheService.publishInvalidation('search');
     
     qdrantOperations.inc({ 
       operation: 'upsert', 

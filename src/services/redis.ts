@@ -186,6 +186,24 @@ export class RedisService {
         }
     }
 
+    /**
+     * Publish a message to a Redis channel (pub/sub)
+     * Note: Channel names are NOT prefixed to allow cross-instance communication
+     * @param channel Channel name to publish to
+     * @param message Message to publish
+     * @returns Number of subscribers that received the message
+     */
+    async publish(channel: string, message: string): Promise<number> {
+        try {
+            const result = await this.client.publish(channel, message);
+            logger.debug(`[RedisService] Published message to channel "${channel}", ${result} subscribers notified`);
+            return result;
+        } catch (error) {
+            logger.error(`Redis PUBLISH error for channel ${channel}:`, error);
+            return 0;
+        }
+    }
+
     // Utility methods for JSON objects
     async getJson<T>(key: string): Promise<T | null> {
         const value = await this.get(key);

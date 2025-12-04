@@ -104,8 +104,12 @@ export class RedisCacheService {
 
   async publishInvalidation(type: string): Promise<void> {
     try {
-      // Publishing not implemented in RedisService wrapper
-      logger.debug(`[RedisCacheService] Invalidation event: ${type} (not published)`);
+      const message = JSON.stringify({
+        type,
+        timestamp: Date.now()
+      });
+      const subscribers = await redisService.publish(this.invalidationChannel, message);
+      logger.debug(`[RedisCacheService] Published invalidation event: ${type} to ${this.invalidationChannel} (${subscribers} subscribers notified)`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to publish invalidation:', error);
     }
@@ -162,9 +166,9 @@ export class RedisCacheService {
   async setMemoryResource(memory: Memory): Promise<void> {
     try {
       const key = `${this.memoryPrefix}${memory.memory_uuid}`;
-      const ttl = 3600; // 1 hour for memory resources
-      await redisService.setJson(key, memory, ttl);
-      logger.debug(`[RedisCacheService] Cached memory resource for UUID ${memory.memory_uuid}`);
+      // Store memories without TTL (permanent storage)
+      await redisService.setJson(key, memory);
+      logger.debug(`[RedisCacheService] Cached memory resource for UUID ${memory.memory_uuid} (no TTL)`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to cache memory resource:', error);
     }
