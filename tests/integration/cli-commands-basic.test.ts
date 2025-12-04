@@ -7,9 +7,23 @@ import { execAsync, BASE_URL, CLI_PATH, TEST_FILE, setupServerCheck } from './cl
 
 describe('CLI Commands Basic --url Tests', () => {
   let serverAvailable = false;
+  let cachedSearchUri: string | null = null;
 
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
+    // Pre-fetch a URI from search to reuse in begin tests
+    if (serverAvailable) {
+      try {
+        const searchResult = await execAsync(
+          `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
+        );
+        const searchData = JSON.parse(searchResult.stdout);
+        cachedSearchUri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+      } catch {
+        // Fallback URI if search fails
+        cachedSearchUri = 'kairos://mem/00000000-0000-0000-0000-000000000001';
+      }
+    }
   }, 60000);
 
   describe('search command', () => {
@@ -40,17 +54,10 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('begin command', () => {
     test('begin uses --url parameter with URI', async () => {
-      if (!serverAvailable) return;
-
-      // First search to get a URI
-      const searchResult = await execAsync(
-        `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
-      );
-      const searchData = JSON.parse(searchResult.stdout);
-      const uri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+      if (!serverAvailable || !cachedSearchUri) return;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} begin --url ${BASE_URL} "${uri}"`
+        `node ${CLI_PATH} begin --url ${BASE_URL} "${cachedSearchUri}"`
       );
 
       expect(stderr).toBe('');
@@ -59,17 +66,10 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('begin uses -u short form with URI', async () => {
-      if (!serverAvailable) return;
-
-      // First search to get a URI
-      const searchResult = await execAsync(
-        `node ${CLI_PATH} search -u ${BASE_URL} "test query"`
-      );
-      const searchData = JSON.parse(searchResult.stdout);
-      const uri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+      if (!serverAvailable || !cachedSearchUri) return;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} begin -u ${BASE_URL} "${uri}"`
+        `node ${CLI_PATH} begin -u ${BASE_URL} "${cachedSearchUri}"`
       );
 
       expect(stderr).toBe('');
@@ -105,13 +105,11 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('status');
     }, 30000);
 
-    test('mint with --url and --force', async () => {
+    test('mint with --url and --force (updates existing)', async () => {
       if (!serverAvailable) return;
 
-      // First mint with --force
-      await execAsync(`node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`);
-      
-      // Second mint with --force (should work even if already exists)
+      // Test that --force works on existing chain
+      // Chain should already exist from previous tests, so this tests update path
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
       );
@@ -119,6 +117,8 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('status');
+      // Should succeed even if chain already exists (force update)
+      expect(result.status).toBe('stored');
     }, 30000);
 
     test('mint with --url and --model', async () => {

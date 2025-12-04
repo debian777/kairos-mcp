@@ -9,7 +9,7 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
  * Tests from reports/outputs.md
  */
 
-describe('Kairos Begin - CASE 2: MULTIPLE PERFECT MATCHES', () => {
+describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -23,7 +23,7 @@ describe('Kairos Begin - CASE 2: MULTIPLE PERFECT MATCHES', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_begin raw MCP result');
+    return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
   test('returns must_obey: false with choices array and positive message', async () => {

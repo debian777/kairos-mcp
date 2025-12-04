@@ -3,36 +3,36 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-describe('Kairos begin accessibility', () => {
+describe('Kairos search accessibility', () => {
   let mcpConnection;
   const QUERY = 'AI CODING RULES';
 
   async function purgeExistingProtocols() {
     const maxRounds = 5;
     for (let round = 0; round < maxRounds; round++) {
-      const beginCall = {
+      const searchCall = {
         name: 'kairos_search',
         arguments: { query: QUERY }
       };
-      const beginResult = await mcpConnection.client.callTool(beginCall);
-      const beginPayload = parseMcpJson(beginResult, '[kairos_begin] cleanup AI CODING RULES');
-      if (beginPayload.protocol_status === 'no_protocol') {
+      const searchResult = await mcpConnection.client.callTool(searchCall);
+      const searchPayload = parseMcpJson(searchResult, '[kairos_search] cleanup AI CODING RULES');
+      if (searchPayload.protocol_status === 'no_protocol') {
         break;
       }
 
       const uris = new Set<string>();
-      if (typeof beginPayload.start_here === 'string') {
-        uris.add(beginPayload.start_here);
+      if (typeof searchPayload.start_here === 'string') {
+        uris.add(searchPayload.start_here);
       }
-      if (Array.isArray(beginPayload.choices)) {
-        for (const choice of beginPayload.choices) {
+      if (Array.isArray(searchPayload.choices)) {
+        for (const choice of searchPayload.choices) {
           if (choice?.uri) {
             uris.add(choice.uri);
           }
         }
       }
-      if (beginPayload.best_match?.uri) {
-        uris.add(beginPayload.best_match.uri);
+      if (searchPayload.best_match?.uri) {
+        uris.add(searchPayload.best_match.uri);
       }
 
       if (uris.size === 0) {
@@ -60,7 +60,7 @@ describe('Kairos begin accessibility', () => {
     }
   });
 
-  test('kairos_begin finds AI CODING RULES after mint', async () => {
+  test('kairos_search finds AI CODING RULES after mint', async () => {
     await purgeExistingProtocols();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -88,18 +88,18 @@ describe('Kairos begin accessibility', () => {
 
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    const beginCall = {
+    const searchCall = {
       name: 'kairos_search',
       arguments: { query: QUERY }
     };
 
-    let beginPayload;
-    let beginResult;
+    let searchPayload;
+    let searchResult;
     const maxAttempts = 20;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      beginResult = await mcpConnection.client.callTool(beginCall);
-      beginPayload = parseMcpJson(beginResult, '[kairos_begin] AI CODING RULES');
-      if (beginPayload.protocol_status !== 'no_protocol') {
+      searchResult = await mcpConnection.client.callTool(searchCall);
+      searchPayload = parseMcpJson(searchResult, '[kairos_search] AI CODING RULES');
+      if (searchPayload.protocol_status !== 'no_protocol') {
         break;
       }
       if (attempt === maxAttempts) {
@@ -109,37 +109,37 @@ describe('Kairos begin accessibility', () => {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
-    withRawOnFail({ call: beginCall, result: beginResult }, () => {
-      expect(beginPayload).toBeDefined();
-      expect(beginPayload).toHaveProperty('protocol_status');
+    withRawOnFail({ call: searchCall, result: searchResult }, () => {
+      expect(searchPayload).toBeDefined();
+      expect(searchPayload).toHaveProperty('protocol_status');
 
-      if (beginPayload.protocol_status === 'initiated' && beginPayload.must_obey === true) {
-        expect(beginPayload.start_here).toMatch(/^kairos:\/\/mem\//);
-        expect(mintedUriSet.has((beginPayload.start_here || '').toLowerCase())).toBe(true);
+      if (searchPayload.protocol_status === 'initiated' && searchPayload.must_obey === true) {
+        expect(searchPayload.start_here).toMatch(/^kairos:\/\/mem\//);
+        expect(mintedUriSet.has((searchPayload.start_here || '').toLowerCase())).toBe(true);
       } else if (
-        beginPayload.protocol_status === 'initiated' &&
-        beginPayload.must_obey === false &&
-        typeof beginPayload.multiple_perfect_matches === 'number' &&
-        beginPayload.multiple_perfect_matches > 1
+        searchPayload.protocol_status === 'initiated' &&
+        searchPayload.must_obey === false &&
+        typeof searchPayload.multiple_perfect_matches === 'number' &&
+        searchPayload.multiple_perfect_matches > 1
       ) {
-        expect(Array.isArray(beginPayload.choices)).toBe(true);
-        const choiceUris = (beginPayload.choices || []).map(choice => (choice.uri || '').toLowerCase());
+        expect(Array.isArray(searchPayload.choices)).toBe(true);
+        const choiceUris = (searchPayload.choices || []).map(choice => (choice.uri || '').toLowerCase());
         expect(choiceUris.some(uri => mintedUriSet.has(uri))).toBe(true);
-      } else if (beginPayload.protocol_status === 'partial_match') {
-        expect(beginPayload.best_match).toBeDefined();
-        expect(mintedUriSet.has((beginPayload.best_match?.uri || '').toLowerCase())).toBe(true);
-      } else if (beginPayload.protocol_status === 'no_protocol') {
+      } else if (searchPayload.protocol_status === 'partial_match') {
+        expect(searchPayload.best_match).toBeDefined();
+        expect(mintedUriSet.has((searchPayload.best_match?.uri || '').toLowerCase())).toBe(true);
+      } else if (searchPayload.protocol_status === 'no_protocol') {
         const diagnostic = {
           mintedUris: Array.from(mintedUriSet),
           mintedCount: mintedUriSet.size,
           attempts: maxAttempts,
-          finalResponse: beginPayload
+          finalResponse: searchPayload
         };
-        throw new Error(`kairos_begin never detected AI CODING RULES after mint. Diagnostics: ${JSON.stringify(diagnostic, null, 2)}`);
+        throw new Error(`kairos_search never detected AI CODING RULES after mint. Diagnostics: ${JSON.stringify(diagnostic, null, 2)}`);
       } else {
-        throw new Error(`Unexpected kairos_begin response: ${JSON.stringify(beginPayload)}`);
+        throw new Error(`Unexpected kairos_search response: ${JSON.stringify(searchPayload)}`);
       }
-    }, '[kairos_begin] AI CODING RULES raw response');
+    }, '[kairos_search] AI CODING RULES raw response');
   }, 120000);
 });
 

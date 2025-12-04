@@ -12,7 +12,8 @@ export const execAsync = promisify(exec);
 export const APP_PORT = process.env.PORT || '3300';
 export const BASE_URL = `http://localhost:${APP_PORT}`;
 export const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
-export const TEST_FILE = join(process.cwd(), 'tests/test-data/AI_CODING_RULES.md');
+// Use minimal test file for CLI parameter tests (faster than full AI_CODING_RULES.md)
+export const TEST_FILE = join(process.cwd(), 'tests/test-data/cli-minimal-test.md');
 
 export async function setupServerCheck() {
   let serverAvailable = false;

@@ -8,7 +8,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
  * Tests from reports/outputs.md
  */
 
-describe('Kairos Begin - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
+describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -22,7 +22,7 @@ describe('Kairos Begin - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_begin raw MCP result');
+    return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
   test('returns must_obey: false with best_match, message, and hint', async () => {

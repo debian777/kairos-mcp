@@ -4,7 +4,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 /**
  * FORBIDDEN BEHAVIOUR tests
  * 
- * Tests that kairos_begin never violates the forbidden behaviors from reports/outputs.md:
+ * Tests that kairos_search never violates the forbidden behaviors from reports/outputs.md:
  * - Do not return `error` field
  * - Do not return raw `score` (0.73) to user
  * - Do not return `results[]` when must_obey: true
@@ -12,7 +12,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
  * - Do not say "I can't" — always offer creation
  */
 
-describe('Kairos Begin - FORBIDDEN BEHAVIOUR', () => {
+describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('Kairos Begin - FORBIDDEN BEHAVIOUR', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_begin raw MCP result');
+    return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
   test('never returns error field', async () => {

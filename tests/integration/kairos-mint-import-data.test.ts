@@ -4,6 +4,8 @@ import { join } from 'path';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 describe('Kairos Mint Data Import (tests/test-data)', () => {
+  // Tests all .md files in tests/test-data/ directory
+  // Currently only contains AI_CODING_RULES.md (other redundant files were removed)
   let mcpConnection;
 
   beforeAll(async () => {

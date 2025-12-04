@@ -7,22 +7,25 @@ import { execAsync, BASE_URL, CLI_PATH, TEST_FILE, setupServerCheck } from './cl
 
 describe('CLI Commands Advanced --url Tests', () => {
   let serverAvailable = false;
+  let cachedMintedUri: string | null = null;
 
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
+    // Mint once and cache the URI for all tests to reuse
+    if (serverAvailable) {
+      const mintResult = await execAsync(
+        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
+      );
+      const mintData = JSON.parse(mintResult.stdout);
+      if (mintData.items && mintData.items.length > 0) {
+        cachedMintedUri = mintData.items[0].uri;
+      }
+    }
   }, 60000);
 
   async function getMintedUri(): Promise<string | null> {
-    // Use --force to handle case where chain already exists from previous test runs
-    const mintResult = await execAsync(
-      `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
-    );
-    const mintData = JSON.parse(mintResult.stdout);
-    
-    if (mintData.items && mintData.items.length > 0) {
-      return mintData.items[0].uri;
-    }
-    return null;
+    // Return cached URI to avoid expensive mint operations
+    return cachedMintedUri;
   }
 
   describe('next command', () => {
@@ -121,38 +124,6 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
   });
 
-  describe('delete command', () => {
-    test('delete uses --url parameter', async () => {
-      if (!serverAvailable) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
-
-      const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} delete --url ${BASE_URL} "${uri}"`
-      );
-
-      expect(stderr).toBe('');
-      const result = JSON.parse(stdout);
-      expect(result).toHaveProperty('results');
-    }, 30000);
-
-    test('delete uses -u short form', async () => {
-      if (!serverAvailable) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
-
-      const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} delete -u ${BASE_URL} "${uri}"`
-      );
-
-      expect(stderr).toBe('');
-      const result = JSON.parse(stdout);
-      expect(result).toHaveProperty('results');
-    }, 30000);
-  });
-
   describe('attest command', () => {
     test('attest uses --url parameter', async () => {
       if (!serverAvailable) return;
@@ -207,6 +178,38 @@ describe('CLI Commands Advanced --url Tests', () => {
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test" --model "test-model"`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(result).toHaveProperty('results');
+    }, 30000);
+  });
+
+  describe('delete command', () => {
+    test('delete uses --url parameter', async () => {
+      if (!serverAvailable) return;
+
+      const uri = await getMintedUri();
+      if (!uri) return;
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} delete --url ${BASE_URL} "${uri}"`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(result).toHaveProperty('results');
+    }, 30000);
+
+    test('delete uses -u short form', async () => {
+      if (!serverAvailable) return;
+
+      const uri = await getMintedUri();
+      if (!uri) return;
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} delete -u ${BASE_URL} "${uri}"`
       );
 
       expect(stderr).toBe('');

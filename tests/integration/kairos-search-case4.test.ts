@@ -8,7 +8,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
  * Tests from reports/outputs.md
  */
 
-describe('Kairos Begin - CASE 4: NO RELEVANT RESULTS', () => {
+describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -22,7 +22,7 @@ describe('Kairos Begin - CASE 4: NO RELEVANT RESULTS', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_begin raw MCP result');
+    return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
   test('returns must_obey: false with no_protocol status, message, and suggestion', async () => {
