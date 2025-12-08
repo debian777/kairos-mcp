@@ -210,7 +210,7 @@ start() {
             if [[ "${EMBEDDING_PROVIDER:-}" != "openai" ]] && [[ -z "${OPENAI_API_KEY:-}" || -n "${TEI_BASE_URL:-}" ]]; then
                 check_tei || { print_error "QA requires TEI when not using OpenAI embeddings"; exit 1; }
             fi
-            docker-compose -f compose.yaml --env-file ".env.qa" up -d
+            docker-compose -f compose.yaml --env-file ".env.qa" --profile qa up -d
             print_success "QA environment started on http://localhost:$PORT"
             show_urls
 

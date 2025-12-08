@@ -61,6 +61,7 @@
     "docker:build": "docker build -t m365-mcp .",
     "ensure-coding-rules": "./scripts/run-env.sh ensure-coding-rules",
     "handoff": "npm run dev:deploy && npm run dev:test && npm run qa:deploy && npm run qa:test && npm run ensure-coding-rules",
+    "infra:start": "docker compose --profile infra up",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "prebuild": "npm ci && npm run verify:clean && npx ts-node scripts/embed-docs.ts",

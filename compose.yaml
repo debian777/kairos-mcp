@@ -1,7 +1,10 @@
 services:
   redis:
     profiles:
-      - infrastructure
+      - infra
+      - prod
+      - qa
+      - dev
     image: redis:7-alpine
     pull_policy: missing
     command: >
@@ -25,7 +28,10 @@ services:
 
   redisinsight:
     profiles:
-      - infrastructure
+      - infra
+      - prod
+      - qa
+      - dev
     image: redis/redisinsight:latest
     pull_policy: missing
     depends_on:
@@ -44,7 +50,10 @@ services:
 
   qdrant:
     profiles:
-      - infrastructure
+      - infra
+      - prod
+      - qa
+      - dev
     image: qdrant/qdrant:latest
     pull_policy: missing
     ports:
@@ -76,6 +85,8 @@ services:
     #   start_period: 3s
 
   app-qa:
+    profiles:
+      - qa
     image: debian777/kairos-mcp:latest
     #pull_policy: always
     labels:
@@ -83,7 +94,7 @@ services:
     env_file:
       - .env.qa
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT:-3500}:${PORT:-3500}"
       - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
     environment:
       # Overrides to access real localhost services from within Docker container
@@ -92,9 +103,32 @@ services:
       - METRICS_PORT=${METRICS_PORT:-9090}
     volumes:
       - ./data/qa/qdrant/snapshosts:/snapshots
-    # depends_on:
-    #   - qdrant
-    #   - redis
+    depends_on:
+      - qdrant
+      - redis
+
+  app-prod:
+    profiles:
+      - prod
+    image: debian777/kairos-mcp:latest
+    #pull_policy: always
+    labels:
+      - "environment=prod"
+    env_file:
+      - .env.prod
+    ports:
+      - "${PORT:-3500}:${PORT:-3500}"
+      - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
+    environment:
+      # Overrides to access real localhost services from within Docker container
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379
+      - METRICS_PORT=${METRICS_PORT:-9090}
+    volumes:
+      - ./data/qa/qdrant/snapshosts:/snapshots
+    depends_on:
+      - qdrant
+      - redis
 
     networks:
       - kairos-network
