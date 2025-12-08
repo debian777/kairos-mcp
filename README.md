@@ -1,6 +1,11 @@
 # KAIROS MCP Server
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
+
 AI Knowledge Memory System for AI Agent Consciousness Infrastructure
+
+KAIROS is an MCP (Model Context Protocol) server that provides persistent knowledge memory for AI agents, enabling them to store, retrieve, and reason over information across sessions.
 
 ## Build, Deploy, and Test
 
@@ -137,13 +142,56 @@ npm run docker:build
 - `tests/test-data/` - Test data files
 - `scripts/` - Build and utility scripts
 
+## Infrastructure Setup
+
+Start the required infrastructure services (Redis and Qdrant):
+
+```bash
+npm run infra:start
+```
+
+This starts Redis and Qdrant using Docker Compose with the infrastructure profile.
+
 ## Requirements
 
 - Node.js >= 24.0.0
-- Docker (for containerized deployment)
+- Docker and Docker Compose (for containerized deployment)
 - Qdrant (vector database)
 - Redis (caching)
 
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/debian777/kairos-mcp.git
+cd kairos-mcp
+
+# Install dependencies
+npm ci
+
+# Copy environment template
+cp env.example.txt .env.dev
+
+# Configure your environment variables in .env.dev
+# See env.example.txt for all available options
+
+# Start infrastructure
+npm run infra:start
+
+# Start development server
+npm run dev:start
+```
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- 📖 [Documentation](docs/)
+- 🐛 [Issue Tracker](https://github.com/debian777/kairos-mcp/issues)
+- 💬 [Discussions](https://github.com/debian777/kairos-mcp/discussions)
