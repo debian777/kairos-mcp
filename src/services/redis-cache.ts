@@ -74,6 +74,8 @@ export class RedisCacheService {
       const keys = await redisService.keys(`${this.cachePrefix}*`);
       if (!keys || keys.length === 0) {
         logger.debug('[RedisCacheService] No search cache keys to delete');
+        // Still publish invalidation event even if no keys to delete
+        await this.publishInvalidation('search');
         return;
       }
       // Keys returned from redisService.keys() already have the prefix applied
@@ -82,6 +84,8 @@ export class RedisCacheService {
       const stripped: string[] = keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k);
       await Promise.all(stripped.map(k => redisService.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
+      // Publish invalidation event
+      await this.publishInvalidation('search');
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate search cache:', error);
     }
@@ -97,6 +101,8 @@ export class RedisCacheService {
       const key = `${this.memoryPrefix}${uuid}`;
       await redisService.del(key);
       logger.debug(`[RedisCacheService] Invalidated memory cache for UUID ${uuid}`);
+      // Publish invalidation event
+      await this.publishInvalidation('memory');
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate memory cache:', error);
     }
