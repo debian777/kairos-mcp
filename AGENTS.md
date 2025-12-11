@@ -108,6 +108,7 @@ kairos_search returns: {must_obey: false, choices: [...]}
 6. Only after full validation in dev/qa can changes be promoted to live
 
 **Deployment workflow:**
+
 - Local changes → dev/qa environment → test → validate → promote to live
 - Always deploy before testing: `npm run dev:deploy && npm run dev:test`
 - Tests run against running dev/qa servers, so deploy first
