@@ -89,6 +89,9 @@ function buildKairosNextPayload(
     payload.final_challenge = buildChallenge(proof);
     payload.attest_required = true;
     payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
+    payload.next_action = 'call kairos_attest with final_solution';
+  } else {
+    payload.next_action = 'call kairos_next with next step uri and solution matching challenge';
   }
 
   return payload;
@@ -215,7 +218,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
     final_challenge: challengeSchema.optional().describe('Only present on the last step'),
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
-    message: z.string().optional()
+    message: z.string().optional(),
+    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with next step uri and solution matching challenge")')
   });
 
   structuredLogger.debug(`kairos_next registration inputSchema: ${JSON.stringify(inputSchema)}`);

@@ -46,7 +46,8 @@ export class ProofOfWorkStore {
   async saveResult(memoryUuid: string, record: ProofOfWorkResultRecord): Promise<void> {
     if (!memoryUuid) return;
     try {
-      await redisService.setJson(this.buildKey(memoryUuid), record);
+      // 7 days TTL (604800 seconds)
+      await redisService.setJson(this.buildKey(memoryUuid), record, 604800);
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to save result for ${memoryUuid}`, error);
     }

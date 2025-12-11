@@ -180,6 +180,7 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       // Use a test URI (may not exist, but should return valid response structure)
+      // Solution is now required for steps 2+, so test expects 400 when missing
       const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
       const response = await fetch(`${API_BASE}/kairos_next`, {
         method: 'POST',
@@ -189,12 +190,12 @@ describe('HTTP REST API Endpoints', () => {
         body: JSON.stringify({ uri: testUri })
       });
 
-      expect(response.status).toBe(200);
+      // Solution is required for steps 2+, so missing solution should return 400
+      expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data).toHaveProperty('must_obey');
-      expect(data).toHaveProperty('current_step');
-      expect(data).toHaveProperty('protocol_status');
-      expect(data.metadata).toHaveProperty('duration_ms');
+      expect(data).toHaveProperty('error', 'INVALID_INPUT');
+      expect(data).toHaveProperty('message');
+      expect(data.message).toContain('solution is required');
     }, 30000);
   });
 

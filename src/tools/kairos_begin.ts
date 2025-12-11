@@ -88,6 +88,9 @@ function buildKairosBeginPayload(
   if (protocol_status === 'completed') {
     payload.attest_required = true;
     payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
+    payload.next_action = 'call kairos_attest with final_solution';
+  } else {
+    payload.next_action = 'call kairos_next with uri and solution matching challenge';
   }
 
   return payload;
@@ -132,7 +135,8 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
     challenge: challengeSchema,
     protocol_status: z.enum(['continue', 'completed']),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
-    message: z.string().optional()
+    message: z.string().optional(),
+    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with uri and solution matching challenge")')
   });
 
   structuredLogger.debug(`kairos_begin registration inputSchema: ${JSON.stringify(inputSchema)}`);

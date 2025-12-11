@@ -138,7 +138,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                     start_here: headUri,
                     chain_label: match.memory.chain?.label || null,
                     total_steps: match.total_steps,
-                    protocol_status: 'initiated'
+                    protocol_status: 'initiated',
+                    next_action: 'call kairos_begin with start_here URI'
                 };
             } else if (perfectMatches.length > 1) {
                 const resolvedHeads = await Promise.all(perfectMatches.map(async (match) => {
@@ -177,7 +178,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                         total_steps: topResult.total_steps
                     },
                     message: `I found a relevant protocol (confidence: ${confidencePercent}%). Shall I proceed?`,
-                    hint: 'Or would you like to create a new canonical one?'
+                    hint: 'Or would you like to create a new canonical one?',
+                    next_action: 'call kairos_begin with best_match.uri to proceed'
                 };
             }
 
