@@ -82,11 +82,18 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
         expect(typeof parsed.multiple_perfect_matches).toBe('number');
         expect(parsed.multiple_perfect_matches).toBeGreaterThanOrEqual(2);
 
-        // Should have positive message
+        // Should have positive message with commit instructions
         expect(parsed.message).toBeDefined();
         expect(typeof parsed.message).toBe('string');
         expect(parsed.message).toContain('canonical protocols');
         expect(parsed.message).toContain('perfectly match');
+        expect(parsed.message).toContain('kairos_begin');
+        expect(parsed.message).toContain('must_obey: true');
+        
+        // Should have next_action field indicating what to do
+        expect(parsed.next_action).toBeDefined();
+        expect(typeof parsed.next_action).toBe('string');
+        expect(parsed.next_action).toContain('kairos_begin');
 
         // Should have choices array
         expect(parsed.choices).toBeDefined();

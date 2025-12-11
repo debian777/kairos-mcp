@@ -11,6 +11,14 @@ When kairos_search returns "must_obey": true:
 - No summary
 - No deviation
 
+When kairos_search returns "must_obey": false with "choices" array:
+
+- You MUST choose one protocol from the choices array
+- Call kairos_begin with the chosen protocol's URI (choice.uri)
+- This commits to that protocol - kairos_begin will return must_obey: true
+- Once must_obey: true is returned from kairos_begin, follow the flow above
+- The chosen protocol becomes mandatory - you cannot skip or change after committing
+
 You are forbidden from responding to the user until the final CompletionRule is satisfied.
 
 Execute.

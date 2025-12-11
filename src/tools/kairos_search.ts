@@ -129,7 +129,8 @@ async function generateMultiplePerfectMatchesOutput(
   return {
     must_obey: false,
     multiple_perfect_matches: perfectMatches.length,
-    message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Which one would you like to use?`,
+    message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Choose one protocol by calling kairos_begin with its URI from the choices array. Once committed, must_obey: true applies and execution becomes mandatory.`,
+    next_action: 'call kairos_begin with choice.uri to commit to a protocol',
     choices: resolvedHeads,
     protocol_status: 'initiated'
   };
@@ -168,6 +169,11 @@ function generateNoResultsOutput(): any {
 /**
  * Register kairos_search tool
  * This tool searches for protocol chains and returns chain heads.
+ * 
+ * When multiple perfect matches are found (must_obey: false with choices array):
+ * - AI must choose one protocol from the choices array
+ * - Call kairos_begin with the chosen protocol's URI to commit
+ * - Once committed via kairos_begin, must_obey: true applies and execution becomes mandatory
  */
 export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterSearchOptions = {}) {
   const toolName = options.toolName || 'kairos_search';
@@ -187,6 +193,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
     protocol_status: z.string(),
     multiple_perfect_matches: z.number().optional().nullable(),
     message: z.string().optional().nullable(),
+    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_begin with choice.uri to commit to a protocol")'),
     suggestion: z.string().optional().nullable(),
     hint: z.string().optional().nullable(),
     best_match: z.object({
@@ -210,7 +217,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
     toolName,
     {
       title: 'Search for protocol chains',
-      description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query',
+      description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query. When multiple matches return choices, call kairos_begin with a choice URI to commit to that protocol (must_obey: true then applies).',
       inputSchema,
       outputSchema
     },

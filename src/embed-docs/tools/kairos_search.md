@@ -1,1 +1,1 @@
-Returns chain heads (position=1) matching a query.
+Returns chain heads (position=1) matching a query. When multiple matches return choices, call kairos_begin with a choice URI to commit to that protocol (must_obey: true then applies).

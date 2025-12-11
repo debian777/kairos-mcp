@@ -155,7 +155,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 output = {
                     must_obey: false,
                     multiple_perfect_matches: perfectMatches.length,
-                    message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Which one would you like to use?`,
+                    message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Choose one protocol by calling kairos_begin with its URI from the choices array. Once committed, must_obey: true applies and execution becomes mandatory.`,
+                    next_action: 'call kairos_begin with choice.uri to commit to a protocol',
                     choices: resolvedHeads,
                     protocol_status: 'initiated'
                 };

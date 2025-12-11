@@ -13,14 +13,33 @@ export function registerDocsResources(server: any) {
   const resources = getResources();
   const toTitle = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 
-  // Iterate through subdirectories (doc, mem, etc.)
-  for (const [subdir, subdirContent] of Object.entries(resources)) {
-    // Each subdirectory becomes a prefix: kairos://{subdir}
-    const prefix = `kairos://${subdir}`;
+  // Handle both flat resources (directly in resources/) and nested resources (in subdirectories)
+  for (const [key, value] of Object.entries(resources)) {
+    if (typeof value === 'string') {
+      // Flat resource: treat as if in 'doc' subdirectory
+      const subdir = 'doc';
+      const filename = key;
+      const prefix = `kairos://${subdir}`;
+      const uri = `${prefix}/${filename}`;
+      const name = toTitle(filename);
+      const description = `Documentation for ${name}`;
 
-    // Iterate through files in this subdirectory
-    if (typeof subdirContent === 'object' && subdirContent !== null) {
-      for (const [filename, content] of Object.entries(subdirContent)) {
+      server.registerResource(
+        `${subdir}-${filename}`,
+        uri,
+        { name, description, mimeType: 'text/markdown' },
+        (uriObj: any) => {
+          const resourceContent = getResource(filename);
+          return mdOrFallback(uriObj, resourceContent);
+        }
+      );
+    } else if (typeof value === 'object' && value !== null) {
+      // Nested resource: subdirectory structure (doc, mem, etc.)
+      const subdir = key;
+      const prefix = `kairos://${subdir}`;
+
+      // Iterate through files in this subdirectory
+      for (const [filename, content] of Object.entries(value)) {
         if (typeof content === 'string') {
           const uri = `${prefix}/${filename}`;
           const name = toTitle(filename);

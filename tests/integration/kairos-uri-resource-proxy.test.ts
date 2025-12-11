@@ -63,10 +63,15 @@ describe('MCP Tools and Resources', () => {
     }
   }, 30000);
 
-  test('resources/list returns empty array when no resources are registered', async () => {
+  test('resources/list returns registered resources', async () => {
     const resources = await mcp.client.listResources();
     expect(Array.isArray(resources.resources)).toBe(true);
-    expect(resources.resources.length).toBe(0);
+    expect(resources.resources.length).toBeGreaterThan(0);
+    // Verify the minting guide resource is registered
+    const mintingGuide = resources.resources.find((r: any) => r.uri === 'kairos://doc/minting-with-challenges');
+    expect(mintingGuide).toBeDefined();
+    expect(mintingGuide?.name).toBe('Minting-With-Challenges');
+    expect(mintingGuide?.mimeType).toBe('text/markdown');
   }, 30000);
 
   test('resources/templates/list returns empty array when no templates are registered', async () => {
