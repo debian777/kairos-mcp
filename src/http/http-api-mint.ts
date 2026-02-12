@@ -84,6 +84,18 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 return;
             }
 
+            // Handle similar memory found by title
+            if (err && err.code === 'SIMILAR_MEMORY_FOUND') {
+                structuredLogger.warn(`✗ Similar memory found in ${duration}ms: ${err.message}`);
+                res.status(409).json({
+                    error: 'SIMILAR_MEMORY_FOUND',
+                    message: err.details?.message || 'A very similar memory already exists by title.',
+                    suggestion: 'Use force=true to override, or modify the title to create a new distinct memory.',
+                    ...(err.details || {})
+                });
+                return;
+            }
+
             // Handle other errors
             structuredLogger.error(`✗ Store failed in ${duration}ms`, error);
             res.status(500).json({
