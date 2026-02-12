@@ -1,6 +1,7 @@
 import { logger } from '../../utils/logger.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { KairosError } from '../../types/index.js';
+import type { MemoryQdrantStoreMethods } from './store-methods.js';
 
 /**
  * Derives domain task type from label, text, and tags
@@ -68,6 +69,68 @@ export async function handleDuplicateChain(
     const delReq = { filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] } } as any;
     logger.debug(`[Qdrant][delete-chain] collection=${collection} req=${JSON.stringify(delReq)}`);
     await client.delete(collection, delReq);
+  }
+}
+
+/**
+ * Checks for similar memories by title/label before creating a new memory.
+ * If a very high match is found (score >= 0.9), throws an error with existing memory info.
+ * This helps prevent duplicate memories that pollute search results.
+ */
+export async function checkSimilarMemoryByTitle(
+  methods: MemoryQdrantStoreMethods,
+  label: string,
+  forceUpdate: boolean
+): Promise<void> {
+  // Skip check if force update is enabled
+  if (forceUpdate) {
+    return;
+  }
+
+  // Search for existing memories with similar title
+  const { memories, scores } = await methods.searchMemories(label, 10, false);
+  
+  if (memories.length === 0 || scores.length === 0) {
+    return;
+  }
+
+  // Find the highest scoring match
+  let bestMatch = memories[0]!;
+  let bestScore = scores[0] ?? 0;
+  for (let i = 1; i < memories.length; i++) {
+    const score = scores[i] ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = memories[i]!;
+    }
+  }
+
+  // If match is very high (>= 0.9), inform about existing memory
+  const SIMILARITY_THRESHOLD = 0.9;
+  if (bestScore >= SIMILARITY_THRESHOLD) {
+    const existingMemory = {
+      uri: `kairos://mem/${bestMatch.memory_uuid}`,
+      memory_uuid: bestMatch.memory_uuid,
+      label: bestMatch.label,
+      chain_label: bestMatch.chain?.label || null,
+      score: bestScore,
+      total_steps: bestMatch.chain?.step_count || 1
+    };
+    
+    logger.warn(
+      `[MemoryQdrantStore] Similar memory found by title: "${label}" matches "${bestMatch.label}" with score ${bestScore.toFixed(3)}`
+    );
+    
+    throw new KairosError(
+      'Similar memory found by title',
+      'SIMILAR_MEMORY_FOUND',
+      409,
+      {
+        existing_memory: existingMemory,
+        similarity_score: bestScore,
+        message: `A very similar memory already exists with title "${bestMatch.label}" (similarity: ${Math.round(bestScore * 100)}%). Consider using force_update: true to override, or modify the title to create a new memory.`
+      }
+    );
   }
 }
 
