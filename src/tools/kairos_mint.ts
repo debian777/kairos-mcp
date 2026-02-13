@@ -89,6 +89,34 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
             });
             return result;
           }
+          // Handle similar memory found by title
+          if (err && err.code === 'SIMILAR_MEMORY_FOUND') {
+            const body = {
+              error: 'SIMILAR_MEMORY_FOUND',
+              ...(err.details || {}),
+              suggestion: 'A very similar memory already exists. You can either: 1) Use force_update: true to override the existing memory, or 2) Modify the title to create a new distinct memory.'
+            };
+            result = {
+              isError: true,
+              content: [{ type: 'text', text: JSON.stringify(body) }]
+            } as any;
+            mcpToolCalls.inc({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            mcpToolErrors.inc({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            timer({ 
+              tool: toolName, 
+              status: 'error',
+              tenant_id: tenantId 
+            });
+            return result;
+          }
           logger.error(`[kairos_mint] Failed to store memory chain (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
           result = {
             isError: true,
