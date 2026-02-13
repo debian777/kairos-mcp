@@ -5,9 +5,10 @@ import { CodeBlockProcessor } from '../code-block-processor.js';
 import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { memoryStoreDuration } from '../metrics/memory-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
-import { normalizeMarkdownBlob } from '../../utils/memory-store-utils.js';
+import { normalizeMarkdownBlob, generateLabel } from '../../utils/memory-store-utils.js';
 import { storeHeaderBasedChain } from './store-chain-header-handler.js';
 import { storeDefaultChain } from './store-chain-default-handler.js';
+import { checkSimilarMemoryByTitle } from './store-chain-helpers.js';
 
 export class MemoryQdrantStoreChain {
   constructor(
@@ -33,6 +34,16 @@ export class MemoryQdrantStoreChain {
       );
 
       const now = new Date();
+
+      // Extract label from first document for similarity check
+      const firstDocLabel = generateLabel(normalizedDocs[0]!);
+      
+      // Check for similar memories by title before storing
+      await checkSimilarMemoryByTitle(
+        this.methods,
+        firstDocLabel,
+        options.forceUpdate || false
+      );
 
       // Special case: if we have a single doc, try header-based slicing first.
       // If that fails, fallback to single memory storage.
