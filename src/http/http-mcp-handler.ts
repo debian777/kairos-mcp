@@ -35,7 +35,6 @@ export function setupMcpRoutes(app: express.Express, server: any) {
         try {
             // Create new transport for each request to prevent request ID collisions
             const transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: undefined,
                 enableJsonResponse: true
             });
 

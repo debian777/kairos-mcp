@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "kairos-dev": {
+      "type": "streamable-http",
+      "url": "http://localhost:3300/mcp",
+      "alwaysAllow": [
+        "kairos_search",
+        "kairos_begin",
+        "kairos_next",
+        "kairos_mint",
+        "kairos_attest",
+        "kairos_update",
+        "kairos_delete"
+      ]
+    }
+  }
+}
