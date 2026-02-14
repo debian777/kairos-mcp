@@ -184,8 +184,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
   );
 
   const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of the current memory step (must be step 2 or later)'),
-    solution: solutionSchema
+    uri: memoryUriSchema.describe('URI of the current step (from next_step of previous response, or step 1 when submitting step 1 proof)'),
+    solution: solutionSchema.describe('Proof of work matching challenge.type: shell {exit_code,stdout}, mcp {tool_name,result,success}, user_input {confirmation}, comment {text}')
   });
 
   const challengeSchema = z.object({
@@ -214,6 +214,11 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       content: z.string(),
       mimeType: z.literal('text/markdown')
     }).optional().nullable(),
+    next_step: z.object({
+      uri: memoryUriSchema,
+      position: z.string(),
+      label: z.string()
+    }).optional().describe('Present when protocol_status is continue; use this uri for the next kairos_next call'),
     challenge: challengeSchema,
     final_challenge: challengeSchema.optional().describe('Only present on the last step'),
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
@@ -279,16 +284,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
 
         const memory = await loadMemoryWithCache(memoryStore, uuid);
         
-        // Validate this is NOT step 1
-        if (memory?.chain && memory.chain.step_index === 1) {
-          return respond({
-            must_obey: false,
-            current_step: buildCurrentStep(memory, requestedUri),
-            challenge: buildChallenge(memory?.proof_of_work),
-            message: 'This is step 1. Use kairos_begin for step 1.',
-            protocol_status: 'blocked'
-          });
-        }
+        // Step 1 with solution: allow submitting proof to advance to step 2.
+        // Step 1 without solution: use kairos_begin to get step 1.
 
         if (memory) {
           // Handle solution submission
@@ -316,11 +313,15 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           }
         }
 
-        const nextStepInfo = memory
-          ? await resolveChainNextStep(memory, options.qdrantService)
-          : undefined;
-
-        const output = buildKairosNextPayload(memory, requestedUri, nextStepInfo, memory?.proof_of_work);
+        const nextStepInfo = memory ? await resolveChainNextStep(memory, options.qdrantService) : undefined;
+        const nextMemory = nextStepInfo ? await loadMemoryWithCache(memoryStore, nextStepInfo.uuid) : null;
+        const displayMemory = nextMemory ?? memory;
+        const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
+        const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
+        const output = buildKairosNextPayload(displayMemory, displayUri, nextStepInfo, challengeProof);
+        if (output.protocol_status === 'continue' && nextStepInfo) {
+          output.next_step = { uri: `kairos://mem/${nextStepInfo.uuid}`, position: `${nextStepInfo.step || 2}/${nextStepInfo.count || 1}`, label: nextStepInfo.label || 'Next step' };
+        }
         return respond(output);
       } catch (error) {
         mcpToolCalls.inc({ 

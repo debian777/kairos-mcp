@@ -84,6 +84,10 @@ function buildKairosBeginPayload(
     challenge: buildChallenge(memory?.proof_of_work)
   };
 
+  if (next_step) {
+    payload.next_step = next_step;
+  }
+
   // When protocol is completed, indicate that kairos_attest should be called
   if (protocol_status === 'completed') {
     payload.attest_required = true;
@@ -132,6 +136,11 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       content: z.string(),
       mimeType: z.literal('text/markdown')
     }).optional().nullable(),
+    next_step: z.object({
+      uri: memoryUriSchema,
+      position: z.string(),
+      label: z.string()
+    }).optional().describe('Present when protocol_status is continue; use this uri for the next kairos_next call'),
     challenge: challengeSchema,
     protocol_status: z.enum(['continue', 'completed']),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
