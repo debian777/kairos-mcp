@@ -24,7 +24,7 @@ describe('kairos_next response schema', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next' }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
     });
 
     const parsed = parseMcpJson(storeResult, '[kairos_next tests] kairos_mint');
@@ -42,7 +42,7 @@ describe('kairos_next response schema', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next' }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
     });
 
     const parsed = parseMcpJson(storeResult, '[kairos_next tests] kairos_mint');
@@ -67,12 +67,12 @@ describe('kairos_next response schema', () => {
     expect(beginPayload.protocol_status).toBe('continue'); // Has next step
     expect(beginPayload.challenge).toBeDefined();
 
-    // Step 2: Use kairos_next with solution for step 1
+    // Step 2: Use kairos_next with solution for step 1 (uri = step we're completing, i.e. firstUri)
     const solution = {
       type: 'comment',
       comment: { text: 'Test solution for step 1 completion' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: secondUri, solution: solution } };
+    const call = { name: 'kairos_next', arguments: { uri: firstUri, solution: solution } };
     console.debug('call', call);
     const result = await mcpConnection.client.callTool(call);
     console.debug('result', result);
@@ -107,12 +107,12 @@ describe('kairos_next response schema', () => {
       arguments: { uri: firstUri }
     });
 
-    // Step 2: Use kairos_next with solution for step 1
+    // Step 2: Use kairos_next with solution for step 1 (uri = step we're completing, i.e. firstUri)
     const submission = {
       type: 'comment',
       comment: { text: 'Test solution for step 1 completion' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: lastUri, solution: submission } };
+    const call = { name: 'kairos_next', arguments: { uri: firstUri, solution: submission } };
     const result = await mcpConnection.client.callTool(call);
     const payload = parseMcpJson(result, '[kairos_next] completed payload');
 

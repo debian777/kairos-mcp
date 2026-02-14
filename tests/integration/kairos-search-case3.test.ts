@@ -35,7 +35,8 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: content,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
     const storeResponse = expectValidJsonResult(storeResult);

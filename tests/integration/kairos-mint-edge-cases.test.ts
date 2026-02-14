@@ -35,7 +35,8 @@ describe('Kairos Mint Edge Cases', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: simpleContent,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
 

@@ -39,12 +39,13 @@ describe('Kairos Search Perfect Matches', () => {
       { heading: 'Step 2 — Investigate', body: 'Study the partial match scenario.', proofCmd: 'echo investigate-nomatch' }
     ]);
 
-    // Store the protocol
+    // Store the protocol (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
         markdown_doc: content,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
     const storeResponse = expectValidJsonResult(storeResult);
@@ -114,12 +115,13 @@ describe('Kairos Search Perfect Matches', () => {
     const uniqueTitle = `SchemaValidationTest ${ts}`;
     const content = `# ${uniqueTitle}\n\nSchema validation test.`;
 
-    // Store
+    // Store (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
         markdown_doc: content,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
     expectValidJsonResult(storeResult);

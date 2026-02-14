@@ -56,7 +56,8 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: content,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
 
@@ -90,7 +91,8 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: content,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
 

@@ -46,13 +46,14 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       ])
     ];
 
-    // Store all protocols (each with unique H1 = unique chain)
+    // Store all protocols (each with unique H1 = unique chain; force_update bypasses similarity in shared dev collection)
     for (const protocol of protocols) {
       const storeResult = await mcpConnection.client.callTool({
         name: 'kairos_mint',
         arguments: {
           markdown_doc: protocol,
-          llm_model_id: 'minimax/minimax-m2:free'
+          llm_model_id: 'minimax/minimax-m2:free',
+          force_update: true
         }
       });
       const storeResponse = expectValidJsonResult(storeResult);

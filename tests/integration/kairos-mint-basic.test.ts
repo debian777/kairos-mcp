@@ -52,7 +52,8 @@ describe('Kairos Mint Basic Functionality', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: testContent,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
 
@@ -82,12 +83,13 @@ describe('Kairos Mint Basic Functionality', () => {
     const ts = Date.now().toString();
     const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\nPROOF OF WORK: timeout 5s echo alpha\n\n## Step 2\nBeta\n\nPROOF OF WORK: timeout 5s echo beta`;
 
-    // 2) First store → stored
+    // 2) First store → stored (force_update bypasses similarity check in shared dev collection)
     const first = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
         markdown_doc: JSON.stringify(md),
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
     const firstParsed = expectValidJsonResult(first);
@@ -107,10 +109,15 @@ describe('Kairos Mint Basic Functionality', () => {
     expect(second.isError).toBe(true);
     expect(second.content).toBeDefined();
     const dupBody = JSON.parse(second.content[0].text);
-    expect(dupBody.error).toBe('DUPLICATE_CHAIN');
-    expect(dupBody.chain_id).toBeDefined();
-    expect(Array.isArray(dupBody.items)).toBe(true);
-    expect(dupBody.items.length).toBeGreaterThan(0);
+    // Second store without force_update: DUPLICATE_CHAIN or SIMILAR_MEMORY_FOUND (both indicate existing memory)
+    expect(['DUPLICATE_CHAIN', 'SIMILAR_MEMORY_FOUND']).toContain(dupBody.error);
+    if (dupBody.error === 'DUPLICATE_CHAIN') {
+      expect(dupBody.chain_id).toBeDefined();
+      expect(Array.isArray(dupBody.items)).toBe(true);
+      expect(dupBody.items.length).toBeGreaterThan(0);
+    } else {
+      expect(dupBody.existing_memory).toBeDefined();
+    }
 
     // 4) Third store with force_update → stored (overwrites prior chain)
     const third = await mcpConnection.client.callTool({
@@ -163,12 +170,13 @@ This demonstrates the data processing functionality.
 
 PROOF OF WORK: timeout 45s echo run-processor`;
 
-    // Store the document
+    // Store the document (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
         markdown_doc: codeContent,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
 

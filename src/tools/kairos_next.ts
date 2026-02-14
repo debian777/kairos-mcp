@@ -318,9 +318,11 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
-        const output = buildKairosNextPayload(displayMemory, displayUri, nextStepInfo, challengeProof);
-        if (output.protocol_status === 'continue' && nextStepInfo) {
-          output.next_step = { uri: `kairos://mem/${nextStepInfo.uuid}`, position: `${nextStepInfo.step || 2}/${nextStepInfo.count || 1}`, label: nextStepInfo.label || 'Next step' };
+        // nextFromDisplay = next step FROM the step we're showing (after advance)
+        const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;
+        const output = buildKairosNextPayload(displayMemory, displayUri, nextFromDisplay, challengeProof);
+        if (output.protocol_status === 'continue' && nextFromDisplay) {
+          output.next_step = { uri: `kairos://mem/${nextFromDisplay.uuid}`, position: `${nextFromDisplay.step || 2}/${nextFromDisplay.count || 1}`, label: nextFromDisplay.label || 'Next step' };
         }
         return respond(output);
       } catch (error) {

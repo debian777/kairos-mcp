@@ -36,7 +36,8 @@ describe('Kairos Mint Integration', () => {
       name: 'kairos_mint',
       arguments: {
         markdown_doc: JSON.stringify(content),
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
       }
     });
     const storeResponse = expectValidJsonResult(storeResult);

@@ -29,7 +29,7 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       const markdown = `# Test Document ${Date.now()}\n\nThis is a test document for HTTP API mint endpoint.`;
-      const response = await fetch(`${API_BASE}/kairos_mint/raw`, {
+      const response = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/markdown',
