@@ -41,6 +41,7 @@ module.exports = [
       'coverage/**',
       'cache/**',
       '.ai/**',
+      '.git',
       '.git/**',
       '.turbo/**',
       '.next/**',
