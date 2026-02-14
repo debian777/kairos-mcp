@@ -68,9 +68,9 @@ describe('MCP Tools and Resources', () => {
     expect(Array.isArray(resources.resources)).toBe(true);
     expect(resources.resources.length).toBeGreaterThan(0);
     // Verify the minting guide resource is registered
-    const mintingGuide = resources.resources.find((r: any) => r.uri === 'kairos://doc/minting-with-challenges');
+    const mintingGuide = resources.resources.find((r: any) => r.uri === 'kairos://doc/building-kairos-workflows');
     expect(mintingGuide).toBeDefined();
-    expect(mintingGuide?.name).toBe('Minting-With-Challenges');
+    expect(mintingGuide?.name).toBe('Building-Kairos-Workflows');
     expect(mintingGuide?.mimeType).toBe('text/markdown');
   }, 30000);
 
