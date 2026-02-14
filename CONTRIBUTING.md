@@ -9,7 +9,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/kairos-mcp.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/kairos-mcp.git` (replace YOUR_USERNAME with your GitHub username)
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Install dependencies: `npm ci`
 5. Make your changes
@@ -77,7 +77,7 @@ Use clear, descriptive commit messages. We follow conventional commit format:
 
 ## Reporting Issues
 
-When reporting issues, please include:
+Include the following so we can reproduce and fix the issue:
 
 - Description of the issue
 - Steps to reproduce
@@ -88,7 +88,7 @@ When reporting issues, please include:
 
 ## Feature Requests
 
-Feature requests are welcome! Please open an issue with:
+Open an issue with:
 
 - Clear description of the feature
 - Use case and motivation
@@ -96,7 +96,6 @@ Feature requests are welcome! Please open an issue with:
 
 ## Questions?
 
-Feel free to open an issue for questions or discussions.
+Open an issue for questions or discussions.
 
 Thank you for contributing to KAIROS MCP!
-
