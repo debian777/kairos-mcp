@@ -69,10 +69,7 @@ module.exports = [
       '**/.cursorrules',
       'env.example.txt',
       '**/snapshots/**',
-      '**/*.snapshot',
-      '**/*.sql',
-      'src/templates/**',
-      'data/**'
+      '**/*.snapshot'
     ],
   },
 
@@ -150,15 +147,6 @@ module.exports = [
     rules: {
       'no-console': 'error',
       ...NO_TEST_MOCKS_RULE,
-      'no-restricted-imports': ['error', {
-        paths: [{ name: 'pg', message: 'Use Drizzle ORM. Raw pg only allowed in connection.ts' }],
-      }],
-    },
-  },
-  {
-    files: ['src/services/postgres/connection.ts'],
-    rules: {
-      'no-restricted-imports': 'off',
     },
   },
 

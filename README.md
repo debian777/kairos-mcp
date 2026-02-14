@@ -11,7 +11,9 @@ KAIROS is an MCP (Model Context Protocol) server that provides persistent knowle
 
 All build, deploy, and test operations are available as npm scripts.
 
-**⚠️ IMPORTANT: Always deploy before testing.** Tests run against running dev/qa servers, so you must deploy your changes first using `npm run dev:deploy` (or `npm run qa:deploy`) before running tests.
+> **Warning:** Always deploy before testing. Tests run against running dev/qa
+> servers, so you must deploy your changes first using `npm run dev:deploy` (or
+> `npm run qa:deploy`) before running tests.
 
 ### Build
 
@@ -38,7 +40,8 @@ npm run qa:deploy
 
 ### Test
 
-**⚠️ REQUIRED: Deploy before testing.** Tests require the server to be running with your latest changes.
+> **Warning:** Deploy before testing. Tests require the server to be running
+> with your latest changes.
 
 ```bash
 # Standard workflow: Deploy first, then test
@@ -110,8 +113,14 @@ See [docs/CLI.md](docs/CLI.md) for complete CLI documentation, including install
 
 ## Snapshot Management
 
-- Enable automatic Qdrant backups on boot by setting `QDRANT_SNAPSHOT_ON_START=true`. Use `QDRANT_SNAPSHOT_DIR` to control where snapshot files are written (defaults to `data/qdrant/snapshots`).
-- Trigger an on-demand snapshot against the running server with `POST /api/snapshot`. The response includes the snapshot file path, byte size, and status so you can plug it into backup automation.
+You can back up the Qdrant vector database in two ways:
+
+- Enable automatic Qdrant backups on boot by setting
+  `QDRANT_SNAPSHOT_ON_START=true`. Use `QDRANT_SNAPSHOT_DIR` to control where
+  snapshot files are written (defaults to `data/qdrant/snapshots`).
+- Trigger an on-demand snapshot against the running server with
+  `POST /api/snapshot`. The response includes the snapshot file path, byte
+  size, and status so you can plug it into backup automation.
 
 ### Code Quality
 
@@ -184,7 +193,8 @@ npm run dev:start
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome. Read the [Contributing Guide](CONTRIBUTING.md) for
+details on our code of conduct and the process for submitting pull requests.
 
 ## License
 

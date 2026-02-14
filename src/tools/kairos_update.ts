@@ -20,7 +20,7 @@ export function registerKairosUpdateTool(server: any, toolName = 'kairos_update'
             inputSchema: z.object({
                 uris: z.array(memoryUriSchema).nonempty().describe('Non-empty array of kairos://mem/{uuid} URIs to update'),
                 markdown_doc: z.array(z.string().min(1)).optional().describe('Array of Markdown BODY or full KAIROS render; BODY will be extracted and stored for each URI'),
-                updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes')
+                updates: z.record(z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes')
             }),
             outputSchema: z.object({
                 results: z.array(z.object({

@@ -19,7 +19,7 @@ npm link
 kairos --help
 ```
 
-This creates a global symlink, so the `kairos` command is available system-wide. After linking, you can use `kairos` from any directory.
+After linking, the `kairos` command is available system-wide and you can run it from any directory.
 
 ### Option 2: Direct Execution
 
@@ -59,7 +59,7 @@ export PATH="$PATH:/path/to/kairos-mcp/dist/cli"
 ln -s /path/to/kairos-mcp/dist/cli/index.js /usr/local/bin/kairos
 ```
 
-**Note:** After any code changes, rebuild with `npm run build` to update the CLI.
+> **Note:** After any code changes, rebuild with `npm run build` to update the CLI.
 
 ## Configuration
 
@@ -104,9 +104,9 @@ kairos next kairos://mem/xxx --proof-of-work '{"exit_code":0,"stdout":"..."}'
 
 **Options:**
 
-- `--follow`: Follow all URLs in the chain until completion
-- `--output <format>`: Output format - `md` (markdown content only, default) or `json` (full response)
-- `--proof-of-work <json>`: Proof of work result as JSON string (for steps requiring proof)
+- **`--follow`**: Follow all URLs in the chain until completion
+- **`--output`** `<format>`: Output format — `md` (markdown content only, default) or `json` (full response)
+- **`--proof-of-work`** `<json>`: Proof of work result as JSON string (for steps requiring proof)
 
 ### `mint` - Store New Document
 
@@ -120,8 +120,8 @@ kairos mint document.md --model "gpt-4" --force
 
 **Options:**
 
-- `--model <model>`: LLM model ID for attribution (e.g., "gpt-4", "claude-3")
-- `--force`: Force update if a memory chain with the same label already exists
+- **`--model`** `<model>`: LLM model ID for attribution (for example, "gpt-4", "claude-3")
+- **`--force`**: Force update if a memory chain with the same label already exists
 
 ### `update` - Update Memories
 
@@ -143,9 +143,9 @@ kairos update kairos://mem/xxx --updates '{"text":"new content"}'
 
 **Options:**
 
-- `--file <file>`: Path to markdown file to apply to all specified URIs
-- `--files <files...>`: Paths to markdown files, one per URI (must match number of URIs)
-- `--updates <json>`: Updates object as JSON string (alternative to --file/--files)
+- **`--file`** `<file>`: Path to markdown file to apply to all specified URIs
+- **`--files`** `<files...>`: Paths to markdown files, one per URI (must match number of URIs)
+- **`--updates`** `<json>`: Updates object as JSON string (alternative to --file/--files)
 
 ### `delete` - Delete Memories
 
@@ -168,10 +168,13 @@ kairos attest kairos://mem/xxx success "Great work!" --quality-bonus 5 --model "
 
 **Options:**
 
-- `--quality-bonus <number>`: Additional quality bonus to apply (default: 0)
-- `--model <model>`: LLM model ID for attribution (e.g., "gpt-4", "claude-3")
+- **`--quality-bonus`** `<number>`: Additional quality bonus to apply (default: 0)
+- **`--model`** `<model>`: LLM model ID for attribution (for example, "gpt-4", "claude-3")
 
 ## Examples
+
+The following commands show common workflows. Replace `kairos://mem/xxx` with a
+memory URI returned from `kairos begin` or `kairos next`.
 
 ```bash
 # Search for a protocol
@@ -207,3 +210,8 @@ kairos delete --help
 kairos attest --help
 ```
 
+## Next steps
+
+- Set up and run the KAIROS server (see the project README).
+- Install the KAIROS MCP server in Cursor for tool integration
+  ([Install KAIROS MCP in Cursor](INSTALL-MCP.md)).

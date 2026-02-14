@@ -10,7 +10,8 @@ We actively support the latest version of KAIROS MCP. Security updates will be p
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please **do not** open a public issue. Instead, please report it privately:
+If you discover a security vulnerability, do not open a public issue. Report it
+privately:
 
 1. Email the maintainer: kuba@xpl.pl
 2. Include a detailed description of the vulnerability
@@ -21,7 +22,7 @@ We will respond within 48 hours and work with you to address the issue before ma
 
 ## Security Best Practices
 
-When using KAIROS MCP:
+Follow these practices when running KAIROS MCP:
 
 - **Never commit secrets**: Ensure `.env*` files are in `.gitignore` and never committed
 - **Use environment variables**: Store API keys, tokens, and credentials in environment variables, not in code
@@ -36,4 +37,3 @@ When using KAIROS MCP:
 - Redis should be secured with authentication in production
 - Environment variables containing secrets should be kept secure
 - The `data/` directory contains runtime data and should not be publicly accessible
-
