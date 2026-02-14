@@ -1,13 +1,13 @@
-# Minting KAIROS Documents with Challenge/Solution Workflow
+# Building KAIROS Workflows with Challenge/Solution
 
 **Status:** Active  
-**Purpose:** Guide for AI assistants on how to mint KAIROS protocol documents using the challenge/solution workflow instead of the legacy proof-of-work system.
+**Purpose:** Primary guide for building KAIROS protocol workflows. **Challenge/Solution** is the core mechanism: each step can define a **challenge** (what must be done) and execution advances by submitting a matching **solution** via `kairos_next`. This doc covers structure, minting with `kairos_mint`, and solution submission.
 
 ---
 
 ## MISSION
 
-Create and store KAIROS protocol documents using `kairos_mint` that define **challenges** (not proof-of-work) which are validated via **solutions** in the `kairos_next` workflow. Maintain exact consistency between markdown structure and the resulting memory chain behavior.
+Build KAIROS protocol workflows where **challenges** (defined per step) are validated by **solutions** (submitted in `kairos_next`). Create documents with `kairos_mint` that define these challenges; maintain exact consistency between markdown structure and memory chain behavior.
 
 ---
 
@@ -322,7 +322,3 @@ kairos_next(uri, {solution: {...}})  // ✅ Correct
 
 **Last Updated:** 2025-12-08  
 **Related:** `kairos_mint`, `kairos_next`, `kairos_begin`, `kairos_attest`
-
-
-
-

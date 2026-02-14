@@ -1,0 +1,27 @@
+{
+  "name": "Cursor Tools",
+  "image": "debian777/cursor-tools:latest",
+  "initializeCommand": "docker pull debian777/cursor-tools:alpine",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "cursor",
+  "runArgs": ["--env-file", ".env", "--group-add", "999"],
+  "overrideCommand": false,
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/cursor/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.cursor,target=/home/cursor/.cursor,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/cursor/.gitconfig,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "UID": "${localEnv:UID}",
+    "GID": "${localEnv:GID}",
+    "USER": "cursor",
+    "HOME": "/home/cursor"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-azuretools.vscode-docker", "eamodio.gitlens"]
+    }
+  }
+}
