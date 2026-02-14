@@ -64,8 +64,14 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in dev|qa) ;; *) print_error "Invalid ENV: $ENV (use dev or qa)"; exit 1 ;; esac
 fi
 
-# Environment defaults
+# Environment defaults (PORT from .env.* or dev=3300 / qa=3500)
 METRICS_PORT="${METRICS_PORT:-9390}"
+if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
+    case "$ENV" in
+        dev) PORT="${PORT:-3300}" ;;
+        qa)  PORT="${PORT:-3500}" ;;
+    esac
+fi
 
 # Health checks
 check_qdrant() {
