@@ -1,5 +1,10 @@
 import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/memory.js';
 import { proofOfWorkStore, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
+import { embeddingService } from '../services/embedding/service.js';
+import { extractMemoryBody } from '../utils/memory-body.js';
+
+/** Minimum cosine similarity for comment proof to pass semantic validation. Reject if below. */
+const COMMENT_SEMANTIC_THRESHOLD = 0.25;
 
 export type ProofOfWorkSubmission = {
   type: ProofOfWorkType;
@@ -174,7 +179,29 @@ export async function handleProofSubmission(
         }
       };
     }
-    record.status = 'success'; // Comment verification is always success
+    // Semantic validation: comment must be relevant to step content
+    const stepContent = extractMemoryBody(memory.text) || String(memory.label || '').trim();
+    if (stepContent.length >= 20) {
+      try {
+        const [commentEmb, stepEmb] = await Promise.all([
+          embeddingService.generateEmbedding(comment.text.trim()),
+          embeddingService.generateEmbedding(stepContent.slice(0, 8000))
+        ]);
+        const similarity = embeddingService.calculateCosineSimilarity(commentEmb.embedding, stepEmb.embedding);
+        if (similarity < COMMENT_SEMANTIC_THRESHOLD) {
+          return {
+            blockedPayload: {
+              must_obey: false,
+              message: `Comment does not appear relevant to this step (similarity ${similarity.toFixed(2)} < ${COMMENT_SEMANTIC_THRESHOLD}). Provide a response that engages with the step content.`,
+              protocol_status: 'blocked'
+            }
+          };
+        }
+      } catch (_err) {
+        // Fail open: if embedding unavailable, allow length-valid comments
+      }
+    }
+    record.status = 'success';
     record.comment = { text: comment.text };
   }
 
