@@ -157,7 +157,7 @@ build() {
     else
         print_info "Running prebuild (embed-docs) and verification..."
         npm run prebuild
-        npx tsc && print_success "Build complete"
+        npx tsc && chmod +x dist/cli/index.js && print_success "Build complete"
     fi
 }
 

@@ -59,7 +59,7 @@
     "qa:status": "ENV=qa ./scripts/run-env.sh status",
     "qa:stop": "ENV=qa ./scripts/run-env.sh stop",
     "qa:test": "ENV=qa ./scripts/run-env.sh test",
-    "build": "npm run prebuild && npm run lint && npx tsc",
+    "build": "npm run prebuild && npm run lint && npx tsc && chmod +x dist/cli/index.js",
     "docker:build": "docker build -t m365-mcp .",
     "ensure-coding-rules": "./scripts/run-env.sh ensure-coding-rules",
     "handoff": "npm run dev:deploy && npm run dev:test && npm run qa:deploy && npm run qa:test && npm run ensure-coding-rules",

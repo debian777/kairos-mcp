@@ -36,9 +36,25 @@ Type-specific fields (shell, mcp, user_input, comment) are unchanged.
 Every solution must include:
 
 - **nonce** (string): Copy from `challenge.nonce` for the current step.
-- **previousProofHash** (string): For step 1 use `challenge.genesis_hash`; for step 2+ use the previous step’s proof hash (as implied by the protocol / stored by the server).
+- **previousProofHash** (string): For step 1 use `challenge.genesis_hash`; for step 2+ use the previous step’s proof hash from the server (see below).
 
 Plus the same type-specific payload as before (shell, mcp, user_input, comment).
+
+---
+
+## Generating hashes (for AI / remote)
+
+You do **not** need to compute hashes in normal flow:
+
+- **Step 1:** Use `challenge.genesis_hash` from the current step as `solution.previousProofHash`.
+- **Step 2+:** Use `last_proof_hash` from the **previous** `kairos_next` response as `solution.previousProofHash`.
+
+If you ever need to compute SHA-256 yourself (e.g. in a script, or when Node is not available):
+
+- **Mac:** `echo -n 'content' | shasum -a 256 | awk '{print $1}'`
+- **Linux:** `echo -n 'content' | sha256sum | awk '{print $1}'`
+
+Example (genesis): `echo -n 'genesis' | shasum -a 256 | awk '{print $1}'` → `aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e`
 
 ---
 

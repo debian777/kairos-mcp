@@ -227,7 +227,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
     protocol_status: z.enum(['continue', 'completed', 'blocked']),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
     message: z.string().optional(),
-    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with next step uri and solution matching challenge")')
+    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with next step uri and solution matching challenge")'),
+    last_proof_hash: z.string().optional().describe('Use as solution.previousProofHash in the next kairos_next call')
   });
 
   structuredLogger.debug(`kairos_next registration inputSchema: ${JSON.stringify(inputSchema)}`);
@@ -295,6 +296,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           solutionToUse = elicitResult.solution;
         }
 
+        let submissionOutcome: { proofHash?: string; blockedPayload?: any } | undefined;
         if (memory) {
           const isStep1 = !memory.chain || memory.chain.step_index <= 1;
           let expectedPreviousHash: string;
@@ -305,7 +307,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
             expectedPreviousHash = prevHash ?? GENESIS_HASH;
           }
-          const submissionOutcome = await handleProofSubmission(solutionToUse, memory, { expectedPreviousHash });
+          submissionOutcome = await handleProofSubmission(solutionToUse, memory, { expectedPreviousHash });
           if (submissionOutcome.blockedPayload) {
             const blockedPayload = {
               ...submissionOutcome.blockedPayload,
@@ -335,6 +337,9 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const output = await buildKairosNextPayload(displayMemory, displayUri, nextFromDisplay, challengeProof);
         if (output.protocol_status === 'continue' && nextFromDisplay) {
           output.next_step = { uri: `kairos://mem/${nextFromDisplay.uuid}`, position: `${nextFromDisplay.step || 2}/${nextFromDisplay.count || 1}`, label: nextFromDisplay.label || 'Next step' };
+        }
+        if (submissionOutcome?.proofHash) {
+          output.last_proof_hash = submissionOutcome.proofHash;
         }
         return respond(output);
       } catch (error) {

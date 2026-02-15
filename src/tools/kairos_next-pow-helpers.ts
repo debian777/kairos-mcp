@@ -133,7 +133,7 @@ export async function handleProofSubmission(
   submission: ProofOfWorkSubmission,
   memory: Memory,
   options?: HandleProofOptions
-): Promise<{ blockedPayload?: any }> {
+): Promise<{ blockedPayload?: any; proofHash?: string }> {
   if (!memory?.proof_of_work) {
     return {};
   }
@@ -315,6 +315,6 @@ export async function handleProofSubmission(
     };
   }
 
-  return {};
+  return { proofHash };
 }
 

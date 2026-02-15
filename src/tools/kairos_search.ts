@@ -161,6 +161,7 @@ function generateNoResultsOutput(): any {
   return {
     must_obey: false,
     protocol_status: 'no_protocol',
+    choices: [],
     message: "I couldn't find any relevant protocol for your request.",
     suggestion: "Would you like to create a new one?"
   };
@@ -318,6 +319,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
         return respond(output);
       } catch (error) {
+        structuredLogger.warn(`kairos_search error (returning no_protocol): ${error instanceof Error ? error.message : String(error)}`);
         mcpToolCalls.inc({ 
           tool: toolName, 
           status: 'error',
@@ -333,7 +335,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
           status: 'error',
           tenant_id: tenantId 
         });
-        throw error;
+        // Empty / failed search is a valid response: no_protocol with empty choices (never -32603)
+        return respond(generateNoResultsOutput());
       }
     }
   );

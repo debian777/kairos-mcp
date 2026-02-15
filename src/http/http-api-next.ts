@@ -62,6 +62,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 return;
             }
 
+            let submissionOutcome: { blockedPayload?: any; proofHash?: string } | undefined;
             if (memory?.proof_of_work) {
                 const isStep1 = !memory.chain || memory.chain.step_index <= 1;
                 let expectedPreviousHash: string;
@@ -72,7 +73,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                     const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
                     expectedPreviousHash = prevHash ?? GENESIS_HASH;
                 }
-                const submissionOutcome = await handleProofSubmission(solution, memory, { expectedPreviousHash });
+                submissionOutcome = await handleProofSubmission(solution, memory, { expectedPreviousHash });
                 if (submissionOutcome.blockedPayload) {
                     const challenge = await buildChallenge(memory, memory.proof_of_work);
                     const duration = Date.now() - startTime;
@@ -142,6 +143,9 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 output.next_action = 'call kairos_attest with final_solution';
             } else {
                 output.next_action = 'call kairos_next with next step uri and solution matching challenge';
+            }
+            if (submissionOutcome?.proofHash) {
+                output.last_proof_hash = submissionOutcome.proofHash;
             }
 
             const duration = Date.now() - startTime;
