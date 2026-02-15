@@ -71,7 +71,8 @@ function buildNextStep(
 function buildKairosBeginPayload(
   memory: Memory | null,
   requestedUri: string,
-  nextInfo?: ResolvedChainStep
+  nextInfo?: ResolvedChainStep,
+  challenge?: any
 ) {
   const current_step = buildCurrentStep(memory, requestedUri);
   const next_step = buildNextStep(memory, nextInfo);
@@ -81,14 +82,13 @@ function buildKairosBeginPayload(
     must_obey: true as const,
     current_step,
     protocol_status,
-    challenge: buildChallenge(memory?.proof_of_work)
+    challenge: challenge ?? {}
   };
 
   if (next_step) {
     payload.next_step = next_step;
   }
 
-  // When protocol is completed, indicate that kairos_attest should be called
   if (protocol_status === 'completed') {
     payload.attest_required = true;
     payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
@@ -107,7 +107,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of step 1 (from kairos_search.start_here)')
+    uri: memoryUriSchema.describe('URI of step 1 (from kairos_search.start_here or choices[].uri after you pick one)')
   });
 
   const challengeSchema = z.object({
@@ -142,7 +142,9 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
       label: z.string()
     }).optional().describe('Present when protocol_status is continue; use this uri for the next kairos_next call'),
     challenge: challengeSchema,
-    protocol_status: z.enum(['continue', 'completed']),
+    protocol_status: z
+      .enum(['continue', 'completed'])
+      .describe("'continue' = call kairos_next with next_step.uri and solution; 'completed' = call kairos_attest"),
     attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
     message: z.string().optional(),
     next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with uri and solution matching challenge")')
@@ -212,7 +214,8 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           ? await resolveChainNextStep(memory, options.qdrantService)
           : undefined;
 
-        const output = buildKairosBeginPayload(memory, requestedUri, nextStepInfo);
+        const challenge = await buildChallenge(memory, memory?.proof_of_work);
+        const output = buildKairosBeginPayload(memory, requestedUri, nextStepInfo, challenge);
         return respond(output);
       } catch (error) {
         mcpToolCalls.inc({ 

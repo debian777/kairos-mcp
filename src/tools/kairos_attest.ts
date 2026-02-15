@@ -60,7 +60,7 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
     uri: memoryUriSchema.describe('URI of the completed memory step'),
     outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
     message: z.string().min(1).describe('Attestation summary message'),
-    final_solution: finalSolutionSchema.describe('Proof that the final_challenge was solved'),
+    final_solution: finalSolutionSchema.describe('Same shape as solution; must match final_challenge from the last step'),
     quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
   });

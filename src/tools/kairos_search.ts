@@ -186,11 +186,11 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   });
 
   const outputSchema = z.object({
-    must_obey: z.boolean(),
-    start_here: memoryUriSchema.optional().nullable(),
+    must_obey: z.boolean().describe('When true, you must call kairos_begin(start_here) and complete the protocol'),
+    start_here: memoryUriSchema.optional().nullable().describe('URI for kairos_begin when must_obey is true'),
     chain_label: z.string().optional().nullable(),
     total_steps: z.number().optional().nullable(),
-    protocol_status: z.string(),
+    protocol_status: z.string().describe("'no_protocol' when no results; otherwise indicates match type"),
     multiple_perfect_matches: z.number().optional().nullable(),
     message: z.string().optional().nullable(),
     next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_begin with choice.uri to commit to a protocol")'),
@@ -203,12 +203,18 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       score: z.number(),
       total_steps: z.number()
     }).optional().nullable(),
-    choices: z.array(z.object({
-      uri: memoryUriSchema,
-      label: z.string(),
-      chain_label: z.string().optional().nullable(),
-      tags: z.array(z.string()).optional()
-    })).optional().nullable()
+    choices: z
+      .array(
+        z.object({
+          uri: memoryUriSchema,
+          label: z.string(),
+          chain_label: z.string().optional().nullable(),
+          tags: z.array(z.string()).optional()
+        })
+      )
+      .optional()
+      .nullable()
+      .describe('When present, pick one and call kairos_begin(choice.uri) to commit')
   });
 
   structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(inputSchema)}`);

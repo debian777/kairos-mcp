@@ -11,17 +11,19 @@ describe('CLI Commands Basic --url Tests', () => {
 
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
-    // Pre-fetch a URI from search to reuse in begin tests
+    // Mint test protocol then get a URI from search (no longer rely on built-in mem docs)
     if (serverAvailable) {
       try {
+        await execAsync(
+          `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
+        );
         const searchResult = await execAsync(
-          `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
+          `node ${CLI_PATH} search --url ${BASE_URL} "Minimal CLI Test Document"`
         );
         const searchData = JSON.parse(searchResult.stdout);
-        cachedSearchUri = searchData.start_here || searchData.best_match?.uri || 'kairos://mem/00000000-0000-0000-0000-000000000001';
+        cachedSearchUri = searchData.start_here || searchData.best_match?.uri || null;
       } catch {
-        // Fallback URI if search fails
-        cachedSearchUri = 'kairos://mem/00000000-0000-0000-0000-000000000001';
+        cachedSearchUri = null;
       }
     }
   }, 60000);

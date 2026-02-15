@@ -87,26 +87,26 @@ Get the next step in a KAIROS protocol chain:
 
 ```bash
 # Get single step (markdown output, default)
-kairos next kairos://mem/00000000-0000-0000-0000-000000000001
+kairos next kairos://mem/<step-uuid>
 
 # Follow entire chain until completion
-kairos next kairos://mem/00000000-0000-0000-0000-000000000001 --follow
+kairos next kairos://mem/<step-uuid> --follow
 
 # Get full JSON response
-kairos next kairos://mem/00000000-0000-0000-0000-000000000001 --output json
+kairos next kairos://mem/<step-uuid> --output json
 
 # Follow chain with JSON output
-kairos next kairos://mem/00000000-0000-0000-0000-000000000001 --follow --output json
+kairos next kairos://mem/<step-uuid> --follow --output json
 
-# With proof of work result
-kairos next kairos://mem/xxx --proof-of-work '{"exit_code":0,"stdout":"..."}'
+# With solution (proof of work)
+kairos next kairos://mem/<step-uuid> --solution '{"type":"shell","shell":{"exit_code":0,"stdout":"..."}}'
 ```
 
 **Options:**
 
 - **`--follow`**: Follow all URLs in the chain until completion
 - **`--output`** `<format>`: Output format — `md` (markdown content only, default) or `json` (full response)
-- **`--proof-of-work`** `<json>`: Proof of work result as JSON string (for steps requiring proof)
+- **`--solution`** `<json>`: Solution matching the step's challenge (for steps 2+)
 
 ### `mint` - Store New Document
 

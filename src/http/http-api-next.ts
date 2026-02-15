@@ -2,10 +2,10 @@ import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveChainNextStep } from '../services/chain-utils.js';
+import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge } from '../tools/kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, GENESIS_HASH } from '../tools/kairos_next-pow-helpers.js';
 
 /**
  * Set up API route for kairos_next
@@ -62,37 +62,31 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 return;
             }
 
-            // Handle solution submission
-            if (solution && memory?.proof_of_work) {
-                // Convert new solution format to proof store record
-                let record: any = {
-                    result_id: `pow_${uuid}_${Date.now()}`,
-                    executed_at: new Date().toISOString(),
-                    type: solution.type || 'shell'
-                };
-
-                if (solution.type === 'shell' && solution.shell) {
-                    record.status = (solution.shell.exit_code === 0 ? 'success' : 'failed') as 'success' | 'failed';
-                    record.exit_code = solution.shell.exit_code;
-                    record.duration_seconds = solution.shell.duration_seconds;
-                    record.stdout = solution.shell.stdout;
-                    record.stderr = solution.shell.stderr;
-                    record.shell = solution.shell;
-                } else if (solution.type === 'mcp' && solution.mcp) {
-                    record.status = solution.mcp.success ? 'success' : 'failed';
-                    record.mcp = solution.mcp;
-                } else if (solution.type === 'user_input' && solution.user_input) {
-                    record.status = 'success';
-                    record.user_input = solution.user_input;
-                } else if (solution.type === 'comment' && solution.comment) {
-                    record.status = 'success';
-                    record.comment = solution.comment;
+            if (memory?.proof_of_work) {
+                const isStep1 = !memory.chain || memory.chain.step_index <= 1;
+                let expectedPreviousHash: string;
+                if (isStep1) {
+                    expectedPreviousHash = GENESIS_HASH;
                 } else {
-                    // Fallback for backward compatibility
-                    record.status = 'success';
+                    const prev = await resolveChainPreviousStep(memory, qdrantService);
+                    const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
+                    expectedPreviousHash = prevHash ?? GENESIS_HASH;
                 }
-
-                await proofOfWorkStore.saveResult(uuid, record);
+                const submissionOutcome = await handleProofSubmission(solution, memory, { expectedPreviousHash });
+                if (submissionOutcome.blockedPayload) {
+                    const challenge = await buildChallenge(memory, memory.proof_of_work);
+                    const duration = Date.now() - startTime;
+                    return res.status(200).json({
+                        ...submissionOutcome.blockedPayload,
+                        current_step: {
+                            uri: `kairos://mem/${memory.memory_uuid}`,
+                            content: extractMemoryBody(memory.text),
+                            mimeType: 'text/markdown' as const
+                        },
+                        challenge,
+                        metadata: { duration_ms: duration }
+                    });
+                }
             }
 
             if (!memory) {
@@ -133,19 +127,18 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
 
             const protocol_status = next_step ? 'continue' : 'completed';
 
+            const challenge = await buildChallenge(memory, memory?.proof_of_work);
             const output: any = {
                 must_obey: true,
                 current_step,
                 protocol_status,
-                challenge: buildChallenge(memory?.proof_of_work)
+                challenge
             };
 
-            // When protocol is completed, indicate that kairos_attest should be called
             if (protocol_status === 'completed') {
                 output.attest_required = true;
                 output.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
-                // Add final_challenge on last step
-                output.final_challenge = buildChallenge(memory?.proof_of_work);
+                output.final_challenge = await buildChallenge(memory, memory?.proof_of_work);
                 output.next_action = 'call kairos_attest with final_solution';
             } else {
                 output.next_action = 'call kairos_next with next step uri and solution matching challenge';

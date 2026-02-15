@@ -36,11 +36,26 @@ export interface ProofOfWorkResultRecord {
   };
 }
 
+/** TTL for nonce (1 hour). */
+const NONCE_TTL_SEC = 3600;
+/** TTL for proof hash (7 days, same as result). */
+const HASH_TTL_SEC = 604800;
+
 export class ProofOfWorkStore {
   private readonly prefix = 'pow:result:';
+  private readonly noncePrefix = 'pow:nonce:';
+  private readonly hashPrefix = 'pow:hash:';
 
   private buildKey(uuid: string): string {
     return `${this.prefix}${uuid}`;
+  }
+
+  private nonceKey(uuid: string): string {
+    return `${this.noncePrefix}${uuid}`;
+  }
+
+  private hashKey(uuid: string): string {
+    return `${this.hashPrefix}${uuid}`;
   }
 
   async saveResult(memoryUuid: string, record: ProofOfWorkResultRecord): Promise<void> {
@@ -59,6 +74,44 @@ export class ProofOfWorkStore {
       return await redisService.getJson<ProofOfWorkResultRecord>(this.buildKey(memoryUuid));
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to load result for ${memoryUuid}`, error);
+      return null;
+    }
+  }
+
+  async setNonce(memoryUuid: string, nonce: string): Promise<void> {
+    if (!memoryUuid || !nonce) return;
+    try {
+      await redisService.set(this.nonceKey(memoryUuid), nonce, NONCE_TTL_SEC);
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to set nonce for ${memoryUuid}`, error);
+    }
+  }
+
+  async getNonce(memoryUuid: string): Promise<string | null> {
+    if (!memoryUuid) return null;
+    try {
+      return await redisService.get(this.nonceKey(memoryUuid));
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to get nonce for ${memoryUuid}`, error);
+      return null;
+    }
+  }
+
+  async setProofHash(memoryUuid: string, hash: string): Promise<void> {
+    if (!memoryUuid || !hash) return;
+    try {
+      await redisService.set(this.hashKey(memoryUuid), hash, HASH_TTL_SEC);
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to set proof hash for ${memoryUuid}`, error);
+    }
+  }
+
+  async getProofHash(memoryUuid: string): Promise<string | null> {
+    if (!memoryUuid) return null;
+    try {
+      return await redisService.get(this.hashKey(memoryUuid));
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to get proof hash for ${memoryUuid}`, error);
       return null;
     }
   }

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
@@ -10,7 +11,7 @@ import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
 
 interface RegisterNextOptions {
   toolName?: string;
@@ -67,7 +68,7 @@ function buildNextStep(
   };
 }
 
-function buildKairosNextPayload(
+async function buildKairosNextPayload(
   memory: Memory | null,
   requestedUri: string,
   nextInfo?: ResolvedChainStep,
@@ -77,16 +78,16 @@ function buildKairosNextPayload(
   const next_step = buildNextStep(memory, nextInfo);
   const protocol_status = next_step ? 'continue' : 'completed';
 
+  const challenge = await buildChallenge(memory, proof);
   const payload: any = {
     must_obey: true as const,
     current_step,
     protocol_status,
-    challenge: buildChallenge(proof)
+    challenge
   };
 
-  // When protocol is completed, add final_challenge and indicate that kairos_attest should be called
   if (protocol_status === 'completed') {
-    payload.final_challenge = buildChallenge(proof);
+    payload.final_challenge = await buildChallenge(memory, proof);
     payload.attest_required = true;
     payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
     payload.next_action = 'call kairos_attest with final_solution';
@@ -145,7 +146,9 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
   const solutionSchema = z.object({
-    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
+    type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Must match challenge.type'),
+    nonce: z.string().optional().describe('Echo nonce from challenge (required when challenge has nonce)'),
+    previousProofHash: z.string().optional().describe('SHA-256 hex of previous step proof, or challenge.genesis_hash for step 1'),
     shell: z.object({
       exit_code: z.number(),
       stdout: z.string().optional(),
@@ -162,9 +165,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
       confirmation: z.string(),
       timestamp: z.string().optional()
     }).optional(),
-    comment: z.object({
-      text: z.string()
-    }).optional()
+    comment: z.object({ text: z.string() }).optional()
   }).refine(
     (data) => {
       // At least one type-specific field must be present
@@ -184,13 +185,15 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
   );
 
   const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of the current step (from next_step of previous response, or step 1 when submitting step 1 proof)'),
-    solution: solutionSchema.describe('Proof of work matching challenge.type: shell {exit_code,stdout}, mcp {tool_name,result,success}, user_input {confirmation}, comment {text}')
+    uri: memoryUriSchema.describe('Current step URI (from next_step of previous response)'),
+    solution: solutionSchema.describe('Proof matching challenge.type: shell/mcp/user_input/comment')
   });
 
   const challengeSchema = z.object({
     type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
     description: z.string(),
+    nonce: z.string().optional().describe('Include in solution.nonce'),
+    genesis_hash: z.string().optional().describe('Use as solution.previousProofHash for step 1'),
     shell: z.object({
       cmd: z.string(),
       timeout_seconds: z.number()
@@ -273,41 +276,51 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
 
         // Validate solution is provided
         if (!solution) {
+          const noSolChallenge = await buildChallenge(null, undefined);
           return respond({
             must_obey: false,
             current_step: buildCurrentStep(null, requestedUri),
-            challenge: buildChallenge(undefined),
+            challenge: noSolChallenge,
             message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
             protocol_status: 'blocked'
           });
         }
 
         const memory = await loadMemoryWithCache(memoryStore, uuid);
-        
-        // Step 1 with solution: allow submitting proof to advance to step 2.
-        // Step 1 without solution: use kairos_begin to get step 1.
+
+        let solutionToUse = solution;
+        if (memory) {
+          const elicitResult = await tryUserInputElicitation(server, memory, solution, requestedUri, buildCurrentStep);
+          if ('payload' in elicitResult) return respond(elicitResult.payload);
+          solutionToUse = elicitResult.solution;
+        }
 
         if (memory) {
-          // Handle solution submission
-          const submissionOutcome = await handleProofSubmission(solution, memory);
+          const isStep1 = !memory.chain || memory.chain.step_index <= 1;
+          let expectedPreviousHash: string;
+          if (isStep1) {
+            expectedPreviousHash = GENESIS_HASH;
+          } else {
+            const prev = await resolveChainPreviousStep(memory, options.qdrantService);
+            const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
+            expectedPreviousHash = prevHash ?? GENESIS_HASH;
+          }
+          const submissionOutcome = await handleProofSubmission(solutionToUse, memory, { expectedPreviousHash });
           if (submissionOutcome.blockedPayload) {
-            // Ensure blocked payload includes required fields
             const blockedPayload = {
               ...submissionOutcome.blockedPayload,
               current_step: buildCurrentStep(memory, requestedUri),
-              challenge: buildChallenge(memory?.proof_of_work)
+              challenge: await buildChallenge(memory, memory?.proof_of_work)
             };
             return respond(blockedPayload);
           }
 
-          // Check previous step's proof (if applicable)
           const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
           if (previousBlock) {
-            // Ensure previous block includes required fields
             const blockedPayload = {
               ...previousBlock,
               current_step: buildCurrentStep(memory, requestedUri),
-              challenge: buildChallenge(memory?.proof_of_work)
+              challenge: await buildChallenge(memory, memory?.proof_of_work)
             };
             return respond(blockedPayload);
           }
@@ -318,9 +331,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
-        // nextFromDisplay = next step FROM the step we're showing (after advance)
         const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;
-        const output = buildKairosNextPayload(displayMemory, displayUri, nextFromDisplay, challengeProof);
+        const output = await buildKairosNextPayload(displayMemory, displayUri, nextFromDisplay, challengeProof);
         if (output.protocol_status === 'continue' && nextFromDisplay) {
           output.next_step = { uri: `kairos://mem/${nextFromDisplay.uuid}`, position: `${nextFromDisplay.step || 2}/${nextFromDisplay.count || 1}`, label: nextFromDisplay.label || 'Next step' };
         }
