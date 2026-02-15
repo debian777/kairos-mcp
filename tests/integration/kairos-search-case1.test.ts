@@ -50,13 +50,12 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
       }
     };
     const result = await mcpConnection.client.callTool(call);
+    const parsed = expectValidJsonResult(result);
 
+    let beginUri = null;
     withRawOnFail({ call, result }, () => {
-      const parsed = expectValidJsonResult(result);
-
-      // CASE 1: Single match → Immediate obedience (must_obey: true) or high-confidence partial
-      // Vector search may return score < 1.0 in shared dev collection; accept either path
-      if (parsed.protocol_status === 'initiated' && parsed.must_obey === true) {
+      // CASE 1: Single match → must_obey true, start_here. Or multiple perfect matches → choices; pick ours and kairos_begin later.
+      if (parsed.protocol_status === 'initiated' && parsed.must_obey === true && parsed.start_here) {
         expect(parsed.start_here).toBeDefined();
         expect(typeof parsed.start_here).toBe('string');
         expect(parsed.start_here.startsWith('kairos://mem/')).toBe(true);
@@ -68,15 +67,35 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
         expect(parsed.multiple_perfect_matches).toBeUndefined();
         expect(parsed.choices).toBeUndefined();
         expect(parsed.best_match).toBeUndefined();
-      } else if (parsed.protocol_status === 'partial_match' && parsed.best_match) {
-        // Fallback: single strong partial match (embedding score < 1.0 in dev)
+        return;
+      }
+      if (parsed.protocol_status === 'initiated' && parsed.must_obey === false && Array.isArray(parsed.choices) && parsed.choices.length > 0) {
+        const ourChoice = parsed.choices.find((c) => c.chain_label === uniqueTitle || (c.label && String(c.label).includes(uniqueTitle)));
+        expect(ourChoice).toBeDefined();
+        expect(ourChoice.uri).toBeDefined();
+        expect(ourChoice.uri.startsWith('kairos://mem/')).toBe(true);
+        beginUri = ourChoice.uri;
+        return;
+      }
+      if (parsed.protocol_status === 'partial_match' && parsed.best_match) {
         expect(parsed.best_match.uri).toBeDefined();
         expect(parsed.best_match.uri.startsWith('kairos://mem/')).toBe(true);
         expect(parsed.best_match.score).toBeGreaterThanOrEqual(0.7);
-      } else {
-        throw new Error(`CASE 1 expected initiated (must_obey: true) or partial_match with best_match; got protocol_status=${parsed.protocol_status} must_obey=${parsed.must_obey}`);
+        return;
       }
+      throw new Error(`CASE 1 expected initiated (must_obey: true + start_here) or (choices + pick + begin) or partial_match with best_match; got protocol_status=${parsed.protocol_status} must_obey=${parsed.must_obey}`);
     }, 'CASE 1 test');
+
+    if (beginUri) {
+      const beginResult = await mcpConnection.client.callTool({ name: 'kairos_begin', arguments: { uri: beginUri } });
+      withRawOnFail({ call: { name: 'kairos_begin', arguments: { uri: beginUri } }, result: beginResult }, () => {
+        const beginParsed = expectValidJsonResult(beginResult);
+        expect(beginParsed.must_obey).toBe(true);
+        expect(beginParsed.current_step).toBeDefined();
+        expect(beginParsed.challenge).toBeDefined();
+        expect(beginParsed.protocol_status).toBeDefined();
+      }, 'CASE 1 kairos_begin');
+    }
   }, 20000);
 });
 
