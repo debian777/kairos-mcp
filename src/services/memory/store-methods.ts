@@ -4,6 +4,7 @@ import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
+import { embeddingService } from '../embedding/service.js';
 import {
   scoreMemory
 } from '../../utils/memory-store-utils.js';
@@ -112,40 +113,112 @@ export class MemoryQdrantStoreMethods {
       return { memories: [], scores: [] };
     }
 
-    // Perform search
-    await this.ensureCache();
-    const scored = Array.from(this.cache.values()).map(memory => ({
+    // 1. Vector search (primary)
+    const vectorResult = await this.vectorSearch(normalizedQuery, query, limit);
+
+    // 2. Keyword fallback: if vector results insufficient, add keyword matches and merge
+    if (vectorResult.memories.length < limit) {
+      const keywordResult = await this.keywordSearch(normalizedQuery, limit);
+      const merged = this.mergeSearchResults(vectorResult, keywordResult, limit);
+      const result = {
+        memories: merged.memories,
+        scores: merged.scores
+      };
+      await redisCacheService.setSearchResult(normalizedQuery, limit, result, { collapse });
+      return result;
+    }
+
+    await redisCacheService.setSearchResult(normalizedQuery, limit, vectorResult, { collapse });
+    return vectorResult;
+  }
+
+  /** Vector similarity search only; used as primary path. */
+  private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
+    const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
+    const queryVector = queryEmbeddingResult.embedding;
+    const searchLimit = Math.min(limit * 3, 200);
+
+    const vectorResults = await this.client.search(this.collection, {
+      vector: { name: `vs${queryVector.length}`, vector: queryVector },
+      limit: searchLimit,
+      with_payload: true,
+      with_vector: false
+    });
+
+    const candidates = (vectorResults || []).map((r: { id: string | number; payload?: Record<string, unknown> | null }) =>
+      this.pointToMemory({ id: String(r.id), payload: r.payload || {} })
+    );
+
+    const scored = candidates.map(memory => ({
       memory,
       score: scoreMemory(memory, normalizedQuery)
     }));
 
-    const filtered = scored
+    let filtered = scored
       .filter(entry => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    // Fallback: if nothing matched the scorer, try a simple contains() check over label/text
-    let result = {
+    if (filtered.length === 0 && candidates.length > 0) {
+      filtered = candidates.slice(0, limit).map(memory => ({ memory, score: 0.5 }));
+    }
+
+    return {
       memories: filtered.map(entry => entry.memory),
       scores: filtered.map(entry => entry.score)
     };
+  }
 
-    if (result.memories.length === 0) {
-      const contains = Array.from(this.cache.values())
-        .filter(m => m.label.toLowerCase().includes(normalizedQuery) || m.text.toLowerCase().includes(normalizedQuery))
-        .slice(0, limit);
-      if (contains.length > 0) {
-        result = {
-          memories: contains,
-          scores: contains.map(() => 0.5) // neutral score for fallback
-        };
+  /** Bounded scroll + in-memory label/text contains filter; used when vector results are insufficient. */
+  private async keywordSearch(normalizedQuery: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
+    const maxScroll = 500;
+    const page = await this.client.scroll(this.collection, {
+      with_payload: true,
+      with_vector: false,
+      limit: maxScroll
+    });
+    const points = page?.points || [];
+    const memories: Memory[] = [];
+    for (const p of points) {
+      const memory = this.pointToMemory({ id: String(p.id), payload: (p as { payload?: Record<string, unknown> }).payload || {} });
+      const labelMatch = (memory.label || '').toLowerCase().includes(normalizedQuery);
+      const textMatch = (memory.text || '').toLowerCase().includes(normalizedQuery);
+      if (labelMatch || textMatch) {
+        memories.push(memory);
+        if (memories.length >= limit) break;
       }
     }
+    const scores = memories.map(() => 0.5);
+    return { memories, scores };
+  }
 
-    // Cache the result using collapse flag in the cache key so different search behaviors don't collide
-    await redisCacheService.setSearchResult(normalizedQuery, limit, result, { collapse });
-
-    return result;
+  /** Merge vector and keyword results, deduplicate by memory_uuid, preserve order (vector first). */
+  private mergeSearchResults(
+    vectorResult: { memories: Memory[], scores: number[] },
+    keywordResult: { memories: Memory[], scores: number[] },
+    limit: number
+  ): { memories: Memory[], scores: number[] } {
+    const seen = new Set<string>();
+    const memories: Memory[] = [];
+    const scores: number[] = [];
+    for (let i = 0; i < vectorResult.memories.length; i++) {
+      const m = vectorResult.memories[i];
+      if (!m || seen.has(m.memory_uuid)) continue;
+      seen.add(m.memory_uuid);
+      memories.push(m);
+      scores.push(vectorResult.scores[i] ?? 0.5);
+    }
+    for (let i = 0; i < keywordResult.memories.length && memories.length < limit; i++) {
+      const m = keywordResult.memories[i];
+      if (!m || seen.has(m.memory_uuid)) continue;
+      seen.add(m.memory_uuid);
+      memories.push(m);
+      scores.push(keywordResult.scores[i] ?? 0.5);
+    }
+    return {
+      memories: memories.slice(0, limit),
+      scores: scores.slice(0, limit)
+    };
   }
 
   private pointToMemory(point: any): Memory {
@@ -188,6 +261,7 @@ export class MemoryQdrantStoreMethods {
     return base as Memory;
   }
 
+  /** @deprecated No longer used by searchMemories (replaced by Qdrant vector search). Kept for optional full-load paths. */
   private async ensureCache(): Promise<void> {
     if (this.cacheLoaded) return;
     let pageOffset: any = undefined;

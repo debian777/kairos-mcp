@@ -56,7 +56,9 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
         expect(parsed.chain_label).toBeUndefined();
         expect(parsed.total_steps).toBeUndefined();
         expect(parsed.multiple_perfect_matches).toBeUndefined();
-        expect(parsed.choices).toBeUndefined();
+        // API may return choices: [] or omit; both are valid for no_protocol
+        expect(parsed.choices === undefined || Array.isArray(parsed.choices)).toBe(true);
+        if (Array.isArray(parsed.choices)) expect(parsed.choices).toHaveLength(0);
         expect(parsed.best_match).toBeUndefined();
         expect(parsed.hint).toBeUndefined();
       } else {
