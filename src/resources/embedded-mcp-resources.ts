@@ -74,7 +74,7 @@ export function getPrompt(key: string): string | undefined {
 }
 
 /**
- * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.00000000-0000-0000-0000-000000000001')
+ * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.<uuid>')
  */
 export function getResource(key: string): string | any | undefined {
   const resources = (mcpResources.resources || {}) as Record<string, any>;
