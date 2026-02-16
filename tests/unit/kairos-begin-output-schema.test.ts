@@ -11,13 +11,13 @@ describe('kairos_begin output schema', () => {
     const payload = {
       must_obey: true,
       current_step: {
-        uri: 'kairos://mem/00000000-0000-0000-0000-000000000001',
+        uri: 'kairos://mem/aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee',
         content: 'Step 1',
         mimeType: 'text/markdown'
       },
       protocol_status: 'continue' as const,
       next_step: {
-        uri: 'kairos://mem/00000000-0000-0000-0000-000000000002',
+        uri: 'kairos://mem/aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeef',
         position: '2/2',
         label: 'Step 2'
       },
