@@ -72,12 +72,18 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
 
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
-      // Score should only appear inside best_match.score, never as top-level field
+      // Score should never appear as top-level field
       expect(parsed.score).toBeUndefined();
-      // If it's a partial match, score should be in best_match only
-      if (parsed.best_match) {
-        expect(typeof parsed.best_match.score).toBe('number');
+      // V2: score is only inside choices[].score, never at top level
+      if (Array.isArray(parsed.choices)) {
+        for (const choice of parsed.choices) {
+          if (choice.role === 'match') {
+            expect(typeof choice.score).toBe('number');
+          }
+        }
       }
+      // V1 best_match must NOT exist
+      expect(parsed.best_match).toBeUndefined();
     }, 'no raw score test');
   }, 20000);
 

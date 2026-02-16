@@ -5,16 +5,14 @@ import { IDGenerator } from '../services/id-generator.js';
 import { modelStats } from '../services/stats/model-stats.js';
 
 /**
- * Set up API route for kairos_attest
- * @param app Express application instance
- * @param qdrantService Qdrant service instance
+ * Set up API route for kairos_attest (V2: no final_solution required)
  */
 export function setupAttestRoute(app: express.Express, qdrantService: QdrantService) {
     app.post('/api/kairos_attest', async (req, res) => {
         const startTime = Date.now();
 
         try {
-            const { uri, outcome, quality_bonus = 0, message, final_solution, llm_model_id } = req.body;
+            const { uri, outcome, quality_bonus = 0, message, llm_model_id } = req.body;
 
             if (!uri || typeof uri !== 'string') {
                 res.status(400).json({
@@ -40,15 +38,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
                 return;
             }
 
-            if (!final_solution || typeof final_solution !== 'object') {
-                res.status(400).json({
-                    error: 'INVALID_INPUT',
-                    message: 'final_solution is required and must be an object'
-                });
-                return;
-            }
-
-            structuredLogger.info(`→ POST /api/kairos_attest (uri: ${uri}, outcome: ${outcome})`);
+            structuredLogger.info(`-> POST /api/kairos_attest (uri: ${uri}, outcome: ${outcome})`);
 
             const modelIdentity = {
                 modelId: llm_model_id || 'http-api-attest',
@@ -129,7 +119,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
             };
 
             const duration = Date.now() - startTime;
-            structuredLogger.info(`✓ kairos_attest completed in ${duration}ms`);
+            structuredLogger.info(`kairos_attest completed in ${duration}ms`);
 
             res.status(200).json({
                 results: [result],
@@ -140,7 +130,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
 
         } catch (error) {
             const duration = Date.now() - startTime;
-            structuredLogger.error(`✗ kairos_attest failed in ${duration}ms`, error);
+            structuredLogger.error(`kairos_attest failed in ${duration}ms`, error);
             res.status(500).json({
                 error: 'ATTEST_FAILED',
                 message: error instanceof Error ? error.message : 'Failed to attest step completion',
@@ -149,5 +139,3 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
         }
     });
 }
-
-

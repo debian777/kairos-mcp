@@ -1,13 +1,13 @@
 import crypto from 'node:crypto';
 import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/memory.js';
-import { proofOfWorkStore, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
+import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 
 /** Minimum cosine similarity for comment proof to pass semantic validation. Reject if below. */
 const COMMENT_SEMANTIC_THRESHOLD = 0.25;
 
-/** Hash used as previousProofHash for step 1 (no prior proof). */
+/** Hash used as proof_hash for step 1 (no prior proof). */
 export const GENESIS_HASH = crypto.createHash('sha256').update('genesis').digest('hex');
 
 function hashProofRecord(record: ProofOfWorkResultRecord): string {
@@ -19,7 +19,9 @@ export type ProofOfWorkSubmission = {
   type: ProofOfWorkType;
   /** Nonce from challenge; must match server-issued nonce for this step. */
   nonce?: string;
-  /** SHA-256 hex hash of previous step's proof record, or genesis hash for step 1. */
+  /** Proof hash from previous step's response or challenge.proof_hash for step 1. */
+  proof_hash?: string;
+  /** @deprecated Use proof_hash. Kept for backward compatibility. */
   previousProofHash?: string;
   shell?: {
     exit_code: number;
@@ -70,7 +72,7 @@ export async function buildChallenge(memory: Memory | null, proof?: ProofOfWorkD
     description: 'Provide a verification comment describing how you completed this step'
   };
 
-  base.genesis_hash = GENESIS_HASH;
+  base.proof_hash = GENESIS_HASH;
   if (memory?.memory_uuid) {
     const nonce = crypto.randomBytes(16).toString('hex');
     await proofOfWorkStore.setNonce(memory.memory_uuid, nonce);
@@ -115,17 +117,54 @@ export async function tryUserInputElicitation(
     const challenge = await buildChallenge(memory, memory.proof_of_work);
     const current_step = buildCurrentStep(memory, requestedUri);
     if (elicitResult?.action === 'decline') {
-      return { payload: { must_obey: false, current_step, challenge, message: 'User declined confirmation.', protocol_status: 'blocked' } };
+      return { payload: buildErrorPayload(memory, current_step, challenge, 'User declined confirmation.', 'USER_DECLINED', 1) };
     }
-    return { payload: { must_obey: false, current_step, challenge, message: 'User cancelled or did not confirm.', protocol_status: 'blocked' } };
+    return { payload: buildErrorPayload(memory, current_step, challenge, 'User cancelled or did not confirm.', 'USER_DECLINED', 1) };
   } catch (err) {
     const challenge = await buildChallenge(memory, memory.proof_of_work);
-    return { payload: { must_obey: false, current_step: buildCurrentStep(memory, requestedUri), challenge, message: err instanceof Error ? err.message : 'Elicitation failed.', protocol_status: 'blocked' } };
+    return { payload: buildErrorPayload(memory, buildCurrentStep(memory, requestedUri), challenge, err instanceof Error ? err.message : 'Elicitation failed.', 'ELICITATION_FAILED', 1) };
   }
 }
 
+/**
+ * Build an error response payload with two-phase retry escalation.
+ * Retries 1-3: must_obey true with recovery next_action.
+ * After 3: must_obey false with autonomous options.
+ */
+function buildErrorPayload(
+  memory: Memory | null,
+  current_step: any,
+  challenge: any,
+  message: string,
+  errorCode: string,
+  retryCount: number
+): any {
+  const uuid = memory?.memory_uuid;
+  const uri = uuid ? `kairos://mem/${uuid}` : '';
+  const maxExceeded = retryCount >= MAX_RETRIES;
+
+  const payload: any = {
+    must_obey: !maxExceeded,
+    current_step,
+    challenge,
+    message: maxExceeded
+      ? `Step failed ${retryCount} times. Use your judgment to recover.`
+      : message,
+    error_code: maxExceeded ? 'MAX_RETRIES_EXCEEDED' : errorCode,
+    retry_count: retryCount
+  };
+
+  if (maxExceeded && uri) {
+    payload.next_action = `Options: (1) call kairos_update with ${uri} to fix the step for future executions (2) call kairos_attest with ${uri} and outcome failure to abort (3) ask the user for help`;
+  } else if (uri) {
+    payload.next_action = `retry kairos_next with ${uri} -- use nonce and proof_hash from THIS response's challenge`;
+  }
+
+  return payload;
+}
+
 export type HandleProofOptions = {
-  /** Expected previousProofHash: GENESIS_HASH for step 1, or stored hash of previous step's proof. */
+  /** Expected proof_hash: GENESIS_HASH for step 1, or stored hash of previous step's proof. */
   expectedPreviousHash: string;
 };
 
@@ -142,71 +181,56 @@ export async function handleProofSubmission(
   const proofType: ProofOfWorkType = submission.type || 'shell';
   const requiredType: ProofOfWorkType = memory.proof_of_work.type || 'shell';
 
+  // Accept both proof_hash (v2) and previousProofHash (v1 compat)
+  const submittedProofHash = submission.proof_hash ?? submission.previousProofHash;
+
+  // Helper to build error with retry counting
+  const blocked = async (msg: string, code: string, currentStep?: any, challengeObj?: any) => {
+    const retryCount = await proofOfWorkStore.incrementRetry(uuid);
+    const cs = currentStep || { uri: `kairos://mem/${uuid}`, content: '', mimeType: 'text/markdown' };
+    const ch = challengeObj || await buildChallenge(memory, memory.proof_of_work);
+    return {
+      blockedPayload: buildErrorPayload(memory, cs, ch, msg, code, retryCount)
+    };
+  };
+
+  // Nonce validation
   if (memory.memory_uuid) {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     if (storedNonce != null) {
       if (submission.nonce !== storedNonce) {
-        return {
-          blockedPayload: {
-            must_obey: false,
-            message: 'Nonce mismatch. Use the nonce from the current step challenge.',
-            protocol_status: 'blocked'
-          }
-        };
+        return blocked('Nonce mismatch. Use the nonce from the current step challenge.', 'NONCE_MISMATCH');
       }
     }
   }
 
-  if (options?.expectedPreviousHash != null && submission.previousProofHash !== undefined) {
-    if (submission.previousProofHash !== options.expectedPreviousHash) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: `previousProofHash mismatch. Expected hash of previous step's proof or genesis for step 1.`,
-          protocol_status: 'blocked'
-        }
-      };
+  // Proof hash validation
+  if (options?.expectedPreviousHash != null && submittedProofHash !== undefined) {
+    if (submittedProofHash !== options.expectedPreviousHash) {
+      return blocked('proof_hash mismatch. Use proof_hash from the previous response or challenge.', 'PROOF_HASH_MISMATCH');
     }
   }
-  if (options?.expectedPreviousHash != null && submission.previousProofHash === undefined) {
-    return {
-      blockedPayload: {
-        must_obey: false,
-        message: 'Include previousProofHash in solution (use challenge.genesis_hash for step 1).',
-        protocol_status: 'blocked'
-      }
-    };
+  if (options?.expectedPreviousHash != null && submittedProofHash === undefined) {
+    return blocked('Include proof_hash in solution (use challenge.proof_hash for step 1).', 'MISSING_FIELD');
   }
 
-  // Validate proof type matches requirement
+  // Type validation
   if (proofType !== requiredType && requiredType !== undefined) {
-    return {
-      blockedPayload: {
-        must_obey: false,
-        message: `Expected proof type: ${requiredType}, got: ${proofType}`,
-        protocol_status: 'blocked'
-      }
-    };
+    return blocked(`Expected proof type: ${requiredType}, got: ${proofType}`, 'TYPE_MISMATCH');
   }
 
-  // Build result record based on type
+  // Build result record
   const record: ProofOfWorkResultRecord = {
     result_id: `pow_${uuid}_${Date.now()}`,
     type: proofType,
-    status: 'success', // Will be set based on type below
+    status: 'success',
     executed_at: new Date().toISOString()
   };
 
   if (proofType === 'shell') {
     const shell = submission.shell;
     if (!shell) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: 'Shell proof requires shell field with exit_code',
-          protocol_status: 'blocked'
-        }
-      };
+      return blocked('Shell proof requires shell field with exit_code', 'MISSING_FIELD');
     }
     record.status = shell.exit_code === 0 ? 'success' : 'failed';
     record.shell = {
@@ -215,7 +239,6 @@ export async function handleProofSubmission(
       ...(shell.stderr !== undefined && { stderr: shell.stderr }),
       ...(shell.duration_seconds !== undefined && { duration_seconds: shell.duration_seconds })
     };
-    // Backward compatibility
     record.exit_code = shell.exit_code;
     if (shell.stdout !== undefined) record.stdout = shell.stdout;
     if (shell.stderr !== undefined) record.stderr = shell.stderr;
@@ -223,13 +246,7 @@ export async function handleProofSubmission(
   } else if (proofType === 'mcp') {
     const mcp = submission.mcp;
     if (!mcp) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: 'MCP proof requires mcp field',
-          protocol_status: 'blocked'
-        }
-      };
+      return blocked('MCP proof requires mcp field', 'MISSING_FIELD');
     }
     record.status = mcp.success ? 'success' : 'failed';
     record.mcp = {
@@ -241,15 +258,9 @@ export async function handleProofSubmission(
   } else if (proofType === 'user_input') {
     const userInput = submission.user_input;
     if (!userInput || !userInput.confirmation) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: 'User input proof requires user_input.confirmation',
-          protocol_status: 'blocked'
-        }
-      };
+      return blocked('User input proof requires user_input.confirmation', 'MISSING_FIELD');
     }
-    record.status = 'success'; // User confirmation is always success
+    record.status = 'success';
     record.user_input = {
       confirmation: userInput.confirmation,
       timestamp: userInput.timestamp || new Date().toISOString()
@@ -257,25 +268,13 @@ export async function handleProofSubmission(
   } else if (proofType === 'comment') {
     const comment = submission.comment;
     if (!comment || !comment.text) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: 'Comment proof requires comment.text',
-          protocol_status: 'blocked'
-        }
-      };
+      return blocked('Comment proof requires comment.text', 'MISSING_FIELD');
     }
     const minLength = memory.proof_of_work.comment?.min_length || 10;
     if (comment.text.length < minLength) {
-      return {
-        blockedPayload: {
-          must_obey: false,
-          message: `Comment must be at least ${minLength} characters`,
-          protocol_status: 'blocked'
-        }
-      };
+      return blocked(`Comment must be at least ${minLength} characters`, 'COMMENT_TOO_SHORT');
     }
-    // Semantic validation: comment must be relevant to step content
+    // Semantic validation
     const stepContent = extractMemoryBody(memory.text) || String(memory.label || '').trim();
     if (stepContent.length >= 20) {
       try {
@@ -285,13 +284,10 @@ export async function handleProofSubmission(
         ]);
         const similarity = embeddingService.calculateCosineSimilarity(commentEmb.embedding, stepEmb.embedding);
         if (similarity < COMMENT_SEMANTIC_THRESHOLD) {
-          return {
-            blockedPayload: {
-              must_obey: false,
-              message: `Comment does not appear relevant to this step (similarity ${similarity.toFixed(2)} < ${COMMENT_SEMANTIC_THRESHOLD}). Provide a response that engages with the step content.`,
-              protocol_status: 'blocked'
-            }
-          };
+          return blocked(
+            `Comment does not appear relevant to this step (similarity ${similarity.toFixed(2)} < ${COMMENT_SEMANTIC_THRESHOLD}). Provide a response that engages with the step content.`,
+            'COMMENT_IRRELEVANT'
+          );
         }
       } catch (_err) {
         // Fail open: if embedding unavailable, allow length-valid comments
@@ -306,15 +302,11 @@ export async function handleProofSubmission(
   await proofOfWorkStore.setProofHash(uuid, proofHash);
 
   if (memory.proof_of_work.required && record.status === 'failed') {
-    return {
-      blockedPayload: {
-        must_obey: false,
-        message: 'Proof of work failed. Fix and retry.',
-        protocol_status: 'blocked'
-      }
-    };
+    return blocked('Proof of work failed. Fix and retry.', 'COMMAND_FAILED');
   }
+
+  // Success -- reset retry counter
+  await proofOfWorkStore.resetRetry(uuid);
 
   return { proofHash };
 }
-

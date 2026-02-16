@@ -64,7 +64,8 @@ describe('kairos_next response schema', () => {
       arguments: { uri: firstUri }
     });
     const beginPayload = parseMcpJson(beginResult, '[kairos_begin] step 1');
-    expect(beginPayload.protocol_status).toBe('continue'); // Has next step
+    expect(typeof beginPayload.next_action).toBe('string');
+    expect(beginPayload.next_action).toContain('kairos://mem/');
     expect(beginPayload.challenge).toBeDefined();
 
     // Step 2: Use kairos_next with solution for step 1 (uri = step we're completing, i.e. firstUri)
@@ -80,7 +81,6 @@ describe('kairos_next response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(payload.must_obey).toBe(true);
-      expect(payload.protocol_status).toBe('continue'); // Step 2 has step 3 next
       expect(payload.current_step).toBeDefined();
       expect(payload.current_step.uri).toBe(secondUri);
       expect(payload.current_step.mimeType).toBe('text/markdown');
@@ -91,7 +91,17 @@ describe('kairos_next response schema', () => {
         expect(payload.challenge.shell.cmd).toContain('step2');
         expect(payload.challenge.shell.timeout_seconds).toBe(30);
       }
-      // next_step removed per v2 spec - use protocol_status instead
+      // V2: next_action with embedded URI replaces next_step and protocol_status
+      expect(typeof payload.next_action).toBe('string');
+      expect(payload.next_action).toContain('kairos://mem/');
+      // V2: proof_hash replaces last_proof_hash
+      if (payload.proof_hash) {
+        expect(typeof payload.proof_hash).toBe('string');
+      }
+      // V1 fields must NOT exist
+      expect(payload.next_step).toBeUndefined();
+      expect(payload.protocol_status).toBeUndefined();
+      expect(payload.last_proof_hash).toBeUndefined();
     }, '[kairos_next] continue payload with raw result');
   }, 30000);
 
@@ -118,20 +128,22 @@ describe('kairos_next response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(payload.must_obey).toBe(true);
-      expect(payload.protocol_status).toBe('completed');
       expect(payload.current_step.uri).toBe(lastUri);
       expect(payload.current_step.content).toContain('Second body');
-      // next_step removed per v2 spec - use protocol_status instead
       expect(payload.challenge).toBeDefined();
       // Challenge structure has type and shell fields
       if (payload.challenge.shell) {
         expect(payload.challenge.shell.cmd).toContain('step2');
       }
-      // Final challenge should be present on last step
-      expect(payload.final_challenge).toBeDefined();
-      if (payload.final_challenge.shell) {
-        expect(payload.final_challenge.shell.cmd).toContain('step2');
-      }
+      // V2: next_action says call kairos_attest for final step
+      expect(typeof payload.next_action).toBe('string');
+      expect(payload.next_action).toContain('kairos_attest');
+      expect(payload.next_action).toContain('kairos://mem/');
+      // V1 fields must NOT exist
+      expect(payload.final_challenge).toBeUndefined();
+      expect(payload.protocol_status).toBeUndefined();
+      expect(payload.attest_required).toBeUndefined();
+      expect(payload.next_step).toBeUndefined();
     }, '[kairos_next] completed payload with raw result');
   }, 30000);
 });

@@ -10,6 +10,9 @@ import type { Memory } from '../types/memory.js';
 import { SCORE_THRESHOLD } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
 
+const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
+const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
+
 interface RegisterSearchOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -22,6 +25,15 @@ interface Candidate {
   label: string;
   tags: string[];
   total_steps: number;
+}
+
+interface UnifiedChoice {
+  uri: string;
+  label: string;
+  chain_label: string | null;
+  score: number | null;
+  role: 'match' | 'create';
+  tags: string[];
 }
 
 function addCandidate(
@@ -55,7 +67,6 @@ async function searchAndBuildCandidates(
 ): Promise<Map<string, { memory: Memory; score: number }>> {
   const candidateMap = new Map<string, { memory: Memory; score: number }>();
 
-  // Initial search
   const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
   memories.forEach((memory, idx) => addCandidate(candidateMap, memory, scores[idx] ?? 0));
 
@@ -63,7 +74,6 @@ async function searchAndBuildCandidates(
     structuredLogger.warn(`[search-debug] initial results=${memories.length} uniqueChains=${candidateMap.size} enableCollapse=${enableGroupCollapse}`);
   }
 
-  // If not enough unique chains, try without collapse to find more
   if (candidateMap.size < 10 && enableGroupCollapse) {
     const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
     moreMemories.forEach((memory, idx) => addCandidate(candidateMap, memory, moreScores[idx] ?? 0));
@@ -99,82 +109,76 @@ async function resolveHead(
   return head;
 }
 
-async function generateSinglePerfectMatchOutput(
-  match: Candidate,
+async function generateUnifiedOutput(
+  results: Candidate[],
   qdrantService?: QdrantService
 ): Promise<any> {
-  const head = await resolveHead(match.memory, qdrantService);
+  const perfectMatches = results.filter(r => r.score >= 1.0);
+  const perfectCount = perfectMatches.length;
+
+  const choices: UnifiedChoice[] = [];
+
+  // Resolve heads for all results and build choices
+  for (const result of results) {
+    const head = await resolveHead(result.memory, qdrantService);
+    choices.push({
+      uri: head.uri,
+      label: head.label || result.label,
+      chain_label: result.memory.chain?.label || null,
+      score: result.score,
+      role: 'match',
+      tags: result.tags
+    });
+  }
+
+  // Always append creation protocol as fallback
+  choices.push({
+    uri: CREATION_PROTOCOL_URI,
+    label: 'Create New KAIROS Protocol Chain',
+    chain_label: 'Create New KAIROS Protocol Chain',
+    score: null,
+    role: 'create',
+    tags: ['system', 'create', 'mint']
+  });
+
+  // Build next_action based on result count
+  let message: string;
+  let nextAction: string;
+
+  if (perfectCount === 1) {
+    const topChoice = choices[0]!;
+    message = 'Found 1 perfect match.';
+    nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
+  } else if (perfectCount > 1) {
+    const topChoice = choices[0]!;
+    message = `Found ${perfectCount} perfect matches. Choose one protocol and call kairos_begin with its URI.`;
+    nextAction = `call kairos_begin with ${topChoice.uri} to execute best match, or choose another from choices`;
+  } else if (choices.length > 1) {
+    // Has match results (non-perfect) + creation protocol
+    const topMatch = choices[0]!;
+    const confidencePercent = Math.round((topMatch.score || 0) * 100);
+    message = `Found ${choices.length - 1} partial match(es) (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
+    nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
+  } else {
+    // Only creation protocol
+    message = "No existing protocol matched your query. You can create a new one.";
+    nextAction = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+  }
+
   return {
     must_obey: true,
-    start_here: head.uri,
-    chain_label: match.memory.chain?.label || null,
-    total_steps: match.total_steps,
-    protocol_status: 'initiated'
-  };
-}
-
-async function generateMultiplePerfectMatchesOutput(
-  perfectMatches: Candidate[],
-  qdrantService?: QdrantService
-): Promise<any> {
-  const resolvedHeads = await Promise.all(perfectMatches.map(async (match) => {
-    const head = await resolveHead(match.memory, qdrantService);
-    return {
-      uri: head.uri,
-      label: head.label || match.label,
-      chain_label: match.memory.chain?.label || null,
-      tags: match.tags
-    };
-  }));
-  return {
-    must_obey: false,
-    multiple_perfect_matches: perfectMatches.length,
-    message: `Great! We have ${perfectMatches.length} canonical protocols that perfectly match your request. Choose one protocol by calling kairos_begin with its URI from the choices array. Once committed, must_obey: true applies and execution becomes mandatory.`,
-    next_action: 'call kairos_begin with choice.uri to commit to a protocol',
-    choices: resolvedHeads,
-    protocol_status: 'initiated'
-  };
-}
-
-async function generatePartialMatchOutput(
-  topResult: Candidate,
-  qdrantService?: QdrantService
-): Promise<any> {
-  const head = await resolveHead(topResult.memory, qdrantService);
-  const confidencePercent = Math.round((topResult.score || 0) * 100);
-  return {
-    must_obey: false,
-    protocol_status: 'partial_match',
-    best_match: {
-      uri: head.uri,
-      label: head.label || topResult.label,
-      chain_label: topResult.memory.chain?.label || null,
-      score: topResult.score || 0,
-      total_steps: topResult.total_steps
-    },
-    message: `I found a relevant protocol (confidence: ${confidencePercent}%). Shall I proceed?`,
-    hint: 'Or would you like to create a new canonical one?'
-  };
-}
-
-function generateNoResultsOutput(): any {
-  return {
-    must_obey: false,
-    protocol_status: 'no_protocol',
-    choices: [],
-    message: "I couldn't find any relevant protocol for your request.",
-    suggestion: "Would you like to create a new one?"
+    perfect_matches: perfectCount,
+    message,
+    next_action: nextAction,
+    choices
   };
 }
 
 /**
  * Register kairos_search tool
- * This tool searches for protocol chains and returns chain heads.
  * 
- * When multiple perfect matches are found (must_obey: false with choices array):
- * - AI must choose one protocol from the choices array
- * - Call kairos_begin with the chosen protocol's URI to commit
- * - Once committed via kairos_begin, must_obey: true applies and execution becomes mandatory
+ * V2 unified response: always must_obey: true, choices array with score/role,
+ * creation protocol always available as fallback.
  */
 export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterSearchOptions = {}) {
   const toolName = options.toolName || 'kairos_search';
@@ -187,35 +191,18 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   });
 
   const outputSchema = z.object({
-    must_obey: z.boolean().describe('When true, you must call kairos_begin(start_here) and complete the protocol'),
-    start_here: memoryUriSchema.optional().nullable().describe('URI for kairos_begin when must_obey is true'),
-    chain_label: z.string().optional().nullable(),
-    total_steps: z.number().optional().nullable(),
-    protocol_status: z.string().describe("'no_protocol' when no results; otherwise indicates match type"),
-    multiple_perfect_matches: z.number().optional().nullable(),
-    message: z.string().optional().nullable(),
-    next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_begin with choice.uri to commit to a protocol")'),
-    suggestion: z.string().optional().nullable(),
-    hint: z.string().optional().nullable(),
-    best_match: z.object({
+    must_obey: z.boolean().describe('Always true. Follow next_action.'),
+    perfect_matches: z.number().describe('Count of choices with score 1.0'),
+    message: z.string().describe('Human-readable summary'),
+    next_action: z.string().describe('Next tool call instruction with embedded URI'),
+    choices: z.array(z.object({
       uri: memoryUriSchema,
       label: z.string(),
-      chain_label: z.string().optional().nullable(),
-      score: z.number(),
-      total_steps: z.number()
-    }).optional().nullable(),
-    choices: z
-      .array(
-        z.object({
-          uri: memoryUriSchema,
-          label: z.string(),
-          chain_label: z.string().optional().nullable(),
-          tags: z.array(z.string()).optional()
-        })
-      )
-      .optional()
-      .nullable()
-      .describe('When present, pick one and call kairos_begin(choice.uri) to commit')
+      chain_label: z.string().nullable(),
+      score: z.number().nullable().describe('0.0-1.0 for matches, null for system actions'),
+      role: z.enum(['match', 'create']).describe('match = search result, create = system action'),
+      tags: z.array(z.string())
+    })).describe('Protocols to choose from. Last entry is always the creation protocol.')
   });
 
   structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(inputSchema)}`);
@@ -224,7 +211,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
     toolName,
     {
       title: 'Search for protocol chains',
-      description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query. When multiple matches return choices, call kairos_begin with a choice URI to commit to that protocol (must_obey: true then applies).',
+      description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query. Always returns must_obey: true with a choices array. Follow next_action.',
       inputSchema,
       outputSchema
     },
@@ -262,7 +249,6 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       try {
         const normalizedQuery = (query || '').trim().toLowerCase();
 
-        // Check cache first
         const parseEnvBool = (name: string, defaultVal: boolean) => {
           const v = process.env[name];
           if (v === undefined) return defaultVal;
@@ -271,7 +257,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         };
 
         const enableGroupCollapse = parseEnvBool('KAIROS_ENABLE_GROUP_COLLAPSE', true);
-        const cacheKey = `begin:v2:${normalizedQuery}:${enableGroupCollapse}`;
+        const cacheKey = `begin:v3:${normalizedQuery}:${enableGroupCollapse}`;
 
         const cachedResult = await redisCacheService.get(cacheKey);
         if (cachedResult) {
@@ -279,7 +265,6 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
           return respond(parsed);
         }
 
-        // Cache miss - perform search
         const candidateMap = await searchAndBuildCandidates(
           memoryStore,
           query,
@@ -290,36 +275,17 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         let headCandidates = Array.from(candidateMap.values())
           .sort((a, b) => (b.score - a.score));
 
-        // Trim to 10 results
         if (headCandidates.length > 10) {
           headCandidates = headCandidates.slice(0, 10);
         }
 
-        if (headCandidates.length === 0) {
-          const output = generateNoResultsOutput();
-          await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
-          return respond(output);
-        }
-
-        const results = createResults(headCandidates);
-        const perfectMatches = results.filter(r => r.score >= 1.0);
-        const topResult = results[0];
-
-        let output: any;
-        if (perfectMatches.length === 1) {
-          output = await generateSinglePerfectMatchOutput(perfectMatches[0]!, options.qdrantService);
-        } else if (perfectMatches.length > 1) {
-          output = await generateMultiplePerfectMatchesOutput(perfectMatches, options.qdrantService);
-        } else if (topResult) {
-          output = await generatePartialMatchOutput(topResult, options.qdrantService);
-        } else {
-          output = generateNoResultsOutput();
-        }
+        const results = headCandidates.length > 0 ? createResults(headCandidates) : [];
+        const output = await generateUnifiedOutput(results, options.qdrantService);
 
         await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
         return respond(output);
       } catch (error) {
-        structuredLogger.warn(`kairos_search error (returning no_protocol): ${error instanceof Error ? error.message : String(error)}`);
+        structuredLogger.warn(`kairos_search error (returning empty results): ${error instanceof Error ? error.message : String(error)}`);
         mcpToolCalls.inc({ 
           tool: toolName, 
           status: 'error',
@@ -335,8 +301,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
           status: 'error',
           tenant_id: tenantId 
         });
-        // Empty / failed search is a valid response: no_protocol with empty choices (never -32603)
-        return respond(generateNoResultsOutput());
+        const fallback = await generateUnifiedOutput([], options.qdrantService);
+        return respond(fallback);
       }
     }
   );

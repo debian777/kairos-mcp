@@ -1,6 +1,8 @@
 /**
  * kairos_next input/output schemas (zod-only).
- * Used by kairos_next tool registration and tests.
+ * V2: removed next_step, protocol_status, attest_required, final_challenge.
+ * Renamed genesis_hash -> proof_hash, previousProofHash -> proof_hash, last_proof_hash -> proof_hash.
+ * Added error_code, retry_count for two-phase retry escalation.
  */
 import { z } from 'zod';
 
@@ -10,8 +12,8 @@ const memoryUriSchema = z
 
 const solutionSchema = z.object({
   type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Must match challenge.type'),
-  nonce: z.string().optional().describe('Echo nonce from challenge (required when challenge has nonce)'),
-  previousProofHash: z.string().optional().describe('SHA-256 hex of previous step proof, or challenge.genesis_hash for step 1'),
+  nonce: z.string().optional().describe('Echo nonce from challenge'),
+  proof_hash: z.string().optional().describe('Echo proof_hash from previous challenge or response'),
   shell: z.object({
     exit_code: z.number(),
     stdout: z.string().optional(),
@@ -46,8 +48,8 @@ const solutionSchema = z.object({
 const challengeSchema = z.object({
   type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
   description: z.string(),
-  nonce: z.string().optional().describe('Include in solution.nonce'),
-  genesis_hash: z.string().optional().describe('Use as solution.previousProofHash for step 1'),
+  nonce: z.string().optional().describe('Echo back as solution.nonce'),
+  proof_hash: z.string().optional().describe('Echo back as solution.proof_hash'),
   shell: z.object({
     cmd: z.string(),
     timeout_seconds: z.number()
@@ -65,29 +67,23 @@ const challengeSchema = z.object({
 });
 
 export const kairosNextInputSchema = z.object({
-  uri: memoryUriSchema.describe('Current step URI (from next_step of previous response)'),
+  uri: memoryUriSchema.describe('Current step URI (from next_action of previous response)'),
   solution: solutionSchema.describe('Proof matching challenge.type: shell/mcp/user_input/comment')
 });
 
 export const kairosNextOutputSchema = z.object({
-  must_obey: z.boolean(),
+  must_obey: z.boolean().describe('true for success and recoverable errors, false after max retries'),
   current_step: z.object({
     uri: memoryUriSchema,
     content: z.string(),
     mimeType: z.literal('text/markdown')
   }).optional().nullable(),
-  next_step: z.object({
-    uri: memoryUriSchema,
-    position: z.string(),
-    label: z.string()
-  }).optional().describe('Present when protocol_status is continue; use this uri for the next kairos_next call'),
   challenge: challengeSchema,
-  final_challenge: challengeSchema.optional().describe('Only present on the last step'),
-  protocol_status: z.enum(['continue', 'completed', 'blocked']),
-  attest_required: z.boolean().optional().describe('When true, indicates kairos_attest should be called to finalize the protocol'),
+  next_action: z.string().describe('Next tool call with embedded kairos://mem/ URI'),
+  proof_hash: z.string().optional().describe('Hash of proof just stored. Use as solution.proof_hash for next step.'),
   message: z.string().optional(),
-  next_action: z.string().optional().nullable().describe('Action to take next (e.g., "call kairos_next with next step uri and solution matching challenge")'),
-  last_proof_hash: z.string().optional().describe('Use as solution.previousProofHash in the next kairos_next call')
+  error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
+  retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)')
 });
 
 export { memoryUriSchema };

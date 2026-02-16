@@ -215,3 +215,5 @@ kairos attest --help
 - Set up and run the KAIROS server (see the project README).
 - Install the KAIROS MCP server in Cursor for tool integration
   ([Install KAIROS MCP in Cursor](INSTALL-MCP.md)).
+- For protocol flow and tool workflows, see
+  [Architecture and protocol workflows](architecture/README.md).

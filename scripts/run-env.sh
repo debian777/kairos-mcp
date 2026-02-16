@@ -58,6 +58,8 @@ LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 # Load environment (skip if ensure-coding-rules doesn't need it)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
+    # QA compose needs VOLUME_LOCAL_PATH etc. from .env for variable substitution
+    [ "$ENV" = "qa" ] && [ -f "${PROJECT_DIR}/.env" ] && set -a && source "${PROJECT_DIR}/.env" && set +a
 fi
 
 # Validate environment (skip for ensure-coding-rules)

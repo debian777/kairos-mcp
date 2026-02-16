@@ -184,41 +184,48 @@ PROOF OF WORK: timeout 45s echo run-processor`;
     expect(storeResponse.status).toBe('stored');
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(2); // Should create at least 2 sections
 
-    // Test that kairos_search can find the chain
+    // Test that kairos_search can find the chain (use semantic query from content)
+    await new Promise((r) => setTimeout(r, 2000)); // Allow Qdrant indexing
     const searchResult = await mcpConnection.client.callTool({
       name: 'kairos_search',
       arguments: {
-        query: String(ts)
+        query: 'Code Example Documentation DataProcessor'
       }
     });
 
     const searchResponse = expectValidJsonResult(searchResult);
-    expect(searchResponse).toHaveProperty('protocol_status');
-    
-    // Handle different protocol status cases
-    if (searchResponse.protocol_status === 'no_protocol') {
-      // No chain heads found - this shouldn't happen normally but can occur due to timing
-      // In this case, must_obey should be false
-      expect(searchResponse.must_obey).toBe(false);
-      // Allow retry or skip remaining assertions for timing issues
-      return;
-    }
-    
-    expect(searchResponse.protocol_status).toBe('initiated');
-    
-    // If multiple perfect matches, must_obey should be false and choices should be present
-    if (searchResponse.multiple_perfect_matches && searchResponse.multiple_perfect_matches > 1) {
-      expect(searchResponse.must_obey).toBe(false);
-      expect(searchResponse).toHaveProperty('choices');
-      expect(Array.isArray(searchResponse.choices)).toBe(true);
-      expect(searchResponse.choices.length).toBeGreaterThan(0);
+
+    // V2 unified response shape (always present)
+    expect(searchResponse.must_obey).toBe(true);
+    expect(typeof searchResponse.perfect_matches).toBe('number');
+    expect(typeof searchResponse.message).toBe('string');
+    expect(typeof searchResponse.next_action).toBe('string');
+    expect(searchResponse.next_action).toContain('kairos://mem/');
+    expect(Array.isArray(searchResponse.choices)).toBe(true);
+    expect(searchResponse.choices.length).toBeGreaterThanOrEqual(1);
+
+    // At least one match choice should exist (or create fallback if indexing delayed)
+    const matchChoices = searchResponse.choices.filter((c: any) => c.role === 'match');
+    if (matchChoices.length === 0) {
+      expect(searchResponse.choices.some((c: any) => c.role === 'create')).toBe(true);
     } else {
-      // Single match or fallback case - must_obey should be true
-      expect(searchResponse.must_obey).toBe(true);
-      expect(searchResponse.start_here).toBeDefined();
-      expect(searchResponse.chain_label).toBeDefined();
-      expect(typeof searchResponse.chain_label).toBe('string');
-      expect(searchResponse.total_steps).toBeGreaterThanOrEqual(2);
+      expect(matchChoices.length).toBeGreaterThanOrEqual(1);
     }
+
+    // Each choice has the V2 shape
+    for (const choice of searchResponse.choices) {
+      expect(choice).toHaveProperty('uri');
+      expect(choice).toHaveProperty('label');
+      expect(choice).toHaveProperty('chain_label');
+      expect(choice).toHaveProperty('role');
+      expect(choice).toHaveProperty('tags');
+      expect(['match', 'create']).toContain(choice.role);
+    }
+
+    // V1 fields must NOT exist
+    expect(searchResponse.protocol_status).toBeUndefined();
+    expect(searchResponse.start_here).toBeUndefined();
+    expect(searchResponse.best_match).toBeUndefined();
+    expect(searchResponse.multiple_perfect_matches).toBeUndefined();
   }, 20000);
 });

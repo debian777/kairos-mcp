@@ -1,9 +1,12 @@
 Start protocol execution. Loads step 1 and returns its challenge. Step 1 never requires a solution.
 
-**When to call:** After `kairos_search` returns a URI (from `start_here` or from `choices[].uri` after you pick one). Call with that URI to begin the protocol.
+**When to call:** After `kairos_search` returns a URI in `next_action`. Call with that URI to begin the protocol. If a non-step-1 URI is provided, KAIROS auto-redirects to step 1.
 
-**Response:** `current_step` (content + uri), `challenge` (type and description; what you must do for the next step), `protocol_status` (`continue` or `completed`), `next_step` (uri for the next call when `continue`). May include `next_action` (e.g. "call kairos_next with next step uri and solution matching challenge").
+**Response:** `current_step` (content + uri), `challenge` (type, description, nonce, proof_hash), and `next_action` with the exact URI for the next call.
 
-**If `protocol_status === 'continue'`:** Execute the challenge (run command, call MCP tool, get user confirmation, or write verification comment). Then call `kairos_next(next_step.uri, solution)` with a solution matching the challenge type.
+**AI decision tree:** `must_obey: true` -> follow `next_action`.
 
-**If `protocol_status === 'completed'`:** Only one step. Call `kairos_attest(uri, outcome, message, final_solution)` with `final_solution` matching `final_challenge`.
+- If `next_action` mentions `kairos_next`: Execute the challenge, then call `kairos_next` with the URI from `next_action` and a solution matching the challenge.
+- If `next_action` mentions `kairos_attest`: Single-step protocol. Call `kairos_attest` with the URI, outcome, and message.
+
+**Proof hash:** Echo `challenge.proof_hash` back as `solution.proof_hash` in the next `kairos_next` call. The server generates all hashes; the AI never computes them.

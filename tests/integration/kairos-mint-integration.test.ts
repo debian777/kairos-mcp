@@ -43,35 +43,38 @@ describe('Kairos Mint Integration', () => {
     const storeResponse = expectValidJsonResult(storeResult);
     expect(storeResponse.status).toBe('stored');
 
-    // Search — expect valid response
+    // Search — expect valid V2 response
     const call = { name: 'kairos_search', arguments: { query: testQuery } };
     const result = await mcpConnection.client.callTool(call);
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
-      expect(parsed).toHaveProperty('protocol_status');
-      
-      // Handle perfect match case (must_obey: true)
-      if (parsed.must_obey === true && parsed.protocol_status === 'initiated') {
-        expect(parsed.start_here).toBeDefined();
-        expect(typeof parsed.start_here).toBe('string');
-        expect(parsed.start_here.startsWith('kairos://mem/')).toBe(true);
-        expect(parsed.chain_label).toBeDefined();
-        expect(typeof parsed.chain_label).toBe('string');
-        expect(parsed.total_steps).toBeDefined();
-        expect(typeof parsed.total_steps).toBe('number');
-      } else if (parsed.protocol_status === 'partial_match' && parsed.best_match) {
-        // Handle no perfect match case (must_obey: false with best_match)
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.best_match).toBeDefined();
-        expect(typeof parsed.best_match.uri).toBe('string');
-        expect(parsed.best_match.uri.startsWith('kairos://mem/')).toBe(true);
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-      } else {
-        // Fallback: should have some valid response structure
-        expect(parsed.protocol_status).toBeDefined();
+
+      // V2 unified response shape (always present)
+      expect(parsed.must_obey).toBe(true);
+      expect(typeof parsed.perfect_matches).toBe('number');
+      expect(typeof parsed.message).toBe('string');
+      expect(typeof parsed.next_action).toBe('string');
+      expect(parsed.next_action).toContain('kairos://mem/');
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
+
+      // Each choice has the V2 shape
+      for (const choice of parsed.choices) {
+        expect(choice).toHaveProperty('uri');
+        expect(choice).toHaveProperty('label');
+        expect(choice).toHaveProperty('role');
+        expect(choice).toHaveProperty('tags');
+        expect(['match', 'create']).toContain(choice.role);
       }
-    }, 'kairos_begin call + raw result');
+
+      // V1 fields must NOT exist
+      expect(parsed.start_here).toBeUndefined();
+      expect(parsed.best_match).toBeUndefined();
+      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.suggestion).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.multiple_perfect_matches).toBeUndefined();
+    }, 'kairos_search call + raw result');
   }, 20000);
 
 });

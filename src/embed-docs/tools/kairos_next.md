@@ -1,8 +1,8 @@
 Submit solution and get next step. Advance through the protocol by proving each challenge was completed.
 
-**When to call:** After completing a step's challenge. Use `next_step.uri` from the previous `kairos_begin` or `kairos_next` response as the `uri` parameter. Do not use for step 1 — use `kairos_begin` for step 1.
+**When to call:** After completing a step's challenge. Use the URI from `next_action` of the previous response. Do not use for step 1 — use `kairos_begin` for step 1.
 
-**Input:** `uri` (current step URI), `solution` (proof matching the `challenge.type` returned for that step).
+**Input:** `uri` (current step URI from `next_action`), `solution` (proof matching the `challenge.type`).
 
 **Solution shapes by challenge type:**
 
@@ -11,10 +11,14 @@ Submit solution and get next step. Advance through the protocol by proving each 
 - `user_input`: `{type:'user_input', user_input:{confirmation, timestamp?}}`.
 - `comment`: `{type:'comment', comment:{text}}` — text length must meet challenge's min_length.
 
-Include in solution when the challenge has them: `nonce` (echo from challenge), `previousProofHash` (use `challenge.genesis_hash` for step 1; for step 2+ use `last_proof_hash` from the previous `kairos_next` response). To compute SHA-256 without Node: `echo -n 'content' | shasum -a 256 | awk '{print $1}'` (Mac) or same with `sha256sum` (Linux).
+Include in solution when the challenge has them: `nonce` (echo from challenge), `proof_hash` (echo `challenge.proof_hash` for step 1; for step 2+ use `proof_hash` from the previous `kairos_next` response). The server generates all hashes; the AI never computes them.
 
-**Response:** `current_step`, `challenge` (for next step), `next_step` (uri for next call), `protocol_status` (`continue`, `completed`, or `blocked`), `next_action` (what to do next). When present, `last_proof_hash` is the proof hash for the step just completed — use it as `solution.previousProofHash` in the next `kairos_next` call.
+**Response:** `current_step`, `challenge` (for next step), `next_action` (next tool call with embedded URI), and `proof_hash` (hash of proof just stored — use as `solution.proof_hash` for the next step).
 
-**If `protocol_status === 'blocked':** Invalid or missing solution, or previous step's proof not completed. Fix and retry with correct solution.
+**AI decision tree:**
+- `must_obey: true` -> follow `next_action` (success or recoverable error, retries 1-3).
+- `must_obey: false` -> use judgment (max retries exceeded). Options in `next_action`: fix the step via `kairos_update`, abort via `kairos_attest` with failure, or ask the user.
 
-**If `protocol_status === 'completed':** Call `kairos_attest(uri, outcome, message, final_solution)`; then you may respond to the user.
+**Error responses** include `error_code` (e.g., `NONCE_MISMATCH`, `TYPE_MISMATCH`, `MAX_RETRIES_EXCEEDED`) and `retry_count`. A fresh `challenge` with new nonce is provided for self-correction.
+
+**When `next_action` mentions `kairos_attest`:** Last step done. Call `kairos_attest` with uri, outcome, and message.

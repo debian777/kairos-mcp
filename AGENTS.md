@@ -32,3 +32,13 @@ library/API documentation. This means you should automatically use the Context7 
 tools to resolve library id and get library docs without me having to explicitly ask.
 
 ---
+
+# MCP DESIGN PRINCIPLES
+
+When designing or reviewing MCP tools, agent-facing APIs, or tool schemas/descriptions,
+apply the principles in
+[CHARTER.md](CHARTER.md#agent-facing-design-principles)
+(LLM-friendly frontend, backend orchestration, errors that teach and allow
+recovery).
+
+---

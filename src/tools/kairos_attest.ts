@@ -17,50 +17,10 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
-  const finalSolutionSchema = z.object({
-    type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
-    shell: z.object({
-      exit_code: z.number(),
-      stdout: z.string().optional(),
-      stderr: z.string().optional(),
-      duration_seconds: z.number().optional()
-    }).optional(),
-    mcp: z.object({
-      tool_name: z.string(),
-      arguments: z.any().optional(),
-      result: z.any(),
-      success: z.boolean()
-    }).optional(),
-    user_input: z.object({
-      confirmation: z.string(),
-      timestamp: z.string().optional()
-    }).optional(),
-    comment: z.object({
-      text: z.string().min(10).describe('Verification comment (minimum 10 characters)')
-    }).optional()
-  }).refine(
-    (data) => {
-      // At least one type-specific field must be present
-      return !!(data.shell || data.mcp || data.user_input || data.comment);
-    },
-    { message: 'At least one type-specific field (shell, mcp, user_input, or comment) must be provided' }
-  ).refine(
-    (data) => {
-      // The type-specific field must match the type
-      if (data.type === 'shell' && !data.shell) return false;
-      if (data.type === 'mcp' && !data.mcp) return false;
-      if (data.type === 'user_input' && !data.user_input) return false;
-      if (data.type === 'comment' && !data.comment) return false;
-      return true;
-    },
-    { message: 'The type-specific field must match the solution type' }
-  );
-
   const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of the completed memory step'),
+    uri: memoryUriSchema.describe('URI of the last step in the protocol'),
     outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
-    message: z.string().min(1).describe('Attestation summary message'),
-    final_solution: finalSolutionSchema.describe('Same shape as solution; must match final_challenge from the last step'),
+    message: z.string().min(1).describe('Short summary of how the protocol went'),
     quality_bonus: z.number().optional().default(0).describe('Additional quality bonus to apply'),
     llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
   });
@@ -82,8 +42,8 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
   server.registerTool(
     toolName,
     {
-      title: 'Finalize protocol with final solution',
-      description: getToolDoc('kairos_attest') || 'Called once at the very end to attest full protocol completion.',
+      title: 'Finalize protocol execution',
+      description: getToolDoc('kairos_attest') || 'Stamp of completion. Call after the last step is solved via kairos_next. No final_solution required.',
       inputSchema,
       outputSchema
     },
@@ -100,28 +60,14 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
       let result: any;
       
       try {
-        const { uri, outcome, quality_bonus = 0, message, final_solution, llm_model_id } = params;
+        const { uri, outcome, quality_bonus = 0, message, llm_model_id } = params;
 
-        // Validate final_solution is provided
-        if (!final_solution) {
-          throw new Error('final_solution is required for kairos_attest');
-        }
-
-        // Validate comment type has minimum length
-        if (final_solution.type === 'comment' && final_solution.comment) {
-          if (final_solution.comment.text.length < 10) {
-            throw new Error('Comment solution must be at least 10 characters');
-          }
-        }
-
-      // Use provided model identity
       const modelIdentity = {
         modelId: llm_model_id || 'kairos-attest',
-        provider: 'unknown', // Will be determined from model ID if needed
-        family: 'unknown'   // Will be determined from model ID if needed
+        provider: 'unknown',
+        family: 'unknown'
       };
 
-      // Validate input: require URI
       if (!uri) {
         throw new Error('uri must be a string');
       }
@@ -134,30 +80,22 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
         let totalRated = 0;
         let totalFailed = 0;
 
-        // Process each URI (apply same outcome to all)
         for (const uri of uriArray) {
           try {
-            // Convert URI to Qdrant UUID for internal use
             const qdrantUuid = IDGenerator.qdrantIdFromUri(uri);
-
-            // Calculate basic quality bonus based on outcome
             const basicQualityBonus = outcome === 'success' ? 1 : -0.2;
 
-            // Retrieve current quality metrics to calculate implementation bonus
             const currentPoint = await qdrantService.retrieveById(qdrantUuid);
             const currentMetrics = currentPoint?.payload?.quality_metrics || {};
 
-            // Calculate implementation success bonus
             const implementationBonus = await modelStats.calculateImplementationBonus(
               currentMetrics,
               modelIdentity.modelId,
               outcome
             );
 
-            // Total bonus combines basic quality + implementation success
             const totalQualityBonus = basicQualityBonus + implementationBonus + quality_bonus;
 
-            // Update quality metrics in Qdrant
             const metricsUpdate: any = {
               retrievalCount: 1,
               successCount: outcome === 'success' ? 1 : 0,
@@ -173,22 +111,18 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
 
             await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
 
-            // Recalculate quality metadata with execution success context!
-            // Successful executions dramatically boost quality score
             if (currentPoint?.payload) {
               const { description_short, domain, task, type, tags } = currentPoint.payload;
 
-              // Calculate new quality metadata with execution success
               const updatedQualityMetadata = modelStats.calculateStepQualityMetadata(
                 description_short || 'Knowledge step',
                 domain || 'general',
                 task || 'general',
                 type || 'context',
                 tags || [],
-                outcome // Pass execution success to boost quality score!
+                outcome
               );
 
-              // Update quality metadata in Qdrant
               await qdrantService.updateQualityMetadata(qdrantUuid, {
                 step_quality_score: updatedQualityMetadata.step_quality_score,
                 step_quality: updatedQualityMetadata.step_quality
@@ -197,7 +131,6 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
               logger.info(`attest: Updated quality metadata for ${uri} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`);
             }
 
-            // Process quality feedback
             await modelStats.processQualityFeedback(
               modelIdentity.modelId,
               uri,
@@ -205,7 +138,6 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
               totalQualityBonus
             );
 
-            // Update implementation bonuses
             if (implementationBonus > 0) {
               await modelStats.updateImplementationBonus(modelIdentity.modelId, implementationBonus);
             }
@@ -234,7 +166,6 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
           }
         }
 
-        // Always return bulk response with results and totals
         result = {
           results,
           total_rated: totalRated,

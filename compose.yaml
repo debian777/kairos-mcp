@@ -93,15 +93,24 @@ services:
       - "${PORT:-3500}:${PORT:-3500}"
       - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
     environment:
-      # Overrides to access real localhost services from within Docker container
+      # QA runs alone; connect to host's Qdrant/Redis (override in .env.qa if needed)
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
     volumes:
       - ${VOLUME_LOCAL_PATH}/snapshots/qa/qdrant:/snapshots
-    depends_on:
-      - qdrant
-      - redis
+    # No depends_on: Qdrant/Redis run on host or elsewhere; script checks them before start
+    networks:
+      - kairos-network
+    restart: unless-stopped
+    # Health check covering both transports
+    healthcheck:
+      test: >
+        wget --quiet --tries=1 --timeout=5 --spider http://127.0.0.1:$$PORT/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   app-prod:
     profiles:

@@ -30,7 +30,7 @@ describe('Kairos Search Perfect Matches', () => {
     return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
-  test('no perfect match falls back to top result with must_obey: true', async () => {
+  test('no perfect match returns V2 unified schema with choices including candidates and create', async () => {
     // Create a protocol with a unique title
     const ts = Date.now();
     const uniqueTitle = `NoPerfectMatchTest ${ts}`;
@@ -52,7 +52,6 @@ describe('Kairos Search Perfect Matches', () => {
     expect(storeResponse.status).toBe('stored');
 
     // Search with query that partially matches the title (should score above threshold but below 1.0)
-    // Using words from the title but not exact match
     const call = {
       name: 'kairos_search',
       arguments: {
@@ -64,53 +63,54 @@ describe('Kairos Search Perfect Matches', () => {
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
       
-      // Handle two possible cases:
-      // 1. If score is above threshold but below 1.0 → partial_match
-      // 2. If score is below threshold or no matches → no_protocol
-      if (parsed.protocol_status === 'partial_match') {
-        // Should be in partial match mode (must_obey: false with best_match)
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.best_match).toBeDefined();
-        expect(parsed.best_match.uri).toBeDefined();
-        expect(typeof parsed.best_match.uri).toBe('string');
-        expect(parsed.best_match.uri.startsWith('kairos://mem/')).toBe(true);
-        expect(parsed.best_match.label).toBeDefined();
-        expect(typeof parsed.best_match.label).toBe('string');
-        expect(parsed.best_match.score).toBeDefined();
-        expect(typeof parsed.best_match.score).toBe('number');
-        expect(parsed.best_match.score).toBeGreaterThan(0);
-        expect(parsed.best_match.score).toBeLessThan(1.0);
-        expect(parsed.best_match.total_steps).toBeDefined();
-        expect(typeof parsed.best_match.total_steps).toBe('number');
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-        expect(parsed.hint).toBeDefined();
-        expect(typeof parsed.hint).toBe('string');
-        
-        // Should NOT have multiple_perfect_matches or choices in partial match mode
-        expect(parsed.multiple_perfect_matches).toBeUndefined();
-        expect(parsed.choices).toBeUndefined();
-      } else if (parsed.protocol_status === 'no_protocol') {
-        // If no results above threshold, expect no_protocol
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-        expect(parsed.suggestion).toBeDefined();
-        expect(typeof parsed.suggestion).toBe('string');
-        expect(parsed.best_match).toBeUndefined();
-      } else if (parsed.protocol_status === 'initiated') {
-        // Occasionally the query can resolve to a perfect match; ensure obedience metadata exists
-        expect(parsed.must_obey).toBe(true);
-        expect(parsed.start_here).toBeDefined();
-      } else {
-        // Fallback catch-all
-        expect(['partial_match', 'no_protocol', 'initiated']).toContain(parsed.protocol_status);
+      // V2 unified schema — must_obey is ALWAYS true
+      expect(parsed.must_obey).toBe(true);
+
+      // perfect_matches: number
+      expect(typeof parsed.perfect_matches).toBe('number');
+
+      // message: always present
+      expect(parsed.message).toBeDefined();
+      expect(typeof parsed.message).toBe('string');
+
+      // next_action: always present
+      expect(parsed.next_action).toBeDefined();
+      expect(typeof parsed.next_action).toBe('string');
+
+      // choices: always an array with at least one entry (the create protocol)
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
+
+      // Validate match choices if any
+      const matchChoices = parsed.choices.filter((c) => c.role === 'match');
+      for (const choice of matchChoices) {
+        expect(choice.uri).toBeDefined();
+        expect(typeof choice.uri).toBe('string');
+        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.label).toBeDefined();
+        expect(typeof choice.label).toBe('string');
+        expect(choice.role).toBe('match');
+        if (choice.score !== null && choice.score !== undefined) {
+          expect(typeof choice.score).toBe('number');
+        }
       }
+
+      // There should be at least one create choice
+      const createChoices = parsed.choices.filter((c) => c.role === 'create');
+      expect(createChoices.length).toBeGreaterThanOrEqual(1);
+
+      // Old fields must be absent
+      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.best_match).toBeUndefined();
+      expect(parsed.suggestion).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.start_here).toBeUndefined();
+      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'no perfect match fallback test');
   }, 20000);
 
-  test('output schema validation - all optional fields are nullable', async () => {
-    // Test that the schema properly handles null values
+  test('output schema validation - V2 unified schema always has required fields', async () => {
+    // Test that the V2 schema always returns all required fields
     const ts = Date.now();
     const uniqueTitle = `SchemaValidationTest ${ts}`;
     const content = `# ${uniqueTitle}\n\nSchema validation test.`;
@@ -126,7 +126,7 @@ describe('Kairos Search Perfect Matches', () => {
     });
     expectValidJsonResult(storeResult);
 
-    // Single match - should have start_here, not choices
+    // Search for the stored protocol
     const singleResult = await mcpConnection.client.callTool({
       name: 'kairos_search',
       arguments: {
@@ -135,18 +135,34 @@ describe('Kairos Search Perfect Matches', () => {
     });
     const singleParsed = expectValidJsonResult(singleResult);
     
-    // Verify structure - if multiple perfect matches, must_obey should be false
-    if (singleParsed.multiple_perfect_matches && singleParsed.multiple_perfect_matches > 1) {
-      expect(singleParsed.must_obey).toBe(false);
-      expect(singleParsed).toHaveProperty('choices');
-      expect(Array.isArray(singleParsed.choices)).toBe(true);
-    } else {
-      // Single match case - must_obey should be true
-      expect(singleParsed.must_obey).toBe(true);
-      expect(singleParsed.start_here).toBeDefined();
-      expect(singleParsed.start_here).not.toBeNull();
-      expect(singleParsed.choices).toBeUndefined();
+    // V2 unified schema — all fields always present
+    expect(singleParsed.must_obey).toBe(true);
+    expect(typeof singleParsed.perfect_matches).toBe('number');
+    expect(typeof singleParsed.message).toBe('string');
+    expect(typeof singleParsed.next_action).toBe('string');
+    expect(Array.isArray(singleParsed.choices)).toBe(true);
+    expect(singleParsed.choices.length).toBeGreaterThanOrEqual(1);
+
+    // Each choice must have uri, label, role
+    for (const choice of singleParsed.choices) {
+      expect(choice.uri).toBeDefined();
+      expect(typeof choice.uri).toBe('string');
+      expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+      expect(choice.label).toBeDefined();
+      expect(typeof choice.label).toBe('string');
+      expect(['match', 'create']).toContain(choice.role);
+      if (choice.tags !== undefined) {
+        expect(Array.isArray(choice.tags)).toBe(true);
+      }
     }
+
+    // Old fields must be absent
+    expect(singleParsed.protocol_status).toBeUndefined();
+    expect(singleParsed.start_here).toBeUndefined();
+    expect(singleParsed.best_match).toBeUndefined();
+    expect(singleParsed.suggestion).toBeUndefined();
+    expect(singleParsed.hint).toBeUndefined();
+    expect(singleParsed.multiple_perfect_matches).toBeUndefined();
   }, 20000);
 });
 

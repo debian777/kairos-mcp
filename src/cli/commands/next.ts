@@ -59,7 +59,8 @@ export function nextCommand(program: Command): void {
                         if (currentStep?.content) {
                             writeMarkdown(currentStep.content);
                             // Add separator between steps if following
-                            if (options.follow && (response as any).next_step) {
+                            const nextAct = (response as any).next_action as string | undefined;
+                            if (options.follow && nextAct?.includes('kairos_next')) {
                                 writeMarkdown('\n---\n\n');
                             }
                         }
@@ -69,15 +70,14 @@ export function nextCommand(program: Command): void {
 
                     // Check if we should continue following
                     if (options.follow) {
-                        const nextStep = (response as any).next_step;
-                        const protocolStatus = (response as any).protocol_status;
-
-                        if (nextStep?.uri && protocolStatus === 'continue') {
-                            currentUri = nextStep.uri;
-                            // Reset solution for subsequent steps (only applies to first step)
+                        const nextAction = (response as any).next_action as string | undefined;
+                        // Extract URI from next_action if it mentions kairos_next
+                        const nextUriMatch = nextAction?.match(/kairos_next\s+with\s+(kairos:\/\/mem\/[0-9a-f-]{36})/i);
+                        if (nextUriMatch?.[1]) {
+                            currentUri = nextUriMatch[1];
                             solutionResult = undefined;
                         } else {
-                            // Chain completed or no next step
+                            // Chain completed or next_action says kairos_attest
                             break;
                         }
                     } else {

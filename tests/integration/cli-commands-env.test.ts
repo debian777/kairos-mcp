@@ -22,7 +22,10 @@ describe('CLI Commands Environment & Error Tests', () => {
 
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
-      expect(result).toHaveProperty('protocol_status');
+      // V2 unified response shape
+      expect(result).toHaveProperty('must_obey');
+      expect(result).toHaveProperty('perfect_matches');
+      expect(result).toHaveProperty('choices');
     }, 30000);
 
     test('begin uses KAIROS_API_URL environment variable with URI', async () => {
@@ -36,7 +39,11 @@ describe('CLI Commands Environment & Error Tests', () => {
         `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} search "Minimal CLI Test Document"`
       );
       const searchData = JSON.parse(searchResult.stdout);
-      const uri = searchData.start_here || searchData.best_match?.uri;
+      // V2: extract URI from choices array (first match)
+      const matchChoice = Array.isArray(searchData.choices)
+        ? searchData.choices.find((c: any) => c.role === 'match')
+        : null;
+      const uri = matchChoice?.uri;
       expect(uri).toBeDefined();
 
       const { stdout, stderr } = await execAsync(
@@ -45,7 +52,10 @@ describe('CLI Commands Environment & Error Tests', () => {
 
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
-      expect(result).toHaveProperty('protocol_status');
+      // V2: next_action replaces protocol_status
+      expect(result).toHaveProperty('must_obey');
+      expect(result).toHaveProperty('next_action');
+      expect(result).toHaveProperty('current_step');
     }, 30000);
 
     test('mint uses KAIROS_API_URL environment variable', async () => {
@@ -71,7 +81,10 @@ describe('CLI Commands Environment & Error Tests', () => {
 
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
-      expect(result).toHaveProperty('protocol_status');
+      // V2 unified response shape
+      expect(result).toHaveProperty('must_obey');
+      expect(result).toHaveProperty('perfect_matches');
+      expect(result).toHaveProperty('choices');
     }, 30000);
   });
 

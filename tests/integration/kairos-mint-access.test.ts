@@ -10,29 +10,21 @@ describe('Kairos mint accessibility', () => {
   async function purgeExistingProtocols() {
     const maxRounds = 5;
     for (let round = 0; round < maxRounds; round++) {
-      const beginCall = {
+      const searchCall = {
         name: 'kairos_search',
         arguments: { query: QUERY }
       };
-      const beginResult = await mcpConnection.client.callTool(beginCall);
-      const beginPayload = parseMcpJson(beginResult, '[kairos_begin] cleanup AI CODING RULES');
-      if (beginPayload.protocol_status === 'no_protocol') {
-        break;
-      }
+      const searchResult = await mcpConnection.client.callTool(searchCall);
+      const searchPayload = parseMcpJson(searchResult, '[kairos_search] cleanup AI CODING RULES');
 
+      // V2: collect URIs from choices array
       const uris = new Set<string>();
-      if (typeof beginPayload.start_here === 'string') {
-        uris.add(beginPayload.start_here);
-      }
-      if (Array.isArray(beginPayload.choices)) {
-        for (const choice of beginPayload.choices) {
-          if (choice?.uri) {
+      if (Array.isArray(searchPayload.choices)) {
+        for (const choice of searchPayload.choices) {
+          if (choice?.uri && choice.role === 'match') {
             uris.add(choice.uri);
           }
         }
-      }
-      if (beginPayload.best_match?.uri) {
-        uris.add(beginPayload.best_match.uri);
       }
 
       if (uris.size === 0) {

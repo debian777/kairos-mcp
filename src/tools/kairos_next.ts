@@ -2,7 +2,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { kairosNextInputSchema, kairosNextOutputSchema } from './kairos_next_schema.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { resolveChainNextStep, resolveChainPreviousStep, type ResolvedChainStep } from '../services/chain-utils.js';
+import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
@@ -49,53 +49,33 @@ function buildCurrentStep(memory: Memory | null, requestedUri: string) {
     mimeType: 'text/markdown' as const
   };
 }
-function buildNextStep(
-  memory: Memory | null,
-  nextInfo?: ResolvedChainStep
-): { uri: string; position: string; label: string } | null {
-  if (!memory || !nextInfo || !nextInfo.uuid) {
-    return null;
-  }
-
-  const total = Math.max(nextInfo.count ?? memory.chain?.step_count ?? 1, 1);
-  const stepIndex = Math.max(nextInfo.step ?? (memory.chain ? memory.chain.step_index + 1 : 1), 1);
-
-  return {
-    uri: `kairos://mem/${nextInfo.uuid}`,
-    position: `${stepIndex}/${total}`,
-    label: nextInfo.label || 'Next step'
-  };
-}
 
 async function buildKairosNextPayload(
   memory: Memory | null,
   requestedUri: string,
-  nextInfo?: ResolvedChainStep,
+  nextStepUri: string | null,
   proof?: ProofOfWorkDefinition
 ) {
   const current_step = buildCurrentStep(memory, requestedUri);
-  const next_step = buildNextStep(memory, nextInfo);
-  const protocol_status = next_step ? 'continue' : 'completed';
-
   const challenge = await buildChallenge(memory, proof);
+
   const payload: any = {
     must_obey: true as const,
     current_step,
-    protocol_status,
     challenge
   };
 
-  if (protocol_status === 'completed') {
-    payload.final_challenge = await buildChallenge(memory, proof);
-    payload.attest_required = true;
-    payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
-    payload.next_action = 'call kairos_attest with final_solution';
+  if (nextStepUri) {
+    payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    payload.next_action = 'call kairos_next with next step uri and solution matching challenge';
+    const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
+    payload.message = 'Protocol completed. Call kairos_attest to finalize.';
+    payload.next_action = `call kairos_attest with ${attestUri}, outcome, and message`;
   }
 
   return payload;
 }
+
 async function ensurePreviousProofCompleted(
   memory: Memory,
   memoryStore: MemoryQdrantStore,
@@ -123,21 +103,14 @@ async function ensurePreviousProofCompleted(
     } else {
       message += ` Complete the required ${proofType} verification before continuing.`;
     }
-    return {
-      must_obey: false,
-      message,
-      protocol_status: 'blocked'
-    };
+    return { message, error_code: 'MISSING_PROOF' };
   }
   if (storedResult.status !== 'success') {
-    return {
-      must_obey: false,
-      message: 'Proof of work failed. Fix and retry.',
-      protocol_status: 'blocked'
-    };
+    return { message: 'Previous step proof failed. Fix and retry.', error_code: 'COMMAND_FAILED' };
   }
   return null;
 }
+
 export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterNextOptions = {}) {
   const toolName = options.toolName || 'kairos_next';
   structuredLogger.debug(`kairos_next registration inputSchema: ${JSON.stringify(kairosNextInputSchema)}`);
@@ -186,13 +159,16 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
 
         // Validate solution is provided
         if (!solution) {
+          const retryCount = await proofOfWorkStore.incrementRetry(uuid);
           const noSolChallenge = await buildChallenge(null, undefined);
           return respond({
-            must_obey: false,
+            must_obey: retryCount < 3,
             current_step: buildCurrentStep(null, requestedUri),
             challenge: noSolChallenge,
             message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
-            protocol_status: 'blocked'
+            next_action: `retry kairos_next with ${requestedUri} -- include solution matching challenge`,
+            error_code: 'MISSING_FIELD',
+            retry_count: retryCount
           });
         }
 
@@ -218,37 +194,42 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           }
           submissionOutcome = await handleProofSubmission(solutionToUse, memory, { expectedPreviousHash });
           if (submissionOutcome.blockedPayload) {
-            const blockedPayload = {
-              ...submissionOutcome.blockedPayload,
-              current_step: buildCurrentStep(memory, requestedUri),
-              challenge: await buildChallenge(memory, memory?.proof_of_work)
-            };
-            return respond(blockedPayload);
+            return respond(submissionOutcome.blockedPayload);
           }
 
           const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
           if (previousBlock) {
+            const retryCount = await proofOfWorkStore.incrementRetry(uuid);
             const blockedPayload = {
-              ...previousBlock,
+              must_obey: retryCount < 3,
               current_step: buildCurrentStep(memory, requestedUri),
-              challenge: await buildChallenge(memory, memory?.proof_of_work)
+              challenge: await buildChallenge(memory, memory?.proof_of_work),
+              message: previousBlock.message,
+              next_action: `retry kairos_next with ${requestedUri} -- complete previous step first`,
+              error_code: previousBlock.error_code || 'MISSING_PROOF',
+              retry_count: retryCount
             };
             return respond(blockedPayload);
           }
         }
 
+        // Resolve next step
         const nextStepInfo = memory ? await resolveChainNextStep(memory, options.qdrantService) : undefined;
         const nextMemory = nextStepInfo ? await loadMemoryWithCache(memoryStore, nextStepInfo.uuid) : null;
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
+
+        // Resolve the step AFTER the display step to get next_action URI
         const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;
-        const output = await buildKairosNextPayload(displayMemory, displayUri, nextFromDisplay, challengeProof);
-        if (output.protocol_status === 'continue' && nextFromDisplay) {
-          output.next_step = { uri: `kairos://mem/${nextFromDisplay.uuid}`, position: `${nextFromDisplay.step || 2}/${nextFromDisplay.count || 1}`, label: nextFromDisplay.label || 'Next step' };
-        }
+        const nextStepUri = nextFromDisplay?.uuid
+          ? `kairos://mem/${nextFromDisplay.uuid}`
+          : null;
+
+        const output = await buildKairosNextPayload(displayMemory, displayUri, nextStepUri, challengeProof);
+
         if (submissionOutcome?.proofHash) {
-          output.last_proof_hash = submissionOutcome.proofHash;
+          output.proof_hash = submissionOutcome.proofHash;
         }
         return respond(output);
       } catch (error) {

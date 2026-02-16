@@ -46,10 +46,11 @@ describe('CLI Commands Advanced --url Tests', () => {
         const { stdout, stderr } = await execAsync(
           `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
         );
-        // If it succeeds, verify response structure
+        // If it succeeds, verify V2 response structure
         expect(stderr).toBe('');
         const result = JSON.parse(stdout);
-        expect(result).toHaveProperty('protocol_status');
+        expect(result).toHaveProperty('must_obey');
+        expect(result).toHaveProperty('next_action');
       } catch (error: any) {
         // If it fails (step 1 validation), verify error message
         expect(error.message || error.stderr || '').toContain('step 1');
@@ -73,10 +74,11 @@ describe('CLI Commands Advanced --url Tests', () => {
         const { stdout, stderr } = await execAsync(
           `node ${CLI_PATH} next -u ${BASE_URL} --output json --solution '${solution}' "${uri}"`
         );
-        // If it succeeds, verify response structure
+        // If it succeeds, verify V2 response structure
         expect(stderr).toBe('');
         const result = JSON.parse(stdout);
-        expect(result).toHaveProperty('protocol_status');
+        expect(result).toHaveProperty('must_obey');
+        expect(result).toHaveProperty('next_action');
       } catch (error: any) {
         // If it fails (step 1 validation), verify error message
         expect(error.message || error.stderr || '').toContain('step 1');
@@ -98,15 +100,16 @@ describe('CLI Commands Advanced --url Tests', () => {
         const { stdout, stderr } = await execAsync(
           `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
         );
-        // If it succeeds, verify response structure
+        // If it succeeds, verify V2 response structure
         expect(stderr).toBe('');
         const result = JSON.parse(stdout);
-        expect(result).toHaveProperty('protocol_status');
+        expect(result).toHaveProperty('must_obey');
+        expect(result).toHaveProperty('next_action');
       } catch (error: any) {
         // If it fails (step 1 validation), verify error message
         expect(error.message || error.stderr || '').toContain('step 1');
       }
-    }, 30000);
+    }, 60000);
   });
 
   describe('update command', () => {

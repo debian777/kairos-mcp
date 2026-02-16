@@ -1,7 +1,7 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { resolveChainNextStep, type ResolvedChainStep } from '../services/chain-utils.js';
+import { resolveChainNextStep, resolveChainFirstStep } from '../services/chain-utils.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
@@ -49,51 +49,31 @@ function buildCurrentStep(memory: Memory | null, requestedUri: string) {
   };
 }
 
-function buildNextStep(
-  memory: Memory | null,
-  nextInfo?: ResolvedChainStep
-): { uri: string; position: string; label: string } | null {
-  if (!memory || !nextInfo || !nextInfo.uuid) {
-    return null;
-  }
-
-  const total = Math.max(nextInfo.count ?? memory.chain?.step_count ?? 1, 1);
-  const stepIndex = Math.max(nextInfo.step ?? (memory.chain ? memory.chain.step_index + 1 : 1), 1);
-
-  return {
-    uri: `kairos://mem/${nextInfo.uuid}`,
-    position: `${stepIndex}/${total}`,
-    label: nextInfo.label || 'Next step'
-  };
-}
-
 function buildKairosBeginPayload(
   memory: Memory | null,
   requestedUri: string,
-  nextInfo?: ResolvedChainStep,
-  challenge?: any
+  nextStepUri: string | null,
+  challenge: any,
+  redirectMessage?: string
 ) {
   const current_step = buildCurrentStep(memory, requestedUri);
-  const next_step = buildNextStep(memory, nextInfo);
-  const protocol_status = next_step ? 'continue' : 'completed';
 
   const payload: any = {
     must_obey: true as const,
     current_step,
-    protocol_status,
     challenge: challenge ?? {}
   };
 
-  if (next_step) {
-    payload.next_step = next_step;
+  if (redirectMessage) {
+    payload.message = redirectMessage;
   }
 
-  if (protocol_status === 'completed') {
-    payload.attest_required = true;
-    payload.message = 'Protocol completed. Call kairos_attest to finalize with final_solution.';
-    payload.next_action = 'call kairos_attest with final_solution';
+  if (nextStepUri) {
+    payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    payload.next_action = 'call kairos_next with uri and solution matching challenge';
+    const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
+    payload.message = 'Protocol completed. Call kairos_attest to finalize.';
+    payload.next_action = `call kairos_attest with ${attestUri}, outcome, and message`;
   }
 
   return payload;
@@ -111,7 +91,7 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
     toolName,
     {
       title: 'Start protocol execution',
-      description: getToolDoc('kairos_begin') || 'Loads step 1 and returns the first challenge.',
+      description: getToolDoc('kairos_begin') || 'Loads step 1 and returns the first challenge. Auto-redirects to step 1 if non-step-1 URI is provided.',
       inputSchema,
       outputSchema
     },
@@ -149,28 +129,31 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
         const { uri } = params as { uri: string };
         const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
 
-        const memory = await loadMemoryWithCache(memoryStore, uuid);
+        let memory = await loadMemoryWithCache(memoryStore, uuid);
+        let redirectMessage: string | undefined;
         
-        // Validate that this is step 1
-        if (memory?.chain) {
-          if (memory.chain.step_index !== 1) {
-            return respond({
-              must_obey: false,
-              message: `This is step ${memory.chain.step_index}, not step 1. Use kairos_next for steps 2+.`,
-              protocol_status: 'blocked'
-            });
+        // Auto-redirect: if not step 1, resolve and present step 1
+        if (memory?.chain && memory.chain.step_index !== 1) {
+          const firstStep = await resolveChainFirstStep(memory, options.qdrantService);
+          if (firstStep?.uuid) {
+            const step1Memory = await loadMemoryWithCache(memoryStore, firstStep.uuid);
+            if (step1Memory) {
+              memory = step1Memory;
+              redirectMessage = 'Redirected to step 1 of this protocol chain.';
+            }
           }
-        } else if (memory) {
-          // If no chain info but memory exists, assume it's step 1 (standalone memory)
-          // This allows backward compatibility
         }
 
+        // Resolve next step URI
         const nextStepInfo = memory
           ? await resolveChainNextStep(memory, options.qdrantService)
           : undefined;
+        const nextStepUri = nextStepInfo?.uuid
+          ? `kairos://mem/${nextStepInfo.uuid}`
+          : null;
 
         const challenge = await buildChallenge(memory, memory?.proof_of_work);
-        const output = buildKairosBeginPayload(memory, requestedUri, nextStepInfo, challenge);
+        const output = buildKairosBeginPayload(memory, requestedUri, nextStepUri, challenge, redirectMessage);
         return respond(output);
       } catch (error) {
         mcpToolCalls.inc({ 

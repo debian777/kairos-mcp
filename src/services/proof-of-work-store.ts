@@ -40,11 +40,16 @@ export interface ProofOfWorkResultRecord {
 const NONCE_TTL_SEC = 3600;
 /** TTL for proof hash (7 days, same as result). */
 const HASH_TTL_SEC = 604800;
+/** TTL for retry counter (1 hour). Resets naturally after inactivity. */
+const RETRY_TTL_SEC = 3600;
+/** Max retries before escalating to must_obey: false. */
+export const MAX_RETRIES = 3;
 
 export class ProofOfWorkStore {
   private readonly prefix = 'pow:result:';
   private readonly noncePrefix = 'pow:nonce:';
   private readonly hashPrefix = 'pow:hash:';
+  private readonly retryPrefix = 'pow:retry:';
 
   private buildKey(uuid: string): string {
     return `${this.prefix}${uuid}`;
@@ -113,6 +118,42 @@ export class ProofOfWorkStore {
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to get proof hash for ${memoryUuid}`, error);
       return null;
+    }
+  }
+
+  private retryKey(uuid: string): string {
+    return `${this.retryPrefix}${uuid}`;
+  }
+
+  async incrementRetry(memoryUuid: string): Promise<number> {
+    if (!memoryUuid) return 0;
+    try {
+      const count = await redisService.incr(this.retryKey(memoryUuid));
+      await redisService.set(this.retryKey(memoryUuid), String(count), RETRY_TTL_SEC);
+      return count;
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to increment retry for ${memoryUuid}`, error);
+      return 0;
+    }
+  }
+
+  async getRetryCount(memoryUuid: string): Promise<number> {
+    if (!memoryUuid) return 0;
+    try {
+      const val = await redisService.get(this.retryKey(memoryUuid));
+      return val ? parseInt(val, 10) : 0;
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to get retry count for ${memoryUuid}`, error);
+      return 0;
+    }
+  }
+
+  async resetRetry(memoryUuid: string): Promise<void> {
+    if (!memoryUuid) return;
+    try {
+      await redisService.set(this.retryKey(memoryUuid), '0', RETRY_TTL_SEC);
+    } catch (error) {
+      logger.error(`[ProofOfWorkStore] Failed to reset retry for ${memoryUuid}`, error);
     }
   }
 }

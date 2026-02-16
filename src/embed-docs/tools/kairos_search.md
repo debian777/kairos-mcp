@@ -2,11 +2,12 @@ Search for protocol chains matching a query. Entry point for KAIROS workflow.
 
 **When to call:** When the user's intent maps to a protocol (coding, docs, Jira, GitLab MR, etc.). Use a search term derived from intent.
 
-**Response branches:**
+**Response:** Always `must_obey: true`. Contains `choices` array (each with `uri`, `label`, `chain_label`, `score`, `role`, `tags`), `perfect_matches` count, `message`, and `next_action` with the exact URI for the next call.
 
-- `must_obey: true` + `start_here: uri` — Single match: call `kairos_begin(uri)` immediately.
-- `must_obey: false` + `choices: [{uri, label}...]` — Multiple matches: choose one, call `kairos_begin(choice.uri)` to commit. Execution then becomes mandatory.
-- `must_obey: false` + `best_match: {uri, score}` — Partial match: optionally call `kairos_begin(uri)` if user confirms.
-- `protocol_status: 'no_protocol'` — No results: suggest minting or rephrasing.
+**AI decision tree:** `must_obey: true` -> follow `next_action`. Read the `choices` array if you need to pick between options.
 
-**must_obey semantics:** With multiple or partial matches, `must_obey: false` lets you choose. Once you call `kairos_begin` with a chosen URI, subsequent responses have `must_obey: true` and you must complete the protocol (next → attest) without skipping.
+**Choices roles:**
+- `role: "match"` — search results with a `score` (0.0-1.0). Higher = better match.
+- `role: "create"` — system action to create a new protocol (`score: null`). Always available as fallback.
+
+**After search:** Call `kairos_begin` with the chosen `choice.uri` as instructed by `next_action`.

@@ -25,7 +25,7 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
     return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
-  test('returns must_obey: false with best_match, message, and hint', async () => {
+  test('returns V2 unified schema with non-perfect match candidates in choices', async () => {
     const ts = Date.now();
     const uniqueTitle = `PartialMatchCase3 ${ts}`;
     const content = `# ${uniqueTitle}\n\nThis protocol tests CASE 3 behavior: no perfect match but good candidate.`;
@@ -42,7 +42,7 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
     const storeResponse = expectValidJsonResult(storeResult);
     expect(storeResponse.status).toBe('stored');
 
-    // Search with partial/non-exact query (should not be perfect match but score >= 0.7)
+    // Search with partial/non-exact query (should not be perfect match but may score above threshold)
     const call = {
       name: 'kairos_search',
       arguments: {
@@ -54,37 +54,57 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
 
-      // CASE 3: Offer with confidence — never force
-      // May get partial_match (score >= 0.7, < 1.0), no_protocol (score < 0.7), or initiated (perfect match)
-      expect(parsed.protocol_status).toBeDefined();
-      
-      if (parsed.protocol_status === 'partial_match') {
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.best_match).toBeDefined();
-        expect(parsed.best_match.uri).toBeDefined();
-        expect(typeof parsed.best_match.uri).toBe('string');
-        expect(parsed.best_match.uri.startsWith('kairos://mem/')).toBe(true);
-        expect(parsed.best_match.label).toBeDefined();
-        expect(typeof parsed.best_match.label).toBe('string');
-        expect(parsed.best_match.score).toBeDefined();
-        expect(typeof parsed.best_match.score).toBe('number');
-        expect(parsed.best_match.score).toBeGreaterThanOrEqual(0.7);
-        expect(parsed.best_match.score).toBeLessThan(1.0);
-        expect(parsed.best_match.total_steps).toBeDefined();
-        expect(typeof parsed.best_match.total_steps).toBe('number');
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-        expect(parsed.hint).toBeDefined();
-        expect(typeof parsed.hint).toBe('string');
-      } else if (parsed.protocol_status === 'no_protocol') {
-        // Query didn't match well enough (score < 0.7), which is also valid
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.message).toBeDefined();
-        expect(parsed.suggestion).toBeDefined();
-      } else {
-        // Perfect match case
-        expect(parsed.protocol_status).toBe('initiated');
+      // V2 unified schema — must_obey is ALWAYS true
+      expect(parsed.must_obey).toBe(true);
+
+      // perfect_matches: number (0 for partial/no match)
+      expect(typeof parsed.perfect_matches).toBe('number');
+
+      // message: always present
+      expect(parsed.message).toBeDefined();
+      expect(typeof parsed.message).toBe('string');
+
+      // next_action: always present
+      expect(parsed.next_action).toBeDefined();
+      expect(typeof parsed.next_action).toBe('string');
+
+      // choices: always an array with at least one entry (the create protocol)
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
+
+      // If there are match choices, validate their structure
+      const matchChoices = parsed.choices.filter((c) => c.role === 'match');
+      for (const choice of matchChoices) {
+        expect(choice.uri).toBeDefined();
+        expect(typeof choice.uri).toBe('string');
+        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.label).toBeDefined();
+        expect(typeof choice.label).toBe('string');
+        expect(choice.role).toBe('match');
+        // score may be a number or null
+        if (choice.score !== null && choice.score !== undefined) {
+          expect(typeof choice.score).toBe('number');
+        }
+        if (choice.tags !== undefined) {
+          expect(Array.isArray(choice.tags)).toBe(true);
+        }
       }
+
+      // There should be at least one create choice
+      const createChoices = parsed.choices.filter((c) => c.role === 'create');
+      expect(createChoices.length).toBeGreaterThanOrEqual(1);
+      for (const cc of createChoices) {
+        expect(cc.uri).toBeDefined();
+        expect(cc.role).toBe('create');
+      }
+
+      // Old fields must be absent
+      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.best_match).toBeUndefined();
+      expect(parsed.suggestion).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.start_here).toBeUndefined();
+      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'CASE 3 test');
   }, 20000);
 });

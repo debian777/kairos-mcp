@@ -175,11 +175,11 @@ await kairos_mint({
 ```
 
 **Execution Flow:**
-1. `kairos_search("simple setup")` → Returns `must_obey: true` with `start_here` URI
-2. `kairos_begin(start_here_uri)` → Returns step 1 with `challenge: {type: 'shell', ...}`
-3. `kairos_next(step1_uri, solution: {type: 'shell', shell: {...}})` → Returns step 2
-4. Continue through all steps with solutions
-5. `kairos_attest(final_uri, final_solution: {...})` → Complete
+1. `kairos_search("simple setup")` -> Returns `must_obey: true` with `next_action` containing URI
+2. `kairos_begin(uri)` -> Returns step 1 with `challenge` and `next_action` with next URI
+3. `kairos_next(step2_uri, solution: {type: 'shell', proof_hash: '...', shell: {...}})` -> Returns step 2
+4. Continue through all steps with solutions (echo `proof_hash` from each response)
+5. `kairos_attest(final_uri, outcome, message)` -> Complete (no final_solution needed)
 
 ### Example 2: Protocol with Comment Challenge
 
@@ -270,12 +270,13 @@ PROOF OF WORK: timeout 5s echo "protocol B"
 ### Step Progression
 - Step 1 (first H2): **No solution required** - call `kairos_begin` only
 - Steps 2+: **Solution required** - must submit matching `solution` to proceed
-- Protocol completion: Requires `kairos_attest` with `final_solution`
+- Include `nonce` and `proof_hash` in solution (echo from challenge/response)
+- Protocol completion: Call `kairos_attest` with `uri`, `outcome`, and `message` (no `final_solution`)
 
-### Error Handling
-- Invalid solution type → `must_obey: false` with error message
-- Missing solution → `must_obey: false` with blocking message
-- Failed challenge → Blocked from proceeding until retried with success
+### Error Handling (Two-Phase Retry)
+- Retries 1-3: `must_obey: true` with `error_code` and `next_action` for recovery
+- After 3 retries: `must_obey: false` - AI gets autonomy (fix step, abort, or ask user)
+- Error responses include `error_code` (e.g., `NONCE_MISMATCH`, `TYPE_MISMATCH`) and `retry_count`
 
 ---
 
@@ -304,9 +305,9 @@ kairos_next(uri, {solution: {...}})  // ✅ Correct
 |-----------|------|----------------|
 | Mint document | `kairos_mint` | `markdown_doc`, `llm_model_id` |
 | Find protocol | `kairos_search` | `query` |
-| Start protocol | `kairos_begin` | `uri` (from `start_here`) |
-| Continue step | `kairos_next` | `uri`, `solution` (if challenge exists) |
-| Complete protocol | `kairos_attest` | `uri`, `outcome`, `message`, `final_solution` |
+| Start protocol | `kairos_begin` | `uri` (from `next_action`) |
+| Continue step | `kairos_next` | `uri` (from `next_action`), `solution` with `nonce` + `proof_hash` |
+| Complete protocol | `kairos_attest` | `uri`, `outcome`, `message` |
 
 ---
 

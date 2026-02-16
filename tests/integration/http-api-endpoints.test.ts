@@ -128,7 +128,12 @@ describe('HTTP REST API Endpoints', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty('protocol_status');
+      // V2 unified response shape
+      expect(data).toHaveProperty('must_obey');
+      expect(typeof data.perfect_matches).toBe('number');
+      expect(typeof data.message).toBe('string');
+      expect(typeof data.next_action).toBe('string');
+      expect(Array.isArray(data.choices)).toBe(true);
       expect(data).toHaveProperty('metadata');
       expect(data.metadata).toHaveProperty('duration_ms');
     }, 30000);
@@ -173,14 +178,13 @@ describe('HTTP REST API Endpoints', () => {
       expect(data).toHaveProperty('error', 'INVALID_INPUT');
     });
 
-    test('handles valid uri', async () => {
+    test('handles valid uri with missing solution', async () => {
       if (!serverAvailable) {
         console.warn('Skipping test - server not available');
         return;
       }
 
-      // Use a test URI (may not exist, but should return valid response structure)
-      // Solution is now required for steps 2+, so test expects 400 when missing
+      // V2: missing solution returns 200 with error payload (execution-oriented)
       const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
       const response = await fetch(`${API_BASE}/kairos_next`, {
         method: 'POST',
@@ -190,12 +194,13 @@ describe('HTTP REST API Endpoints', () => {
         body: JSON.stringify({ uri: testUri })
       });
 
-      // Solution is required for steps 2+, so missing solution should return 400
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'INVALID_INPUT');
-      expect(data).toHaveProperty('message');
-      expect(data.message).toContain('solution is required');
+      expect(data).toHaveProperty('error_code', 'MISSING_FIELD');
+      expect(data).toHaveProperty('retry_count');
+      expect(typeof data.retry_count).toBe('number');
+      expect(data).toHaveProperty('next_action');
+      expect(data.message).toContain('Solution');
     }, 30000);
   });
 

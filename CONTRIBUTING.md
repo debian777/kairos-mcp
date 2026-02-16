@@ -46,6 +46,20 @@ npm run dev:deploy && npm run dev:test
 npm run qa:deploy && npm run qa:test
 ```
 
+## MCP and API design
+
+When contributing **MCP tools**, **agent-facing REST APIs**, or changes to tool
+schemas and descriptions, follow the project’s agent-facing design principles
+so the interface stays LLM-friendly and execution-oriented:
+
+- **[Charter: agent-facing design principles](CHARTER.md#agent-facing-design-principles)**
+  — Design for AI agents as primary users; keep frontend (names, descriptions,
+  errors) clear and consistent; use the backend for orchestration (validation,
+  retries, API calls); make errors teach and allow recovery rather than block
+  execution.
+
+Reviewers will expect new or changed tools/APIs to align with these principles (e.g. consistent naming, actionable `next_action`, two-phase error handling).
+
 ## Code Style
 
 - Follow the existing code style

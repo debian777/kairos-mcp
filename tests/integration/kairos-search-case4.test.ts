@@ -25,7 +25,7 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
     return parseMcpJson(result, 'kairos_search raw MCP result');
   }
 
-  test('returns must_obey: false with no_protocol status, message, and suggestion', async () => {
+  test('returns V2 unified schema with no matches — only create choice', async () => {
     // Use a completely random query that should not match anything
     const ts = Date.now();
     const gibberishQuery = `XyZ123AbC789GarbageQuery${ts}NoOneWouldEverSearchForThisRandomString`;
@@ -41,31 +41,43 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
 
-      // CASE 4: Offer to create — never hallucinate
-      // May get no_protocol or partial_match depending on whether anything scores >= 0.7
-      if (parsed.protocol_status === 'no_protocol') {
-        expect(parsed.must_obey).toBe(false);
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-        expect(parsed.message).toContain("couldn't find");
-        expect(parsed.message).toContain('relevant protocol');
-        expect(parsed.suggestion).toBeDefined();
-        expect(typeof parsed.suggestion).toBe('string');
-        expect(parsed.suggestion).toContain('create');
-        expect(parsed.start_here).toBeUndefined();
-        expect(parsed.chain_label).toBeUndefined();
-        expect(parsed.total_steps).toBeUndefined();
-        expect(parsed.multiple_perfect_matches).toBeUndefined();
-        // API may return choices: [] or omit; both are valid for no_protocol
-        expect(parsed.choices === undefined || Array.isArray(parsed.choices)).toBe(true);
-        if (Array.isArray(parsed.choices)) expect(parsed.choices).toHaveLength(0);
-        expect(parsed.best_match).toBeUndefined();
-        expect(parsed.hint).toBeUndefined();
-      } else {
-        // If something unexpectedly matches, at least verify structure
-        expect(parsed.protocol_status).toBeDefined();
-        expect(parsed.must_obey !== undefined).toBe(true);
+      // V2 unified schema — must_obey is ALWAYS true
+      expect(parsed.must_obey).toBe(true);
+
+      // perfect_matches: number (may be >0 in shared collections due to embedding similarity)
+      expect(typeof parsed.perfect_matches).toBe('number');
+
+      // message: always present
+      expect(parsed.message).toBeDefined();
+      expect(typeof parsed.message).toBe('string');
+
+      // next_action: always present
+      expect(parsed.next_action).toBeDefined();
+      expect(typeof parsed.next_action).toBe('string');
+
+      // choices: always an array with at least one entry (create protocol)
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
+
+      // Must have at least one create choice (key requirement: offer to create)
+      const createChoices = parsed.choices.filter((c) => c.role === 'create');
+      expect(createChoices.length).toBeGreaterThanOrEqual(1);
+      for (const cc of createChoices) {
+        expect(cc.uri).toBeDefined();
+        expect(typeof cc.uri).toBe('string');
+        expect(cc.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(cc.role).toBe('create');
       }
+
+      // Old fields must be absent
+      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.start_here).toBeUndefined();
+      expect(parsed.chain_label).toBeUndefined();
+      expect(parsed.total_steps).toBeUndefined();
+      expect(parsed.multiple_perfect_matches).toBeUndefined();
+      expect(parsed.best_match).toBeUndefined();
+      expect(parsed.suggestion).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
     }, 'CASE 4 test');
   }, 20000);
 });

@@ -202,7 +202,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📖 [Documentation](docs/)
+- 📜 [Charter](CHARTER.md) — why KAIROS MCP exists and what it
+  optimizes for
+- 📖 [Documentation](docs/README.md)
+- 📐 [Agent-facing design principles](CHARTER.md#agent-facing-design-principles)
+  — detailed doctrine for agent-facing design; for contributors designing or
+  reviewing tools and APIs
 - 🐛 [Issue Tracker](https://github.com/debian777/kairos-mcp/issues)
 - 💬 [Discussions](https://github.com/debian777/kairos-mcp/discussions)
-

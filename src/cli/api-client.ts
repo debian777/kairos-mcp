@@ -128,7 +128,6 @@ export class ApiClient {
         uri: string,
         outcome: 'success' | 'failure',
         message: string,
-        finalSolution: any,
         options?: { qualityBonus?: number; llmModelId?: string }
     ): Promise<ApiResponse> {
         return this.request('/api/kairos_attest', {
@@ -137,7 +136,6 @@ export class ApiClient {
                 uri,
                 outcome,
                 message,
-                final_solution: finalSolution,
                 quality_bonus: options?.qualityBonus || 0,
                 llm_model_id: options?.llmModelId,
             }),
