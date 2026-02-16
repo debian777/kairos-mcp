@@ -205,3 +205,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📖 [Documentation](docs/)
 - 🐛 [Issue Tracker](https://github.com/debian777/kairos-mcp/issues)
 - 💬 [Discussions](https://github.com/debian777/kairos-mcp/discussions)
+
