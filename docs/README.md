@@ -1,16 +1,11 @@
 # KAIROS MCP documentation
 
 This folder contains user-facing and contributor-facing documentation for
-KAIROS MCP. You will find the Charter, setup guides, CLI reference,
-and protocol workflow details.
+KAIROS MCP: setup guides, CLI reference, and protocol workflow details.
 
 ## Start here
 
-Start with the Charter to understand why KAIROS MCP exists and what it
-optimizes for. It defines the project’s mission, strategy, and non-goals.
-
-- **[Charter](../CHARTER.md)** — The project’s highest-level
-  purpose, strategy, principles, and decision rules.
+- **[README](../README.md)** — Mission, goals, non-goals, and quick start.
 
 ## Getting started
 
@@ -32,7 +27,7 @@ optimizes for. It defines the project’s mission, strategy, and non-goals.
 
 ## For contributors
 
-- **[Agent-facing design principles](../CHARTER.md#agent-facing-design-principles)**
+- **[Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)**
   — Detailed doctrine for MCP tools, schemas, descriptions, and error shapes.
 
 ## Archived material

@@ -89,7 +89,7 @@ tools to resolve library id and get library docs without me having to explicitly
 
 When designing or reviewing MCP tools, agent-facing APIs, or tool schemas/descriptions,
 apply the principles in
-[CHARTER.md](CHARTER.md#agent-facing-design-principles)
+[CONTRIBUTING.md](CONTRIBUTING.md#agent-facing-design-principles)
 (LLM-friendly frontend, backend orchestration, errors that teach and allow
 recovery).
 

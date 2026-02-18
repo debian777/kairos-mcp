@@ -3,9 +3,27 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
 
-> **→ [CHARTER](CHARTER.md)** — Design principles, agent-facing API guidelines, and project scope.
+AI agents need durable memory and repeatable execution. KAIROS MCP gives them persistent knowledge and a deterministic protocol loop that integrates into real tools.
 
-AI Knowledge Memory System for AI Agent Consciousness Infrastructure
+## Mission
+
+Make agent work durable and executable by providing:
+
+- **Persistent memory** across sessions (store, retrieve, update, delete)
+- **Deterministic protocol execution** (search → begin → next → attest)
+- **Agent-facing interfaces** that teach correct usage and recover from errors
+
+## Goals
+
+KAIROS MCP wins by being the most reliable “memory + protocol” substrate that agent hosts can depend on. We focus on a small set of primitives that compose into many workflows, schemas and error messages that minimize agent confusion, and backends that orchestrate complexity so the agent-facing surface stays simple.
+
+**Success** means new clients can implement the tool flow without guesswork; execution is repeatable and traceable; and the system can evolve without breaking agents or requiring hidden tribal knowledge.
+
+## Non-goals
+
+KAIROS MCP does not try to be: a general-purpose agent framework or planner; a vector DB or database abstraction; a UI product for humans (agents are the primary users); or a place to store secrets, credentials, or regulated personal data.
+
+---
 
 KAIROS is an MCP (Model Context Protocol) server that provides persistent knowledge memory for AI agents, enabling them to store, retrieve, and reason over information across sessions.
 
@@ -204,11 +222,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📜 [Charter](CHARTER.md) — why KAIROS MCP exists and what it
-  optimizes for
 - 📖 [Documentation](docs/README.md)
-- 📐 [Agent-facing design principles](CHARTER.md#agent-facing-design-principles)
-  — detailed doctrine for agent-facing design; for contributors designing or
-  reviewing tools and APIs
+- 📐 [Agent-facing design principles](CONTRIBUTING.md#agent-facing-design-principles)
+  — for contributors designing or reviewing MCP tools and APIs
 - 🐛 [Issue Tracker](https://github.com/debian777/kairos-mcp/issues)
 - 💬 [Discussions](https://github.com/debian777/kairos-mcp/discussions)

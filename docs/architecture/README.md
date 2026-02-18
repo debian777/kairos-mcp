@@ -6,6 +6,8 @@ execution, or designing new agent-facing behavior.
 
 ## What you will find here
 
+- **Infrastructure:** Container topology, port map, startup sequence, volume
+  layout, and service wiring — all with Mermaid diagrams.
 - **Full execution:** A single walkthrough from search to run complete with
   example requests and responses.
 - **Tool workflows:** Per-tool response shapes, scenarios, and AI decision
@@ -15,6 +17,12 @@ execution, or designing new agent-facing behavior.
   last `kairos_next`).
 
 Protocol order is always: search → begin → next (loop) → run complete.
+
+## Infrastructure
+
+[Infrastructure architecture](infrastructure.md) covers the Docker Compose topology,
+port map, startup sequence, volume layout, Redis/Qdrant data models, and embedding
+provider selection — all with Mermaid diagrams.
 
 ## Full execution walkthrough
 
@@ -41,9 +49,8 @@ client.
 
 ## Next steps
 
-- For the project’s mission and strategy, see the
-  [Charter](../../CHARTER.md).
+- For the project’s mission and goals, see the [README](../../README.md).
 - For CLI usage, see [CLI](../CLI.md).
 - For Cursor setup, see [Install KAIROS MCP in Cursor](../INSTALL-MCP.md).
 - For agent-facing design doctrine, see
-  [Agent-facing design principles](../../CHARTER.md#agent-facing-design-principles).
+  [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles).

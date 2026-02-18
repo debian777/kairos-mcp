@@ -50,19 +50,80 @@ npm run dev:test -- tests/integration/kairos-dump.test.ts
 npm run qa:test -- tests/integration/kairos-dump.test.ts
 ```
 
-## MCP and API design
+## Principles
 
-When contributing **MCP tools**, **agent-facing REST APIs**, or changes to tool
-schemas and descriptions, follow the project’s agent-facing design principles
-so the interface stays LLM-friendly and execution-oriented:
+These principles are project-wide. Apply them to architecture, APIs, code, and documentation.
 
-- **[Charter: agent-facing design principles](CHARTER.md#agent-facing-design-principles)**
-  — Design for AI agents as primary users; keep frontend (names, descriptions,
-  errors) clear and consistent; use the backend for orchestration (validation,
-  retries, API calls); make errors teach and allow recovery rather than block
-  execution.
+- **Agents are the primary users.** Optimize the interface for agent execution, not for human aesthetics.
+- **Determinism over ambiguity.** Prefer one correct next action over many “possible” actions.
+- **Teach in the interface.** Tool descriptions, schemas, and errors must explain what to do next.
+- **Server generates; agent echoes.** Identifiers, nonces, and proof hashes are server-owned. The agent copies them back exactly.
+- **Backend orchestrates complexity.** Validation, retries, state, idempotency, and integrations live behind the interface.
+- **Make failure recoverable.** Errors must be actionable. Retry paths must be explicit.
+- **Keep the core small.** Add primitives only when they unlock many workflows or eliminate systemic failure modes.
 
-Reviewers will expect new or changed tools/APIs to align with these principles (e.g. consistent naming, actionable `next_action`, two-phase error handling).
+## Agent-facing design principles
+
+When contributing **MCP tools**, **agent-facing REST APIs**, or changes to tool schemas and descriptions, follow the doctrine below so the interface stays LLM-friendly and execution-oriented.
+
+### 1. MCP users are AI agents
+
+- Primary users are AI agents, not humans. Design for programmatic consumption.
+- Every field name, description, and instruction is written for LLM comprehension.
+- Avoid human-centric UX (e.g. vague “Try again” messages). Use structured, actionable instructions.
+
+### 2. LLM-friendly frontend (names, descriptions, errors)
+
+- **Clear, consistent names** across tools and parameters. Same concept = same name everywhere.
+- **Unambiguous instructions.** Spell out exactly what to do.
+- **Server generates; agent echoes.** Hashes, nonces, and identifiers are server-owned; the agent copies them back exactly.
+- **Describe field purpose in schema** so the agent knows when and how to use each field.
+- **Errors teach, don’t punish.** Error messages must guide the agent to correct and retry. Recovery is the default.
+
+### 3. Frontend vs backend roles
+
+- **Frontend (MCP tools, schemas, descriptions):** Optimize for agent comprehension and execution.
+- **Backend:** Orchestrate complexity: business logic, validation, retries, idempotency, and state.
+
+### 4. Outputs designed for execution
+
+- **Embed URIs in `next_action`.** Prefer `next_action` that includes exact URIs and instructions the agent can copy.
+- **Always provide an actionable next step** on success.
+- **`must_obey` semantics:** `must_obey: true` = agent must follow `next_action`; `must_obey: false` = agent may choose among options.
+- **Unify response shapes** across tools to reduce patterns the agent must learn.
+
+### 5. Error outputs that help execution
+
+- **Errors are recoverable by default.** Include fresh challenge data on error so the agent can retry without re-fetching.
+- **Include `next_action` in errors** that explains exactly how to retry using the data from that response.
+- **Use structured error codes** for monitoring and for the agent to branch on.
+- **Retry escalation:** Retries 1–N: `must_obey: true` with a deterministic correction path; after N: `must_obey: false` to allow repair, abort, or escalation.
+- Use a circuit breaker to avoid infinite loops and retry storms.
+
+### 6. Self-correcting workflows
+
+- Support repair paths (e.g. update the step or abort after max retries).
+- When search finds no match, offer a deterministic “create new protocol” path.
+- Keep attestation a simple stamp; make the last step a normal verification step.
+
+### 7. Checklist for new or changed APIs
+
+- [ ] Outputs use LLM-friendly, consistent field names.
+- [ ] `next_action` embeds exact URIs and instructions.
+- [ ] Errors include recovery instructions and fresh data to retry.
+- [ ] Two-phase error handling: retry first, then grant autonomy.
+- [ ] No redundant fields; single source of truth for each concept.
+- [ ] Server generates identifiers/hashes; agent echoes them.
+- [ ] Self-correction paths (e.g. `kairos_update`) are exposed and documented.
+- [ ] Creation fallback exists when no match is found.
+
+## Constraints
+
+KAIROS MCP must remain safe to run in production with clear environment separation (dev/qa/live); preserve backward compatibility or provide explicit upgrade paths for agent-facing changes; and maintain predictable operational dependencies (Redis + Qdrant) and avoid hidden state.
+
+## Decision rules
+
+When goals conflict: (1) Pick correctness and determinism over convenience. (2) Pick an interface that reduces agent errors over one that reduces developer typing. (3) Pick changes that simplify the agent-facing surface over moving complexity into agents.
 
 ## Code Style
 
