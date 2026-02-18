@@ -36,17 +36,35 @@ flowchart TB
             direction TB
 
             subgraph INFRA["profile: infra / prod"]
-                REDIS["🗄 redis:7-alpine\n─────────────\n:6379  TCP\nmaxmem 512 MB\nallkeys-lru\nAOF + RDB"]
-                RI["🔍 redisinsight\n─────────────\n:5540  HTTP\nWeb UI"]
-                QDRANT["🧠 qdrant/qdrant\n─────────────\n:6333  HTTP\n:6344  gRPC\nmaxmem 4 GB"]
+                REDIS["🗄 redis:7-alpine
+                ─────────────
+                :6379  TCP
+                maxmem 512 MB
+                allkeys-lru
+                AOF + RDB"]
+                RI["🔍 redisinsight
+                ─────────────
+                :5540  HTTP
+                Web UI"]
+                QDRANT["🧠 qdrant/qdrant
+                ─────────────
+                :6333  HTTP
+                :6344  gRPC
+                maxmem 4 GB"]
             end
 
             subgraph PROD["profile: prod"]
-                APP["🚀 kairos-mcp\n─────────────\nApp   :3000\nMetrics :9090"]
+                APP["🚀 kairos-mcp
+                ─────────────
+                App   :3000
+                Metrics :9090"]
             end
 
             subgraph QA["profile: qa"]
-                QAAPP["🧪 kairos-mcp\n─────────────\nApp   :3500\nMetrics :9090"]
+                QAAPP["🧪 kairos-mcp
+                ─────────────
+                App   :3500
+                Metrics :9090"]
             end
 
             RI       -->|"depends_on"| REDIS
@@ -168,15 +186,18 @@ down through the service layer to external infrastructure.
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'secondaryColor': '#313244', 'tertiaryColor': '#181825', 'clusterBkg': '#181825', 'clusterBorder': '#585b70', 'edgeLabelBackground': '#313244'}}}%%
 flowchart LR
     subgraph CLIENT["👤  Caller"]
-        AGT(["AI Agent\nor HTTP client"])
+        AGT(["AI Agent
+        or HTTP client"])
     end
 
     subgraph APP["⚙️  KAIROS MCP Process"]
         direction TB
 
         subgraph TRANSPORT["HTTP Transport  :3000"]
-            EXP["Express\nRouter"]
-            MCPH["MCP over HTTP\nhandler"]
+            EXP["Express
+            Router"]
+            MCPH["MCP over HTTP
+            handler"]
         end
 
         subgraph REGISTRY["MCP Server  (tool registry)"]
@@ -190,11 +211,16 @@ flowchart LR
         end
 
         subgraph SERVICES["Service Layer"]
-            MEM_SVC["MemoryQdrantStore\n(chain CRUD)"]
-            SRCH_SVC["SearchService\n(semantic ranking)"]
-            EMB_SVC["EmbeddingService\n(vector generation)"]
-            POW_SVC["ProofOfWorkStore\n(nonce / TTL)"]
-            STATS["StatsService\n(quality scoring)"]
+            MEM_SVC["MemoryQdrantStore
+            (chain CRUD)"]
+            SRCH_SVC["SearchService
+            (semantic ranking)"]
+            EMB_SVC["EmbeddingService
+            (vector generation)"]
+            POW_SVC["ProofOfWorkStore
+            (nonce / TTL)"]
+            STATS["StatsService
+            (quality scoring)"]
         end
 
         subgraph OBS["Observability  :9090"]
@@ -203,10 +229,15 @@ flowchart LR
     end
 
     subgraph INFRA["🏗  Infrastructure"]
-        QDRANT_DB[("🧠 Qdrant\n:6333 HTTP\n:6344 gRPC")]
-        REDIS_DB[("🗄 Redis\n:6379")]
-        OPENAI(["☁️  OpenAI API\ntext-embedding-*"])
-        TEI(["🏠 TEI endpoint\nself-hosted"])
+        QDRANT_DB[("🧠 Qdrant
+        :6333 HTTP
+        :6344 gRPC")]
+        REDIS_DB[("🗄 Redis
+        :6379")]
+        OPENAI(["☁️  OpenAI API
+        text-embedding-*"])
+        TEI(["🏠 TEI endpoint
+        self-hosted"])
     end
 
     AGT        -->|"HTTP POST /mcp"| EXP
@@ -331,20 +362,29 @@ mint and search time.
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'edgeLabelBackground': '#313244'}}}%%
 flowchart TD
-    ENV(["EMBEDDING_PROVIDER\nenv var"])
+    ENV(["EMBEDDING_PROVIDER
+    env var"])
 
     ENV -->|"= openai"| OAI
     ENV -->|"= tei"| TEI
-    ENV -->|"= auto"| AUTO{{"TEI_BASE_URL\nset?"}}
+    ENV -->|"= auto"| AUTO{{"TEI_BASE_URL
+    set?"}}
 
-    AUTO -->|"yes"| TEI["🏠 TEI\nself-hosted\nHugging Face model"]
-    AUTO -->|"no"| OAI["☁️  OpenAI\ntext-embedding-*\nAPI key required"]
+    AUTO -->|"yes"| TEI["🏠 TEI
+    self-hosted
+    Hugging Face model"]
+    AUTO -->|"no"| OAI["☁️  OpenAI
+    text-embedding-*
+    API key required"]
 
-    TEI  --> DIM{{"TEI_DIMENSION\n> 0?"}}
+    TEI  --> DIM{{"TEI_DIMENSION
+    > 0?"}}
     OAI  --> VEC
 
-    DIM  -->|"yes"| VEC[("🧠 Qdrant\nvector store")]
-    DIM  -->|"no — introspect"| INTRO["GET /info\nauto-detect dim"]
+    DIM  -->|"yes"| VEC[("🧠 Qdrant
+    vector store")]
+    DIM  -->|"no — introspect"| INTRO["GET /info
+    auto-detect dim"]
     INTRO --> VEC
 
     classDef decision fill:#3d3520,stroke:#f9e2af,color:#cdd6f4,stroke-width:2px
