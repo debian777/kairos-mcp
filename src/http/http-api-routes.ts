@@ -9,6 +9,7 @@ import { setupNextRoute } from './http-api-next.js';
 import { setupAttestRoute } from './http-api-attest.js';
 import { setupUpdateRoute } from './http-api-update.js';
 import { setupDeleteRoute } from './http-api-delete.js';
+import { setupDumpRoute } from './http-api-dump.js';
 
 /**
  * Set up all API routes
@@ -27,4 +28,5 @@ export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantSt
     setupAttestRoute(app, qdrantService);
     setupUpdateRoute(app, qdrantService);
     setupDeleteRoute(app, qdrantService);
+    setupDumpRoute(app, memoryStore, qdrantService);
 }

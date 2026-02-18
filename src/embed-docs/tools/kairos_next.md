@@ -21,4 +21,4 @@ Include in solution when the challenge has them: `nonce` (echo from challenge), 
 
 **Error responses** include `error_code` (e.g., `NONCE_MISMATCH`, `TYPE_MISMATCH`, `MAX_RETRIES_EXCEEDED`) and `retry_count`. A fresh `challenge` with new nonce is provided for self-correction.
 
-**When `next_action` mentions `kairos_attest`:** Last step done. Call `kairos_attest` with uri, outcome, and message.
+**When `next_action` says "Run complete.":** Protocol run is done; you may respond to the user.

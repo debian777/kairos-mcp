@@ -10,7 +10,7 @@ import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 
@@ -70,9 +70,8 @@ async function buildKairosNextPayload(
   if (nextStepUri) {
     payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
     payload.message = 'Protocol completed. No further steps.';
-    payload.next_action = `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`;
+    payload.next_action = 'Run complete.';
   }
 
   return payload;
@@ -229,7 +228,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           solutionToUse = elicitResult.solution;
         }
 
-        let submissionOutcome: { proofHash?: string; blockedPayload?: any } | undefined;
+        let submissionOutcome: HandleProofResult | undefined;
         if (memory) {
           const isStep1 = !memory.chain || memory.chain.step_index <= 1;
           let expectedPreviousHash: string;
@@ -266,7 +265,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             return respond(blockedPayload);
           }
 
-          if (options.qdrantService) {
+          if (options.qdrantService && !submissionOutcome.alreadyRecorded) {
             await updateStepQuality(options.qdrantService, memory, 'success', tenantId);
           }
         }

@@ -86,7 +86,7 @@ function processH1Section(
       continue;
     }
     
-    // Check for proof-of-work line
+    // Legacy: check for proof-of-work line (PROOF OF WORK: ...); JSON block is handled in extractProofOfWork.
     const proof = parseProofLine(line);
     if (proof) {
       currentStep.proof_of_work = proof;
@@ -205,16 +205,9 @@ function processH1Section(
     
     let proofMetadata: ProofOfWorkDefinition | undefined;
     if (proof) {
-      // Use shell object if available, otherwise fall back to backward-compatible fields
-      const cmd = proof.shell?.cmd || proof.cmd || '';
-      const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 60;
       proofMetadata = {
-        type: 'shell',
-        shell: {
-          cmd,
-          timeout_seconds: timeout
-        },
-        required: true
+        ...proof,
+        required: proof.required ?? true
       };
     }
     

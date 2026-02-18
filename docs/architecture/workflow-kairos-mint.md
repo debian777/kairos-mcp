@@ -3,8 +3,9 @@
 Stores a markdown document as a KAIROS memory or protocol chain. Each H1
 defines a chain; each H2 defines a step. Use this when the user wants to
 create, add, mint, store, or save a protocol or document. For executable
-protocols, add `PROOF OF WORK:` lines to steps so the chain can be run via
-search → begin → next → attest.
+protocols, add a challenge per step (e.g. a JSON code block with
+`{"challenge": ...}`) so the chain can be run via search → begin → next →
+run complete.
 
 ## Input schema
 
@@ -46,15 +47,107 @@ Fields:
 
 ---
 
+## Proof of work types and examples
+
+Add a single challenge per step as a JSON code block so the chain is
+executable. Mix types as needed. Legacy line format is still parsed for
+backward compatibility; docs show only the JSON block format below.
+
+**Challenge as JSON code block.** Use a fenced code block (e.g. ` ```json `)
+at the end of a step containing a single
+JSON object with a `challenge` key. The value has the same shape as
+`ProofOfWorkDefinition` and the runtime `challenge`; import parses this block
+first, then falls back to legacy line. Dump emits the challenge as
+`{"challenge": ...}`. Examples (one per type):
+
+**Shell:**
+
+```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": {
+      "cmd": "npm test",
+      "timeout_seconds": 60
+    },
+    "required": true
+  }
+}
+```
+
+**Comment:**
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+**User input:**
+
+```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Approve deployment?" },
+    "required": true
+  }
+}
+```
+
+**MCP:**
+
+```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_mint" },
+    "required": true
+  }
+}
+```
+
+Legacy lines above remain valid for backward compatibility; JSON block wins
+when both are present in a step.
+
+---
+
 ## Scenario 1: store new protocol chain
 
 The document is new. All steps are stored and URIs are returned.
 
 ### Input
 
+Example `markdown_doc` (actual request body is this content with newlines as
+`\n` in JSON):
+
+````
+# Deploy Checklist
+
+## Step 1: Build
+
+Run tests.
+
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"npm test","timeout_seconds":60},"required":true}}
+```
+
+## Step 2: Deploy
+
+Deploy to staging.
+
+```json
+{"challenge":{"type":"comment","comment":{"min_length":20},"required":true}}
+```
+````
+
 ```json
 {
-  "markdown_doc": "# Deploy Checklist\n\n## Step 1: Build\nRun tests.\n\nPROOF OF WORK: timeout 60s npm test\n\n## Step 2: Deploy\nDeploy to staging.\n\nPROOF OF WORK: comment min_length=20",
+  "markdown_doc": "<see example above>",
   "llm_model_id": "gpt-4o"
 }
 ```
@@ -167,15 +260,16 @@ and decide.
   "similarity_score": 0.92,
   "message": "A very similar memory already exists with title \"Deploy Checklist\" (similarity: 92%). Verify it before overwriting.",
   "must_obey": true,
-  "next_action": "call kairos_begin with kairos://mem/ccc33333-3333-3333-3333-333333333333 to read the existing protocol; compare with your mint payload, then either call kairos_mint with force_update: true to replace it or modify title/content to create a distinct memory",
+  "next_action": "call kairos_dump with uri kairos://mem/ccc33333-3333-3333-3333-333333333333 and protocol: true to get markdown_doc; compare with your mint payload, then either call kairos_mint with force_update: true to replace it or modify title/content to create a distinct memory",
   "content_preview": "<optional string, truncated label + text>"
 }
 ```
 
 ### AI behavior
 
-1. When `must_obey` is `true`, follow `next_action`: call `kairos_begin`
-   with the URI from `existing_memory.uri` to load the existing protocol.
+1. When `must_obey` is `true`, follow `next_action`: call `kairos_dump`
+   with `uri` from `existing_memory.uri` and `protocol: true` to get the
+   existing protocol as `markdown_doc`.
 2. Compare the existing content with the intended mint payload.
 3. Either call `kairos_mint` with `force_update: true` to replace, or
    change the document (title/content) to make it distinct and call

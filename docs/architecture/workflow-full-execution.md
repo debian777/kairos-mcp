@@ -1,8 +1,8 @@
-# Full execution workflow: search to attest
+# Full execution workflow: search to run complete
 
 End-to-end walkthrough of a complete KAIROS protocol execution. Shows the
 raw JSON call and response at every step. Demonstrates how `next_action`
-chains the entire flow.
+chains the entire flow. The run is complete when `next_action` says "Run complete." (no attest step).
 
 ---
 
@@ -17,19 +17,25 @@ A 3-step "Simple Setup Protocol" with shell challenges:
 
 Create the project directory structure.
 
-PROOF OF WORK: timeout 10s mkdir -p project/src
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"mkdir -p project/src","timeout_seconds":10},"required":true}}
+```
 
 ## Step 2: Configure
 
 Set up configuration files.
 
-PROOF OF WORK: timeout 5s echo "config" > project/config.json
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"echo \"config\" > project/config.json","timeout_seconds":5},"required":true}}
+```
 
 ## Step 3: Verify
 
 Check that everything works.
 
-PROOF OF WORK: timeout 5s test -f project/config.json
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"test -f project/config.json","timeout_seconds":5},"required":true}}
+```
 ```
 
 ---
@@ -87,7 +93,7 @@ kairos_begin({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step1-uuid-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\nPROOF OF WORK: timeout 10s mkdir -p project/src",
+    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p project/src\",\"timeout_seconds\":10},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -139,7 +145,7 @@ kairos_next({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step2-uuid-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\nPROOF OF WORK: timeout 5s echo \"config\" > project/config.json",
+    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo \\\"config\\\" > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -194,7 +200,7 @@ kairos_next({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step3-uuid-3333-3333-333333333333",
-    "content": "Check that everything works.\n\nPROOF OF WORK: timeout 5s test -f project/config.json",
+    "content": "Check that everything works.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"test -f project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -206,47 +212,13 @@ kairos_next({
       "min_length": 20
     }
   },
-  "message": "Protocol completed. Call kairos_attest to finalize.",
-  "next_action": "call kairos_attest with kairos://mem/step3-uuid-3333-3333-333333333333, outcome, and message",
+  "message": "Protocol completed. No further steps.",
+  "next_action": "Run complete.",
   "proof_hash": "proof-hash-step2-bbbb"
 }
 ```
 
-**AI reads `next_action`** -- says to call `kairos_attest`.
-
----
-
-## Step 4: attest
-
-### Call
-
-```json
-kairos_attest({
-  "uri": "kairos://mem/step3-uuid-3333-3333-333333333333",
-  "outcome": "success",
-  "message": "All 3 steps completed. Project structure created, config file written, and verified."
-})
-```
-
-### Response
-
-```json
-{
-  "results": [
-    {
-      "uri": "kairos://mem/step3-uuid-3333-3333-333333333333",
-      "outcome": "success",
-      "quality_bonus": 5,
-      "message": "All 3 steps completed. Project structure created, config file written, and verified.",
-      "rated_at": "2026-02-16T10:30:00.000Z"
-    }
-  ],
-  "total_rated": 1,
-  "total_failed": 0
-}
-```
-
-**Protocol is done.** The AI may now respond to the user.
+**AI reads `next_action`** — "Run complete." **Protocol is done.** The AI may now respond to the user. Quality was already updated in `kairos_next`; no attest step.
 
 ---
 
@@ -264,13 +236,10 @@ next("kairos://mem/step2...", solution: {shell, proof_hash: "genesis..."})
   -> proof_hash: "hash-step1" (use as solution.proof_hash next)
     |
 next("kairos://mem/step3...", solution: {shell, proof_hash: "hash-step1"})
-  -> must_obey: true, next_action: "call kairos_attest with kairos://mem/step3..."
+  -> must_obey: true, next_action: "Run complete.", message: "Protocol completed. No further steps."
   -> proof_hash: "hash-step2"
     |
-attest("kairos://mem/step3...", outcome: "success")
-  -> total_rated: 1, total_failed: 0
-    |
-AI responds to user.
+AI responds to user. (No attest — quality was updated in kairos_next.)
 ```
 
 The AI navigates the entire flow by reading `next_action` at each step.

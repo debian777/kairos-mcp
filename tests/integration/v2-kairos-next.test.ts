@@ -68,11 +68,11 @@ describe('V2 kairos_next response schema', () => {
     // Use proof_hash (v2) or genesis_hash (v1 fallback for this test)
     const proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
 
-    // Submit solution for step 1
+    // Submit solution for step 1 (uri = step we're completing = firstUri)
     const call = {
       name: 'kairos_next',
       arguments: {
-        uri: secondUri,
+        uri: firstUri,
         solution: {
           type: 'shell',
           nonce,
@@ -88,7 +88,7 @@ describe('V2 kairos_next response schema', () => {
       // V2 required fields
       expect(parsed.must_obey).toBe(true);
       expect(parsed.current_step).toBeDefined();
-      expect(parsed.current_step.uri).toMatch(/^kairos:\/\/mem\//);
+      expect(parsed.current_step.uri).toBe(secondUri);
       expect(parsed.current_step.mimeType).toBe('text/markdown');
       expect(parsed.challenge).toBeDefined();
 
@@ -121,21 +121,20 @@ describe('V2 kairos_next response schema', () => {
     }
   });
 
-  test('completed (last step): next_action says kairos_attest, no final_challenge', async () => {
+  test('completed (last step): next_action says run complete, no final_challenge', async () => {
     const ts = Date.now();
     const items = await mintThreeStepProtocol(`V2Next Completed ${ts}`);
     const firstUri = items[0].uri;
 
-    // Walk through all steps
     const beginPayload = await beginProtocol(firstUri);
     let nonce = beginPayload.challenge?.nonce;
     let proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
 
-    // Step 1 -> 2
+    // Complete step 1 (uri = step we're completing)
     const step2Result = await mcpConnection.client.callTool({
       name: 'kairos_next',
       arguments: {
-        uri: items[1].uri,
+        uri: firstUri,
         solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step1' } }
       }
     });
@@ -143,12 +142,24 @@ describe('V2 kairos_next response schema', () => {
     nonce = step2.challenge?.nonce;
     proofHash = step2.proof_hash || step2.last_proof_hash || proofHash;
 
-    // Step 2 -> 3 (final)
+    // Complete step 2
+    const step3Result = await mcpConnection.client.callTool({
+      name: 'kairos_next',
+      arguments: {
+        uri: items[1].uri,
+        solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step2' } }
+      }
+    });
+    const step3 = parseMcpJson(step3Result, 'v2-next step3');
+    nonce = step3.challenge?.nonce;
+    proofHash = step3.proof_hash || step3.last_proof_hash || proofHash;
+
+    // Complete step 3 (last step)
     const call = {
       name: 'kairos_next',
       arguments: {
         uri: items[2].uri,
-        solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step2' } }
+        solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step3' } }
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -157,9 +168,7 @@ describe('V2 kairos_next response schema', () => {
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
 
-      // next_action says call kairos_attest with URI
-      expect(parsed.next_action).toContain('kairos_attest');
-      expect(parsed.next_action).toContain('kairos://mem/');
+      expect(parsed.next_action).toMatch(/run complete/i);
 
       // No final_challenge (removed in v2)
       expect(parsed.final_challenge).toBeUndefined();

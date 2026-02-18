@@ -7,6 +7,6 @@ Start protocol execution. Loads step 1 and returns its challenge. Step 1 never r
 **AI decision tree:** `must_obey: true` -> follow `next_action`.
 
 - If `next_action` mentions `kairos_next`: Execute the challenge, then call `kairos_next` with the URI from `next_action` and a solution matching the challenge.
-- If `next_action` mentions `kairos_attest`: Single-step protocol. Call `kairos_attest` with the URI, outcome, and message.
+- If `next_action` says "Run complete.": Single-step protocol; run is done. You may respond to the user.
 
 **Proof hash:** Echo `challenge.proof_hash` back as `solution.proof_hash` in the next `kairos_next` call. The server generates all hashes; the AI never computes them.

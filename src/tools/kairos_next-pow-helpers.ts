@@ -168,11 +168,13 @@ export type HandleProofOptions = {
   expectedPreviousHash: string;
 };
 
+export type HandleProofResult = { blockedPayload?: any; proofHash?: string; alreadyRecorded?: boolean };
+
 export async function handleProofSubmission(
   submission: ProofOfWorkSubmission,
   memory: Memory,
   options?: HandleProofOptions
-): Promise<{ blockedPayload?: any; proofHash?: string }> {
+): Promise<HandleProofResult> {
   if (!memory?.proof_of_work) {
     return {};
   }
@@ -295,6 +297,13 @@ export async function handleProofSubmission(
     }
     record.status = 'success';
     record.comment = { text: comment.text };
+  }
+
+  // Idempotency: if we already have a successful result for this step, return existing hash and skip re-saving (avoids double quality update)
+  const existing = await proofOfWorkStore.getResult(uuid);
+  if (existing?.status === 'success') {
+    const proofHash = await proofOfWorkStore.getProofHash(uuid);
+    return proofHash ? { proofHash, alreadyRecorded: true } : { proofHash: hashProofRecord(record) };
   }
 
   await proofOfWorkStore.saveResult(uuid, record);

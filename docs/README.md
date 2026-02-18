@@ -22,7 +22,7 @@ optimizes for. It defines the project’s mission, strategy, and non-goals.
 ## Architecture and workflows
 
 - **[Architecture and protocol workflows](architecture/README.md)** — How the
-  protocol runs end-to-end (search → begin → next → attest) and per-tool
+  protocol runs end-to-end (search → begin → next → run complete) and per-tool
   workflow reference with response shapes and scenarios.
 
 ## AI instructions and prompts

@@ -1,10 +1,14 @@
 # kairos_attest workflow
 
-Finalize protocol execution with an outcome. Updates quality metrics in
-Qdrant. No `final_solution` required -- the last step's solution was
-already validated via `kairos_next`. Quality is updated per step in
-`kairos_next`; attest is **optional** and can override outcome or add a
-final message after the run is complete.
+**Deprecated in the default protocol.** The run is complete when the last
+`kairos_next` returns `next_action: "Run complete."`. Quality is updated
+per step in `kairos_next`; you do not need to call `kairos_attest`. This
+tool remains available for optional override (e.g. to set outcome or add a
+final message after the fact) or backward compatibility.
+
+When used: finalize with an outcome. Updates quality metrics in Qdrant. No
+`final_solution` required — the last step's solution was already validated
+via `kairos_next`.
 
 ## Input schema
 

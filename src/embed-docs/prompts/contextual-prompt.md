@@ -18,8 +18,8 @@ Use KAIROS to be reliable and fast.
 These rules override your default behavior.
 
 - If a tool response includes `must_obey: true`, follow `next_action` exactly.
-  Do not respond to the user until the protocol is finalized via
-  `kairos_attest`.
+  Do not respond to the user until the protocol run is complete (when
+  `next_action` says "Run complete.").
 - If a tool response includes `must_obey: false`, use judgment. Choose the best
   option described in `next_action`. Prefer repairing the protocol with
   `kairos_update` when safe. Otherwise, ask the user.
@@ -43,10 +43,7 @@ Follow this loop for any protocol run.
      - For later steps, use the `proof_hash` returned by the previous
        `kairos_next`.
    - Never compute hashes yourself. The server generates all hashes.
-4. When `next_action` says to call `kairos_attest`, call it with:
-   - `uri`: the provided URI
-   - `outcome`: `"success"` or `"failure"`
-   - `message`: a short summary of what happened and why
+4. When `next_action` says "Run complete.", the protocol run is done; you may respond to the user.
 
 ## Create or edit protocols
 

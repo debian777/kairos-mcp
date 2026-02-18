@@ -72,9 +72,8 @@ function buildKairosBeginPayload(
   if (nextStepUri) {
     payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
-    payload.message = 'Protocol completed. Call kairos_attest to finalize.';
-    payload.next_action = `call kairos_attest with ${attestUri}, outcome, and message`;
+    payload.message = 'Run complete.';
+    payload.next_action = 'Run complete.';
   }
 
   return payload;

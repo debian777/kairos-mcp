@@ -38,7 +38,7 @@ Fields that no longer exist:
 - `next_step` -- removed; the URI for the next call is in `next_action`
 - `protocol_status` -- removed; `must_obey` + `next_action` is sufficient
 - `attest_required` -- removed; last step returns "Protocol completed. No
-  further steps." and attest is optional (override outcome or add message)
+  further steps." and `next_action: "Run complete."` — no attest step
 - `genesis_hash` -- renamed to `proof_hash`
 - `previousProofHash` -- renamed to `proof_hash` (in solution input)
 - `last_proof_hash` -- renamed to `proof_hash` (in response output)
@@ -85,7 +85,7 @@ The solution is accepted. The next step is returned. The AI reads
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\nPROOF OF WORK: timeout 5s echo config > project/config.json",
+    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo config > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -162,7 +162,7 @@ The solution is accepted and no more steps remain. The AI must call
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
-    "content": "Check that everything works.\n\nPROOF OF WORK: timeout 5s test -f project/config.json",
+    "content": "Check that everything works.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"test -f project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -223,7 +223,7 @@ can self-correct.
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\nPROOF OF WORK: timeout 5s echo config > project/config.json",
+    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo config > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -266,7 +266,7 @@ fixing the broken step for future executions, aborting, or asking the user.
   "must_obey": false,
   "current_step": {
     "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\nPROOF OF WORK: timeout 5s echo config > project/config.json",
+    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo config > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {

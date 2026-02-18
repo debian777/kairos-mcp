@@ -5,7 +5,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, GENESIS_HASH } from '../tools/kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, GENESIS_HASH, type HandleProofResult } from '../tools/kairos_next-pow-helpers.js';
 import { updateStepQuality } from '../tools/kairos_next.js';
 
 /**
@@ -64,7 +64,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 });
             }
 
-            let submissionOutcome: { blockedPayload?: any; proofHash?: string } | undefined;
+            let submissionOutcome: HandleProofResult | undefined;
             if (memory?.proof_of_work) {
                 const isStep1 = !memory.chain || memory.chain.step_index <= 1;
                 let expectedPreviousHash: string;
@@ -87,7 +87,6 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             }
 
             if (!memory) {
-                const attestUri = requestedUri;
                 const duration = Date.now() - startTime;
                 return res.status(200).json({
                     must_obey: true,
@@ -98,13 +97,12 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                     },
                     challenge: await buildChallenge(null, undefined),
                     message: 'Protocol completed. No further steps.',
-                    next_action: `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`,
+                    next_action: 'Run complete.',
                     metadata: { duration_ms: duration }
                 });
             }
 
-            // Update quality for the step we just completed (same as MCP path)
-            if (memory.proof_of_work && submissionOutcome?.proofHash) {
+            if (memory.proof_of_work && submissionOutcome?.proofHash && !submissionOutcome.alreadyRecorded) {
                 await updateStepQuality(qdrantService, memory, 'success', 'http');
             }
 
@@ -140,9 +138,8 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
             if (nextStepUri) {
                 output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
             } else {
-                const attestUri = displayMemory ? `kairos://mem/${displayMemory.memory_uuid}` : requestedUri;
                 output.message = 'Protocol completed. No further steps.';
-                output.next_action = `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`;
+                output.next_action = 'Run complete.';
             }
 
             if (submissionOutcome?.proofHash) {

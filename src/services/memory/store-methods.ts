@@ -257,14 +257,17 @@ export class MemoryQdrantStoreMethods {
         step_count: typeof payload.chain_step_count === 'number' ? payload.chain_step_count : 1
       };
     }
-    if (payload.proof_of_work && typeof payload.proof_of_work.cmd === 'string') {
-      base.proof_of_work = {
-        cmd: payload.proof_of_work.cmd,
-        timeout_seconds: typeof payload.proof_of_work.timeout_seconds === 'number'
-          ? payload.proof_of_work.timeout_seconds
-          : 60,
-        required: Boolean(payload.proof_of_work.required)
-      };
+    if (payload.proof_of_work && typeof payload.proof_of_work === 'object') {
+      const pow = payload.proof_of_work as Record<string, unknown>;
+      if (typeof pow['cmd'] === 'string') {
+        base.proof_of_work = {
+          cmd: pow['cmd'],
+          timeout_seconds: typeof pow['timeout_seconds'] === 'number' ? pow['timeout_seconds'] : 60,
+          required: Boolean(pow['required'])
+        };
+      } else {
+        base.proof_of_work = pow as unknown as import('../../types/memory.js').ProofOfWorkDefinition;
+      }
     }
     return base as Memory;
   }

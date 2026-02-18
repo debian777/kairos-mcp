@@ -58,7 +58,6 @@ describe('kairos_next response schema', () => {
     const firstUri = items[0].uri;
     const secondUri = items[1].uri;
 
-    // Step 1: Use kairos_begin (no POW required)
     const beginResult = await mcpConnection.client.callTool({
       name: 'kairos_begin',
       arguments: { uri: firstUri }
@@ -67,16 +66,18 @@ describe('kairos_next response schema', () => {
     expect(typeof beginPayload.next_action).toBe('string');
     expect(beginPayload.next_action).toContain('kairos://mem/');
     expect(beginPayload.challenge).toBeDefined();
+    const nonce = beginPayload.challenge?.nonce;
+    const proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
 
-    // Step 2: Use kairos_next with solution for step 1 (uri = step we're completing, i.e. firstUri)
+    // kairos_next with solution for step 1 (uri = step we're completing; protocol uses shell)
     const solution = {
-      type: 'comment',
-      comment: { text: 'Test solution for step 1 completion' }
+      type: 'shell',
+      nonce,
+      proof_hash: proofHash,
+      shell: { exit_code: 0, stdout: 'step1' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: firstUri, solution: solution } };
-    console.debug('call', call);
+    const call = { name: 'kairos_next', arguments: { uri: firstUri, solution } };
     const result = await mcpConnection.client.callTool(call);
-    console.debug('result', result);
     const payload = parseMcpJson(result, '[kairos_next] continue payload');
 
     withRawOnFail({ call, result }, () => {
@@ -111,16 +112,19 @@ describe('kairos_next response schema', () => {
     const firstUri = items[0].uri;
     const lastUri = items[items.length - 1].uri;
 
-    // Step 1: Use kairos_begin (no POW required)
-    await mcpConnection.client.callTool({
+    const beginResult = await mcpConnection.client.callTool({
       name: 'kairos_begin',
       arguments: { uri: firstUri }
     });
+    const beginPayload = parseMcpJson(beginResult, '[kairos_begin]');
+    const nonce = beginPayload.challenge?.nonce;
+    const proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
 
-    // Step 2: Use kairos_next with solution for step 1 (uri = step we're completing, i.e. firstUri)
     const submission = {
-      type: 'comment',
-      comment: { text: 'Test solution for step 1 completion' }
+      type: 'shell',
+      nonce,
+      proof_hash: proofHash,
+      shell: { exit_code: 0, stdout: 'step1' }
     };
     const call = { name: 'kairos_next', arguments: { uri: firstUri, solution: submission } };
     const result = await mcpConnection.client.callTool(call);
@@ -131,14 +135,11 @@ describe('kairos_next response schema', () => {
       expect(payload.current_step.uri).toBe(lastUri);
       expect(payload.current_step.content).toContain('Second body');
       expect(payload.challenge).toBeDefined();
-      // Challenge structure has type and shell fields
       if (payload.challenge.shell) {
         expect(payload.challenge.shell.cmd).toContain('step2');
       }
-      // V2: next_action says call kairos_attest for final step
       expect(typeof payload.next_action).toBe('string');
-      expect(payload.next_action).toContain('kairos_attest');
-      expect(payload.next_action).toContain('kairos://mem/');
+      expect(payload.next_action).toMatch(/run complete/i);
       // V1 fields must NOT exist
       expect(payload.final_challenge).toBeUndefined();
       expect(payload.protocol_status).toBeUndefined();

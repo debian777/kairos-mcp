@@ -1,5 +1,33 @@
 import type { ProofOfWorkDefinition } from '../../types/memory.js';
 
+/** Match a trailing fenced code block (```json or ```) at end of step body. Captures the block content. */
+const TRAILING_JSON_BLOCK_REGEX = /\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
+
+/**
+ * Try to parse a trailing ```json block containing {"challenge": ...}. Canonical format per workflow docs.
+ * Returns the challenge object and cleaned content (without the block) if valid.
+ */
+function extractTrailingChallengeBlock(content: string): { cleaned: string; challenge: ProofOfWorkDefinition } | null {
+  const match = content.match(TRAILING_JSON_BLOCK_REGEX);
+  if (!match || !match[1]) return null;
+  const blockContent = match[1].trim();
+  let parsed: { challenge?: unknown };
+  try {
+    parsed = JSON.parse(blockContent) as { challenge?: unknown };
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || !parsed.challenge || typeof parsed.challenge !== 'object') {
+    return null;
+  }
+  const challenge = parsed.challenge as Record<string, unknown>;
+  const required = typeof challenge['required'] === 'boolean' ? challenge['required'] : true;
+  const proof: ProofOfWorkDefinition = { ...challenge, required } as ProofOfWorkDefinition;
+  const cleaned = content.slice(0, match.index).trim();
+  return { cleaned, challenge: proof };
+}
+
+// Legacy PROOF OF WORK line format below; kept for backward compatibility.
 // Allow "Proof of work" lines even when preceded by bullets or emphasis. Supports both "PROOF OF WORK:" and "**PROOF OF WORK:**" formats
 export const PROOF_LINE_REGEX = /^(?:[*\-+>\u2022]\s*)?(?:\*\*)?\s*PROOF OF WORK:\s*(?:\*\*)?\s*(.+)$/im;
 
@@ -53,25 +81,31 @@ export function parseProofLine(line: string): { cmd: string; timeout_seconds: nu
   };
 }
 
-export function extractProofOfWork(content: string): { cleaned: string; proof?: Omit<ProofOfWorkDefinition, 'required'> } {
+export function extractProofOfWork(content: string): { cleaned: string; proof?: ProofOfWorkDefinition } {
+  // Prefer canonical JSON challenge block at end of step (workflow docs; round-trips with dump).
+  const fromBlock = extractTrailingChallengeBlock(content);
+  if (fromBlock) {
+    return { cleaned: fromBlock.cleaned, proof: fromBlock.challenge };
+  }
+
+  // Legacy PROOF OF WORK line format; kept for backward compatibility.
   const lines = content.split(/\r?\n/);
-  let proof: Omit<ProofOfWorkDefinition, 'required'> | undefined;
+  let proof: ProofOfWorkDefinition | undefined;
   const filtered: string[] = [];
 
   for (const line of lines) {
     if (!proof) {
       const parsed = parseProofLine(line);
       if (parsed) {
-        // Convert parsed result to ProofOfWorkDefinition format
         proof = {
           type: 'shell',
           shell: {
             cmd: parsed.cmd,
             timeout_seconds: parsed.timeout_seconds
           },
-          // Backward compatibility
           cmd: parsed.cmd,
-          timeout_seconds: parsed.timeout_seconds
+          timeout_seconds: parsed.timeout_seconds,
+          required: true
         };
         continue;
       }

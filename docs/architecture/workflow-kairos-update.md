@@ -59,10 +59,21 @@ The agent updates one step with new markdown content.
 
 ### Input
 
+Example document for the single step (actual payload: this content with newlines
+as `\n` in JSON):
+
+````
+Set up configuration files.
+
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"echo config > project/config.json","timeout_seconds":10},"required":true}}
+```
+````
+
 ```json
 {
   "uris": ["kairos://mem/bbb22222-2222-2222-2222-222222222222"],
-  "markdown_doc": ["Set up configuration files.\n\nPROOF OF WORK: timeout 10s echo config > project/config.json"]
+  "markdown_doc": ["<see example above>"]
 }
 ```
 
@@ -97,16 +108,34 @@ match `uris` length.
 
 ### Input
 
+Example documents (actual payload: each block as a string with newlines as
+`\n` in JSON). Step 1:
+
+````
+Create the project directory.
+
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"mkdir -p src","timeout_seconds":30},"required":true}}
+```
+````
+
+Step 2:
+
+````
+Write config.
+
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"echo '{}' > config.json","timeout_seconds":5},"required":true}}
+```
+````
+
 ```json
 {
   "uris": [
     "kairos://mem/aaa11111-1111-1111-1111-111111111111",
     "kairos://mem/bbb22222-2222-2222-2222-222222222222"
   ],
-  "markdown_doc": [
-    "Create the project directory.\n\nPROOF OF WORK: timeout 30s mkdir -p src",
-    "Write config.\n\nPROOF OF WORK: timeout 5s echo '{}' > config.json"
-  ]
+  "markdown_doc": ["<step 1 document above>", "<step 2 document above>"]
 }
 ```
 

@@ -46,15 +46,14 @@ Quality metadata is set in four situations:
    When a step is completed via `kairos_next` (solution validated), that
    step’s quality is updated with outcome `success` or `failure` (e.g. invalid
    proof → failure). Same logic as attest: `calculateStepQualityMetadata` +
-   `updateQualityMetadata` + `updateQualityMetrics`. This is the main path;
-   attest is optional for overriding outcome or adding a message.
+   `updateQualityMetadata` + `updateQualityMetrics`.    This is the main path; the run is complete when `next_action` says "Run
+   complete." (no attest required).
 
-5. **After attestation (optional override)**  
+5. **After attestation (deprecated — optional override only)**
    When `kairos_attest` (or the HTTP attest API) runs with a success/failure
-   outcome, it recalculates quality and calls `updateQualityMetadata`. Use
-   attest to override the step outcome or add a final message; the run is
-   already complete after the last `kairos_next` (message: “Protocol
-   completed. No further steps.”).
+   outcome, it recalculates quality and calls `updateQualityMetadata`. Attest
+   is no longer part of the default protocol; the run is already complete
+   after the last `kairos_next`. The attest tool remains for optional override or backward compatibility.
 
 Calculation is centralized in `src/services/stats/scoring.ts`:
 `calculateStepQualityMetadata(description, domain, task, type, tags,

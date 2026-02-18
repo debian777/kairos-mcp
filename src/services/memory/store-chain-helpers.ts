@@ -118,7 +118,7 @@ export async function checkSimilarMemoryByTitle(
       score: bestScore,
       total_steps: bestMatch.chain?.step_count || 1
     };
-    const next_action = `call kairos_begin with ${uri} to read the existing protocol; compare with your mint payload, then either call kairos_mint with force_update: true to replace it or modify title/content to create a distinct memory`;
+    const next_action = `call kairos_dump with uri ${uri} and protocol: true to get markdown_doc; compare with your mint payload, then either kairos_mint(..., force_update: true) to replace or change document to mint distinct`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
 
     logger.warn(

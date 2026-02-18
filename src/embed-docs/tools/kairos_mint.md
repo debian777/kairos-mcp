@@ -2,16 +2,62 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 
 **When to call:** When the user wants to create, add, mint, store, or save a protocol or document.
 
-**Workflow docs (H1 + H2):** When you create or detect a document that is a workflow (one H1 title, multiple H2 steps), add **challenges** to steps so the protocol is executable. Place a single line at the end of an H2 section, e.g. `PROOF OF WORK: ...`. Choose the type that fits the step; mix types as needed.
+**Challenge:** For each step that can be verified, add a fenced ` ```json ` block at the end with an object that has a `challenge` key. The value is the same shape as the `challenge` returned by kairos_begin/kairos_next; round-trips with kairos_dump. Legacy `PROOF OF WORK: ...` lines are still accepted for backward compatibility.
 
-**Challenge syntax (use as needed per step):**
+**Challenge examples (one per type; use a ` ```json ` code block at the end of each step):**
 
-- **Shell** — step requires running a command: `PROOF OF WORK: timeout 30s <command>` or `PROOF OF WORK: <command>`
-- **Comment** — step requires a short verification (e.g. review, summary): `PROOF OF WORK: comment min_length=20` (or 30, 50)
-- **User input** — step requires human confirmation: `PROOF OF WORK: user_input "Confirm ..."` (e.g. "Approve deployment?", "Type yes to continue")
-- **MCP** — step requires calling an MCP tool: `PROOF OF WORK: mcp <tool_name>`
+**shell** — run a command:
 
-You don’t need to add a challenge to every step; only where proof of completion makes sense. For creative or knowledge-work steps, prefer `comment` with a fitting min_length. For approvals, use `user_input`. For commands or tool calls, use `shell` or `mcp`. Optional: read resource `kairos://doc/building-kairos-workflows` for more examples and structure details.
+```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": {
+      "cmd": "npm test",
+      "timeout_seconds": 60
+    },
+    "required": true
+  }
+}
+```
+
+**comment** — verification text (min length):
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+**user_input** — human confirmation:
+
+```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Approve deployment?" },
+    "required": true
+  }
+}
+```
+
+**mcp** — call MCP tool:
+
+```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_mint" },
+    "required": true
+  }
+}
+```
+
+Use a challenge on every step that can be verified: commands → shell; reviews/summaries → comment; approvals → user_input; tool calls → mcp. Mix types in one protocol. See workflow-kairos-mint and the creation protocol (kairos://mem/00000000-0000-0000-0000-000000002001) for full examples.
 
 **Input:** `markdown_doc` (string), `llm_model_id` (required), `force_update` (optional, overwrite existing chain with same label).
 

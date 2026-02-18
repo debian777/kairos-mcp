@@ -34,8 +34,8 @@ Fields that no longer exist:
 
 - `next_step` -- removed; the URI for the next call is in `next_action`
 - `protocol_status` -- removed; `next_action` tells the AI what to do next
-- `attest_required` -- removed; `next_action` says "call kairos_attest"
-  when attestation is needed
+- `attest_required` -- removed; for single-step protocols `next_action` says
+  "Run complete." (no attest)
 - `genesis_hash` -- renamed to `proof_hash`
 - `final_challenge` -- removed; last step is a normal verification step
 
@@ -61,7 +61,7 @@ challenge and calls `kairos_next` with the URI from `next_action`.
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\nPROOF OF WORK: timeout 30s mkdir -p src",
+    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p src\",\"timeout_seconds\":30},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -182,7 +182,7 @@ resolves the chain, finds step 1, and returns it:
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\nPROOF OF WORK: timeout 30s mkdir -p src",
+    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p src\",\"timeout_seconds\":30},\"required\":true}}\n```",
     "mimeType": "text/markdown"
   },
   "challenge": {
