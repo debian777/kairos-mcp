@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
 
+> **→ [CHARTER](CHARTER.md)** — Design principles, agent-facing API guidelines, and project scope.
+
 AI Knowledge Memory System for AI Agent Consciousness Infrastructure
 
 KAIROS is an MCP (Model Context Protocol) server that provides persistent knowledge memory for AI agents, enabling them to store, retrieve, and reason over information across sessions.
