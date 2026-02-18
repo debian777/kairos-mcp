@@ -29,7 +29,6 @@ Containers live on a single bridge network (`kairos-network`). Volumes are all
 rooted under `${VOLUME_LOCAL_PATH}` on the host.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'secondaryColor': '#313244', 'tertiaryColor': '#181825', 'clusterBkg': '#181825', 'clusterBorder': '#585b70', 'titleColor': '#cba6f7', 'edgeLabelBackground': '#313244', 'nodeTextColor': '#cdd6f4'}}}%%
 flowchart TB
     subgraph HOST["🖥  Host Machine"]
         subgraph NET["🌐  kairos-network  (bridge)"]
@@ -37,43 +36,34 @@ flowchart TB
 
             subgraph INFRA["profile: infra / prod"]
                 REDIS["🗄 redis:7-alpine
-                ─────────────
                 :6379  TCP
-                maxmem 512 MB
-                allkeys-lru
+                maxmem 512 MB · allkeys-lru
                 AOF + RDB"]
                 RI["🔍 redisinsight
-                ─────────────
                 :5540  HTTP
                 Web UI"]
                 QDRANT["🧠 qdrant/qdrant
-                ─────────────
-                :6333  HTTP
-                :6344  gRPC
+                :6333  HTTP · :6344  gRPC
                 maxmem 4 GB"]
             end
 
             subgraph PROD["profile: prod"]
                 APP["🚀 kairos-mcp
-                ─────────────
-                App   :3000
-                Metrics :9090"]
+                App :3000 · Metrics :9090"]
             end
 
             subgraph QA["profile: qa"]
                 QAAPP["🧪 kairos-mcp
-                ─────────────
-                App   :3500
-                Metrics :9090"]
+                App :3500 · Metrics :9090"]
             end
 
-            RI       -->|"depends_on"| REDIS
-            APP      -->|"depends_on"| REDIS
-            APP      -->|"depends_on"| QDRANT
-            APP      -->|"REDIS_URL"| REDIS
-            APP      -->|"QDRANT_URL"| QDRANT
-            QAAPP    -->|"REDIS_URL"| REDIS
-            QAAPP    -->|"QDRANT_URL"| QDRANT
+            RI    -->|"depends_on"| REDIS
+            APP   -->|"depends_on"| REDIS
+            APP   -->|"depends_on"| QDRANT
+            APP   -->|"REDIS_URL"| REDIS
+            APP   -->|"QDRANT_URL"| QDRANT
+            QAAPP -->|"REDIS_URL"| REDIS
+            QAAPP -->|"QDRANT_URL"| QDRANT
         end
 
         subgraph VOLS["💾  Persistent Volumes"]
@@ -81,8 +71,8 @@ flowchart TB
             VR[("data/redis")]
             VQ[("data/qdrant")]
             VRI[("data/redisinsight")]
-            VSP[("snapshots/prod/qdrant")]
-            VSQ[("snapshots/qa/qdrant")]
+            VSP[("snapshots/prod")]
+            VSQ[("snapshots/qa")]
         end
 
         REDIS  -.->|mount| VR
@@ -92,10 +82,10 @@ flowchart TB
         QAAPP  -.->|mount| VSQ
     end
 
-    classDef infrasvc  fill:#1e3a5f,stroke:#89b4fa,color:#cdd6f4,stroke-width:2px
-    classDef appsvc    fill:#2d4739,stroke:#a6e3a1,color:#cdd6f4,stroke-width:2px
-    classDef qasvc     fill:#3d3520,stroke:#f9e2af,color:#cdd6f4,stroke-width:2px
-    classDef vol       fill:#2a1f3d,stroke:#cba6f7,color:#cdd6f4,stroke-width:1px,stroke-dasharray:4
+    classDef infrasvc fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:2px
+    classDef appsvc   fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+    classDef qasvc    fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef vol      fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
     class REDIS,RI,QDRANT infrasvc
     class APP appsvc
@@ -126,7 +116,6 @@ flowchart TB
 every step completes successfully.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'secondaryColor': '#313244', 'noteBorderColor': '#f38ba8', 'noteBkgColor': '#2a1f3d', 'noteTextColor': '#cdd6f4', 'activationBorderColor': '#a6e3a1', 'activationBkgColor': '#2d4739', 'sequenceNumberColor': '#cba6f7'}}}%%
 sequenceDiagram
     autonumber
     participant PROC  as 🟢 Process
@@ -183,7 +172,6 @@ How the application layers connect at runtime — from an incoming HTTP/MCP call
 down through the service layer to external infrastructure.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'secondaryColor': '#313244', 'tertiaryColor': '#181825', 'clusterBkg': '#181825', 'clusterBorder': '#585b70', 'edgeLabelBackground': '#313244'}}}%%
 flowchart LR
     subgraph CLIENT["👤  Caller"]
         AGT(["AI Agent
@@ -194,10 +182,8 @@ flowchart LR
         direction TB
 
         subgraph TRANSPORT["HTTP Transport  :3000"]
-            EXP["Express
-            Router"]
-            MCPH["MCP over HTTP
-            handler"]
+            EXP["Express Router"]
+            MCPH["MCP over HTTP handler"]
         end
 
         subgraph REGISTRY["MCP Server  (tool registry)"]
@@ -224,14 +210,13 @@ flowchart LR
         end
 
         subgraph OBS["Observability  :9090"]
-            PROM["Prometheus\nMetrics"]
+            PROM["Prometheus Metrics"]
         end
     end
 
     subgraph INFRA["🏗  Infrastructure"]
         QDRANT_DB[("🧠 Qdrant
-        :6333 HTTP
-        :6344 gRPC")]
+        :6333 HTTP · :6344 gRPC")]
         REDIS_DB[("🗄 Redis
         :6379")]
         OPENAI(["☁️  OpenAI API
@@ -240,35 +225,35 @@ flowchart LR
         self-hosted"])
     end
 
-    AGT        -->|"HTTP POST /mcp"| EXP
-    EXP        --> MCPH
-    MCPH       --> T_SEARCH & T_BEGIN & T_NEXT & T_MINT & T_UPD & T_DEL & T_DUMP
+    AGT   -->|"HTTP POST /mcp"| EXP
+    EXP   --> MCPH
+    MCPH  --> T_SEARCH & T_BEGIN & T_NEXT & T_MINT & T_UPD & T_DEL & T_DUMP
 
-    T_SEARCH   --> SRCH_SVC
-    T_BEGIN    --> MEM_SVC & POW_SVC
-    T_NEXT     --> MEM_SVC & POW_SVC & STATS
-    T_MINT     --> MEM_SVC
-    T_UPD      --> MEM_SVC
-    T_DEL      --> MEM_SVC
-    T_DUMP     --> MEM_SVC
+    T_SEARCH --> SRCH_SVC
+    T_BEGIN  --> MEM_SVC & POW_SVC
+    T_NEXT   --> MEM_SVC & POW_SVC & STATS
+    T_MINT   --> MEM_SVC
+    T_UPD    --> MEM_SVC
+    T_DEL    --> MEM_SVC
+    T_DUMP   --> MEM_SVC
 
-    MEM_SVC    --> EMB_SVC
-    MEM_SVC    --> QDRANT_DB
-    SRCH_SVC   --> EMB_SVC
-    SRCH_SVC   --> QDRANT_DB
-    POW_SVC    --> REDIS_DB
-    STATS      --> QDRANT_DB
+    MEM_SVC  --> EMB_SVC
+    MEM_SVC  --> QDRANT_DB
+    SRCH_SVC --> EMB_SVC
+    SRCH_SVC --> QDRANT_DB
+    POW_SVC  --> REDIS_DB
+    STATS    --> QDRANT_DB
 
-    EMB_SVC    -->|"provider = openai"| OPENAI
-    EMB_SVC    -->|"provider = tei"| TEI
+    EMB_SVC  -->|"provider = openai"| OPENAI
+    EMB_SVC  -->|"provider = tei"| TEI
 
-    PROM       -. "scrapes" .-> QDRANT_DB
-    PROM       -. "scrapes" .-> REDIS_DB
+    PROM     -. "scrapes" .-> QDRANT_DB
+    PROM     -. "scrapes" .-> REDIS_DB
 
-    classDef tool    fill:#1e3a5f,stroke:#89b4fa,color:#cdd6f4,stroke-width:1px
-    classDef svc     fill:#2d4739,stroke:#a6e3a1,color:#cdd6f4,stroke-width:1px
-    classDef infra   fill:#3d2020,stroke:#f38ba8,color:#cdd6f4,stroke-width:2px
-    classDef ext     fill:#2a1f3d,stroke:#cba6f7,color:#cdd6f4,stroke-width:1px,stroke-dasharray:4
+    classDef tool  fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:1px
+    classDef svc   fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1px
+    classDef infra fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
+    classDef ext   fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
     class T_SEARCH,T_BEGIN,T_NEXT,T_MINT,T_UPD,T_DEL,T_DUMP tool
     class MEM_SVC,SRCH_SVC,EMB_SVC,POW_SVC,STATS svc
@@ -323,7 +308,6 @@ One collection (default `kb_resources`) holds every protocol step as a
 vector + payload point. H1 headings become chain headers; H2 headings become steps.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#89b4fa', 'lineColor': '#89b4fa', 'attributeBackgroundColorEven': '#181825', 'attributeBackgroundColorOdd': '#1e1e2e'}}}%%
 erDiagram
     COLLECTION {
         string name   "kb_resources (default)"
@@ -348,7 +332,7 @@ erDiagram
         json    bonuses          "per-step bonus breakdown"
     }
 
-    COLLECTION     ||--o{ MEMORY_POINT  : "contains"
+    COLLECTION     ||--o{ MEMORY_POINT    : "contains"
     MEMORY_POINT   ||--o| QUALITY_METADATA : "tracks quality via"
 ```
 
@@ -360,36 +344,28 @@ erDiagram
 mint and search time.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e1e2e', 'primaryTextColor': '#cdd6f4', 'primaryBorderColor': '#585b70', 'lineColor': '#89b4fa', 'edgeLabelBackground': '#313244'}}}%%
 flowchart TD
-    ENV(["EMBEDDING_PROVIDER
-    env var"])
+    ENV(["EMBEDDING_PROVIDER env var"])
 
     ENV -->|"= openai"| OAI
     ENV -->|"= tei"| TEI
-    ENV -->|"= auto"| AUTO{{"TEI_BASE_URL
-    set?"}}
+    ENV -->|"= auto"| AUTO{{"TEI_BASE_URL set?"}}
 
     AUTO -->|"yes"| TEI["🏠 TEI
-    self-hosted
-    Hugging Face model"]
+    self-hosted · Hugging Face model"]
     AUTO -->|"no"| OAI["☁️  OpenAI
-    text-embedding-*
-    API key required"]
+    text-embedding-* · API key required"]
 
-    TEI  --> DIM{{"TEI_DIMENSION
-    > 0?"}}
-    OAI  --> VEC
+    TEI --> DIM{{"TEI_DIMENSION > 0?"}}
+    OAI --> VEC
 
-    DIM  -->|"yes"| VEC[("🧠 Qdrant
-    vector store")]
-    DIM  -->|"no — introspect"| INTRO["GET /info
-    auto-detect dim"]
+    DIM -->|"yes"| VEC[("🧠 Qdrant vector store")]
+    DIM -->|"no — introspect"| INTRO["GET /info — auto-detect dim"]
     INTRO --> VEC
 
-    classDef decision fill:#3d3520,stroke:#f9e2af,color:#cdd6f4,stroke-width:2px
-    classDef provider fill:#1e3a5f,stroke:#89b4fa,color:#cdd6f4,stroke-width:2px
-    classDef store    fill:#3d2020,stroke:#f38ba8,color:#cdd6f4,stroke-width:2px
+    classDef decision fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef provider fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:2px
+    classDef store    fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
 
     class AUTO,DIM decision
     class TEI,OAI provider
