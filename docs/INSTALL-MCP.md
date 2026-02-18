@@ -43,3 +43,13 @@ Follow these steps:
 
 > **Note:** The server must be running at the configured `url`. The `alwaysAllow`
 > list lets Cursor run these KAIROS tools without asking for confirmation.
+
+## Project override (dev container)
+
+This repo includes a project-level MCP config at `.cursor/mcp.json`. It uses the
+same server name **`KAIROS`** as the global config so that, when you open this
+project, the project config overrides your user-wide `~/.cursor/mcp.json` for
+this workspace. The project config points to `http://host.docker.internal:3000/mcp`
+so that Cursor (or the agent) running inside a dev container can reach KAIROS
+on the host. You do not need to change your global MCP settings; the project
+wins for this repo.

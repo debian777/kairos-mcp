@@ -77,58 +77,34 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
 
       // V2 unified schema — must_obey is ALWAYS true
       expect(parsed.must_obey).toBe(true);
+      expect(parsed.message).toBeDefined();
+      expect(typeof parsed.message).toBe('string');
+      expect(parsed.next_action).toBeDefined();
+      expect(typeof parsed.next_action).toBe('string');
+      expect(parsed.next_action).toContain('kairos_begin');
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      // perfect_matches: number of perfect-score matches
-      expect(typeof parsed.perfect_matches).toBe('number');
+      const matchChoices = parsed.choices.filter((c) => c.role === 'match');
+      expect(matchChoices.length).toBeGreaterThanOrEqual(2);
 
-      if (parsed.perfect_matches >= 2) {
-        // Multiple perfect matches found
-        expect(parsed.perfect_matches).toBeGreaterThanOrEqual(2);
-
-        // message: string with guidance
-        expect(parsed.message).toBeDefined();
-        expect(typeof parsed.message).toBe('string');
-
-        // next_action: string containing kairos_begin instruction
-        expect(parsed.next_action).toBeDefined();
-        expect(typeof parsed.next_action).toBe('string');
-        expect(parsed.next_action).toContain('kairos_begin');
-
-        // choices: array with match entries
-        expect(Array.isArray(parsed.choices)).toBe(true);
-        // At least perfect_matches entries + possibly a create entry
-        expect(parsed.choices.length).toBeGreaterThanOrEqual(parsed.perfect_matches);
-
-        // Validate each match choice
-        const matchChoices = parsed.choices.filter((c) => c.role === 'match');
-        expect(matchChoices.length).toBeGreaterThanOrEqual(2);
-
-        for (const choice of matchChoices) {
-          expect(choice.uri).toBeDefined();
-          expect(typeof choice.uri).toBe('string');
-          expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
-          expect(choice.label).toBeDefined();
-          expect(typeof choice.label).toBe('string');
-          expect(choice.role).toBe('match');
-          if (choice.tags !== undefined) {
-            expect(Array.isArray(choice.tags)).toBe(true);
-          }
+      for (const choice of matchChoices) {
+        expect(choice.uri).toBeDefined();
+        expect(typeof choice.uri).toBe('string');
+        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.label).toBeDefined();
+        expect(typeof choice.label).toBe('string');
+        expect(choice.role).toBe('match');
+        if (choice.tags !== undefined) {
+          expect(Array.isArray(choice.tags)).toBe(true);
         }
-
-        // Old fields must be absent
-        expect(parsed.start_here).toBeUndefined();
-        expect(parsed.protocol_status).toBeUndefined();
-        expect(parsed.multiple_perfect_matches).toBeUndefined();
-        expect(parsed.best_match).toBeUndefined();
-        expect(parsed.suggestion).toBeUndefined();
-        expect(parsed.hint).toBeUndefined();
-      } else {
-        // If only one perfect match, still V2 schema
-        expect(parsed.perfect_matches).toBeGreaterThanOrEqual(1);
-        expect(parsed.next_action).toBeDefined();
-        expect(Array.isArray(parsed.choices)).toBe(true);
-        expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
       }
+
+      expect(parsed.start_here).toBeUndefined();
+      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.best_match).toBeUndefined();
+      expect(parsed.suggestion).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
     }, 'CASE 2 test');
   }, 30000);
 });

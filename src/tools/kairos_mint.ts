@@ -3,7 +3,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize, kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
 
 interface RegisterKairosMintOptions {
@@ -89,12 +89,18 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
             });
             return result;
           }
-          // Handle similar memory found by title
+          // Handle similar memory found by title (spec: must_obey, next_action, content_preview)
           if (err && err.code === 'SIMILAR_MEMORY_FOUND') {
+            kairosMintSimilarMemoryFound.inc({ transport: 'mcp', tenant_id: tenantId });
+            const d = err.details || {};
             const body = {
               error: 'SIMILAR_MEMORY_FOUND',
-              ...(err.details || {}),
-              suggestion: 'A very similar memory already exists. You can either: 1) Use force_update: true to override the existing memory, or 2) Modify the title to create a new distinct memory.'
+              existing_memory: d.existing_memory,
+              similarity_score: d.similarity_score,
+              message: d.message ?? 'A very similar memory already exists. Verify it before overwriting.',
+              must_obey: d.must_obey ?? true,
+              next_action: d.next_action,
+              ...(d.content_preview !== undefined && { content_preview: d.content_preview })
             };
             result = {
               isError: true,

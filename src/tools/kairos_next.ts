@@ -11,6 +11,8 @@ import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
+import { modelStats } from '../services/stats/model-stats.js';
+import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 
 interface RegisterNextOptions {
   toolName?: string;
@@ -69,8 +71,8 @@ async function buildKairosNextPayload(
     payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
     const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
-    payload.message = 'Protocol completed. Call kairos_attest to finalize.';
-    payload.next_action = `call kairos_attest with ${attestUri}, outcome, and message`;
+    payload.message = 'Protocol completed. No further steps.';
+    payload.next_action = `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`;
   }
 
   return payload;
@@ -109,6 +111,52 @@ async function ensurePreviousProofCompleted(
     return { message: 'Previous step proof failed. Fix and retry.', error_code: 'COMMAND_FAILED' };
   }
   return null;
+}
+
+/** Update quality_metadata and quality_metrics for the completed step. Log and continue on error; do not fail the request. Shared by MCP and HTTP kairos_next. */
+export async function updateStepQuality(
+  qdrantService: QdrantService,
+  memory: Memory,
+  outcome: 'success' | 'failure',
+  tenantId: string
+): Promise<void> {
+  try {
+    const qdrantUuid = memory.memory_uuid;
+    const currentPoint = await qdrantService.retrieveById(qdrantUuid);
+    const payload = currentPoint?.payload as Record<string, unknown> | undefined;
+    const description_short = (payload?.['description_short'] as string) || 'Knowledge step';
+    const domain = (payload?.['domain'] as string) || 'general';
+    const task = (payload?.['task'] as string) || 'general';
+    const type = (payload?.['type'] as string) || 'context';
+    const tags = Array.isArray(payload?.['tags']) ? (payload!['tags'] as string[]) : [];
+
+    const metricsUpdate = {
+      retrievalCount: 1,
+      successCount: outcome === 'success' ? 1 : 0,
+      failureCount: outcome === 'failure' ? 1 : 0,
+      lastRated: new Date().toISOString(),
+      lastRater: 'kairos_next',
+      qualityBonus: outcome === 'success' ? 1 : -0.2
+    };
+    await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
+
+    const updatedQualityMetadata = modelStats.calculateStepQualityMetadata(
+      description_short,
+      domain,
+      task,
+      type,
+      tags,
+      outcome
+    );
+    await qdrantService.updateQualityMetadata(qdrantUuid, {
+      step_quality_score: updatedQualityMetadata.step_quality_score,
+      step_quality: updatedQualityMetadata.step_quality
+    });
+    structuredLogger.debug(`kairos_next: Updated quality for ${memory.memory_uuid} outcome=${outcome}`);
+  } catch (err) {
+    kairosQualityUpdateErrors.inc({ tenant_id: tenantId });
+    structuredLogger.warn(`kairos_next: Quality update failed for ${memory.memory_uuid}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterNextOptions = {}) {
@@ -194,11 +242,17 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           }
           submissionOutcome = await handleProofSubmission(solutionToUse, memory, { expectedPreviousHash });
           if (submissionOutcome.blockedPayload) {
+            if (options.qdrantService) {
+              await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
+            }
             return respond(submissionOutcome.blockedPayload);
           }
 
           const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
           if (previousBlock) {
+            if (options.qdrantService) {
+              await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
+            }
             const retryCount = await proofOfWorkStore.incrementRetry(uuid);
             const blockedPayload = {
               must_obey: retryCount < 3,
@@ -211,6 +265,10 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             };
             return respond(blockedPayload);
           }
+
+          if (options.qdrantService) {
+            await updateStepQuality(options.qdrantService, memory, 'success', tenantId);
+          }
         }
 
         // Resolve next step
@@ -219,6 +277,11 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
+
+        // First run is not a retry: reset retry for the step we're presenting so the first submission in this run is never counted as a retry (fixes MAX_RETRIES_EXCEEDED on first valid submission).
+        if (displayMemory?.memory_uuid) {
+          await proofOfWorkStore.resetRetry(displayMemory.memory_uuid);
+        }
 
         // Resolve the step AFTER the display step to get next_action URI
         const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;

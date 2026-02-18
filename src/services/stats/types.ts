@@ -31,11 +31,7 @@ export interface RecentDiscovery {
     timestamp: Date;
 }
 
-// GameLeaderboard removed - replaced by Prometheus metrics
-// Keeping for backward compatibility during transition
-export interface GameLeaderboard {
-    totalGems: { [llm_model_id: string]: number };
-    legendaryGems: { [llm_model_id: string]: number };
+export interface StatsState {
     recentDiscoveries: RecentDiscovery[];
     implementationBonuses: { [llm_model_id: string]: number };
     healerBonuses: { [llm_model_id: string]: number };

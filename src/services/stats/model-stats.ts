@@ -15,7 +15,7 @@
 import { logger } from '../../utils/logger.js';
 import { redisService } from '../redis.js';
 import type { QualityMetrics } from '../../types/index.js';
-import type { QualityScore, GameLeaderboard, ModelStats, RecentDiscovery } from './types.js';
+import type { QualityScore, StatsState, ModelStats, RecentDiscovery } from './types.js';
 import {
   agentContributions,
   agentImplementationBonus,
@@ -24,49 +24,38 @@ import {
 } from '../metrics/agent-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
 
-// Leaderboard helper functions (inlined - leaderboard.ts removed in Phase 4)
-async function loadLeaderboard(): Promise<GameLeaderboard | null> {
-    return await redisService.getJson<GameLeaderboard>('stats:leaderboard');
+async function loadStatsState(): Promise<StatsState | null> {
+    return await redisService.getJson<StatsState>('stats:state');
 }
 
-async function saveLeaderboard(leaderboard: GameLeaderboard): Promise<void> {
-    await redisService.setJson('stats:leaderboard', leaderboard);
+async function saveStatsState(state: StatsState): Promise<void> {
+    await redisService.setJson('stats:state', state);
 }
 
-function ensureLeaderboardShape(leaderboard?: Partial<GameLeaderboard>): GameLeaderboard {
+function ensureStatsStateShape(state?: Partial<StatsState>): StatsState {
     return {
-        totalGems: (leaderboard && leaderboard.totalGems) || {},
-        legendaryGems: (leaderboard && leaderboard.legendaryGems) || {},
-        recentDiscoveries: (leaderboard && leaderboard.recentDiscoveries) || [],
-        implementationBonuses: (leaderboard && leaderboard.implementationBonuses) || {},
-        healerBonuses: (leaderboard && leaderboard.healerBonuses) || {}
+        recentDiscoveries: (state && state.recentDiscoveries) || [],
+        implementationBonuses: (state && state.implementationBonuses) || {},
+        healerBonuses: (state && state.healerBonuses) || {}
     };
 }
 
-function addRecentDiscovery(leaderboard: GameLeaderboard, discovery: RecentDiscovery): void {
-    leaderboard.recentDiscoveries.unshift(discovery);
-    leaderboard.recentDiscoveries = leaderboard.recentDiscoveries.slice(0, 20);
+function addRecentDiscovery(state: StatsState, discovery: RecentDiscovery): void {
+    state.recentDiscoveries.unshift(discovery);
+    state.recentDiscoveries = state.recentDiscoveries.slice(0, 20);
     logger.info(`Added recent discovery by ${discovery.agent} (${discovery.score}pts)`);
 }
 
-async function updateImplementationBonusHelper(leaderboard: GameLeaderboard, llm_model_id: string, bonusPoints: number): Promise<void> {
-    leaderboard.implementationBonuses[llm_model_id] = (leaderboard.implementationBonuses[llm_model_id] || 0) + bonusPoints;
+async function updateImplementationBonusHelper(state: StatsState, llm_model_id: string, bonusPoints: number): Promise<void> {
+    state.implementationBonuses[llm_model_id] = (state.implementationBonuses[llm_model_id] || 0) + bonusPoints;
     logger.info(`Implementation bonus: ${llm_model_id} earned ${bonusPoints} points`);
-    await saveLeaderboard(leaderboard);
+    await saveStatsState(state);
 }
 
-async function updateHealerBonusHelper(leaderboard: GameLeaderboard, llm_model_id: string, bonusPoints: number): Promise<void> {
-    leaderboard.healerBonuses[llm_model_id] = (leaderboard.healerBonuses[llm_model_id] || 0) + bonusPoints;
+async function updateHealerBonusHelper(state: StatsState, llm_model_id: string, bonusPoints: number): Promise<void> {
+    state.healerBonuses[llm_model_id] = (state.healerBonuses[llm_model_id] || 0) + bonusPoints;
     logger.info(`Healer bonus: ${llm_model_id} earned ${bonusPoints} points`);
-    await saveLeaderboard(leaderboard);
-}
-
-function incrementTotalGems(leaderboard: GameLeaderboard, llm_model_id: string): void {
-    leaderboard.totalGems[llm_model_id] = (leaderboard.totalGems[llm_model_id] || 0) + 1;
-}
-
-function incrementLegendaryGems(leaderboard: GameLeaderboard, llm_model_id: string): void {
-    leaderboard.legendaryGems[llm_model_id] = (leaderboard.legendaryGems[llm_model_id] || 0) + 1;
+    await saveStatsState(state);
 }
 
 import {
@@ -75,10 +64,10 @@ import {
 } from './scoring.js';
 import { computeImplementationBonus } from './bonuses.js';
 import { calculateHealerBonus as healerCalculate } from './healer.js';
-import { calculateProtocolGemMetadata as protocolCalculate } from './protocol.js';
+import { calculateProtocolQualityMetadata as protocolCalculate } from './protocol.js';
 
 export class ModelStatsService {
-    private leaderboard: GameLeaderboard = ensureLeaderboardShape();
+    private statsState: StatsState = ensureStatsStateShape();
     private initialized = false;
 
     // persisted summary counters
@@ -94,15 +83,14 @@ export class ModelStatsService {
         try {
             await redisService.connect();
 
-            const maybe = await loadLeaderboard();
-            if (maybe) this.leaderboard = ensureLeaderboardShape(maybe);
+            const maybe = await loadStatsState();
+            if (maybe) this.statsState = ensureStatsStateShape(maybe);
 
             await this.loadImplementationBonusTotals();
             await this.loadRareSuccessCounts();
 
-            // Ensure leaderboard reflected cached totals
-            this.leaderboard.implementationBonuses = { ...this.implementationBonusTotals };
-            this.leaderboard.healerBonuses = this.leaderboard.healerBonuses || {};
+            this.statsState.implementationBonuses = { ...this.implementationBonusTotals };
+            this.statsState.healerBonuses = this.statsState.healerBonuses || {};
 
             this.initialized = true;
             logger.info('ModelStatsService initialized with Redis persistence');
@@ -159,7 +147,7 @@ export class ModelStatsService {
     }
 
     /**
-     * Calculate implementation bonus and update internal totals/leaderboard as needed.
+     * Calculate implementation bonus and update internal totals.
      * Delegates computation to game-bonuses.computeImplementationBonus which mutates qualityMetrics.
      */
     async calculateImplementationBonus(
@@ -173,7 +161,6 @@ export class ModelStatsService {
         if (outcome === 'success' && finalBonus > 0) {
             const tenantId = getTenantId();
             
-            // Update metrics instead of leaderboard
             agentImplementationBonus.inc({ 
                 agent_id: llm_model_id, 
                 tenant_id: tenantId 
@@ -193,8 +180,7 @@ export class ModelStatsService {
                 this.rareSuccessCounts[llm_model_id] = (this.rareSuccessCounts[llm_model_id] || 0) + 1;
             }
 
-            // Update leaderboard display state (persisted by leaderboard helper)
-            await updateImplementationBonusHelper(this.leaderboard, llm_model_id, finalBonus);
+            await updateImplementationBonusHelper(this.statsState, llm_model_id, finalBonus);
 
             // Persist totals
             await this.saveImplementationBonusTotals();
@@ -204,9 +190,6 @@ export class ModelStatsService {
         return finalBonus;
     }
 
-    /**
-     * Healer bonus calculation and leaderboard update.
-     */
     calculateHealerBonus(
         qualityMetrics: QualityMetrics,
         llm_model_id: string,
@@ -214,22 +197,17 @@ export class ModelStatsService {
     ): number {
         const bonus = healerCalculate(qualityMetrics, llm_model_id, improvementType);
         if (bonus > 0) {
-            // Update leaderboard (async fire-and-forget acceptable, but await to keep consistency)
-            void updateHealerBonusHelper(this.leaderboard, llm_model_id, bonus);
+            void updateHealerBonusHelper(this.statsState, llm_model_id, bonus);
         }
         return bonus;
     }
 
-    // -----------------------
-    // Leaderboard / achievements
-    // -----------------------
-
     async updateImplementationBonus(llm_model_id: string, bonusPoints: number): Promise<void> {
-        await updateImplementationBonusHelper(this.leaderboard, llm_model_id, bonusPoints);
+        await updateImplementationBonusHelper(this.statsState, llm_model_id, bonusPoints);
     }
 
     async updateHealerBonus(llm_model_id: string, bonusPoints: number): Promise<void> {
-        await updateHealerBonusHelper(this.leaderboard, llm_model_id, bonusPoints);
+        await updateHealerBonusHelper(this.statsState, llm_model_id, bonusPoints);
     }
 
     async processContribution(llm_model_id: string, qualityScore: QualityScore, description: string): Promise<void> {
@@ -253,13 +231,6 @@ export class ModelStatsService {
             tenant_id: tenantId 
         }, qualityScore.total);
 
-        incrementTotalGems(this.leaderboard, llm_model_id);
-
-        // Map new quality back to old for backward compatibility with leaderboard
-        if (qualityScore.quality === 'excellent') {
-            incrementLegendaryGems(this.leaderboard, llm_model_id);
-        }
-
         const discovery: RecentDiscovery = {
             agent: llm_model_id,
             title: (description && description.trim() ? description : 'Knowledge pattern stored').substring(0, 50) + '...',
@@ -268,28 +239,25 @@ export class ModelStatsService {
             timestamp: new Date()
         };
 
-        addRecentDiscovery(this.leaderboard, discovery);
+        addRecentDiscovery(this.statsState, discovery);
 
-        await saveLeaderboard(this.leaderboard);
+        await saveStatsState(this.statsState);
     }
 
-    getLeaderboard(): GameLeaderboard {
-        return this.leaderboard;
+    getStatsState(): StatsState {
+        return this.statsState;
     }
 
     getAgentStats(llm_model_id: string): ModelStats {
-        const totalGems = this.leaderboard.totalGems[llm_model_id] || 0;
-        const legendaryGems = this.leaderboard.legendaryGems[llm_model_id] || 0;
-
-        const recentGems = this.leaderboard.recentDiscoveries.filter(d => d.agent === llm_model_id);
-        const excellentContributions = recentGems.filter(d => d.quality === 'excellent').length;
-        const highContributions = recentGems.filter(d => d.quality === 'high').length;
-        const standardContributions = recentGems.filter(d => d.quality === 'standard').length;
-        const basicContributions = recentGems.filter(d => d.quality === 'basic').length;
+        const recent = this.statsState.recentDiscoveries.filter(d => d.agent === llm_model_id);
+        const excellentContributions = recent.filter(d => d.quality === 'excellent').length;
+        const highContributions = recent.filter(d => d.quality === 'high').length;
+        const standardContributions = recent.filter(d => d.quality === 'standard').length;
+        const basicContributions = recent.filter(d => d.quality === 'basic').length;
 
         return {
-            totalContributions: totalGems,
-            excellentContributions: excellentContributions || (legendaryGems > 0 ? 1 : 0),
+            totalContributions: recent.length,
+            excellentContributions,
             highContributions,
             standardContributions,
             basicContributions,
@@ -312,7 +280,7 @@ export class ModelStatsService {
         return scoringCalculateStepQualityMetadata(description, domain, task, type, tags, executionSuccess);
     }
 
-    async calculateProtocolGemMetadata(protocolId: string) {
+    async calculateProtocolQualityMetadata(protocolId: string) {
         return await protocolCalculate(protocolId);
     }
 

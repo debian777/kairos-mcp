@@ -51,8 +51,7 @@ kairos_search({
 ```json
 {
   "must_obey": true,
-  "perfect_matches": 1,
-  "message": "Found 1 perfect match.",
+  "message": "Found 1 match.",
   "next_action": "call kairos_begin with kairos://mem/step1-uuid-1111-1111-111111111111 to execute protocol",
   "choices": [
     {

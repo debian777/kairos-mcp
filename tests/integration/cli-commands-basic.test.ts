@@ -44,7 +44,7 @@ describe('CLI Commands Basic --url Tests', () => {
       const result = JSON.parse(stdout);
       // V2 unified response shape
       expect(result).toHaveProperty('must_obey');
-      expect(result).toHaveProperty('perfect_matches');
+      expect(result).toHaveProperty('choices');
       expect(result).toHaveProperty('choices');
     }, 30000);
 
@@ -59,7 +59,7 @@ describe('CLI Commands Basic --url Tests', () => {
       const result = JSON.parse(stdout);
       // V2 unified response shape
       expect(result).toHaveProperty('must_obey');
-      expect(result).toHaveProperty('perfect_matches');
+      expect(result).toHaveProperty('choices');
       expect(result).toHaveProperty('choices');
     }, 30000);
   });

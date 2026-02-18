@@ -43,7 +43,6 @@ describe('V2 kairos_search unified response schema', () => {
     withRawOnFail({ call, result }, () => {
       // V2 unified fields
       expect(parsed.must_obey).toBe(true);
-      expect(typeof parsed.perfect_matches).toBe('number');
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action).toContain('kairos://mem/');
@@ -70,7 +69,6 @@ describe('V2 kairos_search unified response schema', () => {
       expect(parsed.protocol_status).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
     });
   });
 
@@ -82,8 +80,6 @@ describe('V2 kairos_search unified response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
-      // perfect_matches may be >0 in shared collections (dev/qa) due to embedding similarity
-      expect(typeof parsed.perfect_matches).toBe('number');
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
       expect(Array.isArray(parsed.choices)).toBe(true);

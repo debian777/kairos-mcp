@@ -58,12 +58,9 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
           uri: payload.uri,
           memory_uuid: result.id.toString(),
           step_number: payload.protocol?.step,
-          gem_metadata: payload.gem_metadata || {
-            step_gem_potential: 1,
-            step_quality: 'quality',
-            workflow_total_potential: 0,
-            workflow_quality: '',
-            motivational_text: 'This knowledge pattern contributes to your learning journey.'
+          quality_metadata: payload.quality_metadata || {
+            step_quality_score: 1,
+            step_quality: 'standard'
           }
         };
       });

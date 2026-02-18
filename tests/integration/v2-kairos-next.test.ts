@@ -7,6 +7,21 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
+const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kb_resources';
+
+async function getPointPayload(pointId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const url = `${QDRANT_URL}/collections/${QDRANT_COLLECTION}/points/${pointId}?with_payload=true&with_vector=false`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.result?.payload ?? null;
+  } catch {
+    return null;
+  }
+}
+
 describe('V2 kairos_next response schema', () => {
   let mcpConnection;
 
@@ -93,6 +108,17 @@ describe('V2 kairos_next response schema', () => {
       expect(parsed.attest_required).toBeUndefined();
       expect(parsed.final_challenge).toBeUndefined();
     });
+
+    // Workflow quality: completed step (step 1) should have quality_metadata updated by kairos_next
+    const step1Uuid = items[0].memory_uuid;
+    const payload = await getPointPayload(step1Uuid);
+    if (payload) {
+      const qm = payload.quality_metadata as { step_quality_score?: number; step_quality?: string } | undefined;
+      expect(qm).toBeDefined();
+      expect(typeof qm?.step_quality_score).toBe('number');
+      expect(typeof qm?.step_quality).toBe('string');
+      expect(['excellent', 'high', 'standard', 'basic']).toContain(qm?.step_quality);
+    }
   });
 
   test('completed (last step): next_action says kairos_attest, no final_challenge', async () => {

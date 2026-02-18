@@ -8,7 +8,6 @@ returns `must_obey: true` with a consistent shape.
 ```json
 {
   "must_obey": true,
-  "perfect_matches": "<number>",
   "message": "<string>",
   "next_action": "<string>",
   "choices": [
@@ -27,8 +26,7 @@ returns `must_obey: true` with a consistent shape.
 Fields present in every response:
 
 - `must_obey` — always `true`
-- `perfect_matches` — count of score=1.0 matches (0, 1, or N)
-- `message` — human-readable summary
+- `message` — human-readable summary (e.g. "Found N matches" or "No existing protocol matched")
 - `next_action` — deterministic instruction for the AI agent
 - `choices` — array of options; each has a `role` field:
   - `"match"` — a search result with a numeric `score` (0.0-1.0)
@@ -40,15 +38,14 @@ Fields that no longer exist:
 - `start_here` — use `choices[0].uri` instead
 - `best_match` — use `choices` with scores instead
 - `suggestion` / `hint` — merged into `message`
-- `multiple_perfect_matches` — replaced by `perfect_matches`
-- `protocol_status` — removed; `must_obey: true` + `next_action` is
-  sufficient
+- `perfect_matches` / `multiple_perfect_matches` — removed; use `choices` and scores
+- `protocol_status` — removed; `must_obey: true` + `next_action` is sufficient
 
 ---
 
-## Scenario 1: single perfect match
+## Scenario 1: single match
 
-One protocol scores 1.0. The AI must call `kairos_begin` with the URI
+One protocol matches. The AI must call `kairos_begin` with the URI
 embedded in `next_action`.
 
 ### Input
@@ -64,8 +61,7 @@ embedded in `next_action`.
 ```json
 {
   "must_obey": true,
-  "perfect_matches": 1,
-  "message": "Found 1 perfect match.",
+  "message": "Found 1 match.",
   "next_action": "call kairos_begin with kairos://mem/bd939b2a-b35f-40f2-8dec-7dec74a65116 to execute protocol",
   "choices": [
     {
@@ -87,9 +83,9 @@ embedded in `next_action`.
 
 ---
 
-## Scenario 2: multiple perfect matches
+## Scenario 2: multiple matches
 
-Several protocols score 1.0. The AI picks one from `choices` and calls
+Several protocols match. The AI picks one from `choices` and calls
 `kairos_begin` with that choice's URI.
 
 ### Input
@@ -105,9 +101,8 @@ Several protocols score 1.0. The AI picks one from `choices` and calls
 ```json
 {
   "must_obey": true,
-  "perfect_matches": 3,
-  "message": "Found 3 perfect matches. Choose one protocol by calling kairos_begin with its URI from the choices array.",
-  "next_action": "call kairos_begin with choice.uri to commit to a protocol",
+  "message": "Found 3 matches (top confidence: 85%). Choose one or create a new protocol.",
+  "next_action": "call kairos_begin with <top_uri> to execute best match, or choose another from choices",
   "choices": [
     {
       "uri": "kairos://mem/2ab737f0-a9b1-49a0-bb10-5c8105c4f6e8",
@@ -164,9 +159,8 @@ distinguish it from search results.
 ```json
 {
   "must_obey": true,
-  "perfect_matches": 0,
-  "message": "Found 2 possible matches (highest confidence: 85%). Choose one or create a new protocol.",
-  "next_action": "call kairos_begin with choice.uri to commit to a protocol",
+  "message": "Found 2 matches (top confidence: 85%). Choose one or create a new protocol.",
+  "next_action": "call kairos_begin with <top_uri> to execute best match, or choose another from choices",
   "choices": [
     {
       "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
@@ -224,9 +218,8 @@ No protocol meets the threshold. The only choice is the creation protocol.
 ```json
 {
   "must_obey": true,
-  "perfect_matches": 0,
-  "message": "No matching protocol found. You can create a new one.",
-  "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002001 to create a new protocol chain",
+  "message": "No existing protocol matched your query. You can create a new one.",
+  "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002001 to create a new protocol",
   "choices": [
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002001",
@@ -255,11 +248,10 @@ No protocol meets the threshold. The only choice is the creation protocol.
 These rules apply to every `kairos_search` response:
 
 1. `must_obey` is always `true`.
-2. `perfect_matches` is a non-negative integer.
-3. `choices` is always a non-empty array (at minimum, the creation protocol).
-4. Every choice has `uri`, `label`, `chain_label`, `score`, `role`, `tags`.
-5. Choices with `role: "match"` have a numeric `score` (0.0-1.0).
-6. Choices with `role: "create"` have `score: null`.
-7. `next_action` is always a non-empty string.
-8. The following fields must NOT be present: `start_here`, `best_match`,
-   `suggestion`, `hint`, `multiple_perfect_matches`, `protocol_status`.
+2. `choices` is always a non-empty array (at minimum, the creation protocol).
+3. Every choice has `uri`, `label`, `chain_label`, `score`, `role`, `tags`.
+4. Choices with `role: "match"` have a numeric `score` (0.0-1.0).
+5. Choices with `role: "create"` have `score: null`.
+6. `next_action` is always a non-empty string.
+7. The following fields must NOT be present: `start_here`, `best_match`,
+   `suggestion`, `hint`, `protocol_status`.

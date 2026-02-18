@@ -84,7 +84,7 @@ export async function storeMemory(
           healer_contributions: {
             total_healers: 0,
             total_improvements: 0,
-            healer_gems_distributed: 0,
+            healer_bonus_distributed: 0,
             last_healed: null,
             healer_models: {}
           },

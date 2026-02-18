@@ -5,9 +5,6 @@ import { logger } from '../../utils/logger.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
-import {
-  scoreMemory
-} from '../../utils/memory-store-utils.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
 
 export class MemoryQdrantStoreMethods {
@@ -145,22 +142,33 @@ export class MemoryQdrantStoreMethods {
       with_vector: false
     });
 
-    const candidates = (vectorResults || []).map((r: { id: string | number; payload?: Record<string, unknown> | null }) =>
-      this.pointToMemory({ id: String(r.id), payload: r.payload || {} })
-    );
+    // Raw Qdrant score + bounded quality boost from payload.quality_metadata.step_quality_score
+    // so successful protocols rank higher. Boost capped so it does not dominate the vector score.
+    const QUALITY_BOOST_COEFF = 0.1;
+    const QUALITY_SCORE_CAP = 1;
 
-    const scored = candidates.map(memory => ({
-      memory,
-      score: scoreMemory(memory, normalizedQuery)
-    }));
+    type SearchHit = { id: string | number; score?: number; payload?: Record<string, unknown> | null };
+    const scored = (vectorResults || []).map((r: SearchHit) => {
+      const payload = r.payload || {};
+      const memory = this.pointToMemory({ id: String(r.id), payload });
+      const rawScore = typeof r.score === 'number' ? r.score : 0.5;
+      const qMeta = payload['quality_metadata'] as { step_quality_score?: number } | undefined;
+      const stepQualityScore = typeof qMeta?.step_quality_score === 'number' ? qMeta.step_quality_score : 0;
+      const boundedQuality = Math.min(Math.max(stepQualityScore, 0), QUALITY_SCORE_CAP);
+      const score = rawScore * (1 + QUALITY_BOOST_COEFF * boundedQuality);
+      return { memory, score };
+    });
 
     let filtered = scored
       .filter(entry => entry.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (a.memory.memory_uuid ?? '').localeCompare(b.memory.memory_uuid ?? '');
+      })
       .slice(0, limit);
 
-    if (filtered.length === 0 && candidates.length > 0) {
-      filtered = candidates.slice(0, limit).map(memory => ({ memory, score: 0.5 }));
+    if (filtered.length === 0 && scored.length > 0) {
+      filtered = scored.slice(0, limit).map(entry => ({ memory: entry.memory, score: 0.5 }));
     }
 
     return {

@@ -25,6 +25,11 @@ optimizes for. It defines the project’s mission, strategy, and non-goals.
   protocol runs end-to-end (search → begin → next → attest) and per-tool
   workflow reference with response shapes and scenarios.
 
+## AI instructions and prompts
+
+- **[Software Architect prompt (generic)](prompts/software-architect.md)** — Generic
+  role prompt for architecture design and technical decisions.
+
 ## For contributors
 
 - **[Agent-facing design principles](../CHARTER.md#agent-facing-design-principles)**

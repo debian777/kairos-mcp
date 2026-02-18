@@ -1,4 +1,30 @@
-import { scoreMemory } from './memory-store-utils.js';
+/**
+ * Score a single step (label + text + tags) against a normalized query. Returns 0..1.
+ * Used only for protocol-reconstruction optional scoring; main search uses Qdrant vector score.
+ */
+function scoreStepAgainstQuery(step: ChainScoringStep, normalizedQuery: string): number {
+  const label = (step.label || '').toLowerCase();
+  const text = (step.text || '').toLowerCase();
+  const tags = (step.tags || []).map(t => t.toLowerCase());
+  let score = 0;
+  if (label.includes(normalizedQuery)) score += 300;
+  if (text.includes(normalizedQuery)) score += 200;
+  const tagMatches = tags.filter(t => t.includes(normalizedQuery) || normalizedQuery.includes(t));
+  score += tagMatches.length * 150;
+  const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
+  if (queryWords.length > 0) {
+    const labelWords = label.split(/\s+/);
+    const textWords = text.split(/\s+/);
+    for (const qw of queryWords) {
+      const inLabel = labelWords.some(w => w === qw || w.includes(qw) || qw.includes(w));
+      const inText = textWords.some(w => w === qw || w.includes(qw) || qw.includes(w));
+      if (inLabel) score += 50;
+      if (inText) score += 30;
+    }
+    score = score / Math.sqrt(queryWords.length);
+  }
+  return Math.min(score / 500, 1.0);
+}
 
 export interface ChainScoringStep {
   label: string;
@@ -44,20 +70,7 @@ export function scoreChainWithQuery(
   const normalized = (query || '').trim().toLowerCase();
   if (!normalized) return steps.map(() => 0);
 
-  return steps.map((step, index) => {
-    // Adapt to scoreMemory input shape
-    const memoryLike = {
-      memory_uuid: String(index),
-      label: step.label || 'Memory',
-      tags: Array.isArray(step.tags) ? step.tags : [],
-      text: step.text || '',
-      llm_model_id: 'unknown-model',
-      created_at: step.created_at || '1970-01-01T00:00:00.000Z'
-    };
-
-    // scoreMemory already returns 0..1
-    return scoreMemory(memoryLike as any, normalized);
-  });
+  return steps.map((step) => scoreStepAgainstQuery(step, normalized));
 }
 
 export function aggregateChainScores(

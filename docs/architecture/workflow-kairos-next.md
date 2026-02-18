@@ -37,8 +37,8 @@ Fields that no longer exist:
 
 - `next_step` -- removed; the URI for the next call is in `next_action`
 - `protocol_status` -- removed; `must_obey` + `next_action` is sufficient
-- `attest_required` -- removed; `next_action` says "call kairos_attest"
-  when attestation is needed
+- `attest_required` -- removed; last step returns "Protocol completed. No
+  further steps." and attest is optional (override outcome or add message)
 - `genesis_hash` -- renamed to `proof_hash`
 - `previousProofHash` -- renamed to `proof_hash` (in solution input)
 - `last_proof_hash` -- renamed to `proof_hash` (in response output)
@@ -174,8 +174,8 @@ The solution is accepted and no more steps remain. The AI must call
       "min_length": 20
     }
   },
-  "message": "Protocol completed. Call kairos_attest to finalize.",
-  "next_action": "call kairos_attest with kairos://mem/ccc33333-3333-3333-3333-333333333333, outcome, and message",
+  "message": "Protocol completed. No further steps.",
+  "next_action": "Run complete. Optionally call kairos_attest with kairos://mem/ccc33333-3333-3333-3333-333333333333 to override outcome or add a message.",
   "proof_hash": "9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0"
 }
 ```
@@ -183,7 +183,7 @@ The solution is accepted and no more steps remain. The AI must call
 ### AI behavior
 
 1. `must_obey` is `true` -- follow `next_action`.
-2. `next_action` says "call kairos_attest" -- so call it:
+2. Run is complete. Optionally call `kairos_attest` to override outcome or add a message:
 
 ```json
 {

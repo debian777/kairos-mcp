@@ -117,6 +117,12 @@ describe('Kairos Mint Basic Functionality', () => {
       expect(dupBody.items.length).toBeGreaterThan(0);
     } else {
       expect(dupBody.existing_memory).toBeDefined();
+      expect(dupBody.must_obey).toBe(true);
+      expect(typeof dupBody.next_action).toBe('string');
+      expect(dupBody.next_action).toContain('kairos_begin');
+      if (dupBody.content_preview !== undefined) {
+        expect(typeof dupBody.content_preview).toBe('string');
+      }
     }
 
     // 4) Third store with force_update → stored (overwrites prior chain)
@@ -132,6 +138,47 @@ describe('Kairos Mint Basic Functionality', () => {
     expect(thirdParsed.status).toBe('stored');
     expect(Array.isArray(thirdParsed.items)).toBe(true);
     expect(thirdParsed.items.length).toBeGreaterThanOrEqual(1);
+  }, 30000);
+
+  test('kairos_mint SIMILAR_MEMORY_FOUND response shape (must_obey, next_action, content_preview)', async () => {
+    const ts = Date.now().toString();
+    const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}\n\n## Step 1\nContent\n\nPROOF OF WORK: timeout 5s echo ok`;
+
+    const first = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: JSON.stringify(md),
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
+      }
+    });
+    const firstParsed = expectValidJsonResult(first);
+    expect(firstParsed.status).toBe('stored');
+
+    const second = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: JSON.stringify(md),
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+    expect(second).toBeDefined();
+    expect(second.isError).toBe(true);
+    expect(second.content).toBeDefined();
+    const body = JSON.parse(second.content[0].text);
+    expect(['DUPLICATE_CHAIN', 'SIMILAR_MEMORY_FOUND']).toContain(body.error);
+
+    if (body.error === 'SIMILAR_MEMORY_FOUND') {
+      expect(body.must_obey).toBe(true);
+      expect(typeof body.next_action).toBe('string');
+      expect(body.next_action.length).toBeGreaterThan(0);
+      expect(body.next_action).toContain('kairos_begin');
+      expect(body.next_action).toContain('force_update');
+      expect(body.existing_memory).toBeDefined();
+      if (body.content_preview !== undefined) {
+        expect(typeof body.content_preview).toBe('string');
+      }
+    }
   }, 30000);
 
   test('kairos_mint stores code block content', async () => {
@@ -197,7 +244,6 @@ PROOF OF WORK: timeout 45s echo run-processor`;
 
     // V2 unified response shape (always present)
     expect(searchResponse.must_obey).toBe(true);
-    expect(typeof searchResponse.perfect_matches).toBe('number');
     expect(typeof searchResponse.message).toBe('string');
     expect(typeof searchResponse.next_action).toBe('string');
     expect(searchResponse.next_action).toContain('kairos://mem/');
@@ -226,6 +272,5 @@ PROOF OF WORK: timeout 45s echo run-processor`;
     expect(searchResponse.protocol_status).toBeUndefined();
     expect(searchResponse.start_here).toBeUndefined();
     expect(searchResponse.best_match).toBeUndefined();
-    expect(searchResponse.multiple_perfect_matches).toBeUndefined();
   }, 20000);
 });

@@ -28,6 +28,7 @@ how `next_action` chains the flow.
 | [kairos_begin](workflow-kairos-begin.md)   | Load step 1 and first challenge; no solution required.     |
 | [kairos_next](workflow-kairos-next.md)     | Submit a solution and receive the next step or completion. |
 | [kairos_attest](workflow-kairos-attest.md) | Finalize the run with outcome and message; update metrics. |
+| [quality_metadata](quality-metadata.md) | How we use quality_metadata in Qdrant payloads; JSON examples and data flow. |
 
 Read the tool docs in that order when tracing a full run or implementing a
 client.

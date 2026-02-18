@@ -51,7 +51,6 @@ describe('Kairos Mint Integration', () => {
 
       // V2 unified response shape (always present)
       expect(parsed.must_obey).toBe(true);
-      expect(typeof parsed.perfect_matches).toBe('number');
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action).toContain('kairos://mem/');
@@ -73,7 +72,6 @@ describe('Kairos Mint Integration', () => {
       expect(parsed.protocol_status).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'kairos_search call + raw result');
   }, 20000);
 

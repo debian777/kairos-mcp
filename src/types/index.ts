@@ -70,12 +70,9 @@ export interface MemoryResult {
     tags: string[]; // Tags for categorization
     created_at: string;
     protocol?: ProtocolMetadata; // Protocol metadata if this is a protocol step
-    gem_metadata?: {
-        step_gem_potential: number;           // Gem potential for this step
-        step_quality: 'quality' | 'rare' | 'legendary';  // Quality level for this step
-        workflow_total_potential?: number;     // Total gem potential for complete protocol
-        workflow_quality?: string;             // Overall workflow quality rating
-        motivational_text?: string;            // Motivational text for users
+    quality_metadata?: {
+        step_quality_score: number;
+        step_quality: 'excellent' | 'high' | 'standard' | 'basic';
     };
 }
 
@@ -161,7 +158,7 @@ export interface ModelImplementationData {
 export interface HealerContributions {
     total_healers: number;            // Number of models that improved this knowledge
     total_improvements: number;       // Total improvement actions taken
-    healer_gems_distributed: number;  // Total gems given to healers
+    healer_bonus_distributed: number;  // Total bonus points given to healers
     last_healed: string | null;       // ISO timestamp of last healing action
     healer_models: Record<string, HealerModelData>; // Per-healer tracking
 }
@@ -169,7 +166,7 @@ export interface HealerContributions {
 // Per-healer model data
 export interface HealerModelData {
     improvements_made: number;        // Number of improvements this healer made
-    gems_earned: number;              // Total gems earned for healing
+    bonus_earned: number;             // Total bonus earned for healing
     last_healing_action: string | null; // ISO timestamp
 }
 
@@ -190,13 +187,10 @@ export interface KAIROSConfig {
     embeddingDimension: number;
 }
 
-// Gem Metadata for Knowledge Items
-export interface GemMetadata {
-    step_gem_potential: number;           // Gem potential for this step (typically 1)
-    step_quality: 'quality' | 'rare' | 'legendary';  // Quality level for this step
-    workflow_total_potential: number;     // Total gem potential for complete protocol
-    workflow_quality: string;             // Overall workflow quality rating
-    motivational_text: string;            // Motivational text for users
+// Quality metadata for knowledge items (stored per Qdrant point)
+export interface QualityMetadata {
+    step_quality_score: number;
+    step_quality: 'excellent' | 'high' | 'standard' | 'basic';
 }
 
 // Mixed-Type Protocol Step (Phase 1 Enhancement)

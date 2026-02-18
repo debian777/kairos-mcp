@@ -67,3 +67,18 @@ export const mcpToolCircuitBreaker = new Counter({
   registers: [register]
 });
 
+/** Incremented when kairos_next quality update (quality_metadata/metrics) fails. */
+export const kairosQualityUpdateErrors = new Counter({
+  name: 'kairos_quality_update_errors_total',
+  help: 'Quality update failures in kairos_next (log-and-continue path)',
+  labelNames: ['tenant_id'],
+  registers: [register]
+});
+
+/** Incremented when mint returns SIMILAR_MEMORY_FOUND (MCP or HTTP). */
+export const kairosMintSimilarMemoryFound = new Counter({
+  name: 'kairos_mint_similar_memory_found_total',
+  help: 'Times mint returned SIMILAR_MEMORY_FOUND (agent must kairos_begin then decide)',
+  labelNames: ['transport', 'tenant_id'],
+  registers: [register]
+});

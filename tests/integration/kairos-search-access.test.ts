@@ -91,7 +91,7 @@ describe('Kairos search accessibility', () => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       searchResult = await mcpConnection.client.callTool(searchCall);
       searchPayload = parseMcpJson(searchResult, '[kairos_search] AI CODING RULES');
-      // V2: check if we have match choices (perfect_matches > 0)
+      // V2: check if we have match choices
       const hasMatches = Array.isArray(searchPayload.choices) &&
         searchPayload.choices.some((c: any) => c.role === 'match');
       if (hasMatches) {
@@ -109,7 +109,6 @@ describe('Kairos search accessibility', () => {
 
       // V2 unified response shape
       expect(searchPayload.must_obey).toBe(true);
-      expect(typeof searchPayload.perfect_matches).toBe('number');
       expect(typeof searchPayload.message).toBe('string');
       expect(typeof searchPayload.next_action).toBe('string');
       expect(searchPayload.next_action).toContain('kairos://mem/');
@@ -120,7 +119,7 @@ describe('Kairos search accessibility', () => {
       const choiceUris = (searchPayload.choices || []).map((choice: any) => (choice.uri || '').toLowerCase());
       const foundMintedUri = choiceUris.some((uri: string) => mintedUriSet.has(uri));
 
-      if (!foundMintedUri && searchPayload.perfect_matches === 0) {
+      if (!foundMintedUri) {
         const diagnostic = {
           mintedUris: Array.from(mintedUriSet),
           mintedCount: mintedUriSet.size,
@@ -137,7 +136,6 @@ describe('Kairos search accessibility', () => {
       expect(searchPayload.protocol_status).toBeUndefined();
       expect(searchPayload.start_here).toBeUndefined();
       expect(searchPayload.best_match).toBeUndefined();
-      expect(searchPayload.multiple_perfect_matches).toBeUndefined();
     }, '[kairos_search] AI CODING RULES raw response');
   }, 120000);
 });

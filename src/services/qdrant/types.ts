@@ -18,12 +18,9 @@ export interface UpsertResourceItem {
     model_id: string;
     memory_uuid?: string;
   };
-  gem_metadata?: {
-    step_gem_potential: number;
-    step_quality: 'quality' | 'rare' | 'legendary';
-    workflow_total_potential?: number;
-    workflow_quality?: string;
-    motivational_text?: string;
+  quality_metadata?: {
+    step_quality_score: number;
+    step_quality: 'excellent' | 'high' | 'standard' | 'basic';
   };
 }
 
@@ -35,15 +32,8 @@ export interface UpsertResourceResult {
   protocol_id?: string | undefined;
   protocol_uuid?: string | undefined;
   memory_uuid?: string | undefined;
-  gem_metadata?: {
-    step_gem_potential: number;
-    step_quality: 'quality' | 'rare' | 'legendary';
-    workflow_total_potential?: number;
-    workflow_quality?: string;
-    motivational_text?: string;
-    quality_score?: number;
-    relevance_score?: number;
-    prompt_metadata?: any;
-    workflow_links?: any;
+  quality_metadata?: {
+    step_quality_score: number;
+    step_quality: 'excellent' | 'high' | 'standard' | 'basic';
   };
 }

@@ -36,7 +36,7 @@ describe('Kairos Search Perfect Matches', () => {
     const uniqueTitle = `NoPerfectMatchTest ${ts}`;
     const content = buildProofMarkdown(uniqueTitle, [
       { heading: 'Step 1 — Baseline', body: 'Document fallback behavior when no perfect match exists.', proofCmd: 'echo baseline-nomatch' },
-      { heading: 'Step 2 — Investigate', body: 'Study the partial match scenario.', proofCmd: 'echo investigate-nomatch' }
+      { heading: 'Step 2 — Investigate', body: 'Study the match scenario.', proofCmd: 'echo investigate-nomatch' }
     ]);
 
     // Store the protocol (force_update bypasses similarity check in shared dev collection)
@@ -51,7 +51,7 @@ describe('Kairos Search Perfect Matches', () => {
     const storeResponse = expectValidJsonResult(storeResult);
     expect(storeResponse.status).toBe('stored');
 
-    // Search with query that partially matches the title (should score above threshold but below 1.0)
+    // Search with query that matches the title (should score above threshold)
     const call = {
       name: 'kairos_search',
       arguments: {
@@ -66,8 +66,6 @@ describe('Kairos Search Perfect Matches', () => {
       // V2 unified schema — must_obey is ALWAYS true
       expect(parsed.must_obey).toBe(true);
 
-      // perfect_matches: number
-      expect(typeof parsed.perfect_matches).toBe('number');
 
       // message: always present
       expect(parsed.message).toBeDefined();
@@ -105,7 +103,6 @@ describe('Kairos Search Perfect Matches', () => {
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
       expect(parsed.start_here).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'no perfect match fallback test');
   }, 20000);
 
@@ -137,7 +134,6 @@ describe('Kairos Search Perfect Matches', () => {
     
     // V2 unified schema — all fields always present
     expect(singleParsed.must_obey).toBe(true);
-    expect(typeof singleParsed.perfect_matches).toBe('number');
     expect(typeof singleParsed.message).toBe('string');
     expect(typeof singleParsed.next_action).toBe('string');
     expect(Array.isArray(singleParsed.choices)).toBe(true);
@@ -162,7 +158,6 @@ describe('Kairos Search Perfect Matches', () => {
     expect(singleParsed.best_match).toBeUndefined();
     expect(singleParsed.suggestion).toBeUndefined();
     expect(singleParsed.hint).toBeUndefined();
-    expect(singleParsed.multiple_perfect_matches).toBeUndefined();
   }, 20000);
 });
 

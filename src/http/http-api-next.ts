@@ -6,6 +6,7 @@ import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chai
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, GENESIS_HASH } from '../tools/kairos_next-pow-helpers.js';
+import { updateStepQuality } from '../tools/kairos_next.js';
 
 /**
  * Set up API route for kairos_next (V2: no next_step/protocol_status/attest_required/final_challenge,
@@ -76,6 +77,7 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 }
                 submissionOutcome = await handleProofSubmission(solution, memory, { expectedPreviousHash });
                 if (submissionOutcome.blockedPayload) {
+                    await updateStepQuality(qdrantService, memory, 'failure', 'http');
                     const duration = Date.now() - startTime;
                     return res.status(200).json({
                         ...submissionOutcome.blockedPayload,
@@ -95,10 +97,15 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                         mimeType: 'text/markdown'
                     },
                     challenge: await buildChallenge(null, undefined),
-                    message: 'Protocol completed. Call kairos_attest to finalize.',
-                    next_action: `call kairos_attest with ${attestUri}, outcome, and message`,
+                    message: 'Protocol completed. No further steps.',
+                    next_action: `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`,
                     metadata: { duration_ms: duration }
                 });
+            }
+
+            // Update quality for the step we just completed (same as MCP path)
+            if (memory.proof_of_work && submissionOutcome?.proofHash) {
+                await updateStepQuality(qdrantService, memory, 'success', 'http');
             }
 
             // Resolve next step for display
@@ -134,8 +141,8 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
             } else {
                 const attestUri = displayMemory ? `kairos://mem/${displayMemory.memory_uuid}` : requestedUri;
-                output.message = 'Protocol completed. Call kairos_attest to finalize.';
-                output.next_action = `call kairos_attest with ${attestUri}, outcome, and message`;
+                output.message = 'Protocol completed. No further steps.';
+                output.next_action = `Run complete. Optionally call kairos_attest with ${attestUri} to override outcome or add a message.`;
             }
 
             if (submissionOutcome?.proofHash) {

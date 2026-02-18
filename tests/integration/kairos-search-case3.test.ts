@@ -42,11 +42,11 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
     const storeResponse = expectValidJsonResult(storeResult);
     expect(storeResponse.status).toBe('stored');
 
-    // Search with partial/non-exact query (should not be perfect match but may score above threshold)
+    // Search with non-exact query (may score above threshold)
     const call = {
       name: 'kairos_search',
       arguments: {
-        query: `partial match case3 ${ts}`
+        query: `match case3 ${ts}`
       }
     };
     const result = await mcpConnection.client.callTool(call);
@@ -57,8 +57,6 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
       // V2 unified schema — must_obey is ALWAYS true
       expect(parsed.must_obey).toBe(true);
 
-      // perfect_matches: number (0 for partial/no match)
-      expect(typeof parsed.perfect_matches).toBe('number');
 
       // message: always present
       expect(parsed.message).toBeDefined();
@@ -104,7 +102,6 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
       expect(parsed.start_here).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'CASE 3 test');
   }, 20000);
 });

@@ -2,7 +2,9 @@
 
 Finalize protocol execution with an outcome. Updates quality metrics in
 Qdrant. No `final_solution` required -- the last step's solution was
-already validated via `kairos_next`.
+already validated via `kairos_next`. Quality is updated per step in
+`kairos_next`; attest is **optional** and can override outcome or add a
+final message after the run is complete.
 
 ## Input schema
 

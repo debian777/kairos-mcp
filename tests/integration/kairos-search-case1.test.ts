@@ -58,13 +58,6 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
       // V2 unified schema — must_obey is ALWAYS true
       expect(parsed.must_obey).toBe(true);
 
-      // perfect_matches: number of perfect-score matches (0 ok if indexing delayed)
-      expect(typeof parsed.perfect_matches).toBe('number');
-      if (parsed.perfect_matches === 0) {
-        // Schema still valid; must have at least create fallback
-        expect(parsed.choices.some((c: any) => c.role === 'create')).toBe(true);
-      }
-
       // message: string
       expect(parsed.message).toBeDefined();
       expect(typeof parsed.message).toBe('string');
@@ -98,7 +91,6 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
       expect(parsed.best_match).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
     }, 'CASE 1 test');
   }, 20000);
 });

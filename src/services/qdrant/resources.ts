@@ -80,17 +80,14 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         version,
         created_at: isUpdate ? existingPoint[0]!.payload?.['created_at'] : new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        gem_metadata: item.gem_metadata || {
-          step_gem_potential: 1,
-          step_quality: 'quality',
-          workflow_total_potential: 0,
-          workflow_quality: '',
-          motivational_text: 'This knowledge pattern contributes to your learning journey.'
+        quality_metadata: item.quality_metadata || {
+          step_quality_score: 1,
+          step_quality: 'standard'
         },
         quality_metrics: isUpdate ? existingPoint[0]!.payload?.['quality_metrics'] : {
           retrievalCount: 0, successCount: 0, partialCount: 0, failureCount: 0, lastRated: null, lastRater: null, qualityBonus: 0,
           usageContext: null, implementation_stats: { total_attempts: 0, success_attempts: 0, model_success_rates: {}, confidence_level: 0, last_implementation_attempt: null },
-          healer_contributions: { total_healers: 0, total_improvements: 0, healer_gems_distributed: 0, last_healed: null, healer_models: {} },
+          healer_contributions: { total_healers: 0, total_improvements: 0, healer_bonus_distributed: 0, last_healed: null, healer_models: {} },
           step_success_rates: {}
         }
       };
@@ -112,7 +109,7 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         protocol_id: protocolWithContext?.title,
         protocol_uuid: protocolWithContext ? IDGenerator.generateDeterministicProtocolId(item.domain, item.type || 'context', item.task) : undefined,
         memory_uuid: aiWithContext?.memory_uuid,
-        gem_metadata: payload.gem_metadata
+        quality_metadata: payload.quality_metadata
       });
     }
 

@@ -2,7 +2,7 @@ Search for protocol chains matching a query. Entry point for KAIROS workflow.
 
 **When to call:** When the user's intent maps to a protocol (coding, docs, Jira, GitLab MR, etc.). Use a search term derived from intent.
 
-**Response:** Always `must_obey: true`. Contains `choices` array (each with `uri`, `label`, `chain_label`, `score`, `role`, `tags`), `perfect_matches` count, `message`, and `next_action` with the exact URI for the next call.
+**Response:** Always `must_obey: true`. Contains `choices` array (each with `uri`, `label`, `chain_label`, `score`, `role`, `tags`), `message`, and `next_action` with the exact URI for the next call.
 
 **AI decision tree:** `must_obey: true` -> follow `next_action`. Read the `choices` array if you need to pick between options.
 

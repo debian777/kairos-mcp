@@ -1,5 +1,6 @@
 import getRawBody from 'raw-body';
 import express from 'express';
+import { kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
@@ -84,14 +85,19 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
                 return;
             }
 
-            // Handle similar memory found by title
+            // Handle similar memory found by title (spec: must_obey, next_action, content_preview)
             if (err && err.code === 'SIMILAR_MEMORY_FOUND') {
+                kairosMintSimilarMemoryFound.inc({ transport: 'http', tenant_id: 'http' });
                 structuredLogger.warn(`✗ Similar memory found in ${duration}ms: ${err.message}`);
+                const d = err.details || {};
                 res.status(409).json({
                     error: 'SIMILAR_MEMORY_FOUND',
-                    message: err.details?.message || 'A very similar memory already exists by title.',
-                    suggestion: 'Use force=true to override, or modify the title to create a new distinct memory.',
-                    ...(err.details || {})
+                    existing_memory: d.existing_memory,
+                    similarity_score: d.similarity_score,
+                    message: d.message ?? 'A very similar memory already exists by title. Verify it before overwriting.',
+                    must_obey: d.must_obey ?? true,
+                    next_action: d.next_action,
+                    ...(d.content_preview !== undefined && { content_preview: d.content_preview })
                 });
                 return;
             }

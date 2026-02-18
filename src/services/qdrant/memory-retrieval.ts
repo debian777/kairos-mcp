@@ -60,7 +60,7 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
       tags: payload.tags || [],
       protocol: payload.protocol,
       quality_metrics: payload.quality_metrics,
-      gem_metadata: payload.gem_metadata,
+      quality_metadata: payload.quality_metadata,
       memory_uuid: uuid,
       chain: payload.chain ? {
         id: payload.chain.id,

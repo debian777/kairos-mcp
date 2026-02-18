@@ -1,13 +1,13 @@
 /**
- * Protocol-level gem metadata calculations.
+ * Protocol-level quality metadata.
  *
- * Responsible for computing workflow-level potential/quality by aggregating
- * step gem metadata retrieved from Qdrant.
+ * Computes workflow-level potential/quality by aggregating
+ * step quality_metadata from Qdrant.
  */
 
 import { logger } from '../../utils/logger.js';
 
-export async function calculateProtocolGemMetadata(protocolId: string): Promise<{
+export async function calculateProtocolQualityMetadata(protocolId: string): Promise<{
     workflow_total_potential: number;
     workflow_quality: string;
 }> {
@@ -27,17 +27,17 @@ export async function calculateProtocolGemMetadata(protocolId: string): Promise<
         const stepQualities: string[] = [];
 
         for (const step of protocolSteps) {
-            const stepQuality = step.payload?.quality_metadata || step.payload?.gem_metadata;
+            const stepQuality = step.payload?.quality_metadata;
             if (stepQuality) {
-                totalPotential += stepQuality.step_quality_score || stepQuality.step_gem_potential || 1;
+                totalPotential += stepQuality.step_quality_score ?? 1;
                 stepQualities.push(stepQuality.step_quality || 'standard');
             } else {
                 totalPotential += 1;
-                stepQualities.push('quality');
+                stepQualities.push('standard');
             }
         }
 
-        const maxPotential = Math.max(...protocolSteps.map(s => (s.payload?.quality_metadata?.step_quality_score || s.payload?.gem_metadata?.step_gem_potential || 1)));
+        const maxPotential = Math.max(...protocolSteps.map(s => (s.payload?.quality_metadata?.step_quality_score ?? 1)));
 
         let workflowQuality: string;
         if (maxPotential >= 5 && totalPotential >= 15) workflowQuality = 'Legendary Workflow';

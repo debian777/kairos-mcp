@@ -104,7 +104,7 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
 
-    let newQualityMetadata = existingPayload.quality_metadata || existingPayload.gem_metadata;
+    let newQualityMetadata = existingPayload.quality_metadata;
     const shouldRecalculateQuality = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
     if (shouldRecalculateQuality) {
       const { modelStats } = await import('../stats/model-stats.js');

@@ -50,8 +50,8 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
       { field_name: 'type', field_schema: 'keyword' as const },
       { field_name: 'task', field_schema: 'keyword' as const },
       { field_name: 'protocol.step', field_schema: 'integer' as const },
-      { field_name: 'gem_metadata.step_gem_potential', field_schema: 'integer' as const },
-      { field_name: 'gem_metadata.step_quality', field_schema: 'keyword' as const },
+      { field_name: 'quality_metadata.step_quality_score', field_schema: 'integer' as const },
+      { field_name: 'quality_metadata.step_quality', field_schema: 'keyword' as const },
       { field_name: 'ai.memory_uuid', field_schema: 'keyword' as const },
       { field_name: 'chain.id', field_schema: 'keyword' as const },
       { field_name: 'chain.step_index', field_schema: 'integer' as const }

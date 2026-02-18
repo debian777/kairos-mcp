@@ -66,8 +66,10 @@ export const PORT = getEnvInt('PORT', 3000);
 export const BATCH_SIZE = getEnvInt('BATCH_SIZE', 100);
 export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);
 
-// Float configurations
-export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.7);
+// Float configurations (tunable via env; relaxed defaults so more results pass into choices)
+export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
+/** Mint: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
+export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 0.9);
 
 // Boolean configurations
 export const HTTP_ENABLED = true;

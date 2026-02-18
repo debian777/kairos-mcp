@@ -44,8 +44,6 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       // V2 unified schema — must_obey is ALWAYS true
       expect(parsed.must_obey).toBe(true);
 
-      // perfect_matches: number (may be >0 in shared collections due to embedding similarity)
-      expect(typeof parsed.perfect_matches).toBe('number');
 
       // message: always present
       expect(parsed.message).toBeDefined();
@@ -74,7 +72,6 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       expect(parsed.start_here).toBeUndefined();
       expect(parsed.chain_label).toBeUndefined();
       expect(parsed.total_steps).toBeUndefined();
-      expect(parsed.multiple_perfect_matches).toBeUndefined();
       expect(parsed.best_match).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();

@@ -55,6 +55,7 @@ module.exports = [
       '**/.DS_Store',
       '**/.env*',
       '**/.gitignore',
+      '**/.cursorignore',
       '**/.npmignore',
       '**/.dockerignore',
       '**/.kilocode/**',
@@ -197,6 +198,19 @@ module.exports = [
       parserOptions: {
         project: null,
       },
+    },
+  },
+  {
+    files: ['knip.config.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: null,
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
     },
   },
   {

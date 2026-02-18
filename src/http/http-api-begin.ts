@@ -133,32 +133,26 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 tags: ['system', 'create', 'mint']
             });
 
-            const perfectMatches = results.filter(r => r.score >= 1.0);
-            const perfectCount = perfectMatches.length;
-
+            const matchCount = results.length;
             let message: string;
             let nextAction: string;
 
-            if (perfectCount === 1) {
-                const topChoice = choices[0]!;
-                message = 'Found 1 perfect match.';
-                nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
-            } else if (perfectCount > 1) {
-                message = `Found ${perfectCount} perfect matches. Choose one protocol and call kairos_begin with its URI.`;
-                nextAction = 'call kairos_begin with choice.uri to commit to a protocol';
-            } else if (choices.length > 1) {
-                const topMatch = choices[0]!;
-                const confidencePercent = Math.round((topMatch.score || 0) * 100);
-                message = `Found ${choices.length - 1} partial match(es) (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
-                nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
-            } else {
+            if (matchCount === 0) {
                 message = "No existing protocol matched your query. You can create a new one.";
                 nextAction = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+            } else if (matchCount === 1) {
+                const topChoice = choices[0]!;
+                message = 'Found 1 match.';
+                nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
+            } else {
+                const topMatch = choices[0]!;
+                const confidencePercent = Math.round((topMatch.score || 0) * 100);
+                message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
+                nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
             }
 
             const output = {
                 must_obey: true,
-                perfect_matches: perfectCount,
                 message,
                 next_action: nextAction,
                 choices

@@ -130,7 +130,7 @@ describe('HTTP REST API Endpoints', () => {
       const data = await response.json();
       // V2 unified response shape
       expect(data).toHaveProperty('must_obey');
-      expect(typeof data.perfect_matches).toBe('number');
+      expect(Array.isArray(data.choices)).toBe(true);
       expect(typeof data.message).toBe('string');
       expect(typeof data.next_action).toBe('string');
       expect(Array.isArray(data.choices)).toBe(true);

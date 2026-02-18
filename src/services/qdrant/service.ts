@@ -93,10 +93,6 @@ export class QdrantService {
     return quality.updateQualityMetrics(this.conn, id, metrics);
   }
 
-  updateGemMetadata(id: string, gemMetadata: any) {
-    return quality.updateGemMetadata(this.conn, id, gemMetadata);
-  }
-
   updateQualityMetadata(id: string, qualityMetadata: any) {
     return quality.updateQualityMetadata(this.conn, id, qualityMetadata);
   }

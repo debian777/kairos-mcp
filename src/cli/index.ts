@@ -4,6 +4,7 @@
  */
 
 import { Command } from 'commander';
+import { createRequire } from 'module';
 import { searchCommand } from './commands/search.js';
 import { beginCommand } from './commands/begin.js';
 import { nextCommand } from './commands/next.js';
@@ -13,12 +14,15 @@ import { deleteCommand } from './commands/delete.js';
 import { attestCommand } from './commands/attest.js';
 import { getApiUrl } from './config.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json') as { version: string };
+
 const program = new Command();
 
 program
     .name('kairos')
     .description('CLI tool for interacting with KAIROS REST API')
-    .version('1.0.0')
+    .version(version)
     .option('-u, --url <url>', 'KAIROS API base URL', getApiUrl())
     .hook('preAction', (thisCommand) => {
         // Store the URL option globally for use in commands

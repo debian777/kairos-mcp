@@ -113,9 +113,6 @@ async function generateUnifiedOutput(
   results: Candidate[],
   qdrantService?: QdrantService
 ): Promise<any> {
-  const perfectMatches = results.filter(r => r.score >= 1.0);
-  const perfectCount = perfectMatches.length;
-
   const choices: UnifiedChoice[] = [];
 
   // Resolve heads for all results and build choices
@@ -141,33 +138,26 @@ async function generateUnifiedOutput(
     tags: ['system', 'create', 'mint']
   });
 
-  // Build next_action based on result count
+  const matchCount = results.length;
   let message: string;
   let nextAction: string;
 
-  if (perfectCount === 1) {
-    const topChoice = choices[0]!;
-    message = 'Found 1 perfect match.';
-    nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
-  } else if (perfectCount > 1) {
-    const topChoice = choices[0]!;
-    message = `Found ${perfectCount} perfect matches. Choose one protocol and call kairos_begin with its URI.`;
-    nextAction = `call kairos_begin with ${topChoice.uri} to execute best match, or choose another from choices`;
-  } else if (choices.length > 1) {
-    // Has match results (non-perfect) + creation protocol
-    const topMatch = choices[0]!;
-    const confidencePercent = Math.round((topMatch.score || 0) * 100);
-    message = `Found ${choices.length - 1} partial match(es) (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
-    nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
-  } else {
-    // Only creation protocol
+  if (matchCount === 0) {
     message = "No existing protocol matched your query. You can create a new one.";
     nextAction = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+  } else if (matchCount === 1) {
+    const topChoice = choices[0]!;
+    message = 'Found 1 match.';
+    nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
+  } else {
+    const topMatch = choices[0]!;
+    const confidencePercent = Math.round((topMatch.score || 0) * 100);
+    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
+    nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
   }
 
   return {
     must_obey: true,
-    perfect_matches: perfectCount,
     message,
     next_action: nextAction,
     choices
@@ -192,7 +182,6 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
 
   const outputSchema = z.object({
     must_obey: z.boolean().describe('Always true. Follow next_action.'),
-    perfect_matches: z.number().describe('Count of choices with score 1.0'),
     message: z.string().describe('Human-readable summary'),
     next_action: z.string().describe('Next tool call instruction with embedded URI'),
     choices: z.array(z.object({
