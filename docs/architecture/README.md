@@ -9,8 +9,9 @@ execution, or designing new agent-facing behavior.
 - **Full execution:** A single walkthrough from search to attest with example
   requests and responses.
 - **Tool workflows:** Per-tool response shapes, scenarios, and AI decision
-  rules for `kairos_search`, `kairos_begin`, `kairos_next`, and
-  `kairos_attest`.
+  rules for execution tools (`kairos_search`, `kairos_begin`, `kairos_next`,
+  `kairos_attest`) and content tools (`kairos_mint`, `kairos_update`,
+  `kairos_delete`).
 
 Protocol order is always: search → begin → next (loop) → attest.
 
@@ -28,7 +29,10 @@ how `next_action` chains the flow.
 | [kairos_begin](workflow-kairos-begin.md)   | Load step 1 and first challenge; no solution required.     |
 | [kairos_next](workflow-kairos-next.md)     | Submit a solution and receive the next step or completion. |
 | [kairos_attest](workflow-kairos-attest.md) | Finalize the run with outcome and message; update metrics. |
-| [quality_metadata](quality-metadata.md) | How we use quality_metadata in Qdrant payloads; JSON examples and data flow. |
+| [kairos_mint](workflow-kairos-mint.md)     | Store markdown as protocol chain; duplicate/similar handling. |
+| [kairos_update](workflow-kairos-update.md) | Update one or more memories by URI (markdown or field updates). |
+| [kairos_delete](workflow-kairos-delete.md) | Delete one or more memories by URI.                        |
+| [quality_metadata](quality-metadata.md)    | How we use quality_metadata in Qdrant payloads; JSON examples and data flow. |
 
 Read the tool docs in that order when tracing a full run or implementing a
 client.
