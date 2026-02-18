@@ -204,8 +204,12 @@ docs/archived/
 
 docs/archived/
 
+# Claude Code
+CLAUDE.md
+
 # AI proof-of-work and verification files
 .ai/
 cache
 .ai/
 data/
+.devcontainer.disable/
