@@ -39,11 +39,15 @@ By participating in this project, you agree to maintain a respectful and inclusi
 **Important:** Always deploy before testing. Tests run against a running server.
 
 ```bash
-# Deploy and test
+# Deploy and test (dev: PORT=3300)
 npm run dev:deploy && npm run dev:test
 
-# Or for QA environment
+# QA environment (PORT=3500, Docker): deploy then test
 npm run qa:deploy && npm run qa:test
+
+# Run a single test file (after dev:deploy or qa:deploy)
+npm run dev:test -- tests/integration/kairos-dump.test.ts
+npm run qa:test -- tests/integration/kairos-dump.test.ts
 ```
 
 ## MCP and API design

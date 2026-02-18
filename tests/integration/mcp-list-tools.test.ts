@@ -42,6 +42,7 @@ describe('MCP Tools Listing', () => {
       expect(names).toContain('kairos_mint');
       expect(names).toContain('kairos_search');
       expect(names).toContain('kairos_begin');
+      expect(names).toContain('kairos_dump');
     }, 'tools/list raw response');
   });
 });

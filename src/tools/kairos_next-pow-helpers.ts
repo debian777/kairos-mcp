@@ -44,35 +44,40 @@ export type ProofOfWorkSubmission = {
   };
 };
 
-export async function buildChallenge(memory: Memory | null, proof?: ProofOfWorkDefinition): Promise<any> {
-  const base: any = proof ? (() => {
+/** Build challenge shape from proof only (no nonce, no store). For read-only display e.g. kairos_dump. */
+export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Record<string, unknown> {
+  const base: Record<string, unknown> = proof ? (() => {
     const proofType: ProofOfWorkType = proof.type || 'shell';
-    const result: any = { type: proofType, description: '' };
+    const result: Record<string, unknown> = { type: proofType, description: '' };
     if (proofType === 'shell') {
       const cmd = proof.shell?.cmd || proof.cmd || 'No command specified';
       const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 30;
-      result.description = `Execute shell command: ${cmd}`;
-      result.shell = { cmd, timeout_seconds: timeout };
+      result['description'] = `Execute shell command: ${cmd}`;
+      result['shell'] = { cmd, timeout_seconds: timeout };
     } else if (proofType === 'mcp') {
       const toolName = proof.mcp?.tool_name || 'No tool specified';
-      result.description = `Call MCP tool: ${toolName}`;
-      result.mcp = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
+      result['description'] = `Call MCP tool: ${toolName}`;
+      result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
     } else if (proofType === 'user_input') {
       const prompt = proof.user_input?.prompt || 'Confirm completion';
-      result.description = `User confirmation: ${prompt}`;
-      result.user_input = { prompt };
+      result['description'] = `User confirmation: ${prompt}`;
+      result['user_input'] = { prompt };
     } else if (proofType === 'comment') {
       const minLength = proof.comment?.min_length || 10;
-      result.description = `Provide a verification comment (minimum ${minLength} characters)`;
-      result.comment = { min_length: minLength };
+      result['description'] = `Provide a verification comment (minimum ${minLength} characters)`;
+      result['comment'] = { min_length: minLength };
     }
     return result;
   })() : {
     type: 'comment' as ProofOfWorkType,
     description: 'Provide a verification comment describing how you completed this step'
   };
+  base['proof_hash'] = GENESIS_HASH;
+  return base;
+}
 
-  base.proof_hash = GENESIS_HASH;
+export async function buildChallenge(memory: Memory | null, proof?: ProofOfWorkDefinition): Promise<any> {
+  const base = buildChallengeShapeForDisplay(proof) as any;
   if (memory?.memory_uuid) {
     const nonce = crypto.randomBytes(16).toString('hex');
     await proofOfWorkStore.setNonce(memory.memory_uuid, nonce);

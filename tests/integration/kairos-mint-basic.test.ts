@@ -119,7 +119,7 @@ describe('Kairos Mint Basic Functionality', () => {
       expect(dupBody.existing_memory).toBeDefined();
       expect(dupBody.must_obey).toBe(true);
       expect(typeof dupBody.next_action).toBe('string');
-      expect(dupBody.next_action).toContain('kairos_begin');
+      expect(dupBody.next_action).toContain('kairos_dump');
       if (dupBody.content_preview !== undefined) {
         expect(typeof dupBody.content_preview).toBe('string');
       }
@@ -172,7 +172,7 @@ describe('Kairos Mint Basic Functionality', () => {
       expect(body.must_obey).toBe(true);
       expect(typeof body.next_action).toBe('string');
       expect(body.next_action.length).toBeGreaterThan(0);
-      expect(body.next_action).toContain('kairos_begin');
+      expect(body.next_action).toContain('kairos_dump');
       expect(body.next_action).toContain('force_update');
       expect(body.existing_memory).toBeDefined();
       if (body.content_preview !== undefined) {

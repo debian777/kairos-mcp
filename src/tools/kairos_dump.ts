@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
@@ -5,12 +6,17 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
-import { buildChallenge } from './kairos_next-pow-helpers.js';
+import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
 const DUMP_TOOL_NAME = 'kairos_dump';
+
+const dumpInputSchema = z.object({
+  uri: z.string().min(1).describe('kairos://mem/{uuid}'),
+  protocol: z.boolean().optional().default(false).describe('If true, return full chain as one markdown document')
+});
 
 function normalizeUri(value: string): { uuid: string; uri: string } {
   const normalized = (value || '').trim();
@@ -118,7 +124,7 @@ export async function executeDump(
       step_count: memory.chain.step_count
     };
   }
-  const challenge = await buildChallenge(memory, memory.proof_of_work);
+  const challenge = buildChallengeShapeForDisplay(memory.proof_of_work);
   if (challenge && Object.keys(challenge).length > 0) {
     out['challenge'] = challenge;
   }
@@ -143,14 +149,7 @@ export function registerKairosDumpTool(
     {
       title: 'Inspect memory or protocol (read-only)',
       description: getToolDoc('kairos_dump') ?? 'Returns markdown_doc for use with kairos_update or kairos_mint.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          uri: { type: 'string', description: 'kairos://mem/{uuid}' },
-          protocol: { type: 'boolean', description: 'If true, return full chain as one markdown document', default: false }
-        },
-        required: ['uri']
-      }
+      inputSchema: dumpInputSchema
     },
     async (params: any) => {
       const tenantId = getTenantId();
