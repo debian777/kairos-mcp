@@ -1,0 +1,32 @@
+#!/bin/sh
+# Reject commits that contain Co-Authored-By lines for known AI assistants.
+# User-level hook: installed via core.hooksPath (~/.config/git-hooks).
+
+msg_file="$1"
+if [ ! -f "$msg_file" ]; then
+	echo "commit-msg hook: no message file" >&2
+	exit 1
+fi
+
+# One extended-regex (case-insensitive) for AI co-author names/emails.
+blocked_regex='(claude|claud|chatgpt|cursor|copilot|noreply@anthropic\.com|@openai\.com)'
+
+blocked_line=""
+while IFS= read -r line; do
+	case "$line" in
+		[Cc]o-[Aa]uthored-[Bb]y:*)
+			if echo "$line" | grep -qiE "$blocked_regex"; then
+				blocked_line="$line"
+				break
+			fi
+			;;
+	esac
+done < "$msg_file"
+
+if [ -n "$blocked_line" ]; then
+	echo "commit-msg hook: AI co-authors are not allowed." >&2
+	echo "Remove Co-Authored-By lines for AI assistants (e.g. Claude, ChatGPT, Cursor) from the commit message." >&2
+	echo "Blocked line: $blocked_line" >&2
+	exit 1
+fi
+exit 0
