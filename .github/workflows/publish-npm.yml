@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write  # Required for npm Trusted Publishing (OIDC)
 
     steps:
       - name: Checkout
@@ -35,5 +36,4 @@ jobs:
 
       - name: Publish
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # No NPM_TOKEN needed - OIDC handled automatically by npm CLI
