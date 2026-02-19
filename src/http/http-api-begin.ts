@@ -9,8 +9,9 @@ import type { Memory } from '../types/memory.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
-const REFINE_SEARCH_URI = 'kairos://action/refine-search';
-const REFINE_NEXT_ACTION = 'call kairos_search with more words or details to narrow results';
+const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
+const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
 interface UnifiedChoice {
@@ -130,44 +131,27 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 });
             }
 
-            if (matchCount === 0) {
-                choices.push({
-                    uri: REFINE_SEARCH_URI,
-                    label: 'Refine search',
-                    chain_label: 'Refine your query and search again',
-                    score: null,
-                    role: 'refine',
-                    tags: ['meta', 'refine'],
-                    next_action: REFINE_NEXT_ACTION
-                });
-                choices.push({
-                    uri: CREATION_PROTOCOL_URI,
-                    label: 'Create New KAIROS Protocol Chain',
-                    chain_label: 'Create New KAIROS Protocol Chain',
-                    score: null,
-                    role: 'create',
-                    tags: ['meta', 'creation'],
-                    next_action: CREATE_NEXT_ACTION
-                });
-            } else if (matchCount > 1) {
-                choices.push({
-                    uri: REFINE_SEARCH_URI,
-                    label: 'Refine search',
-                    chain_label: 'Refine your query and search again',
-                    score: null,
-                    role: 'refine',
-                    tags: ['meta', 'refine'],
-                    next_action: REFINE_NEXT_ACTION
-                });
-                choices.push({
-                    uri: CREATION_PROTOCOL_URI,
-                    label: 'Create New KAIROS Protocol Chain',
-                    chain_label: 'Create New KAIROS Protocol Chain',
-                    score: null,
-                    role: 'create',
-                    tags: ['meta', 'creation'],
-                    next_action: CREATE_NEXT_ACTION
-                });
+            if (matchCount !== 1) {
+                choices.push(
+                    {
+                        uri: REFINING_PROTOCOL_URI,
+                        label: 'Get help refining your search',
+                        chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
+                        score: null,
+                        role: 'refine',
+                        tags: ['meta', 'refine'],
+                        next_action: REFINING_NEXT_ACTION
+                    },
+                    {
+                        uri: CREATION_PROTOCOL_URI,
+                        label: 'Create New KAIROS Protocol Chain',
+                        chain_label: 'Create New KAIROS Protocol Chain',
+                        score: null,
+                        role: 'create',
+                        tags: ['meta', 'creation'],
+                        next_action: CREATE_NEXT_ACTION
+                    }
+                );
             }
 
             let message: string;

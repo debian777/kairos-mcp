@@ -2,8 +2,8 @@
 
 Unified response schema for all `kairos_search` scenarios. Every response
 returns `must_obey: true` with a consistent shape. Each choice has its own
-`next_action`; the refine choice (role `refine`) lets the agent call
-`kairos_search` again with more words or details.
+`next_action`; the refine choice (role `refine`) points to a protocol the agent
+can run via `kairos_begin` to get step-by-step help turning a vague request into a better search query.
 
 ---
 
@@ -16,7 +16,7 @@ returns `must_obey: true` with a consistent shape. Each choice has its own
   "next_action": "Pick one choice and follow that choice's next_action.",
   "choices": [
     {
-      "uri": "kairos://mem/<uuid> | kairos://action/refine-search",
+      "uri": "kairos://mem/<uuid>",
       "label": "<string>",
       "chain_label": "<string or null>",
       "score": "<number 0.0-1.0, or null for non-match entries>",
@@ -34,17 +34,17 @@ Fields:
 - `message` — human-readable summary (e.g. "Found N matches (top confidence: X%). Choose one, refine your search, or create a new protocol.")
 - `next_action` — global directive: "Pick one choice and follow that choice's next_action." (Single-match responses may use a shorter variant: "Follow the choice's next_action.")
 - `choices` — array of options; each has:
-  - `uri` — protocol URI (`kairos://mem/<uuid>`) or synthetic action URI (`kairos://action/refine-search`) for the refine choice
+  - `uri` — protocol URI (`kairos://mem/<uuid>`); refine choice uses the refining-help protocol URI
   - `label`, `chain_label`, `score`, `role`, `tags` — unchanged semantics
   - **`next_action`** — the exact instruction for the chosen option:
     - **match:** "call kairos_begin with &lt;uri&gt; to execute this protocol"
-    - **refine:** "call kairos_search with more words or details to narrow results"
+    - **refine:** "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
     - **create:** "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002001 to create a new protocol"
 
 Roles:
 
 - `match` — search result with numeric `score` (0.0–1.0)
-- `refine` — meta-action: call kairos_search again with more words or details; `score: null`
+- `refine` — run the refining-help protocol (URI 00000000-0000-0000-0000-000000002002) via kairos_begin; `score: null`
 - `create` — system action to create a new protocol; `score: null`
 
 **Ordering and count:** Refine and create are not part of the search result set.
@@ -146,13 +146,13 @@ Several protocols match. Each match has its own `next_action`; a "refine" and "c
       "next_action": "call kairos_begin with kairos://mem/80ed2aa7-93da-46f6-88c3-90a8a93a6712 to execute this protocol"
     },
     {
-      "uri": "kairos://action/refine-search",
-      "label": "Refine search",
-      "chain_label": "Refine your query and search again",
+      "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
+      "label": "Get help refining your search",
+      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],
-      "next_action": "call kairos_search with more words or details to narrow results"
+      "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
     },
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002001",
@@ -216,13 +216,13 @@ No strong match; top scores are modest (e.g. 0.45–0.72). Refine and create rem
       "next_action": "call kairos_begin with kairos://mem/bbb22222-2222-2222-2222-222222222222 to execute this protocol"
     },
     {
-      "uri": "kairos://action/refine-search",
-      "label": "Refine search",
-      "chain_label": "Refine your query and search again",
+      "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
+      "label": "Get help refining your search",
+      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],
-      "next_action": "call kairos_search with more words or details to narrow results"
+      "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
     },
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002001",
@@ -267,13 +267,13 @@ Only the refine and create options are available (no match choices above thresho
   "next_action": "Pick one choice and follow that choice's next_action.",
   "choices": [
     {
-      "uri": "kairos://action/refine-search",
-      "label": "Refine search",
-      "chain_label": "Refine your query and search again",
+      "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
+      "label": "Get help refining your search",
+      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],
-      "next_action": "call kairos_search with more words or details to narrow results"
+      "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
     },
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002001",
@@ -303,7 +303,7 @@ Only the refine and create options are available (no match choices above thresho
 3. Every choice has `uri`, `label`, `chain_label`, `score`, `role`, `tags`, and **`next_action`**.
 4. Choices with `role: "match"` have a numeric `score` (0.0–1.0).
 5. Choices with `role: "refine"` or `role: "create"` have `score: null`.
-6. The **refine** choice, when present, has `uri: "kairos://action/refine-search"` and a `next_action` that instructs calling `kairos_search` with more words or details.
+6. The **refine** choice, when present, has `uri: "kairos://mem/00000000-0000-0000-0000-000000002002"` and a `next_action` that instructs calling `kairos_begin` with that URI to get step-by-step help refining the query.
 7. The **create** choice, when present, has the creation protocol URI and a `next_action` that instructs calling `kairos_begin` with that URI.
 8. Global `next_action` is a short directive (e.g. "Pick one choice and follow that choice's next_action.") and does not embed a specific protocol URI except in single-choice edge cases where it may duplicate the choice's next_action.
 9. **Choice order:** All `role: "match"` entries come first (top N from search); then at most one `role: "refine"` entry; then one `role: "create"` entry. Refine and create are never counted in the "top N" search limit.

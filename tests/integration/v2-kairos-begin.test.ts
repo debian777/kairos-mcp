@@ -91,6 +91,26 @@ describe('V2 kairos_begin response schema', () => {
     });
   });
 
+  const REFINING_PROTOCOL_URI = 'kairos://mem/00000000-0000-0000-0000-000000002002';
+
+  test('refining protocol: kairos_begin with refine-choice URI returns step 1 with comment challenge', async () => {
+    const call = { name: 'kairos_begin', arguments: { uri: REFINING_PROTOCOL_URI } };
+    const result = await mcpConnection.client.callTool(call);
+    const parsed = parseMcpJson(result, 'v2-begin refining');
+
+    withRawOnFail({ call, result }, () => {
+      expect(parsed.must_obey).toBe(true);
+      expect(parsed.current_step).toBeDefined();
+      expect(parsed.current_step.uri).toBe(REFINING_PROTOCOL_URI);
+      expect(typeof parsed.current_step.content).toBe('string');
+      expect(parsed.current_step.content.length).toBeGreaterThan(0);
+      expect(parsed.current_step.content).toMatch(/refin|Extract|user/i);
+      expect(parsed.challenge).toBeDefined();
+      expect(parsed.challenge.type).toBe('comment');
+      expect(typeof parsed.next_action).toBe('string');
+    });
+  });
+
   test('single-step: next_action says run complete, no final_challenge', async () => {
     const ts = Date.now();
     const doc = `# V2Begin Single ${ts}\n\n## Only Step\nDo the thing.\n\nPROOF OF WORK: comment min_length=10`;

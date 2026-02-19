@@ -96,10 +96,12 @@ describe('V2 kairos_search unified response schema', () => {
       expect(createChoice).toBeDefined();
       expect(createChoice!.score).toBeNull();
       expect(createChoice!.uri).toMatch(/^kairos:\/\/mem\//);
-      if (refineChoice) {
-        expect(refineChoice.uri).toBe('kairos://action/refine-search');
-        expect(typeof refineChoice.next_action).toBe('string');
-      }
+      expect(refineChoice).toBeDefined();
+      expect(refineChoice!.uri).toBe('kairos://mem/00000000-0000-0000-0000-000000002002');
+      expect(typeof refineChoice!.next_action).toBe('string');
+      expect(refineChoice!.next_action).toContain('kairos_begin');
+      expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.label).toBe('Get help refining your search');
       if (createChoice!.next_action !== undefined) {
         expect(typeof createChoice!.next_action).toBe('string');
       }
@@ -108,6 +110,34 @@ describe('V2 kairos_search unified response schema', () => {
       expect(parsed.start_here).toBeUndefined();
       expect(parsed.best_match).toBeUndefined();
       expect(parsed.protocol_status).toBeUndefined();
+    });
+  });
+
+  test('multiple matches: refine and create choices have correct URI and next_action', async () => {
+    const ts = Date.now();
+    const token = `V2RefineMulti${ts}`;
+    await mintProtocol(`${token} Alpha`);
+    await mintProtocol(`${token} Beta`);
+    await new Promise((r) => setTimeout(r, 4000));
+
+    const { call, result, parsed } = await search(token);
+
+    withRawOnFail({ call, result }, () => {
+      expect(parsed.must_obey).toBe(true);
+      expect(Array.isArray(parsed.choices)).toBe(true);
+      const matches = parsed.choices.filter((c: any) => c.role === 'match');
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+
+      const refineChoice = parsed.choices.find((c: any) => c.role === 'refine');
+      const createChoice = parsed.choices.find((c: any) => c.role === 'create');
+      expect(refineChoice).toBeDefined();
+      expect(createChoice).toBeDefined();
+      expect(refineChoice!.uri).toBe('kairos://mem/00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.next_action).toContain('kairos_begin');
+      expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
+      expect(createChoice!.uri).toBe('kairos://mem/00000000-0000-0000-0000-000000002001');
+      expect(createChoice!.next_action).toContain('kairos_begin');
+      expect(createChoice!.next_action).toContain('00000000-0000-0000-0000-000000002001');
     });
   });
 

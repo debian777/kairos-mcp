@@ -12,7 +12,8 @@ import { resolveFirstStep } from '../services/chain-utils.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
-const REFINE_SEARCH_URI = 'kairos://action/refine-search';
+const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
 
 interface RegisterSearchOptions {
   toolName?: string;
@@ -111,7 +112,7 @@ async function resolveHead(
   return head;
 }
 
-const REFINE_NEXT_ACTION = 'call kairos_search with more words or details to narrow results';
+const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
 async function generateUnifiedOutput(
@@ -135,45 +136,28 @@ async function generateUnifiedOutput(
     });
   }
 
-  // matchCount === 0: [refine, create]; matchCount === 1: [match] only; matchCount > 1: [matches..., refine, create]
-  if (matchCount === 0) {
-    choices.push({
-      uri: REFINE_SEARCH_URI,
-      label: 'Refine search',
-      chain_label: 'Refine your query and search again',
-      score: null,
-      role: 'refine',
-      tags: ['meta', 'refine'],
-      next_action: REFINE_NEXT_ACTION
-    });
-    choices.push({
-      uri: CREATION_PROTOCOL_URI,
-      label: 'Create New KAIROS Protocol Chain',
-      chain_label: 'Create New KAIROS Protocol Chain',
-      score: null,
-      role: 'create',
-      tags: ['meta', 'creation'],
-      next_action: CREATE_NEXT_ACTION
-    });
-  } else if (matchCount > 1) {
-    choices.push({
-      uri: REFINE_SEARCH_URI,
-      label: 'Refine search',
-      chain_label: 'Refine your query and search again',
-      score: null,
-      role: 'refine',
-      tags: ['meta', 'refine'],
-      next_action: REFINE_NEXT_ACTION
-    });
-    choices.push({
-      uri: CREATION_PROTOCOL_URI,
-      label: 'Create New KAIROS Protocol Chain',
-      chain_label: 'Create New KAIROS Protocol Chain',
-      score: null,
-      role: 'create',
-      tags: ['meta', 'creation'],
-      next_action: CREATE_NEXT_ACTION
-    });
+  // Single match: only that choice. Zero or multiple: append refine + create.
+  if (matchCount !== 1) {
+    choices.push(
+      {
+        uri: REFINING_PROTOCOL_URI,
+        label: 'Get help refining your search',
+        chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
+        score: null,
+        role: 'refine',
+        tags: ['meta', 'refine'],
+        next_action: REFINING_NEXT_ACTION
+      },
+      {
+        uri: CREATION_PROTOCOL_URI,
+        label: 'Create New KAIROS Protocol Chain',
+        chain_label: 'Create New KAIROS Protocol Chain',
+        score: null,
+        role: 'create',
+        tags: ['meta', 'creation'],
+        next_action: CREATE_NEXT_ACTION
+      }
+    );
   }
 
   let message: string;
@@ -211,10 +195,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   const memoryUriSchema = z
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
-  const choiceUriSchema = z.union([
-    memoryUriSchema,
-    z.literal(REFINE_SEARCH_URI)
-  ]);
+  const choiceUriSchema = memoryUriSchema;
 
   const inputSchema = z.object({
     query: z.string().min(1).describe('Search query for chain heads')
@@ -231,7 +212,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
       role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
       tags: z.array(z.string()),
-      next_action: z.string().describe('Instruction for this choice: kairos_begin URI, or kairos_search for refine.')
+      next_action: z.string().describe('Instruction for this choice: call kairos_begin with this choice\'s uri.')
     })).describe('Options: match(es) first, then refine (if present), then create (if present).')
   });
 
