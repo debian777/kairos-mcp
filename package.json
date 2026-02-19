@@ -81,7 +81,8 @@
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "prebuild": "npm ci && npm run verify:clean && npx ts-node scripts/embed-docs.ts",
-    "verify:clean": "node scripts/verify-clean-source.mjs"
+    "verify:clean": "node scripts/verify-clean-source.mjs",
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
@@ -111,6 +112,7 @@
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.1",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "knip": "^5.83.1",
     "pino-pretty": "^13.1.3",
