@@ -9,14 +9,18 @@ import type { Memory } from '../types/memory.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
+const REFINE_SEARCH_URI = 'kairos://action/refine-search';
+const REFINE_NEXT_ACTION = 'call kairos_search with more words or details to narrow results';
+const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
 interface UnifiedChoice {
     uri: string;
     label: string;
     chain_label: string | null;
     score: number | null;
-    role: 'match' | 'create';
+    role: 'match' | 'refine' | 'create';
     tags: string[];
+    next_action: string;
 }
 
 /**
@@ -106,8 +110,10 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 }))
                 .filter(r => r.score >= SCORE_THRESHOLD);
 
-            // Build unified choices
+            // Build unified choices: matches with per-choice next_action, then refine (if 0 or >1 matches), then create (if 0 or >1)
             const choices: UnifiedChoice[] = [];
+            const matchCount = results.length;
+
             for (const result of results) {
                 const head = (await resolveFirstStep(result.memory, qdrantService)) ?? {
                     uri: result.uri,
@@ -119,36 +125,65 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                     chain_label: result.memory.chain?.label || null,
                     score: result.score,
                     role: 'match',
-                    tags: result.tags
+                    tags: result.tags,
+                    next_action: `call kairos_begin with ${head.uri} to execute this protocol`
                 });
             }
 
-            // Always append creation protocol
-            choices.push({
-                uri: CREATION_PROTOCOL_URI,
-                label: 'Create New KAIROS Protocol Chain',
-                chain_label: 'Create New KAIROS Protocol Chain',
-                score: null,
-                role: 'create',
-                tags: ['system', 'create', 'mint']
-            });
+            if (matchCount === 0) {
+                choices.push({
+                    uri: REFINE_SEARCH_URI,
+                    label: 'Refine search',
+                    chain_label: 'Refine your query and search again',
+                    score: null,
+                    role: 'refine',
+                    tags: ['meta', 'refine'],
+                    next_action: REFINE_NEXT_ACTION
+                });
+                choices.push({
+                    uri: CREATION_PROTOCOL_URI,
+                    label: 'Create New KAIROS Protocol Chain',
+                    chain_label: 'Create New KAIROS Protocol Chain',
+                    score: null,
+                    role: 'create',
+                    tags: ['meta', 'creation'],
+                    next_action: CREATE_NEXT_ACTION
+                });
+            } else if (matchCount > 1) {
+                choices.push({
+                    uri: REFINE_SEARCH_URI,
+                    label: 'Refine search',
+                    chain_label: 'Refine your query and search again',
+                    score: null,
+                    role: 'refine',
+                    tags: ['meta', 'refine'],
+                    next_action: REFINE_NEXT_ACTION
+                });
+                choices.push({
+                    uri: CREATION_PROTOCOL_URI,
+                    label: 'Create New KAIROS Protocol Chain',
+                    chain_label: 'Create New KAIROS Protocol Chain',
+                    score: null,
+                    role: 'create',
+                    tags: ['meta', 'creation'],
+                    next_action: CREATE_NEXT_ACTION
+                });
+            }
 
-            const matchCount = results.length;
             let message: string;
             let nextAction: string;
 
             if (matchCount === 0) {
-                message = "No existing protocol matched your query. You can create a new one.";
-                nextAction = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+                message = 'No existing protocol matched your query. Refine your search or create a new one.';
+                nextAction = "Pick one choice and follow that choice's next_action.";
             } else if (matchCount === 1) {
-                const topChoice = choices[0]!;
                 message = 'Found 1 match.';
-                nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
+                nextAction = "Follow the choice's next_action.";
             } else {
                 const topMatch = choices[0]!;
                 const confidencePercent = Math.round((topMatch.score || 0) * 100);
-                message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
-                nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
+                message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new protocol.`;
+                nextAction = "Pick one choice and follow that choice's next_action.";
             }
 
             const output = {

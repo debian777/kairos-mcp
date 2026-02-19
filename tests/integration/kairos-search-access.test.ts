@@ -111,7 +111,9 @@ describe('Kairos search accessibility', () => {
       expect(searchPayload.must_obey).toBe(true);
       expect(typeof searchPayload.message).toBe('string');
       expect(typeof searchPayload.next_action).toBe('string');
-      expect(searchPayload.next_action).toContain('kairos://mem/');
+      expect(
+        searchPayload.next_action.includes("choice's next_action") || searchPayload.next_action.includes('kairos://mem/')
+      ).toBe(true);
       expect(Array.isArray(searchPayload.choices)).toBe(true);
       expect(searchPayload.choices.length).toBeGreaterThanOrEqual(1);
 

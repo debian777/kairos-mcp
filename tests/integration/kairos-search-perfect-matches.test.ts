@@ -139,14 +139,18 @@ describe('Kairos Search Perfect Matches', () => {
     expect(Array.isArray(singleParsed.choices)).toBe(true);
     expect(singleParsed.choices.length).toBeGreaterThanOrEqual(1);
 
-    // Each choice must have uri, label, role
+    // Each choice must have uri, label, role (uri can be kairos://mem/ or kairos://action/refine-search; next_action in new format)
+    const isNewFormat = typeof singleParsed.next_action === 'string' && singleParsed.next_action.includes("choice's next_action");
     for (const choice of singleParsed.choices) {
       expect(choice.uri).toBeDefined();
       expect(typeof choice.uri).toBe('string');
-      expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+      expect(
+        choice.uri.startsWith('kairos://mem/') || choice.uri === 'kairos://action/refine-search'
+      ).toBe(true);
       expect(choice.label).toBeDefined();
       expect(typeof choice.label).toBe('string');
-      expect(['match', 'create']).toContain(choice.role);
+      if (isNewFormat) expect(choice).toHaveProperty('next_action');
+      expect(['match', 'refine', 'create']).toContain(choice.role);
       if (choice.tags !== undefined) {
         expect(Array.isArray(choice.tags)).toBe(true);
       }

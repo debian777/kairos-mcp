@@ -246,11 +246,13 @@ PROOF OF WORK: timeout 45s echo run-processor`;
     expect(searchResponse.must_obey).toBe(true);
     expect(typeof searchResponse.message).toBe('string');
     expect(typeof searchResponse.next_action).toBe('string');
-    expect(searchResponse.next_action).toContain('kairos://mem/');
+    expect(
+      searchResponse.next_action.includes("choice's next_action") || searchResponse.next_action.includes('kairos://mem/')
+    ).toBe(true);
     expect(Array.isArray(searchResponse.choices)).toBe(true);
     expect(searchResponse.choices.length).toBeGreaterThanOrEqual(1);
 
-    // At least one match choice should exist (or create fallback if indexing delayed)
+    // At least one match choice should exist (or create/refine fallback if indexing delayed)
     const matchChoices = searchResponse.choices.filter((c: any) => c.role === 'match');
     if (matchChoices.length === 0) {
       expect(searchResponse.choices.some((c: any) => c.role === 'create')).toBe(true);
@@ -258,14 +260,16 @@ PROOF OF WORK: timeout 45s echo run-processor`;
       expect(matchChoices.length).toBeGreaterThanOrEqual(1);
     }
 
-    // Each choice has the V2 shape
+    // Each choice has the V2 shape (uri, label, chain_label, role, tags; next_action in new format)
+    const isNewFormat = searchResponse.next_action.includes("choice's next_action");
     for (const choice of searchResponse.choices) {
       expect(choice).toHaveProperty('uri');
       expect(choice).toHaveProperty('label');
       expect(choice).toHaveProperty('chain_label');
       expect(choice).toHaveProperty('role');
       expect(choice).toHaveProperty('tags');
-      expect(['match', 'create']).toContain(choice.role);
+      if (isNewFormat) expect(choice).toHaveProperty('next_action');
+      expect(['match', 'refine', 'create']).toContain(choice.role);
     }
 
     // V1 fields must NOT exist

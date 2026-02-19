@@ -45,7 +45,9 @@ describe('V2 kairos_search unified response schema', () => {
       expect(parsed.must_obey).toBe(true);
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
-      expect(parsed.next_action).toContain('kairos://mem/');
+      expect(
+        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos://mem/')
+      ).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
@@ -55,7 +57,10 @@ describe('V2 kairos_search unified response schema', () => {
       expect(choice).toBeDefined();
       expect(choice.uri).toMatch(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i);
       expect(typeof choice.label).toBe('string');
-      expect(['match', 'create']).toContain(choice.role);
+      if (parsed.next_action.includes("choice's next_action")) {
+        expect(choice).toHaveProperty('next_action');
+      }
+      expect(['match', 'refine', 'create']).toContain(choice.role);
       if (choice.role === 'match') {
         expect(typeof choice.score).toBe('number');
       } else {
@@ -85,11 +90,19 @@ describe('V2 kairos_search unified response schema', () => {
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      // Should have creation protocol option
+      // Should have creation protocol; new format also has refine choice
+      const refineChoice = parsed.choices.find((c: any) => c.role === 'refine');
       const createChoice = parsed.choices.find((c: any) => c.role === 'create');
       expect(createChoice).toBeDefined();
-      expect(createChoice.score).toBeNull();
-      expect(createChoice.uri).toMatch(/^kairos:\/\/mem\//);
+      expect(createChoice!.score).toBeNull();
+      expect(createChoice!.uri).toMatch(/^kairos:\/\/mem\//);
+      if (refineChoice) {
+        expect(refineChoice.uri).toBe('kairos://action/refine-search');
+        expect(typeof refineChoice.next_action).toBe('string');
+      }
+      if (createChoice!.next_action !== undefined) {
+        expect(typeof createChoice!.next_action).toBe('string');
+      }
 
       // V1 fields must NOT exist
       expect(parsed.start_here).toBeUndefined();
@@ -107,6 +120,7 @@ describe('V2 kairos_search unified response schema', () => {
     const { call, result, parsed } = await search(title);
 
     withRawOnFail({ call, result }, () => {
+      const isNewFormat = typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
       for (const choice of parsed.choices) {
         expect(choice).toHaveProperty('uri');
         expect(choice).toHaveProperty('label');
@@ -114,7 +128,8 @@ describe('V2 kairos_search unified response schema', () => {
         expect(choice).toHaveProperty('score');
         expect(choice).toHaveProperty('role');
         expect(choice).toHaveProperty('tags');
-        expect(['match', 'create']).toContain(choice.role);
+        if (isNewFormat) expect(choice).toHaveProperty('next_action');
+        expect(['match', 'refine', 'create']).toContain(choice.role);
       }
     });
   });

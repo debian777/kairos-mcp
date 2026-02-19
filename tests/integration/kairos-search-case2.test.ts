@@ -81,7 +81,9 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       expect(typeof parsed.message).toBe('string');
       expect(parsed.next_action).toBeDefined();
       expect(typeof parsed.next_action).toBe('string');
-      expect(parsed.next_action).toContain('kairos_begin');
+      expect(
+        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos_begin')
+      ).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
@@ -95,6 +97,9 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
         expect(choice.label).toBeDefined();
         expect(typeof choice.label).toBe('string');
         expect(choice.role).toBe('match');
+        if (choice.next_action !== undefined) {
+          expect(choice.next_action).toContain('kairos_begin');
+        }
         if (choice.tags !== undefined) {
           expect(Array.isArray(choice.tags)).toBe(true);
         }

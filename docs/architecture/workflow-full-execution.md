@@ -1,8 +1,9 @@
 # Full execution workflow: search to run complete
 
 End-to-end walkthrough of a complete KAIROS protocol execution. Shows the
-raw JSON call and response at every step. Demonstrates how `next_action`
-chains the entire flow. The run is complete when `next_action` says "Run complete." (no attest step).
+raw JSON call and response at every step. The search response uses per-choice
+`next_action`; the AI picks one choice and follows that choice's `next_action`.
+The run is complete when `next_action` says "Run complete." (no attest step).
 
 ---
 
@@ -58,21 +59,24 @@ kairos_search({
 {
   "must_obey": true,
   "message": "Found 1 match.",
-  "next_action": "call kairos_begin with kairos://mem/step1-uuid-1111-1111-111111111111 to execute protocol",
+  "next_action": "Follow the choice's next_action.",
   "choices": [
     {
       "uri": "kairos://mem/step1-uuid-1111-1111-111111111111",
       "label": "Initialize / Configure / Verify",
       "chain_label": "Simple Setup Protocol",
-      "score": 1.0,
+      "score": 0.58,
       "role": "match",
-      "tags": ["setup", "project", "simple"]
+      "tags": ["setup", "project", "simple"],
+      "next_action": "call kairos_begin with kairos://mem/step1-uuid-1111-1111-111111111111 to execute protocol"
     }
   ]
 }
 ```
 
-**AI reads `next_action`** and calls `kairos_begin`.
+**AI reads global `next_action`** — follow the choice's next_action. The single
+choice's `next_action` says to call `kairos_begin` with the given URI. **AI
+calls `kairos_begin`** with that URI.
 
 ---
 
@@ -112,7 +116,7 @@ kairos_begin({
 
 **AI executes** `mkdir -p project/src` (exit code 0).
 
-**AI reads `next_action`** -- URI for the next step is
+**AI reads `next_action`** — URI for the next step is
 `kairos://mem/step2-uuid-2222-2222-222222222222`.
 
 ---
@@ -164,7 +168,7 @@ kairos_next({
 
 **AI executes** `echo "config" > project/config.json` (exit code 0).
 
-**AI reads `next_action`** -- URI for the next step is
+**AI reads `next_action`** — URI for the next step is
 `kairos://mem/step3-uuid-3333-3333-333333333333`.
 
 **AI notes** `proof_hash` (top-level) to use as `solution.proof_hash` in
@@ -218,7 +222,9 @@ kairos_next({
 }
 ```
 
-**AI reads `next_action`** — "Run complete." **Protocol is done.** The AI may now respond to the user. Quality was already updated in `kairos_next`; no attest step.
+**AI reads `next_action`** — "Run complete." **Protocol is done.** The AI may
+now respond to the user. Quality was already updated in `kairos_next`; no
+attest step.
 
 ---
 
@@ -226,7 +232,8 @@ kairos_next({
 
 ```
 search("simple setup protocol")
-  -> must_obey: true, next_action: "call kairos_begin with kairos://mem/step1..."
+  -> must_obey: true, next_action: "Follow the choice's next_action."
+  -> choices[0].next_action: "call kairos_begin with kairos://mem/step1..."
     |
 begin("kairos://mem/step1...")
   -> must_obey: true, next_action: "call kairos_next with kairos://mem/step2..."
@@ -242,8 +249,14 @@ next("kairos://mem/step3...", solution: {shell, proof_hash: "hash-step1"})
 AI responds to user. (No attest — quality was updated in kairos_next.)
 ```
 
-The AI navigates the entire flow by reading `next_action` at each step.
-Two fields drive all decisions:
+After **search**, the AI picks one choice and follows **that choice's
+`next_action`**. For a single match that is `kairos_begin` with the match URI.
+If the search had returned multiple choices (or refine/create), the AI would
+pick one and follow its `next_action` (e.g. `kairos_begin` for a match,
+`kairos_search` for refine, `kairos_begin` for create).
+
+The rest of the flow is unchanged: the AI navigates by reading `next_action` at
+each step. Two fields drive all decisions:
 
 - `must_obey: true` -> follow `next_action`
 - `must_obey: false` -> use judgment (only after max retries exceeded)

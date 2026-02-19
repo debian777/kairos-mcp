@@ -53,17 +53,22 @@ describe('Kairos Mint Integration', () => {
       expect(parsed.must_obey).toBe(true);
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
-      expect(parsed.next_action).toContain('kairos://mem/');
+      // New format: global directive "choice's next_action"; old format: next_action contains kairos://mem/
+      expect(
+        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos://mem/')
+      ).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      // Each choice has the V2 shape
+      // Each choice has the V2 shape (role can be match, refine, or create; next_action in new format)
+      const isNewFormat = parsed.next_action.includes("choice's next_action");
       for (const choice of parsed.choices) {
         expect(choice).toHaveProperty('uri');
         expect(choice).toHaveProperty('label');
         expect(choice).toHaveProperty('role');
         expect(choice).toHaveProperty('tags');
-        expect(['match', 'create']).toContain(choice.role);
+        if (isNewFormat) expect(choice).toHaveProperty('next_action');
+        expect(['match', 'refine', 'create']).toContain(choice.role);
       }
 
       // V1 fields must NOT exist

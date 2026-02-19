@@ -62,10 +62,12 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
       expect(parsed.message).toBeDefined();
       expect(typeof parsed.message).toBe('string');
 
-      // next_action: string containing kairos://mem/ URI
+      // next_action: global directive (new) or URI (old)
       expect(parsed.next_action).toBeDefined();
       expect(typeof parsed.next_action).toBe('string');
-      expect(parsed.next_action).toContain('kairos://mem/');
+      expect(
+        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos://mem/')
+      ).toBe(true);
 
       // choices: always an array with at least one entry
       expect(Array.isArray(parsed.choices)).toBe(true);
@@ -80,6 +82,9 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
         expect(typeof ourChoice.uri).toBe('string');
         expect(ourChoice.uri.startsWith('kairos://mem/')).toBe(true);
         expect(ourChoice.role).toBe('match');
+        if (ourChoice.next_action !== undefined) {
+          expect(ourChoice.next_action).toContain('kairos://mem/');
+        }
         if (ourChoice.tags !== undefined) {
           expect(Array.isArray(ourChoice.tags)).toBe(true);
         }

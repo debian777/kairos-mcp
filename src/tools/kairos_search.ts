@@ -12,6 +12,7 @@ import { resolveFirstStep } from '../services/chain-utils.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
+const REFINE_SEARCH_URI = 'kairos://action/refine-search';
 
 interface RegisterSearchOptions {
   toolName?: string;
@@ -32,8 +33,9 @@ interface UnifiedChoice {
   label: string;
   chain_label: string | null;
   score: number | null;
-  role: 'match' | 'create';
+  role: 'match' | 'refine' | 'create';
   tags: string[];
+  next_action: string;
 }
 
 function addCandidate(
@@ -109,13 +111,17 @@ async function resolveHead(
   return head;
 }
 
+const REFINE_NEXT_ACTION = 'call kairos_search with more words or details to narrow results';
+const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+
 async function generateUnifiedOutput(
   results: Candidate[],
   qdrantService?: QdrantService
 ): Promise<any> {
   const choices: UnifiedChoice[] = [];
+  const matchCount = results.length;
 
-  // Resolve heads for all results and build choices
+  // Build match choices with per-choice next_action
   for (const result of results) {
     const head = await resolveHead(result.memory, qdrantService);
     choices.push({
@@ -124,36 +130,66 @@ async function generateUnifiedOutput(
       chain_label: result.memory.chain?.label || null,
       score: result.score,
       role: 'match',
-      tags: result.tags
+      tags: result.tags,
+      next_action: `call kairos_begin with ${head.uri} to execute this protocol`
     });
   }
 
-  // Always append creation protocol as fallback
-  choices.push({
-    uri: CREATION_PROTOCOL_URI,
-    label: 'Create New KAIROS Protocol Chain',
-    chain_label: 'Create New KAIROS Protocol Chain',
-    score: null,
-    role: 'create',
-    tags: ['system', 'create', 'mint']
-  });
+  // matchCount === 0: [refine, create]; matchCount === 1: [match] only; matchCount > 1: [matches..., refine, create]
+  if (matchCount === 0) {
+    choices.push({
+      uri: REFINE_SEARCH_URI,
+      label: 'Refine search',
+      chain_label: 'Refine your query and search again',
+      score: null,
+      role: 'refine',
+      tags: ['meta', 'refine'],
+      next_action: REFINE_NEXT_ACTION
+    });
+    choices.push({
+      uri: CREATION_PROTOCOL_URI,
+      label: 'Create New KAIROS Protocol Chain',
+      chain_label: 'Create New KAIROS Protocol Chain',
+      score: null,
+      role: 'create',
+      tags: ['meta', 'creation'],
+      next_action: CREATE_NEXT_ACTION
+    });
+  } else if (matchCount > 1) {
+    choices.push({
+      uri: REFINE_SEARCH_URI,
+      label: 'Refine search',
+      chain_label: 'Refine your query and search again',
+      score: null,
+      role: 'refine',
+      tags: ['meta', 'refine'],
+      next_action: REFINE_NEXT_ACTION
+    });
+    choices.push({
+      uri: CREATION_PROTOCOL_URI,
+      label: 'Create New KAIROS Protocol Chain',
+      chain_label: 'Create New KAIROS Protocol Chain',
+      score: null,
+      role: 'create',
+      tags: ['meta', 'creation'],
+      next_action: CREATE_NEXT_ACTION
+    });
+  }
 
-  const matchCount = results.length;
   let message: string;
   let nextAction: string;
 
   if (matchCount === 0) {
-    message = "No existing protocol matched your query. You can create a new one.";
-    nextAction = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+    message = 'No existing protocol matched your query. Refine your search or create a new one.';
+    nextAction = "Pick one choice and follow that choice's next_action.";
   } else if (matchCount === 1) {
-    const topChoice = choices[0]!;
     message = 'Found 1 match.';
-    nextAction = `call kairos_begin with ${topChoice.uri} to execute protocol`;
+    nextAction = "Follow the choice's next_action.";
   } else {
     const topMatch = choices[0]!;
     const confidencePercent = Math.round((topMatch.score || 0) * 100);
-    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one or create a new protocol.`;
-    nextAction = `call kairos_begin with ${topMatch.uri} to execute best match, or choose another from choices`;
+    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new protocol.`;
+    nextAction = "Pick one choice and follow that choice's next_action.";
   }
 
   return {
@@ -175,6 +211,10 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   const memoryUriSchema = z
     .string()
     .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  const choiceUriSchema = z.union([
+    memoryUriSchema,
+    z.literal(REFINE_SEARCH_URI)
+  ]);
 
   const inputSchema = z.object({
     query: z.string().min(1).describe('Search query for chain heads')
@@ -183,15 +223,16 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   const outputSchema = z.object({
     must_obey: z.boolean().describe('Always true. Follow next_action.'),
     message: z.string().describe('Human-readable summary'),
-    next_action: z.string().describe('Next tool call instruction with embedded URI'),
+    next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
     choices: z.array(z.object({
-      uri: memoryUriSchema,
+      uri: choiceUriSchema,
       label: z.string(),
       chain_label: z.string().nullable(),
-      score: z.number().nullable().describe('0.0-1.0 for matches, null for system actions'),
-      role: z.enum(['match', 'create']).describe('match = search result, create = system action'),
-      tags: z.array(z.string())
-    })).describe('Protocols to choose from. Last entry is always the creation protocol.')
+      score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
+      role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
+      tags: z.array(z.string()),
+      next_action: z.string().describe('Instruction for this choice: kairos_begin URI, or kairos_search for refine.')
+    })).describe('Options: match(es) first, then refine (if present), then create (if present).')
   });
 
   structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(inputSchema)}`);
