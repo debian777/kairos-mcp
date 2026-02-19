@@ -9,7 +9,8 @@ Follow these steps:
 
 1. **Start the KAIROS server.** Ensure the server is running at the URL you
    will use in the config (for example, `http://localhost:3000`). See the
-   project README for build and run commands.
+   project [README](../README.md) for quick start (Docker or developer option);
+   see [CONTRIBUTING](../CONTRIBUTING.md) for full developer commands.
 
 2. **Add the MCP config to Cursor.** Either use the one-click install link
    below (it opens Cursor with the config pre-filled) or copy the JSON block
@@ -29,6 +30,7 @@ Follow these steps:
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
       "alwaysAllow": [
+        "kairos_search",
         "kairos_begin",
         "kairos_next",
         "kairos_mint",

@@ -15,7 +15,7 @@ Make agent work durable and executable by providing:
 
 ## Goals
 
-KAIROS MCP wins by being the most reliable “memory + protocol” substrate that agent hosts can depend on. We focus on a small set of primitives that compose into many workflows, schemas and error messages that minimize agent confusion, and backends that orchestrate complexity so the agent-facing surface stays simple.
+KAIROS MCP wins by being the most reliable "memory + protocol" substrate that agent hosts can depend on. We focus on a small set of primitives that compose into many workflows, schemas and error messages that minimize agent confusion, and backends that orchestrate complexity so the agent-facing surface stays simple.
 
 **Success** means new clients can implement the tool flow without guesswork; execution is repeatable and traceable; and the system can evolve without breaking agents or requiring hidden tribal knowledge.
 
@@ -23,198 +23,44 @@ KAIROS MCP wins by being the most reliable “memory + protocol” substrate tha
 
 KAIROS MCP does not try to be: a general-purpose agent framework or planner; a vector DB or database abstraction; a UI product for humans (agents are the primary users); or a place to store secrets, credentials, or regulated personal data.
 
----
+## Quick start (Docker)
 
-KAIROS is an MCP (Model Context Protocol) server that provides persistent knowledge memory for AI agents, enabling them to store, retrieve, and reason over information across sessions.
-
-## Build, Deploy, and Test
-
-All build, deploy, and test operations are available as npm scripts.
-
-> **Warning:** Always deploy before testing. Tests run against running dev/qa
-> servers, so you must deploy your changes first using `npm run dev:deploy` (or
-> `npm run qa:deploy`) before running tests.
-
-### Build
+**Option A — Full stack (recommended):** Run the complete stack with Docker Compose (Redis, Qdrant, MCP server).
 
 ```bash
-# Build TypeScript to JavaScript (outputs to dist/)
-npm run build
-
-# Build for development environment (includes linting)
-npm run dev:build
-
-# Build for QA environment (includes linting)
-npm run qa:build
-```
-
-### Deploy
-
-```bash
-# Deploy to development environment (build + restart)
-npm run dev:deploy
-
-# Deploy to QA environment (build + start)
-npm run qa:deploy
-```
-
-### Test
-
-> **Warning:** Deploy before testing. Tests require the server to be running
-> with your latest changes.
-
-```bash
-# Standard workflow: Deploy first, then test
-npm run dev:deploy && npm run dev:test
-npm run qa:deploy && npm run qa:test
-
-# Individual test commands (only use if server is already deployed)
-npm run dev:test
-npm run qa:test
-```
-
-**Why deploy first?** Tests connect to the running MCP server. If you've made code changes, you must deploy them (`npm run dev:deploy`) so the server runs your updated code before tests execute.
-
-### Development Environment Management
-
-```bash
-# Start development server
-npm run dev:start
-
-# Stop development server
-npm run dev:stop
-
-# Restart development server
-npm run dev:restart
-
-# View development logs
-npm run dev:logs
-
-# Check development server status
-npm run dev:status
-
-# Access Redis CLI (development)
-npm run dev:redis-cli
-
-# Access Qdrant via curl (development)
-npm run dev:qdrant-curl
-```
-
-### QA Environment Management
-
-```bash
-# Start QA server
-npm run qa:start
-
-# Stop QA server
-npm run qa:stop
-
-# Restart QA server
-npm run qa:restart
-
-# View QA logs
-npm run qa:logs
-
-# Check QA server status
-npm run qa:status
-
-# Access Redis CLI (QA)
-npm run qa:redis-cli
-
-# Access Qdrant via curl (QA)
-npm run qa:qdrant-curl
-```
-
-## CLI Usage
-
-The KAIROS CLI provides a command-line interface for interacting with the KAIROS REST API.
-
-See [docs/CLI.md](docs/CLI.md) for complete CLI documentation, including installation, configuration, and all available commands.
-
-## Snapshot Management
-
-You can back up the Qdrant vector database in two ways:
-
-- Enable automatic Qdrant backups on boot by setting
-  `QDRANT_SNAPSHOT_ON_START=true`. Use `QDRANT_SNAPSHOT_DIR` to control where
-  snapshot files are written (defaults to `data/qdrant/snapshots`).
-- Trigger an on-demand snapshot against the running server with
-  `POST /api/snapshot`. The response includes the snapshot file path, byte
-  size, and status so you can plug it into backup automation.
-
-### Code Quality
-
-```bash
-# Run linter
-npm run lint
-
-# Run linter with auto-fix
-npm run lint:fix
-
-# Verify clean source (checks for uncommitted changes)
-npm run verify:clean
-```
-
-### Docker
-
-```bash
-# Build Docker image
-npm run docker:build
-```
-
-## Project Structure
-
-- `src/` - Source TypeScript code
-- `src/embed-docs/` - Embedded MCP resources (prompts, tools, templates)
-- `dist/` - Compiled JavaScript output
-- `tests/` - Test files
-- `tests/test-data/` - Test data files
-- `scripts/` - Build and utility scripts
-
-## Infrastructure Setup
-
-Start the required infrastructure services (Redis and Qdrant):
-
-```bash
-npm run infra:start
-```
-
-This starts Redis and Qdrant using Docker Compose with the infrastructure profile.
-
-## Requirements
-
-- Node.js >= 24.0.0
-- Docker and Docker Compose (for containerized deployment)
-- Qdrant (vector database)
-- Redis (caching)
-
-## Installation
-
-```bash
-# Clone the repository
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
+cp env.example.txt .env.prod
+# Edit .env.prod if needed (see env.example.txt for options)
+docker compose --profile prod up -d
+```
 
-# Install dependencies
+Access the server at `http://localhost:3000`; health check at `http://localhost:3000/health`.
+
+**Option B — Developer:** Infra via Docker, app via Node (for local development).
+
+```bash
+git clone https://github.com/debian777/kairos-mcp.git
+cd kairos-mcp
 npm ci
-
-# Copy environment template
 cp env.example.txt .env.dev
-
-# Configure your environment variables in .env.dev
-# See env.example.txt for all available options
-
-# Start infrastructure
+# Configure .env.dev (see env.example.txt)
 npm run infra:start
-
-# Start development server
 npm run dev:start
 ```
+
+Full developer workflow (build, test, lint, dev/qa commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## What you get
+
+- **Persistent memory** — Store and retrieve protocol chains in Qdrant; update and mint via tools.
+- **Deterministic execution** — Search → begin → next (loop) → run complete; server drives `next_action`.
+- **Agent-facing design** — Tool descriptions, schemas, and errors built for programmatic consumption and recovery.
+- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack.
 
 ## Contributing
 
-Contributions are welcome. Read the [Contributing Guide](CONTRIBUTING.md) for
-details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome. Developer setup, all npm commands (build, deploy, test, dev/qa, lint, infra, Docker), and contribution guidelines are in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## License
 

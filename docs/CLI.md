@@ -72,13 +72,21 @@ Default API URL: `http://localhost:3000`
 
 ## Commands
 
-### `begin` - Search for Protocols
+### `search` - Search for Protocols
 
-Search for KAIROS protocols by query:
+Search for KAIROS protocols by query. Returns a list of choices (matches, refine, create); use a choice's URI with `begin` to start a protocol.
 
 ```bash
-kairos begin "ai coding standards"
-kairos begin "natural language translator"
+kairos search "ai coding standards"
+kairos search "natural language translator"
+```
+
+### `begin` - Start Protocol (Step 1)
+
+Load the first step of a protocol chain. Pass a URI from `search` results (or a step 1 URI). No solution is required for step 1.
+
+```bash
+kairos begin kairos://mem/<step1-uuid>
 ```
 
 ### `next` - Get Next Step
@@ -174,11 +182,14 @@ kairos attest kairos://mem/xxx success "Great work!" --quality-bonus 5 --model "
 ## Examples
 
 The following commands show common workflows. Replace `kairos://mem/xxx` with a
-memory URI returned from `kairos begin` or `kairos next`.
+memory URI from `kairos search` (choices) or `kairos begin` / `kairos next`.
 
 ```bash
 # Search for a protocol
-kairos begin "coding standards"
+kairos search "coding standards"
+
+# Start a protocol (use a URI from search results)
+kairos begin kairos://mem/xxx
 
 # Follow a protocol chain and output markdown
 kairos next kairos://mem/xxx --follow
@@ -202,6 +213,7 @@ Get help for any command:
 
 ```bash
 kairos --help
+kairos search --help
 kairos begin --help
 kairos next --help
 kairos mint --help
@@ -212,8 +224,7 @@ kairos attest --help
 
 ## Next steps
 
-- Set up and run the KAIROS server (see the project README).
-- Install the KAIROS MCP server in Cursor for tool integration
-  ([Install KAIROS MCP in Cursor](INSTALL-MCP.md)).
-- For protocol flow and tool workflows, see
-  [Architecture and protocol workflows](architecture/README.md).
+- Set up and run the KAIROS server: see the project [README](../README.md) for quick start (Docker or developer option); see [CONTRIBUTING](../CONTRIBUTING.md) for full developer commands.
+- Install the KAIROS MCP server in Cursor: [Install KAIROS MCP in Cursor](INSTALL-MCP.md).
+- For protocol flow and tool workflows: [Architecture and protocol workflows](architecture/README.md).
+- For challenge types and protocol examples: [Protocol examples and challenge types](examples/README.md).

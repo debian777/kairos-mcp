@@ -20,10 +20,15 @@ KAIROS MCP: setup guides, CLI reference, and protocol workflow details.
   protocol runs end-to-end (search → begin → next → run complete) and per-tool
   workflow reference with response shapes and scenarios.
 
+## Examples
+
+- **[Protocol examples and challenge types](examples/README.md)** — Human-readable
+  examples for building protocols: challenge types (shell, mcp, user_input, comment),
+  step bodies, and solution shapes for `kairos_next`.
+
 ## AI instructions and prompts
 
-- **[Software Architect prompt (generic)](prompts/software-architect.md)** — Generic
-  role prompt for architecture design and technical decisions.
+- Generic role prompts (e.g. Software Architect) may be added under `docs/prompts/` when available.
 
 ## For contributors
 

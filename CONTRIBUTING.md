@@ -34,21 +34,93 @@ By participating in this project, you agree to maintain a respectful and inclusi
 3. Start infrastructure services: `npm run infra:start`
 4. Start development server: `npm run dev:start`
 
-### Running Tests
+### Developer commands (build, deploy, test)
 
-**Important:** Always deploy before testing. Tests run against a running server.
+All build, deploy, and test operations are npm scripts. **Always deploy before testing:** tests run against the running dev/qa server, so deploy your changes first.
+
+**Build**
 
 ```bash
-# Deploy and test (dev: PORT=3300)
-npm run dev:deploy && npm run dev:test
+npm run build              # TypeScript to dist/
+npm run dev:build          # Build for dev (includes lint)
+npm run qa:build           # Build for QA (includes lint)
+```
 
-# QA environment (PORT=3500, Docker): deploy then test
-npm run qa:deploy && npm run qa:test
+**Deploy**
 
-# Run a single test file (after dev:deploy or qa:deploy)
-npm run dev:test -- tests/integration/kairos-dump.test.ts
+```bash
+npm run dev:deploy         # Build + restart dev server
+npm run qa:deploy          # Build + start QA server
+```
+
+**Test**
+
+```bash
+npm run dev:deploy && npm run dev:test   # Standard dev workflow
+npm run qa:deploy && npm run qa:test     # QA workflow
+npm run dev:test -- tests/integration/kairos-dump.test.ts   # Single file (after deploy)
 npm run qa:test -- tests/integration/kairos-dump.test.ts
 ```
+
+**Development environment**
+
+```bash
+npm run dev:start          # Start dev server
+npm run dev:stop           # Stop dev server
+npm run dev:restart        # Restart dev server
+npm run dev:logs           # View dev logs
+npm run dev:status         # Check dev server status
+npm run dev:redis-cli      # Redis CLI (dev)
+npm run dev:qdrant-curl    # Qdrant via curl (dev)
+```
+
+**QA environment**
+
+```bash
+npm run qa:start           # Start QA server
+npm run qa:stop            # Stop QA server
+npm run qa:restart         # Restart QA server
+npm run qa:logs            # View QA logs
+npm run qa:status          # Check QA server status
+npm run qa:redis-cli       # Redis CLI (QA)
+npm run qa:qdrant-curl     # Qdrant via curl (QA)
+```
+
+**Infrastructure**
+
+```bash
+npm run infra:start        # Start Redis and Qdrant (Docker Compose profile infra)
+```
+
+**Code quality**
+
+```bash
+npm run lint               # Run linter
+npm run lint:fix            # Lint with auto-fix
+npm run verify:clean       # Check for uncommitted changes
+```
+
+**Docker**
+
+```bash
+npm run docker:build       # Build Docker image (debian777/kairos-mcp)
+```
+
+**Snapshot management (optional)**
+
+- Enable automatic Qdrant backups on boot: `QDRANT_SNAPSHOT_ON_START=true`; use `QDRANT_SNAPSHOT_DIR` for path (default `data/qdrant/snapshots`).
+- On-demand snapshot: `POST /api/snapshot`; response includes file path, size, and status.
+
+**Project structure**
+
+- `src/` — Source TypeScript; `src/embed-docs/` — embedded MCP resources
+- `dist/` — Compiled output
+- `tests/` — Test files; `tests/test-data/` — test data
+- `scripts/` — Build and utility scripts
+
+**CLI**
+
+See [docs/CLI.md](docs/CLI.md) for the KAIROS CLI (installation, configuration, commands).
 
 ## Principles
 
