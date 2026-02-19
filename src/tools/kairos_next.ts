@@ -252,7 +252,8 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             if (options.qdrantService) {
               await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
             }
-            const retryCount = await proofOfWorkStore.incrementRetry(uuid);
+            const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
+            const retryCount = await proofOfWorkStore.incrementRetry(storedNonce ?? uuid);
             const blockedPayload = {
               must_obey: retryCount < 3,
               current_step: buildCurrentStep(memory, requestedUri),
@@ -276,11 +277,6 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
-
-        // First run is not a retry: reset retry for the step we're presenting so the first submission in this run is never counted as a retry (fixes MAX_RETRIES_EXCEEDED on first valid submission).
-        if (displayMemory?.memory_uuid) {
-          await proofOfWorkStore.resetRetry(displayMemory.memory_uuid);
-        }
 
         // Resolve the step AFTER the display step to get next_action URI
         const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;

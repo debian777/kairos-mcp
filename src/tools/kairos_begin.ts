@@ -9,7 +9,6 @@ import type { Memory } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge } from './kairos_next-pow-helpers.js';
-import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 
 interface RegisterBeginOptions {
   toolName?: string;
@@ -152,10 +151,6 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
           ? `kairos://mem/${nextStepInfo.uuid}`
           : null;
 
-        // First run is not a retry: reset retry for step 1 so the first submission in this run is never counted as a retry.
-        if (memory?.memory_uuid) {
-          await proofOfWorkStore.resetRetry(memory.memory_uuid);
-        }
         const challenge = await buildChallenge(memory, memory?.proof_of_work);
         const output = buildKairosBeginPayload(memory, requestedUri, nextStepUri, challenge, redirectMessage);
         return respond(output);

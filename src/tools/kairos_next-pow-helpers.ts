@@ -76,12 +76,25 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
   return base;
 }
 
-export async function buildChallenge(memory: Memory | null, proof?: ProofOfWorkDefinition): Promise<any> {
+export type BuildChallengeOptions = {
+  /** When set, use this nonce and do not overwrite the stored nonce (e.g. for error responses so retry count is preserved). */
+  existingNonce?: string;
+};
+
+export async function buildChallenge(
+  memory: Memory | null,
+  proof?: ProofOfWorkDefinition,
+  options?: BuildChallengeOptions
+): Promise<any> {
   const base = buildChallengeShapeForDisplay(proof) as any;
   if (memory?.memory_uuid) {
-    const nonce = crypto.randomBytes(16).toString('hex');
-    await proofOfWorkStore.setNonce(memory.memory_uuid, nonce);
-    base.nonce = nonce;
+    if (options?.existingNonce != null) {
+      base.nonce = options.existingNonce;
+    } else {
+      const nonce = crypto.randomBytes(16).toString('hex');
+      await proofOfWorkStore.setNonce(memory.memory_uuid, nonce);
+      base.nonce = nonce;
+    }
   }
   return base;
 }
@@ -191,11 +204,19 @@ export async function handleProofSubmission(
   // Accept both proof_hash (v2) and previousProofHash (v1 compat)
   const submittedProofHash = submission.proof_hash ?? submission.previousProofHash;
 
-  // Helper to build error with retry counting
+  // Helper to build error with retry counting (key by nonce so each challenge instance has unique count).
+  // Reuse existing nonce in the error response so we do not overwrite the stored nonce (buildChallenge
+  // would otherwise set a new one and reset the retry key, breaking MAX_RETRIES).
   const blocked = async (msg: string, code: string, currentStep?: any, challengeObj?: any) => {
-    const retryCount = await proofOfWorkStore.incrementRetry(uuid);
+    const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
+    const retryKey = storedNonce ?? uuid;
+    const retryCount = await proofOfWorkStore.incrementRetry(retryKey);
     const cs = currentStep || { uri: `kairos://mem/${uuid}`, content: '', mimeType: 'text/markdown' };
-    const ch = challengeObj || await buildChallenge(memory, memory.proof_of_work);
+    const ch =
+      challengeObj ||
+      (storedNonce != null
+        ? await buildChallenge(memory, memory.proof_of_work, { existingNonce: storedNonce })
+        : await buildChallenge(memory, memory.proof_of_work));
     return {
       blockedPayload: buildErrorPayload(memory, cs, ch, msg, code, retryCount)
     };
@@ -319,8 +340,10 @@ export async function handleProofSubmission(
     return blocked('Proof of work failed. Fix and retry.', 'COMMAND_FAILED');
   }
 
-  // Success -- reset retry counter
-  await proofOfWorkStore.resetRetry(uuid);
+  // Success -- reset retry counter for this challenge instance
+  const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
+  const retryKey = storedNonce ?? uuid;
+  await proofOfWorkStore.resetRetry(retryKey);
 
   return { proofHash };
 }

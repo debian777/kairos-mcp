@@ -40,8 +40,8 @@ export interface ProofOfWorkResultRecord {
 const NONCE_TTL_SEC = 3600;
 /** TTL for proof hash (7 days, same as result). */
 const HASH_TTL_SEC = 604800;
-/** TTL for retry counter (1 hour). Resets naturally after inactivity. */
-const RETRY_TTL_SEC = 3600;
+/** TTL for retry counter (60s). Bounds retry window and cleanup; refreshed on each increment. */
+const RETRY_TTL_SEC = 60;
 /** Max retries before escalating to must_obey: false. */
 export const MAX_RETRIES = 3;
 
@@ -121,39 +121,51 @@ export class ProofOfWorkStore {
     }
   }
 
-  private retryKey(uuid: string): string {
-    return `${this.retryPrefix}${uuid}`;
+  private retryKey(identifier: string): string {
+    return `${this.retryPrefix}${identifier}`;
   }
 
-  async incrementRetry(memoryUuid: string): Promise<number> {
-    if (!memoryUuid) return 0;
+  /**
+   * Increment retry count for this challenge instance.
+   * @param identifier - Step's current nonce when available, otherwise step uuid.
+   */
+  async incrementRetry(identifier: string): Promise<number> {
+    if (!identifier) return 0;
     try {
-      const count = await redisService.incr(this.retryKey(memoryUuid));
-      await redisService.set(this.retryKey(memoryUuid), String(count), RETRY_TTL_SEC);
+      const count = await redisService.incr(this.retryKey(identifier));
+      await redisService.set(this.retryKey(identifier), String(count), RETRY_TTL_SEC);
       return count;
     } catch (error) {
-      logger.error(`[ProofOfWorkStore] Failed to increment retry for ${memoryUuid}`, error);
+      logger.error(`[ProofOfWorkStore] Failed to increment retry for ${identifier}`, error);
       return 0;
     }
   }
 
-  async getRetryCount(memoryUuid: string): Promise<number> {
-    if (!memoryUuid) return 0;
+  /**
+   * Get retry count for this challenge instance.
+   * @param identifier - Step's current nonce when available, otherwise step uuid.
+   */
+  async getRetryCount(identifier: string): Promise<number> {
+    if (!identifier) return 0;
     try {
-      const val = await redisService.get(this.retryKey(memoryUuid));
+      const val = await redisService.get(this.retryKey(identifier));
       return val ? parseInt(val, 10) : 0;
     } catch (error) {
-      logger.error(`[ProofOfWorkStore] Failed to get retry count for ${memoryUuid}`, error);
+      logger.error(`[ProofOfWorkStore] Failed to get retry count for ${identifier}`, error);
       return 0;
     }
   }
 
-  async resetRetry(memoryUuid: string): Promise<void> {
-    if (!memoryUuid) return;
+  /**
+   * Reset retry count for this challenge instance.
+   * @param identifier - Step's current nonce when available, otherwise step uuid.
+   */
+  async resetRetry(identifier: string): Promise<void> {
+    if (!identifier) return;
     try {
-      await redisService.set(this.retryKey(memoryUuid), '0', RETRY_TTL_SEC);
+      await redisService.set(this.retryKey(identifier), '0', RETRY_TTL_SEC);
     } catch (error) {
-      logger.error(`[ProofOfWorkStore] Failed to reset retry for ${memoryUuid}`, error);
+      logger.error(`[ProofOfWorkStore] Failed to reset retry for ${identifier}`, error);
     }
   }
 }
