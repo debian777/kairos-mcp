@@ -1,0 +1,33 @@
+---
+description: When running KAIROS workflow tests (tests/workflow-test or reports/) — use only MCP tools and write output to reports/
+globs:
+  - "tests/workflow-test/**"
+  - "reports/**"
+  - "docs/examples/**"
+---
+
+# Workflow test — MCP-only, reports/ output
+
+You are running **dev/qa workflow tests** for KAIROS. Apply these constraints for the whole session.
+
+## Constraints (non-negotiable)
+
+- **MCP tools only.** Use only KAIROS MCP tools: `kairos_search`, `kairos_begin`, `kairos_next`, `kairos_mint`, `kairos_dump`, `kairos_update`, `kairos_attest`, `kairos_delete`. Do not use filesystem tools, shell, or run terminal commands.
+- **No local filesystem access** except the one exception below.
+- **No shell or terminal.** Do not execute shell commands or scripts.
+- **Exception: `reports/` folder.** You may write **only** under the workspace `reports/` directory. All run output goes there.
+
+## Report format
+
+- Create a run directory: `reports/<run-id>/` (e.g. `workflow-YYYY-MM-DD-HHmmss`).
+- **Main report:** `reports/<run-id>/report.md` — summary, scenario results (imports; search + workflows; update step; update chain), pass/fail, brief notes. Do not embed full raw request/response in the report.
+- **Per-call files:** `reports/<run-id>/calls/<nnn>-<tool_name>.json` — one file per MCP call; each file is JSON with `request` and `response` (full raw call and response). Example: `001-kairos_mint.json`, `002-kairos_search.json`.
+
+## Scenarios to run (in order)
+
+1. **Imports** — Mint protocols from `docs/examples/` (use MCP-only examples: protocol-example-mcp, protocol-example-comment, protocol-example-user-input).
+2. **Search + workflows** — `kairos_search` → choose chain → `kairos_begin` → `kairos_next` until run complete.
+3. **Update step** — `kairos_dump` one step → edit markdown → `kairos_update` with that URI and edited doc.
+4. **Update chain** — `kairos_dump` with `protocol: true` → edit → `kairos_update` with multiple URIs and markdown_doc array.
+
+Full prompt and details: `tests/workflow-test/PROMPT.md` and `tests/workflow-test/README.md`.

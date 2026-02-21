@@ -115,7 +115,9 @@ npm run docker:build       # Build Docker image (debian777/kairos-mcp)
 
 - `src/` — Source TypeScript; `src/embed-docs/` — embedded MCP resources
 - `dist/` — Compiled output
-- `tests/` — Test files; `tests/test-data/` — test data
+- `tests/` — Test files; `tests/test-data/` — test data; `tests/workflow-test/` — agent workflow test prompt and instructions (MCP-only, output to `reports/`)
+- `reports/` — Workflow test output (gitignored except `.gitkeep`): `reports/<run-id>/report.md` and `reports/<run-id>/calls/*.json`
+- `docs/examples/` — Mintable protocol examples used in dev/qa workflow tests (imports scenario)
 - `scripts/` — Build and utility scripts
 
 **CLI**

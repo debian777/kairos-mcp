@@ -195,6 +195,7 @@ mcp-logs/tls/
 certs
 .secrets
 reports/
+!reports/.gitkeep
 .env.*
 docs/.obsidian .kilocodeignore
 docs/.obsidian

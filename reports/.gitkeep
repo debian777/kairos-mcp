@@ -1,0 +1,2 @@
+# Workflow test output: reports/<run-id>/report.md and reports/<run-id>/calls/*.json
+# Directory is gitignored except this file. See tests/workflow-test/README.md.
