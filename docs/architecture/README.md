@@ -24,6 +24,13 @@ Protocol order is always: search → begin → next (loop) → run complete.
 port map, startup sequence, volume layout, Redis/Qdrant data models, and embedding
 provider selection — all with Mermaid diagrams.
 
+## Authentication Setup
+
+[Authentication setup guide](authentication-setup.md) provides step-by-step instructions
+for configuring OIDC/OAuth2 bearer token authentication with Google, Apple, and Okta
+identity providers. Includes detailed setup procedures, configuration examples, and
+troubleshooting tips.
+
 ## Full execution walkthrough
 
 [Full execution workflow: search to run complete](workflow-full-execution.md) shows
