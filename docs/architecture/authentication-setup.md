@@ -263,9 +263,10 @@ curl -X POST http://localhost:3000/mcp \
 
 - **Issuer URL**: `https://appleid.apple.com`
 - **JWKS URL**: `https://appleid.apple.com/.well-known/jwks.json`
-- **Algorithm**: Apple uses ES256 (ECDSA), but KAIROS MCP currently supports RS256. You may need to configure Apple to use RS256 or update the server to support ES256.
+- **Algorithm**: Apple uses ES256 (ECDSA), which is fully supported by KAIROS MCP's JWT verification
 - **Service ID**: Use the Service ID (not App ID) as the audience
 - **Team ID**: Required for generating client secrets
+- **Token Format**: Apple issues JWT access tokens with standard OIDC claims
 
 ---
 
