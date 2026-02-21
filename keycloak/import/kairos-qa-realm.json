@@ -1,0 +1,23 @@
+{
+  "realm": "kairos-qa",
+  "enabled": true,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "groups": [
+    { "name": "kairos-team-platform" },
+    { "name": "kairos-team-sre" }
+  ],
+  "clients": [
+    {
+      "clientId": "kairos-mcp",
+      "name": "KAIROS MCP (qa)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ]
+}

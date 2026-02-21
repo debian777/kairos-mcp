@@ -11,14 +11,15 @@ The compose file uses Docker profiles to control which services start together.
 
 | Profile | Services started |
 |---------|-----------------|
-| `infra` | redis, redisinsight, qdrant |
-| `prod`  | redis, redisinsight, qdrant, app-prod |
+| `infra` | redis, redisinsight, qdrant, keycloak-db, keycloak *(see [Keycloak OIDC dev plan](../plans/keycloak-oidc-dev.md))* |
+| `prod`  | redis, redisinsight, qdrant, keycloak-db, keycloak, app-prod |
 | `qa`    | app-qa *(connects to externally running infra)* |
 
 ```bash
 docker compose --profile infra up -d   # infrastructure only
 docker compose --profile prod  up -d   # full production stack
 docker compose --profile qa    up -d   # QA app against existing infra
+docker compose --profile infra up -d   # infra (includes Keycloak)
 ```
 
 ---
@@ -107,6 +108,7 @@ flowchart TB
 | app-prod     | 9090  | 9090  | HTTP | Prometheus metrics |
 | app-qa       | 3500  | 3500  | HTTP | MCP + REST API |
 | app-qa       | 9090  | 9090  | HTTP | Prometheus metrics |
+| keycloak     | 8080  | 8080  | HTTP | Keycloak admin + OIDC (profiles `infra` / `prod`) |
 
 ---
 
@@ -281,7 +283,8 @@ ${VOLUME_LOCAL_PATH}/
 ├── data/
 │   ├── redis/             # AOF journal + RDB snapshot (60 s / 1000 writes)
 │   ├── qdrant/            # Vector storage (segments, WAL, indexes)
-│   └── redisinsight/      # RedisInsight UI settings
+│   ├── redisinsight/      # RedisInsight UI settings
+│   └── keycloak_pgdata/   # Keycloak Postgres DB (profiles infra/prod)
 └── snapshots/
     ├── prod/qdrant/       # On-demand or startup snapshots — prod
     └── qa/qdrant/         # On-demand or startup snapshots — qa
@@ -378,5 +381,6 @@ flowchart TD
 
 - [Full execution workflow](workflow-full-execution.md) — protocol run end-to-end
 - [Quality metadata](quality-metadata.md) — scoring and bonus structure
+- [Keycloak OIDC dev plan](../plans/keycloak-oidc-dev.md) — Keycloak + Postgres (profile `dev`)
 - [`compose.yaml`](../../compose.yaml) — source of truth for container definitions
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults
