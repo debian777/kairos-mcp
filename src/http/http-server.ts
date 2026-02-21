@@ -11,6 +11,7 @@ import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
+import { mcpAuthMiddleware, apiAuthMiddleware } from './http-auth-middleware.js';
 
 export function startHttpServer(port: number, server: any, memoryStore: MemoryQdrantStore) {
     const app = express();
@@ -19,9 +20,15 @@ export function startHttpServer(port: number, server: any, memoryStore: MemoryQd
     configureMiddleware(app);
 
     // Set up all route handlers
-    setupHealthRoutes(app, memoryStore);
+    setupHealthRoutes(app, memoryStore); // Public routes (no auth)
+    
+    // Apply auth middleware to API routes
+    app.use('/api', apiAuthMiddleware);
     setupApiRoutes(app, memoryStore, { qdrantService });
-    setupMcpRoutes(app, server);
+    
+    // Apply auth middleware to MCP endpoint (chain with route handler)
+    setupMcpRoutes(app, server, mcpAuthMiddleware);
+    
     setupErrorHandlers(app);
 
     // Start server with error handling

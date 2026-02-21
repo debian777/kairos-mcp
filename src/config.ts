@@ -92,6 +92,18 @@ export function getTeiDimension(defaultValue = 0): number {
   return getEnvInt('TEI_DIMENSION', defaultValue);
 }
 
+// Authentication configurations
+export const AUTH_ENABLED = getEnvBoolean('AUTH_ENABLED', false);
+export const AUTH_TRUSTED_ISSUERS_STRING = getEnvString('AUTH_TRUSTED_ISSUERS', '');
+export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCES', '');
+export const AUTH_REQUIRED_SCOPES_MCP = getEnvString('AUTH_REQUIRED_SCOPES_MCP', 'mcp:access');
+export const AUTH_REQUIRED_SCOPES_API = getEnvString('AUTH_REQUIRED_SCOPES_API', 'api:access');
+export const AUTH_JWKS_CACHE_TTL = getEnvInt('AUTH_JWKS_CACHE_TTL', 3600); // 1 hour default
+
+// Derived authentication configurations
+export const AUTH_TRUSTED_ISSUERS = AUTH_TRUSTED_ISSUERS_STRING.split(',').filter(Boolean).map(iss => iss.trim());
+export const AUTH_ALLOWED_AUDIENCES = AUTH_ALLOWED_AUDIENCES_STRING.split(',').filter(Boolean).map(aud => aud.trim());
+
 // Derived configurations
 export const TRUSTED_PROXY_CIDRS = TRUSTED_PROXY_CIDRS_STRING.split(',').filter(Boolean);
 export const ENABLE_GROUP_COLLAPSE = KAIROS_ENABLE_GROUP_COLLAPSE !== 'false' && KAIROS_ENABLE_GROUP_COLLAPSE !== '0';

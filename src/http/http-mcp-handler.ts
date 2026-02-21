@@ -2,6 +2,7 @@ import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { LOG_LEVEL } from '../config.js';
+import type { RequestHandler } from 'express';
 
 /**
  * Track request start times by ID for accurate cancellation timing
@@ -12,10 +13,11 @@ const requestTimestamps = new Map<string, number>();
  * Set up MCP endpoint handling
  * @param app Express application instance
  * @param server MCP server instance
+ * @param authMiddleware Optional authentication middleware to apply before the handler
  */
-export function setupMcpRoutes(app: express.Express, server: any) {
+export function setupMcpRoutes(app: express.Express, server: any, authMiddleware?: RequestHandler) {
     // MCP endpoint using StreamableHTTPServerTransport
-    app.post('/mcp', async (req, res) => {
+    const handler = async (req: express.Request, res: express.Response) => {
         const requestStart = Date.now();
         const requestId = req.body?.id || 'unknown';
         const method = req.body?.method || 'unknown';
@@ -119,5 +121,12 @@ export function setupMcpRoutes(app: express.Express, server: any) {
                 });
             }
         }
-    });
+    };
+    
+    // Apply auth middleware if provided, then the handler
+    if (authMiddleware) {
+        app.post('/mcp', authMiddleware, handler);
+    } else {
+        app.post('/mcp', handler);
+    }
 }
