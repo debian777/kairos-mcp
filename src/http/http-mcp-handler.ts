@@ -99,7 +99,7 @@ export function setupMcpRoutes(app: express.Express, server: any, authMiddleware
             globalThis._mcpRequestContext = req;
             globalThis._mcpTransport = transport;
 
-            await transport.handleRequest(req, res, req.body);
+            await transport.handleRequest(req as any, res, req.body);
 
             // Clean up context after request
             delete globalThis._mcpRequestContext;

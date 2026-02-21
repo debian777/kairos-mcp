@@ -126,7 +126,7 @@ async function verifyToken(token: string): Promise<{ payload: JWTPayload; issuer
     let unverifiedPayload: JWTPayload;
     try {
         const parts = token.split('.');
-        if (parts.length !== 3) {
+        if (parts.length !== 3 || !parts[1]) {
             return null;
         }
         const payloadPart = parts[1];
@@ -151,19 +151,20 @@ async function verifyToken(token: string): Promise<{ payload: JWTPayload; issuer
 
     // Verify token
     try {
-        const { payload } = await jwtVerify(token, jwks, {
+        const verifyOptions: { issuer: string; audience?: string | string[] } = {
             issuer,
-            audience: AUTH_ALLOWED_AUDIENCES.length > 0 ? AUTH_ALLOWED_AUDIENCES : undefined,
-            // jose library automatically validates exp and nbf
-        });
+        };
+        if (AUTH_ALLOWED_AUDIENCES.length > 0) {
+            verifyOptions.audience = AUTH_ALLOWED_AUDIENCES;
+        }
+        
+        const { payload } = await jwtVerify(token, jwks, verifyOptions);
 
         return { payload, issuer };
     } catch (error) {
         // Log error but don't leak sensitive details
-        structuredLogger.warn('JWT verification failed', {
-            issuer,
-            error: error instanceof Error ? error.message : 'unknown error'
-        });
+        const errorMessage = error instanceof Error ? error.message : 'unknown error';
+        structuredLogger.warn(`JWT verification failed for issuer ${issuer}: ${errorMessage}`);
         return null;
     }
 }
@@ -172,24 +173,33 @@ async function verifyToken(token: string): Promise<{ payload: JWTPayload; issuer
  * Create auth context from verified token payload
  */
 function createAuthContext(payload: JWTPayload, issuer: string): AuthContext {
-    const scopes = parseScopes(payload.scope as string | undefined);
+    const scopeValue = (payload as Record<string, unknown>)['scope'];
+    const scopes = parseScopes(scopeValue as string | undefined);
     
     // Derive tenant from token if available (common patterns: tenant_id, tid, or from sub)
     let tenant: string | undefined;
-    if (payload.tenant_id && typeof payload.tenant_id === 'string') {
-        tenant = payload.tenant_id;
-    } else if (payload.tid && typeof payload.tid === 'string') {
-        tenant = payload.tid;
+    const payloadRecord = payload as Record<string, unknown>;
+    const tenantId = payloadRecord['tenant_id'];
+    const tid = payloadRecord['tid'];
+    if (tenantId && typeof tenantId === 'string') {
+        tenant = tenantId;
+    } else if (tid && typeof tid === 'string') {
+        tenant = tid;
     }
 
-    return {
+    const context: AuthContext = {
         subject: (payload.sub as string) || 'unknown',
         issuer,
         scopes,
         audience: payload.aud || 'unknown',
-        tenant,
         ...payload // Include all other claims
     };
+    
+    if (tenant) {
+        context.tenant = tenant;
+    }
+    
+    return context;
 }
 
 /**
@@ -239,13 +249,7 @@ export function createAuthMiddleware(requiredScopes: string = '') {
         req.auth = authContext;
 
         // Log authentication (mask token)
-        structuredLogger.info('Authenticated request', {
-            subject: authContext.subject,
-            issuer: authContext.issuer,
-            scopes: authContext.scopes,
-            path: req.path,
-            method: req.method
-        });
+        structuredLogger.info(`Authenticated request: ${req.method} ${req.path} [subject: ${authContext.subject}, issuer: ${authContext.issuer}, scopes: ${authContext.scopes.join(',')}]`);
 
         next();
     };
