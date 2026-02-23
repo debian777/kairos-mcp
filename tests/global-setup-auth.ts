@@ -1,10 +1,11 @@
 /**
  * Jest globalSetup when AUTH_ENABLED=true.
  * Dev: starts auth test server on 3301 (or uses existing Keycloak). QA: uses existing QA server on 3500, no spawn.
+ * Cleans stale auth state at start so tests never rely on old tokens or wrong baseUrl.
  */
 
-import { spawn } from 'child_process';
-import { writeFileSync, existsSync } from 'fs';
+import { spawn, execSync } from 'child_process';
+import { writeFileSync, existsSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { config } from 'dotenv';
 import {
@@ -18,6 +19,49 @@ const AUTH_STATE_FILE = '.test-auth-state.json';
 /** Dev: auth test server on 3301 to avoid conflict with dev server on 3300. QA uses 3500 (no spawn). */
 const DEV_AUTH_TEST_PORT = 3301;
 const QA_APP_PORT = 3500;
+
+interface AuthState {
+  containerId?: string;
+  serverPid?: number | null;
+}
+
+function cleanStaleAuthState(root: string): void {
+  const statePath = join(root, AUTH_STATE_FILE);
+  if (existsSync(statePath)) {
+    try {
+      const state = JSON.parse(readFileSync(statePath, 'utf-8')) as AuthState;
+      if (state.serverPid) {
+        try {
+          process.kill(state.serverPid, 'SIGTERM');
+        } catch {
+          // already gone
+        }
+      }
+      if (state.containerId) {
+        try {
+          execSync(`docker stop ${state.containerId}`, { stdio: 'ignore' });
+        } catch {
+          // already stopped
+        }
+      }
+    } catch {
+      // ignore parse/read errors
+    }
+    try {
+      unlinkSync(statePath);
+    } catch {
+      // ignore
+    }
+  }
+  const envPath = join(root, AUTH_ENV_FILE);
+  if (existsSync(envPath)) {
+    try {
+      unlinkSync(envPath);
+    } catch {
+      // ignore
+    }
+  }
+}
 
 function loadEnv(): void {
   const root = process.cwd();
@@ -45,6 +89,7 @@ async function waitForServer(baseUrl: string, timeoutMs = 60_000): Promise<void>
 
 export default async function globalSetup(): Promise<void> {
   loadEnv();
+  cleanStaleAuthState(process.cwd());
   if (process.env.AUTH_ENABLED !== 'true') return;
 
   const isQa = process.env.ENV === 'qa';

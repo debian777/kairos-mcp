@@ -60,6 +60,11 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
 
       expect(body).toHaveProperty('resource_name');
       expect(typeof body.resource_name).toBe('string');
+
+      // Required for MCP clients that build the auth URL themselves (e.g. Cursor with redirect_uri=cursor://).
+      // If the client merges this into the auth request, Keycloak gets prompt=login and avoids already_logged_in.
+      expect(body).toHaveProperty('authorization_request_parameters');
+      expect(body.authorization_request_parameters).toEqual({ prompt: 'login' });
     });
   });
 

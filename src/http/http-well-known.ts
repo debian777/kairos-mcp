@@ -19,13 +19,18 @@ function buildProtectedResourceMetadata(): Record<string, unknown> {
     ? `${KEYCLOAK_URL.replace(/\/$/, '')}/realms/${KEYCLOAK_REALM}`
     : '';
 
-  return {
+  const metadata: Record<string, unknown> = {
     resource,
     authorization_servers: issuer ? [issuer] : [],
     scopes_supported: ['openid'],
     bearer_methods_supported: ['header'],
     resource_name: 'KAIROS MCP'
   };
+  // RFC 9728 allows additional parameters. MCP clients that support it should add these
+  // to the authorization request (e.g. prompt=login) to avoid already_logged_in when
+  // the user is logged in elsewhere, without disabling SSO for normal browser use.
+  metadata['authorization_request_parameters'] = { prompt: 'login' };
+  return metadata;
 }
 
 export function setupWellKnown(app: Express): void {

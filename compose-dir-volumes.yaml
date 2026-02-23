@@ -1,5 +1,6 @@
-# Compose with Docker named volumes (default). No VOLUME_LOCAL_PATH required.
-# Alternative: compose-dir-volumes.yaml uses host dirs (bind mounts).
+# Compose with bind mounts (host directories). Requires VOLUME_LOCAL_PATH (e.g. ./data).
+# Use: docker compose -f compose-dir-volumes.yaml --profile infra up -d
+# Alternative: compose.yaml uses Docker named volumes (no host path).
 
 services:
   redis:
@@ -15,7 +16,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - ${VOLUME_LOCAL_PATH}/data/redis:/data
     networks:
       - kairos-network
     healthcheck:
@@ -42,7 +43,7 @@ services:
       - RI_REDIS_PORT*=6379
       - RI_REDIS_ALIAS*=kairosRedis
     volumes:
-      - redisinsight-data:/data
+      - ${VOLUME_LOCAL_PATH}/data/redisinsight:/data
     networks:
       - kairos-network
     restart: unless-stopped
@@ -59,7 +60,7 @@ services:
       - "6333:6333"
       - "6344:6344"
     volumes:
-      - qdrant-data:/qdrant/storage
+      - ${VOLUME_LOCAL_PATH}/data/qdrant:/qdrant/storage
     env_file:
       - .env.prod
     environment:
@@ -83,63 +84,62 @@ services:
       retries: 3
     #   start_period: 3s
 
-  # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: scripts/generate-dev-secrets.sh ---
-  postgres:
-    profiles:
-      - infra
-      - prod
-      - keycloak
-    image: postgres:16
-    env_file:
-      - .env.prod
-    environment:
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      POSTGRES_DB: keycloak
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - kairos-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
+  # # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: scripts/generate-dev-secrets.sh ---
+  # postgres:
+  #   profiles:
+  #     - infra
+  #     - prod
+  #   image: postgres:16
+  #   env_file:
+  #     - .env.prod
+  #   environment:
+  #     POSTGRES_USER: keycloak
+  #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #     POSTGRES_DB: keycloak
+  #   volumes:
+  #     - ${VOLUME_LOCAL_PATH}/data/postgres:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - kairos-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   restart: unless-stopped
 
-  # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md). DB: postgres service, keycloak DB/user ---
-  keycloak:
-    profiles:
-      - infra
-      - prod
-      - keycloak
-    env_file:
-      - .env.prod
-    image: quay.io/keycloak/keycloak:26.5.4
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command:
-      - start-dev
-      # Realms: run scripts/configure-keycloak-realms.py to create from scripts/keycloak/import via API
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_HEALTH_ENABLED: "true"
-    ports:
-      - "8080:8080"
-    # No bind mount: realm JSONs live in scripts/keycloak/import; use scripts/configure-keycloak-realms.py to create realms via API.
-    networks:
-      - kairos-network
-    restart: unless-stopped
+  # # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md). DB: postgres service, keycloak DB/user ---
+  # keycloak:
+  #   profiles:
+  #     - infra
+  #     - prod
+  #   env_file:
+  #     - .env.prod
+  #   image: quay.io/keycloak/keycloak:26.5.4
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   command:
+  #     - start-dev
+  #     - --import-realm
+  #   environment:
+  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  #     KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+  #     KC_DB_USERNAME: keycloak
+  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #     KC_HOSTNAME_STRICT: "false"
+  #     KC_HTTP_ENABLED: "true"
+  #     KC_HEALTH_ENABLED: "true"
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./scripts/keycloak/import:/opt/keycloak/data/import:ro
+  #   networks:
+  #     - kairos-network
+  #   restart: unless-stopped
 
   app-qa:
     profiles:
@@ -159,7 +159,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
     volumes:
-      - snapshots-qa:/snapshots
+      - ${VOLUME_LOCAL_PATH}/snapshots/qa/qdrant:/snapshots
     # No depends_on: Qdrant/Redis run on host or elsewhere; script checks them before start
     networks:
       - kairos-network
@@ -191,7 +191,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
     volumes:
-      - snapshots-prod:/snapshots
+      - ${VOLUME_LOCAL_PATH}/snapshots/prod/qdrant:/snapshots
     depends_on:
       - qdrant
       - redis
@@ -212,11 +212,3 @@ networks:
   kairos-network:
     name: kairos-network
     driver: bridge
-
-volumes:
-  redis-data:
-  redisinsight-data:
-  qdrant-data:
-  postgres-data:
-  snapshots-qa:
-  snapshots-prod:

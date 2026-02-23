@@ -31,7 +31,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 1. Copy `env.example.txt` to `.env.dev` or `.env.qa`
 2. Configure required environment variables (see `env.example.txt` for details)
-3. Start infrastructure services: `npm run infra:start`
+3. Start infrastructure services: `npm run infra:up`
 4. Start development server: `npm run dev:start`
 
 ### Developer commands (build, deploy, test)
@@ -65,10 +65,11 @@ npm run qa:test -- tests/integration/kairos-dump.test.ts
 To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
 
 **Test with auth (Keycloak + kairos-tester)**  
-Requires Docker. Testcontainers starts Keycloak, provisions realm `kairos-dev`, client `kairos-mcp`, and user **kairos-tester**; then starts the app with auth and runs the full integration suite using that user's Bearer token.
+Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_DEV_URL` is unset), provisions the test user, starts the app with auth, and writes `.test-auth-env.json`. No manual cleanup needed.
 
 ```bash
-npm run test:auth   # Build, then run tests with TEST_WITH_AUTH=true
+npm run dev:deploy   # build first
+KEYCLOAK_DEV_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
 ```
 
 **Development environment**
@@ -98,7 +99,7 @@ npm run qa:qdrant-curl     # Qdrant via curl (QA)
 **Infrastructure**
 
 ```bash
-npm run infra:start        # Start Redis and Qdrant (Docker Compose profile infra)
+npm run infra:up           # Start infra (Redis, Qdrant, Postgres, Keycloak) and configure Keycloak realms
 ```
 
 **Code quality**

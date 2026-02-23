@@ -109,8 +109,45 @@ export function getTeiDimension(defaultValue = 0): number {
 
 // Derived configurations
 export const TRUSTED_PROXY_CIDRS = TRUSTED_PROXY_CIDRS_STRING.split(',').filter(Boolean);
-export const AUTH_TRUSTED_ISSUERS = AUTH_TRUSTED_ISSUERS_STRING.split(',').map((s) => s.trim()).filter(Boolean);
-export const AUTH_ALLOWED_AUDIENCES = AUTH_ALLOWED_AUDIENCES_STRING.split(',').map((s) => s.trim()).filter(Boolean);
+
+// Trusted issuers: from env, or from KEYCLOAK_URL/REALM when unset. Add loopback alias (localhost <-> 127.0.0.1) so tokens match either.
+const _authIssuersFromEnv = AUTH_TRUSTED_ISSUERS_STRING.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const _authIssuersBase =
+  _authIssuersFromEnv.length > 0
+    ? _authIssuersFromEnv
+    : KEYCLOAK_URL && KEYCLOAK_REALM
+      ? [`${KEYCLOAK_URL.replace(/\/$/, '')}/realms/${KEYCLOAK_REALM}`]
+      : [];
+const _authIssuersExpanded: string[] = [];
+for (const iss of _authIssuersBase) {
+  _authIssuersExpanded.push(iss);
+  if (iss.includes('localhost')) {
+    const other = iss.replace(/localhost/g, '127.0.0.1');
+    if (!_authIssuersExpanded.includes(other)) _authIssuersExpanded.push(other);
+  } else if (iss.includes('127.0.0.1')) {
+    const other = iss.replace(/127\.0\.0\.1/g, 'localhost');
+    if (!_authIssuersExpanded.includes(other)) _authIssuersExpanded.push(other);
+  }
+}
+export const AUTH_TRUSTED_ISSUERS = _authIssuersExpanded;
+
+// Allowed audiences: from env, or from KEYCLOAK_CLIENT_ID when unset. Add "account" for Keycloak access tokens when we have realm issuers.
+const _authAudFromEnv = AUTH_ALLOWED_AUDIENCES_STRING.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const _authAudBase =
+  _authAudFromEnv.length > 0
+    ? _authAudFromEnv
+    : KEYCLOAK_CLIENT_ID
+      ? [KEYCLOAK_CLIENT_ID]
+      : [];
+const _hasKeycloakRealm = _authIssuersBase.some((u) => u.includes('/realms/'));
+export const AUTH_ALLOWED_AUDIENCES =
+  _hasKeycloakRealm && !_authAudBase.includes('account')
+    ? [..._authAudBase, 'account']
+    : _authAudBase;
 export const ENABLE_GROUP_COLLAPSE = KAIROS_ENABLE_GROUP_COLLAPSE !== 'false' && KAIROS_ENABLE_GROUP_COLLAPSE !== '0';
 export const INSTANCE_ID = getEnvString('INSTANCE_ID', os.hostname() || 'unknown');
 export const DEFAULT_TENANT_ID = getEnvString('DEFAULT_TENANT_ID', 'default');

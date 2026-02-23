@@ -46,7 +46,7 @@ cd kairos-mcp
 npm ci
 cp env.example.txt .env.dev
 # Configure .env.dev (see env.example.txt)
-npm run infra:start
+npm run infra:up
 npm run dev:start
 ```
 

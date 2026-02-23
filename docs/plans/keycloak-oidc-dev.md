@@ -21,7 +21,7 @@ This plan adds **Keycloak** as an OIDC identity provider for KAIROS in a **devel
 | Path | Action |
 |------|--------|
 | `compose.yaml` | Add services `keycloak-db`, `keycloak` (profile `dev` or `auth`). |
-| `keycloak/import/kairos-{dev,qa,prod}-realm.json` | One realm per env: kairos-dev, kairos-qa, kairos-prod. |
+| `scripts/keycloak/import/kairos-{dev,qa,prod}-realm.json` | One realm per env: kairos-dev, kairos-qa, kairos-prod. |
 | `docs/architecture/infrastructure.md` | Update: port map, topology diagram, optional “Auth (dev)” section. |
 | `docs/plans/keycloak-oidc-dev.md` | This plan. |
 
@@ -44,7 +44,7 @@ No application code changes in this phase (KAIROS app does not yet validate OIDC
 
 ## 4. Realm Import
 
-- **Path in container:** `/opt/keycloak/data/import` (mount `./keycloak/import` or `${VOLUME_LOCAL_PATH}/keycloak/import`).
+- **Path:** Realm JSONs live in `scripts/keycloak/import`; use `scripts/configure-keycloak-realms.py` to create realms via Admin API (no Docker import mount).
 - **Startup:** Add `--import-realm` to Keycloak command so the realm is imported on first start (dev only).
 - **Realm names:** `kairos-dev`, `kairos-qa`, `kairos-prod` (one realm per env; see **Realm per environment** below).
 - **Client:** `kairos-mcp`, public, with flows needed for dev (e.g. standard flow; direct access grants only if required for CLI/agents, with a note to prefer device flow later).
@@ -73,7 +73,7 @@ So `group:kairos-dev:kairos-team-platform` and `group:kairos-qa:kairos-team-plat
 
 ### Realm per environment
 
-We use **one Keycloak, three realms**: `kairos-dev`, `kairos-qa`, `kairos-prod`. Realm JSONs are in `keycloak/import/` (`kairos-dev-realm.json`, `kairos-qa-realm.json`, `kairos-prod-realm.json`). Keycloak imports all `.json` files on startup. Each realm has client `kairos-mcp` and groups `kairos-team-platform`, `kairos-team-sre`. Prod realm has `registrationAllowed: false` and `directAccessGrantsEnabled: false`. Set the app’s `AUTH_TRUSTED_ISSUERS` per env to the chosen realm’s issuer (e.g. `http://keycloak:8080/realms/kairos-dev`).
+We use **one Keycloak, three realms**: `kairos-dev`, `kairos-qa`, `kairos-prod`. Realm JSONs are in `scripts/keycloak/import/` (`kairos-dev-realm.json`, `kairos-qa-realm.json`, `kairos-prod-realm.json`). Realms are created via `scripts/configure-keycloak-realms.py` (Admin API). Each realm has client `kairos-mcp` and groups `kairos-team-platform`, `kairos-team-sre`. Prod realm has `registrationAllowed: false` and `directAccessGrantsEnabled: false`. Set the app’s `AUTH_TRUSTED_ISSUERS` per env to the chosen realm’s issuer (e.g. `http://keycloak:8080/realms/kairos-dev`).
 
 ---
 
@@ -98,8 +98,8 @@ We use **one Keycloak, three realms**: `kairos-dev`, `kairos-qa`, `kairos-prod`.
 - [x] Add `keycloak-db` (Postgres 16) and `keycloak` services to `compose.yaml` under profiles `infra` and `prod`.
 - [x] Use `${VOLUME_LOCAL_PATH}/data/keycloak_pgdata` for Postgres volume.
 - [x] Add Postgres healthcheck and Keycloak `depends_on: keycloak-db: condition: service_healthy`.
-- [x] Create `keycloak/import/kairos-{dev,qa,prod}-realm.json` with realms kairos-dev, kairos-qa, kairos-prod; client `kairos-mcp` and groups in each.
-- [x] Mount import dir to `/opt/keycloak/data/import`, command `start-dev --import-realm`.
+- [x] Create `scripts/keycloak/import/kairos-{dev,qa,prod}-realm.json` with realms kairos-dev, kairos-qa, kairos-prod; client `kairos-mcp` and groups in each.
+- [x] Realms created via `scripts/configure-keycloak-realms.py` (Admin API); no Docker import mount.
 - [x] Set `KC_HEALTH_ENABLED=true` (Keycloak healthcheck on container omitted to avoid image dependency on curl/wget).
 - [x] Update `docs/architecture/infrastructure.md` (port map, volume layout, dev profile).
 - [x] Add `env.dev.example` (and Keycloak section in `env.example.txt`) with Keycloak URL, realm, client id; copy to `.env` for `VOLUME_LOCAL_PATH` and to `.env.dev` for the app.
@@ -124,28 +124,23 @@ rm -rf ./data/postgres
 ./scripts/generate-dev-secrets.sh
 # Copy password vars to .env.prod, then:
 docker compose --env-file .env --env-file .env.prod --profile infra up -d
-# Then: ensure-keycloak-realms.py, add_keycloak_user.py as above
+# Then: npm run infra:up (starts infra and configures Keycloak realms)
 ```
 
 - Keycloak admin: `http://localhost:8080` — username `admin`, password is in `.env` as `KEYCLOAK_ADMIN_PASSWORD` (not admin/keycloak).
 - Realms: `kairos-dev`, `kairos-qa`, `kairos-prod`. Create local users and assign groups as needed for testing.
 
-**Make it work (current path; init/import scripts may be improved later):**
-1. Start infra: `docker compose --env-file .env --env-file .env.prod --profile infra up -d`
-2. If Keycloak fails with "password authentication failed for user keycloak", sync DB password from `.env.prod`:  
-   `pass=$(grep '^KEYCLOAK_DB_PASSWORD=' .env.prod | cut -d= -f2-) && pass_sql="${pass//\'/\'\'}" && docker compose --env-file .env --env-file .env.prod --profile infra exec -T postgres psql -U postgres -c "ALTER ROLE keycloak WITH PASSWORD '$pass_sql';"` then `docker compose ... restart keycloak`
-3. Create realms (if import mount was empty): `python3 scripts/ensure-keycloak-realms.py`
-4. Add users: `python3 scripts/add_keycloak_user.py --realm kairos-dev --user demo` (output shows generated password)
+**Make it work (current path):**
+1. Ensure `.env.prod` has `KEYCLOAK_DB_PASSWORD` and `KEYCLOAK_ADMIN_PASSWORD` (run `./scripts/generate-dev-secrets.sh` if needed).
+2. Start infra: `docker compose --env-file .env --env-file .env.prod --profile infra up -d`. Postgres creates the Keycloak DB from env (default Docker workflow); no init script.
+3. Start infra (includes Keycloak realm setup from scripts/keycloak/import): `npm run infra:up`. To reconfigure realms only: `python3 scripts/configure-keycloak-realms.py`.
 
-**Add a user (realm + username as args, password auto-generated):**
+**Add an extra user (e.g. demo, password auto-generated):**
 ```bash
-python scripts/add_keycloak_user.py --realm kairos-dev --user demo
-python scripts/add_keycloak_user.py -r kairos-qa -u myuser
+python3 scripts/add_keycloak_user.py --realm kairos-dev --user demo
 # Output: realm=... username=... password=<generated>
 ```
-Requires Keycloak running and `KEYCLOAK_ADMIN_PASSWORD` in `.env.prod` or `.env`. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`).
-
-Legacy shell script (fixed demo user/password): `./scripts/add-keycloak-demo-user.sh`.
+Optional: `KEYCLOAK_URL` (default `http://localhost:8080`). Legacy: `./scripts/add-keycloak-demo-user.sh`.
 
 ### Cursor MCP and Dynamic Client Registration (Trusted Hosts)
 

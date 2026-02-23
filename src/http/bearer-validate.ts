@@ -3,7 +3,7 @@
  */
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { decodeJwt } from 'jose/jwt/decode';
-import { logger } from '../utils/logger.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 
 export interface AuthPayload {
   sub: string;
@@ -67,24 +67,44 @@ export async function validateBearerToken(
   let payload: Record<string, unknown>;
   try {
     const unverified = decodePayload(token);
+    if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
+      structuredLogger.info(`[auth] TRACE Bearer unverified payload raw=${JSON.stringify(unverified)}`);
+    }
     const iss = typeof unverified['iss'] === 'string' ? unverified['iss'] : undefined;
     if (!iss || !trustedIssuers.includes(iss)) {
-      logger.debug(`[Bearer] Issuer not trusted ${JSON.stringify({ iss, trusted: trustedIssuers })}`);
+      structuredLogger.info(
+        `[auth] Bearer rejected: issuer not trusted token_iss=${iss ?? 'missing'} trusted=${JSON.stringify(trustedIssuers)}`
+      );
       return null;
     }
     const jwks = getJwksForIssuer(iss);
     const getKey = (protectedHeader: Parameters<ReturnType<typeof createRemoteJWKSet>>[0]) => jwks(protectedHeader);
     const { payload: p } = await jwtVerify(token, getKey, { issuer: iss });
     payload = p as Record<string, unknown>;
+    if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
+      structuredLogger.info(`[auth] TRACE Bearer payload raw=${JSON.stringify(payload)}`);
+    }
   } catch (err) {
-    logger.debug(`[Bearer] JWT verify failed ${err instanceof Error ? err.message : String(err)}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    structuredLogger.info(`[auth] Bearer rejected: JWT verify failed err=${msg}`);
     return null;
   }
   const aud = payload['aud'];
   const audList = Array.isArray(aud) ? aud : typeof aud === 'string' ? [aud] : [];
-  const hasAudience = allowedAudiences.some((a) => audList.includes(a));
+  const issForAud = typeof payload['iss'] === 'string' ? payload['iss'] : '';
+  // Keycloak: accept aud "account", or empty aud when issuer is a Keycloak realm (some tokens omit aud).
+  const keycloakAccountAud =
+    audList.includes('account') && issForAud.includes('/realms/');
+  const keycloakEmptyAud =
+    audList.length === 0 && issForAud.includes('/realms/');
+  const hasAudience =
+    allowedAudiences.some((a) => audList.includes(a)) ||
+    keycloakAccountAud ||
+    keycloakEmptyAud;
   if (!hasAudience) {
-    logger.debug(`[Bearer] Audience not allowed ${JSON.stringify({ aud: audList, allowed: allowedAudiences })}`);
+    structuredLogger.info(
+      `[auth] Bearer rejected: audience not allowed token_aud=${JSON.stringify(audList)} allowed=${JSON.stringify(allowedAudiences)}`
+    );
     return null;
   }
   const sub = typeof payload['sub'] === 'string' ? payload['sub'] : '';

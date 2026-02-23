@@ -56,7 +56,7 @@ PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
 # Load environment (skip if ensure-coding-rules doesn't need it)
-# Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=false npm run dev:test)
+# Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=true npm run dev:test)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     AUTH_ENABLED_BEFORE="${AUTH_ENABLED:-}"
     [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a

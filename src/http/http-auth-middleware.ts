@@ -48,7 +48,9 @@ function buildLoginUrl(state: string, codeChallenge: string): string {
     scope: 'openid',
     state,
     code_challenge: codeChallenge,
-    code_challenge_method: 'S256'
+    code_challenge_method: 'S256',
+    // Force login page so a second browser gets a fresh login instead of SSO "already logged in" errors.
+    prompt: 'login'
   });
   return `${base}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth?${params.toString()}`;
 }
@@ -113,14 +115,21 @@ function isProtectedPath(path: string): boolean {
   return path === '/api' || path.startsWith('/api/') || path === '/mcp';
 }
 
-/** Set WWW-Authenticate with resource_metadata + scope so MCP clients show "Needs authentication" / "Connect". */
-function setWwwAuthenticate(res: Response): void {
-  if (!AUTH_CALLBACK_BASE_URL) return;
+/** Build WWW-Authenticate value. Use error=invalid_token so MCP clients clear stored token and restart OAuth (e.g. after Keycloak session cleanup). */
+function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_description?: string }): string {
+  if (!AUTH_CALLBACK_BASE_URL) return '';
   const resourceMetadataUrl = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/.well-known/oauth-protected-resource`;
-  res.setHeader(
-    'WWW-Authenticate',
-    `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}", scope="openid"`
-  );
+  const parts = [`Bearer realm="mcp"`, `resource_metadata="${resourceMetadataUrl}"`, 'scope="openid"'];
+  if (opts?.error) {
+    parts.unshift(`error="${opts.error}"`);
+    if (opts.error_description) parts.push(`error_description="${opts.error_description.replace(/"/g, '\\"')}"`);
+  }
+  return parts.join(', ');
+}
+
+function setWwwAuthenticate(res: Response, opts?: { error?: 'invalid_token'; error_description?: string }): void {
+  const value = buildWwwAuthenticate(opts);
+  if (value) res.setHeader('WWW-Authenticate', value);
 }
 
 declare global {
@@ -178,15 +187,24 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   if (hasBearerReq) {
+    if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
+      structuredLogger.info(
+        `[auth] TRACE raw call ${req.method} ${req.path} bearer=true trusted_issuers=${JSON.stringify(AUTH_TRUSTED_ISSUERS)} allowed_audiences=${JSON.stringify(AUTH_ALLOWED_AUDIENCES)}`
+      );
+    }
+    const hasIssuerAndAudience = AUTH_TRUSTED_ISSUERS.length > 0 && AUTH_ALLOWED_AUDIENCES.length > 0;
     const canValidateBearer =
-      AUTH_MODE === 'oidc_bearer' && AUTH_TRUSTED_ISSUERS.length > 0 && AUTH_ALLOWED_AUDIENCES.length > 0;
+      hasIssuerAndAudience && (AUTH_MODE === 'oidc_bearer' || AUTH_ENABLED);
+    structuredLogger.info(
+      `[auth] Bearer check path=${req.path} canValidate=${canValidateBearer} AUTH_MODE=${AUTH_MODE} trusted_issuers=${AUTH_TRUSTED_ISSUERS.length} allowed_audiences=${AUTH_ALLOWED_AUDIENCES.length}`
+    );
     if (!canValidateBearer) {
       structuredLogger.info(`[auth] 401 ${req.method} ${req.path} bearer_not_validated (config missing)`);
       setWwwAuthenticate(res);
       res.status(401).json({
         error: 'bearer_not_validated',
         message:
-          'Bearer tokens are not validated when AUTH_MODE is not oidc_bearer or issuer/audience are not configured. Set AUTH_MODE=oidc_bearer and AUTH_TRUSTED_ISSUERS and AUTH_ALLOWED_AUDIENCES to use Bearer auth.'
+          'Bearer tokens are not validated when issuer/audience are not configured. Set AUTH_TRUSTED_ISSUERS and AUTH_ALLOWED_AUDIENCES (and AUTH_MODE=oidc_bearer or AUTH_ENABLED) to use Bearer auth.'
       });
       return;
     }
@@ -199,12 +217,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         runNext(getSpaceContext(req));
       } else {
         structuredLogger.info(`[auth] 401 ${req.method} ${req.path} bearer invalid or expired`);
-        setWwwAuthenticate(res);
+        setWwwAuthenticate(res, {
+          error: 'invalid_token',
+          error_description: 'Token expired or invalid; re-authenticate to obtain a new token'
+        });
         res.status(401).json({ error: 'invalid_token', message: 'Bearer token invalid or expired' });
       }
     } catch {
       structuredLogger.info(`[auth] 401 ${req.method} ${req.path} bearer validation failed`);
-      setWwwAuthenticate(res);
+      setWwwAuthenticate(res, {
+        error: 'invalid_token',
+        error_description: 'Token validation failed; re-authenticate to obtain a new token'
+      });
       res.status(401).json({ error: 'invalid_token', message: 'Bearer token validation failed' });
     }
     return;

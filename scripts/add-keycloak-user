@@ -6,9 +6,9 @@ Uses Keycloak Admin REST API. Requires Keycloak running and KEYCLOAK_ADMIN_PASSW
 in environment or in .env.prod / .env (in repo root).
 
 Usage:
-  python scripts/add_keycloak_user.py --realm kairos-dev --user demo
-  python scripts/add_keycloak_user.py -r kairos-qa -u myuser
-  KEYCLOAK_URL=http://keycloak:8080 python scripts/add_keycloak_user.py -r kairos-dev -u demo
+  python scripts/add-keycloak-user --realm kairos-dev --user demo
+  python scripts/add-keycloak-user -r kairos-qa -u myuser
+  KEYCLOAK_URL=http://keycloak:8080 python scripts/add-keycloak-user -r kairos-dev -u demo
 
 Prints the generated password once. If the user already exists, only the password is updated.
 """
