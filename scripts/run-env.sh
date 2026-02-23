@@ -56,8 +56,11 @@ PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
 # Load environment (skip if ensure-coding-rules doesn't need it)
+# Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=false npm run dev:test)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
+    AUTH_ENABLED_BEFORE="${AUTH_ENABLED:-}"
     [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
+    [ -n "${AUTH_ENABLED_BEFORE}" ] && export AUTH_ENABLED="$AUTH_ENABLED_BEFORE"
     # QA compose needs VOLUME_LOCAL_PATH etc. from .env for variable substitution
     [ "$ENV" = "qa" ] && [ -f "${PROJECT_DIR}/.env" ] && set -a && source "${PROJECT_DIR}/.env" && set +a
 fi
@@ -397,9 +400,9 @@ test() {
         dev)
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns tests/integration/ 2>&1  | tee -a "$REPORT_LOG_FILE" 
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns tests/integration/ 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         qa)

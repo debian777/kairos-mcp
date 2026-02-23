@@ -7,7 +7,7 @@ import { IDGenerator } from '../id-generator.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import { deriveDomainTaskType, handleDuplicateChain } from './store-chain-helpers.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 
@@ -57,6 +57,7 @@ export async function storeHeaderBasedChain(
   }
 
   const chainStepCount = headerChainMemories.length;
+  const spaceId = getSpaceContext().defaultWriteSpaceId;
 
   const points = headerChainMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
@@ -71,6 +72,7 @@ export async function storeHeaderBasedChain(
       id: memory.memory_uuid,
       vector: { [currentVectorName]: vectors[i]! },
       payload: {
+        space_id: spaceId,
         label: memory.label,
         tags: memory.tags,
         text: memory.text,

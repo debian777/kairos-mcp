@@ -2,6 +2,7 @@ import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { redisService } from './redis.js';
 import { KAIROS_REDIS_PREFIX } from '../config.js';
+import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 
 export interface SearchResult {
   memories: Memory[];
@@ -78,10 +79,11 @@ export class RedisCacheService {
         await this.publishInvalidation('search');
         return;
       }
-      // Keys returned from redisService.keys() already have the prefix applied
-      // We need to strip it before calling del() which adds it back
-      const prefix = KAIROS_REDIS_PREFIX;
-      const stripped: string[] = keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k);
+      // Keys returned are full Redis keys (prefix + spaceId + logicalKey); strip to get logicalKey for del()
+      const keyPrefix = `${KAIROS_REDIS_PREFIX}${getSpaceIdFromStorage()}:`;
+      const stripped: string[] = keys.map(k =>
+        k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
+      );
       await Promise.all(stripped.map(k => redisService.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
       // Publish invalidation event
@@ -190,10 +192,11 @@ export class RedisCacheService {
         logger.debug('[RedisCacheService] No begin cache keys to delete');
         return;
       }
-      // Keys returned from redisService.keys() already have the prefix applied
-      // We need to strip it before calling del() which adds it back
-      const prefix = KAIROS_REDIS_PREFIX;
-      const stripped: string[] = keys.map(k => k.startsWith(prefix) ? k.slice(prefix.length) : k);
+      // Keys returned are full Redis keys (prefix + spaceId + logicalKey); strip to get logicalKey for del()
+      const keyPrefix = `${KAIROS_REDIS_PREFIX}${getSpaceIdFromStorage()}:`;
+      const stripped: string[] = keys.map(k =>
+        k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
+      );
       await Promise.all(stripped.map(k => redisService.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
     } catch (error) {

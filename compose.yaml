@@ -80,38 +80,47 @@ services:
       retries: 3
     #   start_period: 3s
 
-  # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md) ---
-  keycloak-db:
+  # --- Postgres: keycloak + 3 KAIROS DBs. Regenerate passwords: scripts/generate-dev-secrets.sh ---
+  # Init: scripts/kairos-db-init/02-kairos-dbs.sh. Existing volume: exec postgres .../02-kairos-dbs.sh
+  postgres:
     profiles:
       - infra
       - prod
-      # - qa
-      # - dev
     image: postgres:16
+    env_file:
+      - .env.prod
     environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KAIROS_DEV_DB_PASSWORD: ${KAIROS_DEV_DB_PASSWORD}
+      KAIROS_QA_DB_PASSWORD: ${KAIROS_QA_DB_PASSWORD}
+      KAIROS_PROD_DB_PASSWORD: ${KAIROS_PROD_DB_PASSWORD}
     volumes:
-      - ${VOLUME_LOCAL_PATH}/data/keycloak_pgdata:/var/lib/postgresql/data
+      - ${VOLUME_LOCAL_PATH}/data/postgres:/var/lib/postgresql/data
+      - ./scripts/kairos-db-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
     networks:
       - kairos-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
 
+  # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md). DB: postgres service, keycloak DB/user ---
   keycloak:
     profiles:
       - infra
       - prod
-      # - qa
-      # - dev
+    env_file:
+      - .env.prod
     image: quay.io/keycloak/keycloak:26.5.4
     depends_on:
-      keycloak-db:
+      postgres:
         condition: service_healthy
     command:
       - start-dev
@@ -120,7 +129,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HOSTNAME_STRICT: "false"

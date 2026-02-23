@@ -1,5 +1,7 @@
 import { QdrantService } from '../qdrant/service.js';
 import { logger } from '../../utils/logger.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 /**
  * Parse kbName into domain/task components
@@ -133,14 +135,15 @@ export async function validateTargetExists(
     const targetStep = validateAndExtractStepFromTarget(target);
 
     // Use scroll to find the specific step
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'task', match: { value: task } },
+        { key: 'protocol.step', match: { value: targetStep } }
+      ]
+    });
     const result = await qdrantService.client.scroll(qdrantService.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'task', match: { value: task } },
-          { key: 'protocol.step', match: { value: targetStep } }
-        ]
-      },
+      filter,
       limit: 1,
       with_payload: true,
       with_vector: false

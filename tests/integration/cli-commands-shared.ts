@@ -5,12 +5,29 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { waitForHealthCheck } from '../utils/health-check.js';
+import { getTestAuthBaseUrl, getTestBearerToken } from '../utils/auth-headers.js';
 import { join } from 'path';
 
-export const execAsync = promisify(exec);
+const execOpts = () => ({
+  env: {
+    ...process.env,
+    KAIROS_BEARER_TOKEN:
+      process.env.AUTH_ENABLED === 'true' ? (getTestBearerToken() ?? '') : ''
+  }
+});
 
-export const APP_PORT = process.env.PORT || '3300';
-export const BASE_URL = `http://localhost:${APP_PORT}`;
+/** Run a CLI command with auth env (KAIROS_BEARER_TOKEN) so child process can authenticate. */
+export async function execAsync(
+  command: string,
+  options?: { timeout?: number }
+): Promise<{ stdout: string; stderr: string }> {
+  return promisify(exec)(command, { ...execOpts(), ...options }) as Promise<{
+    stdout: string;
+    stderr: string;
+  }>;
+}
+
+export const BASE_URL = getTestAuthBaseUrl();
 export const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
 // Use minimal test file for CLI parameter tests (faster than full AI_CODING_RULES.md)
 export const TEST_FILE = join(process.cwd(), 'tests/test-data/cli-minimal-test.md');

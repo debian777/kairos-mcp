@@ -2,6 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { createQdrantCollection, getVectorDescriptors, getCollectionVectorConfig } from '../../utils/qdrant-utils.js';
 import { logger } from '../../utils/logger.js';
 import { parseBooleanEnv } from './utils.js';
+import { DEFAULT_SPACE_ID } from '../../config.js';
 
 /**
  * Initialization related helpers that operate using QdrantConnection
@@ -44,8 +45,9 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
       }
     }
 
-    // Create payload indexes
+    // Create payload indexes (space_id with is_tenant for multitenancy)
     const indexConfigs = [
+      { field_name: 'space_id', field_schema: { type: 'keyword' as const, is_tenant: true } },
       { field_name: 'domain', field_schema: 'keyword' as const },
       { field_name: 'type', field_schema: 'keyword' as const },
       { field_name: 'task', field_schema: 'keyword' as const },
@@ -59,12 +61,14 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
 
     for (const index of indexConfigs) {
       try {
-        await conn.client.createPayloadIndex(conn.collectionName, index);
+        await conn.client.createPayloadIndex(conn.collectionName, index as Parameters<typeof conn.client.createPayloadIndex>[1]);
         logger.info(`Created payload index for ${index.field_name}`);
       } catch (err) {
         logger.info(`Payload index for ${index.field_name} may already exist: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+
+    await backfillSpaceId(conn);
 
     // Optionally create 'current' alias
     if (conn.originalCollectionAlias === 'current' || parseBooleanEnv('QDRANT_CREATE_ALIAS', false)) {
@@ -109,6 +113,43 @@ export async function createOrUpdateAlias(conn: QdrantConnection, aliasName: str
     }
   }
   logger.warn(`Unable to create or update Qdrant alias '${aliasName}'. Please create it manually if needed (target: ${conn.collectionName}).`);
+}
+
+const BACKFILL_BATCH_SIZE = 256;
+
+/**
+ * Backfill space_id for points that lack it (idempotent). Uses DEFAULT_SPACE_ID for legacy points.
+ */
+export async function backfillSpaceId(conn: QdrantConnection): Promise<{ updated: number }> {
+  return conn.executeWithReconnect(async () => {
+    let offset: any = undefined;
+    let updated = 0;
+    do {
+      const page = await conn.client.scroll(conn.collectionName, {
+        with_payload: true,
+        with_vector: true,
+        limit: BACKFILL_BATCH_SIZE,
+        offset
+      } as any);
+      const points = page?.points ?? [];
+      const toUpsert = points.filter((p: any) => p.payload && (p.payload.space_id === undefined || p.payload.space_id === null));
+      if (toUpsert.length > 0) {
+        const batch = toUpsert.map((p: any) => ({
+          id: p.id,
+          vector: p.vector,
+          payload: { ...p.payload, space_id: DEFAULT_SPACE_ID }
+        }));
+        await conn.client.upsert(conn.collectionName, { points: batch });
+        updated += batch.length;
+        logger.info(`backfillSpaceId: upserted ${batch.length} points with space_id=${DEFAULT_SPACE_ID} (total so far: ${updated})`);
+      }
+      offset = page?.next_page_offset;
+    } while (offset);
+    if (updated > 0) {
+      logger.info(`backfillSpaceId: completed, updated ${updated} points`);
+    }
+    return { updated };
+  });
 }
 
 /**

@@ -6,7 +6,8 @@ import { redisCacheService } from '../redis-cache.js';
 import { logger } from '../../utils/logger.js';
 import { KairosError } from '../../types/index.js';
 import { qdrantOperations, qdrantOperationDuration, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
+import { DEFAULT_SPACE_ID } from '../../config.js';
 
 /**
  * Update memory by UUID (for protocol reconstruction) and general update/delete
@@ -25,8 +26,10 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
 
     const updatedAi = { ...(existing.payload.ai || {}), ...((updates.ai || {}) as any), ...(updates.memory_uuid !== undefined ? { memory_uuid: updates.memory_uuid } : {}) };
 
+    const defaultSpaceId = getSpaceContext().defaultWriteSpaceId;
     const memoryPayload = {
       ...existing.payload,
+      space_id: (existing.payload as any).space_id ?? defaultSpaceId,
       ...(updates.description_short && { description_short: updates.description_short }),
       ...(updates.description_full && { description_full: updates.description_full }),
       ...(updates.domain && { domain: updates.domain }),
@@ -103,6 +106,10 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     }
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
+    const pointSpaceId = existingPayload?.space_id ?? DEFAULT_SPACE_ID;
+    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+      throw new KairosError(`Memory with ID ${id} not found`, 'MEMORY_NOT_FOUND', 404);
+    }
 
     let newQualityMetadata = existingPayload.quality_metadata;
     const shouldRecalculateQuality = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
@@ -121,7 +128,14 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
       };
     }
 
-    const updatedPayload = { ...existingPayload, ...updates, updated_at: new Date().toISOString(), quality_metadata: newQualityMetadata };
+    const defaultSpaceId = getSpaceContext().defaultWriteSpaceId;
+    const updatedPayload = {
+      ...existingPayload,
+      space_id: existingPayload.space_id ?? defaultSpaceId,
+      ...updates,
+      updated_at: new Date().toISOString(),
+      quality_metadata: newQualityMetadata
+    };
 
     let vector: number[] = [];
     let existingVectorObj: any = undefined;
@@ -180,9 +194,13 @@ export async function deleteMemory(conn: QdrantConnection, id: string): Promise<
   return conn.executeWithReconnect(async () => {
     const tenantId = getTenantId();
     const timer = qdrantOperationDuration.startTimer({ operation: 'delete', tenant_id: tenantId });
-    
+
     try {
       const validatedId = validateAndConvertId(id);
+      const existing = await retrieveById(conn, validatedId);
+      if (!existing) {
+        throw new KairosError(`Memory with ID ${id} not found`, 'MEMORY_NOT_FOUND', 404);
+      }
       await conn.client.delete(conn.collectionName, { points: [validatedId] });
       
       // Invalidate cache after deletion (publishes invalidation events internally)

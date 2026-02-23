@@ -5,7 +5,10 @@ import { PORT } from '../config.js';
 
 // Import modular components
 import { configureMiddleware } from './http-server-config.js';
+import { authMiddleware } from './http-auth-middleware.js';
+import { setupAuthCallback } from './http-auth-callback.js';
 import { setupHealthRoutes } from './http-health-routes.js';
+import { setupWellKnown } from './http-well-known.js';
 import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
@@ -17,8 +20,15 @@ export function startHttpServer(port: number, server: any, memoryStore: MemoryQd
 
     // Configure middleware
     configureMiddleware(app);
+    setupAuthCallback(app);
 
-    // Set up all route handlers
+    // Well-known must be registered before auth middleware so RFC 9728 discovery
+    // is reachable without credentials (MCP clients call it before authenticating).
+    setupWellKnown(app);
+
+    app.use(authMiddleware);
+
+    // Protected route handlers (require auth when AUTH_ENABLED)
     setupHealthRoutes(app, memoryStore);
     setupApiRoutes(app, memoryStore, { qdrantService });
     setupMcpRoutes(app, server);

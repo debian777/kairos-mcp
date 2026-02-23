@@ -1,8 +1,15 @@
 import { waitForHealthCheck } from '../utils/health-check.js';
+import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
-const APP_PORT = process.env.PORT || '3300';
-const BASE_URL = `http://localhost:${APP_PORT}`;
+const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+
+function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    headers: { ...getAuthHeaders(), ...(init.headers as Record<string, string>) }
+  });
+}
 
 describe('HTTP REST API Endpoints', () => {
   let serverAvailable = false;
@@ -29,12 +36,9 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       const markdown = `# Test Document ${Date.now()}\n\nThis is a test document for HTTP API mint endpoint.`;
-      const response = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/markdown',
-          'X-LLM-Model-ID': 'test-model'
-        },
+        headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
       });
 
@@ -56,11 +60,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_mint/raw`, {
+      const response = await apiFetch(`${API_BASE}/kairos_mint/raw`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/markdown'
-        },
+        headers: { 'Content-Type': 'text/markdown' },
         body: ''
       });
 
@@ -77,11 +79,9 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       const markdown = `# Force Update Test ${Date.now()}\n\nTesting force update.`;
-      const response = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/markdown'
-        },
+        headers: { 'Content-Type': 'text/markdown' },
         body: markdown
       });
 
@@ -98,9 +98,7 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/snapshot`, {
-        method: 'POST'
-      });
+      const response = await apiFetch(`${API_BASE}/snapshot`, { method: 'POST' });
 
       // Snapshot may succeed (200), be skipped (202), or fail (502)
       expect([200, 202, 502]).toContain(response.status);
@@ -118,11 +116,9 @@ describe('HTTP REST API Endpoints', () => {
       }
 
       const query = `Test Query ${Date.now()}`;
-      const response = await fetch(`${API_BASE}/kairos_search`, {
+      const response = await apiFetch(`${API_BASE}/kairos_search`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
       });
 
@@ -144,11 +140,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_search`, {
+      const response = await apiFetch(`${API_BASE}/kairos_search`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: '' })
       });
 
@@ -165,11 +159,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_next`, {
+      const response = await apiFetch(`${API_BASE}/kairos_next`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
 
@@ -186,11 +178,9 @@ describe('HTTP REST API Endpoints', () => {
 
       // V2: missing solution returns 200 with error payload (execution-oriented)
       const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
-      const response = await fetch(`${API_BASE}/kairos_next`, {
+      const response = await apiFetch(`${API_BASE}/kairos_next`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uri: testUri })
       });
 
@@ -211,11 +201,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_attest`, {
+      const response = await apiFetch(`${API_BASE}/kairos_attest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uri: 'kairos://mem/test',
           outcome: 'success'
@@ -234,11 +222,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_attest`, {
+      const response = await apiFetch(`${API_BASE}/kairos_attest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uri: 'kairos://mem/test',
           outcome: 'invalid',
@@ -259,11 +245,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_update`, {
+      const response = await apiFetch(`${API_BASE}/kairos_update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
 
@@ -278,11 +262,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_update`, {
+      const response = await apiFetch(`${API_BASE}/kairos_update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uris: ['kairos://mem/test1', 'kairos://mem/test2'],
           markdown_doc: ['# Only one doc']
@@ -302,11 +284,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_delete`, {
+      const response = await apiFetch(`${API_BASE}/kairos_delete`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
 
@@ -321,11 +301,9 @@ describe('HTTP REST API Endpoints', () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/kairos_delete`, {
+      const response = await apiFetch(`${API_BASE}/kairos_delete`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uris: ['kairos://mem/00000000-0000-0000-0000-000000000000']
         })

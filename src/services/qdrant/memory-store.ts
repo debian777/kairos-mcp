@@ -5,7 +5,7 @@ import { sanitizeAndUpsert } from './utils.js';
 import { logger } from '../../utils/logger.js';
 import { redisCacheService } from '../redis-cache.js';
 import { qdrantOperations, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 
 /**
  * storeMemory - stores a single memory point in Qdrant
@@ -53,10 +53,12 @@ export async function storeMemory(
       aiWithContext = { model_id: 'unknown', memory_uuid: qdrantId };
     }
 
+    const spaceId = getSpaceContext().defaultWriteSpaceId;
     const point = {
       id: qdrantId,
       vector: { [`vs${embedding.length}`]: embedding },
       payload: {
+        space_id: spaceId,
         description_short,
         description_full,
         domain,

@@ -5,7 +5,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getTenantId, runWithOptionalSpace } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import { SCORE_THRESHOLD } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
@@ -198,7 +198,9 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   const choiceUriSchema = memoryUriSchema;
 
   const inputSchema = z.object({
-    query: z.string().min(1).describe('Search query for chain heads')
+    query: z.string().min(1).describe('Search query for chain heads'),
+    space: z.string().optional().describe('Scope results to this space (must be in your allowed spaces)'),
+    space_id: z.string().optional().describe('Alias for space')
   });
 
   const outputSchema = z.object({
@@ -228,13 +230,14 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
     },
     async (params: any) => {
       const tenantId = getTenantId();
-      const { query } = params as { query: string };
+      const { query, space, space_id } = params as { query: string; space?: string; space_id?: string };
+      const spaceParam = space ?? space_id;
       const inputSize = JSON.stringify({ query }).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
-      
-      const timer = mcpToolDuration.startTimer({ 
+
+      const timer = mcpToolDuration.startTimer({
         tool: toolName,
-        tenant_id: tenantId 
+        tenant_id: tenantId
       });
       const respond = (payload: any) => {
         const structured = {
@@ -258,44 +261,55 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         return structured;
       };
       try {
-        const normalizedQuery = (query || '').trim().toLowerCase();
+        return runWithOptionalSpace(spaceParam, async () => {
+          const normalizedQuery = (query || '').trim().toLowerCase();
 
-        const parseEnvBool = (name: string, defaultVal: boolean) => {
-          const v = process.env[name];
-          if (v === undefined) return defaultVal;
-          const low = String(v).toLowerCase();
-          return !(low === 'false' || low === '0' || low === 'no' || low === 'n');
-        };
+          const parseEnvBool = (name: string, defaultVal: boolean) => {
+            const v = process.env[name];
+            if (v === undefined) return defaultVal;
+            const low = String(v).toLowerCase();
+            return !(low === 'false' || low === '0' || low === 'no' || low === 'n');
+          };
 
-        const enableGroupCollapse = parseEnvBool('KAIROS_ENABLE_GROUP_COLLAPSE', true);
-        const cacheKey = `begin:v3:${normalizedQuery}:${enableGroupCollapse}`;
+          const enableGroupCollapse = parseEnvBool('KAIROS_ENABLE_GROUP_COLLAPSE', true);
+          const cacheKey = `begin:v3:${normalizedQuery}:${enableGroupCollapse}`;
 
-        const cachedResult = await redisCacheService.get(cacheKey);
-        if (cachedResult) {
-          const parsed = JSON.parse(cachedResult);
-          return respond(parsed);
-        }
+          const cachedResult = await redisCacheService.get(cacheKey);
+          if (cachedResult) {
+            const parsed = JSON.parse(cachedResult);
+            return respond(parsed);
+          }
 
-        const candidateMap = await searchAndBuildCandidates(
-          memoryStore,
-          query,
-          normalizedQuery,
-          enableGroupCollapse
-        );
+          const candidateMap = await searchAndBuildCandidates(
+            memoryStore,
+            query,
+            normalizedQuery,
+            enableGroupCollapse
+          );
 
-        let headCandidates = Array.from(candidateMap.values())
-          .sort((a, b) => (b.score - a.score));
+          let headCandidates = Array.from(candidateMap.values())
+            .sort((a, b) => (b.score - a.score));
 
-        if (headCandidates.length > 10) {
-          headCandidates = headCandidates.slice(0, 10);
-        }
+          if (headCandidates.length > 10) {
+            headCandidates = headCandidates.slice(0, 10);
+          }
 
-        const results = headCandidates.length > 0 ? createResults(headCandidates) : [];
-        const output = await generateUnifiedOutput(results, options.qdrantService);
+          const results = headCandidates.length > 0 ? createResults(headCandidates) : [];
+          const output = await generateUnifiedOutput(results, options.qdrantService);
 
-        await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
-        return respond(output);
+          await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
+          return respond(output);
+        });
       } catch (error) {
+        if (error instanceof Error && error.message === 'Requested space is not in your allowed spaces') {
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ error: 'forbidden', message: error.message }) }],
+            isError: true
+          };
+        }
         structuredLogger.warn(`kairos_search error (returning empty results): ${error instanceof Error ? error.message : String(error)}`);
         mcpToolCalls.inc({ 
           tool: toolName, 

@@ -2,6 +2,9 @@ import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { DEFAULT_SPACE_ID } from '../../config.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
@@ -85,8 +88,13 @@ export class MemoryQdrantStoreMethods {
     if (!points || points.length === 0) {
       return null;
     }
+    const point = points[0]!;
+    const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+      return null;
+    }
 
-    const memory = this.pointToMemory(points[0]);
+    const memory = this.pointToMemory(point);
     this.cache.set(memory.memory_uuid, memory);
     return memory;
   }
@@ -100,7 +108,12 @@ export class MemoryQdrantStoreMethods {
       with_vector: false
     });
     if (!points || points.length === 0) return null;
-    return this.pointToMemory(points[0]);
+    const point = points[0]!;
+    const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+      return null;
+    }
+    return this.pointToMemory(point);
   }
 
   async searchMemories(query: string, limit: number, collapse: boolean = true): Promise<{ memories: Memory[], scores: number[] }> {
@@ -135,9 +148,11 @@ export class MemoryQdrantStoreMethods {
     const queryVector = queryEmbeddingResult.embedding;
     const searchLimit = Math.min(limit * 3, 200);
 
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
     const vectorResults = await this.client.search(this.collection, {
       vector: { name: `vs${queryVector.length}`, vector: queryVector },
       limit: searchLimit,
+      filter,
       with_payload: true,
       with_vector: false
     });
@@ -180,7 +195,9 @@ export class MemoryQdrantStoreMethods {
   /** Bounded scroll + in-memory label/text contains filter; used when vector results are insufficient. */
   private async keywordSearch(normalizedQuery: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const maxScroll = 500;
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
     const page = await this.client.scroll(this.collection, {
+      filter,
       with_payload: true,
       with_vector: false,
       limit: maxScroll
@@ -283,8 +300,10 @@ export class MemoryQdrantStoreMethods {
         limit: 128,
         offset: pageOffset
       } as any;
+      const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
       logger.debug(`[Qdrant][scroll] collection=${this.collection} req=${JSON.stringify(scrollReq)}`);
       const page = await this.client.scroll(this.collection, {
+        filter,
         with_payload: true,
         with_vector: false,
         limit: 128,

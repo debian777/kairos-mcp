@@ -113,12 +113,15 @@ describe('V2 kairos_search unified response schema', () => {
     });
   });
 
-  test('multiple matches: refine and create choices have correct URI and next_action', async () => {
+  test(
+    'multiple matches: refine and create choices have correct URI and next_action',
+    async () => {
     const ts = Date.now();
     const token = `V2RefineMulti${ts}`;
     await mintProtocol(`${token} Alpha`);
     await mintProtocol(`${token} Beta`);
-    await new Promise((r) => setTimeout(r, 4000));
+    // Allow embedding + Qdrant indexing for both mints (dev can be slower)
+    await new Promise((r) => setTimeout(r, 8000));
 
     const { call, result, parsed } = await search(token);
 
@@ -139,28 +142,32 @@ describe('V2 kairos_search unified response schema', () => {
       expect(createChoice!.next_action).toContain('kairos_begin');
       expect(createChoice!.next_action).toContain('00000000-0000-0000-0000-000000002001');
     });
-  });
+  }, 60000);
 
-  test('every choice has uri, label, chain_label, score, role, tags', async () => {
-    const ts = Date.now();
-    const title = `V2SearchFields ${ts}`;
-    await mintProtocol(title);
+  test(
+    'every choice has uri, label, chain_label, score, role, tags',
+    async () => {
+      const ts = Date.now();
+      const title = `V2SearchFields ${ts}`;
+      await mintProtocol(title);
 
-    await new Promise((r) => setTimeout(r, 2000));
-    const { call, result, parsed } = await search(title);
+      await new Promise((r) => setTimeout(r, 2000));
+      const { call, result, parsed } = await search(title);
 
-    withRawOnFail({ call, result }, () => {
-      const isNewFormat = typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
-      for (const choice of parsed.choices) {
-        expect(choice).toHaveProperty('uri');
-        expect(choice).toHaveProperty('label');
-        expect(choice).toHaveProperty('chain_label');
-        expect(choice).toHaveProperty('score');
-        expect(choice).toHaveProperty('role');
-        expect(choice).toHaveProperty('tags');
-        if (isNewFormat) expect(choice).toHaveProperty('next_action');
-        expect(['match', 'refine', 'create']).toContain(choice.role);
-      }
-    });
-  });
+      withRawOnFail({ call, result }, () => {
+        const isNewFormat = typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
+        for (const choice of parsed.choices) {
+          expect(choice).toHaveProperty('uri');
+          expect(choice).toHaveProperty('label');
+          expect(choice).toHaveProperty('chain_label');
+          expect(choice).toHaveProperty('score');
+          expect(choice).toHaveProperty('role');
+          expect(choice).toHaveProperty('tags');
+          if (isNewFormat) expect(choice).toHaveProperty('next_action');
+          expect(['match', 'refine', 'create']).toContain(choice.role);
+        }
+      });
+    },
+    45000
+  );
 });

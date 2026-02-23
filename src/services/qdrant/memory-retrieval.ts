@@ -1,7 +1,9 @@
 import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { DEFAULT_SPACE_ID } from '../../config.js';
 
 /**
  * Retrieval helpers
@@ -24,7 +26,12 @@ export async function retrieveById(conn: QdrantConnection, uuid: string): Promis
         timer({ operation: 'retrieve', tenant_id: tenantId });
         return null;
       }
-      
+      const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+      if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+        timer({ operation: 'retrieve', tenant_id: tenantId });
+        return null;
+      }
+
       qdrantOperations.inc({ 
         operation: 'retrieve', 
         status: 'success',
@@ -84,9 +91,10 @@ export async function getChainMemories(conn: QdrantConnection, chainId: string):
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainId } }] });
     do {
       const page = await conn.client.scroll(conn.collectionName, {
-        filter: { must: [{ key: 'chain.id', match: { value: chainId } }] },
+        filter,
         with_payload: true,
         with_vector: false,
         limit: 256,

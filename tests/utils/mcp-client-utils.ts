@@ -1,14 +1,18 @@
 /**
  * MCP Client Connection Utilities for Integration Tests
- * Provides reusable connection setup and teardown functions
+ * Provides reusable connection setup and teardown functions.
+ * When AUTH_ENABLED=true, globalSetup creates the test user and token; we send it so all tests use auth.
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { waitForHealthCheck } from './health-check.js';
+import { getTestAuthBaseUrl, getTestBearerToken } from './auth-headers.js';
 
-const MCP_URL = process.env.MCP_URL || 'http://localhost:3300/mcp';
-const HEALTH_URL = process.env.HEALTH_URL || MCP_URL.replace('/mcp', '/health');
+/** Base URL: from .test-auth-env.json when auth test server runs (e.g. 3301), else MCP_URL or localhost:3300. */
+const MCP_BASE = getTestAuthBaseUrl().replace(/\/$/, '');
+const MCP_URL = `${MCP_BASE}/mcp`;
+const HEALTH_URL = process.env.HEALTH_URL || `${MCP_BASE}/health`;
 
 // McpConnection JSDoc typedef (converted from TypeScript interface)
 /**
@@ -35,7 +39,12 @@ export async function createMcpConnection() {
     version: '1.0.0'
   });
 
-  const transport = new StreamableHTTPClientTransport(new URL(MCP_URL));
+  const token = getTestBearerToken();
+  const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), {
+    requestInit: token
+      ? { headers: new Headers({ Authorization: `Bearer ${token}` }) }
+      : undefined
+  });
   await client.connect(transport);
 
   // Return connection object with cleanup function

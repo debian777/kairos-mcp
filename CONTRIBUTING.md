@@ -62,6 +62,15 @@ npm run dev:test -- tests/integration/kairos-dump.test.ts   # Single file (after
 npm run qa:test -- tests/integration/kairos-dump.test.ts
 ```
 
+To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
+
+**Test with auth (Keycloak + kairos-tester)**  
+Requires Docker. Testcontainers starts Keycloak, provisions realm `kairos-dev`, client `kairos-mcp`, and user **kairos-tester**; then starts the app with auth and runs the full integration suite using that user's Bearer token.
+
+```bash
+npm run test:auth   # Build, then run tests with TEST_WITH_AUTH=true
+```
+
 **Development environment**
 
 ```bash
@@ -123,6 +132,18 @@ npm run docker:build       # Build Docker image (debian777/kairos-mcp)
 **CLI**
 
 See [docs/CLI.md](docs/CLI.md) for the KAIROS CLI (installation, configuration, commands).
+
+## Multitenancy (Qdrant + Redis) audit checklist
+
+When adding or changing code that touches Qdrant or Redis, ensure:
+
+- **Allowed spaces:** Only from verified token/session (Keycloak `sub` + `groups`). Never trust client-supplied space lists.
+- **Qdrant reads:** Every `search` and `scroll` uses `buildSpaceFilter(getSpaceContext().allowedSpaceIds, ...)`. Every retrieve-by-id is followed by a check that the point's `space_id` is in `allowedSpaceIds`; otherwise treat as not found (404).
+- **Qdrant writes:** Every upsert includes `space_id` from `getSpaceContext().defaultWriteSpaceId` or a validated param. No upsert without a server-derived `space_id`.
+- **Redis:** Keys are namespaced by space via `getKey()` (prefix + space id + key). Request runs inside `runWithSpaceContext()` so `getSpaceIdFromStorage()` is set by auth middleware.
+- **Optional space param:** HTTP query `space` / `space_id` and MCP tool args must be validated against `allowedSpaceIds`; invalid → 400/403.
+
+See [docs/plans/keycloak-oidc-dev.md](docs/plans/keycloak-oidc-dev.md) and the Qdrant multitenancy plan for full MUST ALWAYS / MUST NEVER rules.
 
 ## Principles
 

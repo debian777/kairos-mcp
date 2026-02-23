@@ -51,6 +51,26 @@ No application code changes in this phase (KAIROS app does not yet validate OIDC
 - **Groups:** e.g. `kairos-team-platform`, `kairos-team-sre` for future team mapping.
 - **Claim conventions (for later app work):** Use `sub` as canonical user id; `email` / `email_verified` for metadata; `groups` → internal team ids. Naming `kairos-team-<team>` keeps parsing stable.
 
+### Groups in token (for multitenancy)
+
+The KAIROS app derives allowed spaces from `sub` (personal) and `groups` (team spaces). Configure the realm so the **access token** (or ID token) includes group membership:
+
+1. **Client scope mapper:** In Keycloak Admin → Client scopes → (e.g. `groups` scope or the client’s scope) → Add mapper → By configuration → **Group Membership**. Set Token Claim Name to `groups`. Assign the scope to the client `kairos-mcp` (e.g. Optional Client Scopes).
+2. **Or realm role → groups:** If you use realm roles instead of groups, add a mapper that puts `realm_access.roles` (or a custom claim) in the token; the app also reads `realm_access.roles` as a fallback for group ids.
+
+Exact claim name the app accepts: `groups` (array of strings) or `realm_access.roles` (array of strings). After login, the callback and Bearer validation read these claims and populate session / `req.auth` so `getSpaceContext()` can compute `allowedSpaceIds`.
+
+### Space isolation by realm and optional group IDs
+
+Spaces are isolated by **realm** so that the same group name in different realms (e.g. `kairos-dev` vs `kairos-qa`) does not share data. The app derives the realm from the token’s `iss` (e.g. `http://keycloak:8080/realms/kairos-dev` → `kairos-dev`) and builds space IDs as:
+
+- **Personal:** `user:<realm>:<sub>`
+- **Group:** `group:<realm>:<ref>` where `ref` is the group identifier (see below).
+
+So `group:kairos-dev:kairos-team-platform` and `group:kairos-qa:kairos-team-platform` are different spaces.
+
+**Group rename stability:** If a group is renamed in Keycloak, space IDs based on group **name** would change and previous data would no longer be associated. To keep spaces stable across renames, the app supports an optional token claim **`group_ids`** (array of group UUID strings, same order as `groups`). When present, the app uses the group UUID for the space ID (e.g. `group:kairos-dev:a1b2c3d4-...`). Keycloak’s default Group Membership mapper does not add group IDs; to enable rename-stable spaces you need a **Script Mapper** or custom protocol mapper that adds a claim `group_ids` with the list of group UUIDs. When `group_ids` is missing, the app falls back to group names.
+
 ### Realm per environment
 
 We use **one Keycloak, three realms**: `kairos-dev`, `kairos-qa`, `kairos-prod`. Realm JSONs are in `keycloak/import/` (`kairos-dev-realm.json`, `kairos-qa-realm.json`, `kairos-prod-realm.json`). Keycloak imports all `.json` files on startup. Each realm has client `kairos-mcp` and groups `kairos-team-platform`, `kairos-team-sre`. Prod realm has `registrationAllowed: false` and `directAccessGrantsEnabled: false`. Set the app’s `AUTH_TRUSTED_ISSUERS` per env to the chosen realm’s issuer (e.g. `http://keycloak:8080/realms/kairos-dev`).
@@ -100,17 +120,100 @@ docker compose --profile infra up -d
 
 ```bash
 docker compose --profile infra down -v
-rm -rf ./data/keycloak_pgdata
+rm -rf ./data/postgres
 ./scripts/generate-dev-secrets.sh
-docker compose --profile infra up -d
+# Copy password vars to .env.prod, then:
+docker compose --env-file .env --env-file .env.prod --profile infra up -d
+# Then: ensure-keycloak-realms.py, add_keycloak_user.py as above
 ```
 
 - Keycloak admin: `http://localhost:8080` — username `admin`, password is in `.env` as `KEYCLOAK_ADMIN_PASSWORD` (not admin/keycloak).
 - Realms: `kairos-dev`, `kairos-qa`, `kairos-prod`. Create local users and assign groups as needed for testing.
 
+**Make it work (current path; init/import scripts may be improved later):**
+1. Start infra: `docker compose --env-file .env --env-file .env.prod --profile infra up -d`
+2. If Keycloak fails with "password authentication failed for user keycloak", sync DB password from `.env.prod`:  
+   `pass=$(grep '^KEYCLOAK_DB_PASSWORD=' .env.prod | cut -d= -f2-) && pass_sql="${pass//\'/\'\'}" && docker compose --env-file .env --env-file .env.prod --profile infra exec -T postgres psql -U postgres -c "ALTER ROLE keycloak WITH PASSWORD '$pass_sql';"` then `docker compose ... restart keycloak`
+3. Create realms (if import mount was empty): `python3 scripts/ensure-keycloak-realms.py`
+4. Add users: `python3 scripts/add_keycloak_user.py --realm kairos-dev --user demo` (output shows generated password)
+
+**Add a user (realm + username as args, password auto-generated):**
+```bash
+python scripts/add_keycloak_user.py --realm kairos-dev --user demo
+python scripts/add_keycloak_user.py -r kairos-qa -u myuser
+# Output: realm=... username=... password=<generated>
+```
+Requires Keycloak running and `KEYCLOAK_ADMIN_PASSWORD` in `.env.prod` or `.env`. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`).
+
+Legacy shell script (fixed demo user/password): `./scripts/add-keycloak-demo-user.sh`.
+
+### Cursor MCP and Dynamic Client Registration (Trusted Hosts)
+
+When Cursor connects to kairos-dev with auth enabled, it may use **Dynamic Client Registration (DCR)** to get a client ID from Keycloak. Keycloak’s **Trusted Hosts** policy can reject that request with:
+
+`Policy 'Trusted Hosts' rejected request to client-registration service. Details: Host not trusted.`
+
+**Fix in Keycloak Admin:**
+
+1. Open **Realm** → **Client registration** → **Trusted hosts** (or **Clients** → **Client registration** → **Trusted hosts**).
+2. Either disable **“Client URIs must match”** for dev, or add the host Cursor uses:
+   - Add **`localhost`** and/or **`127.0.0.1`** (and your machine’s LAN IP if you use it in redirect URIs).
+   - If Keycloak logs show `Failed to verify remote host : <IP>`, add that IP to trusted hosts.
+3. Save.
+
+After that, Cursor’s DCR request should succeed and the Streamable HTTP connection can complete. If Cursor then falls back to SSE, our server only supports **Streamable HTTP** (POST `/mcp`), so the SSE attempt will fail with “Invalid content type, expected text/event-stream”; fixing Trusted Hosts avoids the fallback.
+
 ---
 
-## 9. References
+## 9. MCP Authorization Compliance (RFC 9728 / MCP Spec 2025-11-25)
+
+The MCP Authorization specification requires servers to implement OAuth 2.0 Protected Resource Metadata ([RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728)) so that MCP clients can discover how to authenticate.
+
+### Canonical resource URI
+
+The **canonical resource URI** for this MCP server is the `resource` value served at `/.well-known/oauth-protected-resource`. It is derived as `{AUTH_CALLBACK_BASE_URL}/mcp` (e.g. `https://mcp.example.com/mcp`).
+
+MCP clients MUST include this URI as the `resource` parameter in both authorization and token requests per [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707.html). This binds tokens to the intended MCP server and prevents token reuse across services.
+
+### Discovery endpoints
+
+The server exposes Protected Resource Metadata at two paths (per RFC 9728 §3.1):
+
+- `GET /.well-known/oauth-protected-resource` — root (fallback)
+- `GET /.well-known/oauth-protected-resource/mcp` — path-specific (tried first by spec-compliant clients)
+
+Both return the same JSON document containing `resource`, `authorization_servers`, `scopes_supported`, `bearer_methods_supported`, and `resource_name`.
+
+### Token audience configuration
+
+For full MCP compliance, configure Keycloak so that access tokens include the canonical resource URI in the `aud` claim. In practice this means one of:
+
+1. Add the canonical resource URI (e.g. `https://mcp.example.com/mcp`) to `AUTH_ALLOWED_AUDIENCES` alongside the client id (`kairos-mcp`).
+2. Or configure a Keycloak audience mapper on the `kairos-mcp` client that adds the canonical URI to the `aud` claim.
+
+The server validates `aud` against `AUTH_ALLOWED_AUDIENCES` — at least one value must match.
+
+### 401 and 403 responses
+
+- **401 Unauthorized:** Returned for missing or invalid tokens. Includes `WWW-Authenticate: Bearer resource_metadata="<url>", scope="openid"` so clients can discover the authorization server.
+- **403 Forbidden:** Returned when the token is valid but has insufficient scope. Includes `WWW-Authenticate: Bearer error="insufficient_scope", scope="<required>", resource_metadata="<url>"`. (Scope enforcement not yet active; only `openid` is required.)
+
+### Client responsibilities (for deployers)
+
+MCP clients connecting to KAIROS MUST:
+
+1. Fetch Protected Resource Metadata from the well-known endpoint.
+2. Discover the authorization server from `authorization_servers`.
+3. Include the `resource` parameter in authorization and token requests (RFC 8707).
+4. Use `Authorization: Bearer <token>` header for all requests (query string tokens are rejected).
+5. Handle 401 by initiating or re-initiating the OAuth flow.
+6. Handle 403 with `insufficient_scope` by requesting additional scopes (step-up authorization).
+
+See: [MCP Authorization Spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
+
+---
+
+## 10. References
 
 - Proposed: `cache/proposed/01-keycloak-compose-dev.md`
 - Keycloak containers: [keycloak/keycloak docs/guides/server/containers.adoc](https://github.com/keycloak/keycloak/blob/main/docs/guides/server/containers.adoc) (import realm, start-dev).

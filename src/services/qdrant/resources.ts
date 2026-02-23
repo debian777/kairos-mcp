@@ -7,6 +7,8 @@ import { sanitizeAndUpsert, validatePayload, validateAndConvertId } from './util
 import { redisCacheService } from '../redis-cache.js';
 import { logger } from '../../utils/logger.js';
 import { getEmbeddingDimension } from '../../config.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 /**
  * upsertResources - bulk upsert of knowledge resources
@@ -19,16 +21,17 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
     for (const item of items) {
       const uuid = item.uuid ? validateAndConvertId(item.uuid) : IDGenerator.generateUUID();
 
-      // Duplicate check simplified: reuse scroll
+      // Duplicate check simplified: reuse scroll (scoped to allowed spaces)
+      const duplicateFilter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+        must: [
+          { key: 'domain', match: { value: item.domain } },
+          { key: 'type', match: { value: item.type || 'context' } },
+          { key: 'task', match: { value: item.task } },
+          ...(item.protocol ? [{ key: 'protocol.step', match: { value: item.protocol.step } }] : [])
+        ]
+      });
       const existingDuplicate = await conn.client.scroll(conn.collectionName, {
-        filter: {
-          must: [
-            { key: 'domain', match: { value: item.domain } },
-            { key: 'type', match: { value: item.type || 'context' } },
-            { key: 'task', match: { value: item.task } },
-            ...(item.protocol ? [{ key: 'protocol.step', match: { value: item.protocol.step } }] : [])
-          ]
-        },
+        filter: duplicateFilter,
         limit: 1,
         with_payload: true,
         with_vector: false
@@ -66,7 +69,9 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         aiWithContext = { ...item.ai, memory_uuid: stepUuid };
       }
 
+      const spaceId = getSpaceContext().defaultWriteSpaceId;
       const payload = {
+        space_id: spaceId,
         uuid,
         description_short: item.description_short,
         description_full: item.description_full,

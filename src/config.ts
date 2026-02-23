@@ -53,6 +53,21 @@ export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvString('KAIROS_ENABLE_GROUP_CO
 export const TRUSTED_PROXY_CIDRS_STRING = getEnvString('TRUSTED_PROXY_CIDRS', '');
 export const NODE_ENV = getEnvString('NODE_ENV', '');
 export const STRICT_COVERAGE = getEnvBoolean('STRICT_COVERAGE', false);
+
+// Auth (Keycloak OIDC) – when enabled, /api and /api/* require session or Bearer; redirect to Keycloak for browser
+export const AUTH_ENABLED = getEnvBoolean('AUTH_ENABLED', false);
+export const KEYCLOAK_URL = getEnvString('KEYCLOAK_DEV_URL', getEnvString('KEYCLOAK_URL', ''));
+export const KEYCLOAK_REALM = getEnvString('KEYCLOAK_DEV_REALM', getEnvString('KEYCLOAK_REALM', 'kairos-dev'));
+export const KEYCLOAK_CLIENT_ID = getEnvString('KEYCLOAK_DEV_CLIENT_ID', getEnvString('KEYCLOAK_CLIENT_ID', 'kairos-mcp'));
+/** Base URL for redirect_uri (e.g. http://localhost:3500). Must match Keycloak client redirect URIs. */
+export const AUTH_CALLBACK_BASE_URL = getEnvString('AUTH_CALLBACK_BASE_URL', '');
+export const SESSION_SECRET = getEnvString('SESSION_SECRET', '');
+/** When set to oidc_bearer, Bearer tokens are validated (issuer, audience, exp); when unset, Bearer presence only (backward compat). */
+export const AUTH_MODE = getEnvString('AUTH_MODE', '');
+/** Comma-separated list of trusted JWT issuers (e.g. http://keycloak:8080/realms/kairos-dev). Required when AUTH_MODE=oidc_bearer. */
+export const AUTH_TRUSTED_ISSUERS_STRING = getEnvString('AUTH_TRUSTED_ISSUERS', '');
+/** Comma-separated list of allowed JWT audiences (e.g. kairos-mcp). Required when AUTH_MODE=oidc_bearer. */
+export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCES', '');
 export const MCP_URL = getEnvString('MCP_URL', 'http://localhost:3300/mcp');
 export const HEALTH_URL = getEnvString('HEALTH_URL', MCP_URL.replace('/mcp', '/health'));
 export const QDRANT_RESCORE_STRING = getEnvString('QDRANT_RESCORE', 'true');
@@ -94,6 +109,12 @@ export function getTeiDimension(defaultValue = 0): number {
 
 // Derived configurations
 export const TRUSTED_PROXY_CIDRS = TRUSTED_PROXY_CIDRS_STRING.split(',').filter(Boolean);
+export const AUTH_TRUSTED_ISSUERS = AUTH_TRUSTED_ISSUERS_STRING.split(',').map((s) => s.trim()).filter(Boolean);
+export const AUTH_ALLOWED_AUDIENCES = AUTH_ALLOWED_AUDIENCES_STRING.split(',').map((s) => s.trim()).filter(Boolean);
 export const ENABLE_GROUP_COLLAPSE = KAIROS_ENABLE_GROUP_COLLAPSE !== 'false' && KAIROS_ENABLE_GROUP_COLLAPSE !== '0';
 export const INSTANCE_ID = getEnvString('INSTANCE_ID', os.hostname() || 'unknown');
 export const DEFAULT_TENANT_ID = getEnvString('DEFAULT_TENANT_ID', 'default');
+/** Space id when AUTH_ENABLED=false or no auth context (single-tenant). Must follow space model: space:*, user:*, or group:*. */
+const DEFAULT_SPACE_ID_RAW = getEnvString('DEFAULT_SPACE_ID', getEnvString('DEFAULT_TENANT_ID', 'space:default'));
+export const DEFAULT_SPACE_ID =
+  /^(space:|user:|group:)/.test(DEFAULT_SPACE_ID_RAW) ? DEFAULT_SPACE_ID_RAW : `space:${DEFAULT_SPACE_ID_RAW}`;

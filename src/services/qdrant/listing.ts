@@ -1,5 +1,7 @@
 import { QdrantConnection } from './connection.js';
 import { logger } from '../../utils/logger.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 /**
  * Listing helpers: listItemsByCategory, getDomainOverview
@@ -7,14 +9,15 @@ import { logger } from '../../utils/logger.js';
 
 export async function listItemsByCategory(conn: QdrantConnection, domain: string, type: string, task: string) {
   return conn.executeWithReconnect(async () => {
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'type', match: { value: type } },
+        { key: 'task', match: { value: task } }
+      ]
+    });
     const result = await conn.client.scroll(conn.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'type', match: { value: type } },
-          { key: 'task', match: { value: task } }
-        ]
-      },
+      filter,
       limit: 100,
       with_payload: true,
       with_vector: false
@@ -43,8 +46,9 @@ export async function listItemsByCategory(conn: QdrantConnection, domain: string
 export async function getDomainOverview(conn: QdrantConnection, domain: string) {
   return conn.executeWithReconnect(async () => {
     try {
+      const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'domain', match: { value: domain } }] });
       const countResult = await conn.client.scroll(conn.collectionName, {
-        filter: { must: [{ key: 'domain', match: { value: domain } }] },
+        filter,
         limit: 100,
         with_payload: true,
         with_vector: false

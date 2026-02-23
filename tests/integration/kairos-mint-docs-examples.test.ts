@@ -35,7 +35,6 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
       .filter((name) => name.startsWith('protocol-example-') && name.toLowerCase().endsWith('.md'))
       .map((name) => join(examplesDir, name));
   } catch (err) {
-    // eslint-disable-next-line no-console -- test setup; failure is reported below
     console.warn(
       `[kairos_mint docs/examples] Skipping: ${err instanceof Error ? err.message : String(err)}`
     );

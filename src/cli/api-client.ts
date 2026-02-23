@@ -32,6 +32,10 @@ export class ApiClient {
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
+        const bearer = process.env['KAIROS_BEARER_TOKEN'];
+        if (bearer) {
+            defaultHeaders['Authorization'] = `Bearer ${bearer}`;
+        }
 
         const response = await fetch(url, {
             ...options,
@@ -81,6 +85,10 @@ export class ApiClient {
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
+        const bearer = process.env['KAIROS_BEARER_TOKEN'];
+        if (bearer) {
+            headers['Authorization'] = `Bearer ${bearer}`;
+        }
 
         if (options?.llmModelId) {
             headers['x-llm-model-id'] = options.llmModelId;

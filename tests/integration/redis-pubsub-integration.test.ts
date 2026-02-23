@@ -1,8 +1,13 @@
 import { createClient, RedisClientType } from 'redis';
 import { redisService } from '../../src/services/redis.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
-import { KAIROS_REDIS_PREFIX } from '../../src/config.js';
+import { KAIROS_REDIS_PREFIX, DEFAULT_SPACE_ID } from '../../src/config.js';
 import type { Memory } from '../../src/types/memory.js';
+
+/** Build full Redis key as the app does: prefix + spaceId + ':' + suffix */
+function redisKey(suffix: string): string {
+  return `${KAIROS_REDIS_PREFIX}${DEFAULT_SPACE_ID}:${suffix}`;
+}
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
@@ -163,8 +168,8 @@ describe('Redis Pub/Sub Integration Tests', () => {
       // Store search result
       await redisCacheService.setSearchResult(query, limit, searchResult);
 
-      // Verify key exists
-      const key = `${KAIROS_REDIS_PREFIX}search:collapsed:${query}:${limit}`;
+      // Verify key exists (keys are namespaced by space)
+      const key = redisKey(`search:collapsed:${query}:${limit}`);
       const exists = await testClient.exists(key);
       expect(exists).toBe(1);
 
@@ -191,8 +196,8 @@ describe('Redis Pub/Sub Integration Tests', () => {
       // Store memory
       await redisCacheService.setMemoryResource(testMemory);
 
-      // Verify it exists
-      const key = `${KAIROS_REDIS_PREFIX}mem:${testMemory.memory_uuid}`;
+      // Verify it exists (keys are namespaced by space)
+      const key = redisKey(`mem:${testMemory.memory_uuid}`);
       expect(await testClient.exists(key)).toBe(1);
 
       // Set up subscriber for invalidation events
@@ -236,8 +241,8 @@ describe('Redis Pub/Sub Integration Tests', () => {
       // Store search result
       await redisCacheService.setSearchResult(query, limit, searchResult);
 
-      // Verify it exists
-      const key = `${KAIROS_REDIS_PREFIX}search:collapsed:${query}:${limit}`;
+      // Verify it exists (keys are namespaced by space)
+      const key = redisKey(`search:collapsed:${query}:${limit}`);
       expect(await testClient.exists(key)).toBe(1);
 
       // Set up subscriber
