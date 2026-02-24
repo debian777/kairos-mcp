@@ -1,16 +1,17 @@
 import type { ProofOfWorkDefinition } from '../../types/memory.js';
 
-/** Match a trailing fenced code block (```json or ```) at end of step body. Captures the block content. */
-const TRAILING_JSON_BLOCK_REGEX = /\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
+/** Match the last fenced code block (```json or ```) at end of step body. Captures prefix (group 1) and block content (group 2). */
+const TRAILING_JSON_BLOCK_REGEX = /([\s\S]*)\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
 
 /**
  * Try to parse a trailing ```json block containing {"challenge": ...}. Canonical format per workflow docs.
+ * Uses the last code block in the content so steps with multiple example blocks (e.g. challenge type docs) still get a proof.
  * Returns the challenge object and cleaned content (without the block) if valid.
  */
 function extractTrailingChallengeBlock(content: string): { cleaned: string; challenge: ProofOfWorkDefinition } | null {
   const match = content.match(TRAILING_JSON_BLOCK_REGEX);
-  if (!match || !match[1]) return null;
-  const blockContent = match[1].trim();
+  if (!match || !match[2]) return null;
+  const blockContent = match[2].trim();
   let parsed: { challenge?: unknown };
   try {
     parsed = JSON.parse(blockContent) as { challenge?: unknown };
@@ -23,7 +24,8 @@ function extractTrailingChallengeBlock(content: string): { cleaned: string; chal
   const challenge = parsed.challenge as Record<string, unknown>;
   const required = typeof challenge['required'] === 'boolean' ? challenge['required'] : true;
   const proof: ProofOfWorkDefinition = { ...challenge, required } as ProofOfWorkDefinition;
-  const cleaned = content.slice(0, match.index).trim();
+  const prefixLen = (match[1]?.length ?? 0);
+  const cleaned = content.slice(0, match.index! + prefixLen).trim();
   return { cleaned, challenge: proof };
 }
 

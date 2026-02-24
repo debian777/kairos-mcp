@@ -1,7 +1,7 @@
 import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
-import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 
@@ -27,7 +27,9 @@ export async function retrieveById(conn: QdrantConnection, uuid: string): Promis
         return null;
       }
       const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
-      if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+      const allowed = getSpaceContext().allowedSpaceIds;
+      const canRead = allowed.includes(pointSpaceId) || pointSpaceId === KAIROS_APP_SPACE_ID;
+      if (!canRead) {
         timer({ operation: 'retrieve', tenant_id: tenantId });
         return null;
       }
@@ -91,7 +93,7 @@ export async function getChainMemories(conn: QdrantConnection, chainId: string):
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
-    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainId } }] });
+    const filter = buildSpaceFilter(getSearchSpaceIds(), { must: [{ key: 'chain.id', match: { value: chainId } }] });
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,

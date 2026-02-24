@@ -61,7 +61,7 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
     env_file:
-      - .env.prod
+      - .env
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
       - QDRANT__SERVICE__GRPC_PORT=6534
@@ -118,7 +118,7 @@ services:
       - keycloak
       - qa
     env_file:
-      - .env.prod
+      - .env
     image: quay.io/keycloak/keycloak:26.5.4
     depends_on:
       postgres:

@@ -90,7 +90,9 @@ export class MemoryQdrantStoreMethods {
     }
     const point = points[0]!;
     const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
-    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+    const allowed = getSpaceContext().allowedSpaceIds;
+    const canRead = allowed.includes(pointSpaceId) || pointSpaceId === KAIROS_APP_SPACE_ID;
+    if (!canRead) {
       return null;
     }
 
@@ -110,7 +112,9 @@ export class MemoryQdrantStoreMethods {
     if (!points || points.length === 0) return null;
     const point = points[0]!;
     const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
-    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
+    const allowed = getSpaceContext().allowedSpaceIds;
+    const canRead = allowed.includes(pointSpaceId) || pointSpaceId === KAIROS_APP_SPACE_ID;
+    if (!canRead) {
       return null;
     }
     return this.pointToMemory(point);

@@ -4,7 +4,7 @@ import { qdrantService } from '../services/qdrant/index.js';
 import { runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { readdir, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 /**
@@ -23,19 +23,31 @@ function getMemDir(): string {
 }
 
 /**
+ * Return the other of src/embed-docs/mem or dist/embed-docs/mem for fallback when primary has 0 files.
+ */
+function getMemDirFallback(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const parentDir = join(__dirname, '..');
+  const otherName = basename(parentDir) === 'src' ? 'dist' : 'src';
+  return join(parentDir, '..', otherName, 'embed-docs', 'mem');
+}
+
+/**
  * Read mem files from filesystem at runtime
  * Returns a map of filename (without .md) -> content
+ * If memDir yields 0 .md files, tries fallback path (other of src/dist).
  */
-async function readMemFiles(): Promise<Record<string, string>> {
-  const memDir = getMemDir();
+async function readMemFiles(memDir?: string): Promise<Record<string, string>> {
+  const dir = memDir ?? getMemDir();
   const memResources: Record<string, string> = {};
 
   try {
-    const files = await readdir(memDir);
+    const files = await readdir(dir);
     const mdFiles = files.filter(f => f.endsWith('.md'));
 
     for (const file of mdFiles) {
-      const filePath = join(memDir, file);
+      const filePath = join(dir, file);
       const key = file.replace(/\.md$/, ''); // Remove .md extension
       const content = await readFile(filePath, 'utf-8');
       memResources[key] = content;
@@ -43,9 +55,9 @@ async function readMemFiles(): Promise<Record<string, string>> {
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      structuredLogger.warn(`[mem-resources-boot] Mem directory not found: ${memDir} (this is OK if no mem files exist)`);
+      structuredLogger.warn(`[mem-resources-boot] Mem directory not found: ${dir} (this is OK if no mem files exist)`);
     } else {
-      structuredLogger.error(`[mem-resources-boot] Failed to read mem directory ${memDir}: ${err instanceof Error ? err.message : String(err)}`);
+      structuredLogger.error(`[mem-resources-boot] Failed to read mem directory ${dir}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -58,9 +70,20 @@ async function readMemFiles(): Promise<Record<string, string>> {
  * Uses storeChain for processing but updates UUID to match filename
  */
 export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, options: { force?: boolean } = {}): Promise<void> {
-  const memResources = await readMemFiles();
+  const primaryDir = getMemDir();
+  structuredLogger.info(`[mem-resources-boot] Mem dir: ${primaryDir}`);
 
+  let memResources = await readMemFiles(primaryDir);
   if (Object.keys(memResources).length === 0) {
+    const fallbackDir = getMemDirFallback();
+    structuredLogger.info(`[mem-resources-boot] No files in primary dir, trying fallback: ${fallbackDir}`);
+    memResources = await readMemFiles(fallbackDir);
+  }
+
+  const fileCount = Object.keys(memResources).length;
+  structuredLogger.info(`[mem-resources-boot] Mem files found: ${fileCount}`);
+
+  if (fileCount === 0) {
     structuredLogger.info('[mem-resources-boot] No mem resources to inject');
     return;
   }
@@ -73,7 +96,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
   };
 
   await runWithSpaceContextAsync(appSpaceContext, async () => {
-    structuredLogger.info(`[mem-resources-boot] Injecting ${Object.keys(memResources).length} mem resources into Qdrant (force: ${options.force || false})`);
+    structuredLogger.info(`[mem-resources-boot] Injecting ${fileCount} mem resources into Qdrant (force: ${options.force || false})`);
 
     const llmModelId = 'system-boot';
     let injectedCount = 0;
@@ -108,6 +131,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
         const memories = await memoryStore.storeChain([markdownContent], llmModelId, { forceUpdate: options.force || false });
 
         if (memories.length > 0) {
+          // Only the first step is remapped to the file UUID; other steps of the same chain keep server-generated IDs.
           const storedMemory = memories[0]!;
           if (storedMemory.memory_uuid !== targetUuid) {
             const { client, collection } = memoryStore.getQdrantAccess();
@@ -138,7 +162,9 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           structuredLogger.info(`[mem-resources-boot] Injected memory ${targetUuid}`);
         }
       } catch (err) {
-        structuredLogger.error(`[mem-resources-boot] Failed to inject memory ${targetUuid}: ${err instanceof Error ? err.message : String(err)}`);
+        const message = err instanceof Error ? err.message : String(err);
+        structuredLogger.error(`[mem-resources-boot] Failed to inject memory ${targetUuid}: ${message}`);
+        structuredLogger.info(`[mem-resources-boot] Failed memory ${targetUuid}`);
       }
     }
 
