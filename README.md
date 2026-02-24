@@ -30,8 +30,8 @@ KAIROS MCP does not try to be: a general-purpose agent framework or planner; a v
 ```bash
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
-cp env.example.txt .env.prod
-# Edit .env.prod if needed (see env.example.txt for options)
+cp env.example.docker .env.prod
+# Edit .env.prod if needed (see env.example.docker for options)
 docker compose --profile prod up -d
 ```
 
@@ -43,8 +43,8 @@ Access the server at `http://localhost:3000`; health check at `http://localhost:
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 npm ci
-cp env.example.txt .env.dev
-# Configure .env.dev (see env.example.txt)
+cp env.example.dev .env.dev
+# Configure .env.dev (see env.example.dev for options)
 npm run infra:start
 npm run dev:start
 ```

@@ -69,7 +69,8 @@ module.exports = [
       '**/*.disabled',
       '**/*.sh',
       '**/.cursorrules',
-      'env.example.txt',
+      'env.example.dev',
+      'env.example.docker',
       '**/snapshots/**',
       '**/*.snapshot'
     ],

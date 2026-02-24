@@ -1,10 +1,22 @@
 /**
  * Centralized configuration for environment variables.
  * This file contains all environment variable parsing logic.
+ * Required variables (REDIS_URL, QDRANT_URL) throw at load if missing.
  */
 
 import os from 'os';
 import path from 'path';
+
+/** Throws if key is missing or empty (after trim). Use for vars that must be set. */
+function getEnvRequired(key: string, errorMessage?: string): string {
+  const val = process.env[key];
+  const trimmed = typeof val === 'string' ? val.trim() : '';
+  if (!trimmed) {
+    const msg = errorMessage ?? `KAIROS requires ${key} to be set. Set it in .env or environment.`;
+    throw new Error(msg);
+  }
+  return trimmed;
+}
 
 function getEnvString(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
@@ -30,8 +42,8 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   return val !== 'false';
 }
 
-// String configurations
-export const REDIS_URL = getEnvString('REDIS_URL', 'redis://localhost:6379');
+// Required (throw at startup if missing)
+export const REDIS_URL = getEnvRequired('REDIS_URL');
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', '');
 export const OPENAI_API_KEY = getEnvString('OPENAI_API_KEY', '');
@@ -75,9 +87,9 @@ export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 
 export const HTTP_ENABLED = true;
 export const QDRANT_RESCORE = getEnvBoolean('QDRANT_RESCORE', true);
 
-// Functions for variables with varying defaults
-export function getQdrantUrl(defaultValue = 'http://localhost:6333'): string {
-  return getEnvString('QDRANT_URL', defaultValue);
+// Required (throw at startup if missing)
+export function getQdrantUrl(): string {
+  return getEnvRequired('QDRANT_URL');
 }
 
 export function getQdrantCollection(defaultValue = 'kb_resources'): string {

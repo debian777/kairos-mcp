@@ -29,8 +29,8 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Environment Setup
 
-1. Copy `env.example.txt` to `.env.dev` or `.env.qa`
-2. Configure required environment variables (see `env.example.txt` for details)
+1. Copy `env.example.dev` to `.env.dev` (local npm) or `env.example.docker` to `.env.qa`/`.env.prod` (Docker)
+2. Set required environment variables REDIS_URL and QDRANT_URL; see the example files for details
 3. Start infrastructure services: `npm run infra:start`
 4. Start development server: `npm run dev:start`
 

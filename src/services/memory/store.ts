@@ -8,7 +8,7 @@ import { getQdrantUrl, getQdrantCollection, QDRANT_API_KEY } from '../../config.
 import { initializeQdrantStore } from './store-init.js';
 import { MemoryQdrantStoreChain } from './store-chain.js';
 
-const DEFAULT_QDRANT_URL = getQdrantUrl('http://127.0.0.1:6333');
+const DEFAULT_QDRANT_URL = getQdrantUrl();
 const DEFAULT_COLLECTION = getQdrantCollection('kairos');
 
 export interface MemoryQdrantStoreOptions {
