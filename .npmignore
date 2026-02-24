@@ -136,3 +136,4 @@ test-*.js
 !package.json
 !LICENSE
 !dist/**
+snapshots

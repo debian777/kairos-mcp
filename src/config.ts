@@ -71,6 +71,8 @@ export const KEYCLOAK_CLIENT_ID = getEnvString('KEYCLOAK_CLIENT_ID', 'kairos-mcp
 /** Base URL for redirect_uri (e.g. http://localhost:3500). Must match Keycloak client redirect URIs. */
 export const AUTH_CALLBACK_BASE_URL = getEnvString('AUTH_CALLBACK_BASE_URL', '');
 export const SESSION_SECRET = getEnvString('SESSION_SECRET', '');
+/** Session cookie and payload exp lifetime in seconds; default 7 days. */
+export const SESSION_MAX_AGE_SEC = getEnvInt('SESSION_MAX_AGE_SEC', 604800);
 
 /** When set to oidc_bearer, Bearer tokens are validated (issuer, audience, exp); when unset, Bearer presence only (backward compat). */
 export const AUTH_MODE = getEnvString('AUTH_MODE', '');

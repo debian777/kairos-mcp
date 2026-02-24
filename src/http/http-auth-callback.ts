@@ -11,12 +11,11 @@ import {
   KEYCLOAK_REALM,
   KEYCLOAK_CLIENT_ID,
   AUTH_CALLBACK_BASE_URL,
-  SESSION_SECRET
+  SESSION_SECRET,
+  SESSION_MAX_AGE_SEC
 } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { getStateStore, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
-
-const SESSION_MAX_AGE_SEC = 86400; // 24h
 
 function signSession(payload: {
   sub: string;

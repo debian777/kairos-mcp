@@ -218,3 +218,4 @@ cache
 .ai/
 data/
 .devcontainer.disable/
+snapshots

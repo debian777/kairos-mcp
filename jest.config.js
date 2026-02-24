@@ -30,8 +30,6 @@ export default {
     },
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
-        '^nanoid$': '<rootDir>/tests/unit/mocks/nanoid.ts',
-        '^uuid$': '<rootDir>/tests/unit/mocks/uuid.ts',
     },
     collectCoverageFrom: [
         'src/**/*.{ts,tsx}',
