@@ -59,6 +59,12 @@ export default {
     setupFiles: ['dotenv/config'],
     // Global test setup runs before all tests
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+    // When AUTH_ENABLED=true: start Keycloak + server, write .test-auth-env.json
+    globalSetup: '<rootDir>/tests/global-setup-auth.ts',
+    // When AUTH_ENABLED=true: stop server and Keycloak container
+    globalTeardown: '<rootDir>/tests/global-teardown-auth.ts',
     // Global test timeout
     testTimeout: 10000,
+    // Run mint/update tests before v2-kairos-search (which depends on them)
+    testSequencer: '<rootDir>/tests/test-sequencer.cjs',
 };

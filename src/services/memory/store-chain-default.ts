@@ -14,6 +14,8 @@ import {
   generateTags
 } from '../../utils/memory-store-utils.js';
 import { getEmbeddingDimension } from '../../config.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 function deriveDomainTaskType(label: string, text: string, tags: string[]) {
   const lower = (s: string) => (s || '').toLowerCase();
@@ -65,8 +67,9 @@ export async function processDefaultChain(
     with_vector: false
   } as any;
   logger.debug(`[Qdrant][scroll-dup] collection=${collection} req=${JSON.stringify(dupReq2)}`);
+  const chainFilter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
   const dup = await client.scroll(collection, {
-    filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] },
+    filter: chainFilter,
     limit: 256,
     with_payload: true,
     with_vector: false
@@ -81,7 +84,7 @@ export async function processDefaultChain(
       }));
       throw new KairosError('Duplicate memory chain', 'DUPLICATE_CHAIN', 409, { chain_id: chainUuid, items });
     }
-    const delReq2 = { filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] } } as any;
+    const delReq2 = { filter: chainFilter } as any;
     logger.debug(`[Qdrant][delete-chain] collection=${collection} req=${JSON.stringify(delReq2)}`);
     await client.delete(collection, delReq2);
   }
@@ -118,6 +121,7 @@ export async function processDefaultChain(
     };
   });
 
+  const spaceId = getSpaceContext().defaultWriteSpaceId;
   const points = memories.map((memory, index) => {
     // classify + quality metadata
     const { task, type } = deriveDomainTaskType(memory.label, memory.text, memory.tags);
@@ -132,6 +136,7 @@ export async function processDefaultChain(
       id: memory.memory_uuid,
       vector: { [currentVectorName]: embeddings.embeddings[index]! },
       payload: {
+        space_id: spaceId,
         label: memory.label,
         tags: memory.tags,
         text: memory.text,

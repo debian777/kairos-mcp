@@ -89,6 +89,8 @@ PROOF OF WORK: comment min_length=50
 - Requires a verification comment
 - Format: `PROOF OF WORK: comment min_length=N`
 
+For execution semantics (how agents must perform each challenge type), see the kairos_begin and kairos_next tool descriptions.
+
 ---
 
 ## MUST ALWAYS

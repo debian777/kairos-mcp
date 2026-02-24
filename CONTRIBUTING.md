@@ -29,9 +29,9 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Environment Setup
 
-1. Copy `env.example.dev` to `.env.dev` (local npm) or `env.example.docker` to `.env.qa`/`.env.prod` (Docker)
-2. Set required environment variables REDIS_URL and QDRANT_URL; see the example files for details
-3. Start infrastructure services: `npm run infra:start`
+1. Copy `env.example.txt` to `.env.dev` or `.env.qa`
+2. Configure required environment variables (see `env.example.txt` for details)
+3. Start infrastructure services: `npm run infra:up`
 4. Start development server: `npm run dev:start`
 
 ### Developer commands (build, deploy, test)
@@ -62,6 +62,16 @@ npm run dev:test -- tests/integration/kairos-dump.test.ts   # Single file (after
 npm run qa:test -- tests/integration/kairos-dump.test.ts
 ```
 
+To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
+
+**Test with auth (Keycloak + kairos-tester)**  
+Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_URL` is unset), provisions the test user, starts the app with auth, and writes `.test-auth-env.json`. No manual cleanup needed.
+
+```bash
+npm run dev:deploy   # build first
+KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
+```
+
 **Development environment**
 
 ```bash
@@ -89,7 +99,7 @@ npm run qa:qdrant-curl     # Qdrant via curl (QA)
 **Infrastructure**
 
 ```bash
-npm run infra:start        # Start Redis and Qdrant (Docker Compose profile infra)
+npm run infra:up           # Start infra (Redis, Qdrant, Postgres, Keycloak) and configure Keycloak realms
 ```
 
 **Code quality**
@@ -123,6 +133,18 @@ npm run docker:build       # Build Docker image (debian777/kairos-mcp)
 **CLI**
 
 See [docs/CLI.md](docs/CLI.md) for the KAIROS CLI (installation, configuration, commands).
+
+## Multitenancy (Qdrant + Redis) audit checklist
+
+When adding or changing code that touches Qdrant or Redis, ensure:
+
+- **Allowed spaces:** Only from verified token/session (Keycloak `sub` + `groups`). Never trust client-supplied space lists.
+- **Qdrant reads:** Search uses `getSearchSpaceIds()` (allowedSpaceIds + Kairos app space) so protocol discovery includes app-provided protocols. Other `scroll`/filter operations use `getSpaceContext().allowedSpaceIds`. Every retrieve-by-id is followed by a check that the point's `space_id` is in `allowedSpaceIds`; otherwise treat as not found (404).
+- **Qdrant writes:** Every upsert includes `space_id` from `getSpaceContext().defaultWriteSpaceId` or a validated param. No upsert without a server-derived `space_id`. The Kairos app space is read-only for users (writes only at boot via injectMemResourcesAtBoot).
+- **Redis:** Keys are namespaced by space via `getKey()` (prefix + space id + key). Request runs inside `runWithSpaceContext()` so `getSpaceIdFromStorage()` is set by auth middleware.
+- **Optional space param:** HTTP query `space` / `space_id` and MCP tool args must be validated against `allowedSpaceIds`; invalid → 400/403.
+
+See [docs/plans/keycloak-oidc-dev.md](docs/plans/keycloak-oidc-dev.md) and the Qdrant multitenancy plan for full MUST ALWAYS / MUST NEVER rules.
 
 ## Principles
 
@@ -158,6 +180,7 @@ When contributing **MCP tools**, **agent-facing REST APIs**, or changes to tool 
 
 - **Frontend (MCP tools, schemas, descriptions):** Optimize for agent comprehension and execution.
 - **Backend:** Orchestrate complexity: business logic, validation, retries, idempotency, and state.
+- **Spaces: names at the frontend, ids in the backend.** Tool parameters and tool/API responses that refer to spaces use **names** (e.g. `"personal"`, group name, `"Kairos app"`). The backend resolves names to space **ids** and uses only ids for Qdrant filters, Redis keys, and storage. Agents never see or echo raw space ids unless required for debugging; the interface stays name-based.
 
 ### 4. Outputs designed for execution
 

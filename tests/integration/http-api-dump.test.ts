@@ -3,9 +3,9 @@
  */
 
 import { waitForHealthCheck } from '../utils/health-check.js';
+import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
-const APP_PORT = process.env.PORT || '3300';
-const BASE_URL = `http://localhost:${APP_PORT}`;
+const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
 
 describe('POST /api/kairos_dump', () => {
@@ -33,7 +33,7 @@ describe('POST /api/kairos_dump', () => {
 
     const response = await fetch(`${API_BASE}/kairos_dump`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({})
     });
     expect(response.status).toBe(400);
@@ -50,7 +50,7 @@ describe('POST /api/kairos_dump', () => {
 
     const response = await fetch(`${API_BASE}/kairos_dump`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ uri: 'kairos://mem/00000000-0000-0000-0000-000000000099' })
     });
     expect(response.status).toBe(404);
@@ -67,7 +67,7 @@ describe('POST /api/kairos_dump', () => {
     const markdown = `# Dump HTTP ${Date.now()}\n\n## Step 1\nContent for HTTP dump test.`;
     const mintRes = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/markdown' },
+      headers: { 'Content-Type': 'text/markdown', ...getAuthHeaders() },
       body: markdown
     });
     expect(mintRes.status).toBe(200);
@@ -78,7 +78,7 @@ describe('POST /api/kairos_dump', () => {
 
     const response = await fetch(`${API_BASE}/kairos_dump`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ uri })
     });
     expect(response.status).toBe(200);

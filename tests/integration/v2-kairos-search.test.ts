@@ -1,10 +1,15 @@
 /**
  * V2 kairos_search response shape tests.
  * Validates the unified schema from docs/workflow-kairos-search.md.
- * These tests are expected to FAIL against v1 code.
+ * Tests use the actual space of kairos-tester (user:realm:sub from token); search passes space_id
+ * so mint and search run in the same scope and protocols minted are visible.
+ *
+ * Depends on: kairos_mint and kairos_update. This file calls kairos_mint; run mint and update
+ * integration tests first (jest integration sequencer enforces order).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { getTestSpaceId } from '../utils/auth-headers.js';
 
 describe('V2 kairos_search unified response schema', () => {
   let mcpConnection;
@@ -18,7 +23,10 @@ describe('V2 kairos_search unified response schema', () => {
   });
 
   async function search(query: string) {
-    const call = { name: 'kairos_search', arguments: { query } };
+    const args: { query: string; space_id?: string } = { query };
+    const spaceId = getTestSpaceId();
+    if (spaceId) args.space_id = spaceId;
+    const call = { name: 'kairos_search', arguments: args };
     const result = await mcpConnection.client.callTool(call);
     return { call, result, parsed: parseMcpJson(result, 'v2-kairos-search') };
   }
@@ -31,7 +39,7 @@ describe('V2 kairos_search unified response schema', () => {
     });
   }
 
-  test('single perfect match: must_obey true, choices with role match, no start_here', async () => {
+  test('Create New KAIROS Protocol Chain', async () => {
     const ts = Date.now();
     const title = `V2SearchSingle ${ts}`;
     await mintProtocol(title);
@@ -113,14 +121,26 @@ describe('V2 kairos_search unified response schema', () => {
     });
   });
 
-  test('multiple matches: refine and create choices have correct URI and next_action', async () => {
+  test(
+    'multiple matches: refine and create choices have correct URI and next_action',
+    async () => {
     const ts = Date.now();
     const token = `V2RefineMulti${ts}`;
     await mintProtocol(`${token} Alpha`);
     await mintProtocol(`${token} Beta`);
-    await new Promise((r) => setTimeout(r, 4000));
-
-    const { call, result, parsed } = await search(token);
+    // Allow embedding + Qdrant indexing; retry search so indexing delay doesn't flake
+    let parsed: any;
+    let call: any;
+    let result: any;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 6000 : 3000));
+      const out = await search(token);
+      parsed = out.parsed;
+      call = out.call;
+      result = out.result;
+      const matches = parsed.choices.filter((c: any) => c.role === 'match');
+      if (matches.length >= 2) break;
+    }
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
@@ -139,28 +159,32 @@ describe('V2 kairos_search unified response schema', () => {
       expect(createChoice!.next_action).toContain('kairos_begin');
       expect(createChoice!.next_action).toContain('00000000-0000-0000-0000-000000002001');
     });
-  });
+  }, 60000);
 
-  test('every choice has uri, label, chain_label, score, role, tags', async () => {
-    const ts = Date.now();
-    const title = `V2SearchFields ${ts}`;
-    await mintProtocol(title);
+  test(
+    'every choice has uri, label, chain_label, score, role, tags',
+    async () => {
+      const ts = Date.now();
+      const title = `V2SearchFields ${ts}`;
+      await mintProtocol(title);
 
-    await new Promise((r) => setTimeout(r, 2000));
-    const { call, result, parsed } = await search(title);
+      await new Promise((r) => setTimeout(r, 2000));
+      const { call, result, parsed } = await search(title);
 
-    withRawOnFail({ call, result }, () => {
-      const isNewFormat = typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
-      for (const choice of parsed.choices) {
-        expect(choice).toHaveProperty('uri');
-        expect(choice).toHaveProperty('label');
-        expect(choice).toHaveProperty('chain_label');
-        expect(choice).toHaveProperty('score');
-        expect(choice).toHaveProperty('role');
-        expect(choice).toHaveProperty('tags');
-        if (isNewFormat) expect(choice).toHaveProperty('next_action');
-        expect(['match', 'refine', 'create']).toContain(choice.role);
-      }
-    });
-  });
+      withRawOnFail({ call, result }, () => {
+        const isNewFormat = typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
+        for (const choice of parsed.choices) {
+          expect(choice).toHaveProperty('uri');
+          expect(choice).toHaveProperty('label');
+          expect(choice).toHaveProperty('chain_label');
+          expect(choice).toHaveProperty('score');
+          expect(choice).toHaveProperty('role');
+          expect(choice).toHaveProperty('tags');
+          if (isNewFormat) expect(choice).toHaveProperty('next_action');
+          expect(['match', 'refine', 'create']).toContain(choice.role);
+        }
+      });
+    },
+    45000
+  );
 });

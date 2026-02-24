@@ -1,4 +1,5 @@
 /* eslint-disable max-lines */
+import { jest } from '@jest/globals';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { Redis } from "@upstash/redis";
 

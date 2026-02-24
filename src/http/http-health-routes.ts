@@ -3,6 +3,7 @@ import { MemoryQdrantStore } from '../services/memory/store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { redisService } from '../services/redis.js';
 import { getBuildVersion } from '../utils/build-version.js';
+import { AUTH_ENABLED } from '../config.js';
 
 /**
  * Set up health check and basic info routes
@@ -75,15 +76,43 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
 
     // Basic info endpoint (non-MCP)
     app.get('/', (req, res) => {
-        res.json({
+        const body: Record<string, unknown> = {
             service: 'KAIROS MCP Server',
             version: getBuildVersion(),
             transports: ['http'],
             endpoints: {
                 health: '/health',
-                mcp: '/mcp'
+                mcp: '/mcp',
+                api: '/api'
             },
             note: 'Use POST /mcp for MCP protocol communication'
-        });
+        };
+        if (AUTH_ENABLED) {
+            body['api_note'] = 'GET /api and POST /api/* require authentication (session or Bearer). Use login_url from 401 or /auth/callback flow.';
+        }
+        res.json(body);
+    });
+
+    // API root (when AUTH_ENABLED, only reached when authenticated)
+    app.get('/api', (req, res) => {
+        const body: Record<string, unknown> = {
+            service: 'KAIROS API',
+            version: getBuildVersion(),
+            endpoints: {
+                kairos_search: 'POST /api/kairos_search',
+                kairos_begin: 'POST /api/kairos_begin',
+                kairos_next: 'POST /api/kairos_next',
+                kairos_attest: 'POST /api/kairos_attest',
+                kairos_mint: 'POST /api/kairos_mint/raw',
+                kairos_update: 'POST /api/kairos_update',
+                kairos_delete: 'POST /api/kairos_delete',
+                kairos_dump: 'POST /api/kairos_dump'
+            }
+        };
+        if (AUTH_ENABLED) {
+            body['auth_required'] = true;
+            body['note'] = 'These endpoints require a valid session or Bearer token. Unauthenticated requests receive 401 with login_url.';
+        }
+        res.json(body);
     });
 }

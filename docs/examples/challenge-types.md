@@ -6,11 +6,11 @@ The documents in this folder are **real markdown protocols ready for minting**. 
 
 | File | Challenge type(s) | Description |
 |------|------------------|-------------|
-| [protocol-example-shell.md](protocol-example-shell.md) | shell | One step: run a command (e.g. `npm test`). |
-| [protocol-example-user-input.md](protocol-example-user-input.md) | user_input | One step: get human confirmation. |
-| [protocol-example-comment.md](protocol-example-comment.md) | comment | One step: provide a text summary (min length). |
-| [protocol-example-mcp.md](protocol-example-mcp.md) | mcp | One step: call an MCP tool and report success. |
-| [protocol-example-all-types.md](protocol-example-all-types.md) | shell, mcp, user_input, comment | Four steps, one per type. |
+| [protocol-example-shell.md](protocol-example-shell.md) | shell | Step 1: run a command. Step 2: show output to user (no challenge). |
+| [protocol-example-user-input.md](protocol-example-user-input.md) | user_input | Step 1: get human confirmation. Step 2: show output to user (no challenge). |
+| [protocol-example-comment.md](protocol-example-comment.md) | comment | Step 1: provide a text summary (min length). Step 2: show output to user (no challenge). |
+| [protocol-example-mcp.md](protocol-example-mcp.md) | mcp | Step 1: call an MCP tool and report success. Step 2: show output to user (no challenge). |
+| [protocol-example-all-types.md](protocol-example-all-types.md) | shell, mcp, user_input, comment | Steps 1–4: one per type. Step 5: show outputs to user (no challenge). |
 
 ## How to mint
 
@@ -30,3 +30,5 @@ When the server returns a challenge, the agent submits a solution in `kairos_nex
 | **comment** | `type: "comment"`, `comment: { text }` | `text.length` ≥ challenge `min_length` (and optional semantic check) |
 
 Always echo `nonce` and `proof_hash` from the challenge (or previous response) when present; the server generates them.
+
+For execution semantics (how to perform each challenge type, not infer or fabricate), see the kairos_begin / kairos_next tool descriptions.

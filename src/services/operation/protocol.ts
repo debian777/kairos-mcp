@@ -1,5 +1,7 @@
 import { QdrantService } from '../qdrant/service.js';
 import { logger } from '../../utils/logger.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { parseKbName, generateProtocolUri } from './utils.js';
 
 /**
@@ -14,13 +16,14 @@ export async function findExistingProtocol(
     const { domain, task } = parseKbName(kbName);
 
     // Use scroll to find existing protocol items with matching domain/task
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'task', match: { value: task } }
+      ]
+    });
     const result = await qdrantService.client.scroll(qdrantService.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'task', match: { value: task } }
-        ]
-      },
+      filter,
       limit: 100, // Get enough to count protocol steps
       with_payload: true,
       with_vector: false
@@ -66,14 +69,15 @@ export async function renumberProtocolSteps(
 ): Promise<void> {
   try {
     // Find all memories in the protocol that need to be renumbered
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'task', match: { value: task } },
+        { key: 'protocol.step', range: { gte: insertMemory } }
+      ]
+    });
     const result = await qdrantService.client.scroll(qdrantService.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'task', match: { value: task } },
-          { key: 'protocol.step', range: { gte: insertMemory } }
-        ]
-      },
+      filter,
       limit: 100,
       with_payload: true,
       with_vector: false
@@ -130,13 +134,14 @@ export async function getProtocolDetails(
   steps: Array<{ step: number; uuid: string; content: string }>;
 }> {
   try {
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'task', match: { value: task } }
+      ]
+    });
     const result = await qdrantService.client.scroll(qdrantService.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'task', match: { value: task } }
-        ]
-      },
+      filter,
       limit: 100,
       with_payload: true,
       with_vector: false
@@ -185,14 +190,15 @@ export async function updateProtocolStepCount(
 ): Promise<void> {
   try {
     // Find the protocol root or first memory to update
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [
+        { key: 'domain', match: { value: domain } },
+        { key: 'task', match: { value: task } },
+        { key: 'protocol.step', match: { value: 1 } }
+      ]
+    });
     const result = await qdrantService.client.scroll(qdrantService.collectionName, {
-      filter: {
-        must: [
-          { key: 'domain', match: { value: domain } },
-          { key: 'task', match: { value: task } },
-          { key: 'protocol.step', match: { value: 1 } }
-        ]
-      },
+      filter,
       limit: 10,
       with_payload: true,
       with_vector: false

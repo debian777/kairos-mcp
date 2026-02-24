@@ -132,6 +132,10 @@ verify-ai-rules.cjs
 test-*.cjs
 test-*.js
 
+# Test auth state (TEST_WITH_AUTH=true)
+.test-auth-env.json
+.test-auth-state.json
+
 # Test files that might be created during development
 *.test.js
 *.test.cjs

@@ -2,7 +2,8 @@ import { QdrantConnection } from './connection.js';
 import { embeddingService } from '../embedding/service.js';
 import { logger } from '../../utils/logger.js';
 import { qdrantOperations, qdrantQueryDuration } from '../metrics/qdrant-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 /**
  * searchMemory - vector similarity search wrapper
@@ -18,15 +19,16 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
       const queryVector = queryEmbeddingResult.embedding;
       logger.info(`DEBUG: Query embedding generated, length: ${queryVector.length}`);
 
+      const allowedSpaceIds = getSpaceContext().allowedSpaceIds;
+      const domainFilter = domain ? { must: [{ key: 'domain', match: { value: domain } }] } : undefined;
+      const filter = buildSpaceFilter(allowedSpaceIds, domainFilter);
+
       const searchParams: any = {
         vector: { name: `vs${queryVector.length}`, vector: queryVector },
         limit: limit || 10,
+        filter,
         params: { quantization: { rescore: conn.rescoreEnabled } }
       };
-
-      if (domain) {
-        searchParams.filter = { must: [{ key: 'domain', match: { value: domain } }] };
-      }
 
       logger.debug(`[Qdrant][search] collection=${conn.collectionName} req=${JSON.stringify(searchParams)}`);
       const searchResult = await conn.client.search(conn.collectionName, searchParams);

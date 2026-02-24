@@ -1,0 +1,214 @@
+# Compose with bind mounts (host directories). Requires VOLUME_LOCAL_PATH (e.g. ./data).
+# Use: docker compose -f compose-dir-volumes.yaml --profile infra up -d
+# Alternative: compose.yaml uses Docker named volumes (no host path).
+
+services:
+  redis:
+    profiles:
+      - infra
+      - prod
+      # - qa
+      # - dev
+    image: redis:7-alpine
+    pull_policy: missing
+    command: >
+      redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - ${VOLUME_LOCAL_PATH}/data/redis:/data
+    networks:
+      - kairos-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  redisinsight:
+    profiles:
+      - infra
+      - prod
+      # - qa
+      # - dev
+    image: redis/redisinsight:latest
+    pull_policy: missing
+    depends_on:
+      - redis
+    ports:
+      - "5540:5540"
+    environment:
+      - RI_REDIS_HOST*=redis
+      - RI_REDIS_PORT*=6379
+      - RI_REDIS_ALIAS*=kairosRedis
+    volumes:
+      - ${VOLUME_LOCAL_PATH}/data/redisinsight:/data
+    networks:
+      - kairos-network
+    restart: unless-stopped
+
+  qdrant:
+    profiles:
+      - infra
+      - prod
+      # - qa
+      # - dev
+    image: qdrant/qdrant:latest
+    pull_policy: missing
+    ports:
+      - "6333:6333"
+      - "6344:6344"
+    volumes:
+      - ${VOLUME_LOCAL_PATH}/data/qdrant:/qdrant/storage
+    env_file:
+      - .env.prod
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6534
+      # - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
+      # - QDRANT__SERVICE__API_KEY_INSECURE_ALLOWED=true
+      # Performance optimization for production
+      - QDRANT__LOG_LEVEL=INFO
+      - QDRANT__SERVICE__MAX_WORKING_MEMORY_MB=4096
+    networks:
+      - kairos-network
+    restart: unless-stopped
+
+    #
+    healthcheck:
+      test: >
+        fgrep -qa ':18BD ' /proc/net/tcp
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    #   start_period: 3s
+
+  # # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: scripts/generate-dev-secrets.sh ---
+  # postgres:
+  #   profiles:
+  #     - infra
+  #     - prod
+  #   image: postgres:16
+  #   env_file:
+  #     - .env.prod
+  #   environment:
+  #     POSTGRES_USER: keycloak
+  #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #     POSTGRES_DB: keycloak
+  #   volumes:
+  #     - ${VOLUME_LOCAL_PATH}/data/postgres:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - kairos-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   restart: unless-stopped
+
+  # # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md). DB: postgres service, keycloak DB/user ---
+  # keycloak:
+  #   profiles:
+  #     - infra
+  #     - prod
+  #   env_file:
+  #     - .env.prod
+  #   image: quay.io/keycloak/keycloak:26.5.4
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   command:
+  #     - start-dev
+  #     - --import-realm
+  #   environment:
+  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  #     KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+  #     KC_DB_USERNAME: keycloak
+  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #     KC_HOSTNAME_STRICT: "false"
+  #     KC_HTTP_ENABLED: "true"
+  #     KC_HEALTH_ENABLED: "true"
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./scripts/keycloak/import:/opt/keycloak/data/import:ro
+  #   networks:
+  #     - kairos-network
+  #   restart: unless-stopped
+
+  app-qa:
+    profiles:
+      - qa
+    image: debian777/kairos-mcp:latest
+    #pull_policy: always
+    labels:
+      - "environment=qa"
+    env_file:
+      - .env.qa
+    ports:
+      - "${PORT:-3500}:${PORT:-3500}"
+      - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
+    environment:
+      # QA runs alone; connect to host's Qdrant/Redis (override in .env.qa if needed)
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379
+      - METRICS_PORT=${METRICS_PORT:-9090}
+    volumes:
+      - ${VOLUME_LOCAL_PATH}/snapshots/qa/qdrant:/snapshots
+    # No depends_on: Qdrant/Redis run on host or elsewhere; script checks them before start
+    networks:
+      - kairos-network
+    restart: unless-stopped
+    # Health check covering both transports
+    healthcheck:
+      test: >
+        wget --quiet --tries=1 --timeout=5 --spider http://127.0.0.1:$$PORT/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  app-prod:
+    profiles:
+      - prod
+    image: debian777/kairos-mcp:latest
+    #pull_policy: always
+    labels:
+      - "environment=prod"
+    env_file:
+      - .env.prod
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+      - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
+    environment:
+      # Overrides to access real localhost services from within Docker container
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379
+      - METRICS_PORT=${METRICS_PORT:-9090}
+    volumes:
+      - ${VOLUME_LOCAL_PATH}/snapshots/prod/qdrant:/snapshots
+    depends_on:
+      - qdrant
+      - redis
+
+    networks:
+      - kairos-network
+    restart: unless-stopped
+    # Health check covering both transports
+    healthcheck:
+      test: >
+        wget --quiet --tries=1 --timeout=5 --spider http://127.0.0.1:$$PORT/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+networks:
+  kairos-network:
+    name: kairos-network
+    driver: bridge

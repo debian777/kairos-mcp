@@ -181,6 +181,78 @@ module "my_document" {
       expect(memoryText).toContain('# Select template type');
       expect(memoryText).toContain('# Optional: Custom title template');
     });
+
+    test('two-step protocol with trailing JSON challenge block creates two memories', () => {
+      const markdown = `# Example: MCP challenge
+
+Short protocol: one real step plus a final verification step.
+
+## Step 1 — Call kairos_search
+
+Invoke the \`kairos_search\` tool with a query and report the result.
+
+\`\`\`json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": {
+      "tool_name": "kairos_search"
+    },
+    "required": true
+  }
+}
+\`\`\`
+
+## Step 2 — Run complete
+
+Only reachable after Step 1 is solved. No additional challenge.
+`;
+      const codeBlockProcessor = new CodeBlockProcessor();
+      const now = new Date();
+      const result = buildHeaderMemoryChain(markdown, 'test-model', now, codeBlockProcessor);
+
+      expect(result.length).toBe(2);
+      const [step1, step2] = result;
+      expect(step1.chain?.step_index).toBe(1);
+      expect(step1.chain?.step_count).toBe(2);
+      expect(step1.proof_of_work?.type).toBe('mcp');
+      expect(step1.proof_of_work?.mcp?.tool_name).toBe('kairos_search');
+      expect(step1.label).toContain('Call kairos_search');
+      expect(step1.label).not.toContain('Run complete');
+
+      expect(step2.chain?.step_index).toBe(2);
+      expect(step2.chain?.step_count).toBe(2);
+      expect(step2.label).toContain('Run complete');
+    });
+
+    test('single-step protocol with trailing JSON challenge has proof_of_work set', () => {
+      const markdown = `# Single step MCP
+
+One step only.
+
+## Do the thing
+
+Call the tool.
+
+\`\`\`json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_search" },
+    "required": true
+  }
+}
+\`\`\`
+`;
+      const codeBlockProcessor = new CodeBlockProcessor();
+      const now = new Date();
+      const result = buildHeaderMemoryChain(markdown, 'test-model', now, codeBlockProcessor);
+
+      expect(result.length).toBe(1);
+      expect(result[0]?.proof_of_work).toBeDefined();
+      expect(result[0]?.proof_of_work?.type).toBe('mcp');
+      expect(result[0]?.proof_of_work?.mcp?.tool_name).toBe('kairos_search');
+    });
   });
 });
 

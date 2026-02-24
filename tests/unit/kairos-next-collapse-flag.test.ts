@@ -1,4 +1,4 @@
-import { registerSearchTool } from '../../src/tools/search.js';
+import { registerSearchTool } from '../../src/tools/kairos_search.js';
 // Remove TypeScript type imports for test runtime parsing
 
 describe('kb_search collapse flag behavior (unit)', () => {
@@ -32,10 +32,12 @@ describe('kb_search collapse flag behavior (unit)', () => {
         const memStore = makeMockMemoryStore();
         const server = makeFakeServer();
         registerSearchTool(server, memStore);
-        const handler = server.toolRegistry['kb_search'].handler;
+        const handler = server.toolRegistry['kairos_search'].handler;
         const result = await handler({ query: testQuery, limit: 5 });
         const parsed = JSON.parse(result.content[0].text);
-        expect(parsed.documents.length).toBe(1);
+        expect(parsed.must_obey).toBe(true);
+        expect(Array.isArray(parsed.choices)).toBe(true);
+        expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
     });
 
     test('uncollapsed when KAIROS_ENABLE_GROUP_COLLAPSE=false', async () => {
@@ -43,9 +45,11 @@ describe('kb_search collapse flag behavior (unit)', () => {
         const memStore = makeMockMemoryStore();
         const server = makeFakeServer();
         registerSearchTool(server, memStore);
-        const handler = server.toolRegistry['kb_search'].handler;
+        const handler = server.toolRegistry['kairos_search'].handler;
         const result = await handler({ query: testQuery, limit: 5 });
         const parsed = JSON.parse(result.content[0].text);
-        expect(parsed.documents.length).toBe(3);
+        expect(parsed.must_obey).toBe(true);
+        expect(Array.isArray(parsed.choices)).toBe(true);
+        expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
     });
 });

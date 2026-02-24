@@ -62,10 +62,18 @@ function processH1Section(
     
     // Toggle code block state when encountering code block delimiters
     if (trimmed.startsWith('```')) {
+      const wasInCodeBlock = inCodeBlock;
       inCodeBlock = !inCodeBlock;
-      // Include code block delimiter in content
       const currentStep = full_markdown[step]!;
       currentStep.markdown_doc.push(line);
+      // When closing a block, detect trailing JSON challenge so next H2 starts a new step
+      if (wasInCodeBlock) {
+        const content = currentStep.markdown_doc.join('\n');
+        const { proof } = extractProofOfWork(content);
+        if (proof) {
+          pendingProof = true;
+        }
+      }
       continue;
     }
     
@@ -154,14 +162,17 @@ function processH1Section(
     const stepData = full_markdown[1]!;
     const content = stepData.markdown_doc.join('\n');
     const label = stepData.step_label || stepData.chain_label; // Fallback to chain_label if no H2
-    
-    const { cleaned } = extractProofOfWork(content);
+
+    const { cleaned, proof } = extractProofOfWork(content);
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
     const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-    
-    return [{
+
+    const proofMetadata = proof
+      ? { ...proof, required: proof.required ?? true }
+      : undefined;
+    const singleMemory: any = {
       memory_uuid: crypto.randomUUID(),
       label,
       tags: allTags,
@@ -174,7 +185,11 @@ function processH1Section(
         step_index: 1,
         step_count: 1
       } as any
-    }];
+    };
+    if (proofMetadata) {
+      singleMemory.proof_of_work = proofMetadata;
+    }
+    return [singleMemory as Memory];
   }
   
   // Multiple steps: require proof for all steps

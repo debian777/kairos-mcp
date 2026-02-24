@@ -23,6 +23,26 @@ const NO_TEST_MOCKS_RULE = {
   ],
 };
 
+/**
+ * AUTH_ENABLED may only be set in .env* files (loaded by dotenv). Disallow
+ * overriding it in code (process.env.AUTH_ENABLED = ...).
+ */
+const NO_AUTH_ENABLED_OVERRIDE_RULE = {
+  'no-restricted-syntax': [
+    'error',
+    {
+      selector:
+        "AssignmentExpression[left.object.object.name='process'][left.object.property.name='env'][left.property.name='AUTH_ENABLED']",
+      message: 'Do not override AUTH_ENABLED in code. Set it only in .env* files.',
+    },
+    {
+      selector:
+        "AssignmentExpression[left.object.object.name='process'][left.object.property.name='env'][left.property.value='AUTH_ENABLED']",
+      message: 'Do not override AUTH_ENABLED in code. Set it only in .env* files.',
+    },
+  ],
+};
+
 // TypeScript support
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
@@ -68,9 +88,12 @@ module.exports = [
       '**/.kilocodeignore',
       '**/*.disabled',
       '**/*.sh',
+      '**/*.py',
       '**/.cursorrules',
-      'env.example.dev',
-      'env.example.docker',
+      '**/.cursor/**',
+      'env.example.txt',
+      'env.dev.example',
+      'env.qa.example',
       '**/snapshots/**',
       '**/*.snapshot'
     ],
@@ -137,6 +160,7 @@ module.exports = [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      ...NO_AUTH_ENABLED_OVERRIDE_RULE,
       // Add more global TS/JS rules here as needed
       // e.g. '@typescript-eslint/explicit-function-return-type': 'off',
     },
@@ -188,6 +212,7 @@ module.exports = [
         project: null,
       },
     },
+    rules: NO_AUTH_ENABLED_OVERRIDE_RULE,
   },
   {
     files: [
@@ -200,6 +225,7 @@ module.exports = [
         project: null,
       },
     },
+    rules: NO_AUTH_ENABLED_OVERRIDE_RULE,
   },
   {
     files: ['knip.config.ts'],
@@ -213,6 +239,7 @@ module.exports = [
     plugins: {
       '@typescript-eslint': tsPlugin,
     },
+    rules: NO_AUTH_ENABLED_OVERRIDE_RULE,
   },
   {
     files: [
@@ -237,6 +264,7 @@ module.exports = [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      ...NO_AUTH_ENABLED_OVERRIDE_RULE,
     },
   },
   {
@@ -250,5 +278,6 @@ module.exports = [
         project: null,
       },
     },
+    rules: NO_AUTH_ENABLED_OVERRIDE_RULE,
   },
 ];

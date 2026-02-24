@@ -13,6 +13,8 @@ Submit solution and get next step. Advance through the protocol by proving each 
 
 Include in solution when the challenge has them: `nonce` (echo from challenge), `proof_hash` (echo `challenge.proof_hash` for step 1; for step 2+ use `proof_hash` from the previous `kairos_next` response). The server generates all hashes; the AI never computes them.
 
+**Execution rules by challenge.type:** Same as kairos_begin. shell: Run `challenge.shell.cmd` and report the actual exit_code/stdout/stderr; never fabricate. mcp: Call `challenge.mcp.tool_name` and report the actual result; success must reflect reality. user_input: Show `challenge.user_input.prompt` to the user and use only their reply as `user_input.confirmation`; never invent it. comment: Write a genuine, relevant comment that meets `challenge.comment.min_length`.
+
 **Response:** `current_step`, `challenge` (for next step), `next_action` (next tool call with embedded URI), and `proof_hash` (hash of proof just stored — use as `solution.proof_hash` for the next step).
 
 **AI decision tree:**

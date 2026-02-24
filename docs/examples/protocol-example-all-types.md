@@ -66,3 +66,7 @@ Write a short summary of what was done in this protocol (at least 30 characters)
   }
 }
 ```
+
+## Step 5 — Run complete
+
+Only reachable after Steps 1–4 are solved. Show the outputs from Steps 1–4 to the user (command result, MCP result, user confirmation, summary). No additional challenge.

@@ -9,7 +9,7 @@ import { generateLabel, generateTags } from '../../utils/memory-store-utils.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import { deriveDomainTaskType, handleDuplicateChain } from './store-chain-helpers.js';
 import type { CodeBlockProcessor } from '../code-block-processor.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
@@ -79,6 +79,7 @@ export async function storeDefaultChain(
     };
   });
 
+  const spaceId = getSpaceContext().defaultWriteSpaceId;
   const points = memories.map((memory, index) => {
     const { task, type } = deriveDomainTaskType(memory.label, memory.text, memory.tags);
     const qualityMetadata = modelStats.calculateStepQualityMetadata(
@@ -92,6 +93,7 @@ export async function storeDefaultChain(
       id: memory.memory_uuid,
       vector: { [currentVectorName]: embeddings.embeddings[index]! },
       payload: {
+        space_id: spaceId,
         label: memory.label,
         tags: memory.tags,
         text: memory.text,

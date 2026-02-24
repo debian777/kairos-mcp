@@ -2,6 +2,9 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { logger } from './logger.js';
 import { VectorDescriptorMap } from './qdrant-vector-types.js';
 import { createQdrantCollection } from './qdrant-collection-utils.js';
+import { DEFAULT_SPACE_ID } from '../config.js';
+import { getSpaceContext } from '../utils/tenant-context.js';
+import { buildSpaceFilter } from '../utils/space-filter.js';
 
 /**
  * Add named vectors to an existing collection by updating its config.
@@ -31,9 +34,11 @@ export async function addVectorsToCollection(client: QdrantClient, collectionNam
       logger.info(`addVectorsToCollection: detected inability to add vector via updateCollection, starting recreation-based migration for ${collectionName} to add vectors [${Object.keys(vectors).join(', ')}]`);
       // Step 1: Gather existing points via scroll in batches
       const allPoints: any[] = [];
+      const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
       let offset: any = undefined;
       do {
         const page = await client.scroll(collectionName, {
+          filter,
           with_payload: true,
           with_vector: true,
           limit: 256,
@@ -87,7 +92,11 @@ export async function addVectorsToCollection(client: QdrantClient, collectionNam
       logger.info(`addVectorsToCollection: starting restore of ${allPoints.length} points to collection ${collectionName} (batchSize=${BATCH_SIZE})`);
       let restored = 0;
       for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
-        const batch = allPoints.slice(i, i + BATCH_SIZE).map(pt => ({ id: pt.id, vector: pt.vector, payload: pt.payload }));
+        const batch = allPoints.slice(i, i + BATCH_SIZE).map(pt => ({
+          id: pt.id,
+          vector: pt.vector,
+          payload: { ...pt.payload, space_id: pt.payload?.space_id ?? DEFAULT_SPACE_ID }
+        }));
         try {
           await client.upsert(collectionName, { points: batch } as any);
           restored += batch.length;
@@ -127,10 +136,11 @@ export async function migrateVectorSpace(
   let failed = 0;
   logger.info(`migrateVectorSpace: Starting migration from ${fromVectorName} to ${toVectorName} in collection ${collectionName} - status=START`);
 
+  const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
   do {
     // Scroll points with the old vector
     const page = await client.scroll(collectionName, {
-      filter: {}, // Get all points, but we'll check if they have the old vector
+      filter,
       with_payload: true,
       with_vector: [fromVectorName], // Only fetch the old vector
       limit: batchSize,
@@ -236,10 +246,11 @@ export async function removeVectorFromCollection(client: QdrantClient, collectio
     }
 
     // Gather all points and strip the vectorName from all points
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
     const allPoints: any[] = [];
     let offset: any = undefined;
     do {
-      const page = await client.scroll(collectionName, { with_payload: true, with_vector: true, limit: 256, offset } as any);
+      const page = await client.scroll(collectionName, { filter, with_payload: true, with_vector: true, limit: 256, offset } as any);
       if (!page?.points || page.points.length === 0) break;
       for (const p of page.points) {
         const vec = p.vector || {};
@@ -269,7 +280,11 @@ export async function removeVectorFromCollection(client: QdrantClient, collectio
     const BATCH_SIZE = 256;
     let restored = 0;
     for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
-      const batch = allPoints.slice(i, i + BATCH_SIZE).map(p => ({ id: p.id, vector: p.vector, payload: p.payload }));
+      const batch = allPoints.slice(i, i + BATCH_SIZE).map(p => ({
+        id: p.id,
+        vector: p.vector,
+        payload: { ...p.payload, space_id: p.payload?.space_id ?? DEFAULT_SPACE_ID }
+      }));
       try {
         await client.upsert(collectionName, { points: batch } as any);
         restored += batch.length;

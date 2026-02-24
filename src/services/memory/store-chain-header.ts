@@ -8,6 +8,8 @@ import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { getEmbeddingDimension } from '../../config.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 
 function deriveDomainTaskType(label: string, text: string, tags: string[]) {
   const lower = (s: string) => (s || '').toLowerCase();
@@ -56,8 +58,9 @@ export async function processHeaderBasedChain(
     with_vector: false
   } as any;
   logger.debug(`[Qdrant][scroll-dup] collection=${collection} req=${JSON.stringify(dupReq)}`);
+  const chainFilter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
   const dup = await client.scroll(collection, {
-    filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] },
+    filter: chainFilter,
     limit: 256,
     with_payload: true,
     with_vector: false
@@ -72,7 +75,7 @@ export async function processHeaderBasedChain(
       }));
       throw new KairosError('Duplicate memory chain', 'DUPLICATE_CHAIN', 409, { chain_id: chainUuid, items });
     }
-    const delReq = { filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] } } as any;
+    const delReq = { filter: chainFilter } as any;
     logger.debug(`[Qdrant][delete-chain] collection=${collection} req=${JSON.stringify(delReq)}`);
     await client.delete(collection, delReq);
   }
@@ -100,6 +103,7 @@ export async function processHeaderBasedChain(
   }
 
   const chainStepCount = headerChainMemories.length;
+  const spaceId = getSpaceContext().defaultWriteSpaceId;
 
   const points = headerChainMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
@@ -114,6 +118,7 @@ export async function processHeaderBasedChain(
       id: memory.memory_uuid,
       vector: { [currentVectorName]: vectors[i]! },
       payload: {
+        space_id: spaceId,
         label: memory.label,
         tags: memory.tags,
         text: memory.text,

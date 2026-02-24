@@ -1,0 +1,29 @@
+{
+  "id": "kairos-dev",
+  "realm": "kairos-dev",
+  "enabled": true,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessCodeLifespan": 120,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "groups": [
+    { "name": "kairos-team-platform" },
+    { "name": "kairos-team-sre" }
+  ],
+  "clients": [
+    {
+      "clientId": "kairos-mcp",
+      "name": "KAIROS MCP (dev)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ]
+}

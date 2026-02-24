@@ -2,6 +2,8 @@ import { logger } from '../../utils/logger.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { KairosError } from '../../types/index.js';
 import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';
+import { getSpaceContext } from '../../utils/tenant-context.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 
 /**
@@ -31,19 +33,10 @@ export async function checkDuplicateChain(
   collection: string,
   chainUuid: string
 ): Promise<{ points: any[] }> {
-  const dupReq = {
-    filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] },
-    limit: 256,
-    with_payload: true,
-    with_vector: false
-  } as any;
+  const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
+  const dupReq = { filter, limit: 256, with_payload: true, with_vector: false } as any;
   logger.debug(`[Qdrant][scroll-dup] collection=${collection} req=${JSON.stringify(dupReq)}`);
-  const dup = await client.scroll(collection, {
-    filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] },
-    limit: 256,
-    with_payload: true,
-    with_vector: false
-  } as any);
+  const dup = await client.scroll(collection, dupReq);
   logger.debug(`[Qdrant][scroll-dup] result_count=${dup?.points?.length || 0}`);
   return dup;
 }
@@ -67,7 +60,8 @@ export async function handleDuplicateChain(
       }));
       throw new KairosError('Duplicate memory chain', 'DUPLICATE_CHAIN', 409, { chain_id: chainUuid, items });
     }
-    const delReq = { filter: { must: [{ key: 'chain.id', match: { value: chainUuid } }] } } as any;
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
+    const delReq = { filter } as any;
     logger.debug(`[Qdrant][delete-chain] collection=${collection} req=${JSON.stringify(delReq)}`);
     await client.delete(collection, delReq);
   }

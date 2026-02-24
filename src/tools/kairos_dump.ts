@@ -4,7 +4,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
@@ -153,6 +153,8 @@ export function registerKairosDumpTool(
     },
     async (params: any) => {
       const tenantId = getTenantId();
+      const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
+      structuredLogger.debug(`kairos_dump space_id=${spaceId}`);
       const inputSize = JSON.stringify(params).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
@@ -171,7 +173,7 @@ export function registerKairosDumpTool(
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        structuredLogger.debug(`kairos_dump error: ${error instanceof Error ? error.message : String(error)}`);
+        structuredLogger.debug(`kairos_dump error space_id=${spaceId}: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
       }
     }

@@ -30,9 +30,10 @@ KAIROS MCP does not try to be: a general-purpose agent framework or planner; a v
 ```bash
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
-cp env.example.docker .env.prod
-# Edit .env.prod if needed (see env.example.docker for options)
+cp env.example.txt .env.prod
+# Edit .env.prod (set KEYCLOAK_DB_PASSWORD and KEYCLOAK_ADMIN_PASSWORD if using Keycloak; see env.example.txt)
 docker compose --profile prod up -d
+# For infra-only (Redis, Qdrant, Keycloak): docker compose --env-file .env.prod --profile infra up -d
 ```
 
 Access the server at `http://localhost:3000`; health check at `http://localhost:3000/health`.
@@ -43,9 +44,9 @@ Access the server at `http://localhost:3000`; health check at `http://localhost:
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 npm ci
-cp env.example.dev .env.dev
-# Configure .env.dev (see env.example.dev for options)
-npm run infra:start
+cp env.example.txt .env.dev
+# Configure .env.dev (see env.example.txt)
+npm run infra:up
 npm run dev:start
 ```
 

@@ -97,7 +97,11 @@ export function setupMcpRoutes(app: express.Express, server: any) {
             globalThis._mcpRequestContext = req;
             globalThis._mcpTransport = transport;
 
-            await transport.handleRequest(req, res, req.body);
+            await transport.handleRequest(
+              req as unknown as Parameters<typeof transport.handleRequest>[0],
+              res,
+              req.body
+            );
 
             // Clean up context after request
             delete globalThis._mcpRequestContext;

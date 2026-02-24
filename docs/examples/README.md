@@ -4,15 +4,17 @@ This folder contains **markdown protocols ready for minting** and a short refere
 
 ## Mintable protocols
 
-Each file below is a complete protocol (H1 + H2 steps with ` ```json ` challenge blocks). Copy its content and pass it to `kairos_mint`.
+Each file below is a complete protocol (H1 + H2 steps with ````json` challenge blocks). Every example ends with a **final step** with no challenge: "Show the output from [prior step(s)] to the user." Only reachable after all prior challenges are solved. The agent just shows the prior output to the user; no additional challenge to solve.
 
-| File | Challenge type(s) | MCP-only (no shell) |
-|------|-------------------|----------------------|
-| [protocol-example-shell.md](protocol-example-shell.md) | shell | No |
-| [protocol-example-user-input.md](protocol-example-user-input.md) | user_input | Yes |
-| [protocol-example-comment.md](protocol-example-comment.md) | comment | Yes |
-| [protocol-example-mcp.md](protocol-example-mcp.md) | mcp | Yes |
-| [protocol-example-all-types.md](protocol-example-all-types.md) | shell, mcp, user_input, comment | No |
+
+| File                                                             | Challenge type(s)               | MCP-only (no shell) |
+| ---------------------------------------------------------------- | ------------------------------- | ------------------- |
+| [protocol-example-shell.md](protocol-example-shell.md)           | shell                           | No                  |
+| [protocol-example-user-input.md](protocol-example-user-input.md) | user_input                      | Yes                 |
+| [protocol-example-comment.md](protocol-example-comment.md)       | comment                         | Yes                 |
+| [protocol-example-mcp.md](protocol-example-mcp.md)               | mcp                             | Yes                 |
+| [protocol-example-all-types.md](protocol-example-all-types.md)   | shell, mcp, user_input, comment | No                  |
+
 
 **MCP-only** means the protocol has no `shell` challenge; safe for workflow tests that forbid shell and local filesystem (only MCP tools and writing to `reports/`).
 
@@ -34,3 +36,4 @@ When running **MCP-only** workflow tests (no shell, no filesystem except `report
 - [Workflow test prompt and report format](../../tests/workflow-test/README.md) — How to run workflow tests and where to write reports.
 - Building KAIROS workflows is described in the MCP resource **building-kairos-workflows** and in the tool description for `kairos_mint`.
 - [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles) — For contributors designing or reviewing MCP tools and APIs.
+

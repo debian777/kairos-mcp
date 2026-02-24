@@ -5,7 +5,7 @@ import { modelStats } from '../services/stats/model-stats.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 
 interface RegisterAttestOptions {
   toolName?: string;
@@ -49,6 +49,8 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
     },
     async (params: any) => {
       const tenantId = getTenantId();
+      const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
+      logger.debug(`kairos_attest space_id=${spaceId}`);
       const inputSize = JSON.stringify(params).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       

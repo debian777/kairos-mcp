@@ -11,8 +11,8 @@ type PromptOverride = {
 const promptOverrides: Record<string, PromptOverride> = {
   'contextual-prompt': {
     title: 'KAIROS Core Execution Engine',
-    description: 'Universal KAIROS identity and natural language translator bootstrap',
-    resultDescription: 'KAIROS Core Identity + Natural Language Execution Engine'
+    description: 'Required execution policy for KAIROS protocol runs',
+    resultDescription: 'Required execution policy for KAIROS protocol runs'
   }
 };
 

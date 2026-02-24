@@ -8,6 +8,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { logger } from '../utils/logger.js';
 import { REDIS_URL, KAIROS_REDIS_PREFIX } from '../config.js';
+import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 
 export class RedisService {
     private client: RedisClientType;
@@ -91,8 +92,10 @@ export class RedisService {
         }
     }
 
+    /** Key is namespaced by current space (AsyncLocalStorage) so cache and proof-of-work do not collide across spaces. */
     private getKey(key: string): string {
-        return `${this.prefix}${key}`;
+        const spaceId = getSpaceIdFromStorage();
+        return `${this.prefix}${spaceId}:${key}`;
     }
 
     async get(key: string): Promise<string | null> {

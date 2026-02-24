@@ -17,6 +17,7 @@ import { registerBeginTool } from './tools/kairos_begin.js';
 import { registerKairosNextTool } from './tools/kairos_next.js';
 import { registerKairosAttestTool } from './tools/kairos_attest.js';
 import { registerKairosDumpTool } from './tools/kairos_dump.js';
+import { registerKairosSpacesTool } from './tools/kairos_spaces.js';
 
 // Create and configure the MCP server
 export function createServer(memoryStore: MemoryQdrantStore): McpServer {
@@ -45,6 +46,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerKairosUpdateTool(server);
     registerKairosDeleteTool(server);
     registerKairosDumpTool(server, memoryStore, { qdrantService });
+    registerKairosSpacesTool(server, memoryStore);
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

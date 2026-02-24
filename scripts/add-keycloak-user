@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""
+Add a user to a Keycloak realm with an auto-generated password.
+
+Uses Keycloak Admin REST API. Requires Keycloak running and KEYCLOAK_ADMIN_PASSWORD
+in environment or in .env.prod / .env (in repo root).
+
+Usage:
+  python scripts/add-keycloak-user --realm kairos-dev --user demo
+  python scripts/add-keycloak-user -r kairos-qa -u myuser
+  KEYCLOAK_URL=http://keycloak:8080 python scripts/add-keycloak-user -r kairos-dev -u demo
+
+Prints the generated password once. If the user already exists, only the password is updated.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import secrets
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+
+def load_env_file(path: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    if not path.is_file():
+        return out
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+def get_admin_password(root: Path) -> str | None:
+    import os
+
+    if os.environ.get("KEYCLOAK_ADMIN_PASSWORD"):
+        return os.environ["KEYCLOAK_ADMIN_PASSWORD"]
+    for name in (".env.prod", ".env"):
+        env = load_env_file(root / name)
+        if env.get("KEYCLOAK_ADMIN_PASSWORD"):
+            return env["KEYCLOAK_ADMIN_PASSWORD"]
+    return None
+
+
+def get_admin_token(base_url: str, admin_password: str) -> str:
+    url = f"{base_url.rstrip('/')}/realms/master/protocol/openid-connect/token"
+    data = urllib.parse.urlencode({
+        "grant_type": "password",
+        "client_id": "admin-cli",
+        "username": "admin",
+        "password": admin_password,
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Failed to get admin token: {e.code} {body}")
+    token = body.get("access_token")
+    if not token:
+        sys.exit("No access_token in token response")
+    return token
+
+
+def create_user(base_url: str, realm: str, username: str, token: str) -> str | None:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users"
+    payload = json.dumps({"username": username, "enabled": True}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            location = resp.headers.get("Location")
+            if location:
+                return location.rstrip("/").split("/")[-1]
+            return None
+    except urllib.error.HTTPError as e:
+        if e.code == 409:
+            return None
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Create user failed: {e.code} {body}")
+
+
+def get_user_id(base_url: str, realm: str, username: str, token: str) -> str | None:
+    q = urllib.parse.urlencode({"username": username})
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users?{q}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            users = json.loads(resp.read().decode())
+            if users:
+                return users[0].get("id")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Get user failed: {e.code} {body}")
+    return None
+
+
+def set_password(
+    base_url: str, realm: str, user_id: str, password: str, token: str
+) -> None:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users/{user_id}/reset-password"
+    payload = json.dumps({
+        "type": "password",
+        "value": password,
+        "temporary": False,
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="PUT")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Set password failed: {e.code} {body}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Add a Keycloak user with auto-generated password."
+    )
+    parser.add_argument(
+        "-r", "--realm",
+        required=True,
+        help="Realm name (e.g. kairos-dev, kairos-qa, kairos-prod)",
+    )
+    parser.add_argument(
+        "-u", "--user",
+        required=True,
+        help="Username to create or update",
+    )
+    parser.add_argument(
+        "--keycloak-url",
+        default="http://localhost:8080",
+        help="Keycloak base URL (default: http://localhost:8080)",
+    )
+    parser.add_argument(
+        "-p", "--password",
+        default=None,
+        help="Password for the user (default: auto-generated)",
+    )
+    args = parser.parse_args()
+
+    root = Path(__file__).resolve().parent.parent
+    admin_password = get_admin_password(root)
+    if not admin_password:
+        print(
+            "ERROR: KEYCLOAK_ADMIN_PASSWORD not set. Set it in .env.prod or .env, or export it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    password = args.password if args.password is not None else secrets.token_urlsafe(16)
+    token = get_admin_token(args.keycloak_url, admin_password)
+
+    user_id = create_user(args.keycloak_url, args.realm, args.user, token)
+    if not user_id:
+        user_id = get_user_id(args.keycloak_url, args.realm, args.user, token)
+        if not user_id:
+            print(f"ERROR: Could not create or find user '{args.user}' in realm '{args.realm}'", file=sys.stderr)
+            return 1
+
+    set_password(args.keycloak_url, args.realm, user_id, password, token)
+
+    if args.password is None:
+        print(f"realm={args.realm} username={args.user} password={password}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

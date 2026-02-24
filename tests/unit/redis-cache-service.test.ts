@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 
 // Mock the Redis client before importing the service
 const mockSubscriber = {

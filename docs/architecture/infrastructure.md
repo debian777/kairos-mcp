@@ -11,8 +11,8 @@ The compose file uses Docker profiles to control which services start together.
 
 | Profile | Services started |
 |---------|-----------------|
-| `infra` | redis, redisinsight, qdrant |
-| `prod`  | redis, redisinsight, qdrant, app-prod |
+| `infra` | redis, redisinsight, qdrant, postgres *(Keycloak DB only, env-driven)* |
+| `prod`  | redis, redisinsight, qdrant, postgres, app-prod |
 | `qa`    | app-qa *(connects to externally running infra)* |
 
 ```bash
@@ -107,6 +107,7 @@ flowchart TB
 | app-prod     | 9090  | 9090  | HTTP | Prometheus metrics |
 | app-qa       | 3500  | 3500  | HTTP | MCP + REST API |
 | app-qa       | 9090  | 9090  | HTTP | Prometheus metrics |
+| postgres     | 5432  | 5432  | TCP  | Postgres (Keycloak DB; profiles `infra` / `prod`) |
 
 ---
 
@@ -276,12 +277,15 @@ flowchart LR
 
 ## Volume layout
 
+**Default** `compose.yaml` uses **Docker named volumes** (redis-data, qdrant-data, postgres-data, snapshots-qa, snapshots-prod); no host path required. **Alternative** `compose-dir-volumes.yaml` uses bind mounts under `${VOLUME_LOCAL_PATH}`:
+
 ```
 ${VOLUME_LOCAL_PATH}/
 ├── data/
 │   ├── redis/             # AOF journal + RDB snapshot (60 s / 1000 writes)
 │   ├── qdrant/            # Vector storage (segments, WAL, indexes)
-│   └── redisinsight/      # RedisInsight UI settings
+│   ├── redisinsight/      # RedisInsight UI settings
+│   └── postgres/          # Postgres data (profiles infra/prod; Keycloak DB only, env-driven)
 └── snapshots/
     ├── prod/qdrant/       # On-demand or startup snapshots — prod
     └── qa/qdrant/         # On-demand or startup snapshots — qa
@@ -378,5 +382,7 @@ flowchart TD
 
 - [Full execution workflow](workflow-full-execution.md) — protocol run end-to-end
 - [Quality metadata](quality-metadata.md) — scoring and bonus structure
-- [`compose.yaml`](../../compose.yaml) — source of truth for container definitions
+- [Keycloak OIDC dev plan](../plans/keycloak-oidc-dev.md) — optional Keycloak (not in current compose)
+- [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
+- [`compose-dir-volumes.yaml`](../../compose-dir-volumes.yaml) — bind mounts under VOLUME_LOCAL_PATH
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults

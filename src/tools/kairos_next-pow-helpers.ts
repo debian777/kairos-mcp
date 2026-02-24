@@ -52,25 +52,25 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
     if (proofType === 'shell') {
       const cmd = proof.shell?.cmd || proof.cmd || 'No command specified';
       const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 30;
-      result['description'] = `Execute shell command: ${cmd}`;
+      result['description'] = `Execute shell command: ${cmd}. You MUST actually run this command and report the real exit_code/stdout/stderr; do not fabricate.`;
       result['shell'] = { cmd, timeout_seconds: timeout };
     } else if (proofType === 'mcp') {
       const toolName = proof.mcp?.tool_name || 'No tool specified';
-      result['description'] = `Call MCP tool: ${toolName}`;
+      result['description'] = `Call MCP tool: ${toolName}. You MUST actually call this tool and report its real result; do not fabricate.`;
       result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
     } else if (proofType === 'user_input') {
       const prompt = proof.user_input?.prompt || 'Confirm completion';
-      result['description'] = `User confirmation: ${prompt}`;
+      result['description'] = `User confirmation: ${prompt}. You MUST show this prompt to the user and use only their reply as user_input.confirmation; do not assume or invent it.`;
       result['user_input'] = { prompt };
     } else if (proofType === 'comment') {
       const minLength = proof.comment?.min_length || 10;
-      result['description'] = `Provide a verification comment (minimum ${minLength} characters)`;
+      result['description'] = `Provide a verification comment (minimum ${minLength} characters) that genuinely summarises what was done in this step; do not paste unrelated text.`;
       result['comment'] = { min_length: minLength };
     }
     return result;
   })() : {
     type: 'comment' as ProofOfWorkType,
-    description: 'Provide a verification comment describing how you completed this step'
+    description: 'Provide a verification comment describing how you completed this step. Write a genuine summary; do not paste unrelated text.'
   };
   base['proof_hash'] = GENESIS_HASH;
   return base;
