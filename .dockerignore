@@ -21,6 +21,10 @@ coverage
 .env
 .env.*
 
+# Test auth state (env-specific; may contain tokens)
+.test-auth-env.*.json
+.test-auth-state.*.json
+
 # Logs and tmp
 logs
 tmp

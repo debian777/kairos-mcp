@@ -45,8 +45,8 @@ out/
 .env.*
 .env.test
 .env*.local
-.test-auth-env.json
-.test-auth-state.json
+.test-auth-env.*.json
+.test-auth-state.*.json
 .secrets
 certs
 

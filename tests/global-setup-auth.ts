@@ -14,8 +14,18 @@ import {
   useExistingKeycloakForQa
 } from './utils/keycloak-container';
 
-const AUTH_ENV_FILE = '.test-auth-env.json';
-const AUTH_STATE_FILE = '.test-auth-state.json';
+/** Env suffix for parallel dev/qa test runs (e.g. .test-auth-env.dev.json). Default 'dev'. */
+function getEnvSuffix(): string {
+  const env = process.env.ENV;
+  return env === 'qa' ? 'qa' : 'dev';
+}
+
+function getAuthEnvFile(root: string): string {
+  return join(root, `.test-auth-env.${getEnvSuffix()}.json`);
+}
+function getAuthStateFile(root: string): string {
+  return join(root, `.test-auth-state.${getEnvSuffix()}.json`);
+}
 
 /** Decode JWT payload (no verify) to get space for kairos-tester: user:realm:sub */
 function spaceIdFromToken(token: string): string | undefined {
@@ -43,7 +53,7 @@ interface AuthState {
 }
 
 function cleanStaleAuthState(root: string): void {
-  const statePath = join(root, AUTH_STATE_FILE);
+  const statePath = getAuthStateFile(root);
   if (existsSync(statePath)) {
     try {
       const state = JSON.parse(readFileSync(statePath, 'utf-8')) as AuthState;
@@ -70,7 +80,7 @@ function cleanStaleAuthState(root: string): void {
       // ignore
     }
   }
-  const envPath = join(root, AUTH_ENV_FILE);
+  const envPath = getAuthEnvFile(root);
   if (existsSync(envPath)) {
     try {
       unlinkSync(envPath);
@@ -115,29 +125,21 @@ export default async function globalSetup(): Promise<void> {
   if (isQa) {
     const baseUrl = `http://localhost:${port}`;
     const keycloakUrl = process.env.KEYCLOAK_URL?.trim() ?? '';
+    const cwd = process.cwd();
     if (!keycloakUrl) {
       // No Keycloak configured for QA: write baseUrl only so tests hit QA app; auth tests accept 200/401
-      writeFileSync(
-        join(process.cwd(), AUTH_ENV_FILE),
-        JSON.stringify({ baseUrl })
-      );
-      writeFileSync(
-        join(process.cwd(), AUTH_STATE_FILE),
-        JSON.stringify({ containerId: undefined, serverPid: undefined })
-      );
+      writeFileSync(getAuthEnvFile(cwd), JSON.stringify({ baseUrl }));
+      writeFileSync(getAuthStateFile(cwd), JSON.stringify({ containerId: undefined, serverPid: undefined }));
       return;
     }
     const env = await useExistingKeycloakForQa();
     const bearerToken = await env.getTestUserToken();
     const spaceId = spaceIdFromToken(bearerToken);
     writeFileSync(
-      join(process.cwd(), AUTH_ENV_FILE),
+      getAuthEnvFile(cwd),
       JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl, ...(spaceId && { spaceId }) })
     );
-    writeFileSync(
-      join(process.cwd(), AUTH_STATE_FILE),
-      JSON.stringify({ containerId: undefined, serverPid: undefined })
-    );
+    writeFileSync(getAuthStateFile(cwd), JSON.stringify({ containerId: undefined, serverPid: undefined }));
     return;
   }
 
@@ -186,12 +188,10 @@ export default async function globalSetup(): Promise<void> {
   }
 
   const spaceId = spaceIdFromToken(bearerToken);
+  const cwd = process.cwd();
   writeFileSync(
-    join(process.cwd(), AUTH_ENV_FILE),
+    getAuthEnvFile(cwd),
     JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl, ...(spaceId && { spaceId }) })
   );
-  writeFileSync(
-    join(process.cwd(), AUTH_STATE_FILE),
-    JSON.stringify({ containerId: containerId ?? undefined, serverPid })
-  );
+  writeFileSync(getAuthStateFile(cwd), JSON.stringify({ containerId: containerId ?? undefined, serverPid }));
 }

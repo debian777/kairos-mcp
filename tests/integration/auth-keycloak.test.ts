@@ -1,7 +1,7 @@
 /**
  * Auth integration tests: when AUTH_ENABLED=true, assert 401 without token and 200 with token.
  * When AUTH_ENABLED=false, assertions relax (any of 200/401).
- * globalSetup cleans stale .test-auth-* files and provisions fresh token; no manual cleanup needed.
+ * globalSetup cleans stale env-specific .test-auth-env.*.json and provisions fresh token; no manual cleanup needed.
  *
  * Run with Testcontainers Keycloak (recommended):
  *   KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts

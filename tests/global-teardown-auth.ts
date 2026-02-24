@@ -1,13 +1,17 @@
 /**
  * Jest globalTeardown when AUTH_ENABLED=true.
- * Stops KAIROS server and Keycloak container using .test-auth-state.json.
+ * Stops KAIROS server and Keycloak container using .test-auth-state.{dev,qa}.json.
+ * Uses same env suffix as global-setup-auth so dev and qa teardowns only touch their own state.
  */
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-const AUTH_STATE_FILE = '.test-auth-state.json';
+function getAuthStateFilePath(): string {
+  const suffix = process.env.ENV === 'qa' ? 'qa' : 'dev';
+  return join(process.cwd(), `.test-auth-state.${suffix}.json`);
+}
 
 interface AuthState {
   containerId?: string;
@@ -17,7 +21,7 @@ interface AuthState {
 export default async function globalTeardown(): Promise<void> {
   if (process.env.AUTH_ENABLED !== 'true') return;
 
-  const path = join(process.cwd(), AUTH_STATE_FILE);
+  const path = getAuthStateFilePath();
   if (!existsSync(path)) return;
 
   let state: AuthState;
