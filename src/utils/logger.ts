@@ -27,19 +27,9 @@ class Logger {
     }
 
     constructor() {
-        // Determine transport type from environment
+        // Use TRANSPORT_TYPE only: stdio → stderr, http → stdout
         const transportEnv = process.env['TRANSPORT_TYPE'] || 'stdio';
-        const httpEnabled = process.env['HTTP_ENABLED'] !== 'false';
-        const stdioEnabled = process.env['STDIO_ENABLED'] !== 'false';
-
-        // If HTTP is explicitly enabled or is the transport type, use HTTP logging
-        if (httpEnabled && transportEnv === 'http') {
-            this.transportType = 'http';
-        } else if (stdioEnabled || transportEnv === 'stdio') {
-            this.transportType = 'stdio';
-        } else {
-            this.transportType = 'stdio'; // Default to stdio for safety
-        }
+        this.transportType = transportEnv === 'http' ? 'http' : 'stdio';
 
         // Determine log format from environment (default: text)
         this.logFormat = process.env['LOG_FORMAT'] === 'json' ? 'json' : 'text';
@@ -56,22 +46,15 @@ class Logger {
                 ...data
             });
 
-            if (this.transportType === 'stdio') {
-                process.stderr.write(jsonLog + '\n');
-            } else {
-                // Fallback logging disabled - logger should always be available
-            }
+            const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
+            out.write(jsonLog + '\n');
         } else {
             // Text format with timestamp and level
             const timestamp = new Date().toISOString().substr(11, 8);
             const levelLabel = level.toUpperCase().padEnd(7); // Pad for alignment
             const message = data['message'] || JSON.stringify(data);
-
-            if (this.transportType === 'stdio') {
-                process.stderr.write(`[${timestamp}] [${levelLabel}] ${message}\n`);
-            } else {
-                // Fallback logging disabled - logger should always be available
-            }
+            const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
+            out.write(`[${timestamp}] [${levelLabel}] ${message}\n`);
         }
     }
 
@@ -132,7 +115,8 @@ class Logger {
             if (error && process.env['NODE_ENV'] === 'development') {
                 const timestamp = new Date().toISOString().substr(11, 8);
                 const levelLabel = 'ERROR'.padEnd(7);
-                process.stderr.write(`[${timestamp}] [${levelLabel}] Stack: ${error instanceof Error ? error.stack : ''}\n`);
+                const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
+                out.write(`[${timestamp}] [${levelLabel}] Stack: ${error instanceof Error ? error.stack : ''}\n`);
             }
         }
     }

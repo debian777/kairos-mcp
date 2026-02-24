@@ -139,7 +139,7 @@ describe('tenant-context', () => {
 
     beforeAll(() => {
       jest.resetModules();
-      jest.doMock('../../src/config.js', () => ({ AUTH_ENABLED: true, DEFAULT_SPACE_ID: 'space:default' }));
+      jest.doMock('../../src/config.js', () => ({ AUTH_ENABLED: true, KAIROS_APP_SPACE_ID: 'space:kairos-app' }));
       const tenantContext = require('../../src/utils/tenant-context.js');
       getSpaceContextWithAuth = tenantContext.getSpaceContext;
       getSpaceContextFromStorageWithAuth = tenantContext.getSpaceContextFromStorage;

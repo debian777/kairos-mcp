@@ -23,12 +23,9 @@ const TRUSTED_PROXY_CIDRS = (process.env['TRUSTED_PROXY_CIDRS'] || '')
   .map(s => s.trim())
   .filter(Boolean);
 
-// Transport detection
-const isHttpTransport = () => {
-  const transportEnv = process.env['TRANSPORT_TYPE'] || 'stdio';
-  const httpEnabled = process.env['HTTP_ENABLED'] !== 'false';
-  return httpEnabled && transportEnv === 'http';
-};
+// Transport detection (TRANSPORT_TYPE only)
+const isHttpTransport = (): boolean =>
+  (process.env['TRANSPORT_TYPE'] || 'stdio') === 'http';
 
 // Client IP detection (proxy-safe)
 function getClientIp(req: Request): string {

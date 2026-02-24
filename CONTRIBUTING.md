@@ -118,7 +118,7 @@ npm run docker:build       # Build Docker image (debian777/kairos-mcp)
 
 **Snapshot management (optional)**
 
-- Enable automatic Qdrant backups on boot: `QDRANT_SNAPSHOT_ON_START=true`; use `QDRANT_SNAPSHOT_DIR` for path (default `data/qdrant/snapshots`).
+- Enable automatic Qdrant backups on boot: `QDRANT_SNAPSHOT_ON_START=true`; use `QDRANT_SNAPSHOT_DIR` for path (default `/snapshots` in Docker; override in dev e.g. `./data/qdrant/snapshots`).
 - On-demand snapshot: `POST /api/snapshot`; response includes file path, size, and status.
 
 **Project structure**

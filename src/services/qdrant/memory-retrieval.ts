@@ -3,7 +3,7 @@ import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
-import { DEFAULT_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID } from '../../config.js';
 
 /**
  * Retrieval helpers
@@ -26,7 +26,7 @@ export async function retrieveById(conn: QdrantConnection, uuid: string): Promis
         timer({ operation: 'retrieve', tenant_id: tenantId });
         return null;
       }
-      const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+      const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
       if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
         timer({ operation: 'retrieve', tenant_id: tenantId });
         return null;

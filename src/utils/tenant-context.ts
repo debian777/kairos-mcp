@@ -7,7 +7,7 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
-import { AUTH_ENABLED, DEFAULT_SPACE_ID, KAIROS_APP_SPACE_ID } from '../config.js';
+import { AUTH_ENABLED, KAIROS_APP_SPACE_ID } from '../config.js';
 
 /** Sentinel space when AUTH is on but no auth context (strict isolation; not shared with tenants). */
 export const NO_AUTH_SPACE_ID = 'space:no-auth';
@@ -30,7 +30,7 @@ const NO_CONTEXT_SENTINEL: SpaceContext = {
 const spaceStorage = new AsyncLocalStorage<SpaceContext>();
 
 function defaultSpaceContext(): SpaceContext {
-  const spaceId = DEFAULT_SPACE_ID || 'space:default';
+  const spaceId = KAIROS_APP_SPACE_ID;
   return {
     userId: '',
     groupIds: [],
@@ -86,7 +86,7 @@ export function getSpaceContextFromStorage(): SpaceContext {
   return AUTH_ENABLED ? noDefaultSpaceContext() : defaultSpaceContext();
 }
 
-/** Current space id for Redis key prefix and similar; uses storage or DEFAULT_SPACE_ID. */
+/** Current space id for Redis key prefix and similar; uses storage or KAIROS_APP_SPACE_ID when auth off. */
 export function getSpaceIdFromStorage(): string {
   return getSpaceContextFromStorage().defaultWriteSpaceId;
 }
@@ -195,5 +195,5 @@ export function getSpaceContext(request?: {
  */
 export function getTenantId(request?: any): string {
   const ctx = getSpaceContext(request);
-  return ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || process.env['DEFAULT_TENANT_ID'] || 'default';
+  return ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || 'default';
 }

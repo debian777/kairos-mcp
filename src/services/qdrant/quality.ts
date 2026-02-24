@@ -3,7 +3,7 @@ import { KairosError } from '../../types/index.js';
 import { sanitizeAndUpsert } from './utils.js';
 import { logger } from '../../utils/logger.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
-import { DEFAULT_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID } from '../../config.js';
 
 /**
  * Quality management functions:
@@ -20,7 +20,7 @@ export async function updateQualityMetrics(conn: QdrantConnection, id: string, m
     }
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       throw new KairosError(`Memory with ID ${id} not found for quality update`, 'MEMORY_NOT_FOUND', 404);
     }
@@ -57,7 +57,7 @@ export async function updateQualityMetadata(conn: QdrantConnection, id: string, 
     }
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       throw new KairosError(`Memory with ID ${id} not found for quality metadata update`, 'MEMORY_NOT_FOUND', 404);
     }
@@ -76,7 +76,7 @@ export async function trackPendingValidation(conn: QdrantConnection, id: string,
     }
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       throw new KairosError(`Memory with ID ${id} not found for validation tracking`, 'MEMORY_NOT_FOUND', 404);
     }

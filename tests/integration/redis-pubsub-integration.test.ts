@@ -1,13 +1,13 @@
 import { createClient, RedisClientType } from 'redis';
 import { redisService } from '../../src/services/redis.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
-import { KAIROS_REDIS_PREFIX, DEFAULT_SPACE_ID } from '../../src/config.js';
+import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID } from '../../src/config.js';
 import { runWithSpaceContext } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
 
-/** Run cache operations in default space context so keys match test expectations (prefix + DEFAULT_SPACE_ID). */
+/** Run cache operations in default space context so keys match test expectations (prefix + KAIROS_APP_SPACE_ID). */
 function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
-  const spaceId = DEFAULT_SPACE_ID || 'space:default';
+  const spaceId = KAIROS_APP_SPACE_ID;
   return runWithSpaceContext(
     {
       userId: '',
@@ -21,7 +21,7 @@ function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
 
 /** Build full Redis key as the app does: prefix + spaceId + ':' + suffix */
 function redisKey(suffix: string): string {
-  return `${KAIROS_REDIS_PREFIX}${DEFAULT_SPACE_ID}:${suffix}`;
+  return `${KAIROS_REDIS_PREFIX}${KAIROS_APP_SPACE_ID}:${suffix}`;
 }
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
@@ -155,7 +155,7 @@ describe('Redis Pub/Sub Integration Tests', () => {
         // Store memory (uses RedisService which namespaces by space: prefix + spaceId + logicalKey)
         await redisCacheService.setMemoryResource(testMemory);
 
-        // Verify key exists in Redis (same key format as app: prefix + DEFAULT_SPACE_ID + :mem:uuid)
+        // Verify key exists in Redis (same key format as app: prefix + KAIROS_APP_SPACE_ID + :mem:uuid)
         const key = redisKey(`mem:${testMemory.memory_uuid}`);
         const exists = await testClient.exists(key);
         expect(exists).toBe(1);

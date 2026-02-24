@@ -105,9 +105,9 @@ if (AUTH_ENABLED) {
   }
 }
 export const QDRANT_RESCORE_STRING = getEnvString('QDRANT_RESCORE', 'true');
-const DEFAULT_SNAPSHOT_DIR = path.resolve(process.cwd(), 'data/qdrant/snapshots');
+/** Default /snapshots (Docker). Override in dev (e.g. ./data/qdrant/snapshots) when not running in Docker. */
 export const QDRANT_SNAPSHOT_ON_START = getEnvBoolean('QDRANT_SNAPSHOT_ON_START', false);
-const QDRANT_SNAPSHOT_DIR_RAW = getEnvString('QDRANT_SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR);
+const QDRANT_SNAPSHOT_DIR_RAW = getEnvString('QDRANT_SNAPSHOT_DIR', '/snapshots');
 export const QDRANT_SNAPSHOT_DIR = path.isAbsolute(QDRANT_SNAPSHOT_DIR_RAW) ? QDRANT_SNAPSHOT_DIR_RAW : path.resolve(QDRANT_SNAPSHOT_DIR_RAW);
 
 // Int configurations
@@ -119,8 +119,12 @@ export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
 /** Mint: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
 export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 0.9);
 
+// Transport: stdio | http. Logging and server use this single source.
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
+export const TRANSPORT_TYPE: 'stdio' | 'http' =
+  TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
+
 // Boolean configurations
-export const HTTP_ENABLED = true;
 export const QDRANT_RESCORE = getEnvBoolean('QDRANT_RESCORE', true);
 
 // Required (throw at startup if missing)
@@ -183,11 +187,5 @@ export const AUTH_ALLOWED_AUDIENCES =
     : _authAudBase;
 export const ENABLE_GROUP_COLLAPSE = KAIROS_ENABLE_GROUP_COLLAPSE !== 'false' && KAIROS_ENABLE_GROUP_COLLAPSE !== '0';
 export const INSTANCE_ID = getEnvString('INSTANCE_ID', os.hostname() || 'unknown');
-export const DEFAULT_TENANT_ID = getEnvString('DEFAULT_TENANT_ID', 'default');
-/** Space id when AUTH_ENABLED=false (single-tenant). Ignored when AUTH_ENABLED=true for strict isolation. Must follow space model: space:*, user:*, or group:*. */
-const DEFAULT_SPACE_ID_RAW = getEnvString('DEFAULT_SPACE_ID', getEnvString('DEFAULT_TENANT_ID', 'space:default'));
-export const DEFAULT_SPACE_ID =
-  /^(space:|user:|group:)/.test(DEFAULT_SPACE_ID_RAW) ? DEFAULT_SPACE_ID_RAW : `space:${DEFAULT_SPACE_ID_RAW}`;
-
-/** Space for embedded src/embed-docs/mem/ content. Included in search scope for all users. Must follow space model (e.g. space:kairos-app). */
+/** Space for embedded mem docs and default when AUTH_ENABLED=false. Included in search scope for all users. Must follow space model (e.g. space:kairos-app). */
 export const KAIROS_APP_SPACE_ID = getEnvString('KAIROS_APP_SPACE_ID', 'space:kairos-app');

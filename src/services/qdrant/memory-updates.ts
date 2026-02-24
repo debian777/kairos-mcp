@@ -7,7 +7,7 @@ import { logger } from '../../utils/logger.js';
 import { KairosError } from '../../types/index.js';
 import { qdrantOperations, qdrantOperationDuration, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
-import { DEFAULT_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID } from '../../config.js';
 
 /**
  * Update memory by UUID (for protocol reconstruction) and general update/delete
@@ -106,7 +106,7 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
     }
     const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       throw new KairosError(`Memory with ID ${id} not found`, 'MEMORY_NOT_FOUND', 404);
     }

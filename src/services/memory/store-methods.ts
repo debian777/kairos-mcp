@@ -4,7 +4,7 @@ import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
 import { getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
-import { DEFAULT_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
@@ -89,7 +89,7 @@ export class MemoryQdrantStoreMethods {
       return null;
     }
     const point = points[0]!;
-    const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       return null;
     }
@@ -109,7 +109,7 @@ export class MemoryQdrantStoreMethods {
     });
     if (!points || points.length === 0) return null;
     const point = points[0]!;
-    const pointSpaceId = (point.payload as any)?.space_id ?? DEFAULT_SPACE_ID;
+    const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
     if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
       return null;
     }
