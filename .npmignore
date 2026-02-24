@@ -1,41 +1,137 @@
 # npm publish ignore – we publish built dist/ instead of source
 
-# Source and development files to exclude
+# Dependencies (from .gitignore)
+node_modules/
+.npm
+.yarn/
+.pnp.*
+.yarn-integrity
+
+# Source and development files
 src/
 tests/
 /tests/
 /tests/_new/
 **/__tests__/
 docs/test-data/
+*.test.js
+*.test.cjs
+*.spec.js
+*.spec.cjs
 
 # Scripts and local dev tools
 scripts/
 Dockerfile
 .dockerignore
+docker-compose.override.yml
 
-# Ignore local environment and caches
+# Build outputs (keep dist/ for publish)
+build/
+out/
+.tmp/
+.cache/
+.tsbuildinfo
+*.tsbuildinfo
+.parcel-cache
+.next
+.nuxt
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Environment and secrets
 .env
 .env.*
-.DS_Store
-.vscode
-.idea
+.env.test
+.env*.local
+.test-auth-env.json
+.test-auth-state.json
+.secrets
+certs
 
-# Built artifacts that are not part of the npm package
+# IDE and editor
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+debug.log
+error.log
+access.log
+pids
+*.pid
+*.seed
+*.pid.lock
+.node_repl_history
+
+# Coverage and reports
 coverage/
+*.lcov
+.nyc_output
 reports/
 
-# Logs and temporary files
-logs
-tmp
-*.log
+# Temporary
+tmp/
+temp/
 
-# Ignore transpiled source if you're building to dist (keep dist)
-# Leave dist included
+# Cache and local
+.eslintcache
+.local/
+local/
+cache/
+.ai/
 
-# Ignore CI and config that are not needed
-.gitignore
+# Backups and archives
+*.bak
+*.backup
+*.old
+*.zip
+*.tar.gz
+*.rar
+*.tgz
 
-# Keep README, package.json, license
+# Data and storage
+storage/
+data/
+docs/archived/
+docs/.obsidian
+.obsidian
+
+# MCP / project specific
+.kilocode/
+mcp-logs/
+.devcontainer.disable/
+CLAUDE.md
+store-ai-rules.cjs
+verify-ai-rules.cjs
+test-*.cjs
+test-*.js
+
+# Include what we publish
 !README.md
 !package.json
 !LICENSE
