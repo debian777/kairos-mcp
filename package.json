@@ -1,6 +1,6 @@
 {
   "name": "kairos",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "kairos MCP Server - AI Knowledge Memory System for AI Agent Consciousness Infrastructure",
   "type": "module",
   "main": "dist/index.js",
