@@ -25,7 +25,7 @@ describe('kairos_begin output schema', () => {
         type: 'comment' as const,
         description: 'Provide a verification comment',
         nonce: 'a1b2c3d4e5f6',
-        genesis_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+        proof_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
       },
       next_action: 'call kairos_next with uri and solution matching challenge'
     };
@@ -34,6 +34,6 @@ describe('kairos_begin output schema', () => {
 
     expect(parsed.challenge).toBeDefined();
     expect(parsed.challenge.nonce).toBe('a1b2c3d4e5f6');
-    expect(parsed.challenge.genesis_hash).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect(parsed.challenge.proof_hash).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
   });
 });

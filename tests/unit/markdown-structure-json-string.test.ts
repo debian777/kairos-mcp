@@ -102,10 +102,8 @@ function buildMemoryChainFromMarkdown(markdownDoc, llmModelId) {
 
 describe('Markdown header-based slicing into a memory chain', () => {
   test('single markdown file with H1 + H2 produces multiple memories', () => {
-    const markdown = readFileSync(
-      join(process.cwd(), 'docs/knowledge-mining-game.md'),
-      'utf-8'
-    );
+    const fixturePath = join(process.cwd(), 'tests/fixtures/knowledge-mining-game.md');
+    const markdown = readFileSync(fixturePath, 'utf-8');
 
     const memories = buildMemoryChainFromMarkdown(markdown, 'mcp-unit-test-model');
 
@@ -132,5 +130,4 @@ describe('Markdown header-based slicing into a memory chain', () => {
       expect(memories[i].next_memory_uuid).toBe(memories[i + 1].memory_uuid);
     }
   });
-}
-);
+});

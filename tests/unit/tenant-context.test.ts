@@ -3,6 +3,7 @@
  * When AUTH_ENABLED=true, default space is disabled for strict isolation (no-default context).
  */
 
+import { jest } from '@jest/globals';
 import { getSpaceContext, runWithSpaceContext, runWithSpaceContextAsync, getSpaceContextFromStorage, getSpaceIdFromStorage, getSearchSpaceIds } from '../../src/utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../../src/config.js';
 

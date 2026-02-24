@@ -118,6 +118,9 @@ PROOF OF WORK: echo test
 More content`;
       const result = extractProofOfWork(content);
       expect(result.proof).toEqual({
+        type: 'shell',
+        required: true,
+        shell: { cmd: 'echo test', timeout_seconds: 60 },
         cmd: 'echo test',
         timeout_seconds: 60
       });
@@ -132,6 +135,9 @@ More content`;
 More content`;
       const result = extractProofOfWork(content);
       expect(result.proof).toEqual({
+        type: 'shell',
+        required: true,
+        shell: { cmd: 'echo test', timeout_seconds: 60 },
         cmd: 'echo test',
         timeout_seconds: 60
       });
@@ -146,6 +152,9 @@ More content`;
 More content`;
       const result = extractProofOfWork(content);
       expect(result.proof).toEqual({
+        type: 'shell',
+        required: true,
+        shell: { cmd: 'echo test', timeout_seconds: 30 },
         cmd: 'echo test',
         timeout_seconds: 30
       });
