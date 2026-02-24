@@ -4,7 +4,8 @@ import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize, kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage, runWithSpaceContext } from '../utils/tenant-context.js';
+import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 
 interface RegisterKairosMintOptions {
   toolName?: string;
@@ -19,7 +20,8 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
   const inputSchema = z.object({
     markdown_doc: z.string().min(1).describe('Markdown document to store'),
     llm_model_id: z.string().min(1).describe('LLM model ID'),
-    force_update: z.boolean().optional().default(false).describe('Overwrite existing memory chain with the same label')
+    force_update: z.boolean().optional().default(false).describe('Overwrite existing memory chain with the same label'),
+    space: z.enum(['personal']).or(z.string()).optional().describe('Target space: "personal" (default) or group name to mint into that group space')
   });
 
   const outputSchema = z.object({
@@ -44,22 +46,70 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
     },
     async (params: any) => {
       const tenantId = getTenantId();
+      const ctx = getSpaceContextFromStorage();
+      const rawSpace = typeof params?.space === 'string' ? params.space.trim() : '';
+      const spaceParam = rawSpace.toLowerCase();
+      let resolvedSpaceId: string;
+      if (params?.space === undefined || rawSpace === '' || spaceParam === 'personal') {
+        resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+      } else if (spaceParam === KAIROS_APP_SPACE_DISPLAY_NAME.toLowerCase()) {
+        const msg = `Cannot mint into "${KAIROS_APP_SPACE_DISPLAY_NAME}"; it is read-only. Use "personal" or a group name.`;
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify({ error: 'SPACE_READ_ONLY', message: msg }) }]
+        };
+      } else {
+        const groupName = rawSpace.startsWith('Group: ') ? rawSpace.slice(7).trim() : rawSpace;
+        const match = ctx.allowedSpaceIds.find((id) => {
+          if (id === groupName) return true;
+          if (id.startsWith('group:') && id.split(':').pop() === groupName) return true;
+          return false;
+        });
+        if (!match) {
+          const msg = `Group or space "${groupName}" not found or not in your allowed spaces. Use kairos_spaces to list available spaces (use the name or group ref, e.g. "Personal", "Group: team1", or "team1").`;
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
+            isError: true,
+            content: [{ type: 'text', text: JSON.stringify({ error: 'SPACE_NOT_FOUND', message: msg }) }]
+          };
+        }
+        resolvedSpaceId = match;
+      }
+      if (!resolvedSpaceId) {
+        const msg = 'No space available for minting. Check authentication and allowed spaces.';
+        return {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify({ error: 'NO_SPACE', message: msg }) }]
+        };
+      }
+      logger.debug(`kairos_mint space_id=${resolvedSpaceId}`);
       const inputSize = JSON.stringify(params).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
-      
-      const timer = mcpToolDuration.startTimer({ 
+
+      const timer = mcpToolDuration.startTimer({
         tool: toolName,
-        tenant_id: tenantId 
+        tenant_id: tenantId
       });
-      
+
+      const narrowedContext = {
+        ...ctx,
+        allowedSpaceIds: [resolvedSpaceId],
+        defaultWriteSpaceId: resolvedSpaceId
+      };
+
       let result: any;
-      
+
       try {
         const { markdown_doc, llm_model_id, force_update } = params as { markdown_doc: string; llm_model_id: string; force_update?: boolean };
         const docs = [markdown_doc];
         let memories: Memory[] = [];
         try {
-          memories = await memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update });
+          memories = await runWithSpaceContext(narrowedContext, () =>
+            memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update })
+          );
         } catch (error) {
           // Handle duplicate chain error explicitly
           const err = error as any;
@@ -123,7 +173,7 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
             });
             return result;
           }
-          logger.error(`[kairos_mint] Failed to store memory chain (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
+          logger.error(`[kairos_mint] Failed to store memory chain space_id=${resolvedSpaceId} (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
           result = {
             isError: true,
             content: [{ type: 'text', text: JSON.stringify({ error: 'STORE_FAILED', message: err?.message || String(err) }) }]

@@ -5,7 +5,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, runWithOptionalSpace } from '../utils/tenant-context.js';
+import { getTenantId, runWithOptionalSpace, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import { SCORE_THRESHOLD } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
@@ -232,6 +232,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       const tenantId = getTenantId();
       const { query, space, space_id } = params as { query: string; space?: string; space_id?: string };
       const spaceParam = space ?? space_id;
+      const ctxBefore = getSpaceContextFromStorage();
+      structuredLogger.debug(`kairos_search query="${(query || '').slice(0, 60)}" space_param=${spaceParam ?? 'none'} space_effective=${ctxBefore?.defaultWriteSpaceId ?? 'default'}`);
       const inputSize = JSON.stringify({ query }).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
 
@@ -263,7 +265,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       try {
         return runWithOptionalSpace(spaceParam, async () => {
           const normalizedQuery = (query || '').trim().toLowerCase();
-
+          const ctxInCallback = getSpaceContextFromStorage();
+          structuredLogger.debug(`kairos_search executing space_id=${ctxInCallback?.defaultWriteSpaceId ?? 'default'}`);
           const parseEnvBool = (name: string, defaultVal: boolean) => {
             const v = process.env[name];
             if (v === undefined) return defaultVal;
@@ -310,7 +313,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
             isError: true
           };
         }
-        structuredLogger.warn(`kairos_search error (returning empty results): ${error instanceof Error ? error.message : String(error)}`);
+        const ctxErr = getSpaceContextFromStorage();
+        structuredLogger.warn(`kairos_search error (returning empty results) space_id=${ctxErr?.defaultWriteSpaceId ?? 'default'}: ${error instanceof Error ? error.message : String(error)}`);
         mcpToolCalls.inc({ 
           tool: toolName, 
           status: 'error',

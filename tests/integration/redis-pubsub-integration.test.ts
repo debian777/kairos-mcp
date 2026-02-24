@@ -2,7 +2,22 @@ import { createClient, RedisClientType } from 'redis';
 import { redisService } from '../../src/services/redis.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
 import { KAIROS_REDIS_PREFIX, DEFAULT_SPACE_ID } from '../../src/config.js';
+import { runWithSpaceContext } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
+
+/** Run cache operations in default space context so keys match test expectations (prefix + DEFAULT_SPACE_ID). */
+function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
+  const spaceId = DEFAULT_SPACE_ID || 'space:default';
+  return runWithSpaceContext(
+    {
+      userId: '',
+      groupIds: [],
+      allowedSpaceIds: [spaceId],
+      defaultWriteSpaceId: spaceId
+    },
+    fn
+  );
+}
 
 /** Build full Redis key as the app does: prefix + spaceId + ':' + suffix */
 function redisKey(suffix: string): string {
@@ -125,85 +140,69 @@ describe('Redis Pub/Sub Integration Tests', () => {
 
   describe('Memory Storage (No TTL)', () => {
     test('should store memories without TTL (permanent)', async () => {
-      const testMemory: Memory = {
-        memory_uuid: 'test-memory-uuid-123',
-        label: 'Test Memory',
-        text: 'Test content',
-        tags: ['test'],
-        previous_memory_uuid: null,
-        next_memory_uuid: null,
-        llm_model_id: 'test-model',
-        created_at: new Date().toISOString()
-      };
+      await withDefaultSpace(async () => {
+        const testMemory: Memory = {
+          memory_uuid: 'test-memory-uuid-123',
+          label: 'Test Memory',
+          text: 'Test content',
+          tags: ['test'],
+          previous_memory_uuid: null,
+          next_memory_uuid: null,
+          llm_model_id: 'test-model',
+          created_at: new Date().toISOString()
+        };
 
-      // Store memory
-      await redisCacheService.setMemoryResource(testMemory);
+        // Store memory (uses RedisService which namespaces by space: prefix + spaceId + logicalKey)
+        await redisCacheService.setMemoryResource(testMemory);
 
-      // Verify key exists in Redis
-      const key = `${KAIROS_REDIS_PREFIX}mem:${testMemory.memory_uuid}`;
-      const exists = await testClient.exists(key);
-      expect(exists).toBe(1);
+        // Verify key exists in Redis (same key format as app: prefix + DEFAULT_SPACE_ID + :mem:uuid)
+        const key = redisKey(`mem:${testMemory.memory_uuid}`);
+        const exists = await testClient.exists(key);
+        expect(exists).toBe(1);
 
-      // Verify TTL is -1 (no expiration)
-      const ttl = await testClient.ttl(key);
-      expect(ttl).toBe(-1); // -1 means no expiration
+        // Verify TTL is -1 (no expiration)
+        const ttl = await testClient.ttl(key);
+        expect(ttl).toBe(-1); // -1 means no expiration
 
-      // Verify content
-      const stored = await redisCacheService.getMemoryResource(testMemory.memory_uuid);
-      expect(stored).not.toBeNull();
-      expect(stored?.memory_uuid).toBe(testMemory.memory_uuid);
-      expect(stored?.label).toBe(testMemory.label);
+        // Verify content
+        const stored = await redisCacheService.getMemoryResource(testMemory.memory_uuid);
+        expect(stored).not.toBeNull();
+        expect(stored?.memory_uuid).toBe(testMemory.memory_uuid);
+        expect(stored?.label).toBe(testMemory.label);
+      });
     });
   });
 
   describe('Search Cache (With TTL)', () => {
     test('should store search results with TTL (5 minutes)', async () => {
-      const query = 'test query';
-      const limit = 10;
-      const searchResult = {
-        memories: [],
-        scores: []
-      };
+      await withDefaultSpace(async () => {
+        const query = 'test query';
+        const limit = 10;
+        const searchResult = {
+          memories: [],
+          scores: []
+        };
 
-      // Store search result
-      await redisCacheService.setSearchResult(query, limit, searchResult);
+        // Store search result
+        await redisCacheService.setSearchResult(query, limit, searchResult);
 
-      // Verify key exists (keys are namespaced by space)
-      const key = redisKey(`search:collapsed:${query}:${limit}`);
-      const exists = await testClient.exists(key);
-      expect(exists).toBe(1);
+        // Verify key exists (keys are namespaced by space)
+        const key = redisKey(`search:collapsed:${query}:${limit}`);
+        const exists = await testClient.exists(key);
+        expect(exists).toBe(1);
 
-      // Verify TTL is approximately 300 seconds (5 minutes)
-      const ttl = await testClient.ttl(key);
-      expect(ttl).toBeGreaterThan(290); // Allow some margin for test execution time
-      expect(ttl).toBeLessThanOrEqual(300);
+        // Verify TTL is approximately 300 seconds (5 minutes)
+        const ttl = await testClient.ttl(key);
+        expect(ttl).toBeGreaterThan(290); // Allow some margin for test execution time
+        expect(ttl).toBeLessThanOrEqual(300);
+      });
     });
   });
 
   describe('Cache Invalidation', () => {
     test('should invalidate memory cache and publish event', async () => {
-      const testMemory: Memory = {
-        memory_uuid: 'test-invalidate-uuid',
-        label: 'Test Memory',
-        text: 'Test content',
-        tags: ['test'],
-        previous_memory_uuid: null,
-        next_memory_uuid: null,
-        llm_model_id: 'test-model',
-        created_at: new Date().toISOString()
-      };
-
-      // Store memory
-      await redisCacheService.setMemoryResource(testMemory);
-
-      // Verify it exists (keys are namespaced by space)
-      const key = redisKey(`mem:${testMemory.memory_uuid}`);
-      expect(await testClient.exists(key)).toBe(1);
-
-      // Set up subscriber for invalidation events
       const channel = 'cache:invalidation';
       const receivedMessages: Array<{ type: string }> = [];
-      
       await subscriberClient.subscribe(channel, (msg) => {
         try {
           receivedMessages.push(JSON.parse(msg));
@@ -211,17 +210,36 @@ describe('Redis Pub/Sub Integration Tests', () => {
           // Ignore
         }
       });
-
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Invalidate memory cache
-      await redisCacheService.invalidateMemoryCache(testMemory.memory_uuid);
+      await withDefaultSpace(async () => {
+        const testMemory: Memory = {
+          memory_uuid: 'test-invalidate-uuid',
+          label: 'Test Memory',
+          text: 'Test content',
+          tags: ['test'],
+          previous_memory_uuid: null,
+          next_memory_uuid: null,
+          llm_model_id: 'test-model',
+          created_at: new Date().toISOString()
+        };
 
-      // Wait for invalidation event
-      await new Promise(resolve => setTimeout(resolve, 200));
+        // Store memory
+        await redisCacheService.setMemoryResource(testMemory);
 
-      // Verify key is deleted
-      expect(await testClient.exists(key)).toBe(0);
+        // Verify it exists (keys are namespaced by space)
+        const key = redisKey(`mem:${testMemory.memory_uuid}`);
+        expect(await testClient.exists(key)).toBe(1);
+
+        // Invalidate memory cache
+        await redisCacheService.invalidateMemoryCache(testMemory.memory_uuid);
+
+        // Wait for invalidation event
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Verify key is deleted
+        expect(await testClient.exists(key)).toBe(0);
+      });
 
       // Verify invalidation event was published
       const memoryInvalidations = receivedMessages.filter(m => m.type === 'memory');
@@ -231,24 +249,8 @@ describe('Redis Pub/Sub Integration Tests', () => {
     });
 
     test('should invalidate search cache and publish event', async () => {
-      const query = 'test search';
-      const limit = 5;
-      const searchResult = {
-        memories: [],
-        scores: []
-      };
-
-      // Store search result
-      await redisCacheService.setSearchResult(query, limit, searchResult);
-
-      // Verify it exists (keys are namespaced by space)
-      const key = redisKey(`search:collapsed:${query}:${limit}`);
-      expect(await testClient.exists(key)).toBe(1);
-
-      // Set up subscriber
       const channel = 'cache:invalidation';
       const receivedMessages: Array<{ type: string }> = [];
-      
       await subscriberClient.subscribe(channel, (msg) => {
         try {
           receivedMessages.push(JSON.parse(msg));
@@ -256,17 +258,32 @@ describe('Redis Pub/Sub Integration Tests', () => {
           // Ignore
         }
       });
-
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Invalidate search cache
-      await redisCacheService.invalidateSearchCache();
+      await withDefaultSpace(async () => {
+        const query = 'test search';
+        const limit = 5;
+        const searchResult = {
+          memories: [],
+          scores: []
+        };
 
-      // Wait for invalidation
-      await new Promise(resolve => setTimeout(resolve, 200));
+        // Store search result
+        await redisCacheService.setSearchResult(query, limit, searchResult);
 
-      // Verify key is deleted
-      expect(await testClient.exists(key)).toBe(0);
+        // Verify it exists (keys are namespaced by space)
+        const key = redisKey(`search:collapsed:${query}:${limit}`);
+        expect(await testClient.exists(key)).toBe(1);
+
+        // Invalidate search cache
+        await redisCacheService.invalidateSearchCache();
+
+        // Wait for invalidation
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Verify key is deleted
+        expect(await testClient.exists(key)).toBe(0);
+      });
 
       // Verify invalidation event was published
       const searchInvalidations = receivedMessages.filter(m => m.type === 'search');

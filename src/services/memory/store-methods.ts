@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
-import { getSpaceContext } from '../../utils/tenant-context.js';
+import { getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { DEFAULT_SPACE_ID } from '../../config.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
@@ -148,7 +148,8 @@ export class MemoryQdrantStoreMethods {
     const queryVector = queryEmbeddingResult.embedding;
     const searchLimit = Math.min(limit * 3, 200);
 
-    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
+    const searchSpaceIds = getSearchSpaceIds();
+    const filter = buildSpaceFilter(searchSpaceIds);
     const vectorResults = await this.client.search(this.collection, {
       vector: { name: `vs${queryVector.length}`, vector: queryVector },
       limit: searchLimit,
@@ -195,7 +196,7 @@ export class MemoryQdrantStoreMethods {
   /** Bounded scroll + in-memory label/text contains filter; used when vector results are insufficient. */
   private async keywordSearch(normalizedQuery: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const maxScroll = 500;
-    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
+    const filter = buildSpaceFilter(getSearchSpaceIds());
     const page = await this.client.scroll(this.collection, {
       filter,
       with_payload: true,
