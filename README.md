@@ -31,7 +31,7 @@ KAIROS MCP does not try to be: a general-purpose agent framework or planner; a v
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 cp env.example.txt .env.prod
-# Edit .env.prod (set KEYCLOAK_DB_PASSWORD and KEYCLOAK_ADMIN_PASSWORD if using Keycloak; see env.example.txt)
+# Edit .env.prod (secrets, Keycloak; see env.example.txt)
 docker compose --profile prod up -d
 # For infra-only (Redis, Qdrant, Keycloak): docker compose --env-file .env.prod --profile infra up -d
 ```

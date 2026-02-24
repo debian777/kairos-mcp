@@ -29,7 +29,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Environment Setup
 
-1. Copy `env.example.txt` to `.env.dev` or `.env.qa`
+1. Copy `env.example.txt` to `.env.dev`, `.env.qa`, or `.env.prod`
 2. Configure required environment variables (see `env.example.txt` for details)
 3. Start infrastructure services: `npm run infra:up`
 4. Start development server: `npm run dev:start`
@@ -99,7 +99,7 @@ npm run qa:qdrant-curl     # Qdrant via curl (QA)
 **Infrastructure**
 
 ```bash
-npm run infra:up           # Start infra (Redis, Qdrant, Postgres, Keycloak) and configure Keycloak realms
+npm run infra:up           # Start infra (uses .env.dev; set KEYCLOAK_ADMIN_PASSWORD and KEYCLOAK_DB_PASSWORD there; no .env needed)
 ```
 
 **Code quality**

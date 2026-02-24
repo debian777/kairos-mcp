@@ -61,8 +61,7 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     AUTH_ENABLED_BEFORE="${AUTH_ENABLED:-}"
     [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
     [ -n "${AUTH_ENABLED_BEFORE}" ] && export AUTH_ENABLED="$AUTH_ENABLED_BEFORE"
-    # QA compose needs VOLUME_LOCAL_PATH etc. from .env for variable substitution
-    [ "$ENV" = "qa" ] && [ -f "${PROJECT_DIR}/.env" ] && set -a && source "${PROJECT_DIR}/.env" && set +a
+    # QA: .env.qa is self-contained (Keycloak/compose vars); .env no longer required
 fi
 
 # Validate environment (skip for ensure-coding-rules)
