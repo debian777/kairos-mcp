@@ -6,8 +6,8 @@ services:
     profiles:
       - infra
       - prod
-      # - qa
-      # - dev
+      - qa
+      - dev
     image: redis:7-alpine
     pull_policy: missing
     command: >
@@ -29,8 +29,8 @@ services:
     profiles:
       - infra
       - prod
-      # - qa
-      # - dev
+      - qa
+      - dev
     image: redis/redisinsight:latest
     pull_policy: missing
     depends_on:
@@ -51,8 +51,8 @@ services:
     profiles:
       - infra
       - prod
-      # - qa
-      # - dev
+      - qa
+      - dev
     image: qdrant/qdrant:latest
     pull_policy: missing
     ports:
@@ -89,6 +89,7 @@ services:
       - infra
       - prod
       - keycloak
+      - qa
     image: postgres:16
     env_file:
       - .env.prod
@@ -115,6 +116,7 @@ services:
       - infra
       - prod
       - keycloak
+      - qa
     env_file:
       - .env.prod
     image: quay.io/keycloak/keycloak:26.5.4
@@ -150,6 +152,9 @@ services:
       - "environment=qa"
     env_file:
       - .env.qa
+    depends_on:
+      keycloak:
+        condition: service_started
     ports:
       - "${PORT:-3500}:${PORT:-3500}"
       - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
@@ -158,9 +163,11 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
+      # Keycloak: user-facing URL from .env.qa (localhost:8080); server-side token exchange uses internal URL
+      - KEYCLOAK_INTERNAL_URL=http://keycloak:8080
     volumes:
       - snapshots-qa:/snapshots
-    # No depends_on: Qdrant/Redis run on host or elsewhere; script checks them before start
+    # Qdrant/Redis: start via infra profile or run elsewhere; script checks before start
     networks:
       - kairos-network
     restart: unless-stopped
@@ -190,6 +197,8 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
+      # Keycloak: user-facing URL from .env; server-side token exchange uses internal URL
+      - KEYCLOAK_INTERNAL_URL=http://keycloak:8080
     volumes:
       - snapshots-prod:/snapshots
     depends_on:

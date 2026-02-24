@@ -4,7 +4,7 @@ import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize, kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, getSpaceContextFromStorage, runWithSpaceContext } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 
 interface RegisterKairosMintOptions {
@@ -107,7 +107,7 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
         const docs = [markdown_doc];
         let memories: Memory[] = [];
         try {
-          memories = await runWithSpaceContext(narrowedContext, () =>
+          memories = await runWithSpaceContextAsync(narrowedContext, () =>
             memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update })
           );
         } catch (error) {

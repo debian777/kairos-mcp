@@ -65,11 +65,11 @@ npm run qa:test -- tests/integration/kairos-dump.test.ts
 To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
 
 **Test with auth (Keycloak + kairos-tester)**  
-Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_DEV_URL` is unset), provisions the test user, starts the app with auth, and writes `.test-auth-env.json`. No manual cleanup needed.
+Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_URL` is unset), provisions the test user, starts the app with auth, and writes `.test-auth-env.json`. No manual cleanup needed.
 
 ```bash
 npm run dev:deploy   # build first
-KEYCLOAK_DEV_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
+KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
 ```
 
 **Development environment**
@@ -139,8 +139,8 @@ See [docs/CLI.md](docs/CLI.md) for the KAIROS CLI (installation, configuration, 
 When adding or changing code that touches Qdrant or Redis, ensure:
 
 - **Allowed spaces:** Only from verified token/session (Keycloak `sub` + `groups`). Never trust client-supplied space lists.
-- **Qdrant reads:** Every `search` and `scroll` uses `buildSpaceFilter(getSpaceContext().allowedSpaceIds, ...)`. Every retrieve-by-id is followed by a check that the point's `space_id` is in `allowedSpaceIds`; otherwise treat as not found (404).
-- **Qdrant writes:** Every upsert includes `space_id` from `getSpaceContext().defaultWriteSpaceId` or a validated param. No upsert without a server-derived `space_id`.
+- **Qdrant reads:** Search uses `getSearchSpaceIds()` (allowedSpaceIds + Kairos app space) so protocol discovery includes app-provided protocols. Other `scroll`/filter operations use `getSpaceContext().allowedSpaceIds`. Every retrieve-by-id is followed by a check that the point's `space_id` is in `allowedSpaceIds`; otherwise treat as not found (404).
+- **Qdrant writes:** Every upsert includes `space_id` from `getSpaceContext().defaultWriteSpaceId` or a validated param. No upsert without a server-derived `space_id`. The Kairos app space is read-only for users (writes only at boot via injectMemResourcesAtBoot).
 - **Redis:** Keys are namespaced by space via `getKey()` (prefix + space id + key). Request runs inside `runWithSpaceContext()` so `getSpaceIdFromStorage()` is set by auth middleware.
 - **Optional space param:** HTTP query `space` / `space_id` and MCP tool args must be validated against `allowedSpaceIds`; invalid → 400/403.
 
@@ -180,6 +180,7 @@ When contributing **MCP tools**, **agent-facing REST APIs**, or changes to tool 
 
 - **Frontend (MCP tools, schemas, descriptions):** Optimize for agent comprehension and execution.
 - **Backend:** Orchestrate complexity: business logic, validation, retries, idempotency, and state.
+- **Spaces: names at the frontend, ids in the backend.** Tool parameters and tool/API responses that refer to spaces use **names** (e.g. `"personal"`, group name, `"Kairos app"`). The backend resolves names to space **ids** and uses only ids for Qdrant filters, Redis keys, and storage. Agents never see or echo raw space ids unless required for debugging; the interface stays name-based.
 
 ### 4. Outputs designed for execution
 

@@ -7,9 +7,6 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const AUTH_ENV_FILE = '.test-auth-env.json';
-const QA_REALM = 'kairos-qa';
-const REALM = 'kairos-dev';
-const CLIENT_ID = 'kairos-mcp';
 const TEST_USERNAME = 'kairos-tester';
 const TEST_PASSWORD = 'kairos-tester-secret';
 
@@ -17,6 +14,8 @@ interface TestAuthEnv {
   bearerToken?: string;
   baseUrl?: string;
   keycloakUrl?: string;
+  /** Space of kairos-tester (user:realm:sub from token); use for kairos_search space_id so tests use actual test user scope */
+  spaceId?: string;
 }
 
 let cached: TestAuthEnv | null | undefined = undefined;
@@ -72,22 +71,16 @@ async function fetchKeycloakToken(
 
 /**
  * Fetch a fresh Keycloak token and update .test-auth-env.json.
- * Uses KEYCLOAK_DEV_* (ENV=dev) or KEYCLOAK_QA_* (ENV=qa). Returns true if refreshed.
+ * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env (e.g. .env.dev or .env.qa). Returns true if refreshed.
  */
 export async function refreshTestAuthToken(): Promise<boolean> {
   if (process.env.AUTH_ENABLED !== 'true') return false;
   const env = readAuthEnv();
   if (!env?.baseUrl || !env?.keycloakUrl) return false;
-  const isQa = process.env.ENV === 'qa';
-  const keycloakUrl = (isQa ? process.env.KEYCLOAK_QA_URL : process.env.KEYCLOAK_DEV_URL)?.replace(
-    /\/$/,
-    ''
-  );
-  if (!keycloakUrl) return false;
-  const realm =
-    (isQa ? process.env.KEYCLOAK_QA_REALM : process.env.KEYCLOAK_DEV_REALM) ?? (isQa ? QA_REALM : REALM);
-  const clientId =
-    (isQa ? process.env.KEYCLOAK_QA_CLIENT_ID : process.env.KEYCLOAK_DEV_CLIENT_ID) ?? CLIENT_ID;
+  const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '');
+  const realm = process.env.KEYCLOAK_REALM?.trim();
+  const clientId = process.env.KEYCLOAK_CLIENT_ID?.trim();
+  if (!keycloakUrl || !realm || !clientId) return false;
   try {
     const token = await fetchKeycloakToken(
       keycloakUrl,
@@ -116,7 +109,7 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 /**
- * Base URL for the app. When AUTH_ENABLED=true and .test-auth-env.json exists, use its baseUrl (auth server on 3301 / QA 3500); otherwise http://localhost:PORT.
+ * Base URL for the app. When AUTH_ENABLED=true and .test-auth-env.json exists, use its baseUrl (auth server on 3300 / QA 3500); otherwise http://localhost:PORT.
  */
 export function getTestAuthBaseUrl(): string {
   if (process.env.AUTH_ENABLED === 'true') {
@@ -135,6 +128,11 @@ export function serverRequiresAuth(): boolean {
 /** True when we have a token (e.g. .test-auth-env.json written by globalSetup). */
 export function hasAuthToken(): boolean {
   return readAuthEnv()?.bearerToken != null;
+}
+
+/** Space ID of kairos-tester (user:realm:sub) when AUTH_ENABLED and token present. Pass as space_id to kairos_search so tests use actual test user scope. */
+export function getTestSpaceId(): string | undefined {
+  return readAuthEnv()?.spaceId ?? undefined;
 }
 
 /**

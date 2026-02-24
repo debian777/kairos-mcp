@@ -4,7 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { resolveChainNextStep, resolveChainFirstStep } from '../services/chain-utils.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
@@ -96,6 +96,8 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
     },
     async (params: any) => {
       const tenantId = getTenantId();
+      const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
+      structuredLogger.debug(`kairos_begin space_id=${spaceId}`);
       const inputSize = JSON.stringify(params).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       

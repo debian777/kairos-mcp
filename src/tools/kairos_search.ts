@@ -5,7 +5,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, runWithOptionalSpace, getSpaceContextFromStorage } from '../utils/tenant-context.js';
+import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import { SCORE_THRESHOLD } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
@@ -263,7 +263,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         return structured;
       };
       try {
-        return runWithOptionalSpace(spaceParam, async () => {
+        return runWithOptionalSpaceAsync(spaceParam, async () => {
           const normalizedQuery = (query || '').trim().toLowerCase();
           const ctxInCallback = getSpaceContextFromStorage();
           structuredLogger.debug(`kairos_search executing space_id=${ctxInCallback?.defaultWriteSpaceId ?? 'default'}`);

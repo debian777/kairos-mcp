@@ -1,8 +1,10 @@
 /**
  * Bearer JWT validation for OIDC (Keycloak). Verifies iss, aud, exp and signature via JWKS.
+ * When KEYCLOAK_INTERNAL_URL is set, JWKS is fetched from that host so the app in Docker can reach Keycloak.
  */
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { decodeJwt } from 'jose/jwt/decode';
+import { KEYCLOAK_URL, KEYCLOAK_INTERNAL_URL } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
 export interface AuthPayload {
@@ -16,10 +18,20 @@ export interface AuthPayload {
 
 const JWKS_CACHE = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
+/** Resolve JWKS fetch URL: use KEYCLOAK_INTERNAL_URL when token issuer is user-facing (localhost) so Docker app can reach Keycloak. */
+function getJwksFetchUrl(issuer: string): string {
+  const base = issuer.replace(/\/$/, '');
+  if (KEYCLOAK_INTERNAL_URL && KEYCLOAK_URL && base.startsWith(KEYCLOAK_URL.replace(/\/$/, ''))) {
+    const internalBase = KEYCLOAK_INTERNAL_URL.replace(/\/$/, '');
+    return `${internalBase}${new URL(base).pathname}/protocol/openid-connect/certs`;
+  }
+  return `${base}/protocol/openid-connect/certs`;
+}
+
 function getJwksForIssuer(issuer: string): ReturnType<typeof createRemoteJWKSet> {
   const cached = JWKS_CACHE.get(issuer);
   if (cached) return cached;
-  const url = `${issuer.replace(/\/$/, '')}/protocol/openid-connect/certs`;
+  const url = getJwksFetchUrl(issuer);
   const jwks = createRemoteJWKSet(new URL(url));
   JWKS_CACHE.set(issuer, jwks);
   return jwks;

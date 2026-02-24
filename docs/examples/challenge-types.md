@@ -30,3 +30,5 @@ When the server returns a challenge, the agent submits a solution in `kairos_nex
 | **comment** | `type: "comment"`, `comment: { text }` | `text.length` ≥ challenge `min_length` (and optional semantic check) |
 
 Always echo `nonce` and `proof_hash` from the challenge (or previous response) when present; the server generates them.
+
+For execution semantics (how to perform each challenge type, not infer or fabricate), see the kairos_begin / kairos_next tool descriptions.

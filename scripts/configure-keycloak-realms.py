@@ -237,13 +237,14 @@ def _docker_container_ip_on_network(service_name: str) -> str | None:
 
 
 def get_trusted_hosts_for_env(env: str) -> list[str]:
-    """Trusted hosts: IP only (no port/wildcard) plus localhost. Keycloak requires valid IPs."""
+    """Trusted hosts: IP only (no port/wildcard) plus localhost. Keycloak requires valid IPs.
+    Docker gateway (e.g. 172.18.0.1) is added for dev/qa/prod so requests from the host are trusted."""
     base = ["127.0.0.1", "localhost"]
+    gateway = _docker_network_gateway()
+    if gateway:
+        base.append(gateway)
     if env == "dev":
-        gateway = _docker_network_gateway()
-        if gateway:
-            base.append(gateway)
-        else:
+        if not gateway:
             print(
                 "WARNING: Docker network gateway not found; only 127.0.0.1 trusted for dev.",
                 file=sys.stderr,

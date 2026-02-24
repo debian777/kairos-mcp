@@ -65,4 +65,6 @@ export default {
     globalTeardown: '<rootDir>/tests/global-teardown-auth.ts',
     // Global test timeout
     testTimeout: 10000,
+    // Run mint/update tests before v2-kairos-search (which depends on them)
+    testSequencer: '<rootDir>/tests/test-sequencer.cjs',
 };

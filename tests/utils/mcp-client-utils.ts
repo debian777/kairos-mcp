@@ -9,10 +9,12 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { waitForHealthCheck } from './health-check.js';
 import { getTestAuthBaseUrl, getTestBearerToken } from './auth-headers.js';
 
-/** Base URL: from .test-auth-env.json when auth test server runs (e.g. 3301), else MCP_URL or localhost:3300. */
-const MCP_BASE = getTestAuthBaseUrl().replace(/\/$/, '');
-const MCP_URL = `${MCP_BASE}/mcp`;
-const HEALTH_URL = process.env.HEALTH_URL || `${MCP_BASE}/health`;
+/** Base URL of the app (same server for MCP and health). From MCP_URL env or getTestAuthBaseUrl() (e.g. .test-auth-env.json when auth server runs). */
+const BASE_URL = process.env.MCP_URL
+  ? process.env.MCP_URL.replace(/\/mcp\/?$/, '').replace(/\/$/, '')
+  : getTestAuthBaseUrl().replace(/\/$/, '');
+const MCP_URL = `${BASE_URL}/mcp`;
+const HEALTH_URL = process.env.HEALTH_URL || `${BASE_URL}/health`;
 
 // McpConnection JSDoc typedef (converted from TypeScript interface)
 /**

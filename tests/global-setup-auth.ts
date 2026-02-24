@@ -1,6 +1,6 @@
 /**
  * Jest globalSetup when AUTH_ENABLED=true.
- * Dev: starts auth test server on 3301 (or uses existing Keycloak). QA: uses existing QA server on 3500, no spawn.
+ * Dev: starts auth test server on PORT (from .env.dev). QA: uses existing server on PORT (from .env.qa), no spawn.
  * Cleans stale auth state at start so tests never rely on old tokens or wrong baseUrl.
  */
 
@@ -16,9 +16,26 @@ import {
 
 const AUTH_ENV_FILE = '.test-auth-env.json';
 const AUTH_STATE_FILE = '.test-auth-state.json';
-/** Dev: auth test server on 3301 to avoid conflict with dev server on 3300. QA uses 3500 (no spawn). */
-const DEV_AUTH_TEST_PORT = 3301;
-const QA_APP_PORT = 3500;
+
+/** Decode JWT payload (no verify) to get space for kairos-tester: user:realm:sub */
+function spaceIdFromToken(token: string): string | undefined {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return undefined;
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string; realm?: string; iss?: string };
+    const sub = payload.sub;
+    if (!sub || typeof sub !== 'string') return undefined;
+    let realm = payload.realm;
+    if (!realm && typeof payload.iss === 'string') {
+      const m = payload.iss.match(/\/realms\/([^/]+)/);
+      realm = m ? m[1] : 'default';
+    }
+    realm = realm ?? 'default';
+    return `user:${realm}:${sub}`;
+  } catch {
+    return undefined;
+  }
+}
 
 interface AuthState {
   containerId?: string;
@@ -93,14 +110,29 @@ export default async function globalSetup(): Promise<void> {
   if (process.env.AUTH_ENABLED !== 'true') return;
 
   const isQa = process.env.ENV === 'qa';
+  const port = process.env.PORT || (isQa ? '3500' : '3300');
 
   if (isQa) {
-    const baseUrl = `http://localhost:${QA_APP_PORT}`;
+    const baseUrl = `http://localhost:${port}`;
+    const keycloakUrl = process.env.KEYCLOAK_URL?.trim() ?? '';
+    if (!keycloakUrl) {
+      // No Keycloak configured for QA: write baseUrl only so tests hit QA app; auth tests accept 200/401
+      writeFileSync(
+        join(process.cwd(), AUTH_ENV_FILE),
+        JSON.stringify({ baseUrl })
+      );
+      writeFileSync(
+        join(process.cwd(), AUTH_STATE_FILE),
+        JSON.stringify({ containerId: undefined, serverPid: undefined })
+      );
+      return;
+    }
     const env = await useExistingKeycloakForQa();
     const bearerToken = await env.getTestUserToken();
+    const spaceId = spaceIdFromToken(bearerToken);
     writeFileSync(
       join(process.cwd(), AUTH_ENV_FILE),
-      JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl })
+      JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl, ...(spaceId && { spaceId }) })
     );
     writeFileSync(
       join(process.cwd(), AUTH_STATE_FILE),
@@ -110,8 +142,8 @@ export default async function globalSetup(): Promise<void> {
   }
 
   const useExisting =
-    process.env.KEYCLOAK_DEV_URL != null && process.env.KEYCLOAK_DEV_URL.trim() !== '';
-  const baseUrl = `http://localhost:${DEV_AUTH_TEST_PORT}`;
+    process.env.KEYCLOAK_URL != null && process.env.KEYCLOAK_URL.trim() !== '';
+  const baseUrl = `http://localhost:${port}`;
 
   const env = useExisting
     ? await useExistingKeycloakFromEnv()
@@ -122,15 +154,15 @@ export default async function globalSetup(): Promise<void> {
   const serverEnv: Record<string, string> = {
     ...process.env,
     AUTH_ENABLED: 'true',
-    KEYCLOAK_DEV_URL: env.keycloakUrl,
-    KEYCLOAK_DEV_REALM: env.realm,
-    KEYCLOAK_DEV_CLIENT_ID: env.clientId,
+    KEYCLOAK_URL: env.keycloakUrl,
+    KEYCLOAK_REALM: env.realm,
+    KEYCLOAK_CLIENT_ID: env.clientId,
     AUTH_CALLBACK_BASE_URL: baseUrl,
     SESSION_SECRET: 'test-secret-min-32-chars-for-signing-cookies',
     AUTH_MODE: 'oidc_bearer',
     AUTH_TRUSTED_ISSUERS: `${env.keycloakUrl}/realms/${env.realm}`,
     AUTH_ALLOWED_AUDIENCES: env.clientId,
-    PORT: String(DEV_AUTH_TEST_PORT)
+    PORT: port
   };
 
   const serverPath = join(process.cwd(), 'dist/index.js');
@@ -153,9 +185,10 @@ export default async function globalSetup(): Promise<void> {
     throw err;
   }
 
+  const spaceId = spaceIdFromToken(bearerToken);
   writeFileSync(
     join(process.cwd(), AUTH_ENV_FILE),
-    JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl })
+    JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl, ...(spaceId && { spaceId }) })
   );
   writeFileSync(
     join(process.cwd(), AUTH_STATE_FILE),

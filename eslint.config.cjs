@@ -93,6 +93,7 @@ module.exports = [
       '**/.cursor/**',
       'env.example.txt',
       'env.dev.example',
+      'env.qa.example',
       '**/snapshots/**',
       '**/*.snapshot'
     ],

@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import {
   AUTH_ENABLED,
   KEYCLOAK_URL,
+  KEYCLOAK_INTERNAL_URL,
   KEYCLOAK_REALM,
   KEYCLOAK_CLIENT_ID,
   AUTH_CALLBACK_BASE_URL,
@@ -40,7 +41,7 @@ export function setupAuthCallback(app: express.Express): void {
     if (!AUTH_ENABLED || !KEYCLOAK_URL || !SESSION_SECRET || !AUTH_CALLBACK_BASE_URL) {
       res.status(503).json({
         error: 'Auth not configured',
-        message: 'AUTH_ENABLED, KEYCLOAK_DEV_URL, SESSION_SECRET, and AUTH_CALLBACK_BASE_URL are required. Set in .env (see env.example.txt).'
+        message: 'AUTH_ENABLED, KEYCLOAK_URL, SESSION_SECRET, and AUTH_CALLBACK_BASE_URL are required. Set in .env (see env.example.txt).'
       });
       return;
     }
@@ -57,7 +58,7 @@ export function setupAuthCallback(app: express.Express): void {
       res.redirect(302, '/?error=invalid_state');
       return;
     }
-    const base = KEYCLOAK_URL.replace(/\/$/, '');
+    const keycloakBase = (KEYCLOAK_INTERNAL_URL || KEYCLOAK_URL).replace(/\/$/, '');
     const redirectUri = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/auth/callback`;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -68,7 +69,7 @@ export function setupAuthCallback(app: express.Express): void {
     });
     let tokenRes: globalThis.Response;
     try {
-      tokenRes = await fetch(`${base}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+      tokenRes = await fetch(`${keycloakBase}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString()
