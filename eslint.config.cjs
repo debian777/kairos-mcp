@@ -60,6 +60,7 @@ module.exports = [
       'build/**',
       'coverage/**',
       'cache/**',
+      '.cache/**',
       '.ai/**',
       '.git',
       '.git/**',
