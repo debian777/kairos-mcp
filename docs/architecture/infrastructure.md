@@ -366,14 +366,6 @@ flowchart TD
     DIM -->|"yes"| VEC[("🧠 Qdrant vector store")]
     DIM -->|"no — introspect"| INTRO["GET /info — auto-detect dim"]
     INTRO --> VEC
-
-    classDef decision fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
-    classDef provider fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:2px
-    classDef store    fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
-
-    class AUTO,DIM decision
-    class TEI,OAI provider
-    class VEC store
 ```
 
 ---

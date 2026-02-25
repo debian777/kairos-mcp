@@ -224,7 +224,9 @@ start() {
             if [[ "${EMBEDDING_PROVIDER:-}" != "openai" ]] && [[ -z "${OPENAI_API_KEY:-}" || -n "${TEI_BASE_URL:-}" ]]; then
                 check_tei || { print_error "QA requires TEI when not using OpenAI embeddings"; exit 1; }
             fi
-            docker-compose -f compose.yaml --env-file ".env" --env-file ".env.qa" --profile qa up -d
+            COMPOSE_ENV=""
+            [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
+            docker-compose -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" --profile qa up -d
             print_success "QA environment started on http://localhost:$PORT"
             show_urls
 
@@ -294,7 +296,9 @@ stop() {
             fi
             ;;
         qa)
-            docker-compose -f compose.yaml --env-file ".env"  --env-file ".env.qa" down && print_success "QA environment stopped"
+            COMPOSE_ENV=""
+            [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
+            docker-compose -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" down && print_success "QA environment stopped"
             ;;
         prod)
             print_info "Prod is not stopped from this script."
