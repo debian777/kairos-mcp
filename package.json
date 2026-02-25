@@ -83,8 +83,7 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "prebuild": "npm ci && npm run verify:clean && npx ts-node scripts/embed-docs.ts",
     "verify:clean": "node scripts/verify-clean-source.mjs",
-    "prepare": "husky",
-    "postinstall": "bash -c '[ -f scripts/copy-env-from-main.sh ] && ( [ ! -f .env ] && [ ! -f .env.dev ] ) && ./scripts/copy-env-from-main.sh; true'"
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",

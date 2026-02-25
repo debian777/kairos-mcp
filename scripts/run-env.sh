@@ -410,7 +410,7 @@ test() {
         dev)
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
@@ -418,7 +418,7 @@ test() {
         qa)
             # deploy - now need to run manually: npm run qa:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE" 
+                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             else
                 MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             fi
