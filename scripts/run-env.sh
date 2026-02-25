@@ -186,21 +186,21 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
-            # Start the dev server with configured logging
+            # Start the dev server with configured logging (export PORT so Node sees it)
+            dev_port="${PORT:-3300}"
             case "$LOG_TARGET" in
                 file)
-                    LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    LOG_LEVEL=debug node --loader ts-node/esm src/index.ts &
+                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts &
                     ;;
                 both)
-                    LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 
             # Resolve actual dev server PID via listening port (like stop target)
-            dev_port="${PORT:-3300}"
             if command -v lsof >/dev/null 2>&1; then
                 # Give the server a moment to bind to the port
                 sleep 1
