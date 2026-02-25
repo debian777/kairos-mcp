@@ -121,7 +121,7 @@ export function getQdrantUrl(): string {
   return getEnvRequired('QDRANT_URL');
 }
 
-export function getQdrantCollection(defaultValue = 'kb_resources'): string {
+export function getQdrantCollection(defaultValue = 'kairos'): string {
   return getEnvString('QDRANT_COLLECTION', defaultValue);
 }
 

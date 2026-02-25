@@ -55,6 +55,13 @@ ENV_FILE="${PROJECT_DIR}/.env.${ENV}"
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
+# In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
+if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$ENV_FILE" ]; then
+    if [ -f "${PROJECT_DIR}/scripts/copy-env-from-main.sh" ]; then
+        "${PROJECT_DIR}/scripts/copy-env-from-main.sh" || true
+    fi
+fi
+
 # Load environment (skip if ensure-coding-rules doesn't need it)
 # Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=true npm run dev:test)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
@@ -130,7 +137,7 @@ show_urls() {
     echo "- Qdrant:"
     echo "  · URL:       ${qdrant}"
     echo "  · Health:    ${qdrant}/healthz"
-    echo "  · Collection: ${QDRANT_COLLECTION:-kb_resources}"
+    echo "  · Collection: ${QDRANT_COLLECTION:-kairos}"
     echo "  · API key:   ${qkey_msg} (env: \$QDRANT_API_KEY)"
 
     # TEI (only if not using OpenAI embeddings)
@@ -186,17 +193,17 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
-            # Start the dev server with configured logging (export PORT so Node sees it)
+            # Start the dev server with env from .env.dev so OPENAI_API_KEY etc are set (CI and local)
             dev_port="${PORT:-3300}"
             case "$LOG_TARGET" in
                 file)
-                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts &
                     ;;
                 both)
-                    PORT="$dev_port" LOG_LEVEL=debug node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 
@@ -403,7 +410,7 @@ test() {
         dev)
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 ----testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
@@ -411,7 +418,7 @@ test() {
         qa)
             # deploy - now need to run manually: npm run qa:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 ----testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE" 
+                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPattern "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             else
                 MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
             fi
@@ -568,7 +575,7 @@ help() {
     echo "  PORT               - App port (from .env.* files)"
     echo "  QDRANT_URL         - Qdrant base URL (default http://localhost:6333)"
     echo "  \$QDRANT_API_KEY    - Qdrant API key (sent as 'api-key' header)"
-    echo "  QDRANT_COLLECTION  - Qdrant collection name (default kb_resources)"
+    echo "  QDRANT_COLLECTION  - Qdrant collection name (default kairos)"
     echo "  TEI_BASE_URL       - TEI base URL (default http://localhost:8080)"
     echo "  REDIS_URL          - Redis connection URL (default redis://localhost:6379)"
     echo "  KAIROS_REDIS_PREFIX    - Redis key prefix for namespacing (default kb:)"

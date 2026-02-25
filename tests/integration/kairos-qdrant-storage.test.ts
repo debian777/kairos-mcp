@@ -6,7 +6,7 @@ import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
-const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kb_resources';
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
 
 function postJson<T>(urlString: string, payload: unknown): Promise<T> {
   return new Promise((resolve, reject) => {

@@ -7,13 +7,14 @@ alwaysApply: true
 
 This workspace is a **git worktree**. Environment files (`.env`, `.env.dev`, `.env.qa`, `.env.prod`) are not shared across worktrees.
 
-**When working in this workspace:**
+**Automatic behaviour (no manual step needed):**
 
-1. **If `.env` or `.env.qa` (or other `.env*`) are missing** or the user asks to set up env / copy env from main:
-   - Run `./scripts/copy-env-from-main.sh` to copy all `.env*` from the main worktree into this directory.
-   - Or tell the user to run the task **"Copy .env from main"** (Terminal → Run Task… → Copy .env from main).
+- **First `npm run dev:*` or `npm run qa:*`** (e.g. `dev:deploy`, `dev:restart`, `qa:start`): if `.env.<ENV>` is missing, `run-env.sh` runs `./scripts/copy-env-from-main.sh` and then continues. So the first dev/qa command in a new worktree copies env from the main worktree.
+- **First `npm install` / `npm ci`** in the worktree: `postinstall` runs `copy-env-from-main.sh` when both `.env` and `.env.dev` are missing, so env is in place before you run any dev command.
 
-2. **If the user says "copy env from main" or "sync env":**
-   - Run `./scripts/copy-env-from-main.sh` (or suggest the task).
+**When to run the script manually:**
 
-The script resolves the main worktree via `git worktree list` (first line) and copies every `.env*` file from there into the current workspace root. It is safe to run when already in the main worktree (no-op).
+- **"Copy env from main" / "sync env"**: run `./scripts/copy-env-from-main.sh` to refresh `.env*` from the main worktree (e.g. after changing secrets in main).
+- Or use the task **"Copy .env from main"** (Terminal → Run Task… → Copy .env from main).
+
+The script resolves the main worktree via `git worktree list` (first line) and copies every `.env*` file from there. Safe to run in the main worktree (no-op).

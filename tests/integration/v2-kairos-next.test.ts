@@ -8,7 +8,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
-const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kb_resources';
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
 
 async function getPointPayload(pointId: string): Promise<Record<string, unknown> | null> {
   try {
