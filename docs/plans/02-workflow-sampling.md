@@ -102,6 +102,7 @@ Exact parameter names and shapes follow the MCP client sampling specification; t
 
 - **From client:** The LLM output (e.g. a string that should be valid JSON).
 - **Validation:** Parse JSON (if expected), check required keys (e.g. `resolved`), optional type checks. If validation fails, the server does not advance and returns a clear error and retry instructions to the agent/client.
+- **Optional — output files:** For steps that produce or change files, the server can verify outcomes using [MCP client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots): request `roots/list` to get `file://` URIs the client exposes, then read or list within those roots to confirm expected files exist or match expectations.
 
 ---
 

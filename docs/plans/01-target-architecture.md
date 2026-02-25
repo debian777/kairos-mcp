@@ -1,6 +1,12 @@
 # Target architecture (goal state)
 
-This document describes the architecture **after** kairos-mcp is extended with MCP client sampling. The KAIROS server acts as a **director**: it defines exact challenge prompts, requests LLM execution through the client via sampling, and validates structured output before advancing the protocol. The client keeps control of models and API keys; the server never calls an LLM directly.
+This document describes the architecture **after** kairos-mcp is extended with MCP client sampling.
+
+## Goal
+
+**Replace client-side challenges with server-side sampling.** Today the client (agent) must figure out how to satisfy each challenge and submit a solution. In the goal state the **server** sends a fixed prompt to the client, the client runs the LLM and returns the output, and the **server verifies on its own** (e.g. JSON shape, required fields). The server no longer depends on the agent to “guess” the right solution; it receives the LLM output and validates it before advancing. Optionally the server can also verify **output files** using [MCP client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots) (see below).
+
+The KAIROS server acts as a **director**: it defines exact challenge prompts, requests LLM execution through the client via sampling, and validates structured output (and optionally file outcomes) before advancing. The client keeps control of models and API keys; the server never calls an LLM directly.
 
 ---
 
@@ -100,6 +106,14 @@ flowchart LR
 - **Server-side validation:** Server validates LLM output (e.g. JSON) before advancing; no advance on validation failure.
 - **Approval modes:** Per-step or per-request `approvalMode`: user approval vs `"auto"` when client policy allows (e.g. `allowAutoSampling: ["kairos-mcp"]`).
 - **Session handover:** Optional file (e.g. `kairos-session-handover.txt`) with SESSION_ID, current_challenge, partial state for resumability across restarts or client switches.
+- **Optional: verifying output files via MCP roots:** For steps that produce or change files (e.g. “create project”, “write config”), the server can use [MCP client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots) to check outcomes. The client exposes filesystem roots via `roots/list` (`file://` URIs); the server can then read or list paths within those roots (via MCP resources or tools the client provides) to verify that expected files exist, have expected content, or match a schema. This keeps verification server-driven instead of relying on the agent to report file results.
+
+---
+
+## Future possibilities
+
+- **AI verification of output on the server:** Beyond schema/structural validation, the server could use an LLM to verify sampling output (e.g. “does this response satisfy the challenge?”, semantic or quality checks). The stack already uses OpenAI and Qdrant; the same or a dedicated model could be invoked server-side for verification. This would remain optional and configurable so that simple steps keep fast, deterministic checks only.
+- **Second model:** The current model may be limiting for verification or sampling-related workloads. A second model could be added later, e.g. a new OpenAI key/model or a local model such as Qwen 3.5. Exact choice (cloud vs local) is left for future implementation.
 
 ---
 

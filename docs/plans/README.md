@@ -1,6 +1,8 @@
 # KAIROS MCP — Target architecture plans
 
-This directory holds **goal-state** documentation: the architecture and workflows **after** kairos-mcp is extended with MCP client sampling. It does **not** describe how to implement or migrate; that will be a separate plan.
+This directory holds **goal-state** documentation: the architecture and workflows **after** kairos-mcp is extended with MCP client sampling.
+
+**Goal:** Replace **client-side challenges** with **server-side sampling**. The server sends a fixed prompt to the client, receives the LLM output, and **verifies on its own** (structured output and, optionally, output files via [MCP client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots)). It does **not** describe how to implement or migrate; that will be a separate plan.
 
 ## Scope
 
@@ -28,5 +30,6 @@ This directory holds **goal-state** documentation: the architecture and workflow
 
 - [MCP Specification (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25)
 - [MCP Client sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) — servers request LLM calls through clients; prompts and approval modes.
+- [MCP Client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots) — clients expose filesystem roots (`roots/list`, `file://` URIs); servers can use them to verify output files.
 - For up-to-date library/docs: use **Context7** with query “modelcontextprotocol sampling”.
 
