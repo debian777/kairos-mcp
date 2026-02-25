@@ -7,7 +7,6 @@ This document describes the architecture **after** kairos-mcp is extended with M
 **Replace client-side challenges with server-side sampling.** Today the client (agent) must figure out how to satisfy each challenge and submit a solution. In the goal state the **server** sends a fixed prompt to the client, the client runs the LLM and returns the output, and the **server verifies on its own** (e.g. JSON shape, required fields). The server no longer depends on the agent to “guess” the right solution; it receives the LLM output and validates it before advancing. Optionally the server can also verify **output files** using [MCP client roots](https://modelcontextprotocol.io/specification/2025-11-25/client/roots) (see below).
 
 The KAIROS server acts as a **director**: it defines exact challenge prompts, requests LLM execution through the client via sampling, and validates structured output (and optionally file outcomes) before advancing. The client keeps control of models and API keys; the server never calls an LLM directly.
-
 ---
 
 ## Roles
