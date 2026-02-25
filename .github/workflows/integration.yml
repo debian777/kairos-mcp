@@ -88,9 +88,9 @@ jobs:
 
       - name: Wait for Keycloak
         run: |
-          for i in $(seq 1 60); do
-            curl -sSf -o /dev/null http://localhost:8080/health/ready && break
-            [ $i -eq 60 ] && exit 1
+          for i in $(seq 1 90); do
+            curl -sSf -o /dev/null http://localhost:9000/health/ready && break
+            [ $i -eq 90 ] && exit 1
             sleep 2
           done
 
