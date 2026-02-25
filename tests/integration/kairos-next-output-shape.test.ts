@@ -139,7 +139,7 @@ describe('kairos_next response schema', () => {
         expect(payload.challenge.shell.cmd).toContain('step2');
       }
       expect(typeof payload.next_action).toBe('string');
-      expect(payload.next_action).toMatch(/run complete/i);
+      expect(payload.next_action).toMatch(/kairos_attest/i);
       // V1 fields must NOT exist
       expect(payload.final_challenge).toBeUndefined();
       expect(payload.protocol_status).toBeUndefined();

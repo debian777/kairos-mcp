@@ -71,8 +71,8 @@ function buildKairosBeginPayload(
   if (nextStepUri) {
     payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    payload.message = 'Run complete.';
-    payload.next_action = 'Run complete.';
+    payload.message = 'Single-step protocol. Call kairos_attest to finalize.';
+    payload.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
   }
 
   return payload;

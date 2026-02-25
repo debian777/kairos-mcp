@@ -1,7 +1,7 @@
 # kairos_attest workflow
 
 **Deprecated in the default protocol.** The run is complete when the last
-`kairos_next` returns `next_action: "Run complete."`. Quality is updated
+`kairos_next` (or `kairos_begin` for single-step) returns `next_action` directing you to call `kairos_attest`. Quality is updated
 per step in `kairos_next`; you do not need to call `kairos_attest`. This
 tool remains available for optional override (e.g. to set outcome or add a
 final message after the fact) or backward compatibility.

@@ -26,6 +26,8 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
   function expectValidJsonResult(result) {
     return parseMcpJson(result, '[kairos_mint heading sanitization] raw MCP result');
   }
+  const shellBlock = (cmd: string, timeout = 20) =>
+    `\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"${cmd}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
 
   test('sanitizes STEP patterns and numbering from H2 headings', async () => {
     const timestamp = Date.now();
@@ -33,23 +35,19 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
 
 ## STEP 1 — ESTABLISH BASELINE
 This is step one content.
-
-PROOF OF WORK: timeout 20s echo baseline
+${shellBlock('echo baseline')}
 
 ## Step 07: Hygiene
 This is step two content.
-
-PROOF OF WORK: timeout 20s echo hygiene
+${shellBlock('echo hygiene')}
 
 ## 3. Commit
 This is step three content.
-
-PROOF OF WORK: timeout 20s echo commit
+${shellBlock('echo commit')}
 
 ## 007 — Final Step
 This is step four content.
-
-PROOF OF WORK: timeout 20s echo final-step
+${shellBlock('echo final-step')}
 `;
 
     const result = await mcpConnection.client.callTool({
@@ -92,32 +90,27 @@ PROOF OF WORK: timeout 20s echo final-step
 
 ## Step A
 Content for first protocol step A.
-
-PROOF OF WORK: timeout 15s echo first-a
+${shellBlock('echo first-a', 15)}
 
 ## Step B
 Content for first protocol step B.
-
-PROOF OF WORK: timeout 15s echo first-b
+${shellBlock('echo first-b', 15)}
 
 # Second Protocol ${timestamp}
 
 ## Step X
 Content for second protocol step X.
-
-PROOF OF WORK: timeout 15s echo second-x
+${shellBlock('echo second-x', 15)}
 
 ## Step Y
 Content for second protocol step Y.
-
-PROOF OF WORK: timeout 15s echo second-y
+${shellBlock('echo second-y', 15)}
 
 # Third Protocol ${timestamp}
 
 ## Step 1 — Third Protocol Step
 Content for third protocol step 1.
-
-PROOF OF WORK: timeout 15s echo third-1
+${shellBlock('echo third-1', 15)}
 `;
 
     const result = await mcpConnection.client.callTool({
@@ -177,23 +170,19 @@ PROOF OF WORK: timeout 15s echo third-1
 
 ## STEP 1 — Foo
 Content for step 1.
-
-PROOF OF WORK: timeout 25s echo foo
+${shellBlock('echo foo', 25)}
 
 ## Step 99: Bar
 Content for step 2.
-
-PROOF OF WORK: timeout 25s echo bar
+${shellBlock('echo bar', 25)}
 
 ## 007 — Baz
 Content for step 3.
-
-PROOF OF WORK: timeout 25s echo baz
+${shellBlock('echo baz', 25)}
 
 ## Normal Step
 Content for step 4.
-
-PROOF OF WORK: timeout 25s echo normal
+${shellBlock('echo normal', 25)}
 `;
 
     const result = await mcpConnection.client.callTool({
@@ -236,23 +225,19 @@ PROOF OF WORK: timeout 25s echo normal
 
 ## STEP 1 — Foo
 Content for Foo step.
-
-PROOF OF WORK: timeout 25s echo foo-step
+${shellBlock('echo foo-step', 25)}
 
 ## Step 99: Bar
 Content for Bar step.
-
-PROOF OF WORK: timeout 25s echo bar-step
+${shellBlock('echo bar-step', 25)}
 
 ## 007 — Baz
 Content for Baz step.
-
-PROOF OF WORK: timeout 25s echo baz-step
+${shellBlock('echo baz-step', 25)}
 
 ## Normal Step
 Content for Normal Step.
-
-PROOF OF WORK: timeout 25s echo normal-step
+${shellBlock('echo normal-step', 25)}
 `;
 
     const result = await mcpConnection.client.callTool({

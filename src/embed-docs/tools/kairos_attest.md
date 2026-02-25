@@ -1,7 +1,7 @@
-Attest protocol completion or failure. Updates quality metrics for the last step.
+Attest protocol completion or failure. **Final step** of every protocol run. Updates quality metrics for the last step.
 
-**Deprecated:** No longer part of the default protocol. Quality is updated in `kairos_next`; the run is complete when `next_action` says "Run complete." You do not need to call `kairos_attest`. This tool remains available for optional override (e.g. to set outcome or message after the fact) or backward compatibility.
+**When to call:** When `kairos_next` (or `kairos_begin` for a single-step protocol) returns `next_action` directing you to call `kairos_attest` — i.e. when there are no more steps to solve. Call with the URI from that response, and `outcome` (success or failure) and `message` (short summary).
 
-**Input:** `uri` (last step URI), `outcome` (`"success"` or `"failure"`), `message` (short summary of how the protocol went). No `final_solution` required.
+**Input:** `uri` (last step URI from the completion response), `outcome` (`"success"` or `"failure"`), `message` (short summary of how the protocol went).
 
 **After attestation:** Protocol is done. You may respond to the user. Do not respond before attestation when `must_obey: true`.

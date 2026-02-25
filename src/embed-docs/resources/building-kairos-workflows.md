@@ -16,12 +16,12 @@ Build KAIROS protocol workflows where **challenges** (defined per step) are vali
 **Document Organization:**
 - **H1 (# Title)**: Defines a protocol chain (one H1 = one chain)
 - **H2 (## Step N)**: Defines individual steps within the chain
-- **Challenge Markers**: Lines starting with `PROOF OF WORK:`, `CHALLENGE:`, or similar that define what must be completed
+- **Challenge**: A trailing fenced ` ```json ` block at the end of each step with `{"challenge": {...}}` (same shape as kairos_begin/kairos_next)
 
 **Memory Mapping:**
 - Each H1 section → One protocol chain
 - Each H2 section → One memory step
-- Challenge markers within H2 → Become `proof_of_work` metadata on that memory
+- Trailing JSON challenge block within a step → Becomes `proof_of_work` metadata on that memory
 
 **Processing Flow:**
 ```
@@ -35,7 +35,7 @@ Each Memory has:
   - memory_uuid
   - label (from H2 heading)
   - text (H2 content)
-  - proof_of_work (parsed from challenge markers)
+  - proof_of_work (from trailing JSON challenge block)
 ```
 
 ---
@@ -44,50 +44,63 @@ Each Memory has:
 
 ### Challenge Definitions
 
-**Format 1 - Shell Command:**
-```markdown
-PROOF OF WORK: timeout 30s echo "test"
-```
-
-**Format 2 - MCP Tool:**
-```markdown
-PROOF OF WORK: mcp tool_name arg1=value1
-```
-
-**Format 3 - User Input:**
-```markdown
-PROOF OF WORK: user_input "Confirm completion"
-```
-
-**Format 4 - Comment:**
-```markdown
-PROOF OF WORK: comment min_length=50
-```
-
-**Parsing Rules:**
-- Lines matching `PROOF OF WORK:` pattern are extracted
-- Command/definition follows the colon
-- Shell commands support timeout syntax: `timeout Ns command`
-- Default type is `shell` if not specified
-
-### Challenge Types
+Add a **trailing** ` ```json ` block at the end of each step with an object that has a `challenge` key. The value is the same shape as the challenge returned by kairos_begin/kairos_next; it round-trips with kairos_dump.
 
 **Shell (`shell`):**
-- Requires execution of a shell command
-- Validated by exit code (0 = success)
-- Format: `PROOF OF WORK: timeout Ns command` or `PROOF OF WORK: command`
+```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": { "cmd": "echo \"test\"", "timeout_seconds": 30 },
+    "required": true
+  }
+}
+```
 
-**MCP Tool (`mcp`):**
-- Requires calling an MCP tool
-- Format: `PROOF OF WORK: mcp tool_name args...`
+**MCP (`mcp`):**
+```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "tool_name", "expected_result": null },
+    "required": true
+  }
+}
+```
 
 **User Input (`user_input`):**
-- Requires user confirmation
-- Format: `PROOF OF WORK: user_input "prompt text"`
+```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Confirm completion" },
+    "required": true
+  }
+}
+```
 
 **Comment (`comment`):**
-- Requires a verification comment
-- Format: `PROOF OF WORK: comment min_length=N`
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+**Parsing:** Only the **last** fenced code block in a step is read; it must be valid JSON with a `challenge` key. The block is stripped from stored text; the challenge becomes that step's `proof_of_work`.
+
+### Challenge Types (execution)
+
+**Shell:** Run the command; report exit_code/stdout/stderr. Exit code 0 = success.
+
+**MCP:** Call the tool; report result and success.
+
+**User Input:** Show the prompt to the user; use only their reply as `user_input.confirmation`.
+
+**Comment:** Provide text meeting the minimum length; validated for relevance to the step.
 
 For execution semantics (how agents must perform each challenge type), see the kairos_begin and kairos_next tool descriptions.
 
@@ -102,9 +115,8 @@ For execution semantics (how agents must perform each challenge type), see the k
 - Each H1 creates a separate protocol chain
 
 ### Challenge Placement
-- Place challenge markers at the **end** of an H2 section to apply to that step
-- Place challenge markers **between** H2 sections to apply to the next step
-- Only the **last** challenge marker in a section applies (if multiple exist)
+- Place the challenge **at the end** of an H2 section as a single trailing ` ```json ` block
+- Only the **last** code block in a step is parsed as the challenge (if multiple blocks exist)
 
 ### kairos_mint Usage
 - Always provide `markdown_doc` as a string (can be JSON stringified)
@@ -125,8 +137,8 @@ For execution semantics (how agents must perform each challenge type), see the k
 
 ### Document Structure
 - **NEVER** mix H1 and H2 in unpredictable ways
-- **NEVER** place challenge markers outside H2 sections (they'll be ignored)
-- **NEVER** use `PROOF OF WORK` terminology in user-facing content (use "challenge" when explaining)
+- **NEVER** place the challenge JSON block outside an H2 section (it applies to the step it ends)
+- **NEVER** use legacy line-based challenge syntax; use only the trailing JSON block
 
 ### Challenge Definitions
 - **NEVER** use the old `proof_of_work` field in API calls (use `solution` instead)
@@ -149,24 +161,16 @@ For execution semantics (how agents must perform each challenge type), see the k
 
 ### Example 1: Simple Protocol with Shell Challenges
 
-```markdown
-# Simple Setup Protocol
+Use one H1, then one H2 per step. End each step with a fenced ` ```json ` block containing `{"challenge": {...}}`. Example for one step:
 
-## Step 1: Initialize
-Create the project structure.
+    ## Step 1: Initialize
+    Create the project structure.
 
-PROOF OF WORK: timeout 10s mkdir -p project/src
+    ```json
+    {"challenge":{"type":"shell","shell":{"cmd":"mkdir -p project/src","timeout_seconds":10},"required":true}}
+    ```
 
-## Step 2: Configure
-Set up configuration files.
-
-PROOF OF WORK: timeout 5s echo "config" > project/config.json
-
-## Step 3: Verify
-Check that everything works.
-
-PROOF OF WORK: timeout 5s test -f project/config.json
-```
+Repeat for Step 2 and Step 3 with their own `shell` challenge blocks (same shape, different `cmd`).
 
 **Minting:**
 ```javascript
@@ -181,23 +185,20 @@ await kairos_mint({
 2. `kairos_begin(uri)` -> Returns step 1 with `challenge` and `next_action` with next URI
 3. `kairos_next(step2_uri, solution: {type: 'shell', proof_hash: '...', shell: {...}})` -> Returns step 2
 4. Continue through all steps with solutions (echo `proof_hash` from each response)
-5. `kairos_attest(final_uri, outcome, message)` -> Complete (no final_solution needed)
+5. Last `kairos_next` returns `next_action` to call kairos_attest; call it to complete the run
 
 ### Example 2: Protocol with Comment Challenge
 
-```markdown
-# Documentation Review Protocol
+Step 1 ends with a comment challenge block; Step 2 with a user_input block. Example for Step 1:
 
-## Step 1: Review
-Review the documentation for accuracy.
+    ## Step 1: Review
+    Review the documentation for accuracy.
 
-PROOF OF WORK: comment min_length=50
+    ```json
+    {"challenge":{"type":"comment","comment":{"min_length":50},"required":true}}
+    ```
 
-## Step 2: Approve
-Approve the documentation.
-
-PROOF OF WORK: user_input "Type 'approved' to confirm"
-```
+Step 2: use `{"challenge":{"type":"user_input","user_input":{"prompt":"Type 'approved' to confirm"},"required":true}}` in its trailing JSON block.
 
 **Solution Submission:**
 ```javascript
@@ -225,19 +226,7 @@ await kairos_next(step2_uri, {
 
 ### Example 3: Multi-Chain Document
 
-```markdown
-# Protocol A
-
-## Step 1
-Content for protocol A step 1.
-
-# Protocol B
-
-## Step 1
-Content for protocol B step 1.
-
-PROOF OF WORK: timeout 5s echo "protocol B"
-```
+Use two H1 sections (Protocol A, Protocol B). Each H1 creates a separate chain. Each can have one or more H2 steps; each step ends with a ` ```json ` block with `{"challenge": {...}}` as above.
 
 **Result:** Two separate protocol chains are created (one for Protocol A, one for Protocol B).
 
@@ -249,15 +238,7 @@ PROOF OF WORK: timeout 5s echo "protocol B"
 - **Challenge** = What `kairos_next` **returns** (what the AI must complete)
 - **Solution** = What you **submit** to `kairos_next` (proof you completed it)
 
-**Terminology in Markdown:**
-- Markdown uses `PROOF OF WORK:` syntax (legacy naming)
-- Internal representation uses `proof_of_work` metadata
-- API uses `challenge` (output) and `solution` (input)
-
-**Why the Confusion:**
-- Historical naming: "proof of work" was the original term
-- Modern naming: "challenge/solution" better describes the workflow
-- Backward compatibility: Markdown still accepts `PROOF OF WORK:` syntax
+**In Markdown:** Use a trailing ` ```json ` block with `{"challenge": {...}}` per step. Internal representation is `proof_of_work`; API uses `challenge` (output) and `solution` (input).
 
 ---
 
@@ -273,7 +254,7 @@ PROOF OF WORK: timeout 5s echo "protocol B"
 - Step 1 (first H2): **No solution required** - call `kairos_begin` only
 - Steps 2+: **Solution required** - must submit matching `solution` to proceed
 - Include `nonce` and `proof_hash` in solution (echo from challenge/response)
-- Protocol completion: Call `kairos_attest` with `uri`, `outcome`, and `message` (no `final_solution`)
+- Protocol completion: Last `kairos_next` directs to kairos_attest; call attest to finalize
 
 ### Error Handling (Two-Phase Retry)
 - Retries 1-3: `must_obey: true` with `error_code` and `next_action` for recovery

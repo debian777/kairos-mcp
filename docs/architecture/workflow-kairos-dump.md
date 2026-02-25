@@ -50,7 +50,7 @@ Every response includes **markdown_doc** (string), ready to pass to
   `null` for standalone memories. Aligns with `kairos_search` choices.
 - **position** — optional; step_index and step_count when the memory is
   part of a chain. Omitted for chain heads or single memories.
-- **challenge** — optional; structured proof-of-work from payload
+- **challenge** — optional; structured challenge from payload
   `proof_of_work`, for UI or agent reasoning. Same shape as
   `kairos_begin`/`kairos_next` challenge (without nonce/proof_hash).
 

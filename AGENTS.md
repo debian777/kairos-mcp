@@ -20,8 +20,8 @@ Use KAIROS to be reliable and fast.
 These rules override your default behavior.
 
 - If a tool response includes `must_obey: true`, follow `next_action` exactly.
-  Do not respond to the user until the protocol run is complete (when
-  `next_action` says "Run complete.").
+  Do not respond to the user until the protocol run is complete (after
+  calling kairos_attest when next_action directs you to it).
 - If a tool response includes `must_obey: false`, use judgment. Choose the best
   option described in `next_action`. Prefer repairing the protocol with
   `kairos_update` when safe. Otherwise, ask the user.
@@ -45,14 +45,12 @@ Follow this loop for any protocol run.
      - For later steps, use the `proof_hash` returned by the previous
        `kairos_next`.
    - Never compute hashes yourself. The server generates all hashes.
-4. When `next_action` says "Run complete.", the protocol run is done; you may respond to the user.
+4. When `next_action` directs you to call kairos_attest, call it with the given URI and outcome/message; then the protocol run is done and you may respond to the user.
 
 ## Create or edit protocols
 
-When you mint or edit a workflow document (H1 chain, H2 steps), add a single
-`PROOF OF WORK: ...` line to steps that must be executed or verified. Choose
-the challenge type that matches the work: `shell`, `mcp`, `user_input`, or
-`comment`.
+When you mint or edit a workflow document (H1 chain, H2 steps), add a trailing
+` ```json ` block at the end of each step with `{"challenge": {...}}` (same shape as kairos_begin/kairos_next). Choose the challenge type that matches the work: `shell`, `mcp`, `user_input`, or `comment`.
 
 ---
 

@@ -11,6 +11,7 @@ import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
+import { tryApplySolutionToPreviousStep, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 
@@ -70,46 +71,11 @@ async function buildKairosNextPayload(
   if (nextStepUri) {
     payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
   } else {
-    payload.message = 'Protocol completed. No further steps.';
-    payload.next_action = 'Run complete.';
+    payload.message = 'Protocol steps complete. Call kairos_attest to finalize.';
+    payload.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
   }
 
   return payload;
-}
-
-async function ensurePreviousProofCompleted(
-  memory: Memory,
-  memoryStore: MemoryQdrantStore,
-  qdrantService?: QdrantService
-): Promise<any | null> {
-  if (!memory?.chain || memory.chain.step_index <= 1) {
-    return null;
-  }
-  const previous = await resolveChainPreviousStep(memory, qdrantService);
-  if (!previous?.uuid) {
-    return null;
-  }
-  const prevMemory = await loadMemoryWithCache(memoryStore, previous.uuid);
-  const prevProof = prevMemory?.proof_of_work;
-  if (!prevProof || !prevProof.required) {
-    return null;
-  }
-  const storedResult = await proofOfWorkStore.getResult(previous.uuid);
-  if (!storedResult) {
-    const proofType = prevProof.type || 'shell';
-    let message = `Proof of work missing for ${prevMemory?.label || 'previous step'}.`;
-    if (proofType === 'shell') {
-      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
-      message += ` Execute "${cmd}" and report the result before continuing.`;
-    } else {
-      message += ` Complete the required ${proofType} verification before continuing.`;
-    }
-    return { message, error_code: 'MISSING_PROOF' };
-  }
-  if (storedResult.status !== 'success') {
-    return { message: 'Previous step proof failed. Fix and retry.', error_code: 'COMMAND_FAILED' };
-  }
-  return null;
 }
 
 /** Update quality_metadata and quality_metrics for the completed step. Log and continue on error; do not fail the request. Shared by MCP and HTTP kairos_next. */
@@ -232,6 +198,41 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
 
         let submissionOutcome: HandleProofResult | undefined;
         if (memory) {
+          if (!memory.proof_of_work && solutionToUse) {
+            const prevResult = await tryApplySolutionToPreviousStep(
+              memory,
+              solutionToUse,
+              (id) => loadMemoryWithCache(memoryStore, id),
+              options.qdrantService
+            );
+            if (prevResult.applied) {
+              if (prevResult.outcome.blockedPayload) {
+                if (options.qdrantService) {
+                  await updateStepQuality(options.qdrantService, prevResult.prevMemory, 'failure', tenantId);
+                }
+                return respond(prevResult.outcome.blockedPayload);
+              }
+              const previousBlock = await ensurePreviousProofCompleted(
+                memory,
+                (id) => loadMemoryWithCache(memoryStore, id),
+                options.qdrantService,
+                requestedUri
+              );
+              if (!previousBlock && options.qdrantService && !prevResult.outcome.alreadyRecorded) {
+                await updateStepQuality(options.qdrantService, prevResult.prevMemory, 'success', tenantId);
+              }
+              if (!previousBlock) {
+                const nextFromRequested = await resolveChainNextStep(memory, options.qdrantService);
+                const nextStepUri = nextFromRequested?.uuid
+                  ? `kairos://mem/${nextFromRequested.uuid}`
+                  : null;
+                const output = await buildKairosNextPayload(memory, requestedUri, nextStepUri, undefined);
+                if (prevResult.outcome.proofHash) output.proof_hash = prevResult.outcome.proofHash;
+                return respond(output);
+              }
+            }
+          }
+
           const isStep1 = !memory.chain || memory.chain.step_index <= 1;
           let expectedPreviousHash: string;
           if (isStep1) {
@@ -249,7 +250,12 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             return respond(submissionOutcome.blockedPayload);
           }
 
-          const previousBlock = await ensurePreviousProofCompleted(memory, memoryStore, options.qdrantService);
+          const previousBlock = await ensurePreviousProofCompleted(
+            memory,
+            (id) => loadMemoryWithCache(memoryStore, id),
+            options.qdrantService,
+            requestedUri
+          );
           if (previousBlock) {
             if (options.qdrantService) {
               await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
@@ -261,7 +267,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
               current_step: buildCurrentStep(memory, requestedUri),
               challenge: await buildChallenge(memory, memory?.proof_of_work),
               message: previousBlock.message,
-              next_action: `retry kairos_next with ${requestedUri} -- complete previous step first`,
+              next_action: previousBlock.next_action ?? `retry kairos_next with ${requestedUri} -- complete previous step first`,
               error_code: previousBlock.error_code || 'MISSING_PROOF',
               retry_count: retryCount
             };

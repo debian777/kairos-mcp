@@ -113,9 +113,9 @@ describe('V2 kairos_begin response schema', () => {
     });
   });
 
-  test('single-step: next_action says run complete, no final_challenge', async () => {
+  test('single-step: next_action directs to kairos_attest, no final_challenge', async () => {
     const ts = Date.now();
-    const doc = `# V2Begin Single ${ts}\n\n## Only Step\nDo the thing.\n\nPROOF OF WORK: comment min_length=10`;
+    const doc = `# V2Begin Single ${ts}\n\n## Only Step\nDo the thing.\n\n\`\`\`json\n{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\``;
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
@@ -129,7 +129,7 @@ describe('V2 kairos_begin response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
-      expect(parsed.next_action).toMatch(/run complete/i);
+      expect(parsed.next_action).toMatch(/kairos_attest/i);
 
       // No final_challenge or final_solution references
       expect(parsed.final_challenge).toBeUndefined();

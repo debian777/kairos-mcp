@@ -1,9 +1,10 @@
-# Full execution workflow: search to run complete
+# Full execution workflow: search to attest
 
 End-to-end walkthrough of a complete KAIROS protocol execution. Shows the
 raw JSON call and response at every step. The search response uses per-choice
 `next_action`; the AI picks one choice and follows that choice's `next_action`.
-The run is complete when `next_action` says "Run complete." (no attest step).
+The run is complete after the AI calls kairos_attest when directed by the last
+kairos_next (or kairos_begin for a single-step protocol).
 
 ---
 
@@ -217,12 +218,13 @@ kairos_next({
     }
   },
   "message": "Protocol completed. No further steps.",
-  "next_action": "Run complete.",
+  "next_action": "call kairos_attest with kairos://mem/step3-uuid-3333-3333-333333333333 and outcome (success or failure) and message to complete the protocol",
+  "message": "Protocol steps complete. Call kairos_attest to finalize.",
   "proof_hash": "proof-hash-step2-bbbb"
 }
 ```
 
-**AI reads `next_action`** — "Run complete." **Protocol is done.** The AI may
+**AI reads `next_action`** — call kairos_attest with the last step URI. The AI calls kairos_attest(uri, outcome, message). **After attestation, protocol is done.** The AI may
 now respond to the user. Quality was already updated in `kairos_next`; no
 attest step.
 
@@ -243,7 +245,7 @@ next("kairos://mem/step2...", solution: {shell, proof_hash: "genesis..."})
   -> proof_hash: "hash-step1" (use as solution.proof_hash next)
     |
 next("kairos://mem/step3...", solution: {shell, proof_hash: "hash-step1"})
-  -> must_obey: true, next_action: "Run complete.", message: "Protocol completed. No further steps."
+  -> must_obey: true, next_action: "call kairos_attest with ...", message: "Protocol steps complete. Call kairos_attest to finalize."
   -> proof_hash: "hash-step2"
     |
 AI responds to user. (No attest — quality was updated in kairos_next.)

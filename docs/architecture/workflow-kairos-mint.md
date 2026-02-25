@@ -47,17 +47,15 @@ Fields:
 
 ---
 
-## Proof of work types and examples
+## Challenge types and examples
 
-Add a single challenge per step as a JSON code block so the chain is
-executable. Mix types as needed. Legacy line format is still parsed for
-backward compatibility; docs show only the JSON block format below.
+Add a single challenge per step as a trailing JSON code block so the chain is
+executable. Mix types as needed.
 
 **Challenge as JSON code block.** Use a fenced code block (e.g. ` ```json `)
 at the end of a step containing a single
 JSON object with a `challenge` key. The value has the same shape as
-`ProofOfWorkDefinition` and the runtime `challenge`; import parses this block
-first, then falls back to legacy line. Dump emits the challenge as
+`ProofOfWorkDefinition` and the runtime `challenge`. Dump emits the challenge as
 `{"challenge": ...}`. Examples (one per type):
 
 **Shell:**

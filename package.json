@@ -49,6 +49,7 @@
     "dev:status": "ENV=dev ./scripts/run-env.sh status",
     "dev:stop": "ENV=dev ./scripts/run-env.sh stop",
     "dev:test": "ENV=dev ./scripts/run-env.sh test",
+    "dev:ai-mcp-integration": "node scripts/run-ai-mcp-integration.mjs",
     "qa:build": "npm run lint && ENV=qa ./scripts/run-env.sh build",
     "qa:deploy": "npm run qa:build && npm run qa:start",
     "qa:logs": "ENV=qa ./scripts/run-env.sh logs",

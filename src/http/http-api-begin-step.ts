@@ -97,8 +97,9 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
             if (nextStepUri) {
                 output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
             } else {
-                output.message = 'Run complete.';
-                output.next_action = 'Run complete.';
+                const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
+                output.message = 'Single-step protocol. Call kairos_attest to finalize.';
+                output.next_action = `call kairos_attest with ${attestUri} and outcome (success or failure) and message to complete the protocol`;
             }
 
             const duration = Date.now() - startTime;

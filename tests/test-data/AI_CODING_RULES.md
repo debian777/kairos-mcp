@@ -138,7 +138,7 @@ Run linters/formatters. Remove debug prints. Scan for secrets. No dead code.
 
 Proof of work: `npm run lint -- --max-warnings=0` and archive the final summary.
 
-## SINGLE FOCUSED COMMIT (PROOF OF WORK)
+## SINGLE FOCUSED COMMIT (EVIDENCE)
 
 **Proof of work = git commit + test log stored locally in temporary files**
 
@@ -192,7 +192,7 @@ No commit is valid without a corresponding green test log in temporary files.
 
 Proof of work: `git show --stat HEAD` linked to the matching test log.
 
-## FINAL VERIFICATION (PROOF OF WORK VALIDATION)
+## FINAL VERIFICATION (VALIDATION)
 
 **Proof of work is only accepted when:**
 

@@ -2,7 +2,18 @@
 
 Use this when an AI agent should run protocols on **kairos-dev**: import protocols from this folder one by one, then search and follow each workflow to completion. The goal is to run **protocols** (their steps and challenges), not to exercise MCP tools in isolation.
 
-## How to run
+## Automated run (script)
+
+A script implements this flow against the dev server HTTP API and writes one report per protocol:
+
+```bash
+npm run dev:deploy   # ensure dev server is up
+node scripts/run-ai-mcp-integration.mjs
+```
+
+Reports are written under `reports/<run-id>/<protocol-folder>/report.md`. Optional env: `KAIROS_BASE_URL` (default `http://localhost:3300`), `RUN_ID` (default `workflow-YYYYMMDD-HHmmss`).
+
+## How to run (agent / manual)
 
 1. **Use kairos-dev**  
    Call only the KAIROS MCP tools exposed by the **kairos-dev** server (`kairos_search`, `kairos_begin`, `kairos_next`, `kairos_mint`, `kairos_dump`, `kairos_update`, `kairos_delete`, etc.).

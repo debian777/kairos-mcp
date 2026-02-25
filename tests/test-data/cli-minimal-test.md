@@ -6,4 +6,6 @@ This is a minimal document for testing CLI parameters.
 
 Basic setup step for testing.
 
-PROOF OF WORK: timeout 5s echo "setup complete"
+```json
+{"challenge":{"type":"shell","shell":{"cmd":"echo \"setup complete\"","timeout_seconds":5},"required":true}}
+```

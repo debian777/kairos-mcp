@@ -35,7 +35,7 @@ Fields that no longer exist:
 - `next_step` -- removed; the URI for the next call is in `next_action`
 - `protocol_status` -- removed; `next_action` tells the AI what to do next
 - `attest_required` -- removed; for single-step protocols `next_action` says
-  "Run complete." (no attest)
+  next_action to call kairos_attest (single-step; attest finalizes)
 - `genesis_hash` -- renamed to `proof_hash`
 - `final_challenge` -- removed; last step is a normal verification step
 

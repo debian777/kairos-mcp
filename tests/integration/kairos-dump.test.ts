@@ -25,7 +25,7 @@ describe('Kairos Dump (MCP)', () => {
 
   test('kairos_dump returns single-step content for valid URI', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Single ${ts}\n\n## Step A\nBody for dump single.\n\nPROOF OF WORK: timeout 5s echo ok`;
+    const md = `# Dump Single ${ts}\n\n## Step A\nBody for dump single.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}\n\`\`\``;
     const mintResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
@@ -63,7 +63,7 @@ describe('Kairos Dump (MCP)', () => {
 
   test('kairos_dump with protocol: true returns full chain markdown', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Protocol ${ts}\n\n## First\nFirst step.\n\nPROOF OF WORK: timeout 5s echo one\n\n## Second\nSecond step.\n\nPROOF OF WORK: timeout 5s echo two`;
+    const md = `# Dump Protocol ${ts}\n\n## First\nFirst step.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo one","timeout_seconds":5},"required":true}}\n\`\`\`\n\n## Second\nSecond step.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}\n\`\`\``;
     const mintResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {

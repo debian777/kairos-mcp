@@ -121,7 +121,7 @@ describe('V2 kairos_next response schema', () => {
     }
   });
 
-  test('completed (last step): next_action says run complete, no final_challenge', async () => {
+  test('completed (last step): next_action directs to kairos_attest, no final_challenge', async () => {
     const ts = Date.now();
     const items = await mintThreeStepProtocol(`V2Next Completed ${ts}`);
     const firstUri = items[0].uri;
@@ -168,7 +168,7 @@ describe('V2 kairos_next response schema', () => {
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
 
-      expect(parsed.next_action).toMatch(/run complete/i);
+      expect(parsed.next_action).toMatch(/kairos_attest/i);
 
       // No final_challenge (removed in v2)
       expect(parsed.final_challenge).toBeUndefined();

@@ -5,7 +5,7 @@ import {
   parseMarkdownStructure,
   generateTags,
 } from '../../utils/memory-store-utils.js';
-import { parseProofLine, extractProofOfWork } from './chain-builder-proof.js';
+import { extractProofOfWork } from './chain-builder-proof.js';
 
 /**
  * Sanitize H2 headings to remove STEP patterns and numbering that break chain order.
@@ -23,9 +23,8 @@ function sanitizeHeading(line: string): string {
 }
 
 /**
- * Process a single H1 section into a chain of memories using Option 2 algorithm.
- * Slices by proof-of-work lines instead of H2 headers.
- * Each H1 becomes a chain label; proof-of-work lines define step boundaries.
+ * Process a single H1 section into a chain of memories. Step boundaries are H2 headers.
+ * Each H1 becomes a chain label; each H2 starts a new step. Challenge is taken from a trailing JSON block per step.
  */
 function processH1Section(
   h1Title: string,
@@ -35,108 +34,51 @@ function processH1Section(
   codeBlockProcessor: CodeBlockProcessor
 ): Memory[] {
   const lines = h1Content.split(/\r?\n/);
-  
-  // Option 2: Single-pass algorithm - slice by proof-of-work
   interface StepData {
     chain_label: string;
     step_label: string;
     markdown_doc: string[];
-    proof_of_work?: { cmd: string; timeout_seconds: number };
   }
-  
   const full_markdown: Record<number, StepData> = {};
-  let step = 1;
-  let pendingProof = false; // Track if we have a proof waiting for the next H2
-  let inCodeBlock = false; // Track code block state to avoid interpreting comments as headers
-  
-  // Initialize first step
-  full_markdown[step] = {
-    chain_label: h1Title,
-    step_label: '',
-    markdown_doc: []
-  };
-  
+  let step = 0;
+  let inCodeBlock = false;
+
   for (const raw of lines) {
-    const line = raw; // preserve formatting
+    const line = raw;
     const trimmed = line.trim();
-    
-    // Toggle code block state when encountering code block delimiters
+
     if (trimmed.startsWith('```')) {
-      const wasInCodeBlock = inCodeBlock;
       inCodeBlock = !inCodeBlock;
-      const currentStep = full_markdown[step]!;
-      currentStep.markdown_doc.push(line);
-      // When closing a block, detect trailing JSON challenge so next H2 starts a new step
-      if (wasInCodeBlock) {
-        const content = currentStep.markdown_doc.join('\n');
-        const { proof } = extractProofOfWork(content);
-        if (proof) {
-          pendingProof = true;
-        }
+      if (step >= 1) {
+        full_markdown[step]!.markdown_doc.push(line);
       }
       continue;
     }
-    
-    // Ensure current step exists
-    if (!full_markdown[step]) {
-      full_markdown[step] = {
-        chain_label: h1Title,
-        step_label: '',
-        markdown_doc: []
-      };
-    }
-    const currentStep = full_markdown[step]!;
-    
-    // H1 is already handled by caller, but check for safety
-    // Only check when not inside a code block
-    if (!inCodeBlock && trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
-      currentStep.chain_label = trimmed.substring(2).trim();
-      continue;
-    }
-    
-    // Legacy: check for proof-of-work line (PROOF OF WORK: ...); JSON block is handled in extractProofOfWork.
-    const proof = parseProofLine(line);
-    if (proof) {
-      currentStep.proof_of_work = proof;
-      currentStep.markdown_doc.push(line); // Include proof line in content
-      pendingProof = true; // Mark that we have a proof waiting for next H2
-      continue;
-    }
-    
-    // Check for H2 header (only when not inside a code block)
+
     if (!inCodeBlock && trimmed.startsWith('## ')) {
+      step += 1;
       const h2Title = trimmed.substring(3).trim();
-      // If we have a pending proof, this H2 starts the NEXT step
-      if (pendingProof) {
-        step += 1;
-        // Initialize next step if it doesn't exist
-        if (!full_markdown[step]) {
-          full_markdown[step] = {
-            chain_label: h1Title,
-            step_label: '',
-            markdown_doc: []
-          };
-        }
-        pendingProof = false; // Clear the pending proof flag
-      }
-      // Get current step (may have changed)
-      const stepForH2 = full_markdown[step]!;
-      // Append H2 to current step's label (with separator if label exists)
-      if (stepForH2.step_label) {
-        stepForH2.step_label += ' / ' + h2Title;
+      if (!full_markdown[step]) {
+        full_markdown[step] = {
+          chain_label: h1Title,
+          step_label: h2Title,
+          markdown_doc: []
+        };
       } else {
-        stepForH2.step_label = h2Title;
+        full_markdown[step]!.step_label = full_markdown[step]!.step_label
+          ? full_markdown[step]!.step_label + ' / ' + h2Title
+          : h2Title;
       }
+      full_markdown[step]!.markdown_doc.push(line);
       continue;
     }
-    
-    // Regular content line
-    currentStep.markdown_doc.push(line);
+
+    if (step >= 1) {
+      full_markdown[step]!.markdown_doc.push(line);
+    }
   }
   
-  // After parsing: if step == 1 at end, single memory (no proof or proof at end)
-  // If step > 1, multiple steps created by proofs
-  // Filter out empty steps (step 2+ that were created but have no content)
+  // Filter out empty steps
   const steps = Object.keys(full_markdown)
     .map(Number)
     .sort((a, b) => a - b)
@@ -146,13 +88,11 @@ function processH1Section(
       return stepData.markdown_doc.length > 0 || stepNum === 1;
     });
   
-  // If proof is at end, last step will be empty - remove it and treat as single memory
   if (steps.length > 1) {
     const lastStep = steps[steps.length - 1]!;
     const lastStepData = full_markdown[lastStep]!;
-    // If last step has no content and no proof, it was created by proof at end
-    if (lastStepData.markdown_doc.length === 0 && !lastStepData.proof_of_work) {
-      steps.pop(); // Remove empty last step
+    if (lastStepData.markdown_doc.length === 0) {
+      steps.pop();
     }
   }
   
@@ -204,7 +144,7 @@ function processH1Section(
     // All steps must have proof, except the last step (which can be without proof)
     const isLastStep = index === steps.length - 1;
     if (!proof && steps.length > 1 && !isLastStep) {
-      throw new Error(`Missing PROOF OF WORK line in step "${stepData.step_label || stepData.chain_label}"`);
+      throw new Error(`Missing challenge in step "${stepData.step_label || stepData.chain_label}". Add a trailing \`\`\`json block with {"challenge": {...}}.`);
     }
     
     const memory_uuid = uuids[index]!;

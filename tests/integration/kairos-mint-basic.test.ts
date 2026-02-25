@@ -31,7 +31,9 @@ describe('Kairos Mint Basic Functionality', () => {
       .map((s, index) => {
         const proofCmd = s.proof || `echo step-${index + 1}`;
         const timeout = s.timeout || 30;
-        return `\n\n## ${s.h2}\n${s.body}\n\nPROOF OF WORK: timeout ${timeout}s ${proofCmd}`;
+        const cmdEsc = proofCmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const block = `\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"${cmdEsc}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
+        return `\n\n## ${s.h2}\n${s.body}${block}`;
       })
       .join('');
     return `${h1}${body}`;
@@ -81,7 +83,7 @@ describe('Kairos Mint Basic Functionality', () => {
   test('kairos_mint duplicate policy with label-based chain UUID and force_update', async () => {
     // 1) Create timestamp for unique chain label
     const ts = Date.now().toString();
-    const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\nPROOF OF WORK: timeout 5s echo alpha\n\n## Step 2\nBeta\n\nPROOF OF WORK: timeout 5s echo beta`;
+    const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo alpha","timeout_seconds":5},"required":true}}\n\`\`\`\n\n## Step 2\nBeta\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo beta","timeout_seconds":5},"required":true}}\n\`\`\``;
 
     // 2) First store → stored (force_update bypasses similarity check in shared dev collection)
     const first = await mcpConnection.client.callTool({
@@ -142,7 +144,7 @@ describe('Kairos Mint Basic Functionality', () => {
 
   test('kairos_mint SIMILAR_MEMORY_FOUND response shape (must_obey, next_action, content_preview)', async () => {
     const ts = Date.now().toString();
-    const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}\n\n## Step 1\nContent\n\nPROOF OF WORK: timeout 5s echo ok`;
+    const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}\n\n## Step 1\nContent\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}\n\`\`\``;
 
     const first = await mcpConnection.client.callTool({
       name: 'kairos_mint',
@@ -203,7 +205,9 @@ class DataProcessor {
 }
 \`\`\`
 
-PROOF OF WORK: timeout 45s echo implement-processor
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
+\`\`\`
 
 ## Usage Example
 
@@ -215,7 +219,9 @@ console.log(result); // ['HELLO', 'WORLD']
 
 This demonstrates the data processing functionality.
 
-PROOF OF WORK: timeout 45s echo run-processor`;
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
+\`\`\``;
 
     // Store the document (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({

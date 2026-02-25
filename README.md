@@ -55,7 +55,7 @@ Full developer workflow (build, test, lint, dev/qa commands) is documented in [C
 ## What you get
 
 - **Persistent memory** — Store and retrieve protocol chains in Qdrant; update and mint via tools.
-- **Deterministic execution** — Search → begin → next (loop) → run complete; server drives `next_action`.
+- **Deterministic execution** — Search → begin → next (loop) → attest; server drives `next_action`.
 - **Agent-facing design** — Tool descriptions, schemas, and errors built for programmatic consumption and recovery.
 - **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack.
 

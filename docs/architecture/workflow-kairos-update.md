@@ -178,7 +178,7 @@ Use when not supplying full markdown.
 {
   "uris": ["kairos://mem/ccc33333-3333-3333-3333-333333333333"],
   "updates": {
-    "text": "Revised step body without PROOF OF WORK markers."
+    "text": "Revised step body."
   }
 }
 ```
@@ -202,7 +202,7 @@ Use when not supplying full markdown.
 ### AI behavior
 
 Use for small or field-specific changes. For full step content, prefer
-`markdown_doc` so structure and PROOF OF WORK lines stay consistent.
+`markdown_doc` so structure and challenge blocks stay consistent.
 
 ---
 

@@ -2,7 +2,7 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 
 **When to call:** When the user wants to create, add, mint, store, or save a protocol or document.
 
-**Challenge:** For each step that can be verified, add a fenced ` ```json ` block at the end with an object that has a `challenge` key. The value is the same shape as the `challenge` returned by kairos_begin/kairos_next; round-trips with kairos_dump. Legacy `PROOF OF WORK: ...` lines are still accepted for backward compatibility.
+**Challenge:** For each step that can be verified, add a fenced ` ```json ` block at the end with an object that has a `challenge` key. The value is the same shape as the `challenge` returned by kairos_begin/kairos_next; round-trips with kairos_dump.
 
 **Challenge examples (one per type; use a ` ```json ` code block at the end of each step):**
 

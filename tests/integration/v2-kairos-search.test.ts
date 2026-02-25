@@ -32,7 +32,7 @@ describe('V2 kairos_search unified response schema', () => {
   }
 
   async function mintProtocol(title: string) {
-    const content = `# ${title}\n\n## Step 1\nDo something.\n\nPROOF OF WORK: comment min_length=10`;
+    const content = `# ${title}\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\``;
     await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: { markdown_doc: content, llm_model_id: 'test-v2-search', force_update: true }
