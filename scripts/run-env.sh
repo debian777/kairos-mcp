@@ -55,6 +55,13 @@ ENV_FILE="${PROJECT_DIR}/.env.${ENV}"
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
+# In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
+if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$ENV_FILE" ]; then
+    if [ -f "${PROJECT_DIR}/scripts/copy-env-from-main.sh" ]; then
+        "${PROJECT_DIR}/scripts/copy-env-from-main.sh" || true
+    fi
+fi
+
 # Load environment (skip if ensure-coding-rules doesn't need it)
 # Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=true npm run dev:test)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
