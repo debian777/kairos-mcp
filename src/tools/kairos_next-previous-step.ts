@@ -71,7 +71,6 @@ export async function ensurePreviousProofCompleted(
       const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
       message += ` Execute "${cmd}" and report the result before continuing.`;
     } else if (proofType === 'user_input') {
-      const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
       message += ` This step requires user confirmation via MCP client elicitation. The server will handle this automatically; you do not need to (and cannot) submit a user_input solution.`;
       if (requestedUri) next_action = `The server will request user confirmation via elicitation. Call kairos_next with ${requestedUri} and any solution type (the server will handle user_input via elicitation).`;
     } else if (proofType === 'mcp') {
