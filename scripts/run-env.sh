@@ -187,20 +187,20 @@ start() {
             esac
 
             # Start the dev server with env from .env.dev so OPENAI_API_KEY etc are set (CI and local)
+            dev_port="${PORT:-3300}"
             case "$LOG_TARGET" in
                 file)
-                    LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts &
                     ;;
                 both)
-                    LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 
             # Resolve actual dev server PID via listening port (like stop target)
-            dev_port="${PORT:-3300}"
             if command -v lsof >/dev/null 2>&1; then
                 # Give the server a moment to bind to the port
                 sleep 1
@@ -235,7 +235,7 @@ start() {
     esac
     # Health check after server startup with retries (skip for prod)
     if [ "$ENV" != "prod" ]; then
-        ATTEMPTS=30
+        ATTEMPTS="${HEALTH_CHECK_ATTEMPTS:-30}"
         print_info "Performing post-startup health check with retries..."
         attempt=1
         while [ $attempt -le $ATTEMPTS ]; do

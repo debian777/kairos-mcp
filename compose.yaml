@@ -138,6 +138,7 @@ services:
       KC_HEALTH_ENABLED: "true"
     ports:
       - "8080:8080"
+      - "9000:9000"
     # No bind mount: realm JSONs live in scripts/keycloak/import; use scripts/configure-keycloak-realms.py to create realms via API.
     networks:
       - kairos-network

@@ -127,7 +127,7 @@ function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_descriptio
   return parts.join(', ');
 }
 
-function setWwwAuthenticate(res: Response, opts?: { error?: 'invalid_token'; error_description?: string }): void {
+export function setWwwAuthenticate(res: Response, opts?: { error?: 'invalid_token'; error_description?: string }): void {
   const value = buildWwwAuthenticate(opts);
   if (value) res.setHeader('WWW-Authenticate', value);
 }

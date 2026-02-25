@@ -64,5 +64,5 @@ export default {
     // Global test timeout
     testTimeout: 10000,
     // Run mint/update tests before v2-kairos-search (which depends on them)
-    testSequencer: '<rootDir>/tests/test-sequencer.cjs',
+    testSequencer: '<rootDir>/tests/jest-sequencer.cjs',
 };
