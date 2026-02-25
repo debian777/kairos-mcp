@@ -1,13 +1,14 @@
 # Compose with Docker named volumes (default). No VOLUME_LOCAL_PATH required.
 # Alternative: compose-dir-volumes.yaml uses host dirs (bind mounts).
+#
+# Profiles: "infra" = Redis, Qdrant, Postgres, Keycloak (start first).
+#           "prod" / "qa" = app only; infra must already be running.
+# Usage: docker compose --profile infra up -d && docker compose --profile prod up
 
 services:
   redis:
     profiles:
       - infra
-      - prod
-      - qa
-      - dev
     image: redis:7-alpine
     pull_policy: missing
     command: >
@@ -28,9 +29,6 @@ services:
   redisinsight:
     profiles:
       - infra
-      - prod
-      - qa
-      - dev
     image: redis/redisinsight:latest
     pull_policy: missing
     depends_on:
@@ -50,9 +48,6 @@ services:
   qdrant:
     profiles:
       - infra
-      - prod
-      - qa
-      - dev
     image: qdrant/qdrant:latest
     pull_policy: missing
     ports:
@@ -87,9 +82,6 @@ services:
   postgres:
     profiles:
       - infra
-      - prod
-      - keycloak
-      - qa
     image: postgres:16
     env_file:
       - .env
@@ -114,9 +106,6 @@ services:
   keycloak:
     profiles:
       - infra
-      - prod
-      - keycloak
-      - qa
     env_file:
       - .env
     image: quay.io/keycloak/keycloak:26.5.4
@@ -152,9 +141,7 @@ services:
       - "environment=qa"
     env_file:
       - .env.qa
-    depends_on:
-      keycloak:
-        condition: service_started
+    # Infra (keycloak, qdrant, redis) must be up; start with: --profile infra
     ports:
       - "${PORT:-3500}:${PORT:-3500}"
       - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
@@ -201,9 +188,7 @@ services:
       - KEYCLOAK_INTERNAL_URL=http://keycloak:8080
     volumes:
       - snapshots-prod:/snapshots
-    depends_on:
-      - qdrant
-      - redis
+    # Infra (qdrant, redis) must be up; start with: --profile infra
 
     networks:
       - kairos-network

@@ -24,7 +24,7 @@ These rules override your default behavior.
   calling kairos_attest when next_action directs you to it).
 - If a tool response includes `must_obey: false`, use judgment. Choose the best
   option described in `next_action`. Prefer repairing the protocol with
-  `kairos_update` when safe. Otherwise, ask the user.
+  `kairos_update` when safe. Otherwise{"must_obey":true,"message":"Found 2 matches (top confidence: 37%). Choose one, refine your search, or create a new protocol.","next_action":"Pick one choice and follow that choice's next_action.","choices":[{"uri":"kairos://mem/00000000-0000-0000-0000-000000001001","label":"MISSION / STRUCTURE / CONTENT TYPES","chain_label":"Building KAIROS Workflows with Challenge/Solution","score":0.36852312200000004,"role":"match","tags":["challenge","definitions","title","defines","step","markers","each","section"],"next_action":"call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000001001 to execute this protocol"},{"uri":"kairos://mem/adb0d53b-e3cd-48e2-97d2-22fd5adc6ef2","label":"Run a command","chain_label":"Example: All challenge types","score":0.325330962,"role":"match","tags":["one","protocol","with","four","steps"],"next_action":"call kairos_begin with kairos://mem/adb0d53b-e3cd-48e2-97d2-22fd5adc6ef2 to execute this protocol"},{"uri":"kairos://mem/00000000-0000-0000-0000-000000002002","label":"Get help refining your search","chain_label":"Run protocol to turn vague user request into a better kairos_search query","score":null,"role":"refine","tags":["meta","refine"],"next_action":"call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"},{"uri":"kairos://mem/00000000-0000-0000-0000-000000002001","label":"Create New KAIROS Protocol Chain","chain_label":"Create New KAIROS Protocol Chain","score":null,"role":"create","tags":["meta","creation"],"next_action":"call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002001 to create a new protocol"}]}, ask the user.
 - Do not guess. If you need facts from the codebase, environment, or external
   systems, use tools to get them.
 
@@ -77,9 +77,13 @@ When you mint or edit a workflow document (H1 chain, H2 steps), add a trailing
 
 # USE CONTEXT7
 
-Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP
-tools to resolve library id and get library docs without me having to explicitly ask.
+Always use Context7 when you need code generation, setup or configuration steps, or
+library/API documentation. Use the Context7 MCP tools to resolve library id and get
+library docs without the user having to ask.
+
+**For MCP work**, load docs first by searching Context7 for:
+1. **modelcontextprotocol**
+2. **modelcontextprotocol typescript**
 
 ---
 

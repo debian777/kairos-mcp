@@ -1,0 +1,19 @@
+---
+description: Sync .env* from main worktree when working in this git workspace
+alwaysApply: true
+---
+
+# Worktree env setup
+
+This workspace is a **git worktree**. Environment files (`.env`, `.env.dev`, `.env.qa`, `.env.prod`) are not shared across worktrees.
+
+**When working in this workspace:**
+
+1. **If `.env` or `.env.qa` (or other `.env*`) are missing** or the user asks to set up env / copy env from main:
+   - Run `./scripts/copy-env-from-main.sh` to copy all `.env*` from the main worktree into this directory.
+   - Or tell the user to run the task **"Copy .env from main"** (Terminal → Run Task… → Copy .env from main).
+
+2. **If the user says "copy env from main" or "sync env":**
+   - Run `./scripts/copy-env-from-main.sh` (or suggest the task).
+
+The script resolves the main worktree via `git worktree list` (first line) and copies every `.env*` file from there into the current workspace root. It is safe to run when already in the main worktree (no-op).
