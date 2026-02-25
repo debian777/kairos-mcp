@@ -235,7 +235,7 @@ start() {
     esac
     # Health check after server startup with retries (skip for prod)
     if [ "$ENV" != "prod" ]; then
-        ATTEMPTS=30
+        ATTEMPTS="${HEALTH_CHECK_ATTEMPTS:-30}"
         print_info "Performing post-startup health check with retries..."
         attempt=1
         while [ $attempt -le $ATTEMPTS ]; do

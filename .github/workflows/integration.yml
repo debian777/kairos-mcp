@@ -101,4 +101,6 @@ jobs:
         run: npm ci
 
       - name: Deploy dev and run integration tests
+        env:
+          HEALTH_CHECK_ATTEMPTS: 60
         run: npm run dev:deploy && npm run dev:test
