@@ -15,13 +15,14 @@ Build KAIROS protocol workflows where **challenges** (defined per step) are vali
 
 **Document Organization:**
 - **H1 (# Title)**: Defines a protocol chain (one H1 = one chain)
-- **H2 (## Step N)**: Defines individual steps within the chain
-- **Challenge**: A trailing fenced ` ```json ` block at the end of each step with `{"challenge": {...}}` (same shape as kairos_begin/kairos_next)
+- **Steps**: Defined by **PoW (proof-of-work) code** — each ` ```json ` block with `{"challenge": {...}}` ends one step. H2 headings are used only for step labels when present in a segment.
+- **Challenge**: A fenced ` ```json ` block with `{"challenge": {...}}` (same shape as kairos_begin/kairos_next)
 
 **Memory Mapping:**
 - Each H1 section → One protocol chain
-- Each H2 section → One memory step
-- Trailing JSON challenge block within a step → Becomes `proof_of_work` metadata on that memory
+- Each PoW block (```json with `challenge`) → One memory step (content before that block is that step’s text)
+- Optional content after the last PoW block → Final step (no proof required)
+- H2 in a segment → Used as that step’s label when present
 
 **Processing Flow:**
 ```

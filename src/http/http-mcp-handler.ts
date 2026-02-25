@@ -1,7 +1,8 @@
 import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { LOG_LEVEL } from '../config.js';
+import { LOG_LEVEL, AUTH_ENABLED } from '../config.js';
+import { setWwwAuthenticate } from './http-auth-middleware.js';
 
 /**
  * Track request start times by ID for accurate cancellation timing
@@ -30,6 +31,33 @@ export function setupMcpRoutes(app: express.Express, server: any) {
         const logLevel = LOG_LEVEL;
         if (logLevel === 'debug' || method !== 'notifications/cancelled') {
             structuredLogger.info(`→ MCP ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} [id: ${requestId}]`);
+        }
+
+        // listOfferingsForUI (MCP Apps / UI discovery): not implemented by SDK. Handle here so the client
+        // gets a proper auth-related response when auth is required, instead of -32601 Method not found.
+        if (method === 'listOfferingsForUI') {
+            const id = req.body?.id ?? null;
+            if (AUTH_ENABLED && !req.auth) {
+                setWwwAuthenticate(res, {
+                    error: 'invalid_token',
+                    error_description: 'Authentication required for UI offerings'
+                });
+                res.status(401).json({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32001,
+                        message: 'Authentication required for UI offerings'
+                    },
+                    id
+                });
+                return;
+            }
+            res.status(200).json({
+                jsonrpc: '2.0',
+                result: { tools: [], prompts: [], resources: [] },
+                id
+            });
+            return;
         }
 
         try {
