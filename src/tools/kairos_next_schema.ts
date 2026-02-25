@@ -11,7 +11,7 @@ const memoryUriSchema = z
   .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
 const solutionSchema = z.object({
-  type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Must match challenge.type'),
+  type: z.enum(['shell', 'mcp', 'comment']).describe('Must match challenge.type'),
   nonce: z.string().optional().describe('Echo nonce from challenge'),
   proof_hash: z.string().optional().describe('Echo proof_hash from previous challenge or response'),
   shell: z.object({
@@ -26,19 +26,14 @@ const solutionSchema = z.object({
     result: z.any(),
     success: z.boolean()
   }).optional(),
-  user_input: z.object({
-    confirmation: z.string(),
-    timestamp: z.string().optional()
-  }).optional(),
   comment: z.object({ text: z.string() }).optional()
 }).refine(
-  (data) => !!(data.shell || data.mcp || data.user_input || data.comment),
-  { message: 'At least one type-specific field (shell, mcp, user_input, or comment) must be provided' }
+  (data) => !!(data.shell || data.mcp || data.comment),
+  { message: 'At least one type-specific field (shell, mcp, or comment) must be provided' }
 ).refine(
   (data) => {
     if (data.type === 'shell' && !data.shell) return false;
     if (data.type === 'mcp' && !data.mcp) return false;
-    if (data.type === 'user_input' && !data.user_input) return false;
     if (data.type === 'comment' && !data.comment) return false;
     return true;
   },
@@ -68,7 +63,7 @@ const challengeSchema = z.object({
 
 export const kairosNextInputSchema = z.object({
   uri: memoryUriSchema.describe('Current step URI (from next_action of previous response)'),
-  solution: solutionSchema.describe('Proof matching challenge.type: shell/mcp/user_input/comment')
+  solution: solutionSchema.describe('Proof matching challenge.type: shell/mcp/comment (user_input is handled server-side via elicitation)')
 });
 
 export const kairosNextOutputSchema = z.object({

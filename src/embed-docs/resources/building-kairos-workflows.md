@@ -98,7 +98,7 @@ Add a **trailing** ` ```json ` block at the end of each step with an object that
 
 **MCP:** Call the tool; report result and success.
 
-**User Input:** Show the prompt to the user; use only their reply as `user_input.confirmation`.
+**User Input:** Handled server-side via MCP client elicitation. The server automatically requests user confirmation; the agent does not need to handle this.
 
 **Comment:** Provide text meeting the minimum length; validated for relevance to the step.
 
@@ -128,7 +128,7 @@ For execution semantics (how agents must perform each challenge type), see the k
 - Solution structure matches challenge type:
   - `shell`: `{type: 'shell', shell: {exit_code, stdout, stderr, duration_seconds}}`
   - `mcp`: `{type: 'mcp', mcp: {tool_name, arguments, result, success}}`
-  - `user_input`: `{type: 'user_input', user_input: {confirmation, timestamp}}`
+  - `user_input`: **Not allowed.** Handled server-side via MCP client elicitation. The agent cannot submit user_input solutions.
   - `comment`: `{type: 'comment', comment: {text}}`
 
 ---

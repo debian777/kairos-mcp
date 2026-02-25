@@ -71,9 +71,8 @@ export async function ensurePreviousProofCompleted(
       const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
       message += ` Execute "${cmd}" and report the result before continuing.`;
     } else if (proofType === 'user_input') {
-      const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
-      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Ask the user: "${prompt}" Then call kairos_next with their reply in solution.user_input.confirmation.`;
-      if (requestedUri) next_action = `Ask the user: "${prompt}" then call kairos_next with ${requestedUri} and solution.user_input.confirmation set to their reply.`;
+      message += ` This step requires user confirmation via MCP client elicitation. The server will handle this automatically; you do not need to (and cannot) submit a user_input solution.`;
+      if (requestedUri) next_action = `The server will request user confirmation via elicitation. Call kairos_next with ${requestedUri} and any solution type (the server will handle user_input via elicitation).`;
     } else if (proofType === 'mcp') {
       const toolName = prevProof.mcp?.tool_name || 'the required tool';
       message += ` Call the MCP tool "${toolName}" and report its real result, then call kairos_next with solution.mcp (success and result). Do not fabricate.`;

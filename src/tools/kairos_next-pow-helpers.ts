@@ -60,7 +60,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
       result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
     } else if (proofType === 'user_input') {
       const prompt = proof.user_input?.prompt || 'Confirm completion';
-      result['description'] = `User confirmation: ${prompt}. You MUST show this prompt to the user and use only their reply as user_input.confirmation; do not assume or invent it.`;
+      result['description'] = `User confirmation: ${prompt}. This step requires user confirmation via MCP client elicitation. The server will handle this automatically; the agent does not need to (and cannot) submit a user_input solution.`;
       result['user_input'] = { prompt };
     } else if (proofType === 'comment') {
       const minLength = proof.comment?.min_length || 10;
@@ -102,54 +102,12 @@ export async function buildChallenge(
 // Backward compatibility alias (deprecated - use buildChallenge)
 export const buildProofOfWorkRequired = buildChallenge;
 
-export type ElicitResult = { solution: ProofOfWorkSubmission } | { payload: any };
-
-export async function tryUserInputElicitation(
-  server: any,
-  memory: Memory,
-  solution: ProofOfWorkSubmission,
-  requestedUri: string,
-  buildCurrentStep: (m: Memory, u: string) => any
-): Promise<ElicitResult> {
-  if (memory.proof_of_work?.type !== 'user_input' || solution?.user_input?.confirmation) {
-    return { solution };
-  }
-  const lowLevel = (server as { server?: { getClientCapabilities?: () => { elicitation?: unknown }; elicitInput?: (p: unknown) => Promise<{ action: string; content?: { confirmation?: string } }> } }).server;
-  const caps = lowLevel?.getClientCapabilities?.();
-  if (caps?.elicitation == null || typeof lowLevel?.elicitInput !== 'function') {
-    return { solution };
-  }
-  const prompt = memory.proof_of_work.user_input?.prompt || 'Confirm completion';
-  try {
-    const elicitResult = await lowLevel.elicitInput({
-      message: prompt,
-      requestedSchema: {
-        type: 'object',
-        properties: { confirmation: { type: 'string', enum: ['approved', 'rejected'], description: 'Confirm or reject' } },
-        required: ['confirmation']
-      }
-    });
-    if (elicitResult?.action === 'accept' && elicitResult?.content?.confirmation) {
-      return { solution: { ...solution, type: 'user_input', user_input: { confirmation: elicitResult.content.confirmation, timestamp: new Date().toISOString() } } };
-    }
-    const challenge = await buildChallenge(memory, memory.proof_of_work);
-    const current_step = buildCurrentStep(memory, requestedUri);
-    if (elicitResult?.action === 'decline') {
-      return { payload: buildErrorPayload(memory, current_step, challenge, 'User declined confirmation.', 'USER_DECLINED', 1) };
-    }
-    return { payload: buildErrorPayload(memory, current_step, challenge, 'User cancelled or did not confirm.', 'USER_DECLINED', 1) };
-  } catch (err) {
-    const challenge = await buildChallenge(memory, memory.proof_of_work);
-    return { payload: buildErrorPayload(memory, buildCurrentStep(memory, requestedUri), challenge, err instanceof Error ? err.message : 'Elicitation failed.', 'ELICITATION_FAILED', 1) };
-  }
-}
-
 /**
  * Build an error response payload with two-phase retry escalation.
  * Retries 1-3: must_obey true with recovery next_action.
  * After 3: must_obey false with autonomous options.
  */
-function buildErrorPayload(
+export function buildErrorPayload(
   memory: Memory | null,
   current_step: any,
   challenge: any,
@@ -284,15 +242,9 @@ export async function handleProofSubmission(
       success: mcp.success
     };
   } else if (proofType === 'user_input') {
-    const userInput = submission.user_input;
-    if (!userInput || !userInput.confirmation) {
-      return blocked('User input proof requires user_input.confirmation', 'MISSING_FIELD');
-    }
-    record.status = 'success';
-    record.user_input = {
-      confirmation: userInput.confirmation,
-      timestamp: userInput.timestamp || new Date().toISOString()
-    };
+    // user_input is now strictly server-driven via elicitation
+    // Agents cannot submit user_input solutions directly
+    return blocked('user_input steps must be handled server-side via elicitation. The agent cannot submit user_input solutions.', 'TYPE_NOT_ALLOWED');
   } else if (proofType === 'comment') {
     const comment = submission.comment;
     if (!comment || !comment.text) {

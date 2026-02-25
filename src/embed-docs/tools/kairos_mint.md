@@ -57,7 +57,7 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 }
 ```
 
-Use a challenge on every step that can be verified: commands → shell; reviews/summaries → comment; approvals → user_input; tool calls → mcp. Mix types in one protocol. See workflow-kairos-mint and the creation protocol (kairos://mem/00000000-0000-0000-0000-000000002001) for full examples.
+Use a challenge on every step that can be verified: commands → shell; reviews/summaries → comment; approvals → user_input (handled server-side via elicitation); tool calls → mcp. Mix types in one protocol. See workflow-kairos-mint and the creation protocol (kairos://mem/00000000-0000-0000-0000-000000002001) for full examples.
 
 **Input:** `markdown_doc` (string), `llm_model_id` (required), `force_update` (optional, overwrite existing chain with same label).
 

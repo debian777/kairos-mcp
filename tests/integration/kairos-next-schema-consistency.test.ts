@@ -31,15 +31,16 @@ describe('kairos_next input schema exposure', () => {
       expect(solutionSchema.type).toBe('object');
       expect(solutionSchema.required).toEqual(expect.arrayContaining(['type']));
       
-      // Check for type enum
+      // Check for type enum (user_input removed - handled server-side via elicitation)
       expect(solutionSchema.properties?.type).toBeDefined();
-      expect(solutionSchema.properties.type.enum).toEqual(expect.arrayContaining(['shell', 'mcp', 'user_input', 'comment']));
+      expect(solutionSchema.properties.type.enum).toEqual(expect.arrayContaining(['shell', 'mcp', 'comment']));
+      expect(solutionSchema.properties.type.enum).not.toContain('user_input');
       
-      // Check for type-specific fields
+      // Check for type-specific fields (user_input removed)
       expect(solutionSchema.properties?.shell).toBeDefined();
       expect(solutionSchema.properties?.mcp).toBeDefined();
-      expect(solutionSchema.properties?.user_input).toBeDefined();
       expect(solutionSchema.properties?.comment).toBeDefined();
+      expect(solutionSchema.properties?.user_input).toBeUndefined();
     }, '[tools/list] kairos_next schema');
   }, 30000);
 });
