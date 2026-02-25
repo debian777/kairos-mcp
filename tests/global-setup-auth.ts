@@ -92,11 +92,12 @@ function cleanStaleAuthState(root: string): void {
 
 function loadEnv(): void {
   const root = process.cwd();
-  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env') });
+  const opts = { override: true };
+  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
   if (process.env.ENV === 'qa') {
-    if (existsSync(join(root, '.env.qa'))) config({ path: join(root, '.env.qa') });
+    if (existsSync(join(root, '.env.qa'))) config({ path: join(root, '.env.qa'), ...opts });
   } else {
-    if (existsSync(join(root, '.env.dev'))) config({ path: join(root, '.env.dev') });
+    if (existsSync(join(root, '.env.dev'))) config({ path: join(root, '.env.dev'), ...opts });
   }
 }
 

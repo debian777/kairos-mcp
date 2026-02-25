@@ -24,7 +24,7 @@ export class QdrantConnection {
   constructor(
     qdrantUrl: string = process.env['QDRANT_URL'] || 'http://localhost:6333',
     apiKey: string = process.env['QDRANT_API_KEY'] || '',
-    collectionAlias: string = process.env['QDRANT_COLLECTION'] || 'kb_resources',
+    collectionAlias: string = process.env['QDRANT_COLLECTION'] || 'kairos',
     caCertPath?: string
   ) {
     this.qdrantUrl = qdrantUrl;

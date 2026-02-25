@@ -8,7 +8,7 @@
 #   ./scripts/generate-dev-secrets.sh [--force] [--ci]
 #   CI=1 OPENAI_API_KEY=sk-... ./scripts/generate-dev-secrets.sh --ci
 #
-# Env (optional): KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_DB_PASSWORD, SESSION_SECRET, OPENAI_API_KEY
+# Env (optional): KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_DB_PASSWORD, SESSION_SECRET, OPENAI_API_KEY, QDRANT_API_KEY
 
 set -e
 
@@ -85,6 +85,7 @@ if [ "$CI" = true ]; then
   SESSION_SECRET="${SESSION_SECRET:-$(openssl rand -hex 32)}"
   set_var "$ENV_DEV" REDIS_URL "redis://127.0.0.1:6379"
   set_var "$ENV_DEV" QDRANT_URL "http://127.0.0.1:6333"
+  set_var "$ENV_DEV" QDRANT_COLLECTION "kairos"
   set_var "$ENV_DEV" AUTH_ENABLED "true"
   set_var "$ENV_DEV" KEYCLOAK_URL "http://localhost:8080"
   set_var "$ENV_DEV" KEYCLOAK_REALM "kairos-dev"
@@ -92,6 +93,7 @@ if [ "$CI" = true ]; then
   set_var "$ENV_DEV" AUTH_CALLBACK_BASE_URL "http://localhost:3300"
   set_var "$ENV_DEV" SESSION_SECRET "$SESSION_SECRET"
   set_var "$ENV_DEV" OPENAI_API_KEY "${OPENAI_API_KEY:-}"
+  set_var "$ENV_DEV" QDRANT_API_KEY "${QDRANT_API_KEY:-}"
   echo "Set CI defaults and env overrides in .env.dev."
 fi
 
