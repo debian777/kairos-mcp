@@ -308,13 +308,13 @@ Config: `maxmemory 512mb`, `allkeys-lru`, persistence via `appendonly yes` + `sa
 
 ## Qdrant data model
 
-One collection (default `kb_resources`) holds every protocol step as a
+One collection (default `kairos`) holds every protocol step as a
 vector + payload point. H1 headings become chain headers; H2 headings become steps.
 
 ```mermaid
 erDiagram
     COLLECTION {
-        string name   "kb_resources (default)"
+        string name   "kairos (default)"
         int    dim    "embedding dimension"
     }
 
