@@ -35,7 +35,69 @@ function realmFromIssuer(iss: string): string {
   return typeof segment === 'string' ? segment : 'default';
 }
 
+const AUTH_SUCCESS_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authentication successful – KAIROS</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; color: #e5e5e5; text-align: center; }
+    .box { padding: 2rem; max-width: 24rem; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    p { color: #a3a3a3; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Authentication successful</h1>
+    <p>You can close this page and return to Cursor.</p>
+  </div>
+</body>
+</html>
+`;
+
+const AUTH_LOGGED_OUT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logged out – KAIROS</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; color: #e5e5e5; text-align: center; }
+    .box { padding: 2rem; max-width: 24rem; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    p { color: #a3a3a3; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Session cleared</h1>
+    <p>You are logged out. You can close this page.</p>
+  </div>
+</body>
+</html>
+`;
+
+/** Cookie options must match those used when setting the session (Path=/) so the browser clears it. */
+const COOKIE_CLEAR_OPTIONS = { path: '/', httpOnly: true, sameSite: 'lax' as const };
+
 export function setupAuthCallback(app: express.Express): void {
+  app.get('/auth/success', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(AUTH_SUCCESS_HTML);
+  });
+
+  app.get('/auth/logout', (_req: Request, res: Response) => {
+    res.clearCookie(SESSION_COOKIE_NAME, COOKIE_CLEAR_OPTIONS);
+    res.redirect(302, '/auth/logged-out');
+  });
+
+  app.get('/auth/logged-out', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(AUTH_LOGGED_OUT_HTML);
+  });
+
   app.get('/auth/callback', async (req: Request, res: Response) => {
     if (!AUTH_ENABLED || !KEYCLOAK_URL || !SESSION_SECRET || !AUTH_CALLBACK_BASE_URL) {
       res.status(503).json({
@@ -144,6 +206,6 @@ export function setupAuthCallback(app: express.Express): void {
     res.setHeader('Set-Cookie', [
       `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}`
     ]);
-    res.redirect(302, '/api');
+    res.redirect(302, '/auth/success');
   });
 }

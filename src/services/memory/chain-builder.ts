@@ -1,11 +1,11 @@
 import crypto from 'node:crypto';
-import type { Memory, ProofOfWorkDefinition } from '../../types/memory.js';
+import type { Memory } from '../../types/memory.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import {
   parseMarkdownStructure,
   generateTags,
 } from '../../utils/memory-store-utils.js';
-import { extractProofOfWork } from './chain-builder-proof.js';
+import { extractProofOfWork, findAllChallengeBlocks } from './chain-builder-proof.js';
 
 /**
  * Sanitize H2 headings to remove STEP patterns and numbering that break chain order.
@@ -23,8 +23,19 @@ function sanitizeHeading(line: string): string {
 }
 
 /**
- * Process a single H1 section into a chain of memories. Step boundaries are H2 headers.
- * Each H1 becomes a chain label; each H2 starts a new step. Challenge is taken from a trailing JSON block per step.
+ * Derive step label from segment text: first H2 (## Title) in the segment, or fallback.
+ */
+function stepLabelFromSegment(segmentText: string, chainLabel: string, stepIndex: number): string {
+  const h2Match = segmentText.match(/^##\s+(.+)$/m);
+  const title = h2Match?.[1];
+  if (title) return title.trim();
+  return chainLabel || `Step ${stepIndex + 1}`;
+}
+
+/**
+ * Process a single H1 section into a chain of memories. Step boundaries are defined by
+ * PoW (proof-of-work) only: each ```json block with {"challenge": ...} ends one step.
+ * H2 headings are used only for step labels when present in a segment.
  */
 function processH1Section(
   h1Title: string,
@@ -33,161 +44,108 @@ function processH1Section(
   now: Date,
   codeBlockProcessor: CodeBlockProcessor
 ): Memory[] {
-  const lines = h1Content.split(/\r?\n/);
-  interface StepData {
-    chain_label: string;
-    step_label: string;
-    markdown_doc: string[];
-  }
-  const full_markdown: Record<number, StepData> = {};
-  let step = 0;
-  let inCodeBlock = false;
+  const blocks = findAllChallengeBlocks(h1Content);
 
-  for (const raw of lines) {
-    const line = raw;
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith('```')) {
-      inCodeBlock = !inCodeBlock;
-      if (step >= 1) {
-        full_markdown[step]!.markdown_doc.push(line);
-      }
-      continue;
-    }
-
-    if (!inCodeBlock && trimmed.startsWith('## ')) {
-      step += 1;
-      const h2Title = trimmed.substring(3).trim();
-      if (!full_markdown[step]) {
-        full_markdown[step] = {
-          chain_label: h1Title,
-          step_label: h2Title,
-          markdown_doc: []
-        };
-      } else {
-        full_markdown[step]!.step_label = full_markdown[step]!.step_label
-          ? full_markdown[step]!.step_label + ' / ' + h2Title
-          : h2Title;
-      }
-      full_markdown[step]!.markdown_doc.push(line);
-      continue;
-    }
-
-    if (step >= 1) {
-      full_markdown[step]!.markdown_doc.push(line);
-    }
-  }
-  
-  // Filter out empty steps
-  const steps = Object.keys(full_markdown)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .filter(stepNum => {
-      const stepData = full_markdown[stepNum]!;
-      // Keep step if it has content or if it's the only step
-      return stepData.markdown_doc.length > 0 || stepNum === 1;
-    });
-  
-  if (steps.length > 1) {
-    const lastStep = steps[steps.length - 1]!;
-    const lastStepData = full_markdown[lastStep]!;
-    if (lastStepData.markdown_doc.length === 0) {
-      steps.pop();
-    }
-  }
-  
-  // If only step 1 exists (no proof or proof at end), return single memory
-  if (steps.length === 1 && steps[0] === 1) {
-    // Single memory case - return as-is
-    const stepData = full_markdown[1]!;
-    const content = stepData.markdown_doc.join('\n');
-    const label = stepData.step_label || stepData.chain_label; // Fallback to chain_label if no H2
-
-    const { cleaned, proof } = extractProofOfWork(content);
+  // No PoW blocks: single memory (entire content, optional trailing challenge parsed by extractProofOfWork)
+  if (blocks.length === 0) {
+    const { cleaned, proof } = extractProofOfWork(h1Content);
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
     const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-
     const proofMetadata = proof
       ? { ...proof, required: proof.required ?? true }
       : undefined;
     const singleMemory: any = {
       memory_uuid: crypto.randomUUID(),
-      label,
+      label: stepLabelFromSegment(cleaned, h1Title, 0),
       tags: allTags,
       text: cleaned,
       llm_model_id: llmModelId,
       created_at: now.toISOString(),
       chain: {
-        id: '', // Will be set by store function
-        label: stepData.chain_label,
+        id: '',
+        label: h1Title,
         step_index: 1,
         step_count: 1
       } as any
     };
-    if (proofMetadata) {
-      singleMemory.proof_of_work = proofMetadata;
-    }
+    if (proofMetadata) singleMemory.proof_of_work = proofMetadata;
     return [singleMemory as Memory];
   }
-  
-  // Multiple steps: require proof for all steps
+
+  // One or more PoW blocks: steps are defined by each block; optional trailing segment after last block = final step (no proof)
   const nowIso = now.toISOString();
-  const uuids = steps.map(() => crypto.randomUUID());
-  
-  return steps.map((stepNum, index) => {
-    const stepData = full_markdown[stepNum]!;
-    const content = stepData.markdown_doc.join('\n');
-    const { cleaned, proof } = extractProofOfWork(content);
-    
-    // All steps must have proof, except the last step (which can be without proof)
-    const isLastStep = index === steps.length - 1;
-    if (!proof && steps.length > 1 && !isLastStep) {
-      throw new Error(`Missing challenge in step "${stepData.step_label || stepData.chain_label}". Add a trailing \`\`\`json block with {"challenge": {...}}.`);
-    }
-    
-    const memory_uuid = uuids[index]!;
-    const label = stepData.step_label || stepData.chain_label; // Fallback to chain_label if no H2
-    
-    // Process code blocks for enhanced searchability
+  const memories: Memory[] = [];
+  let prevEnd = 0;
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]!;
+    // Segment text = content from prevEnd up to (but not including) this block; block defines this step's proof
+    const segmentText = h1Content.slice(prevEnd, block.start).trim();
+    const cleaned = segmentText;
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
-    
-    // Generate tags including code identifiers
     const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-    
-    let proofMetadata: ProofOfWorkDefinition | undefined;
-    if (proof) {
-      proofMetadata = {
-        ...proof,
-        required: proof.required ?? true
-      };
-    }
-    
-    const obj: any = {
-      memory_uuid,
-      label,
+    const proofMetadata = {
+      ...block.proof,
+      required: block.proof.required ?? true
+    };
+    memories.push({
+      memory_uuid: crypto.randomUUID(),
+      label: stepLabelFromSegment(cleaned, h1Title, i),
       tags: allTags,
       text: cleaned,
       llm_model_id: llmModelId,
-      created_at: nowIso
-    };
-    if (proofMetadata) {
-      obj.proof_of_work = proofMetadata;
-    }
-    // Store chain label in chain object (id will be set by store function)
-    if (h1Title) {
-      obj.chain = {
-        id: '', // Will be set by store function
-        label: h1Title,
-        step_index: index + 1,
-        step_count: steps.length
-      } as any;
-    }
-    return obj as Memory;
-  });
+      created_at: nowIso,
+      chain: h1Title
+        ? {
+            id: '',
+            label: h1Title,
+            step_index: i + 1,
+            step_count: blocks.length // may add +1 if there's trailing content
+          }
+        : undefined,
+      proof_of_work: proofMetadata
+    } as Memory);
+    prevEnd = block.end;
+  }
+
+  // Trailing content after last block = final step (no proof required)
+  const trailing = h1Content.slice(prevEnd).trim();
+  if (trailing.length > 0) {
+    const codeResult = codeBlockProcessor.processMarkdown(trailing);
+    const baseTags = generateTags(trailing);
+    const codeTags = codeResult.allIdentifiers.slice(0, 5);
+    const allTags = [...baseTags, ...codeTags];
+    const stepCount = memories.length + 1;
+    memories.forEach(m => {
+      if (m.chain) m.chain.step_count = stepCount;
+    });
+    memories.push({
+      memory_uuid: crypto.randomUUID(),
+      label: stepLabelFromSegment(trailing, h1Title, memories.length),
+      tags: allTags,
+      text: trailing,
+      llm_model_id: llmModelId,
+      created_at: nowIso,
+      chain: h1Title
+        ? {
+            id: '',
+            label: h1Title,
+            step_index: stepCount,
+            step_count: stepCount
+          }
+        : undefined
+    } as Memory);
+  } else {
+    memories.forEach(m => {
+      if (m.chain) m.chain.step_count = memories.length;
+    });
+  }
+
+  return memories;
 }
 
 export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, now: Date, codeBlockProcessor: CodeBlockProcessor): Memory[] {
