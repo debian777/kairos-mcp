@@ -12,7 +12,7 @@ Today KAIROS has challenge types: **shell**, **mcp**, **user_input**, **comment*
 |----------------|-----------------------------|------------|
 | **mcp** | System: “Call MCP tool X with arguments Y. Return JSON: { tool_name, result, success, arguments? }.” User: step-specific input (e.g. “Resolve: Adam, Betty, Candy”). | Parse JSON; check success and required keys. |
 | **shell** | Can stay agent-executed (agent runs the command and submits exit_code/stdout) or, if sampling is used, system: “You are in a sandbox. Run this command and return JSON: { exit_code, stdout, stderr }.” | Check exit_code and shape. |
-| **user_input** | Elicitation is the primary driver (client shows a form to the user). If sampling is used as a fallback, System: “Show this prompt to the user and return their reply as JSON: { confirmation }.” User: the challenge prompt text. | Require non-empty confirmation; treat as “user must approve” so the client shows the prompt. |
+| **user_input** | **Strictly server-driven via MCP elicitation.** The server requires the client to support the `elicitation` capability. The server calls `elicitInput` with the challenge prompt and a schema that allows the user to choose: `approve` (continue), `retry_last_step`, `retry_chain`, or `abort`. The agent cannot submit user_input solutions; this is enforced at the schema level. | Server validates the elicitation response and handles routing based on user choice (advance, retry, or abort). |
 | **comment** | System: “Provide a verification comment (min N chars) summarizing what was done. Return JSON: { text }.” User: step description. | length ≥ min_length; optional semantic check. |
 
 The server builds these messages and sends them via `sampling/createMessage`. Exact wording and schema are implementation-defined; the principle is **server-defined prompt, server-side validation**.
@@ -76,6 +76,6 @@ Server validates success and event_id (or error), then advances to “complete�
 
 ## Summary
 
-- **Challenge types** (mcp, shell, user_input, comment) map to **server-built sampling prompts** and **server-side validation** of LLM output.
+- **Challenge types** (mcp, shell, user_input, comment) map to **server-built prompts** and **server-side validation**. For `user_input`, the server strictly requires MCP client elicitation capability; agents cannot submit user_input solutions.
 - **approvalMode** is per request: **auto** for low-risk steps, **user** for safety-sensitive steps.
 - **Client policy** (e.g. allowAutoSampling: ["kairos-mcp"]) determines whether the client will actually run auto steps without user approval.

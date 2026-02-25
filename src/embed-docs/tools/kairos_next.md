@@ -8,12 +8,12 @@ Submit solution and get next step. Advance through the protocol by proving each 
 
 - `shell`: `{type:'shell', shell:{exit_code, stdout?, stderr?, duration_seconds?}}` — exit_code 0 = success.
 - `mcp`: `{type:'mcp', mcp:{tool_name, arguments?, result, success}}` — success must be true.
-- `user_input`: `{type:'user_input', user_input:{confirmation, timestamp?}}`.
+- `user_input`: **Not allowed.** `user_input` steps are handled server-side via MCP client elicitation. The agent cannot submit user_input solutions. If the client does not support elicitation, the step will fail with `CAPABILITY_REQUIRED`.
 - `comment`: `{type:'comment', comment:{text}}` — text length must meet challenge's min_length.
 
 Include in solution when the challenge has them: `nonce` (echo from challenge), `proof_hash` (echo `challenge.proof_hash` for step 1; for step 2+ use `proof_hash` from the previous `kairos_next` response). The server generates all hashes; the AI never computes them.
 
-**Execution rules by challenge.type:** Same as kairos_begin. shell: Run `challenge.shell.cmd` and report the actual exit_code/stdout/stderr; never fabricate. mcp: Call `challenge.mcp.tool_name` and report the actual result; success must reflect reality. user_input: Show `challenge.user_input.prompt` to the user and use only their reply as `user_input.confirmation`; never invent it. comment: Write a genuine, relevant comment that meets `challenge.comment.min_length`.
+**Execution rules by challenge.type:** Same as kairos_begin. shell: Run `challenge.shell.cmd` and report the actual exit_code/stdout/stderr; never fabricate. mcp: Call `challenge.mcp.tool_name` and report the actual result; success must reflect reality. user_input: **Handled server-side.** The server uses MCP client elicitation to get user confirmation. The agent does not need to (and cannot) handle user_input steps. comment: Write a genuine, relevant comment that meets `challenge.comment.min_length`.
 
 **Response:** `current_step`, `challenge` (for next step), `next_action` (next tool call with embedded URI), and `proof_hash` (hash of proof just stored — use as `solution.proof_hash` for the next step).
 
