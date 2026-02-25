@@ -102,5 +102,10 @@ jobs:
 
       - name: Deploy dev and run integration tests
         env:
-          HEALTH_CHECK_ATTEMPTS: 60
-        run: npm run dev:deploy && npm run dev:test
+          HEALTH_CHECK_ATTEMPTS: 90
+        run: |
+          npm run dev:deploy && npm run dev:test || {
+            echo "--- .kairos-dev.log (last 200 lines) ---"
+            tail -200 .kairos-dev.log 2>/dev/null || true
+            exit 1
+          }
