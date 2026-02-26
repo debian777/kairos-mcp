@@ -52,8 +52,7 @@ export async function tryApplySolutionToPreviousStep(
 export async function ensurePreviousProofCompleted(
   memory: Memory,
   loadMemory: (uuid: string) => Promise<Memory | null>,
-  qdrantService: QdrantService | undefined,
-  requestedUri?: string
+  qdrantService: QdrantService | undefined
 ): Promise<PreviousProofBlock | null> {
   if (!memory?.chain || memory.chain.step_index <= 1) return null;
   const previous = await resolveChainPreviousStep(memory, qdrantService);
@@ -65,28 +64,30 @@ export async function ensurePreviousProofCompleted(
   if (!storedResult) {
     const proofType = prevProof.type || 'shell';
     const stepLabel = prevMemory?.label || 'previous step';
+    const prevStepUri = `kairos://mem/${previous.uuid}`;
     let message = `Proof of work missing for ${stepLabel}.`;
     let next_action: string | undefined;
     if (proofType === 'shell') {
       const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
       message += ` Execute "${cmd}" and report the result before continuing.`;
+      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call kairos_next with ${prevStepUri} and solution matching that step's challenge.`;
     } else if (proofType === 'user_input') {
       const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
-      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Ask the user: "${prompt}" Then call kairos_next with their reply in solution.user_input.confirmation.`;
-      if (requestedUri) next_action = `Ask the user: "${prompt}" then call kairos_next with ${requestedUri} and solution.user_input.confirmation set to their reply.`;
+      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling kairos_next with ${prevStepUri} and solution.user_input.confirmation.`;
+      next_action = `Ask the user: "${prompt}" then call kairos_next with ${prevStepUri} and solution.user_input.confirmation set to their reply.`;
     } else if (proofType === 'mcp') {
       const toolName = prevProof.mcp?.tool_name || 'the required tool';
-      message += ` Call the MCP tool "${toolName}" and report its real result, then call kairos_next with solution.mcp (success and result). Do not fabricate.`;
-      if (requestedUri) next_action = `Call ${toolName}, then call kairos_next with ${requestedUri} and solution.mcp with the real result.`;
+      message += ` Submit that proof by calling kairos_next with ${prevStepUri} and solution.mcp. Call the MCP tool "${toolName}" and report its real result; do not fabricate.`;
+      next_action = `Call ${toolName}, then call kairos_next with ${prevStepUri} and solution.mcp with the real result.`;
     } else if (proofType === 'comment') {
       const minLen = prevProof.comment?.min_length ?? 10;
-      message += ` Write a genuine summary of what was done (minimum ${minLen} characters) and call kairos_next with solution.comment.text. Do not paste unrelated text.`;
-      if (requestedUri) next_action = `retry kairos_next with ${requestedUri} and solution.comment.text (min ${minLen} chars).`;
+      message += ` Submit that proof by calling kairos_next with ${prevStepUri} and solution.comment.text (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
+      next_action = `call kairos_next with ${prevStepUri} and solution.comment.text (min ${minLen} chars).`;
     } else {
       message += ` Complete the required ${proofType} verification before continuing.`;
-      if (requestedUri) next_action = `retry kairos_next with ${requestedUri} -- complete previous step first`;
+      next_action = `call kairos_next with ${prevStepUri} -- complete previous step first`;
     }
-    if (!next_action && requestedUri) next_action = `retry kairos_next with ${requestedUri} -- complete previous step first`;
+    if (!next_action) next_action = `call kairos_next with ${prevStepUri} -- complete previous step first`;
     const block: PreviousProofBlock = { message, error_code: 'MISSING_PROOF' };
     if (next_action !== undefined) block.next_action = next_action;
     return block;

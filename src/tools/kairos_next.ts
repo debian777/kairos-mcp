@@ -215,8 +215,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
               const previousBlock = await ensurePreviousProofCompleted(
                 memory,
                 (id) => loadMemoryWithCache(memoryStore, id),
-                options.qdrantService,
-                requestedUri
+                options.qdrantService
               );
               if (!previousBlock && options.qdrantService && !prevResult.outcome.alreadyRecorded) {
                 await updateStepQuality(options.qdrantService, prevResult.prevMemory, 'success', tenantId);
@@ -253,8 +252,7 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
           const previousBlock = await ensurePreviousProofCompleted(
             memory,
             (id) => loadMemoryWithCache(memoryStore, id),
-            options.qdrantService,
-            requestedUri
+            options.qdrantService
           );
           if (previousBlock) {
             if (options.qdrantService) {

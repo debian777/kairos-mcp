@@ -159,8 +159,10 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
             results.push({
               uri: uri,
               outcome: outcome,
-              error: errorMessage,
-              message: `Failed to rate ${uri}: ${errorMessage}`
+              quality_bonus: 0,
+              message: `Failed to rate ${uri}: ${errorMessage}`,
+              rated_at: new Date().toISOString(),
+              error: errorMessage
             });
             totalFailed++;
 

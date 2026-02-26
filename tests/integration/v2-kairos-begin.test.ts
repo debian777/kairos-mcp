@@ -110,6 +110,40 @@ describe('V2 kairos_begin response schema', () => {
       expect(parsed.challenge).toBeDefined();
       expect(parsed.challenge.type).toBe('comment');
       expect(typeof parsed.next_action).toBe('string');
+      // Critical: first kairos_next must use step 1's URI (current step), not step 2's, so comment is submitted to the right step
+      expect(parsed.next_action).toContain(REFINING_PROTOCOL_URI);
+      expect(parsed.next_action).toMatch(/kairos_next/);
+    });
+  });
+
+  test('refining protocol: submitting step 1 comment to step 1 URI advances to step 2 (no TYPE_MISMATCH)', async () => {
+    const beginResult = await mcpConnection.client.callTool({
+      name: 'kairos_begin',
+      arguments: { uri: REFINING_PROTOCOL_URI }
+    });
+    const beginPayload = parseMcpJson(beginResult, 'v2-begin refine step1');
+    const nonce = beginPayload.challenge?.nonce;
+    const proofHash = beginPayload.challenge?.proof_hash;
+
+    const nextResult = await mcpConnection.client.callTool({
+      name: 'kairos_next',
+      arguments: {
+        uri: REFINING_PROTOCOL_URI,
+        solution: {
+          type: 'comment',
+          comment: { text: 'Extracted goal: refine search; context: KAIROS; gaps: none. Genuine summary for step 1.' },
+          nonce,
+          proof_hash: proofHash
+        }
+      }
+    });
+    const nextPayload = parseMcpJson(nextResult, 'v2-begin refine next');
+
+    withRawOnFail({ beginResult, nextResult }, () => {
+      expect(nextPayload.error_code).toBeUndefined();
+      expect(nextPayload.current_step?.uri).toBeDefined();
+      expect(nextPayload.challenge?.type).toBe('mcp');
+      expect(nextPayload.current_step.uri).not.toBe(REFINING_PROTOCOL_URI);
     });
   });
 

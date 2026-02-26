@@ -93,9 +93,10 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
             const nextStepUri = nextStepInfo?.uuid
                 ? `kairos://mem/${nextStepInfo.uuid}`
                 : null;
+            const currentStepUri = current_step.uri;
 
             if (nextStepUri) {
-                output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
+                output.next_action = `call kairos_next with ${currentStepUri} and solution matching challenge`;
             } else {
                 const attestUri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
                 output.message = 'Single-step protocol. Call kairos_attest to finalize.';
