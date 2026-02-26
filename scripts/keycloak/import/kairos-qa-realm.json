@@ -5,6 +5,8 @@
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "ssoSessionIdleTimeout": 604800,
+  "ssoSessionMaxLifespan": 604800,
   "groups": [{ "name": "kairos-team-platform" }, { "name": "kairos-team-sre" }],
   "clients": [
     {
