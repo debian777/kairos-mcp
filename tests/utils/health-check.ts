@@ -63,9 +63,13 @@ export async function waitForHealthCheck(options = {}) {
         if (healthData.status === 'healthy') {
           console.log(`✓ MCP server ready after ${elapsed}ms (${attempts + 1} attempts)`);
           return healthData;
-        } else {
-          console.log(`⚠ MCP server degraded (attempt ${attempts + 1}/${maxRetries}): ${JSON.stringify(healthData)}`);
         }
+        if (healthData.status === 'degraded') {
+          const details = healthData.details ? ` (${JSON.stringify(healthData.details)})` : '';
+          throw new Error(`MCP server is degraded; tests require healthy status${details}. Response: ${JSON.stringify(healthData)}`);
+        }
+        // unhealthy or unknown status
+        console.log(`⚠ MCP server not healthy (attempt ${attempts + 1}/${maxRetries}): ${JSON.stringify(healthData)}`);
       } else {
         console.log(`⚠ Health check failed with status ${response.status} (attempt ${attempts + 1}/${maxRetries})`);
       }

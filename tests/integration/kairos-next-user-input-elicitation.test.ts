@@ -116,17 +116,21 @@ First step with user confirmation.
       }
     });
 
-    // Failure may be: (1) JSON body with error_code, or (2) MCP layer error (isError + text)
+    // Failure may be: (1) JSON body with error_code, or (2) MCP layer error (isError + text, not JSON)
     let nextParsed: Record<string, unknown> | null = null;
     try {
       nextParsed = parseMcpJson(nextResult, '[user_input tests] attempted agent submission');
     } catch {
-      // MCP or server may return non-JSON error (e.g. "MCP error ..."); rejection is success
+      // MCP returns isError with text like "MCP error -32602: Input validation error: ... Invalid option: expected one of \"shell\"|\"mcp\"|\"comment\""
       expect(nextResult).toBeDefined();
+      expect((nextResult as { isError?: boolean }).isError).toBe(true);
+      const text =
+        (nextResult as { content?: Array<{ type?: string; text?: string }> }).content?.[0]?.text ?? '';
+      expect(text).toMatch(/invalid|validation|invalid_value|expected one of.*shell.*mcp.*comment/i);
       return;
     }
     expect(nextParsed).toBeDefined();
-    // If we got JSON, it should indicate failure (error_code or must_obey with error message)
+    // If we got JSON, it should indicate failure (error_code or message)
     if (nextParsed && (nextParsed.error_code != null || (nextParsed as { message?: string }).message)) {
       expect(nextParsed.error_code != null || (nextParsed as { message?: string }).message?.length).toBeTruthy();
     }

@@ -19,6 +19,8 @@ import { registerKairosAttestTool } from './tools/kairos_attest.js';
 import { registerKairosDumpTool } from './tools/kairos_dump.js';
 import { registerKairosSpacesTool } from './tools/kairos_spaces.js';
 
+let configLogged = false;
+
 // Create and configure the MCP server
 export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     const server = new McpServer(
@@ -56,36 +58,33 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     // Register prompts (from embedded-mcp-resources)
     registerPromptResources(server);
 
-    // Log runtime configuration (mask secrets)
-    const mask = (v?: string) => (v ? `${v.slice(0, 2)}***${v.slice(-2)}` : undefined);
-    const config = {
-        log: {
-            level: LOG_LEVEL,
-            format: LOG_FORMAT,
-        },
-        transport: {
-            type: TRANSPORT_TYPE,
-        },
-        qdrant: {
-            url: getQdrantUrl(),
-            collection: getQdrantCollection(),
-            apiKey: mask(QDRANT_API_KEY),
-            rescore: QDRANT_RESCORE_STRING,
-        },
-        tei: {
-            url: TEI_URL,
-            model: TEI_MODEL,
-            dim_env: getEmbeddingDimension() || getTeiDimension(),
-        },
-        search: {
-            overfetch: KAIROS_SEARCH_OVERFETCH_FACTOR,
-            maxFetch: KAIROS_SEARCH_MAX_FETCH,
-            groupCollapse: KAIROS_ENABLE_GROUP_COLLAPSE
-        },
-    };
-    structuredLogger.debug(`runtime config ${JSON.stringify(config)}`);
+    if (!configLogged) {
+        configLogged = true;
+        const mask = (v?: string) => (v ? `${v.slice(0, 2)}***${v.slice(-2)}` : undefined);
+        const config = {
+            log: { level: LOG_LEVEL, format: LOG_FORMAT },
+            transport: { type: TRANSPORT_TYPE },
+            qdrant: {
+                url: getQdrantUrl(),
+                collection: getQdrantCollection(),
+                apiKey: mask(QDRANT_API_KEY),
+                rescore: QDRANT_RESCORE_STRING,
+            },
+            tei: {
+                url: TEI_URL,
+                model: TEI_MODEL,
+                dim_env: getEmbeddingDimension() || getTeiDimension(),
+            },
+            search: {
+                overfetch: KAIROS_SEARCH_OVERFETCH_FACTOR,
+                maxFetch: KAIROS_SEARCH_MAX_FETCH,
+                groupCollapse: KAIROS_ENABLE_GROUP_COLLAPSE
+            },
+        };
+        structuredLogger.debug(`runtime config ${JSON.stringify(config)}`);
+        structuredLogger.info('MCP server created and configured');
+    }
 
-    structuredLogger.info('MCP server created and configured');
     return server;
 }
 

@@ -8,7 +8,7 @@ Submit solution and get next step. Advance through the protocol by proving each 
 
 - `shell`: `{type:'shell', shell:{exit_code, stdout?, stderr?, duration_seconds?}}` — exit_code 0 = success.
 - `mcp`: `{type:'mcp', mcp:{tool_name, arguments?, result, success}}` — success must be true.
-- `user_input`: **Not allowed.** `user_input` steps are handled server-side via MCP client elicitation. The agent cannot submit user_input solutions. If the client does not support elicitation, the step will fail with `CAPABILITY_REQUIRED`.
+- `user_input`: **Not allowed.** `user_input` steps are handled server-side via MCP client elicitation. The agent cannot submit user_input solutions. If the client does not support elicitation, the step will fail with `CAPABILITY_REQUIRED`. At user_input steps the client elicits one of: approve, retry_last_step, retry_chain, abort, pause_and_discuss (pause and discuss with user before deciding).
 - `comment`: `{type:'comment', comment:{text}}` — text length must meet challenge's min_length.
 
 Include in solution when the challenge has them: `nonce` (echo from challenge), `proof_hash` (echo `challenge.proof_hash` for step 1; for step 2+ use `proof_hash` from the previous `kairos_next` response). The server generates all hashes; the AI never computes them.

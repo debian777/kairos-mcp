@@ -36,7 +36,7 @@ Follow this loop for any protocol run.
 2. Choose a protocol from `choices`, then call `kairos_begin` with its `uri`.
 3. While `next_action` says to call `kairos_next`:
    - Read the `challenge` for the current step.
-   - Complete the work in the real world. By challenge.type: shell — Run `challenge.shell.cmd` and report the actual exit_code/stdout/stderr; never fabricate. mcp — Call `challenge.mcp.tool_name` and report the actual result; success must reflect reality. user_input — **Handled server-side via MCP client elicitation.** The server automatically requests user confirmation; you do not need to (and cannot) handle user_input steps. comment — Write a genuine comment about this step that meets `challenge.comment.min_length` and is relevant to the step.
+   - Complete the work in the real world. By challenge.type: shell — Run `challenge.shell.cmd` and report the actual exit_code/stdout/stderr; never fabricate. mcp — Call `challenge.mcp.tool_name` and report the actual result; success must reflect reality. user_input — **Handled server-side via MCP client elicitation.** The server automatically requests user confirmation; you do not need to (and cannot) handle user_input steps. user_input steps: the server elicits from the user (approve, retry_last_step, retry_chain, abort, pause_and_discuss). comment — Write a genuine comment about this step that meets `challenge.comment.min_length` and is relevant to the step.
    - Call `kairos_next` with the URI from `next_action` and a `solution` that
      matches `challenge.type`.
    - Echo `challenge.nonce` as `solution.nonce` when present.

@@ -45,8 +45,8 @@ export async function tryUserInputElicitation(
         properties: {
           confirmation: {
             type: 'string',
-            enum: ['approve', 'retry_last_step', 'retry_chain', 'abort'],
-            description: 'User action: approve to continue, retry_last_step to retry current step, retry_chain to restart protocol, abort to cancel'
+            enum: ['approve', 'retry_last_step', 'retry_chain', 'abort', 'pause_and_discuss'],
+            description: 'User action: approve to continue, retry_last_step to retry current step, retry_chain to restart protocol, abort to cancel, pause_and_discuss to pause and discuss with user before deciding'
           }
         },
         required: ['confirmation']
@@ -94,6 +94,21 @@ export async function tryUserInputElicitation(
             error_code: 'USER_DECLINED',
             retry_count: 1,
             next_action: `call kairos_attest with ${requestedUri} and outcome failure to abort the protocol`
+          }
+        };
+      } else if (confirmation === 'pause_and_discuss') {
+        // User chose to pause and discuss; re-present same step, no retry count increment
+        const challenge = await buildChallenge(memory, memory.proof_of_work);
+        const current_step = buildCurrentStep(memory, requestedUri);
+        return {
+          payload: {
+            must_obey: false,
+            current_step,
+            challenge,
+            message: 'User chose to pause and discuss. Discuss with the user, then call kairos_next again with this step URI when ready to continue.',
+            error_code: 'PAUSE_AND_DISCUSS',
+            retry_count: 0,
+            next_action: `After discussing with the user, call kairos_next with ${requestedUri} and a solution matching the challenge (or the user can choose approve/retry/abort in a later elicitation).`
           }
         };
       }

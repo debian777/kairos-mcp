@@ -190,9 +190,24 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
 
         const memory = await loadMemoryWithCache(memoryStore, uuid);
 
+        // Determine the step we're submitting a solution for (for elicitation). When the requested URI
+        // is the "next" step (no proof_of_work), we're completing the previous step; run elicitation on that.
+        let stepForElicitation: Memory | null = memory;
+        let uriForElicitation = requestedUri;
+        if (memory && !memory.proof_of_work) {
+          const prevInfo = await resolveChainPreviousStep(memory, options.qdrantService);
+          if (prevInfo?.uuid) {
+            const prevMemory = await loadMemoryWithCache(memoryStore, prevInfo.uuid);
+            if (prevMemory?.proof_of_work) {
+              stepForElicitation = prevMemory;
+              uriForElicitation = `kairos://mem/${prevInfo.uuid}`;
+            }
+          }
+        }
+
         let solutionToUse = solution;
-        if (memory) {
-          const elicitResult = await tryUserInputElicitation(server, memory, solution, requestedUri, buildCurrentStep);
+        if (stepForElicitation) {
+          const elicitResult = await tryUserInputElicitation(server, stepForElicitation, solution, uriForElicitation, buildCurrentStep);
           if ('payload' in elicitResult) return respond(elicitResult.payload);
           solutionToUse = elicitResult.solution;
         }

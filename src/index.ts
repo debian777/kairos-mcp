@@ -86,8 +86,8 @@ async function main(): Promise<void> {
         structuredLogger.info(`Application server: ${PORT}`);
         structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
 
-        const server = createServer(memoryStore);
-        await startServer(server, memoryStore);
+        const serverFactory = () => createServer(memoryStore);
+        await startServer(serverFactory, memoryStore);
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 
