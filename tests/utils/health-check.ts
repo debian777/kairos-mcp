@@ -81,28 +81,3 @@ export async function waitForHealthCheck(options = {}) {
 
   throw new Error(`Health check failed after ${maxRetries} attempts (${Date.now() - startTime}ms)`);
 }
-
-/**
- * Quick health check without waiting
- * @param url Health endpoint URL
- * @returns Promise resolving to health status or null if unreachable
- */
-export async function checkHealthStatus(url = 'http://localhost:3300/health') {
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      },
-      signal: AbortSignal.timeout(5000) // 5 second timeout for quick check
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch {
-    // Ignore errors for quick check
-  }
-
-  return null;
-}

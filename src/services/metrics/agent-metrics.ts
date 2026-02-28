@@ -1,4 +1,4 @@
-import { Counter, Gauge, Histogram } from 'prom-client';
+import { Counter, Histogram } from 'prom-client';
 import { register } from './registry.js';
 
 
@@ -16,37 +16,9 @@ export const agentContributions = new Counter({
   registers: [register]
 });
 
-export const agentImplementationAttempts = new Counter({
-  name: 'kairos_agent_implementation_attempts_total',
-  help: 'Total number of implementation attempts by agent',
-  labelNames: ['agent_id', 'memory_id', 'tenant_id'],
-  registers: [register]
-});
-
-export const agentImplementationSuccesses = new Counter({
-  name: 'kairos_agent_implementation_successes_total',
-  help: 'Total number of successful implementations by agent',
-  labelNames: ['agent_id', 'memory_id', 'tenant_id'],
-  registers: [register]
-});
-
-export const agentImplementationSuccessRate = new Gauge({
-  name: 'kairos_agent_implementation_success_rate',
-  help: 'Implementation success rate (0-1) by agent and memory',
-  labelNames: ['agent_id', 'memory_id', 'tenant_id'],
-  registers: [register]
-});
-
 export const agentImplementationBonus = new Counter({
   name: 'kairos_agent_implementation_bonus_total',
   help: 'Total implementation bonus points by agent',
-  labelNames: ['agent_id', 'tenant_id'],
-  registers: [register]
-});
-
-export const agentHealerBonus = new Counter({
-  name: 'kairos_agent_healer_bonus_total',
-  help: 'Total healer bonus points by agent',
   labelNames: ['agent_id', 'tenant_id'],
   registers: [register]
 });

@@ -6,7 +6,6 @@
 */
 
 import { v5 as uuidv5, v4 as uuidv4 } from 'uuid';
-import { KairosError } from '../types/index.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
 // KAIROS namespace UUID for deterministic ID generation
@@ -112,93 +111,4 @@ export class IDGenerator {
     }
 
     // Using UUIDs exclusively going forward
-}
-
-/**
- * Collision Validator for KAIROS
- * 
- * Ensures composite key uniqueness before generating IDs
- * Prevents duplicate storage with retry mechanism
- */
-export class CollisionValidator {
-    /**
-     * Check if composite key already exists
-     * 
-     * @param checkDuplicateFn - Function to check for existing duplicates
-     * @param domain - Knowledge domain
-     * @param type - Knowledge type
-     * @param task - Task identifier
-     * @param protocol - Optional protocol metadata
-     * @returns true if collision detected
-     */
-    static async checkCompositeCollision(
-        checkDuplicateFn: (
-            domain: string,
-            type: string,
-            task: string,
-            protocol?: { step: number; total: number; enforcement: string; skip_allowed: boolean }
-        ) => Promise<string | null>,
-        domain: string,
-        type: string,
-        task: string,
-        protocol?: { step: number; total: number; enforcement: string; skip_allowed: boolean }
-    ): Promise<boolean> {
-        const existingId = await checkDuplicateFn(domain, type, task, protocol);
-        return existingId !== null;
-    }
-
-    /**
-     * Generate collision-free protocol ID with retry mechanism
-     *
-     * Attempts to generate unique protocol ID up to maxRetries times.
-     * If composite key collision detected for non-protocols, throws error immediately.
-     * For protocols, generates protocol_id that will be shared across all steps.
-     *
-     * @param checkDuplicateFn - Function to check for duplicates
-     * @param domain - Knowledge domain
-     * @param type - Knowledge type
-     * @param task - Task identifier
-     * @param protocol - Optional protocol metadata
-     * @param maxRetries - Maximum retry attempts (default: 5)
-     * @returns Object with protocolId and qdrantId
-     * @throws Error if unable to generate unique ID
-     */
-    static async generateCollisionFreeId(
-        checkDuplicateFn: (
-            domain: string,
-            type: string,
-            task: string,
-            protocol?: { step: number; total: number; enforcement: string; skip_allowed: boolean }
-        ) => Promise<string | null>,
-        domain: string,
-        type: string,
-        task: string,
-        protocol?: { step: number; total: number; enforcement: string; skip_allowed: boolean }
-    ): Promise<{ protocolId: string; qdrantId: string }> {
-        // Check for composite key collision first
-        const existingId = await checkDuplicateFn(domain, type, task, protocol);
-
-        if (existingId) {
-            const compositeKey = protocol
-                ? `${domain}/${type}/${task}/step/${protocol.step}`
-                : `${domain}/${type}/${task}`;
-
-            throw new KairosError(
-                `Composite key ${compositeKey} already exists with ID ${existingId}`,
-                'DUPLICATE_KEY',
-                409,
-                { compositeKey, existingId }
-            );
-        }
-
-        // Generate new protocol/knowledge ID (UUID)
-        const protocolId = protocol
-            ? IDGenerator.generateProtocolId()  // Shared across all protocol steps
-            : uuidv4(); // Unique for non-protocol items
-
-        // Note: We cannot build Qdrant ID here because we need the full URI
-        // The caller must build the URI first, then generate Qdrant ID from it
-        // Return just the protocolId; qdrantId will be generated from URI in storeMemory
-        return { protocolId, qdrantId: '' }; // Empty qdrantId - will be set by caller
-    }
 }

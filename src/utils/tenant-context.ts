@@ -103,25 +103,6 @@ export function getSearchSpaceIds(): string[] {
 }
 
 /**
- * If spaceParam is provided, validate it is in allowed spaces and run fn in a narrowed context.
- * Use from MCP tool handlers to support optional space/space_id argument.
- * @throws Error with message suitable for 403 if spaceParam is not allowed
- */
-export function runWithOptionalSpace<T>(spaceParam: string | undefined, fn: () => T): T {
-  if (!spaceParam || typeof spaceParam !== 'string') return fn();
-  const ctx = getSpaceContextFromStorage();
-  if (!ctx.allowedSpaceIds.includes(spaceParam)) {
-    throw new Error('Requested space is not in your allowed spaces');
-  }
-  const narrowed: SpaceContext = {
-    ...ctx,
-    allowedSpaceIds: [spaceParam],
-    defaultWriteSpaceId: spaceParam
-  };
-  return runWithSpaceContext(narrowed, fn);
-}
-
-/**
  * Async variant: run fn in narrowed space context so context persists across await.
  * Use when the callback does async work (e.g. kairos_search) and getSpaceContext() must see the context.
  */

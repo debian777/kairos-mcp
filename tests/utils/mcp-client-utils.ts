@@ -82,26 +82,3 @@ export async function getSharedMcpConnection() {
   sharedConnection = await sharedConnectionPromise;
   return sharedConnection;
 }
-
-/**
- * Cleans up the shared connection
- * Should be called once after all tests complete
- */
-export async function cleanupSharedMcpConnection() {
-  if (sharedConnection) {
-    await sharedConnection.close();
-    sharedConnection = null;
-  }
-  sharedConnectionPromise = null;
-}
-
-/**
- * Helper to check if a client is connected
- * @param client The MCP client to check
- * @returns True if the client appears to be connected
- */
-export function isClientConnected(client) {
-  // This is a simple check - in a real implementation you might want
-  // to check the transport state more thoroughly
-  return client !== null && client !== undefined;
-}
