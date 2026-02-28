@@ -123,10 +123,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy dev (start app) and show logs
+      - name: Deploy dev and run auth integration test
         env:
           HEALTH_CHECK_ATTEMPTS: 90
         run: |
           npm run dev:deploy || true
-          echo "--- .kairos-dev.log (last 300 lines) ---"
-          tail -300 .kairos-dev.log 2>/dev/null || echo "(no log file)"
+          npm run dev:test -- tests/integration/auth-keycloak.test.ts || {
+            echo "--- .kairos-dev.log (last 200 lines) ---"
+            tail -200 .kairos-dev.log 2>/dev/null || echo "(no log file)"
+            exit 1
+          }
