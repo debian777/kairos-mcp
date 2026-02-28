@@ -53,83 +53,80 @@ jobs:
             if [ -n "${!k+x}" ]; then echo "${k}=<set>"; else echo "${k}=<unset>"; fi
           done
 
-      # --- COMMENTED OUT FOR DEBUG (env vars) - restore when done ---
-      # - name: Restore infra Docker image cache
-      #   uses: actions/cache/restore@v4
-      #   id: docker-infra-cache
-      #   with:
-      #     path: .cache/docker-infra
-      #     key: infra-docker-${{ hashFiles('compose.yaml') }}
+      - name: Restore infra Docker image cache
+        uses: actions/cache/restore@v4
+        id: docker-infra-cache
+        with:
+          path: .cache/docker-infra
+          key: infra-docker-${{ hashFiles('compose.yaml') }}
 
-      # - name: Load infra Docker images from cache
-      #   if: steps.docker-infra-cache.outputs.cache-hit == 'true'
-      #   run: docker load -i .cache/docker-infra/images.tar
+      - name: Load infra Docker images from cache
+        if: steps.docker-infra-cache.outputs.cache-hit == 'true'
+        run: docker load -i .cache/docker-infra/images.tar
 
-      # - name: Start Docker infra
-      #   run: docker compose --env-file .env.dev --profile infra up -d
+      - name: Start Docker infra
+        run: docker compose --env-file .env.dev --profile infra up -d
 
-      # - name: Save infra Docker images for cache
-      #   if: steps.docker-infra-cache.outputs.cache-hit != 'true'
-      #   run: |
-      #     mkdir -p .cache/docker-infra
-      #     docker save -o .cache/docker-infra/images.tar \
-      #       redis:7-alpine \
-      #       redis/redisinsight:latest \
-      #       qdrant/qdrant:latest \
-      #       postgres:16 \
-      #       quay.io/keycloak/keycloak:26.5.4
+      - name: Save infra Docker images for cache
+        if: steps.docker-infra-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache/docker-infra
+          docker save -o .cache/docker-infra/images.tar \
+            redis:7-alpine \
+            redis/redisinsight:latest \
+            qdrant/qdrant:latest \
+            postgres:16 \
+            quay.io/keycloak/keycloak:26.5.4
 
-      # - name: Cache infra Docker images
-      #   uses: actions/cache/save@v4
-      #   if: steps.docker-infra-cache.outputs.cache-hit != 'true'
-      #   with:
-      #     path: .cache/docker-infra
-      #     key: infra-docker-${{ hashFiles('compose.yaml') }}
+      - name: Cache infra Docker images
+        uses: actions/cache/save@v4
+        if: steps.docker-infra-cache.outputs.cache-hit != 'true'
+        with:
+          path: .cache/docker-infra
+          key: infra-docker-${{ hashFiles('compose.yaml') }}
 
-      # - name: Wait for Redis
-      #   run: |
-      #     for i in $(seq 1 30); do
-      #       docker compose --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
-      #       [ $i -eq 30 ] && exit 1
-      #       sleep 2
-      #     done
+      - name: Wait for Redis
+        run: |
+          for i in $(seq 1 30); do
+            docker compose --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
+            [ $i -eq 30 ] && exit 1
+            sleep 2
+          done
 
-      # - name: Wait for Qdrant
-      #   run: |
-      #     for i in $(seq 1 30); do
-      #       curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
-      #       [ $i -eq 30 ] && exit 1
-      #       sleep 2
-      #     done
+      - name: Wait for Qdrant
+        run: |
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
+            [ $i -eq 30 ] && exit 1
+            sleep 2
+          done
 
-      # - name: Wait for Postgres
-      #   run: |
-      #     for i in $(seq 1 30); do
-      #       docker compose --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
-      #       [ $i -eq 30 ] && exit 1
-      #       sleep 2
-      #     done
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            docker compose --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
+            [ $i -eq 30 ] && exit 1
+            sleep 2
+          done
 
-      # - name: Wait for Keycloak
-      #   run: |
-      #     for i in $(seq 1 90); do
-      #       curl -sSf -o /dev/null http://localhost:9000/health/ready && break
-      #       [ $i -eq 90 ] && exit 1
-      #       sleep 2
-      #     done
+      - name: Wait for Keycloak
+        run: |
+          for i in $(seq 1 90); do
+            curl -sSf -o /dev/null http://localhost:9000/health/ready && break
+            [ $i -eq 90 ] && exit 1
+            sleep 2
+          done
 
-      # - name: Configure Keycloak realms and test user
-      #   run: python3 scripts/configure-keycloak-realms.py
+      - name: Configure Keycloak realms and test user
+        run: python3 scripts/configure-keycloak-realms.py
 
-      # - name: Install dependencies
-      #   run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      # - name: Deploy dev and run integration tests
-      #   env:
-      #     HEALTH_CHECK_ATTEMPTS: 90
-      #   run: |
-      #     npm run dev:deploy && npm run dev:test || {
-      #       echo "--- .kairos-dev.log (last 200 lines) ---"
-      #       tail -200 .kairos-dev.log 2>/dev/null || true
-      #       exit 1
-      #     }
+      - name: Deploy dev (start app) and show logs
+        env:
+          HEALTH_CHECK_ATTEMPTS: 90
+        run: |
+          npm run dev:deploy || true
+          echo "--- .kairos-dev.log (last 300 lines) ---"
+          tail -300 .kairos-dev.log 2>/dev/null || echo "(no log file)"
