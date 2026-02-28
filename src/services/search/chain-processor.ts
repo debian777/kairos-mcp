@@ -104,8 +104,7 @@ export class ChainProcessor {
                 },
             };
 
-            // DEBUG: Log UUID preservation
-            logger.info(`DEBUG: Memory chain collapsing - first.id: ${first.id}, step1Memory.id: ${step1Memory.id}`);
+            logger.debug(`Memory chain collapsing - first.id: ${first.id}, step1Memory.id: ${step1Memory.id}`);
 
             collapsed.push({
                 memory: step1Memory,

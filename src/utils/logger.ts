@@ -1,170 +1,89 @@
 /**
- * Logging utility for KAIROS MCP
+ * Logging utility for KAIROS MCP.
+ * Uses shared Pino backend (log-core) so JSON shape matches structured-logger.
  *
- * Handles transport-specific logging rules:
- * - STDIO: Logs to stderr (stdout is reserved for MCP protocol)
- * - HTTP: Logs to stdout (normal console logging)
- * 
- * Format control:
- * - LOG_FORMAT=text (default): Human-readable text format
- * - LOG_FORMAT=json: Structured JSON format for log aggregation
+ * - STDIO: Logs to stderr (stdout reserved for MCP protocol)
+ * - HTTP: Logs to stdout
+ * - LOG_FORMAT=text | json controlled in log-core
  */
 
-type TransportType = 'stdio' | 'http';
-type LogFormat = 'text' | 'json';
+import { getBaseLogger } from './log-core.js';
+import { LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
 
-class Logger {
-    private transportType: TransportType;
-    private logFormat: LogFormat;
+type ToolOperation = 'search' | 'store' | 'update' | 'delete' | 'retrieve' | 'upsert' | 'rate';
 
-    /**
-     * Log debug messages (emits only when LOG_LEVEL=debug)
-     */
-    debug(message: string): void {
-        if (process.env['LOG_LEVEL'] === 'debug') {
-            this.output('debug', { message });
-        }
+const base = getBaseLogger();
+
+const logger = {
+  debug(message: string): void {
+    base.debug(message);
+  },
+
+  info(message: string): void {
+    base.info({}, message);
+  },
+
+  warn(message: string): void {
+    base.warn({}, message);
+  },
+
+  error(message: string, error?: Error | unknown): void {
+    const bindings: Record<string, unknown> = {};
+    if (error) {
+      bindings['error'] = error instanceof Error
+        ? {
+            message: error.message,
+            stack: process.env['LOG_LEVEL'] === 'debug' || process.env['NODE_ENV'] === 'development'
+              ? error.stack
+              : undefined
+          }
+        : error;
     }
+    base.error(bindings, message);
+  },
 
-    constructor() {
-        // Use TRANSPORT_TYPE only: stdio → stderr, http → stdout
-        const transportEnv = process.env['TRANSPORT_TYPE'] || 'stdio';
-        this.transportType = transportEnv === 'http' ? 'http' : 'stdio';
+  tool(
+    toolName: string,
+    operation: ToolOperation,
+    details: string
+  ): void {
+    base.info(
+      {
+        tool: toolName,
+        operation: operation.toUpperCase(),
+        details,
+        category: 'tool_operation'
+      },
+      `[${toolName}] ${operation.toUpperCase()} ${details}`
+    );
+  },
 
-        // Determine log format from environment (default: text)
-        this.logFormat = process.env['LOG_FORMAT'] === 'json' ? 'json' : 'text';
-    }
+  success(operation: string, details: string): void {
+    base.info(
+      { operation, details, category: 'success' },
+      `[${operation}] ${details}`
+    );
+  },
 
-    /**
-     * Format and output log message based on format preference
-     */
-    private output(level: 'debug' | 'info' | 'warn' | 'error' | 'tool' | 'success', data: Record<string, any>): void {
-        if (this.logFormat === 'json') {
-            const jsonLog = JSON.stringify({
-                timestamp: new Date().toISOString(),
-                level,
-                ...data
-            });
+  requestTimeout(operation: string, timeoutMs: number): void {
+    base.error(
+      {
+        operation,
+        timeoutMs,
+        category: 'timeout',
+        note: 'Client did not receive response'
+      },
+      'Request timeout'
+    );
+  },
 
-            const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
-            out.write(jsonLog + '\n');
-        } else {
-            // Text format with timestamp and level
-            const timestamp = new Date().toISOString().substr(11, 8);
-            const levelLabel = level.toUpperCase().padEnd(7); // Pad for alignment
-            const message = data['message'] || JSON.stringify(data);
-            const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
-            out.write(`[${timestamp}] [${levelLabel}] ${message}\n`);
-        }
-    }
+  getTransportType(): 'stdio' | 'http' {
+    return TRANSPORT_TYPE;
+  },
 
-    /**
-     * Format tool operations with concise, clean output
-     */
-    tool(toolName: string, operation: 'search' | 'store' | 'update' | 'delete' | 'retrieve' | 'upsert' | 'rate', details: string): void {
-        if (this.logFormat === 'json') {
-            this.output('tool', {
-                tool: toolName,
-                operation: operation.toUpperCase(),
-                details
-            });
-        } else {
-            const message = `[${toolName}] ${operation.toUpperCase()} ${details}`;
-            this.output('tool', { message });
-        }
-    }
+  getLogFormat(): 'text' | 'json' {
+    return LOG_FORMAT === 'json' ? 'json' : 'text';
+  }
+};
 
-    /**
-     * Log success status
-     */
-    success(operation: string, details: string): void {
-        if (this.logFormat === 'json') {
-            this.output('success', {
-                operation,
-                details
-            });
-        } else {
-            const message = `[${operation}] ${details}`;
-            this.output('success', { message });
-        }
-    }
-
-    /**
-     * Log error messages with full context
-     */
-    error(message: string, error?: Error | any): void {
-        if (this.logFormat === 'json') {
-            const errorData: Record<string, any> = { message };
-
-            if (error) {
-                errorData['error'] = error instanceof Error ? {
-                    message: error.message,
-                    stack: process.env['NODE_ENV'] === 'development' ? error.stack : undefined
-                } : error;
-            }
-
-            this.output('error', errorData);
-        } else {
-            const errorMsg = error ?
-                `${message} | ${error instanceof Error ? error.message : JSON.stringify(error)}` :
-                message;
-
-            this.output('error', { message: errorMsg });
-
-            // Log stack trace in development
-            if (error && process.env['NODE_ENV'] === 'development') {
-                const timestamp = new Date().toISOString().substr(11, 8);
-                const levelLabel = 'ERROR'.padEnd(7);
-                const out = this.transportType === 'stdio' ? process.stderr : process.stdout;
-                out.write(`[${timestamp}] [${levelLabel}] Stack: ${error instanceof Error ? error.stack : ''}\n`);
-            }
-        }
-    }
-
-    /**
-     * Log warning messages
-     */
-    warn(message: string): void {
-        this.output('warn', { message });
-    }
-
-    /**
-     * Log info messages
-     */
-    info(message: string): void {
-        this.output('info', { message });
-    }
-
-    /**
-     * Log MCP request timeout errors
-     */
-    requestTimeout(operation: string, timeoutMs: number): void {
-        if (this.logFormat === 'json') {
-            this.output('error', {
-                message: 'Request timeout',
-                operation,
-                timeoutMs,
-                note: 'Client did not receive response'
-            });
-        } else {
-            this.error(`${operation} timed out after ${timeoutMs}ms - client did not receive response`);
-        }
-    }
-
-    /**
-     * Get the current transport type
-     */
-    getTransportType(): TransportType {
-        return this.transportType;
-    }
-
-    /**
-     * Get the current log format
-     */
-    getLogFormat(): LogFormat {
-        return this.logFormat;
-    }
-}
-
-// Export singleton instance
-export const logger = new Logger();
+export { logger };

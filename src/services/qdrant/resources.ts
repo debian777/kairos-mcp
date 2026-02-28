@@ -15,7 +15,7 @@ import { buildSpaceFilter } from '../../utils/space-filter.js';
  */
 export async function upsertResources(conn: QdrantConnection, items: UpsertResourceItem[]): Promise<UpsertResourceResult[]> {
   return conn.executeWithReconnect(async () => {
-    logger.info(`DEBUG: upsertResources called with ${items.length} items`);
+    logger.debug(`upsertResources called with ${items.length} items`);
     const results: UpsertResourceResult[] = [];
 
     for (const item of items) {
@@ -48,7 +48,7 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
 
       const qdrantId = IDGenerator.buildQdrantId(kbUri);
 
-      logger.info(`DEBUG: Generating embedding for item ${item.description_short}`);
+      logger.debug(`Generating embedding for item ${item.description_short}`);
       const embeddingResult = await embeddingService.generateEmbedding(item.description_full);
       let embedding = embeddingResult.embedding;
       if (!Array.isArray(embedding) || embedding.length === 0) {
@@ -99,10 +99,10 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
 
       validatePayload(payload);
 
-      logger.info(`DEBUG: Upserting point with qdrantId: ${qdrantId}, uri: ${kbUri}`);
+      logger.debug(`Upserting point with qdrantId: ${qdrantId}, uri: ${kbUri}`);
       const currentVectorName = `vs${embedding.length}`;
       await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id: qdrantId, vector: { [currentVectorName]: embedding }, payload }]);
-      logger.info(`DEBUG: Upsert successful for ${uuid}`);
+      logger.debug(`Upsert successful for ${uuid}`);
 
       await redisCacheService.invalidateAfterUpdate();
 

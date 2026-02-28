@@ -71,7 +71,6 @@ export class MemoryQdrantStoreMethods {
     const cached = this.cache.get(memory_uuid);
     if (cached) return cached;
 
-    // DEBUG: Qdrant retrieve
     const retrieveReq = {
       ids: [memory_uuid],
       with_payload: true,

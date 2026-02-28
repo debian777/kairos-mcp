@@ -139,7 +139,11 @@ export function setupMcpRoutes(app: express.Express, server: any) {
             clearTimeout(timeoutHandler);
         } catch (error) {
             const duration = Date.now() - requestStart;
-            structuredLogger.error(`✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} [id: ${requestId}] after ${duration}ms`, error);
+            structuredLogger.error(
+              `✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} after ${duration}ms`,
+              error,
+              { request_id: requestId }
+            );
             if (!res.headersSent) {
                 res.status(500).json({
                     jsonrpc: '2.0',
