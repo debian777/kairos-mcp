@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import pprint
 import sys
 import urllib.error
 import urllib.parse
@@ -35,6 +36,8 @@ def load_env_file(path: Path) -> dict[str, str]:
         if "=" in line:
             k, _, v = line.partition("=")
             out[k.strip()] = v.strip().strip('"').strip("'")
+
+    pprint.pprint(os.environ)
     return out
 
 

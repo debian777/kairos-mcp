@@ -27,11 +27,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python3 scripts/generate_dev_secrets.py --ci
 
-      - name: Copy .env.dev to .env for compose env_file
-        run: cp .env.dev .env
 
       - name: Verify .env and .env.dev exist
-        run: ls -la .env .env.dev
+        run: ls -la .env .env.dev && cat .env.dev .env
 
       # --- DEBUG: which env vars are available (secrets: empty vs non-empty only) ---
       - name: Debug env and .env.dev keys
