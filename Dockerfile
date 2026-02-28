@@ -1,6 +1,6 @@
 # Multi-stage build for kairos MCP Server
 # Multi-arch support for x64 and ARM64
-FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ COPY docs/ ./docs/
 RUN npm run build
 
 # Production stage - Multi-arch support
-FROM node:24-alpine AS production
+FROM node:25-alpine AS production
 
 VOLUME /snapshots
 
