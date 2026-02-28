@@ -4,6 +4,8 @@
  * Generates canonical kairos:// URIs for:
  * - Domain/type/task resources: kairos://{domain}/{type}/{task}
  * - Protocol steps: kairos://{domain}/{type}/{task}/step/{n}
+ * - Unified UUID resources: kairos://{uuid}
+ * - Templates: kairos://templates/{template_type}/{param}
  */
 
 /**
