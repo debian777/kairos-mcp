@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force publish (e.g. republish same version)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   publish:
@@ -22,8 +29,13 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Sync version from tag
-        run: npm version ${GITHUB_REF_NAME#v} --no-git-tag-version
+      - name: Sync version from tag (tag push) or use package.json (manual)
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            npm version ${GITHUB_REF_NAME#v} --no-git-tag-version
+          else
+            echo "Manual run: using version from package.json"
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -38,5 +50,10 @@ jobs:
         run: npm run build
 
       - name: Publish
-        run: npm publish --access public
+        run: |
+          if [[ "${{ github.event.inputs.force }}" == "true" ]]; then
+            npm publish --access public --force
+          else
+            npm publish --access public
+          fi
         # No NPM_TOKEN needed - OIDC handled automatically by npm CLI
