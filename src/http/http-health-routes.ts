@@ -74,7 +74,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
         });
     });
 
-    // Basic info endpoint (non-MCP)
+    // Root (UI): when AUTH_ENABLED, only reached when authenticated; unauthenticated GET redirects to login.
     app.get('/', (req, res) => {
         const body: Record<string, unknown> = {
             service: 'KAIROS MCP Server',
@@ -88,7 +88,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             note: 'Use POST /mcp for MCP protocol communication'
         };
         if (AUTH_ENABLED) {
-            body['api_note'] = 'GET /api and POST /api/* require authentication (session or Bearer). Use login_url from 401 or /auth/callback flow.';
+            body['api_note'] = 'GET / and GET /api, POST /api/* require authentication (session or Bearer). Use login_url from 401 or /auth/callback flow.';
         }
         res.json(body);
     });

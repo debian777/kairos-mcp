@@ -1,5 +1,6 @@
 /**
- * Auth middleware: when AUTH_ENABLED, require session or Bearer for /api and /mcp.
+ * Auth middleware: when AUTH_ENABLED, require session or Bearer for / (UI), /api, /api/*, and /mcp.
+ * Only /health is unauthenticated (for load balancers and health checks).
  * Unauthenticated browser GET -> redirect to Keycloak; otherwise 401 with login_url.
  * When AUTH_MODE=oidc_bearer, Bearer tokens are validated (issuer, audience, exp); req.auth is set from session or validated Bearer.
  */
@@ -110,9 +111,9 @@ function hasBearer(req: Request): boolean {
   return getBearerToken(req) !== null;
 }
 
-/** Paths that require auth when AUTH_ENABLED: /api, /api/*, and /mcp (MCP-over-HTTP). */
+/** Paths that require auth when AUTH_ENABLED: / (UI), /api, /api/*, and /mcp. Only /health is public. */
 function isProtectedPath(path: string): boolean {
-  return path === '/api' || path.startsWith('/api/') || path === '/mcp';
+  return path === '/' || path === '/api' || path.startsWith('/api/') || path === '/mcp';
 }
 
 /** Build WWW-Authenticate value. Use error=invalid_token so MCP clients clear stored token and restart OAuth (e.g. after Keycloak session cleanup). */
