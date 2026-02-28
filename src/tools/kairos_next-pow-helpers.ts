@@ -99,7 +99,7 @@ export async function buildChallenge(
   return base;
 }
 
-/** @alias Backward compatibility alias (deprecated - use buildChallenge) */
+/** @deprecated Use buildChallenge instead. Backward compatibility alias. */
 export const buildProofOfWorkRequired = buildChallenge;
 
 export type ElicitResult = { solution: ProofOfWorkSubmission } | { payload: any };
