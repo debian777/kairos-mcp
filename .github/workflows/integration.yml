@@ -31,29 +31,6 @@ jobs:
       - name: Verify .env and .env.dev exist
         run: ls -la .env .env.dev && cat .env.dev .env
 
-      # --- DEBUG: which env vars are available (secrets: empty vs non-empty only) ---
-      - name: Debug env and .env.dev keys
-        run: |
-          echo "=== Env var names set in job (sorted) ==="
-          env | sed 's/=.*/=***/' | sort
-          echo ""
-          echo "=== .env.dev keys (values redacted) ==="
-          [ -f .env.dev ] && sed -E 's/^([^#=]+)=.*/\1=***/' .env.dev | grep -v '^#' | grep '=' || echo "(no .env.dev or no KEY=value lines)"
-          echo ""
-          echo "=== QDRANT_COLLECTION value in .env.dev (not a secret) ==="
-          [ -f .env.dev ] && (grep -E '^QDRANT_COLLECTION=' .env.dev || echo "QDRANT_COLLECTION not found in .env.dev")
-          echo ""
-          echo "=== Secrets (empty vs non-empty only) ==="
-          for k in OPENAI_API_KEY SESSION_SECRET QDRANT_API_KEY KEYCLOAK_ADMIN_PASSWORD KEYCLOAK_DB_PASSWORD; do
-            v="${!k:-}"
-            if [ -z "$v" ]; then echo "${k}=<empty>"; else echo "${k}=<non-empty>"; fi
-          done
-          echo ""
-          echo "=== Other key vars (set vs unset) ==="
-          for k in REDIS_URL QDRANT_URL QDRANT_COLLECTION QDRANT_COLLECTION_CURRENT AUTH_ENABLED KEYCLOAK_URL; do
-            if [ -n "${!k+x}" ]; then echo "${k}=<set>"; else echo "${k}=<unset>"; fi
-          done
-
       - name: Restore infra Docker image cache
         uses: actions/cache/restore@v4
         id: docker-infra-cache
@@ -125,14 +102,12 @@ jobs:
 
       - name: Deploy dev and run auth integration test
         env:
-          HEALTH_CHECK_ATTEMPTS: 90
+          HEALTH_CHECK_ATTEMPTS: 15
         run: |
-          npm run dev:deploy || true
-          npm run dev:test -- tests/integration/auth-keycloak.test.ts || {
-            echo "--- .kairos-dev.log (last 200 lines) ---"
-            tail -200 .kairos-dev.log 2>/dev/null || echo "(no log file)"
-            exit 1
-          }
+          npm run dev:deploy
+          source .env
+          source .env.dev 
+          npm run dev:test -- tests/integration/auth-keycloak.test.ts
 
       - name: Upload kairos-dev log
         if: always()
