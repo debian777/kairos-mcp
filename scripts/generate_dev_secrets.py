@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-Generate .env (infra) and .env.dev (application) for compose and dev/CI.
-- .env: infra secrets only (Keycloak, Postgres). Compose services use env_file: .env.
-- .env.dev: application config. Sourced by run-env.sh and app.
+Generate .env and .env.dev from templates. Templates use __VAR_NAME__ placeholders
+so the script can replace them in one go (env var or generated secret).
+
+Source of truth: bkp/.env and bkp/.env.dev (or scripts/env/.env.template, scripts/env/.env.dev.template).
 
 Usage:
-  python scripts/generate_dev_secrets.py [--ci] [--force]
-  OPENAI_API_KEY=sk-... python scripts/generate_dev_secrets.py --ci
+  python scripts/generate_dev_secrets.py                    # generate .env and .env.dev from templates
+  python scripts/generate_dev_secrets.py --write-templates    # write scripts/env/.env.template, scripts/env/.env.dev.template from bkp (secrets -> __VAR__)
+  python scripts/generate_dev_secrets.py --verify              # only validate existing files
+  KEYCLOAK_DB_PASSWORD=xxx python scripts/generate_dev_secrets.py
 
-Env (optional): KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_DB_PASSWORD, SESSION_SECRET,
-  OPENAI_API_KEY, QDRANT_API_KEY, QDRANT_COLLECTION, REDIS_URL, QDRANT_URL, etc.
+Templates (for GitHub): scripts/env/.env.template, scripts/env/.env.dev.template with secrets replaced by
+  KEY=__KEY__  so replacements are trivial (same name as env var).
 """
 from __future__ import annotations
 
@@ -23,6 +26,31 @@ from pathlib import Path
 
 def root_dir() -> Path:
     return Path(__file__).resolve().parent.parent
+
+
+# Keys that must be secrets; in templates they appear as __KEY__ and get env or generated value.
+SECRET_KEYS_INFRA = [
+    "KEYCLOAK_ADMIN_PASSWORD",
+    "KEYCLOAK_DB_PASSWORD",
+    "QDRANT_API_KEY",
+]
+SECRET_KEYS_DEV = [
+    "KEYCLOAK_ADMIN_PASSWORD",
+    "KEYCLOAK_DB_PASSWORD",
+    "QDRANT_API_KEY",
+    "SESSION_SECRET",
+    "OPENAI_API_KEY",
+]
+
+PLACEHOLDER_RE = re.compile(r"^__([A-Za-z_][A-Za-z0-9_]*)__$")
+
+
+def is_placeholder(value: str) -> bool:
+    return bool(value and PLACEHOLDER_RE.match(value.strip()))
+
+
+def placeholder_for(key: str) -> str:
+    return f"__{key}__"
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -40,150 +68,179 @@ def parse_env_file(path: Path) -> dict[str, str]:
     return out
 
 
-def write_env_file(path: Path, data: dict[str, str]) -> None:
+def read_env_lines(path: Path) -> list[str]:
+    """Read file as lines (preserve order and comments)."""
+    if not path.exists():
+        return []
+    return path.read_text().splitlines()
+
+
+def write_template_from_bkp(
+    bkp_path: Path,
+    out_path: Path,
+    secret_keys: set[str],
+) -> None:
+    """Write template file: same as bkp but secret values replaced by __KEY__."""
+    lines = read_env_lines(bkp_path)
+    out_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", stripped) if stripped else None
+        if m and m.group(1) in secret_keys:
+            out_lines.append(f"{m.group(1)}={placeholder_for(m.group(1))}")
+        else:
+            out_lines.append(line)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(out_lines) + "\n")
+
+
+def write_env_file(path: Path, data: dict[str, str], key_order: list[str] | None = None) -> None:
+    """Write KEY=value file. If key_order given, output in that order; else sorted."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [f"{k}={v}" for k, v in sorted(data.items())]
+    if key_order:
+        items = [(k, data[k]) for k in key_order if k in data]
+        # append any keys in data not in key_order
+        for k in sorted(data):
+            if k not in {x[0] for x in items}:
+                items.append((k, data[k]))
+    else:
+        items = sorted(data.items())
+    lines = [f"{k}={v}" for k, v in items]
     path.write_text("\n".join(lines) + "\n")
 
 
-def set_var(
+def resolve_secrets(
+    keys: list[str],
+    existing: dict[str, str],
+    force: bool,
+) -> dict[str, str]:
+    """For each key, return env or existing or generated secret. Used for .env."""
+    resolved: dict[str, str] = {}
+    for key in keys:
+        val = os.environ.get(key) or existing.get(key)
+        if val and not force:
+            resolved[key] = val
+        else:
+            if key == "KEYCLOAK_ADMIN_PASSWORD" or key == "KEYCLOAK_DB_PASSWORD":
+                resolved[key] = secrets.token_urlsafe(24)
+            elif key == "QDRANT_API_KEY":
+                resolved[key] = secrets.token_urlsafe(24)
+            elif key == "SESSION_SECRET":
+                resolved[key] = os.environ.get(key) or secrets.token_hex(32)
+            elif key == "OPENAI_API_KEY":
+                resolved[key] = os.environ.get(key) or ""
+            else:
+                resolved[key] = os.environ.get(key) or ""
+    return resolved
+
+
+def replace_placeholders(
     data: dict[str, str],
-    key: str,
-    value: str | None,
-    default: str | None = None,
-    force: bool = False,
-) -> None:
-    """Set key from value (env), else default, if non-empty. Skip if empty and not force."""
-    v = value if value is not None else os.environ.get(key)
-    v = (v or default or "").strip()
-    if not v and not force:
-        return
-    if key in data and not force:
-        return
-    data[key] = v
-
-
-# --- Infra: .env (compose postgres/keycloak) ---
-INFRA_KEYS = [
-    "KEYCLOAK_ADMIN_PASSWORD",
-    "KEYCLOAK_DB_PASSWORD",
-]
-
-def ensure_infra_env(env_path: Path, force: bool) -> None:
-    data = parse_env_file(env_path)
-    existing = {k: data[k] for k in INFRA_KEYS if k in data and data[k]} if not force else {}
-
-    admin = os.environ.get("KEYCLOAK_ADMIN_PASSWORD") or existing.get("KEYCLOAK_ADMIN_PASSWORD")
-    if not admin:
-        admin = secrets.token_urlsafe(24)
-    db = os.environ.get("KEYCLOAK_DB_PASSWORD") or existing.get("KEYCLOAK_DB_PASSWORD")
-    if not db:
-        db = secrets.token_urlsafe(24)
-
-    data["KEYCLOAK_ADMIN_PASSWORD"] = admin
-    data["KEYCLOAK_DB_PASSWORD"] = db
-    write_env_file(env_path, data)
-    print("Ensured infra secrets in .env (Keycloak/Postgres).")
-
-
-# --- App: .env.dev ---
-# All vars we may set. Required for validation when AUTH_ENABLED=true are marked.
-DEV_VARS = [
-    "KEYCLOAK_ADMIN_PASSWORD",
-    "KEYCLOAK_DB_PASSWORD",
-    "REDIS_URL",
-    "QDRANT_URL",
-    "QDRANT_COLLECTION",
-    "AUTH_ENABLED",
-    "KEYCLOAK_URL",
-    "KEYCLOAK_REALM",
-    "KEYCLOAK_CLIENT_ID",
-    "AUTH_CALLBACK_BASE_URL",
-    "SESSION_SECRET",
-    "OPENAI_API_KEY",
-    "QDRANT_API_KEY",
-    "PORT",
-]
-
-def ensure_dev_env(env_path: Path, template_path: Path, infra_path: Path, ci: bool, force: bool) -> None:
-    if env_path.exists():
-        data = parse_env_file(env_path)
-    elif template_path.exists():
-        data = parse_env_file(template_path)
-        print("Created .env.dev from env.example.txt.")
-    else:
-        data = {}
-        print("Created empty .env.dev (env.example.txt not found).")
-
-    # Sync infra secrets into .env.dev for consistency (infra_path already written by ensure_infra_env)
-    infra = parse_env_file(infra_path)
-    if infra.get("KEYCLOAK_ADMIN_PASSWORD"):
-        data["KEYCLOAK_ADMIN_PASSWORD"] = infra["KEYCLOAK_ADMIN_PASSWORD"]
-    if infra.get("KEYCLOAK_DB_PASSWORD"):
-        data["KEYCLOAK_DB_PASSWORD"] = infra["KEYCLOAK_DB_PASSWORD"]
-
-    if ci:
-        session = os.environ.get("SESSION_SECRET") or secrets.token_hex(32)
-        set_var(data, "REDIS_URL", None, "redis://127.0.0.1:6379", force=True)
-        set_var(data, "QDRANT_URL", None, "http://127.0.0.1:6333", force=True)
-        set_var(data, "QDRANT_COLLECTION", os.environ.get("QDRANT_COLLECTION"), "kairos_dev", force=True)
-        set_var(data, "AUTH_ENABLED", None, "true", force=True)
-        set_var(data, "KEYCLOAK_URL", None, "http://localhost:8080", force=True)
-        set_var(data, "KEYCLOAK_REALM", None, "kairos-dev", force=True)
-        set_var(data, "KEYCLOAK_CLIENT_ID", None, "kairos-mcp", force=True)
-        set_var(data, "AUTH_CALLBACK_BASE_URL", None, "http://localhost:3300", force=True)
-        set_var(data, "SESSION_SECRET", session, None, force=True)
-        set_var(data, "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY"), "", force=True)
-        set_var(data, "QDRANT_API_KEY", os.environ.get("QDRANT_API_KEY"), "", force=True)
-        set_var(data, "PORT", os.environ.get("PORT"), "3300", force=True)
-        print("Set CI defaults and env overrides in .env.dev.")
-
-    write_env_file(env_path, data)
-
-
-# --- Validation ---
-def validate_env(path: Path, required: list[str], name: str) -> None:
-    if not path.exists():
-        raise SystemExit(f"{name}: file not found: {path}")
-    data = parse_env_file(path)
-    missing = []
-    empty = []
-    for k in required:
-        if k not in data:
-            missing.append(k)
-        elif not (data[k] or "").strip():
-            empty.append(k)
-    if missing:
-        raise SystemExit(f"{name}: missing keys: {', '.join(missing)}")
-    if empty:
-        raise SystemExit(f"{name}: empty values for: {', '.join(empty)}")
+    secrets_infra: dict[str, str],
+    secrets_dev: dict[str, str],
+) -> dict[str, str]:
+    """Replace any value __KEY__ with actual value from secrets or env."""
+    out: dict[str, str] = {}
+    for k, v in data.items():
+        v = (v or "").strip()
+        if is_placeholder(v):
+            var_name = PLACEHOLDER_RE.match(v).group(1)
+            val = secrets_dev.get(var_name) or secrets_infra.get(var_name) or os.environ.get(var_name) or ""
+            out[k] = val
+        else:
+            out[k] = v
+    return out
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Generate .env and .env.dev for infra and app.")
-    ap.add_argument("--ci", action="store_true", help="Set CI defaults in .env.dev")
-    ap.add_argument("--force", action="store_true", help="Overwrite existing values")
+    ap = argparse.ArgumentParser(description="Generate .env and .env.dev from bkp/templates.")
+    ap.add_argument("--write-templates", action="store_true", help="Write scripts/env/.env.template and scripts/env/.env.dev.template from bkp (secrets -> __VAR__)")
+    ap.add_argument("--verify", action="store_true", help="Only validate existing .env and .env.dev")
+    ap.add_argument("--force", action="store_true", help="Regenerate secrets even if present")
     args = ap.parse_args()
 
     root = root_dir()
+    bkp = root / "bkp"
     env_infra = root / ".env"
     env_dev = root / ".env.dev"
-    template = root / "env.example.txt"
+    env_dir = root / "scripts" / "env"
+    env_tpl = env_dir / ".env.template"
+    env_dev_tpl = env_dir / ".env.dev.template"
 
-    ensure_infra_env(env_infra, args.force)
-    ensure_dev_env(env_dev, template, env_infra, args.ci, args.force)
+    if args.write_templates:
+        if not (bkp / ".env").exists() or not (bkp / ".env.dev").exists():
+            raise SystemExit("bkp/.env and bkp/.env.dev must exist to write templates.")
+        write_template_from_bkp(bkp / ".env", env_tpl, set(SECRET_KEYS_INFRA))
+        write_template_from_bkp(bkp / ".env.dev", env_dev_tpl, set(SECRET_KEYS_DEV))
+        print("Wrote scripts/env/.env.template and scripts/env/.env.dev.template (secrets replaced by __VAR__).")
+        return
 
-    # Validation: required keys must exist and be non-empty
-    validate_env(env_infra, INFRA_KEYS, ".env")
+    if args.verify:
+        for path, name, required in [
+            (env_infra, ".env", SECRET_KEYS_INFRA),
+            (env_dev, ".env.dev", ["REDIS_URL", "QDRANT_URL", "QDRANT_COLLECTION"]),
+        ]:
+            if not path.exists():
+                raise SystemExit(f"{name}: file not found: {path}")
+            data = parse_env_file(path)
+            missing = [k for k in required if k not in data or not (data.get(k) or "").strip()]
+            if missing:
+                raise SystemExit(f"{name}: missing or empty: {', '.join(missing)}")
+        print("Verify OK: .env and .env.dev have required keys.")
+        return
 
-    dev_required = ["REDIS_URL", "QDRANT_URL", "QDRANT_COLLECTION"]
-    dev_data = parse_env_file(env_dev)
-    if (dev_data.get("AUTH_ENABLED") or "").strip().lower() == "true":
-        dev_required.extend([
-            "KEYCLOAK_URL", "KEYCLOAK_REALM", "KEYCLOAK_CLIENT_ID",
-            "AUTH_CALLBACK_BASE_URL", "SESSION_SECRET",
-        ])
-    validate_env(env_dev, dev_required, ".env.dev")
+    # --- Generate .env and .env.dev ---
+    # Prefer template files; fallback to bkp
+    infra_src = env_tpl if env_tpl.exists() else bkp / ".env"
+    dev_src = env_dev_tpl if env_dev_tpl.exists() else bkp / ".env.dev"
+    if not infra_src.exists():
+        raise SystemExit("Need scripts/env/.env.template or bkp/.env to generate .env")
+    if not dev_src.exists():
+        raise SystemExit("Need scripts/env/.env.dev.template or bkp/.env.dev to generate .env.dev")
+
+    existing_infra = parse_env_file(env_infra)
+    secrets_infra = resolve_secrets(SECRET_KEYS_INFRA, existing_infra, args.force)
+    infra_data = parse_env_file(infra_src)
+    infra_data = replace_placeholders(infra_data, secrets_infra, secrets_infra)
+    # Ensure all infra keys have a value
+    for k in SECRET_KEYS_INFRA:
+        if k not in infra_data or not (infra_data.get(k) or "").strip():
+            infra_data[k] = secrets_infra.get(k, "")
+    write_env_file(env_infra, infra_data)
+    print("Wrote .env (Keycloak/Postgres/Qdrant).")
+
+    # .env.dev: same secrets as .env for KEYCLOAK_* and QDRANT_API_KEY
+    dev_data = parse_env_file(dev_src)
+    dev_data = replace_placeholders(dev_data, secrets_infra, {**secrets_infra, **resolve_secrets(SECRET_KEYS_DEV, parse_env_file(env_dev), args.force)})
+    # Sync infra credentials into .env.dev
+    for key in ["KEYCLOAK_ADMIN_PASSWORD", "KEYCLOAK_DB_PASSWORD", "QDRANT_API_KEY"]:
+        if secrets_infra.get(key):
+            dev_data[key] = secrets_infra[key]
+    # Ensure SESSION_SECRET and OPENAI_API_KEY if still placeholder/empty
+    if not (dev_data.get("SESSION_SECRET") or "").strip():
+        dev_data["SESSION_SECRET"] = os.environ.get("SESSION_SECRET") or secrets.token_hex(32)
+    if not (dev_data.get("OPENAI_API_KEY") or "").strip():
+        dev_data["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY") or ""
+
+    # Preserve key order from source (KEY= or #KEY=)
+    dev_order: list[str] = []
+    for line in read_env_lines(dev_src):
+        s = line.strip()
+        m = re.match(r"^#?\s*([A-Za-z_][A-Za-z0-9_]*)=", s)
+        if m and m.group(1) not in dev_order:
+            dev_order.append(m.group(1))
+    write_env_file(env_dev, dev_data, key_order=dev_order if dev_order else None)
+    print("Wrote .env.dev (synced with .env credentials).")
+
+    # Validation
+    for path, name, required in [
+        (env_infra, ".env", SECRET_KEYS_INFRA),
+        (env_dev, ".env.dev", ["REDIS_URL", "QDRANT_URL", "QDRANT_COLLECTION"]),
+    ]:
+        data = parse_env_file(path)
+        missing = [k for k in required if k not in data or not (data.get(k) or "").strip()]
+        if missing:
+            raise SystemExit(f"{name}: missing or empty after write: {', '.join(missing)}")
 
     print("Done. Use: docker compose --env-file .env.dev --profile infra up -d")
 

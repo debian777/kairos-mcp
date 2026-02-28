@@ -1,0 +1,33 @@
+# Dependabot: open PRs to update dependencies and actions.
+# Security: enable "Dependabot security updates" in repo Settings → Code security and analysis
+# for immediate PRs when GitHub detects vulnerabilities (independent of schedule below).
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # npm (package.json, package-lock.json) – daily to pick up security patches quickly
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 1  # at most one open PR; merge or close before a new one is created
+    commit-message:
+      prefix: "deps(npm)"
+
+  # GitHub Actions (workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "deps(actions)"
+
+  # Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "deps(docker)"

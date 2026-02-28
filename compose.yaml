@@ -207,7 +207,6 @@ services:
 
 networks:
   kairos-network:
-    name: kairos-network
     driver: bridge
 
 volumes:
