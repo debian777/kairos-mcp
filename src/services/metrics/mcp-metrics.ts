@@ -46,27 +46,6 @@ export const mcpToolOutputSize = new Histogram({
   registers: [register]
 });
 
-export const mcpToolErrorCodes = new Counter({
-  name: 'kairos_mcp_tool_error_codes_total',
-  help: 'Error codes returned by MCP tools (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)',
-  labelNames: ['tool', 'error_code', 'tenant_id'],
-  registers: [register]
-});
-
-export const mcpToolRetries = new Counter({
-  name: 'kairos_mcp_tool_retries_total',
-  help: 'Total retry attempts on MCP tool steps',
-  labelNames: ['tool', 'tenant_id'],
-  registers: [register]
-});
-
-export const mcpToolCircuitBreaker = new Counter({
-  name: 'kairos_mcp_tool_circuit_breaker_total',
-  help: 'Circuit breaker triggers (max retries exceeded, must_obey set to false)',
-  labelNames: ['tool', 'tenant_id'],
-  registers: [register]
-});
-
 /** Incremented when kairos_next quality update (quality_metadata/metrics) fails. */
 export const kairosQualityUpdateErrors = new Counter({
   name: 'kairos_quality_update_errors_total',

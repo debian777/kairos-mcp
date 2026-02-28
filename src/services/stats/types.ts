@@ -36,13 +36,3 @@ export interface StatsState {
     implementationBonuses: { [llm_model_id: string]: number };
     healerBonuses: { [llm_model_id: string]: number };
 }
-
-// Achievement interface kept for backward compatibility but unused
-export interface Achievement {
-    id: string;
-    title: string;
-    description: string;
-    condition: (stats: ModelStats, llm_model_id?: string) => boolean;
-    icon: string;
-    category: 'discovery' | 'expertise' | 'volume' | 'special';
-}

@@ -55,7 +55,6 @@ export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
 export const TEI_URL = getEnvString('TEI_URL', '');
-export const TEI_DIMENSION = getEnvString('TEI_DIMENSION', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
 export const KAIROS_SEARCH_MAX_FETCH = getEnvString('KAIROS_SEARCH_MAX_FETCH', '200');
 export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvString('KAIROS_ENABLE_GROUP_COLLAPSE', 'true');

@@ -142,14 +142,6 @@ export function getTestSpaceId(): string | undefined {
 }
 
 /**
- * @deprecated Use serverRequiresAuth() and hasAuthToken() instead.
- * Kept for compatibility: true when token file present.
- */
-export function isTestWithAuth(): boolean {
-  return hasAuthToken();
-}
-
-/**
  * Raw Bearer token for CLI (KAIROS_BEARER_TOKEN) or other use. Undefined when not auth.
  */
 export function getTestBearerToken(): string | undefined {

@@ -16,9 +16,9 @@ The compose file uses Docker profiles to control which services start together.
 | `qa`    | app-qa *(connects to externally running infra)* |
 
 ```bash
-docker compose --profile infra up -d   # infrastructure only
-docker compose --profile prod  up -d   # full production stack
-docker compose --profile qa    up -d   # QA app against existing infra
+docker compose -p kairos-mcp --profile infra up -d   # infrastructure only
+docker compose -p kairos-mcp --profile prod  up -d   # full production stack
+docker compose -p kairos-mcp --profile qa    up -d   # QA app against existing infra
 ```
 
 ---

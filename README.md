@@ -32,8 +32,8 @@ git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 cp env.example.txt .env.prod
 # Edit .env.prod (secrets, Keycloak; see env.example.txt)
-docker compose --profile prod up -d
-# For infra-only (Redis, Qdrant, Keycloak): docker compose --env-file .env.prod --profile infra up -d
+docker compose -p kairos-mcp --profile prod up -d
+# For infra-only (Redis, Qdrant, Keycloak): docker compose -p kairos-mcp --env-file .env.prod --profile infra up -d
 ```
 
 Access the server at `http://localhost:3000`; health check at `http://localhost:3000/health`.

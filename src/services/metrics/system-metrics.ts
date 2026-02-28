@@ -20,12 +20,6 @@ export const systemMemoryUsage = new Gauge({
   registers: [register]
 });
 
-export const systemCpuUsage = new Gauge({
-  name: 'kairos_system_cpu_usage_percent',
-  help: 'CPU usage percentage',
-  registers: [register]
-});
-
 export const systemProcessStartTime = new Gauge({
   name: 'kairos_system_process_start_time_seconds',
   help: 'Process start timestamp (Unix epoch)',

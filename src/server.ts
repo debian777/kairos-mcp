@@ -1,5 +1,4 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { logger } from './utils/logger.js';
 import { structuredLogger } from './utils/structured-logger.js';
 import { registerDocsResources } from './resources/docs-resources.js';
 import { registerPromptResources } from './resources/prompt-resources.js';
@@ -87,9 +86,4 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
 
     structuredLogger.info('MCP server created and configured');
     return server;
-}
-
-// Placeholder for optional model detection hooks
-export function setupModelDetection() {
-    logger.info('Model detection setup complete');
 }

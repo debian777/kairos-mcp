@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Add a demo user to Keycloak realm kairos-dev using the Admin CLI (kcadm.sh) inside the container.
-# Requires: Keycloak running (docker compose --env-file .env.prod --profile infra up -d).
+# Requires: Keycloak running (docker compose -p kairos-mcp --env-file .env.prod --profile infra up -d).
 #
 # Usage:
 #   ./scripts/add-keycloak-demo-user.sh
@@ -38,9 +38,9 @@ DEMO_PASSWORD="${DEMO_PASSWORD:-demo}"
 REALM="${REALM:-kairos-dev}"
 
 # Resolve Keycloak container (compose project from ROOT_DIR)
-CONTAINER=$(docker compose --env-file .env.prod -f compose.yaml ps -q keycloak 2>/dev/null || true)
+CONTAINER=$(docker compose -p kairos-mcp --env-file .env.prod -f compose.yaml ps -q keycloak 2>/dev/null || true)
 if [ -z "$CONTAINER" ]; then
-  echo "ERROR: Keycloak container not running. Start with: docker compose --env-file .env.prod --profile infra up -d" >&2
+  echo "ERROR: Keycloak container not running. Start with: docker compose -p kairos-mcp --env-file .env.prod --profile infra up -d" >&2
   exit 1
 fi
 

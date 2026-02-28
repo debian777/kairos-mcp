@@ -83,10 +83,3 @@ export function getBaseLogger(): pino.Logger {
   }
   return baseLoggerInstance;
 }
-
-/**
- * Create a child logger with bound context (e.g. component, module).
- */
-export function createChildLogger(bindings: Record<string, unknown>): pino.Logger {
-  return getBaseLogger().child(bindings);
-}

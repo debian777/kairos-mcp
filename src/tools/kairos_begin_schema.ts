@@ -50,8 +50,3 @@ export function buildBeginSchemas() {
 
   return { inputSchema, outputSchema };
 }
-
-/** Output schema for kairos_begin (for tests and client validation). */
-export function getKairosBeginOutputSchema() {
-  return buildBeginSchemas().outputSchema;
-}

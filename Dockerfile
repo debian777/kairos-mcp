@@ -18,7 +18,9 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY docs/ ./docs/
 
-# Build the application (includes embedding MCP resources)
+# Build the application (includes embedding MCP resources).
+# DOCKER_BUILD=1 skips lint/knip (already run on host); avoids duplicate work and knip false positives (no tests/ in image).
+ENV DOCKER_BUILD=1
 RUN npm run build
 
 # Production stage - Multi-arch support

@@ -233,7 +233,7 @@ start() {
             fi
             COMPOSE_ENV=""
             [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
-            docker-compose -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" --profile qa up -d
+            docker-compose -p kairos-mcp -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" --profile qa up -d
             print_success "QA environment started on http://localhost:$PORT"
             show_urls
 
@@ -305,7 +305,7 @@ stop() {
         qa)
             COMPOSE_ENV=""
             [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
-            docker-compose -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" down && print_success "QA environment stopped"
+            docker-compose -p kairos-mcp -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" down && print_success "QA environment stopped"
             ;;
         prod)
             print_info "Prod is not stopped from this script."
@@ -345,7 +345,7 @@ status() {
             [ -f "$PID_FILE" ] && print_success "Process running (PID: $(cat "$PID_FILE"))" || print_warning "No process found"
             ;;
         qa)
-            docker-compose -f compose.yaml --env-file ".env.qa" ps -q | grep -q . && print_success "Docker Compose running" || print_warning "Docker Compose not running"
+            docker-compose -p kairos-mcp -f compose.yaml --env-file ".env.qa" ps -q | grep -q . && print_success "Docker Compose running" || print_warning "Docker Compose not running"
             ;;
         prod)
             print_info "Prod status: check your deployment."
@@ -435,7 +435,7 @@ logs() {
             [ -f "$LOG_FILE" ] && cat "$LOG_FILE" || print_warning "No log file found"
             ;;
         qa)
-            docker-compose -f compose.yaml --env-file ".env.qa" logs
+            docker-compose -p kairos-mcp -f compose.yaml --env-file ".env.qa" logs
             ;;
         prod)
             print_warning "Prod logs: check your deployment."

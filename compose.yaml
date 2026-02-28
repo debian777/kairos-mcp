@@ -4,7 +4,7 @@
 # Profiles: "infra" = Redis, Qdrant, Postgres, Keycloak (start first).
 #           "infra-ui" = Redis Insight (optional; add --profile infra-ui for local dev).
 #           "prod" / "qa" = app only; infra must already be running.
-# Usage: docker compose --profile infra up -d && docker compose --profile prod up
+# Usage: docker compose -p kairos-mcp --profile infra up -d && docker compose -p kairos-mcp --profile prod up
 
 services:
   redis:

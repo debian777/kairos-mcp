@@ -47,7 +47,7 @@ jobs:
         run: docker load -i .cache/docker-infra/images.tar
 
       - name: Start Docker infra
-        run: docker compose --env-file .env.dev --profile infra up -d
+        run: docker compose -p kairos-mcp --env-file .env.dev --profile infra up -d
 
       - name: Save infra Docker images for cache
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
@@ -69,7 +69,7 @@ jobs:
       - name: Wait for Redis
         run: |
           for i in $(seq 1 30); do
-            docker compose --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
+            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -85,7 +85,7 @@ jobs:
       - name: Wait for Postgres
         run: |
           for i in $(seq 1 30); do
-            docker compose --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
+            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -103,6 +103,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Knip (compliance)
+        run: npm run knip
 
       - name: Deploy dev and run auth integration test
         env:
