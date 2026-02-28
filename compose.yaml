@@ -2,6 +2,7 @@
 # Alternative: compose-dir-volumes.yaml uses host dirs (bind mounts).
 #
 # Profiles: "infra" = Redis, Qdrant, Postgres, Keycloak (start first).
+#           "infra-ui" = Redis Insight (optional; add --profile infra-ui for local dev).
 #           "prod" / "qa" = app only; infra must already be running.
 # Usage: docker compose --profile infra up -d && docker compose --profile prod up
 
@@ -26,9 +27,10 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Optional UI for Redis; not needed for integration. Start with: --profile infra --profile infra-ui
   redisinsight:
     profiles:
-      - infra
+      - infra-ui
     image: redis/redisinsight:latest
     pull_policy: missing
     depends_on:
@@ -78,7 +80,7 @@ services:
       retries: 3
     #   start_period: 3s
 
-  # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: scripts/generate-dev-secrets.sh ---
+  # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: python3 scripts/generate_dev_secrets.py --ci ---
   postgres:
     profiles:
       - infra

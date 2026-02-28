@@ -25,10 +25,13 @@ jobs:
       - name: Generate .env and .env.dev (infra + app config)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: ./scripts/generate-dev-secrets.sh --ci
+        run: python3 scripts/generate_dev_secrets.py --ci
 
       - name: Copy .env.dev to .env for compose env_file
         run: cp .env.dev .env
+
+      - name: Verify .env and .env.dev exist
+        run: ls -la .env .env.dev
 
       # --- DEBUG: which env vars are available (secrets: empty vs non-empty only) ---
       - name: Debug env and .env.dev keys
@@ -73,7 +76,6 @@ jobs:
           mkdir -p .cache/docker-infra
           docker save -o .cache/docker-infra/images.tar \
             redis:7-alpine \
-            redis/redisinsight:latest \
             qdrant/qdrant:latest \
             postgres:16 \
             quay.io/keycloak/keycloak:26.5.4
@@ -133,3 +135,11 @@ jobs:
             tail -200 .kairos-dev.log 2>/dev/null || echo "(no log file)"
             exit 1
           }
+
+      - name: Upload kairos-dev log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairos-dev-log
+          path: .kairos-dev.log
+          if-no-files-found: ignore
