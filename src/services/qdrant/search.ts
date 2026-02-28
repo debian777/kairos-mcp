@@ -14,10 +14,11 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
     const timer = qdrantQueryDuration.startTimer({ tenant_id: tenantId });
     
     try {
-      logger.info(`DEBUG: searchKnowledge called with query: "${query}", domain: "${domain || 'all'}", limit: ${limit || 10}`);
+      const limitVal = limit || 10;
+      logger.debug(`searchMemory called query="${query.slice(0, 80)}..." domain=${domain || 'all'} limit=${limitVal}`);
       const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
       const queryVector = queryEmbeddingResult.embedding;
-      logger.info(`DEBUG: Query embedding generated, length: ${queryVector.length}`);
+      logger.debug(`Query embedding generated, length=${queryVector.length}`);
 
       const allowedSpaceIds = getSpaceContext().allowedSpaceIds;
       const domainFilter = domain ? { must: [{ key: 'domain', match: { value: domain } }] } : undefined;
@@ -25,14 +26,14 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
 
       const searchParams: any = {
         vector: { name: `vs${queryVector.length}`, vector: queryVector },
-        limit: limit || 10,
+        limit: limitVal,
         filter,
         params: { quantization: { rescore: conn.rescoreEnabled } }
       };
 
       logger.debug(`[Qdrant][search] collection=${conn.collectionName} req=${JSON.stringify(searchParams)}`);
       const searchResult = await conn.client.search(conn.collectionName, searchParams);
-      logger.info(`DEBUG: Qdrant search returned ${searchResult?.length || 0} results`);
+      logger.debug(`Qdrant search returned ${searchResult?.length || 0} results`);
       
       qdrantOperations.inc({ 
         operation: 'search', 
