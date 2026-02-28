@@ -1,8 +1,8 @@
 # GitHub Actions workflows
 
-## Integration workflow (manual)
+## Integration workflow
 
-`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It is triggered **manually only** (`workflow_dispatch`) for testing. When stable, add `push`/`pull_request` to `on:` as needed.
+`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
 
 ### Secrets and variables (gh CLI)
 
@@ -40,5 +40,5 @@ In the workflow, use `${{ secrets.OPENAI_API_KEY }}` and `${{ vars.MY_VAR }}`. T
 
 ### Running the integration workflow manually
 
-- **UI:** Actions → Integration (manual) → Run workflow.
+- **UI:** Actions → Integration → Run workflow.
 - **CLI:** `gh workflow run integration.yml` (from default branch).

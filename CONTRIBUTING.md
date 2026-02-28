@@ -65,7 +65,7 @@ npm run qa:test -- tests/integration/kairos-dump.test.ts
 To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
 
 **Test with auth (Keycloak + kairos-tester)**  
-Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_URL` is unset), provisions the test user, starts the app with auth, and writes `.test-auth-env.{dev,qa}.json` (env-specific so `dev:test` and `qa:test` can run in parallel). No manual cleanup needed.
+Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_URL` is unset), provisions the test user and token, and writes `.test-auth-env.{dev,qa}.json`. The app must already be running (e.g. `npm run dev:deploy` before `npm run dev:test`). No manual cleanup needed.
 
 ```bash
 npm run dev:deploy   # build first

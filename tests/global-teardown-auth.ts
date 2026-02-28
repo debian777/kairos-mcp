@@ -1,7 +1,7 @@
 /**
  * Jest globalTeardown when AUTH_ENABLED=true.
- * Stops KAIROS server and Keycloak container using .test-auth-state.{dev,qa}.json.
- * Uses same env suffix as global-setup-auth so dev and qa teardowns only touch their own state.
+ * Stops Keycloak container (if started by globalSetup) using .test-auth-state.{dev,qa}.json.
+ * App is not started by tests, so no server is stopped here.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -15,7 +15,6 @@ function getAuthStateFilePath(): string {
 
 interface AuthState {
   containerId?: string;
-  serverPid?: number | null;
 }
 
 export default async function globalTeardown(): Promise<void> {
@@ -29,14 +28,6 @@ export default async function globalTeardown(): Promise<void> {
     state = JSON.parse(readFileSync(path, 'utf-8')) as AuthState;
   } catch {
     return;
-  }
-
-  if (state.serverPid) {
-    try {
-      process.kill(state.serverPid, 'SIGTERM');
-    } catch {
-      // process may already be gone
-    }
   }
 
   if (state.containerId) {
