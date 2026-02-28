@@ -25,7 +25,7 @@ jobs:
       - name: Generate .env and .env.dev (infra + app config)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python3 scripts/generate_dev_secrets.py --ci
+        run: python3 scripts/generate_dev_secrets.py
 
 
       - name: Verify .env and .env.dev exist
