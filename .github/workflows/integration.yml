@@ -104,10 +104,8 @@ jobs:
         env:
           HEALTH_CHECK_ATTEMPTS: 15
         run: |
-          npm run dev:deploy
-          source .env
-          source .env.dev 
-          npm run dev:test -- tests/integration/auth-keycloak.test.ts
+          npm run dev:deploy && \
+          npm run dev:test 
 
       - name: Upload kairos-dev log
         if: always()
