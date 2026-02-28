@@ -51,7 +51,7 @@ const AUTH_SUCCESS_HTML = `<!DOCTYPE html>
 <body>
   <div class="box">
     <h1>Authentication successful</h1>
-    <p>You can close this page and return to Cursor.</p>
+    <p>You can close this page and return to your MCP client.</p>
   </div>
 </body>
 </html>
