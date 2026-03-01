@@ -13,7 +13,7 @@
  */
 
 import { logger } from '../../utils/logger.js';
-import { redisService } from '../redis.js';
+import { keyValueStore } from '../key-value-store-factory.js';
 import type { QualityMetrics } from '../../types/index.js';
 import type { QualityScore, StatsState, ModelStats, RecentDiscovery } from './types.js';
 import {
@@ -25,11 +25,11 @@ import {
 import { getTenantId } from '../../utils/tenant-context.js';
 
 async function loadStatsState(): Promise<StatsState | null> {
-    return await redisService.getJson<StatsState>('stats:state');
+    return await keyValueStore.getJson<StatsState>('stats:state');
 }
 
 async function saveStatsState(state: StatsState): Promise<void> {
-    await redisService.setJson('stats:state', state);
+    await keyValueStore.setJson('stats:state', state);
 }
 
 function ensureStatsStateShape(state?: Partial<StatsState>): StatsState {
@@ -81,7 +81,7 @@ export class ModelStatsService {
     async init(): Promise<void> {
         if (this.initialized) return;
         try {
-            await redisService.connect();
+            await keyValueStore.connect();
 
             const maybe = await loadStatsState();
             if (maybe) this.statsState = ensureStatsStateShape(maybe);
@@ -101,7 +101,7 @@ export class ModelStatsService {
     }
 
     private async loadImplementationBonusTotals(): Promise<void> {
-        const data = await redisService.hgetall('stats:implementationBonusTotals');
+        const data = await keyValueStore.hgetall('stats:implementationBonusTotals');
         if (data) {
             for (const [llm_model_id, totalStr] of Object.entries(data)) {
                 this.implementationBonusTotals[llm_model_id] = parseInt(totalStr) || 0;
@@ -115,12 +115,12 @@ export class ModelStatsService {
             data[llm_model_id] = total.toString();
         }
         if (Object.keys(data).length > 0) {
-            await redisService.hsetall('stats:implementationBonusTotals', data);
+            await keyValueStore.hsetall('stats:implementationBonusTotals', data);
         }
     }
 
     private async loadRareSuccessCounts(): Promise<void> {
-        const data = await redisService.hgetall('stats:rareSuccessCounts');
+        const data = await keyValueStore.hgetall('stats:rareSuccessCounts');
         if (data) {
             for (const [llm_model_id, countStr] of Object.entries(data)) {
                 this.rareSuccessCounts[llm_model_id] = parseInt(countStr) || 0;
@@ -134,7 +134,7 @@ export class ModelStatsService {
             data[llm_model_id] = count.toString();
         }
         if (Object.keys(data).length > 0) {
-            await redisService.hsetall('stats:rareSuccessCounts', data);
+            await keyValueStore.hsetall('stats:rareSuccessCounts', data);
         }
     }
 

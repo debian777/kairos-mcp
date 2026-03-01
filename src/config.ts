@@ -1,7 +1,7 @@
 /**
  * Centralized configuration for environment variables.
  * This file contains all environment variable parsing logic.
- * Required variables (REDIS_URL, QDRANT_URL) throw at load if missing.
+ * REDIS_URL: when set (non-empty) → Redis backend; when unset or empty → in-memory backend. QDRANT_URL is always required.
  */
 
 import path from 'path';
@@ -41,8 +41,9 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   return val !== 'false';
 }
 
-// Required (throw at startup if missing)
-export const REDIS_URL = getEnvRequired('REDIS_URL');
+// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend
+export const REDIS_URL = (getEnvString('REDIS_URL', '')).trim();
+export const USE_REDIS = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', '');
 export const OPENAI_API_KEY = getEnvString('OPENAI_API_KEY', '');

@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
-import { redisService } from '../../src/services/redis.js';
+import { keyValueStore } from '../../src/services/key-value-store-factory.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
-import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID } from '../../src/config.js';
+import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, USE_REDIS } from '../../src/config.js';
 import { runWithSpaceContext } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
 
@@ -26,14 +26,15 @@ function redisKey(suffix: string): string {
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
-describe('Redis Pub/Sub Integration Tests', () => {
+const describeRedis = USE_REDIS ? describe : describe.skip;
+
+describeRedis('Redis Pub/Sub Integration Tests', () => {
   let testClient: RedisClientType;
   let subscriberClient: RedisClientType;
   const testPrefix = `${KAIROS_REDIS_PREFIX}test:`;
 
   beforeAll(async () => {
-    // Ensure RedisService is connected
-    await redisService.connect();
+    await keyValueStore.connect();
 
     // Create test Redis client for direct verification
     testClient = createClient({ url: REDIS_URL });
@@ -57,8 +58,7 @@ describe('Redis Pub/Sub Integration Tests', () => {
       await subscriberClient.quit();
     }
     
-    // Disconnect global RedisService
-    await redisService.disconnect();
+    await keyValueStore.disconnect();
   }, 10000);
 
   beforeEach(async () => {
@@ -84,8 +84,7 @@ describe('Redis Pub/Sub Integration Tests', () => {
       // Wait for subscription to be ready
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Publish via RedisService
-      const subscribers = await redisService.publish(channel, message);
+      const subscribers = await keyValueStore.publish(channel, message);
       
       expect(subscribers).toBeGreaterThanOrEqual(1);
 
@@ -102,7 +101,7 @@ describe('Redis Pub/Sub Integration Tests', () => {
       const channel = `${testPrefix}empty-channel`;
       const message = 'test message';
       
-      const subscribers = await redisService.publish(channel, message);
+      const subscribers = await keyValueStore.publish(channel, message);
       expect(subscribers).toBe(0);
     });
   });

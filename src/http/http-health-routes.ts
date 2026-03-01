@@ -1,9 +1,9 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { embeddingService } from '../services/embedding/service.js';
-import { redisService } from '../services/redis.js';
+import { keyValueStore } from '../services/key-value-store-factory.js';
 import { getBuildVersion } from '../utils/build-version.js';
-import { AUTH_ENABLED } from '../config.js';
+import { AUTH_ENABLED, USE_REDIS } from '../config.js';
 
 /**
  * Set up health check and basic info routes
@@ -17,7 +17,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
         const qdrantHealthy = await memoryStore.checkHealth().catch(() => false);
         // Redis and embedding providers are non-critical for allowing tests to proceed,
         // but reported for diagnostics.
-        const redisHealthy = redisService.isConnected();
+        const redisHealthy = keyValueStore.isConnected();
         let teiHealth = { healthy: false, message: 'Embedding provider not configured' as string };
 
         // Run embedding health check but bound it with a short timeout so /health is responsive
@@ -55,21 +55,28 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
         const buildVersion = getBuildVersion();
         const uptime = Math.floor(process.uptime());
 
+        const dependencies: Record<string, string> = {
+            qdrant: qdrantHealthy ? 'healthy' : 'unhealthy',
+            embedding: teiHealthy ? 'healthy' : 'unhealthy'
+        };
+        if (USE_REDIS) {
+            dependencies['redis'] = redisHealthy ? 'healthy' : 'unhealthy';
+        } else {
+            dependencies['cache'] = 'healthy (memory)';
+        }
+
         res.status(statusCode).json({
             status: healthStatus,
             service: 'KAIROS',
             version: buildVersion,
             transport: 'http',
             uptime: uptime,
-            dependencies: {
-                qdrant: qdrantHealthy ? 'healthy' : 'unhealthy',
-                redis: redisHealthy ? 'healthy' : 'unhealthy',
-                embedding: teiHealthy ? 'healthy' : 'unhealthy'
-            },
+            dependencies,
             details: {
                 embedding: teiHealth.message,
                 provider: embeddingCfg.provider || 'auto',
-                providerPref: (embeddingCfg as any).providerPref || 'auto'
+                providerPref: (embeddingCfg as any).providerPref || 'auto',
+                cacheBackend: USE_REDIS ? 'redis' : 'memory'
             }
         });
     });
