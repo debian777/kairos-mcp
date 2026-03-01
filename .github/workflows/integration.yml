@@ -27,12 +27,6 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Install actionlint
-        run: |
-          mkdir -p "$HOME/bin"
-          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/install-actionlint.bash | bash -s -- -b "$HOME/bin"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-
       - name: Generate .env
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

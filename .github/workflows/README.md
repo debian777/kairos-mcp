@@ -30,7 +30,7 @@ gh secret list
 
 In the workflow: `${{ secrets.OPENAI_API_KEY }}`, `${{ secrets.DOCKER_USERNAME }}`, etc.
 
-`npm run lint` runs ESLint and **actionlint** on `.github/workflows/*.yml`. Install actionlint locally (e.g. `brew install actionlint` or the [install script](https://github.com/rhysd/actionlint#install)) so lint passes.
+**actionlint** runs via the **pre-commit** hook (when workflow files are staged and actionlint is installed). Install locally (e.g. `brew install actionlint` or the [install script](https://github.com/rhysd/actionlint#install)); optional — the hook skips if actionlint is not found. Manual check: `npm run lint:workflows`.
 
 ### Running manually
 

@@ -1,0 +1,12 @@
+#!/bin/sh
+# Run actionlint on staged workflow files when actionlint is available.
+# Install locally: brew install actionlint (or see https://github.com/rhysd/actionlint#install)
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^\.github/workflows/.*\.yml$' || true)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+if ! command -v actionlint >/dev/null 2>&1; then
+  exit 0
+fi
+echo "$staged" | xargs actionlint

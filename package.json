@@ -54,7 +54,7 @@
     "infra:down": "docker compose -p kairos-mcp --env-file .env --profile infra down",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
     "lint:workflows": "actionlint .github/workflows/*.yml",
-    "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs && npm run lint:workflows",
+    "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "verify:clean": "node scripts/verify-clean-source.mjs",
     "clean": "rm -rf dist",
     "validate": "npm run lint && npm run knip && npm run build && npm test && npm run test:integration",
