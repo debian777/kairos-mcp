@@ -76,7 +76,7 @@
     "docker:push": "docker push debian777/kairos-mcp:latest && docker push debian777/kairos-mcp:$(node -p \"require('./package.json').version\")",
     "docker:publish": "npm run docker:build && npm run docker:push",
     "ensure-coding-rules": "./scripts/run-env.sh ensure-coding-rules",
-    "knip": "node -e \"if(process.env.DOCKER_BUILD)process.exit(0); const r=require('child_process').spawnSync('npx',['knip'],{stdio:'inherit'});process.exit(r.status!=null?r.status:1)\"",
+    "knip": "node -e \"if(process.env.DOCKER_BUILD)process.exit(0); const r=require('child_process').spawnSync('npx',['knip','--no-config-hints'],{stdio:'inherit'});process.exit(r.status!=null?r.status:1)\"",
     "handoff": "npm run dev:deploy && npm run dev:test && npm run qa:deploy && npm run qa:test && npm run ensure-coding-rules && npm run knip",
     "infra:up": "docker compose -p kairos-mcp --env-file .env.dev --profile infra up -d --remove-orphans && python3 scripts/configure-keycloak-realms.py",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
