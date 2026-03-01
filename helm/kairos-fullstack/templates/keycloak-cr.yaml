@@ -1,0 +1,22 @@
+{{- if and .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) }}
+{{- $spec := default dict .Values.keycloakInstance.customSpec }}
+{{- if not (kindIs "map" $spec) }}
+{{- $_ := fail "keycloakInstance.customSpec must be a map (object)" }}
+{{- end }}
+apiVersion: keycloak.org/v1alpha1
+kind: Keycloak
+metadata:
+  name: {{ .Values.keycloakInstance.name }}
+  namespace: {{ .Values.keycloakInstance.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  {{- if empty $spec }}
+  instances: {{ .Values.keycloakInstance.replicas }}
+  # Configure external DB via customSpec or create Secret {{ .Values.keycloakInstance.name }}-db
+  # with keys: DB_VENDOR, DB_ADDR, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD (see docs/OPERATORS.md)
+  {{- else }}
+  {{- toYaml $spec | nindent 2 }}
+  {{- end }}
+{{- end }}

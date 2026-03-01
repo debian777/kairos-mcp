@@ -13,7 +13,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Install dependencies: `npm ci`
 5. Make your changes
-6. Test your changes: `npm test` (dev/memory) and, with infra up, `npm run test:integration`
+6. Test your changes: `npm test` (dev/memory); `npm run test:integration` (starts infra, runs tests, shuts down)
 7. Commit your changes: `git commit -m "Add: your feature description"`
 8. Push to your fork: `git push origin feature/your-feature-name`
 9. Open a Pull Request
@@ -29,18 +29,19 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Environment Setup
 
-1. Copy `env.example.txt` to `.env` (or run `python3 scripts/generate_dev_secrets.py` to generate from template)
-2. Configure required environment variables (see `env.example.txt` for details)
-3. For full stack: `npm run infra:up` (Redis, Qdrant, Postgres, Keycloak)
-4. Run app: `npm run dev` (hot-reload) or `npm start` (built)
+1. Run `node scripts/generate_dev_secrets.mjs` to create `.env` (single file, all enabled). Or copy `env.example.txt` to `.env` and edit.
+2. Configure required environment variables (see `env.example.txt` for details).
+3. For full stack: `npm run infra:up` (Redis, Qdrant, Postgres, Keycloak; uses `.env`).
+4. Run app: `npm run dev` or `npm start` (both start Qdrant if needed, then the app; use `.env`).
 
 ### Developer commands
 
-**Run app**
+**Run app (Qdrant runs with app)**
 
 ```bash
-npm run dev       # Hot-reload from source (uses .env)
-npm start         # Run built app from dist/ (uses .env)
+npm run dev    # Start Qdrant if needed, then hot-reload from source (uses .env)
+npm start      # Start Qdrant if needed, then run built app from dist/ (uses .env)
+npm run stop   # Stop app process and bring down Qdrant (profile app)
 ```
 
 **Build**
@@ -53,28 +54,26 @@ npm run clean     # Remove dist/
 **Test**
 
 ```bash
-npm test                    # Jest, no .env (REDIS_URL unset = memory backend)
-npm run test:integration    # Same tests with .env loaded (Redis, Keycloak; requires infra + app running)
+npm test                    # AUTH_ENABLED=false REDIS_URL= → memory backend, no auth (no .env loaded)
+npm run test:integration    # Starts full infra, runs test suite, shuts down (one command)
 ```
 
-For integration tests the app must be running (e.g. `npm start` or `npm run dev`). Start infra first: `npm run infra:up`, then build and start the app, then `npm run test:integration`.
-
-To run without Keycloak, set `AUTH_ENABLED=false` in `.env`.
+One `.env` with all enabled. Plain `npm test` overrides `AUTH_ENABLED=false` and `REDIS_URL=` so tests run without auth and with in-memory store. `npm run test:integration` starts Docker infra (Redis, Qdrant, Postgres, Keycloak), configures Keycloak, starts the app, runs Jest, then stops the app and brings down infra.
 
 **Test with auth (Keycloak + kairos-tester)**  
-When `AUTH_ENABLED=true`, Jest globalSetup loads `.env`, provisions the test user and token, and writes `.test-auth-env.dev.json`. The app must already be running (e.g. `npm start` or `npm run dev` after `npm run infra:up`).
+When running `test:integration`, the script starts infra and the app; Jest globalSetup loads `.env`, provisions the test user and token, and writes `.test-auth-env.dev.json`.
 
 **Validation gate (before publish)**
 
 ```bash
-npm run validate   # lint + knip + build + test + test:integration (requires infra up for test:integration)
+npm run validate   # lint + knip + build + npm test + test:integration (test:integration starts/stops its own infra)
 ```
 
 **Infrastructure**
 
 ```bash
-npm run infra:up    # Start Redis, Qdrant, Postgres, Keycloak (uses .env)
-npm run infra:down  # Stop infra
+npm run infra:up    # Start full stack: Redis, Qdrant, Postgres, Keycloak (profile infra)
+npm run infra:down  # Stop full stack. Qdrant also runs with app (profile app); npm run stop brings that down.
 ```
 
 **Code quality**

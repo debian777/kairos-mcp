@@ -1,0 +1,20 @@
+{{- $kcNs := .Values.gateway.routes.keycloak.serviceNamespace | default .Values.keycloakInstance.namespace | default "keycloak" }}
+{{- if and .Values.gateway.enabled .Values.gateway.routes.keycloak.serviceName (ne $kcNs .Release.Namespace) }}
+# Allows HTTPRoute in release namespace to reference Keycloak Service in keycloak namespace.
+# See https://gateway-api.sigs.k8s.io/api-types/referencegrant/
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-{{ .Release.Namespace }}-to-keycloak
+  namespace: {{ $kcNs }}
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ .Release.Namespace }}
+  to:
+    - group: ""
+      kind: Service
+{{- end }}

@@ -1,0 +1,28 @@
+{{- if and .Values.postgresCluster.vpa.enabled .Values.postgresCluster.vpa.targetName }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-postgres-vpa
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: {{ .Values.postgresCluster.vpa.targetKind }}
+    name: {{ .Values.postgresCluster.vpa.targetName }}
+{{- /* targetRef is in same namespace as this VPA (release namespace). For Postgres in another namespace, helm template and kubectl apply -n <postgres-namespace> */}}
+  updatePolicy:
+    updateMode: {{ .Values.postgresCluster.vpa.updateMode }}
+  resourcePolicy:
+    containerPolicies:
+      - minAllowed:
+          cpu: {{ .Values.postgresCluster.vpa.minAllowed.cpu }}
+          memory: {{ .Values.postgresCluster.vpa.minAllowed.memory }}
+        maxAllowed:
+          cpu: {{ .Values.postgresCluster.vpa.maxAllowed.cpu }}
+          memory: {{ .Values.postgresCluster.vpa.maxAllowed.memory }}
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits
+{{- end }}

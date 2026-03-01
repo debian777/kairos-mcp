@@ -93,7 +93,11 @@ function cleanStaleAuthState(root: string): void {
 function loadEnv(): void {
   const root = process.cwd();
   const opts = { override: true };
-  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  // test:integration is run with dotenv -e .env so AUTH_ENABLED is already true; load .env to reinforce.
+  // Plain "npm test" passes AUTH_ENABLED=false REDIS_URL= so we do not load .env (memory backend, no auth).
+  if (process.env.AUTH_ENABLED === 'true' && existsSync(join(root, '.env'))) {
+    config({ path: join(root, '.env'), ...opts });
+  }
 }
 
 export default async function globalSetup(): Promise<void> {

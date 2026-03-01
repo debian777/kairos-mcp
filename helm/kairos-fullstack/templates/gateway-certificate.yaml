@@ -1,0 +1,16 @@
+{{- if and .Values.gateway.enabled .Values.gateway.hostname .Values.gateway.tls.certManager.enabled .Values.gateway.tls.certManager.issuerRef.name }}
+{{- $secretName := .Values.gateway.tls.certManager.secretName | default (printf "%s-gateway-tls" .Release.Name) }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Release.Name }}-gateway-tls
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  secretName: {{ $secretName }}
+  issuerRef:
+    name: {{ .Values.gateway.tls.certManager.issuerRef.name }}
+    kind: {{ .Values.gateway.tls.certManager.issuerRef.kind | default "ClusterIssuer" }}
+  dnsNames:
+    - {{ .Values.gateway.hostname | quote }}
+{{- end }}

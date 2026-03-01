@@ -94,7 +94,10 @@ module.exports = [
       '**/.cursor/**',
       'env.example.txt',
       '**/snapshots/**',
-      '**/*.snapshot'
+      '**/*.snapshot',
+      '**/helm/**',
+      '**/Chart.lock',
+      '**/*.tgz',
     ],
   },
 

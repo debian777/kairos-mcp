@@ -1,0 +1,34 @@
+{{- if and .Values.gateway.enabled .Values.gateway.createGateway .Values.gateway.gatewayClassName }}
+{{- $tlsSecret := .Values.gateway.tls.secretName }}
+{{- if and .Values.gateway.tls.certManager.enabled .Values.gateway.hostname (not .Values.gateway.tls.secretName) }}
+{{- $tlsSecret = .Values.gateway.tls.certManager.secretName | default (printf "%s-gateway-tls" .Release.Name) }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.gateway.gatewayName }}
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  gatewayClassName: {{ .Values.gateway.gatewayClassName }}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      {{- if .Values.gateway.hostname }}
+      hostname: {{ .Values.gateway.hostname | quote }}
+      {{- end }}
+    {{- if $tlsSecret }}
+    - name: https
+      port: 443
+      protocol: HTTPS
+      {{- if .Values.gateway.hostname }}
+      hostname: {{ .Values.gateway.hostname | quote }}
+      {{- end }}
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: {{ $tlsSecret }}
+    {{- end }}
+{{- end }}

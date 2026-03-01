@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Copy .env from the main git worktree into the current workspace.
-# Use when working in a worktree that doesn't have its own .env.
 # Usage: ./scripts/copy-env-from-main.sh
 
 set -euo pipefail
@@ -30,7 +29,6 @@ if [ ! -f "$main_root/.env" ]; then
     echo "No .env found in main worktree ($main_root)."
     exit 0
 fi
-
 cp "$main_root/.env" "$PROJECT_DIR/.env"
-echo "Copied .env from main worktree"
+echo "Copied .env from main worktree."
 echo "Done."

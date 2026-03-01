@@ -1,9 +1,11 @@
 # Compose with Docker named volumes (default). No VOLUME_LOCAL_PATH required.
 # Alternative: compose-dir-volumes.yaml uses host dirs (bind mounts).
 #
-# Profiles: "infra" = Redis, Qdrant, Postgres, Keycloak (start first).
+# Profiles: "app" = Qdrant only (run with app via npm start / npm run dev).
+#           "infra" = Redis, Qdrant, Postgres, Keycloak (full stack for integration tests).
 #           "infra-ui" = Redis Insight (optional; add --profile infra-ui for local dev).
-# Usage: docker compose -p kairos-mcp --env-file .env --profile infra up -d
+# Usage: docker compose -p kairos-mcp --env-file .env --profile app up -d   # Qdrant with app
+#        docker compose -p kairos-mcp --env-file .env --profile infra up -d  # Full stack
 
 services:
   redis:
@@ -48,6 +50,7 @@ services:
 
   qdrant:
     profiles:
+      - app
       - infra
     image: qdrant/qdrant:latest
     pull_policy: missing
@@ -115,7 +118,7 @@ services:
         condition: service_healthy
     command:
       - start-dev
-      # Realms: run scripts/configure-keycloak-realms.py to create from scripts/keycloak/import via API
+      # Realms: run node scripts/configure-keycloak-realms.mjs to create from scripts/keycloak/import via API
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}

@@ -1,0 +1,29 @@
+{{- if and .Values.qdrant.enabled .Values.qdrant.vpa.enabled }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-qdrant
+  labels:
+    app.kubernetes.io/name: qdrant
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ .Release.Name }}-qdrant
+  updatePolicy:
+    updateMode: {{ .Values.qdrant.vpa.updateMode }}
+  resourcePolicy:
+    containerPolicies:
+      - containerName: qdrant
+        minAllowed:
+          cpu: {{ .Values.qdrant.vpa.minAllowed.cpu }}
+          memory: {{ .Values.qdrant.vpa.minAllowed.memory }}
+        maxAllowed:
+          cpu: {{ .Values.qdrant.vpa.maxAllowed.cpu }}
+          memory: {{ .Values.qdrant.vpa.maxAllowed.memory }}
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits
+{{- end }}

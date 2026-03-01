@@ -1,6 +1,6 @@
 # Keycloak realm import
 
-Realm JSONs in this directory are used by **scripts/configure-keycloak-realms.py** (Admin API). The script reads from `scripts/keycloak/import` relative to repo root. No Docker import mount is used.
+Realm JSONs in this directory are used by **scripts/configure-keycloak-realms.mjs** (Admin API). The script reads from `scripts/keycloak/import` relative to repo root. No Docker import mount is used.
 
 ## Files
 
@@ -8,13 +8,13 @@ Realm JSONs in this directory are used by **scripts/configure-keycloak-realms.py
 - **kairos-qa-realm.json** – QA realm: `kairos-qa`, client `kairos-mcp`.
 - **kairos-prod-realm.json** – Prod realm: `kairos-prod`, client `kairos-mcp`.
 
-## One-shot configuration: `configure-keycloak-realms.py`
+## One-shot configuration: `configure-keycloak-realms.mjs`
 
 Run once Keycloak is up (idempotent):
 
 ```bash
 npm run infra:up
-# Or: python3 scripts/configure-keycloak-realms.py
+# Or: node scripts/configure-keycloak-realms.mjs
 # Optional: KEYCLOAK_URL=http://keycloak:8080
 ```
 

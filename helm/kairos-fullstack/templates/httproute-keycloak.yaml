@@ -1,0 +1,34 @@
+{{- if and .Values.gateway.enabled .Values.gateway.hostname .Values.gateway.routes.keycloak.serviceName }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak-route
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.existingGatewayName | default .Values.gateway.gatewayName }}
+      {{- if or .Values.gateway.tls.secretName (and .Values.gateway.tls.certManager.enabled .Values.gateway.hostname) }}
+      sectionName: https
+      {{- else }}
+      sectionName: http
+      {{- end }}
+      {{- $gwNs := .Values.gateway.existingGatewayNamespace | default .Release.Namespace }}
+      {{- if ne $gwNs .Release.Namespace }}
+      namespace: {{ $gwNs }}
+      {{- end }}
+  hostnames:
+    - {{ .Values.gateway.hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gateway.routes.keycloak.path | default "/sso" }}
+      backendRefs:
+        - name: {{ .Values.gateway.routes.keycloak.serviceName }}
+          port: {{ .Values.gateway.routes.keycloak.port | int }}
+          {{- $kcNs := .Values.gateway.routes.keycloak.serviceNamespace | default .Values.keycloakInstance.namespace | default "keycloak" }}
+          {{- if ne $kcNs .Release.Namespace }}
+          namespace: {{ $kcNs }}
+          {{- end }}
+{{- end }}

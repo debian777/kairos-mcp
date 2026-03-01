@@ -1,44 +1,42 @@
 # GitHub Actions workflows
 
-## Integration workflow
+## CI workflow (`integration.yml`)
 
-`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm ci && npm run lint && npm run knip && npm run build`, starts the app (`npm start`), and runs `npm run test:integration`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
+Single workflow that runs **integration tests** on every PR and push to `main`, and on **tag push `v*.*.*`** also **publishes the npm package** and **builds/pushes the Docker image**.
+
+- **Triggers:** `pull_request` (main), `push` (main), `push` (tags `v*.*.*`), `workflow_dispatch`.
+- **Job `integration`:** Generate .env, restore Docker image cache, `npm ci && lint && knip && build && test && test:integration`, cache infra images. On tag, uploads a release artifact (dist, package.json, Dockerfile, etc.).
+- **Job `publish-npm`** (tag only, after integration): Downloads release artifact, syncs version from tag, publishes to npm (uses OIDC when available).
+- **Job `publish-docker`** (tag only, after integration): Downloads release artifact, builds multi-arch image from pre-built dist (no source build in Docker), pushes to Docker Hub.
 
 ### Secrets and variables (gh CLI)
 
-You can use **GitHub Actions secrets** (sensitive) and **repository variables** (non-sensitive) in workflows. Set them with the GitHub CLI from the repo root:
-
-**Secrets** (e.g. `OPENAI_API_KEY` for embedding tests):
+**Secrets** (sensitive):
 
 ```bash
-# Set from stdin (prompted)
-gh secret set OPENAI_API_KEY
-
-# Set from env var
-gh secret set OPENAI_API_KEY --body "$OPENAI_API_KEY"
-
-# Set from file
-gh secret set OPENAI_API_KEY < .env.local
+gh secret set OPENAI_API_KEY    # embedding / integration tests
+gh secret set DOCKER_USERNAME  # for tag publish (Docker Hub)
+gh secret set DOCKER_PASSWORD # for tag publish (Docker Hub)
+# npm: use OIDC (id-token: write) and npm trusted publishing; no NPM_TOKEN needed if configured
 ```
 
-**List secrets** (names only, values are hidden):
+**Optional:** `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET` — CI can generate defaults if unset.
+
+**List secrets (names only):**
 
 ```bash
 gh secret list
 ```
 
-**Variables** (non-sensitive; use `vars.VAR_NAME` in the workflow):
+In the workflow: `${{ secrets.OPENAI_API_KEY }}`, `${{ secrets.DOCKER_USERNAME }}`, etc.
 
-```bash
-gh variable set MY_VAR --body "value"
-gh variable list
-```
+`npm run lint` runs ESLint and **actionlint** on `.github/workflows/*.yml`. Install actionlint locally (e.g. `brew install actionlint` or the [install script](https://github.com/rhysd/actionlint#install)) so lint passes.
 
-In the workflow, use `${{ secrets.OPENAI_API_KEY }}` and `${{ vars.MY_VAR }}`. The integration workflow uses:
+### Running manually
 
-- **Optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. If not set, CI uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
+- **UI:** Actions → CI → Run workflow.
+- **CLI:** `gh workflow run integration.yml`
 
-### Running the integration workflow manually
+### Docker build
 
-- **UI:** Actions → Integration → Run workflow.
-- **CLI:** `gh workflow run integration.yml` (from default branch).
+The Dockerfile expects a **pre-built** `dist/` (no source build in the image). Run `npm run build` before `docker build`. In CI, the release artifact produced by the integration job contains `dist/` and is used as the build context for `publish-docker`.

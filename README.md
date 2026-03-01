@@ -25,33 +25,41 @@ KAIROS MCP does not try to be: a general-purpose agent framework or planner; a v
 
 ## Quick start
 
-**Dev (minimal: memory + Qdrant, no infra)**
+**Dev (memory + Qdrant with app)**
 
 ```bash
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 npm ci
-# Optional: copy env.example.txt to .env and set OPENAI_API_KEY etc.
-npm test          # runs with in-memory backend (REDIS_URL unset)
-npm run dev       # hot-reload from source (Ctrl+C to stop)
+node scripts/generate_dev_secrets.mjs   # creates .env (all enabled)
+# Or copy env.example.txt to .env and set OPENAI_API_KEY etc.
+npm run build     # needed for CLI tests
+npm test          # AUTH_ENABLED=false REDIS_URL= overrides → memory backend, no auth
+npm run dev       # starts Qdrant if needed, then hot-reload; npm run stop stops app + Qdrant
 ```
 
-**Integration (full stack: Redis, Qdrant, Keycloak)**
+**Integration tests (full stack: infra up → test → down)**
 
 ```bash
-# Generate .env from template (or copy env.example.txt and edit)
-python3 scripts/generate_dev_secrets.py
-npm run infra:up  # start Redis, Qdrant, Postgres, Keycloak
+node scripts/generate_dev_secrets.mjs   # single .env, all enabled
 npm run build
-npm start         # run built app (or npm run dev for hot-reload)
-npm run test:integration   # tests with .env (Redis, auth)
+npm run test:integration   # starts Redis, Qdrant, Postgres, Keycloak → runs tests → shuts down
+```
+
+**Run app with full infra (Redis, Keycloak) manually**
+
+```bash
+node scripts/generate_dev_secrets.mjs
+npm run infra:up   # start Redis, Qdrant, Postgres, Keycloak
+npm start          # starts Qdrant if needed, then app (AUTH_ENABLED=true)
+npm run stop       # stop app and Qdrant (profile app); use infra:down to stop full stack
 ```
 
 Access the server at `http://localhost:3300` (or `PORT` from `.env`); health check at `http://localhost:3300/healthz`.
 
 Full developer workflow (lint, build, test, validate) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-**Running without Redis (memory backend):** Omit `REDIS_URL` or set it to empty in `.env.dev`. The app uses an in-memory store for proof-of-work and cache; suitable for dev or single-process setups. Set `REDIS_URL` for production (Redis backend).
+**Single .env:** One file with all enabled. `npm start` / `npm run dev` bring up Qdrant (Docker profile `app`) automatically. `npm run stop` stops the app and brings down Qdrant. `npm run test:integration` starts full infra, runs the test suite, then shuts infra down.
 
 ## What you get
 

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: kairos-fullstack
+description: KAIROS MCP — Qdrant (HA, odd replicas) + kairos-mcp app (2 replicas). Redis, Keycloak, Postgres via operators (see README).
+type: application
+version: 0.1.0
+appVersion: "3.0.0"
+keywords:
+  - kairos
+  - mcp
+  - qdrant
+maintainers:
+  - name: KAIROS
+    url: https://github.com/debian777/kairos-mcp
+dependencies:
+  - name: qdrant
+    version: "1.17.0"
+    repository: https://qdrant.github.io/qdrant-helm
+    condition: qdrant.enabled

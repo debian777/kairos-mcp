@@ -1,0 +1,28 @@
+{{- if and .Values.redisCluster.enabled (not .Values.redisCluster.useOwnCluster) }}
+{{- $spec := default dict .Values.redisCluster.customSpec }}
+{{- if not (kindIs "map" $spec) }}
+{{- $_ := fail "redisCluster.customSpec must be a map (object)" }}
+{{- end }}
+apiVersion: databases.spotahome.com/v1
+kind: RedisFailover
+metadata:
+  name: {{ .Values.redisCluster.name }}
+  namespace: {{ .Values.redisCluster.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  {{- if empty $spec }}
+  sentinel:
+    replicas: {{ .Values.redisCluster.sentinelReplicas }}
+  redis:
+    replicas: {{ .Values.redisCluster.replicas }}
+  {{- $secretName := .Values.credentials.existingSecret | default .Values.credentials.name }}
+  {{- if $secretName }}
+  auth:
+    secretPath: {{ $secretName }}
+  {{- end }}
+  {{- else }}
+  {{- toYaml $spec | nindent 2 }}
+  {{- end }}
+{{- end }}
