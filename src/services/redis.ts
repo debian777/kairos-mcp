@@ -3,14 +3,16 @@
  *
  * Provides Redis-based persistence for game data and other shared state.
  * Uses configurable key prefix (default: 'kb:') via KAIROS_REDIS_PREFIX env var for isolation.
+ * Use keyValueStore from key-value-store-factory.js unless you need Redis-specific behavior.
  */
 
 import { createClient, RedisClientType } from 'redis';
 import { logger } from '../utils/logger.js';
 import { REDIS_URL, KAIROS_REDIS_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
+import type { IKeyValueStore } from './key-value-store.js';
 
-export class RedisService {
+export class RedisService implements IKeyValueStore {
     private client: RedisClientType;
     private readonly prefix: string;
     private connected = false;
@@ -252,5 +254,3 @@ export class RedisService {
         return this.connected;
     }
 }
-
-export const redisService = new RedisService();

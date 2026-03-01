@@ -1,4 +1,4 @@
-import { redisService } from './redis.js';
+import { keyValueStore } from './key-value-store-factory.js';
 import { logger } from '../utils/logger.js';
 
 export type ProofOfWorkStatus = 'success' | 'failed';
@@ -67,7 +67,7 @@ export class ProofOfWorkStore {
     if (!memoryUuid) return;
     try {
       // 7 days TTL (604800 seconds)
-      await redisService.setJson(this.buildKey(memoryUuid), record, 604800);
+      await keyValueStore.setJson(this.buildKey(memoryUuid), record, 604800);
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to save result for ${memoryUuid}`, error);
     }
@@ -76,7 +76,7 @@ export class ProofOfWorkStore {
   async getResult(memoryUuid: string): Promise<ProofOfWorkResultRecord | null> {
     if (!memoryUuid) return null;
     try {
-      return await redisService.getJson<ProofOfWorkResultRecord>(this.buildKey(memoryUuid));
+      return await keyValueStore.getJson<ProofOfWorkResultRecord>(this.buildKey(memoryUuid));
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to load result for ${memoryUuid}`, error);
       return null;
@@ -86,7 +86,7 @@ export class ProofOfWorkStore {
   async setNonce(memoryUuid: string, nonce: string): Promise<void> {
     if (!memoryUuid || !nonce) return;
     try {
-      await redisService.set(this.nonceKey(memoryUuid), nonce, NONCE_TTL_SEC);
+      await keyValueStore.set(this.nonceKey(memoryUuid), nonce, NONCE_TTL_SEC);
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to set nonce for ${memoryUuid}`, error);
     }
@@ -95,7 +95,7 @@ export class ProofOfWorkStore {
   async getNonce(memoryUuid: string): Promise<string | null> {
     if (!memoryUuid) return null;
     try {
-      return await redisService.get(this.nonceKey(memoryUuid));
+      return await keyValueStore.get(this.nonceKey(memoryUuid));
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to get nonce for ${memoryUuid}`, error);
       return null;
@@ -105,7 +105,7 @@ export class ProofOfWorkStore {
   async setProofHash(memoryUuid: string, hash: string): Promise<void> {
     if (!memoryUuid || !hash) return;
     try {
-      await redisService.set(this.hashKey(memoryUuid), hash, HASH_TTL_SEC);
+      await keyValueStore.set(this.hashKey(memoryUuid), hash, HASH_TTL_SEC);
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to set proof hash for ${memoryUuid}`, error);
     }
@@ -114,7 +114,7 @@ export class ProofOfWorkStore {
   async getProofHash(memoryUuid: string): Promise<string | null> {
     if (!memoryUuid) return null;
     try {
-      return await redisService.get(this.hashKey(memoryUuid));
+      return await keyValueStore.get(this.hashKey(memoryUuid));
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to get proof hash for ${memoryUuid}`, error);
       return null;
@@ -132,8 +132,8 @@ export class ProofOfWorkStore {
   async incrementRetry(identifier: string): Promise<number> {
     if (!identifier) return 0;
     try {
-      const count = await redisService.incr(this.retryKey(identifier));
-      await redisService.set(this.retryKey(identifier), String(count), RETRY_TTL_SEC);
+      const count = await keyValueStore.incr(this.retryKey(identifier));
+      await keyValueStore.set(this.retryKey(identifier), String(count), RETRY_TTL_SEC);
       return count;
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to increment retry for ${identifier}`, error);
@@ -148,7 +148,7 @@ export class ProofOfWorkStore {
   async getRetryCount(identifier: string): Promise<number> {
     if (!identifier) return 0;
     try {
-      const val = await redisService.get(this.retryKey(identifier));
+      const val = await keyValueStore.get(this.retryKey(identifier));
       return val ? parseInt(val, 10) : 0;
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to get retry count for ${identifier}`, error);
@@ -163,7 +163,7 @@ export class ProofOfWorkStore {
   async resetRetry(identifier: string): Promise<void> {
     if (!identifier) return;
     try {
-      await redisService.set(this.retryKey(identifier), '0', RETRY_TTL_SEC);
+      await keyValueStore.set(this.retryKey(identifier), '0', RETRY_TTL_SEC);
     } catch (error) {
       logger.error(`[ProofOfWorkStore] Failed to reset retry for ${identifier}`, error);
     }
