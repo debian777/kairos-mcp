@@ -1,6 +1,6 @@
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
-import { redisService } from './redis.js';
+import { keyValueStore } from './key-value-store-factory.js';
 import { KAIROS_REDIS_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 
@@ -35,7 +35,7 @@ export class RedisCacheService {
   async getSearchResult(query: string, limit: number, opts?: { collapse?: boolean }): Promise<CachedSearchResult | null> {
     try {
       const key = this.getCacheKey(query, limit, opts);
-      const cached = await redisService.getJson<CachedSearchResult>(key);
+      const cached = await keyValueStore.getJson<CachedSearchResult>(key);
       if (cached) {
         logger.debug(`[RedisCacheService] Cache hit for query "${query}" limit ${limit}`);
         await this.incrementHits();
@@ -61,7 +61,7 @@ export class RedisCacheService {
           score: result.scores[index] ?? 0
         }))
       };
-      await redisService.setJson(key, cachedResult, ttl);
+      await keyValueStore.setJson(key, cachedResult, ttl);
       logger.debug(`[RedisCacheService] Cached search result for query "${query}" limit ${limit}`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to set search result in cache:', error);
@@ -72,7 +72,7 @@ export class RedisCacheService {
     try {
       logger.info(`[RedisCacheService] Search cache invalidation requested`);
       // Delete keys matching search cache pattern (all collapse modes)
-      const keys = await redisService.keys(`${this.cachePrefix}*`);
+      const keys = await keyValueStore.keys(`${this.cachePrefix}*`);
       if (!keys || keys.length === 0) {
         logger.debug('[RedisCacheService] No search cache keys to delete');
         // Still publish invalidation event even if no keys to delete
@@ -84,7 +84,7 @@ export class RedisCacheService {
       const stripped: string[] = keys.map(k =>
         k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
       );
-      await Promise.all(stripped.map(k => redisService.del(k)));
+      await Promise.all(stripped.map(k => keyValueStore.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
       // Publish invalidation event
       await this.publishInvalidation('search');
@@ -101,7 +101,7 @@ export class RedisCacheService {
         return;
       }
       const key = `${this.memoryPrefix}${uuid}`;
-      await redisService.del(key);
+      await keyValueStore.del(key);
       logger.debug(`[RedisCacheService] Invalidated memory cache for UUID ${uuid}`);
       // Publish invalidation event
       await this.publishInvalidation('memory');
@@ -116,7 +116,7 @@ export class RedisCacheService {
         type,
         timestamp: Date.now()
       });
-      const subscribers = await redisService.publish(this.invalidationChannel, message);
+      const subscribers = await keyValueStore.publish(this.invalidationChannel, message);
       logger.debug(`[RedisCacheService] Published invalidation event: ${type} to ${this.invalidationChannel} (${subscribers} subscribers notified)`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to publish invalidation:', error);
@@ -125,7 +125,7 @@ export class RedisCacheService {
 
   async incrementHits(): Promise<void> {
     try {
-      await redisService.incr(`${this.statsPrefix}hits`);
+      await keyValueStore.incr(`${this.statsPrefix}hits`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to increment hits:', error);
     }
@@ -133,7 +133,7 @@ export class RedisCacheService {
 
   async incrementMisses(): Promise<void> {
     try {
-      await redisService.incr(`${this.statsPrefix}misses`);
+      await keyValueStore.incr(`${this.statsPrefix}misses`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to increment misses:', error);
     }
@@ -142,8 +142,8 @@ export class RedisCacheService {
   async getCacheStats(): Promise<{ hits: number; misses: number }> {
     try {
       const [hits, misses] = await Promise.all([
-        redisService.get(`${this.statsPrefix}hits`),
-        redisService.get(`${this.statsPrefix}misses`)
+        keyValueStore.get(`${this.statsPrefix}hits`),
+        keyValueStore.get(`${this.statsPrefix}misses`)
       ]);
       return {
         hits: parseInt(hits || '0', 10),
@@ -159,7 +159,7 @@ export class RedisCacheService {
   async getMemoryResource(uuid: string): Promise<Memory | null> {
     try {
       const key = `${this.memoryPrefix}${uuid}`;
-      const cached = await redisService.getJson<Memory>(key);
+      const cached = await keyValueStore.getJson<Memory>(key);
       if (cached) {
         logger.debug(`[RedisCacheService] Memory cache hit for UUID ${uuid}`);
         return cached;
@@ -175,7 +175,7 @@ export class RedisCacheService {
     try {
       const key = `${this.memoryPrefix}${memory.memory_uuid}`;
       // Store memories without TTL (permanent storage)
-      await redisService.setJson(key, memory);
+      await keyValueStore.setJson(key, memory);
       logger.debug(`[RedisCacheService] Cached memory resource for UUID ${memory.memory_uuid} (no TTL)`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to cache memory resource:', error);
@@ -187,7 +187,7 @@ export class RedisCacheService {
     try {
       logger.info(`[RedisCacheService] Begin cache invalidation requested`);
       // Delete keys matching begin cache pattern
-      const keys = await redisService.keys('begin:*');
+      const keys = await keyValueStore.keys('begin:*');
       if (!keys || keys.length === 0) {
         logger.debug('[RedisCacheService] No begin cache keys to delete');
         return;
@@ -197,7 +197,7 @@ export class RedisCacheService {
       const stripped: string[] = keys.map(k =>
         k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
       );
-      await Promise.all(stripped.map(k => redisService.del(k)));
+      await Promise.all(stripped.map(k => keyValueStore.del(k)));
       logger.info(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate begin cache:', error);
@@ -217,7 +217,7 @@ export class RedisCacheService {
   // Generic get and set methods for arbitrary caching
   async get(key: string): Promise<string | null> {
     try {
-      return await redisService.get(key);
+      return await keyValueStore.get(key);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to get from cache:', error);
       return null;
@@ -226,7 +226,7 @@ export class RedisCacheService {
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
     try {
-      await redisService.set(key, value, ttl);
+      await keyValueStore.set(key, value, ttl);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to set in cache:', error);
     }

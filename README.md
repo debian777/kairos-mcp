@@ -52,12 +52,14 @@ npm run dev:start
 
 Full developer workflow (build, test, lint, dev/qa commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Running without Redis (memory backend):** Omit `REDIS_URL` or set it to empty in `.env.dev`. The app uses an in-memory store for proof-of-work and cache; suitable for dev or single-process setups. Set `REDIS_URL` for production (Redis backend).
+
 ## What you get
 
 - **Persistent memory** — Store and retrieve protocol chains in Qdrant; update and mint via tools.
 - **Deterministic execution** — Search → begin → next (loop) → attest; server drives `next_action`.
 - **Agent-facing design** — Tool descriptions, schemas, and errors built for programmatic consumption and recovery.
-- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack.
+- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack. For dev or simple setups without Redis, leave `REDIS_URL` unset or empty to use an in-memory backend (see [env.example.txt](env.example.txt)).
 
 ## Contributing
 
