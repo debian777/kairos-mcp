@@ -101,7 +101,7 @@ Tool and API error responses use stable `error_code` values for monitoring and a
 
 ```bash
 # JSON logs (for aggregation)
-LOG_LEVEL=debug LOG_FORMAT=json TRANSPORT_TYPE=http npm run dev:deploy
+LOG_LEVEL=debug LOG_FORMAT=json npm run dev
 
 # Then trigger a few MCP/HTTP requests and inspect log lines (one JSON object per line).
 ```

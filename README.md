@@ -23,45 +23,44 @@ KAIROS MCP wins by being the most reliable "memory + protocol" substrate that ag
 
 KAIROS MCP does not try to be: a general-purpose agent framework or planner; a vector DB or database abstraction; a UI product for humans (agents are the primary users); or a place to store secrets, credentials, or regulated personal data.
 
-## Quick start (Docker)
+## Quick start
 
-**Option A — Full stack (recommended):** Run the complete stack with Docker Compose (Redis, Qdrant, MCP server).
-
-```bash
-git clone https://github.com/debian777/kairos-mcp.git
-cd kairos-mcp
-cp env.example.txt .env.prod
-# Edit .env.prod (secrets, Keycloak; see env.example.txt)
-docker compose -p kairos-mcp --profile prod up -d
-# For infra-only (Redis, Qdrant, Keycloak): docker compose -p kairos-mcp --env-file .env.prod --profile infra up -d
-```
-
-Access the server at `http://localhost:3000`; health check at `http://localhost:3000/health`.
-
-**Option B — Developer:** Infra via Docker, app via Node (for local development).
+**Dev (minimal: memory + Qdrant, no infra)**
 
 ```bash
 git clone https://github.com/debian777/kairos-mcp.git
 cd kairos-mcp
 npm ci
-cp env.example.txt .env.dev
-# Configure .env.dev (see env.example.txt)
-npm run infra:up
-npm run dev:start
+# Optional: copy env.example.txt to .env and set OPENAI_API_KEY etc.
+npm test          # runs with in-memory backend (REDIS_URL unset)
+npm run dev       # hot-reload from source (Ctrl+C to stop)
 ```
 
-Full developer workflow (build, test, lint, dev/qa commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Integration (full stack: Redis, Qdrant, Keycloak)**
+
+```bash
+# Generate .env from template (or copy env.example.txt and edit)
+python3 scripts/generate_dev_secrets.py
+npm run infra:up  # start Redis, Qdrant, Postgres, Keycloak
+npm run build
+npm start         # run built app (or npm run dev for hot-reload)
+npm run test:integration   # tests with .env (Redis, auth)
+```
+
+Access the server at `http://localhost:3300` (or `PORT` from `.env`); health check at `http://localhost:3300/healthz`.
+
+Full developer workflow (lint, build, test, validate) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What you get
 
 - **Persistent memory** — Store and retrieve protocol chains in Qdrant; update and mint via tools.
 - **Deterministic execution** — Search → begin → next (loop) → attest; server drives `next_action`.
 - **Agent-facing design** — Tool descriptions, schemas, and errors built for programmatic consumption and recovery.
-- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack.
+- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or run app with in-memory backend.
 
 ## Contributing
 
-Contributions are welcome. Developer setup, all npm commands (build, deploy, test, dev/qa, lint, infra, Docker), and contribution guidelines are in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+Contributions are welcome. Developer setup, npm commands (lint, build, test, start, dev, validate), and guidelines are in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## License
 

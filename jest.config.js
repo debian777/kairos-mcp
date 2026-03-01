@@ -53,8 +53,7 @@ export default {
             statements: 99,
         },
     },
-    // Load .env.${ENV} first so test process has same vars as server (run-env.sh); then .env
-    setupFiles: ['<rootDir>/tests/env-loader.ts', 'dotenv/config'],
+    setupFiles: ['<rootDir>/tests/env-loader.ts'],
     // Global test setup runs before all tests
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
     // When AUTH_ENABLED=true: start Keycloak + server, write .test-auth-env.{dev,qa}.json

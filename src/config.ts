@@ -92,7 +92,7 @@ if (AUTH_ENABLED) {
   if (!SESSION_SECRET.trim()) missing.push('SESSION_SECRET');
   if (missing.length > 0) {
     throw new Error(
-      `AUTH_ENABLED=true requires non-empty env: ${missing.join(', ')}. Set them in .env (e.g. .env.dev or .env.qa). See env.example.txt.`
+      `AUTH_ENABLED=true requires non-empty env: ${missing.join(', ')}. Set them in .env. See env.example.txt.`
     );
   }
 }

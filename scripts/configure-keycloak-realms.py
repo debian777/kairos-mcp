@@ -11,7 +11,7 @@ Reads realm JSONs from scripts/keycloak/import relative to repo root (works rega
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
 TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
-Loaded from .env.prod, .env, .env.dev.
+Loaded from .env.
 
 Usage:
   python scripts/configure-keycloak-realms.py
@@ -56,8 +56,7 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 def get_env(root: Path) -> dict[str, str]:
     env: dict[str, str] = {}
-    for name in (".env.prod", ".env", ".env.dev"):
-        env.update(load_env_file(root / name))
+    env.update(load_env_file(root / ".env"))
     for k, v in os.environ.items():
         if v is not None:
             env[k] = v

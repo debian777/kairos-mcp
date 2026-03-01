@@ -23,9 +23,10 @@ The same constraints are available as a Cursor rule in [.cursor/rules/workflow-t
 
 ## How to run
 
-1. **Deploy dev or QA server** so MCP is available:
+1. **Start infra and app** so MCP is available:
    ```bash
-   npm run dev:deploy   # or npm run qa:deploy
+   npm run infra:up     # Redis, Qdrant, Keycloak (uses .env)
+   npm run build && npm start   # or npm run dev for hot-reload
    ```
 2. **Start a session** with the workflow-test prompt active (paste [PROMPT.md](PROMPT.md) or open a chat in Cursor with the rule that applies under `tests/workflow-test/` or when `reports/` is in scope).
 3. **Ask the agent** to run the four scenarios (imports; search + workflows; update step; update chain). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.
@@ -33,10 +34,12 @@ The same constraints are available as a Cursor rule in [.cursor/rules/workflow-t
 
 ## Automated import test
 
-The **imports** scenario is also covered by an integration test that mints each mintable file from `docs/examples/` via the MCP client (no agent). Run it after deploy:
+The **imports** scenario is also covered by an integration test that mints each mintable file from `docs/examples/` via the MCP client (no agent). Run it with app and infra up:
 
 ```bash
-npm run dev:deploy && npm run dev:test -- tests/integration/kairos-mint-docs-examples.test.ts
+npm run infra:up && npm run build && npm start &
+# wait for health, then:
+npm run test:integration -- tests/integration/kairos-mint-docs-examples.test.ts
 ```
 
 See [kairos-mint-docs-examples.test.ts](../integration/kairos-mint-docs-examples.test.ts).

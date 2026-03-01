@@ -44,7 +44,7 @@ async function provisionTestUserOnExistingKeycloak(
 }
 
 /**
- * Use existing Keycloak from .env.dev. Provisions test user (kairos-tester / kairos-tester-secret).
+ * Use existing Keycloak from .env. Provisions test user (kairos-tester / kairos-tester-secret).
  */
 export async function useExistingKeycloakFromEnv(): Promise<KeycloakTestEnv> {
   const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '') ?? '';
@@ -52,7 +52,7 @@ export async function useExistingKeycloakFromEnv(): Promise<KeycloakTestEnv> {
   const clientId = process.env.KEYCLOAK_CLIENT_ID ?? CLIENT_ID;
   if (!keycloakUrl) {
     throw new Error(
-      'useExistingKeycloakFromEnv requires KEYCLOAK_URL in .env.dev (e.g. http://localhost:8080)'
+      'useExistingKeycloakFromEnv requires KEYCLOAK_URL in .env (e.g. http://localhost:8080)'
     );
   }
   await provisionTestUserOnExistingKeycloak(keycloakUrl, realm);
@@ -71,8 +71,8 @@ export async function useExistingKeycloakFromEnv(): Promise<KeycloakTestEnv> {
 const QA_REALM = 'kairos-qa';
 
 /**
- * Use existing QA Keycloak from .env.qa (KEYCLOAK_URL). Provisions test user on QA realm.
- * No container; no server spawn — tests hit existing QA app on port 3500.
+ * Use existing Keycloak from .env (KEYCLOAK_URL). Provisions test user on QA realm.
+ * No container; no server spawn — tests hit existing app on PORT.
  */
 export async function useExistingKeycloakForQa(): Promise<KeycloakTestEnv> {
   const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '') ?? '';
@@ -80,7 +80,7 @@ export async function useExistingKeycloakForQa(): Promise<KeycloakTestEnv> {
   const clientId = process.env.KEYCLOAK_CLIENT_ID ?? CLIENT_ID;
   if (!keycloakUrl) {
     throw new Error(
-      'useExistingKeycloakForQa requires KEYCLOAK_URL in .env.qa (e.g. http://localhost:8080)'
+      'useExistingKeycloakForQa requires KEYCLOAK_URL in .env (e.g. http://localhost:8080)'
     );
   }
   await provisionTestUserOnExistingKeycloak(keycloakUrl, realm);

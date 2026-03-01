@@ -63,15 +63,14 @@ When you mint or edit a workflow document (H1 chain, H2 steps), add a trailing
 1. Follow the complete protocol (not just step 1 - feature branch isolation)
 2. Establish baseline tests
 3. Run full test suite after changes
-4. Deploy to dev/qa first (`npm run dev:deploy` or `npm run qa:deploy`)
-5. Test against dev/qa servers
-6. Only after full validation in dev/qa can changes be promoted to live
+4. For integration: start infra (`npm run infra:up`), then app (`npm start` or `npm run dev`), then `npm run test:integration`
+5. For dev: `npm test` (memory backend) or full gate `npm run validate`
+6. Only after full validation (lint, build, test, test:integration) can changes be promoted
 
 **Deployment workflow:**
 
-- Local changes → dev/qa environment → test → validate → promote to live
-- Always deploy before testing: `npm run dev:deploy && npm run dev:test`
-- Tests run against running dev/qa servers, so deploy first
+- Local changes → build → test (dev: `npm test`) → integration (infra + `npm start` + `npm run test:integration`) → validate → promote
+- Integration tests require app running: run `npm start` or `npm run dev` before `npm run test:integration`
 
 ---
 

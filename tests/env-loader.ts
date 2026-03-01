@@ -1,19 +1,6 @@
 /**
- * Load .env.${ENV} (e.g. .env.dev) into process.env before any tests run.
- * Ensures the test process sees the same env as the server (run-env.sh sources
- * the same file). Run before dotenv/config so ENV-specific file wins.
- * Fixes CI/local cases where Jest workers or globalSetup would otherwise miss vars.
+ * Test env: no automatic .env loading here.
+ * For npm test, env comes from the shell (REDIS_URL unset = memory backend).
+ * For test:integration, dotenv -e .env loads .env before invoking npm test.
  */
-import { config } from 'dotenv';
-import { existsSync } from 'fs';
-import { join } from 'path';
-
-const env = process.env.ENV;
-const root = process.cwd();
-
-if (env) {
-  const envFile = join(root, `.env.${env}`);
-  if (existsSync(envFile)) {
-    config({ path: envFile, override: true });
-  }
-}
+// No-op: env is either inherited (test:integration) or intentionally minimal (npm test).

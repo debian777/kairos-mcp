@@ -2,7 +2,7 @@
 
 ## Integration workflow
 
-`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
+`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm ci && npm run lint && npm run knip && npm run build`, starts the app (`npm start`), and runs `npm run test:integration`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
 
 ### Secrets and variables (gh CLI)
 

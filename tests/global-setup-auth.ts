@@ -1,7 +1,6 @@
 /**
  * Jest globalSetup when AUTH_ENABLED=true.
- * Dev: provisions Keycloak (if needed) and test token; app must already be running (e.g. npm run dev:deploy).
- * QA: uses existing server on PORT (from .env.qa).
+ * Loads .env; provisions Keycloak (if needed) and test token; app must already be running (e.g. npm run dev or npm start).
  * Cleans stale auth state at start so tests never rely on old tokens or wrong baseUrl.
  */
 
@@ -95,11 +94,6 @@ function loadEnv(): void {
   const root = process.cwd();
   const opts = { override: true };
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
-  if (process.env.ENV === 'qa') {
-    if (existsSync(join(root, '.env.qa'))) config({ path: join(root, '.env.qa'), ...opts });
-  } else {
-    if (existsSync(join(root, '.env.dev'))) config({ path: join(root, '.env.dev'), ...opts });
-  }
 }
 
 export default async function globalSetup(): Promise<void> {

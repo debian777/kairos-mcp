@@ -1,6 +1,5 @@
 // Global Jest setup for KAIROS MCP integration tests
-// Set required env vars before any test file imports config (config throws if missing).
-if (!process.env.REDIS_URL) process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+// Set QDRANT_URL default so tests work without .env. REDIS_URL left unset for npm test (memory backend); test:integration loads .env (Redis).
 if (!process.env.QDRANT_URL) process.env.QDRANT_URL = 'http://localhost:6333';
 
 // Optional: debug what env the test process sees (DEBUG_TEST_ENV=1 npm run dev:test)

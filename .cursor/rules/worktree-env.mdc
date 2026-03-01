@@ -1,20 +1,15 @@
 ---
-description: Sync .env* from main worktree when working in this git workspace
+description: Sync .env from main worktree when working in this git workspace
 alwaysApply: true
 ---
 
 # Worktree env setup
 
-This workspace is a **git worktree**. Environment files (`.env`, `.env.dev`, `.env.qa`, `.env.prod`) are not shared across worktrees.
-
-**Automatic behaviour (no manual step needed):**
-
-- **First `npm run dev:*` or `npm run qa:*`** (e.g. `dev:deploy`, `dev:restart`, `qa:start`): if `.env.<ENV>` is missing, `run-env.sh` runs `./scripts/copy-env-from-main.sh` and then continues. So the first dev/qa command in a new worktree copies env from the main worktree.
-- **First `npm install` / `npm ci`** in the worktree: `postinstall` runs `copy-env-from-main.sh` when both `.env` and `.env.dev` are missing, so env is in place before you run any dev command.
+This workspace is a **git worktree**. The environment file (`.env`) is not shared across worktrees.
 
 **When to run the script manually:**
 
-- **"Copy env from main" / "sync env"**: run `./scripts/copy-env-from-main.sh` to refresh `.env*` from the main worktree (e.g. after changing secrets in main).
+- **"Copy env from main" / "sync env"**: run `./scripts/copy-env-from-main.sh` to copy `.env` from the main worktree (e.g. after changing secrets in main).
 - Or use the task **"Copy .env from main"** (Terminal → Run Task… → Copy .env from main).
 
-The script resolves the main worktree via `git worktree list` (first line) and copies every `.env*` file from there. Safe to run in the main worktree (no-op).
+The script resolves the main worktree via `git worktree list` (first line) and copies `.env` from there. Safe to run in the main worktree (no-op).

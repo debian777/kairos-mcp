@@ -77,7 +77,7 @@ async function fetchKeycloakToken(
 
 /**
  * Fetch a fresh Keycloak token and update the env-specific auth file.
- * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env (e.g. .env.dev or .env.qa). Returns true if refreshed.
+ * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env. Returns true if refreshed.
  */
 export async function refreshTestAuthToken(): Promise<boolean> {
   if (process.env.AUTH_ENABLED !== 'true') return false;
@@ -126,7 +126,7 @@ export function getTestAuthBaseUrl(): string {
   return `http://localhost:${port}`;
 }
 
-/** True when server requires auth (from env, e.g. .env.dev). */
+/** True when server requires auth (from env, e.g. .env). */
 export function serverRequiresAuth(): boolean {
   return process.env.AUTH_ENABLED === 'true';
 }

@@ -17,6 +17,7 @@ This directory holds **goal-state** documentation: the architecture and workflow
 | [03-workflow-protocol-run.md](03-workflow-protocol-run.md)                   | Full protocol run with sampling: search → begin → solve step via sampling → next (loop) → attest. Before/after contrast.     |
 | [04-session-handover.md](04-session-handover.md)                             | Session handover file format and how it enables resumability across client restarts or switches.                             |
 | [05-challenge-prompts-and-policies.md](05-challenge-prompts-and-policies.md) | Challenge types to sampling prompts; which steps use auto vs user approval; client policies.                                 |
+| [06-refactor-npm-workflow.md](06-refactor-npm-workflow.md)                   | **Operational:** Refactor to npm-first workflow; drop run-env.sh; dev (memory + Qdrant) vs integration (full infra); build/publish. |
 
 
 ## Reference

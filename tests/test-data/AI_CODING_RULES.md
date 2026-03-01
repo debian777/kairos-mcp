@@ -31,7 +31,7 @@ Execute.
 **Check local docs for Build, Deploy, and Test instructions. You MUST ONLY use Build, Deploy, and Test tools from these instructions.**
 
 1. Read README.md to find Build, Deploy, and Test commands
-2. Use ONLY the documented npm scripts (e.g., `npm run dev:build`, `npm run dev:deploy`, `npm run dev:test`)
+2. Use ONLY the documented npm scripts (e.g., `npm run build`, `npm start`, `npm run dev`, `npm test`, `npm run test:integration`)
 3. DO NOT invent or assume build/test/deploy commands - use what's documented
 
 **If instructions are failing or incomplete:**
@@ -58,7 +58,7 @@ Proof of work: rg -n "Build|Deploy|Test" README.md
 **Follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST: Check README.md for test commands. Use ONLY the documented npm scripts.**
 
 1. Read README.md to find the correct test command
-2. Run the documented test command (e.g., `npm run dev:test` or `npm run qa:test`)
+2. Run the documented test command (e.g., `npm test` or `npm run test:integration`)
 3. Archive output: `reports/tests/baseline-<timestamp>.log`
 4. Record commit hash and branch
 
@@ -141,7 +141,7 @@ Proof of work: run `git diff --stat` to prove the surface stayed minimal.
 **Follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST: Check README.md for test commands. Use ONLY the documented npm scripts.**
 
 1. Read README.md to find the correct test command
-2. Run the documented test command (e.g., `npm run dev:test` or `npm run qa:test`)
+2. Run the documented test command (e.g., `npm test` or `npm run test:integration`)
 3. Capture output to temporary file: `reports/tests/test-{timestamp}.log`
 4. All tests MUST pass
 

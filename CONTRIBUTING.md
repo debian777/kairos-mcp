@@ -13,7 +13,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Install dependencies: `npm ci`
 5. Make your changes
-6. Test your changes: `npm run dev:deploy && npm run dev:test`
+6. Test your changes: `npm test` (dev/memory) and, with infra up, `npm run test:integration`
 7. Commit your changes: `git commit -m "Add: your feature description"`
 8. Push to your fork: `git push origin feature/your-feature-name`
 9. Open a Pull Request
@@ -23,97 +23,74 @@ By participating in this project, you agree to maintain a respectful and inclusi
 ### Prerequisites
 
 - Node.js >= 24.0.0
-- Docker and Docker Compose
+- Docker and Docker Compose (for integration tests and full stack)
 - Qdrant (vector database)
-- Redis (caching)
+- Redis (optional; unset REDIS_URL for in-memory backend)
 
 ### Environment Setup
 
-1. Copy `env.example.txt` to `.env.dev`, `.env.qa`, or `.env.prod`
+1. Copy `env.example.txt` to `.env` (or run `python3 scripts/generate_dev_secrets.py` to generate from template)
 2. Configure required environment variables (see `env.example.txt` for details)
-3. Start infrastructure services: `npm run infra:up`
-4. Start development server: `npm run dev:start`
+3. For full stack: `npm run infra:up` (Redis, Qdrant, Postgres, Keycloak)
+4. Run app: `npm run dev` (hot-reload) or `npm start` (built)
 
-### Developer commands (build, deploy, test)
+### Developer commands
 
-All build, deploy, and test operations are npm scripts. **Always deploy before testing:** tests run against the running dev/qa server, so deploy your changes first.
+**Run app**
+
+```bash
+npm run dev       # Hot-reload from source (uses .env)
+npm start         # Run built app from dist/ (uses .env)
+```
 
 **Build**
 
 ```bash
-npm run build              # TypeScript to dist/
-npm run dev:build          # Build for dev (includes lint)
-npm run qa:build           # Build for QA (includes lint)
-```
-
-**Deploy**
-
-```bash
-npm run dev:deploy         # Build + restart dev server
-npm run qa:deploy          # Build + start QA server
+npm run build     # verify:clean + embed-docs + tsc
+npm run clean     # Remove dist/
 ```
 
 **Test**
 
 ```bash
-npm run dev:deploy && npm run dev:test   # Standard dev workflow
-npm run qa:deploy && npm run qa:test     # QA workflow
-npm run dev:test -- tests/integration/kairos-dump.test.ts   # Single file (after deploy)
-npm run qa:test -- tests/integration/kairos-dump.test.ts
+npm test                    # Jest, no .env (REDIS_URL unset = memory backend)
+npm run test:integration    # Same tests with .env loaded (Redis, Keycloak; requires infra + app running)
 ```
 
-To run integration tests **without Keycloak**, set `AUTH_ENABLED=false` in `.env.dev` (and run `dev:deploy` then `dev:test`). To override without editing `.env.dev`, run `AUTH_ENABLED=false npm run dev:test` (the script preserves an explicit `AUTH_ENABLED`).
+For integration tests the app must be running (e.g. `npm start` or `npm run dev`). Start infra first: `npm run infra:up`, then build and start the app, then `npm run test:integration`.
+
+To run without Keycloak, set `AUTH_ENABLED=false` in `.env`.
 
 **Test with auth (Keycloak + kairos-tester)**  
-Requires Docker. When `AUTH_ENABLED=true`, Jest globalSetup cleans any stale auth state, starts Keycloak (Testcontainers if `KEYCLOAK_URL` is unset), provisions the test user and token, and writes `.test-auth-env.{dev,qa}.json`. The app must already be running (e.g. `npm run dev:deploy` before `npm run dev:test`). No manual cleanup needed.
+When `AUTH_ENABLED=true`, Jest globalSetup loads `.env`, provisions the test user and token, and writes `.test-auth-env.dev.json`. The app must already be running (e.g. `npm start` or `npm run dev` after `npm run infra:up`).
+
+**Validation gate (before publish)**
 
 ```bash
-npm run dev:deploy   # build first
-KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
-```
-
-**Development environment**
-
-```bash
-npm run dev:start          # Start dev server
-npm run dev:stop           # Stop dev server
-npm run dev:restart        # Restart dev server
-npm run dev:logs           # View dev logs
-npm run dev:status         # Check dev server status
-npm run dev:redis-cli      # Redis CLI (dev)
-npm run dev:qdrant-curl    # Qdrant via curl (dev)
-```
-
-**QA environment**
-
-```bash
-npm run qa:start           # Start QA server
-npm run qa:stop            # Stop QA server
-npm run qa:restart         # Restart QA server
-npm run qa:logs            # View QA logs
-npm run qa:status          # Check QA server status
-npm run qa:redis-cli       # Redis CLI (QA)
-npm run qa:qdrant-curl     # Qdrant via curl (QA)
+npm run validate   # lint + knip + build + test + test:integration (requires infra up for test:integration)
 ```
 
 **Infrastructure**
 
 ```bash
-npm run infra:up           # Start infra (uses .env.dev; set KEYCLOAK_ADMIN_PASSWORD and KEYCLOAK_DB_PASSWORD there; no .env needed)
+npm run infra:up    # Start Redis, Qdrant, Postgres, Keycloak (uses .env)
+npm run infra:down  # Stop infra
 ```
 
 **Code quality**
 
 ```bash
-npm run lint               # Run linter
-npm run lint:fix            # Lint with auto-fix
-npm run verify:clean       # Check for uncommitted changes
+npm run lint         # Run linter
+npm run lint:fix     # Lint with auto-fix
+npm run knip         # Unused exports / dead code
+npm run verify:clean # Check for uncommitted changes
 ```
 
 **Docker**
 
 ```bash
-npm run docker:build       # Build Docker image (debian777/kairos-mcp)
+npm run docker:build   # Build image (debian777/kairos-mcp)
+npm run docker:push   # Push image
 ```
 
 **Snapshot management (optional)**

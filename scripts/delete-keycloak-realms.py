@@ -3,7 +3,7 @@
 Delete KAIROS Keycloak realms (kairos-dev, kairos-qa, kairos-prod) via Admin API.
 After running, restart Keycloak so --import-realm re-imports from scripts/keycloak/import (if using Docker import); otherwise run scripts/configure-keycloak-realms.py to re-create realms.
 
-Requires KEYCLOAK_ADMIN_PASSWORD in .env.prod or .env; Keycloak at KEYCLOAK_URL
+Requires KEYCLOAK_ADMIN_PASSWORD in .env; Keycloak at KEYCLOAK_URL
 (default http://localhost:8080).
 
 Usage:
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import os
-import pprint
 import sys
 import urllib.error
 import urllib.parse
@@ -36,18 +35,15 @@ def load_env_file(path: Path) -> dict[str, str]:
         if "=" in line:
             k, _, v = line.partition("=")
             out[k.strip()] = v.strip().strip('"').strip("'")
-
-    pprint.pprint(os.environ)
     return out
 
 
 def get_admin_password(root: Path) -> str | None:
     if os.environ.get("KEYCLOAK_ADMIN_PASSWORD"):
         return os.environ["KEYCLOAK_ADMIN_PASSWORD"]
-    for name in (".env.prod", ".env"):
-        env = load_env_file(root / name)
-        if env.get("KEYCLOAK_ADMIN_PASSWORD"):
-            return env["KEYCLOAK_ADMIN_PASSWORD"]
+    env = load_env_file(root / ".env")
+    if env.get("KEYCLOAK_ADMIN_PASSWORD"):
+        return env["KEYCLOAK_ADMIN_PASSWORD"]
     return None
 
 
