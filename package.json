@@ -102,7 +102,7 @@
     "@jest/test-sequencer": "^30.2.0",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.55.0",
     "concurrently": "^9.2.1",
