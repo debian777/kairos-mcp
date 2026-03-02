@@ -1,0 +1,19 @@
+{{- if and .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) }}
+{{- $spec := default dict .Values.keycloakInstance.customSpec }}
+{{- if not (kindIs "map" $spec) }}
+{{- $_ := fail "keycloakInstance.customSpec must be a map (object)" }}
+{{- end }}
+apiVersion: keycloak.org/v1alpha1
+kind: Keycloak
+metadata:
+  name: {{ .Values.keycloakInstance.name }}
+  namespace: {{ .Values.keycloakInstance.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  {{- if empty $spec }}
+  instances: {{ .Values.keycloakInstance.replicas }}
+  {{- else }}
+  {{- toYaml $spec | nindent 2 }}
+  {{- end }}
+{{- end }}
