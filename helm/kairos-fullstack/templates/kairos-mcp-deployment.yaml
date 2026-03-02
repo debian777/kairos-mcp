@@ -1,0 +1,111 @@
+{{- if .Values.app.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name | default "kairos-mcp" }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/part-of: kairos-fullstack
+spec:
+  replicas: {{ .Values.app.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
+        app.kubernetes.io/component: mcp-server
+        app.kubernetes.io/part-of: kairos-fullstack
+    spec:
+      {{- with .Values.app.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.ha.spreadAcrossNodes }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
+                topologyKey: kubernetes.io/hostname
+      {{- else }}
+      {{- with .Values.app.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.app.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kairos-mcp
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.app.metricsPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "{{ .Values.app.port }}"
+            - name: METRICS_PORT
+              value: "{{ .Values.app.metricsPort }}"
+            - name: TRANSPORT_TYPE
+              value: "http"
+            - name: REDIS_URL
+              value: {{ .Values.app.redisUrl | quote }}
+            - name: QDRANT_URL
+              value: {{ .Values.app.qdrantUrl | quote }}
+            - name: KEYCLOAK_INTERNAL_URL
+              value: {{ .Values.app.keycloakInternalUrl | quote }}
+            {{- if .Values.app.auth.enabled }}
+            - name: AUTH_ENABLED
+              value: "true"
+            - name: KEYCLOAK_REALM
+              value: {{ .Values.app.auth.realm | quote }}
+            - name: KEYCLOAK_CLIENT_ID
+              value: {{ .Values.app.auth.clientId | quote }}
+            - name: AUTH_CALLBACK_BASE_URL
+              value: {{ .Values.app.auth.callbackBaseUrl | quote }}
+            {{- end }}
+            {{- $appSecret := .Values.app.existingSecret | default .Values.credentials.name }}
+            {{- if $appSecret }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $appSecret }}
+                  key: session-secret
+                  optional: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: snapshots
+              mountPath: /snapshots
+      volumes:
+        - name: snapshots
+          emptyDir: {}
+{{- end }}
