@@ -1,0 +1,56 @@
+# When a merge to main changes package.json version to a value greater than the
+# latest existing tag, create and push that tag. The tag push triggers the
+# Release workflow (release.yml): npm publish then Docker Hub push. Only
+# acceptable final output: npm package in registry, Docker image on Hub.
+# Requires branch protection to allow this workflow to push tags.
+name: Release tag on version bump
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag-release:
+    name: Tag if version bumped
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # push tag
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Get package version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest tag (by version in repo)
+        id: tag
+        run: |
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -1 || echo "v0.0.0")
+          echo "tag=${latest}" >> "$GITHUB_OUTPUT"
+          echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag if version increased
+        run: |
+          pkg="${{ steps.pkg.outputs.version }}"
+          latest="${{ steps.tag.outputs.version }}"
+          higher=$(printf '%s\n' "$latest" "$pkg" | sort -V | tail -n1)
+          if [ "$higher" = "$pkg" ] && [ "$latest" != "$pkg" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            tag="v${pkg}"
+            git tag "$tag"
+            git push origin "$tag"
+            echo "Created and pushed tag $tag"
+          else
+            echo "No tag needed (package version $pkg not greater than latest $latest)"
+          fi
