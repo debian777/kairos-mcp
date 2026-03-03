@@ -154,25 +154,32 @@ jobs:
 
       - name: Start app from artifact and run integration tests
         env:
-          HEALTH_CHECK_ATTEMPTS: 15
+          HEALTH_CHECK_ATTEMPTS: 20
         run: |
           set -a
           [ -f .env.dev ] && source .env.dev
           set +a
           export PORT=3300
-          mkdir -p .run-app
-          cp kairos-*.tgz .run-app/
-          cd .run-app
+          mkdir -p run-app
+          cp kairos-*.tgz run-app/
+          cd run-app
           npm init -y
           npm install ./kairos-*.tgz
-          ( set -a; [ -f ../.env.dev ] && source ../.env.dev; set +a; export PORT=3300; node node_modules/kairos/dist/index.js ) &
+          echo "Starting app from artifact..."
+          ( set -a; [ -f ../.env.dev ] && source ../.env.dev; set +a; export PORT=3300; node node_modules/kairos/dist/index.js ) > app.log 2>&1 &
           APP_PID=$!
           cd ..
-          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS:-15}); do
-            curl -sSf -o /dev/null http://localhost:3300/health && break
-            [ $i -eq ${HEALTH_CHECK_ATTEMPTS:-15} ] && { kill $APP_PID 2>/dev/null; exit 1; }
+          echo "Waiting for app at http://localhost:3300/health (up to ${HEALTH_CHECK_ATTEMPTS:-20} attempts)..."
+          sleep 5
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS:-20}); do
+            if curl -sSf -o /dev/null http://localhost:3300/health; then
+              echo "App healthy after $i attempt(s)."
+              break
+            fi
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS:-20} ] && { echo "App failed to become healthy. Last 80 lines of app.log:"; tail -80 run-app/app.log; kill $APP_PID 2>/dev/null || true; exit 1; }
             sleep 2
           done
+          echo "Running integration tests..."
           MCP_URL="http://localhost:3300/mcp" NODE_OPTIONS='--experimental-vm-modules' npx jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/"
           EXIT=$?
           kill $APP_PID 2>/dev/null || true
