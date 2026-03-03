@@ -1,30 +1,13 @@
-# Multi-stage build for kairos MCP Server
-# Multi-arch support for x64 and ARM64
-FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
+# kairos MCP Server - no local repo dependency; install from public npm registry
+# Multi-arch: linux/amd64, linux/arm64 (Buildx uses node image per platform)
+FROM node:25-alpine
 
-# Set working directory
+# Pin kairos version at build time (default: latest). CI passes e.g. 3.0.0 from tag.
+ARG KAIROS_VERSION=latest
+ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY eslint.config.cjs ./
-
-# Install dependencies
-RUN npm ci && npm cache clean --force
-
-# Copy source code and build scripts
-COPY src/ ./src/
-COPY scripts/ ./scripts/
-COPY docs/ ./docs/
-
-# Build the application (includes embedding MCP resources).
-# DOCKER_BUILD=1 skips lint/knip (already run on host); avoids duplicate work and knip false positives (no tests/ in image).
-ENV DOCKER_BUILD=1
-RUN npm run build
-
-# Production stage - Multi-arch support
-FROM node:25-alpine AS production
+RUN npm init -y && npm install kairos@${KAIROS_VERSION} && npm cache clean --force
 
 VOLUME /snapshots
 
@@ -32,41 +15,26 @@ VOLUME /snapshots
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S kairos -u 1001
 
-# Set working directory
-WORKDIR /app
-
-# Copy built application from builder stage
-COPY --from=builder --chown=kairos:nodejs /app/dist ./dist
-COPY --from=builder --chown=kairos:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=kairos:nodejs /app/package.json ./
-
-# Create directories for logs and data
 RUN mkdir -p logs storage/qdrant && \
-    chown -R kairos:nodejs logs storage
+    chown -R kairos:nodejs /app logs storage
 
-# Switch to non-root user
 USER kairos
 
 # Port configuration (configurable via build arg)
 ARG PORT=3500
 ENV PORT=${PORT}
 
-# Metrics port configuration
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
 
-# Expose ports for HTTP/WebSocket transports and metrics
 EXPOSE ${PORT} ${METRICS_PORT}
 
-# Health check (Node.js based, no curl/wget needed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
 
-# Environment variables (defaults commented out where safe)
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories
 # ENV QDRANT_API_KEY=change_me_with_safe_characters
 
-# Start the MCP server with HTTP/WebSocket support
-CMD ["node", "dist/index.js"]
+CMD ["node", "node_modules/kairos/dist/index.js"]

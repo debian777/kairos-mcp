@@ -75,6 +75,9 @@
     "docker:build": "docker build -t debian777/kairos-mcp:latest -t debian777/kairos-mcp:$(node -p \"require('./package.json').version\") .",
     "docker:push": "docker push debian777/kairos-mcp:latest && docker push debian777/kairos-mcp:$(node -p \"require('./package.json').version\")",
     "docker:publish": "npm run docker:build && npm run docker:push",
+    "pack": "npm run build && npm pack",
+    "npm:publish": "npm run build && npm publish --access public",
+    "npm:publish:dry": "npm run build && npm publish --access public --dry-run",
     "ensure-coding-rules": "./scripts/run-env.sh ensure-coding-rules",
     "knip": "node -e \"if(process.env.DOCKER_BUILD)process.exit(0); const r=require('child_process').spawnSync('npx',['knip','--no-config-hints'],{stdio:'inherit'});process.exit(r.status!=null?r.status:1)\"",
     "handoff": "npm run dev:deploy && npm run dev:test && npm run qa:deploy && npm run qa:test && npm run ensure-coding-rules && npm run knip",
@@ -83,6 +86,7 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "prebuild": "npm ci && npm run verify:clean && npx ts-node scripts/embed-docs.ts",
     "verify:clean": "node scripts/verify-clean-source.mjs",
+    "prepublishOnly": "npm run build",
     "prepare": "husky"
   },
   "dependencies": {
