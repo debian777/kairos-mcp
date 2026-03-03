@@ -1,30 +1,10 @@
-# Multi-stage build for kairos MCP Server
+# Install kairos from npm registry
 # Multi-arch support for x64 and ARM64
-FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY eslint.config.cjs ./
-
-# Install dependencies
-RUN npm ci && npm cache clean --force
-
-# Copy source code and build scripts
-COPY src/ ./src/
-COPY scripts/ ./scripts/
-COPY docs/ ./docs/
-
-# Build the application (includes embedding MCP resources).
-# DOCKER_BUILD=1 skips lint/knip (already run on host); avoids duplicate work and knip false positives (no tests/ in image).
-ENV DOCKER_BUILD=1
-RUN npm run build
-
-# Production stage - Multi-arch support
 FROM node:25-alpine AS production
+
+# KAIROS_VERSION must be an explicit semver in CI (passed via --build-arg from publish-docker.yml).
+# 'latest' is only a fallback for local ad-hoc builds.
+ARG KAIROS_VERSION=latest
 
 VOLUME /snapshots
 
@@ -35,10 +15,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Copy built application from builder stage
-COPY --from=builder --chown=kairos:nodejs /app/dist ./dist
-COPY --from=builder --chown=kairos:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=kairos:nodejs /app/package.json ./
+# Install the published npm package (pre-built dist, no TypeScript compilation needed)
+RUN npm install @debian777/kairos@${KAIROS_VERSION} --omit=dev && npm cache clean --force
 
 # Create directories for logs and data
 RUN mkdir -p logs storage/qdrant && \
@@ -68,5 +46,5 @@ ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories
 # ENV QDRANT_API_KEY=change_me_with_safe_characters
 
-# Start the MCP server with HTTP/WebSocket support
-CMD ["node", "dist/index.js"]
+# Start the MCP server
+CMD ["node", "node_modules/@debian777/kairos/dist/index.js"]

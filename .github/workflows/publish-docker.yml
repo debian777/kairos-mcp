@@ -38,8 +38,19 @@ jobs:
           TAG="${{ steps.tag.outputs.name }}"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Sync version from tag into package.json
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+      - name: Wait for npm package to be available
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Waiting for @debian777/kairos@${VERSION} on npm..."
+          for i in $(seq 1 20); do
+            if npm view "@debian777/kairos@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+              echo "Package available."
+              exit 0
+            fi
+            echo "  attempt ${i}/20 — sleeping 30s"
+            sleep 30
+          done
+          echo "Timed out waiting for npm package." && exit 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -59,6 +70,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            KAIROS_VERSION=${{ steps.version.outputs.version }}
           tags: |
             debian777/kairos-mcp:latest
             debian777/kairos-mcp:${{ steps.version.outputs.version }}
