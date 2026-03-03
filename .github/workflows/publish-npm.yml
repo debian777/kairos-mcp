@@ -37,6 +37,17 @@ jobs:
             echo "Manual run: using version from package.json"
           fi
 
+      - name: Detect prerelease and set npm dist-tag
+        id: npm_tag
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if echo "$VERSION" | grep -qE '\-[a-zA-Z]'; then
+            TAG=$(echo "$VERSION" | sed 's/.*-\([a-zA-Z][a-zA-Z0-9]*\).*/\1/' | grep -oE '^[a-zA-Z]+')
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: npm ci
 
@@ -52,8 +63,8 @@ jobs:
       - name: Publish
         run: |
           if [[ "${{ github.event.inputs.force }}" == "true" ]]; then
-            npm publish --access public --force
+            npm publish --access public --tag ${{ steps.npm_tag.outputs.tag }} --force
           else
-            npm publish --access public
+            npm publish --access public --tag ${{ steps.npm_tag.outputs.tag }}
           fi
         # No NPM_TOKEN needed - OIDC handled automatically by npm CLI
