@@ -32,7 +32,6 @@ from pathlib import Path
 
 CLIENT_REGISTRATION_POLICY_TYPE = "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy"
 TRUSTED_HOSTS_PROVIDER_ID = "trusted-hosts"
-NETWORK_NAME = "kairos-network"
 REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),
     ("kairos-qa", "kairos-qa-realm.json"),
@@ -209,47 +208,39 @@ def _run_docker(*args: str, timeout: int = 10) -> str | None:
         return None
 
 
-def _docker_network_gateway() -> str | None:
-    out = _run_docker(
-        "network", "inspect", NETWORK_NAME,
-        "--format", "{{(index .IPAM.Config 0).Gateway}}",
-    )
-    if not out or not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", out):
-        return None
-    return out
+DOCKER_BRIDGE_GATEWAYS = [f"172.{octet}.0.1" for octet in range(16, 32)]
 
 
 def _docker_container_ip_on_network(service_name: str) -> str | None:
-    out = _run_docker("network", "inspect", NETWORK_NAME, "--format", "{{json .Containers}}")
+    """Find a container's IP by searching all kairos-related Docker networks."""
+    IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    out = _run_docker("network", "ls", "--format", "{{.Name}}")
     if not out:
         return None
-    try:
-        containers = json.loads(out)
-    except json.JSONDecodeError:
-        return None
-    for _cid, info in containers.items():
-        name = info.get("Name") or ""
-        if service_name in name:
-            addr = (info.get("IPv4Address") or "").split("/")[0]
-            if addr and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", addr):
-                return addr
+    for net_name in out.splitlines():
+        if "kairos" not in net_name:
+            continue
+        cdata = _run_docker("network", "inspect", net_name, "--format", "{{json .Containers}}")
+        if not cdata:
+            continue
+        try:
+            containers = json.loads(cdata)
+        except json.JSONDecodeError:
+            continue
+        for _cid, info in containers.items():
+            name = info.get("Name") or ""
+            if service_name in name:
+                addr = (info.get("IPv4Address") or "").split("/")[0]
+                if addr and IP_RE.match(addr):
+                    return addr
     return None
 
 
 def get_trusted_hosts_for_env(env: str) -> list[str]:
-    """Trusted hosts: IP only (no port/wildcard) plus localhost. Keycloak requires valid IPs.
-    Docker gateway (e.g. 172.18.0.1) is added for dev/qa/prod so requests from the host are trusted."""
-    base = ["127.0.0.1", "localhost"]
-    gateway = _docker_network_gateway()
-    if gateway:
-        base.append(gateway)
-    if env == "dev":
-        if not gateway:
-            print(
-                "WARNING: Docker network gateway not found; only 127.0.0.1 trusted for dev.",
-                file=sys.stderr,
-            )
-    elif env == "qa":
+    """Trusted hosts: localhost + all Docker /16 bridge gateways (172.16–31.0.1) +
+    env-specific container IPs."""
+    base = ["127.0.0.1", "localhost"] + DOCKER_BRIDGE_GATEWAYS
+    if env == "qa":
         ip = _docker_container_ip_on_network("app-qa")
         if ip:
             base.append(ip)
