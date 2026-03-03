@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      force:
+        description: 'Allow overwriting existing npm version (--force). Use only until workflow is stable.'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -227,7 +232,12 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish ./kairos-*.tgz --access public
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force }}" == "true" ]]; then
+            npm publish ./kairos-*.tgz --access public --force
+          else
+            npm publish ./kairos-*.tgz --access public
+          fi
 
       - name: Wait for npm package to be available
         run: |
