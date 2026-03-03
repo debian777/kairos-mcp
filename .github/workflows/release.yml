@@ -1,5 +1,6 @@
 # Single release pipeline: on version tag push, publish npm then Docker.
-# Ensures npm package is in registry and Docker image is on Hub (only acceptable final output).
+# Only acceptable final output: npm package in registry, Docker image on Docker Hub.
+# Triggered by release-tag-on-version-bump after merge of a version-bump PR to main.
 name: Release
 
 on:
@@ -7,6 +8,10 @@ on:
     tags:
       - 'v*.*.*'
       - 'v*.*.*-*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish-npm:

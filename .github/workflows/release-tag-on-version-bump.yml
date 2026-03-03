@@ -1,7 +1,8 @@
 # When a merge to main changes package.json version to a value greater than the
-# latest tag, create and push that tag. Publish workflows (npm, Docker) then run
-# on the tag push. Requires branch protection to allow this workflow to push tags
-# (default GITHUB_TOKEN can push; no extra secrets needed).
+# latest existing tag, create and push that tag. The tag push triggers the
+# Release workflow (release.yml): npm publish then Docker Hub push. Only
+# acceptable final output: npm package in registry, Docker image on Hub.
+# Requires branch protection to allow this workflow to push tags.
 name: Release tag on version bump
 
 on:
@@ -31,10 +32,10 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Get latest tag
+      - name: Get latest tag (by version in repo)
         id: tag
         run: |
-          latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -1 || echo "v0.0.0")
           echo "tag=${latest}" >> "$GITHUB_OUTPUT"
           echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
 
