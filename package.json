@@ -87,6 +87,7 @@
     "prebuild": "npm ci && npm run verify:clean && npx ts-node scripts/embed-docs.ts",
     "verify:clean": "node scripts/verify-clean-source.mjs",
     "prepublishOnly": "npm run build",
+    "postversion": "git push --follow-tags",
     "prepare": "husky"
   },
   "dependencies": {
