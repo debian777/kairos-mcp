@@ -4,9 +4,10 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getTestBearerToken } from '../utils/auth-headers.js';
-import { join } from 'path';
 
 const execOpts = () => ({
   env: {
@@ -28,7 +29,11 @@ export async function execAsync(
 }
 
 export const BASE_URL = getTestAuthBaseUrl();
-export const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
+const cwd = process.cwd();
+const fromNodeModules = join(cwd, 'node_modules/kairos/dist/cli/index.js');
+const fromDist = join(cwd, 'dist/cli/index.js');
+/** Prefer installed package (e.g. artifact in CI) so we test the same binary we ship; fallback to local build. */
+export const CLI_PATH = existsSync(fromNodeModules) ? fromNodeModules : fromDist;
 // Use minimal test file for CLI parameter tests (faster than full AI_CODING_RULES.md)
 export const TEST_FILE = join(process.cwd(), 'tests/test-data/cli-minimal-test.md');
 

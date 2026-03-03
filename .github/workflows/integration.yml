@@ -160,13 +160,14 @@ jobs:
           [ -f .env.dev ] && source .env.dev
           set +a
           export PORT=3300
-          mkdir -p run-app
+          npm install ./kairos-*.tgz
+          mkdir -p var/logs run-app
           cp kairos-*.tgz run-app/
           cd run-app
           npm init -y
           npm install ./kairos-*.tgz
           echo "Starting app from artifact..."
-          ( set -a; [ -f ../.env.dev ] && source ../.env.dev; set +a; export PORT=3300; node node_modules/kairos/dist/index.js ) > app.log 2>&1 &
+          ( set -a; [ -f ../.env.dev ] && source ../.env.dev; set +a; export PORT=3300; node node_modules/kairos/dist/index.js ) > ../var/logs/kairos-dev.log 2>&1 &
           APP_PID=$!
           cd ..
           echo "Waiting for app at http://localhost:3300/health (up to ${HEALTH_CHECK_ATTEMPTS:-20} attempts)..."
@@ -176,7 +177,7 @@ jobs:
               echo "App healthy after $i attempt(s)."
               break
             fi
-            [ $i -eq ${HEALTH_CHECK_ATTEMPTS:-20} ] && { echo "App failed to become healthy. Last 80 lines of app.log:"; tail -80 run-app/app.log; kill $APP_PID 2>/dev/null || true; exit 1; }
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS:-20} ] && { echo "App failed to become healthy. Last 80 lines of var/logs/kairos-dev.log:"; tail -80 var/logs/kairos-dev.log; kill $APP_PID 2>/dev/null || true; exit 1; }
             sleep 2
           done
           echo "Running integration tests..."
@@ -190,7 +191,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kairos-dev-log
-          path: .kairos-dev.log
+          path: var/logs
           if-no-files-found: ignore
 
   publish:
@@ -227,6 +228,24 @@ jobs:
 
       - name: Publish to npm
         run: npm publish ./kairos-*.tgz --access public
+
+      - name: Wait for npm package to be available
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Waiting for kairos@$VERSION to be available on registry..."
+          SLEEP=15
+          ATTEMPTS=24
+          INTERVAL=10
+          sleep $SLEEP
+          for i in $(seq 1 $ATTEMPTS); do
+            if npm view "kairos@$VERSION" version --registry https://registry.npmjs.org 2>/dev/null | grep -qx "$VERSION"; then
+              echo "Package kairos@$VERSION is available after $((SLEEP + (i - 1) * INTERVAL))s."
+              exit 0
+            fi
+            echo "Attempt $i/$ATTEMPTS: not yet available, waiting ${INTERVAL}s..."
+            [ $i -eq $ATTEMPTS ] && { echo "Timeout: kairos@$VERSION not available after $((SLEEP + ATTEMPTS * INTERVAL))s"; exit 1; }
+            sleep $INTERVAL
+          done
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

@@ -53,7 +53,6 @@ ENV="${ENV:-dev}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${PROJECT_DIR}/.env.${ENV}"
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
-LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
 # In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$ENV_FILE" ]; then
@@ -70,6 +69,8 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     [ -n "${AUTH_ENABLED_BEFORE}" ] && export AUTH_ENABLED="$AUTH_ENABLED_BEFORE"
     # QA: .env.qa is self-contained (Keycloak/compose vars); .env no longer required
 fi
+LOG_DIR="${PROJECT_DIR}/${KAIROS_LOG_DIR:-var/logs}"
+LOG_FILE="${LOG_DIR}/kairos-${ENV}.log"
 
 # Validate environment (skip for ensure-coding-rules)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
@@ -193,6 +194,7 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
+            mkdir -p "$LOG_DIR"
             # Start the dev server with env from .env.dev so OPENAI_API_KEY etc are set (CI and local)
             dev_port="${PORT:-3300}"
             case "$LOG_TARGET" in
