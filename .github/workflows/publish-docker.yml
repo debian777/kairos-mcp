@@ -27,12 +27,19 @@ jobs:
             git fetch origin --tags 2>/dev/null || true
             TAG=$(git describe --exact-match --tags HEAD 2>/dev/null || true)
             if [[ -n "$TAG" ]]; then
-              echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+              VERSION="${TAG#v}"
             else
-              echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+              VERSION="$(node -p "require('./package.json').version")"
             fi
           else
-            echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Detect prerelease (any semver prerelease starting with a letter)
+          if echo "$VERSION" | grep -qE '\-[a-zA-Z0-9]'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up QEMU
@@ -47,6 +54,15 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Compute Docker tags
+        id: docker_tags
+        run: |
+          TAGS="debian777/kairos-mcp:${{ steps.version.outputs.version }}"
+          if [[ "${{ steps.version.outputs.is_prerelease }}" != "true" ]]; then
+            TAGS="${TAGS}"$'\n'"debian777/kairos-mcp:latest"
+          fi
+          { echo "tags<<EOF"; echo "$TAGS"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -55,8 +71,6 @@ jobs:
           push: true
           build-args: |
             KAIROS_VERSION=${{ steps.version.outputs.version }}
-          tags: |
-            debian777/kairos-mcp:latest
-            debian777/kairos-mcp:${{ steps.version.outputs.version }}
+          tags: ${{ steps.docker_tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

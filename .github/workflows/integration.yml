@@ -226,17 +226,27 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            VERSION="${GITHUB_REF_NAME#v}"
           else
-            echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Extract prerelease identifier (alpha, beta, rc, next, …) — letters only for npm dist-tag
+          if echo "$VERSION" | grep -qE '\-[a-zA-Z]'; then
+            NPM_TAG=$(echo "$VERSION" | sed 's/.*-\([a-zA-Z][a-zA-Z0-9]*\).*/\1/' | grep -oE '^[a-zA-Z]+')
+            echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish to npm
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force }}" == "true" ]]; then
-            npm publish ./kairos-*.tgz --access public --force
+            npm publish ./kairos-*.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} --force
           else
-            npm publish ./kairos-*.tgz --access public
+            npm publish ./kairos-*.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
           fi
 
       - name: Wait for npm package to be available
@@ -269,6 +279,15 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Compute Docker tags
+        id: docker_tags
+        run: |
+          TAGS="debian777/kairos-mcp:${{ steps.version.outputs.version }}"
+          if [[ "${{ steps.version.outputs.is_prerelease }}" != "true" ]]; then
+            TAGS="${TAGS}"$'\n'"debian777/kairos-mcp:latest"
+          fi
+          { echo "tags<<EOF"; echo "$TAGS"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -277,8 +296,6 @@ jobs:
           push: true
           build-args: |
             KAIROS_VERSION=${{ steps.version.outputs.version }}
-          tags: |
-            debian777/kairos-mcp:latest
-            debian777/kairos-mcp:${{ steps.version.outputs.version }}
+          tags: ${{ steps.docker_tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
