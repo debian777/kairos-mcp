@@ -39,7 +39,7 @@ flowchart LR
   class RTAG,REL,PNPM,PDOCK release
 ```
 
-**Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker).
+**Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
 
 **Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
 
@@ -62,7 +62,8 @@ flowchart TB
   subgraph REL_WF["Release (release.yml)"]
     J_NPM[publish-npm]
     J_DOCKER[publish-docker]
-    J_NPM -->|needs| J_DOCKER
+    J_REL[create-release]
+    J_NPM --> J_DOCKER --> J_REL
   end
 
   subgraph PNPM_WF["Publish npm (publish-npm.yml)"]
@@ -83,7 +84,7 @@ flowchart TB
 |----------|--------|---------------|
 | Integration | `integration` | — |
 | Release tag on version bump | `tag-release` | — |
-| Release | `publish-npm` → `publish-docker` | `publish-docker` **needs** `publish-npm` |
+| Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
 | Publish npm | `publish` | — |
 | Publish Docker | `publish` | — |
 
@@ -91,70 +92,33 @@ flowchart TB
 
 `integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
 
-### Secrets and variables (gh CLI)
+### Secrets and variables
 
-You can use **GitHub Actions secrets** (sensitive) and **repository variables** (non-sensitive) in workflows. Set them with the GitHub CLI from the repo root:
-
-**Secrets** (e.g. `OPENAI_API_KEY` for embedding tests):
-
-```bash
-# Set from stdin (prompted)
-gh secret set OPENAI_API_KEY
-
-# Set from env var
-gh secret set OPENAI_API_KEY --body "$OPENAI_API_KEY"
-
-# Set from file
-gh secret set OPENAI_API_KEY < .env.local
-```
-
-**List secrets** (names only, values are hidden):
-
-```bash
-gh secret list
-```
-
-**Variables** (non-sensitive; use `vars.VAR_NAME` in the workflow):
-
-```bash
-gh variable set MY_VAR --body "value"
-gh variable list
-```
-
-In the workflow, use `${{ secrets.OPENAI_API_KEY }}` and `${{ vars.MY_VAR }}`. The integration workflow uses:
-
-- **Optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. If not set, CI uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
+The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. In the workflow they are referenced as `${{ secrets.OPENAI_API_KEY }}` etc. Non-sensitive values use **repository variables** as `${{ vars.VAR_NAME }}`. If optional secrets are not set, the job uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
 
 ### Running the integration workflow manually
 
-- **UI:** Actions → Integration → Run workflow.
-- **CLI:** `gh workflow run integration.yml` (from default branch).
+**Actions → Integration → Run workflow** (workflow_dispatch).
 
 ## Release: only acceptable final output
 
-After a release branch is merged to main, the **only acceptable final output** is: **npm** package in the registry and **Docker** image on Docker Hub (`debian777/kairos-mcp`). Single path: merge version-bump PR → tag created → **Release** workflow (npm then Docker).
+After a version-bump PR is merged to main, the **only** path that publishes is: **Release tag on version bump** (creates tag if needed) → **Release** workflow (publish-npm → publish-docker → create GitHub Release).
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#e2e8f0', 'primaryTextColor':'#1e293b', 'primaryBorderColor':'#64748b', 'lineColor':'#64748b', 'secondaryColor':'#fef3c7', 'tertiaryColor':'#dcfce7' }}}%%
 sequenceDiagram
-  participant Dev as Dev #e2e8f0
   participant Main as Main #e2e8f0
   participant RTAG as Release tag on version bump #fef3c7
-  participant GitHub as GitHub #e2e8f0
   participant REL as Release workflow #fef3c7
-  participant NPM as npm registry #fde68a
-  participant DH as Docker Hub #fde68a
 
-  Dev->>Main: Merge version-bump PR (e.g. release/3.0.1)
-  Main->>RTAG: push to main
+  Main->>RTAG: push to main (after merge)
   RTAG->>RTAG: package.json version > latest tag?
   alt version increased
-    RTAG->>GitHub: git push origin v<version>
-    GitHub->>REL: tag push v*.*.*
-    REL->>REL: Publish npm job
-    REL->>NPM: npm publish
-    REL->>REL: Publish Docker job (needs: publish-npm)
-    REL->>DH: Build & push debian777/kairos-mcp:<version>, latest
+    RTAG->>RTAG: git push origin v<version>
+  RTAG->>REL: tag push v*.*.*
+  REL->>REL: Publish npm job
+  REL->>REL: Publish Docker job (needs: publish-npm)
+  REL->>REL: Create GitHub Release (needs: publish-docker)
   else no bump
     RTAG->>RTAG: No tag needed
   end
@@ -164,7 +128,7 @@ sequenceDiagram
 
 `release-tag-on-version-bump.yml` runs on **push to main**. If `package.json` version is **greater** than the latest existing tag (e.g. tag `v3.0.0` exists and package is `3.0.1`), it creates and pushes tag `v<version>`. That tag push triggers the **Release** workflow (`release.yml`).
 
-**Flow:** Bump version in a PR (e.g. `npm version 3.0.1-beta.4 --no-git-tag-version`), merge to main → this workflow creates/pushes the tag → **Release** runs (npm then Docker).
+**Flow:** When a version-bump PR is merged to main, this workflow **only** creates and pushes the tag if needed. The tag push then triggers the **Release** workflow (npm → Docker → GitHub Release).
 
 Branch protection does not block tag pushes by default. If you use “Restrict pushes that create matching tags”, allow this repo’s GitHub Actions to create tags or run the tag step with a token that can push tags.
 
@@ -172,10 +136,13 @@ Branch protection does not block tag pushes by default. If you use “Restrict p
 
 **Release** (`release.yml`) runs on **tag push** `v*.*.*` or `v*.*.*-*` (e.g. `v3.0.1`, `v3.0.1-beta.4`). It is the **only** path that publishes. Jobs run in order:
 
-1. **Publish npm** — lint, knip, build, `npm publish` (OIDC, no NPM_TOKEN).
-2. **Publish Docker** — runs only if npm succeeds; builds and pushes `debian777/kairos-mcp:<version>` and `latest` to Docker Hub.
+1. **Publish npm** — lint, knip, prepare:publish (tgz + test install), `npm publish` with `latest` or `beta` tag (OIDC, no NPM_TOKEN).
+2. **Publish Docker** — runs after npm succeeds; builds and pushes `debian777/kairos-mcp:<version>` and `latest` to Docker Hub.
+3. **Create GitHub Release** — runs after Docker; creates the GitHub Release for the tag with generated release notes.
 
 **Required secrets:** `DOCKER_USERNAME`, `DOCKER_PASSWORD` (Docker Hub). Without them, the Docker job fails.
+
+The Release workflow uses **npm Trusted Publishers** (OIDC) for publish; no `NPM_TOKEN` is required when Trusted Publisher is configured.
 
 ## Manual publish workflows (ad-hoc only)
 

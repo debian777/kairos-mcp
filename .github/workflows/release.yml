@@ -67,11 +67,11 @@ jobs:
       - name: Knip
         run: npm run knip
 
-      - name: Build
-        run: npm run build
+      - name: Prepare publish (build tgz + test install)
+        run: npm run prepare:publish
 
       - name: Publish to npm
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
 
   publish-docker:
     name: Publish Docker image
@@ -128,3 +128,29 @@ jobs:
             debian777/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-npm, publish-docker]
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Set tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.ref }}" ]; then
+            echo "tag_name=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: ${{ steps.tag.outputs.tag_name }}
+          generate_release_notes: true
+          draft: false
