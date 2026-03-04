@@ -39,14 +39,20 @@ jobs:
           cache: "npm"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Set version from tag
+      - name: Set version and npm tag from ref
         id: version
         run: |
           ref="${{ github.event.inputs.ref }}"
           if [ -n "$ref" ]; then
-            echo "version=${ref#v}" >> "$GITHUB_OUTPUT"
+            v="${ref#v}"
           else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+            v="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if echo "$v" | grep -q '-'; then
+            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Sync version from tag
@@ -65,7 +71,7 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
 
   publish-docker:
     name: Publish Docker image
