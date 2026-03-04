@@ -100,8 +100,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Set npm dist-tag (beta for prerelease)
+        id: npm_tag
+        run: |
+          v="${{ needs.tag-release.outputs.version }}"
+          if echo "$v" | grep -q '-'; then echo "tag=beta" >> "$GITHUB_OUTPUT"; else echo "tag=latest" >> "$GITHUB_OUTPUT"; fi
+
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --access public --tag ${{ steps.npm_tag.outputs.tag }}
 
   publish-docker:
     name: Publish Docker image
