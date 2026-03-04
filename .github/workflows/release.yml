@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Sync version from tag
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
         run: npm ci
@@ -97,7 +97,7 @@ jobs:
           fi
 
       - name: Sync version into package.json
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
