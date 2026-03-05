@@ -22,6 +22,7 @@ jobs:
   publish-npm:
     name: Publish npm
     runs-on: ubuntu-latest
+    # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
     permissions:
       contents: read
       id-token: write
@@ -86,12 +87,6 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "npm"
-
       - name: Extract version from tag
         id: version
         run: |
@@ -101,9 +96,6 @@ jobs:
           else
             echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Sync version into package.json
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -128,6 +120,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
+          build-args: |
+            PACKAGE_VERSION=${{ steps.version.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

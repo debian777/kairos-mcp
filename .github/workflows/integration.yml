@@ -109,23 +109,38 @@ jobs:
       - name: Knip (compliance)
         run: npm run knip
 
-      - name: Deploy dev and run auth integration test
+      - name: Build package (tgz)
+        run: npm run build:tgz
+
+      - name: Install package from tgz
+        run: npm install ./dist/debian777-kairos-mcp-$(node -p "require('./package.json').version").tgz
+
+      - name: Start app (from installed package)
         env:
           HEALTH_CHECK_ATTEMPTS: 15
         run: |
-          npm run dev:deploy && \
-          npm run dev:test 
+          mkdir -p var/log
+          npm run dev:start:installed > var/log/kairos.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:3300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            sleep 2
+          done
 
-      
-      - name: Upload kairos-dev log - check 
+      - name: Run auth integration test
+        run: npm run dev:test
+
+      - name: Upload kairos log - check
         if: always() && failure()
         run: |
-          pwd ; ls -la; cat .kairos-dev.log; find . -name ".kairos-dev.log"
+          pwd
+          ls -la var/log 2>/dev/null || true
+          if [ -f var/log/kairos.log ]; then ls -la var/log/kairos.log; cat var/log/kairos.log; else echo "No var/log/kairos.log"; fi
 
-      - name: Upload kairos-dev log
+      - name: Upload kairos log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-dev-log
-          path: .kairos-dev.log
+          name: kairos-log
+          path: var/log/kairos.log
           if-no-files-found: ignore
