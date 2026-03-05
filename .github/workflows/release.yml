@@ -128,8 +128,8 @@ jobs:
           tags: |
             debian777/kairos-mcp:latest
             debian777/kairos-mcp:${{ steps.version.outputs.version }}
-            quay.io/${{ secrets.QUAY_USERNAME }}/kairos-mcp:latest
-            quay.io/${{ secrets.QUAY_USERNAME }}/kairos-mcp:${{ steps.version.outputs.version }}
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

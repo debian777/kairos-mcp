@@ -16,7 +16,7 @@ flowchart LR
     RTAG(Release tag on version bump)
     REL(Release)
     PNPM(Publish npm)
-    PDOCK(Publish Docker)
+    PIMG(Publish image in Release)
     PCONT(Publish Container)
   end
 
@@ -27,7 +27,7 @@ flowchart LR
   TAG --> REL
   RTAG -->|"if version > latest tag"| TAG
   REL --> PNPM
-  PNPM --> PDOCK
+  PNPM --> PIMG
   MANUAL --> INT
   MANUAL --> PNPM
   MANUAL --> PCONT
@@ -37,14 +37,14 @@ flowchart LR
   classDef release fill:#fef3c7,stroke:#d97706,color:#92400e
   class PR,PUSH,TAG,MANUAL trigger
   class INT integration
-  class RTAG,REL,PNPM,PDOCK,PCONT release
+  class RTAG,REL,PNPM,PIMG,PCONT release
 ```
 
 **Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
 
 **Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
 
-**Manual-only:** Publish npm and Publish Docker are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.
+**Manual-only:** Publish npm and Publish Container are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.
 
 ## Workflows and job dependencies
 
@@ -87,7 +87,7 @@ flowchart TB
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
 | Publish npm | `publish` | — |
-| Publish Docker (in Release) | `publish-docker` | after `publish-npm` |
+| Publish image (in Release) | `publish-docker` | after `publish-npm` |
 | Publish Container | `publish` | — |
 
 ## Integration workflow
@@ -119,7 +119,7 @@ sequenceDiagram
     RTAG->>RTAG: git push origin v<version>
   RTAG->>REL: tag push v*.*.*
   REL->>REL: Publish npm job
-  REL->>REL: Publish Docker job (needs: publish-npm)
+  REL->>REL: Publish image job (needs: publish-npm)
   REL->>REL: Create GitHub Release (needs: publish-docker)
   else no bump
     RTAG->>RTAG: No tag needed
@@ -139,17 +139,17 @@ Branch protection does not block tag pushes by default. If you use “Restrict p
 **Release** (`release.yml`) runs on **tag push** `v*.*.*` or `v*.*.*-*` (e.g. `v3.0.1`, `v3.0.1-beta.4`). It is the **only** path that publishes. Jobs run in order:
 
 1. **Publish npm** — lint, knip, prepare:publish (tgz + test install), `npm publish` with `latest` or `beta` tag (OIDC, no NPM_TOKEN).
-2. **Publish Docker** — runs after npm succeeds; builds and pushes `debian777/kairos-mcp:<version>` and `latest` to Docker Hub, and `quay.io/<QUAY_USERNAME>/kairos-mcp:<version>` and `latest` to Quay.
-3. **Create GitHub Release** — runs after Docker; creates the GitHub Release for the tag with generated release notes.
+2. **Publish image** — runs after npm succeeds; builds and pushes `debian777/kairos-mcp:<version>` and `latest` to Docker Hub, and `quay.io/<QUAY_NAMESPACE>/kairos-mcp:<version>` and `latest` to Quay.
+3. **Create GitHub Release** — runs after the image job; creates the GitHub Release for the tag with generated release notes.
 
-**Required secrets:** `DOCKER_USERNAME`, `DOCKER_PASSWORD` (Docker Hub); `QUAY_USERNAME`, `QUAY_PASSWORD` (Quay). Without them, the Docker job fails.
+**Required secrets:** `DOCKER_USERNAME`, `DOCKER_PASSWORD` (Docker Hub); `QUAY_USERNAME`, `QUAY_PASSWORD` (Quay login). **Required repository variable:** `QUAY_NAMESPACE` (Quay namespace used in image tags, e.g. your Quay username). Without them, the image job fails.
 
 The Release workflow uses **npm Trusted Publishers** (OIDC) for publish; no `NPM_TOKEN` is required when Trusted Publisher is configured.
 
 ## Manual publish workflows (ad-hoc only)
 
 - **Publish npm** (`publish-npm.yml`): **workflow_dispatch** only; uses `package.json` version.
-- **Publish Container** (`publish-container.yml`): **workflow_dispatch** only; builds and pushes to Docker Hub and Quay.
+- **Publish Container** (`publish-container.yml`): **workflow_dispatch** only; builds and pushes to Docker Hub and Quay. Uses the same secrets and `QUAY_NAMESPACE` variable as Release.
 
 Use only for one-off republish or debugging. Normal releases go through the Release workflow only.
 
