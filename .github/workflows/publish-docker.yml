@@ -28,9 +28,6 @@ jobs:
             echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync version into package.json
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -47,6 +44,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
+          build-args: |
+            PACKAGE_VERSION=${{ steps.version.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

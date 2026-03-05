@@ -150,3 +150,8 @@ The Release workflow uses **npm Trusted Publishers** (OIDC) for publish; no `NPM
 - **Publish Docker** (`publish-docker.yml`): **workflow_dispatch** only.
 
 Use only for one-off republish or debugging. Normal releases go through the Release workflow only.
+
+## Docker: release vs local dev
+
+- **Release** (CI and `npm run docker:build`): **Dockerfile** installs the published package from npm (`@debian777/kairos-mcp@${PACKAGE_VERSION}`). No source build; version is a required build-arg. The Release workflow passes the tag version.
+- **Local dev** (build from source): **Dockerfile.dev** copies source and runs `npm run build` inside the image. Use `npm run docker:build:dev` or `docker build -f Dockerfile.dev -t kairos-mcp:dev .`. No publish required.
