@@ -1,6 +1,6 @@
 {
   "name": "@debian777/kairos-mcp",
-  "version": "3.0.1-beta.8",
+  "version": "3.0.1-beta.9",
   "description": "kairos MCP Server - AI Knowledge Memory System for AI Agent Consciousness Infrastructure",
   "type": "module",
   "main": "dist/index.js",
