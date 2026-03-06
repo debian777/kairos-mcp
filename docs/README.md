@@ -1,41 +1,46 @@
 # KAIROS MCP documentation
 
-This folder contains user-facing and contributor-facing documentation for
-KAIROS MCP: setup guides, CLI reference, and protocol workflow details.
+This folder contains documentation for KAIROS MCP: setup guides, CLI
+reference, and protocol workflow details.
 
 ## Start here
 
-- **[README](../README.md)** — Mission, goals, non-goals, and quick start.
+The [README](../README.md) covers what KAIROS MCP is, the quick start, and
+all installation options. Read it first.
 
 ## Getting started
 
-- **[Install KAIROS MCP in Cursor](INSTALL-MCP.md)** — Add the KAIROS MCP
-  server to Cursor and connect to a running KAIROS server.
-- **[KAIROS CLI](CLI.md)** — Command-line usage: installation, configuration,
+These guides walk you through connecting to and using KAIROS.
+
+- [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — add the KAIROS MCP
+  server to Cursor and connect to a running KAIROS instance.
+- [KAIROS CLI](CLI.md) — command-line usage: installation, configuration,
   and all available commands.
 
 ## Architecture and workflows
 
-- **[Architecture and protocol workflows](architecture/README.md)** — How the
-  protocol runs end-to-end (search → begin → next → run complete) and per-tool
-  workflow reference with response shapes and scenarios.
+These documents explain how KAIROS works internally and how protocol chains
+execute end-to-end.
+
+- [Architecture and protocol workflows](architecture/README.md) — how the
+  protocol runs end-to-end (search → begin → next → run complete),
+  per-tool workflow reference, response shapes, and scenarios.
 
 ## Examples
 
-- **[Protocol examples and challenge types](examples/README.md)** — Human-readable
-  examples for building protocols: challenge types (shell, mcp, user_input, comment),
-  step bodies, and solution shapes for `kairos_next`.
+The examples show how to build and structure protocols.
 
-## AI instructions and prompts
-
-- Generic role prompts (e.g. Software Architect) may be added under `docs/prompts/` when available.
+- [Protocol examples and challenge types](examples/README.md) —
+  human-readable examples for challenge types (`shell`, `mcp`,
+  `user_input`, `comment`), step bodies, and solution shapes for
+  `kairos_next`.
 
 ## For contributors
 
-- **[Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)**
-  — Detailed doctrine for MCP tools, schemas, descriptions, and error shapes.
+- [Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)
+  — doctrine for MCP tools, schemas, descriptions, and error shapes.
 
 ## Archived material
 
-Older or superseded documents (phase snapshots, one-off reports, raw scenario
-data) live in [archived](archived/). They are kept for reference only.
+Older or superseded documents live in [archived/](archived/). They are
+kept for reference only and may not reflect current behavior.
