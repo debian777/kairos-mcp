@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # kairos Environment Management Script
-# USAGE: ENV=dev|prod ./scripts/run-env.sh [build|start|stop|restart|status|test|logs|health]
+# USAGE: ENV=dev|prod ./scripts/run-env.sh [build|start|stop|restart|status|test|logs|health|...]
 #
-# ENVIRONMENTS:
-# - dev: Direct Node.js (PORT=3300, optional deps, unit tests)
-# - prod: Read-only CLI (qdrant-curl, redis-cli, health); app managed externally
+# Single .env for all; we do not manage prod from this repo (exception: Keycloak realm setup dev/prod).
+# - dev:  Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
+# - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
 
@@ -73,7 +73,7 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in dev|prod) ;; *) print_error "Invalid ENV: $ENV (use dev or prod)"; exit 1 ;; esac
 fi
 
-# Environment defaults (PORT from .env.* or dev=3300)
+# Environment defaults (PORT from .env; dev=3300, prod=3500 for inspect)
 METRICS_PORT="${METRICS_PORT:-9390}"
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in
@@ -522,12 +522,13 @@ help() {
     echo "kairos Environment Script"
     echo "USAGE: ENV=dev|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
     echo ""
+    echo "Single .env; prod is not managed here (exception: Keycloak realm setup)."
     echo "ENVIRONMENTS:"
-    echo "  dev  - Direct Node.js (PORT=3300, optional deps)"
-    echo "  prod - Read-only CLI (qdrant-curl, redis-cli, health); app managed externally"
+    echo "  dev  - Local app (start, stop, test, build). PORT=3300 default."
+    echo "  prod - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
     echo ""
-    echo "ENV VARS:"
-    echo "  PORT               - App port (from .env.* files)"
+    echo "ENV VARS (from .env):"
+    echo "  PORT               - App port"
     echo "  QDRANT_URL         - Qdrant base URL (default http://localhost:6333)"
     echo "  \$QDRANT_API_KEY    - Qdrant API key (sent as 'api-key' header)"
     echo "  QDRANT_COLLECTION  - Qdrant collection name (default kairos)"

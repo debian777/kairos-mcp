@@ -1,5 +1,4 @@
 import express from 'express';
-import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { triggerQdrantSnapshot } from '../services/qdrant/snapshots.js';
 import { QDRANT_SNAPSHOT_DIR } from '../config.js';
