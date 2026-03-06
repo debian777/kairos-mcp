@@ -117,6 +117,8 @@ jobs:
       - name: Start app (from installed package)
         env:
           HEALTH_CHECK_ATTEMPTS: 15
+          # App runs on host; use localhost for JWKS (keycloak:8080 only resolves inside Docker)
+          KEYCLOAK_INTERNAL_URL: http://localhost:8080
         run: |
           mkdir -p var/log
           npm run dev:start:installed > var/log/kairos.log 2>&1 &
