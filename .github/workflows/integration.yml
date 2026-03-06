@@ -28,7 +28,7 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Generate .env (fullstack: infra + app + auth)
+      - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python3 scripts/generate_dev_secrets.py
