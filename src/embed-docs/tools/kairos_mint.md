@@ -1,27 +1,38 @@
-Stores markdown documents as KAIROS memories with automatic header-based organization. Each H1 defines a protocol chain; each H2 defines a step.
+Store a markdown document as a KAIROS protocol chain. Each H1 defines
+a chain; each H2 defines a step.
 
-**When to call:** When the user wants to create, add, mint, store, or save a protocol or document.
+**Precondition:** You have a complete markdown document with H1 title,
+H2 steps, and a trailing ` ```json ` challenge block per verifiable step.
 
-**Challenge:** For each step that can be verified, add a fenced ` ```json ` block at the end with an object that has a `challenge` key. The value is the same shape as the `challenge` returned by kairos_begin/kairos_next; round-trips with kairos_dump.
+**Input:**
 
-**Challenge examples (one per type; use a ` ```json ` code block at the end of each step):**
+- `markdown_doc` (string) — the markdown protocol document.
+- `llm_model_id` (required) — e.g. `"minimax/minimax-m2:free"`.
+- `force_update` (optional, default `false`) — set `true` to overwrite
+  an existing chain with the same label.
 
-**shell** — run a command:
+**Challenge block format:** Place a single trailing ` ```json ` block at
+the end of each H2 step. The object must have a `challenge` key. Only
+the last code block in a step is parsed as the challenge.
+
+Add a challenge to every step that can be verified. Omit challenges only
+for purely informational steps where no verification is possible.
+
+**Challenge examples (one per type):**
+
+`shell` — run a command:
 
 ```json
 {
   "challenge": {
     "type": "shell",
-    "shell": {
-      "cmd": "npm test",
-      "timeout_seconds": 60
-    },
+    "shell": { "cmd": "npm test", "timeout_seconds": 60 },
     "required": true
   }
 }
 ```
 
-**comment** — verification text (min length):
+`comment` — verification text:
 
 ```json
 {
@@ -33,7 +44,7 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 }
 ```
 
-**user_input** — human confirmation:
+`user_input` — human confirmation:
 
 ```json
 {
@@ -45,7 +56,7 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 }
 ```
 
-**mcp** — call MCP tool:
+`mcp` — call an MCP tool:
 
 ```json
 {
@@ -57,8 +68,18 @@ Stores markdown documents as KAIROS memories with automatic header-based organiz
 }
 ```
 
-Use a challenge on every step that can be verified: commands → shell; reviews/summaries → comment; approvals → user_input; tool calls → mcp. Mix types in one protocol. See workflow-kairos-mint and the creation protocol (kairos://mem/00000000-0000-0000-0000-000000002001) for full examples.
+**Response:** Chain head URI(s). Find the minted protocol via
+`kairos_search` with a query matching the document content.
 
-**Input:** `markdown_doc` (string), `llm_model_id` (required), `force_update` (optional, overwrite existing chain with same label).
+**MUST ALWAYS**
 
-**Response:** Chain head URI(s). You can then find the protocol via `kairos_search` with a query matching the content.
+- Pass `markdown_doc` as a string.
+- Include `llm_model_id`.
+- Use `force_update: true` when overwriting an existing chain with the
+  same label.
+
+**MUST NEVER**
+
+- Pass `markdown_doc` as an object.
+- Omit `llm_model_id`.
+- Store duplicate chains without `force_update: true`.
