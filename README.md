@@ -23,45 +23,42 @@ primitives:
 
 KAIROS runs as a Docker stack. Docker and Docker Compose are required.
 
-1. Download the Compose file and environment template:
+**Minimal (default):** Qdrant + app only. No Redis or auth.
+
+1. Download the Compose file and minimal env example:
 
    ```bash
    curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/compose.yaml
-   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/env.example.txt
-   cp env.example.txt .env
-   cp env.example.txt .env.prod
+   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/docs/install/env.example.minimal.txt
+   cp env.example.minimal.txt .env
    ```
 
-2. Open `.env.prod` and set your embedding provider. For OpenAI:
+2. Set your embedding provider in `.env` (e.g. `OPENAI_API_KEY=sk-proj-...`).
+
+3. Start the stack:
 
    ```bash
-   OPENAI_API_KEY=sk-proj-...
+   docker compose -p kairos-mcp up -d
    ```
 
-3. Start the infrastructure (Redis, Qdrant, Postgres, Keycloak):
-
-   ```bash
-   docker compose -p kairos-mcp --profile infra up -d
-   ```
-
-4. Start the KAIROS server:
-
-   ```bash
-   docker compose -p kairos-mcp --profile prod up -d
-   ```
-
-5. Confirm the server is healthy:
+4. Confirm the server is healthy:
 
    ```bash
    curl http://localhost:3000/health
    ```
 
-   A `200 OK` response confirms the server is running. Full developer workflow (build, test, lint, dev commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `REDIS_URL=redis://redis:6379` and your secrets, then:
+
+   ```bash
+   docker compose -p kairos-mcp --profile fullstack up -d
+   ```
+
+See [docs/install/README.md](docs/install/README.md) for env variants. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
-- **Docker Compose (recommended)** — full stack with Redis and Qdrant; see
-  the quick start above.
+- **Docker Compose (recommended)** — minimal (Qdrant + app) by default, or
+  full stack with Redis and Keycloak; see the quick start above.
 
 - **npm (CLI only)** — install the `kairos` command-line tool globally.
   Node.js 24 or later is required.
@@ -85,20 +82,15 @@ For development setup and all `npm run` commands, see
 
 ## Troubleshooting
 
-**The server does not start.** Check that ports 3000, 6333 (Qdrant), and
-6379 (Redis) are free. Run `docker compose -p kairos-mcp logs` to inspect
-errors.
+**The server does not start.** Check that ports 3000 and 6333 (Qdrant) are free (6379 only if using fullstack). Run `docker compose -p kairos-mcp logs` to inspect errors.
 
 **Embeddings fail on startup.** Confirm `OPENAI_API_KEY` is set in
-`.env.prod`, or configure a TEI (Text Embeddings Inference) endpoint with
+`.env`, or configure a TEI (Text Embeddings Inference) endpoint with
 `TEI_BASE_URL`.
 
-**Health check returns 503.** Qdrant or Redis may still be initializing.
-Wait 10–15 seconds, then retry.
+**Health check returns 503.** Qdrant (and Redis if fullstack) may still be initializing. Wait 10–15 seconds, then retry.
 
-**Container exits immediately.** Run
-`docker compose -p kairos-mcp --profile prod logs app-prod` and look for
-missing required environment variables.
+**Container exits immediately.** Run `docker compose -p kairos-mcp logs app-prod` and look for missing required environment variables.
 
 ## Support
 

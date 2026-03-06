@@ -21,6 +21,7 @@ describe('Auth (Keycloak + kairos-tester)', () => {
       return;
     }
     if (!serverRequiresAuth() || !hasAuthToken()) {
+      // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
       expect([200, 401]).toContain(res.status);
       return;
     }
@@ -42,6 +43,7 @@ describe('Auth (Keycloak + kairos-tester)', () => {
       return;
     }
     if (!serverRequiresAuth() || !hasAuthToken()) {
+      // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
       expect([200, 401]).toContain(res.status);
       return;
     }
@@ -56,6 +58,7 @@ describe('Auth (Keycloak + kairos-tester)', () => {
       headers: getAuthHeaders()
     });
     if (!serverRequiresAuth() || !hasAuthToken()) {
+      // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
       expect([200, 401]).toContain(res.status);
       return;
     }
@@ -73,6 +76,7 @@ describe('Auth (Keycloak + kairos-tester)', () => {
       body: JSON.stringify({ query: 'auth test query' })
     });
     if (!serverRequiresAuth() || !hasAuthToken()) {
+      // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
       expect([200, 400, 401]).toContain(res.status);
       return;
     }

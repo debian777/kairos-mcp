@@ -93,15 +93,20 @@ if (AUTH_ENABLED) {
   if (!SESSION_SECRET.trim()) missing.push('SESSION_SECRET');
   if (missing.length > 0) {
     throw new Error(
-      `AUTH_ENABLED=true requires non-empty env: ${missing.join(', ')}. Set them in .env (e.g. .env.dev). See env.example.txt.`
+      `AUTH_ENABLED=true requires non-empty env: ${missing.join(', ')}. Set them in .env. See docs/install/README.md.`
     );
   }
 }
 export const QDRANT_RESCORE_STRING = getEnvString('QDRANT_RESCORE', 'true');
-/** Default /snapshots (Docker). Override in dev (e.g. ./data/qdrant/snapshots) when not running in Docker. */
+/** When non-empty, backup/snapshot is enabled; app creates dir if missing. Empty = not configured → 503 on POST /api/snapshot. */
 export const QDRANT_SNAPSHOT_ON_START = getEnvBoolean('QDRANT_SNAPSHOT_ON_START', false);
-const QDRANT_SNAPSHOT_DIR_RAW = getEnvString('QDRANT_SNAPSHOT_DIR', '/snapshots');
-export const QDRANT_SNAPSHOT_DIR = path.isAbsolute(QDRANT_SNAPSHOT_DIR_RAW) ? QDRANT_SNAPSHOT_DIR_RAW : path.resolve(QDRANT_SNAPSHOT_DIR_RAW);
+const QDRANT_SNAPSHOT_DIR_RAW = getEnvString('QDRANT_SNAPSHOT_DIR', '').trim();
+export const QDRANT_SNAPSHOT_DIR =
+  QDRANT_SNAPSHOT_DIR_RAW === ''
+    ? ''
+    : path.isAbsolute(QDRANT_SNAPSHOT_DIR_RAW)
+      ? QDRANT_SNAPSHOT_DIR_RAW
+      : path.resolve(QDRANT_SNAPSHOT_DIR_RAW);
 
 // Int configurations
 export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);

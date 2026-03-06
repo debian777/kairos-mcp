@@ -1,15 +1,16 @@
 # Compose with Docker named volumes (default). No VOLUME_LOCAL_PATH required.
 # Alternative: compose-dir-volumes.yaml uses host dirs (bind mounts).
 #
-# Profiles: "infra" = Redis, Qdrant, Postgres, Keycloak (start first).
-#           "infra-ui" = Redis Insight (optional; add --profile infra-ui for local dev).
-#           "prod" = app only; infra must already be running.
-# Usage: docker compose -p kairos-mcp --profile infra up -d && docker compose -p kairos-mcp --profile prod up
+# Default (mini): Qdrant + app only. No profile needed.
+#   docker compose -p kairos-mcp up -d
+# Fullstack: add Redis, Postgres, Keycloak (use with fullstack .env).
+#   docker compose -p kairos-mcp --profile fullstack up -d
+# Optional UI (only with fullstack): docker compose -p kairos-mcp --profile fullstack --profile infra-ui up -d
 
 services:
   redis:
     profiles:
-      - infra
+      - fullstack
     image: redis:7-alpine
     pull_policy: missing
     command: >
@@ -27,7 +28,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Optional UI for Redis; not needed for integration. Start with: --profile infra --profile infra-ui
+  # Optional UI for Redis; use with fullstack. Start with: --profile fullstack --profile infra-ui
   redisinsight:
     profiles:
       - infra-ui
@@ -48,8 +49,6 @@ services:
     restart: unless-stopped
 
   qdrant:
-    profiles:
-      - infra
     image: qdrant/qdrant:latest
     pull_policy: missing
     ports:
@@ -83,7 +82,7 @@ services:
   # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: python3 scripts/generate_dev_secrets.py --ci ---
   postgres:
     profiles:
-      - infra
+      - fullstack
     image: postgres:16
     env_file:
       - .env
@@ -107,7 +106,7 @@ services:
   # --- Keycloak OIDC (see docs/plans/keycloak-oidc-dev.md). DB: postgres service, keycloak DB/user ---
   keycloak:
     profiles:
-      - infra
+      - fullstack
     env_file:
       - .env
     image: quay.io/keycloak/keycloak:26.5.4
@@ -136,28 +135,27 @@ services:
     restart: unless-stopped
 
   app-prod:
-    profiles:
-      - prod
     image: debian777/kairos-mcp:latest
     #pull_policy: always
     labels:
       - "environment=prod"
     env_file:
-      - .env.prod
+      - .env
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
       - "${METRICS_PORT:-9090}:${METRICS_PORT:-9090}"
     environment:
-      # Overrides to access real localhost services from within Docker container
+      # Container must reach Qdrant by service name
       - QDRANT_URL=http://qdrant:6333
-      - REDIS_URL=redis://redis:6379
       - METRICS_PORT=${METRICS_PORT:-9090}
-      # Keycloak: user-facing URL from .env; server-side token exchange uses internal URL
-      - KEYCLOAK_INTERNAL_URL=http://keycloak:8080
+      # Snapshot backup dir (volume mount); omit to disable backup (503 on POST /api/snapshot)
+      - QDRANT_SNAPSHOT_DIR=/snapshots
+      # REDIS_URL and KEYCLOAK_INTERNAL_URL from .env (set for fullstack; omit for mini)
     volumes:
       - snapshots-prod:/snapshots
-    # Infra (qdrant, redis) must be up; start with: --profile infra
-
+    depends_on:
+      qdrant:
+        condition: service_started
     networks:
       - kairos-network
     restart: unless-stopped

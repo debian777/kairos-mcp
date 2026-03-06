@@ -6,28 +6,26 @@ from [`compose.yaml`](../../compose.yaml) and `src/index.ts`.
 
 ## Deployment profiles
 
-`compose.yaml` uses Docker profiles to control which services start
-together. Start infrastructure first (`infra`), then the application
-profile (`prod`).
+`compose.yaml` uses Docker profiles so that **default = minimal** (Qdrant + app only). Full stack adds Redis, Postgres, and Keycloak.
 
-| Profile    | Services started |
-|------------|-----------------|
-| `infra`    | redis, qdrant, postgres, keycloak |
-| `infra-ui` | redisinsight (optional Redis web UI; combine with `infra`) |
-| `prod`     | app-prod (connects to externally running infra) |
+| Profile     | Services added |
+|-------------|----------------|
+| *(default)* | qdrant, app-prod |
+| `fullstack` | redis, postgres, keycloak |
+| `infra-ui`  | redisinsight (optional; use with `fullstack`) |
 
 ```bash
-# Infrastructure only
-docker compose -p kairos-mcp --profile infra up -d
+# Minimal (default): Qdrant + app
+docker compose -p kairos-mcp up -d
 
-# Full production stack
-docker compose -p kairos-mcp --profile infra --profile prod up -d
+# Full stack: add Redis, Postgres, Keycloak
+docker compose -p kairos-mcp --profile fullstack up -d
 
-# Add Redis web UI
-docker compose -p kairos-mcp --profile infra --profile infra-ui up -d
+# Add Redis web UI (with fullstack)
+docker compose -p kairos-mcp --profile fullstack --profile infra-ui up -d
 ```
 
-Or use `npm run infra:up` to start infrastructure (uses `.env.dev`).
+Use `npm run infra:up` to start the full stack and configure Keycloak realms (uses `.env`).
 
 ## Container topology
 
@@ -39,7 +37,15 @@ flowchart TB
         subgraph NET["🌐  kairos-network  (bridge)"]
             direction TB
 
-            subgraph INFRA["profile: infra"]
+            subgraph DEFAULT["default (mini)"]
+                QDRANT["🧠 qdrant/qdrant
+                :6333  HTTP · :6344  gRPC
+                maxmem 4 GB"]
+                APP["🚀 kairos-mcp
+                App :3000 · Metrics :9090"]
+            end
+
+            subgraph FULL["profile: fullstack"]
                 REDIS["🗄 redis:7-alpine
                 :6379  TCP
                 maxmem 512 MB · allkeys-lru
@@ -47,20 +53,12 @@ flowchart TB
                 RI["🔍 redisinsight
                 :5540  HTTP
                 Web UI (profile: infra-ui)"]
-                QDRANT["🧠 qdrant/qdrant
-                :6333  HTTP · :6344  gRPC
-                maxmem 4 GB"]
                 PG["🐘 postgres:16
                 :5432  TCP
                 Keycloak DB only"]
                 KC["🔐 keycloak:26
                 :8080  HTTP · :9000  HTTP
                 OIDC / auth"]
-            end
-
-            subgraph PROD["profile: prod"]
-                APP["🚀 kairos-mcp
-                App :3000 · Metrics :9090"]
             end
 
             RI    -->|"depends_on"| REDIS
@@ -367,5 +365,5 @@ flowchart TD
 - [Auth URLs: QA and Docker topology](auth-urls-qa.md) — Keycloak URL
   routing
 - [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
-- `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env.dev` or `.env.prod`)
+- `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env`)
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults

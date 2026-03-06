@@ -96,7 +96,7 @@ logger.tool('kairos_attest', 'rate', `rated ${uri}`);
 | `TRANSPORT_TYPE` | `stdio` | `stdio` (logs to stderr; stdout reserved for MCP) or `http` (logs to stdout). |
 | `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
 
-See `env.example.txt` for full context. All env vars and defaults are in
+See `docs/install/` for env examples. All env vars and defaults are in
 [`src/config.ts`](../src/config.ts).
 
 ## HTTP and MCP traffic

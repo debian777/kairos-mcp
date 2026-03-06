@@ -90,7 +90,8 @@ describe('Metrics Endpoint Integration', () => {
     // Main server should NOT have /metrics (or return 404)
     const mainPort = process.env.PORT || '3300';
     const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`, { dispatcher: fetchAgent });
-    // Main server may not have /metrics endpoint, so 404 is expected
+    // Main server may not have /metrics endpoint, so 404 is expected.
+    // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
     expect([404, 200]).toContain(mainResponse.status);
     // Consume response body
     await mainResponse.text().catch(() => {});

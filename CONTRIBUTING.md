@@ -28,8 +28,8 @@ Participants must maintain a respectful and inclusive environment.
    ```
 4. Copy the example env file and configure required variables:
    ```bash
-   cp env.example.txt .env.dev
-   # Edit .env.dev — set QDRANT_URL, OPENAI_API_KEY or TEI_BASE_URL,
+   cp docs/install/env.example.fullstack.txt .env
+   # Edit .env — set QDRANT_URL, OPENAI_API_KEY or TEI_BASE_URL,
    # and any auth vars if AUTH_ENABLED=true.
    ```
 5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
@@ -69,7 +69,7 @@ npm run dev:deploy && npm run dev:test
 npm run dev:test -- tests/integration/kairos-dump.test.ts
 ```
 
-To test without Keycloak, set `AUTH_ENABLED=false` in `.env.dev`, then
+To test without Keycloak, set `AUTH_ENABLED=false` in `.env`, then
 deploy and test. To override without editing the file:
 
 ```bash
@@ -104,7 +104,7 @@ npm run dev:qdrant-curl # Qdrant via curl (dev)
 
 ```bash
 # Starts Redis, Qdrant, Postgres, Keycloak.
-# Requires KEYCLOAK_ADMIN_PASSWORD and KEYCLOAK_DB_PASSWORD in .env.dev.
+# Requires KEYCLOAK_ADMIN_PASSWORD and KEYCLOAK_DB_PASSWORD in .env.
 npm run infra:up
 ```
 

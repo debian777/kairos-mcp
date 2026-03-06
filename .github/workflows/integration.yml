@@ -28,14 +28,13 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Generate .env and .env.dev (infra + app config)
+      - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python3 scripts/generate_dev_secrets.py
 
-
-      - name: Verify .env and .env.dev exist
-        run: ls -la .env .env.dev
+      - name: Verify .env exists
+        run: ls -la .env
 
       - name: Restore infra Docker image cache
         uses: actions/cache/restore@v4
@@ -48,8 +47,8 @@ jobs:
         if: steps.docker-infra-cache.outputs.cache-hit == 'true'
         run: docker load -i .cache/docker-infra/images.tar
 
-      - name: Start Docker infra
-        run: docker compose -p kairos-mcp --env-file .env.dev --profile infra up -d
+      - name: Start Docker infra (no app container; app runs via npm)
+        run: docker compose -p kairos-mcp --env-file .env --profile fullstack up -d redis qdrant postgres keycloak
 
       - name: Save infra Docker images for cache
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
@@ -71,7 +70,7 @@ jobs:
       - name: Wait for Redis
         run: |
           for i in $(seq 1 30); do
-            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
+            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -87,7 +86,7 @@ jobs:
       - name: Wait for Postgres
         run: |
           for i in $(seq 1 30); do
-            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
+            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -118,8 +117,12 @@ jobs:
       - name: Start app (from installed package)
         env:
           HEALTH_CHECK_ATTEMPTS: 15
+          # App runs on host; use localhost for JWKS (keycloak:8080 only resolves inside Docker)
+          KEYCLOAK_INTERNAL_URL: http://localhost:8080
+          # Writable snapshot dir so POST /api/snapshot returns 200/502, not 500
+          QDRANT_SNAPSHOT_DIR: var/snapshots
         run: |
-          mkdir -p var/log
+          mkdir -p var/log var/snapshots
           npm run dev:start:installed > var/log/kairos.log 2>&1 &
           for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
             curl -sSf http://127.0.0.1:3300/health >/dev/null && break

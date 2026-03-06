@@ -74,7 +74,11 @@ export async function triggerQdrantSnapshot(
     return { success: false, skipped: true, message: 'disabled' };
   }
 
-  const resolvedDir = await ensureDirectory(options.directory);
+  if (!options.directory || options.directory.trim() === '') {
+    structuredLogger.info(`[snapshot:${options.reason}] Backup directory not configured`);
+    return { success: false, skipped: true, message: 'Backup directory is not defined in server settings.' };
+  }
+
   const start = Date.now();
   const collection = qdrantService.collectionName;
   const baseUrl = normalizeBaseUrl(qdrantService.qdrantUrl);
@@ -85,6 +89,7 @@ export async function triggerQdrantSnapshot(
   let filePath: string | undefined;
 
   try {
+    const resolvedDir = await ensureDirectory(options.directory);
     const createResponse = await fetch(snapshotCreateUrl, {
       method: 'POST',
       headers,

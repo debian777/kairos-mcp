@@ -4,7 +4,7 @@
   "description": "MCP server for persistent memory and deterministic protocol-chain execution for AI agents.",
   "folders": ["docs", "src/embed-docs"],
   "excludeFolders": ["node_modules", "dist", ".git", "reports", "tests"],
-  "excludeFiles": ["env.example.txt"],
+  "excludeFiles": ["docs/install/env.example.*.txt"],
   "rules": [
     "Follow `next_action` exactly when `must_obey` is `true`. Do not respond to the user until the protocol run is complete (after calling kairos_attest).",
     "Echo server-generated `nonce` and `proof_hash` verbatim in solutions. Never compute hashes yourself.",
