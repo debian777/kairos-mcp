@@ -1,18 +1,47 @@
-Search for protocol chains matching a query. Entry point for KAIROS workflow.
+Search for protocol chains matching a query. Entry point for every
+KAIROS workflow.
 
-**When to call:** When the user's intent maps to a protocol (coding, docs, Jira, GitLab MR, etc.). Use a search term derived from intent.
+**Precondition:** You have a user intent to translate into a protocol run.
 
-**Query tip:** Prefer a concrete query (e.g. 3–8 words, nouns + verbs, domain or tool name if the user implied one). Stay faithful to the user's intent — add clarity, don't substitute your own interpretation. If the user was vague (e.g. slash-command or "do the thing"), you can expand to a likely intent; if results are weak, pick the refine choice and run that protocol for step-by-step help.
+**Input:** `query` — 3–8 specific words (nouns + verbs). Use domain or
+tool names when the user implied one. Stay faithful to the user's
+intent; add specificity, do not substitute your own interpretation.
+Expand slash-commands or shorthand (e.g. `/ai-docs` → `write ai
+instructions zero-drift template`).
 
-**Response:** Always `must_obey: true`. Contains `choices` array (each with `uri`, `label`, `chain_label`, `score`, `role`, `tags`, `next_action`), `message`, and a global `next_action` directive.
+**Response:** Always `must_obey: true`. Contains `choices` array (each
+with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
+`next_action`), `message`, and a global `next_action`.
 
-**AI decision tree:** `must_obey: true` -> pick one choice and follow **that choice's `next_action`**. The global `next_action` says: "Pick one choice and follow that choice's next_action." (or "Follow the choice's next_action." when there is only one choice.)
+**Choice roles:**
 
-**Choices roles:**
-- `role: "match"` — search results with a `score` (0.0-1.0). Higher = better match. That choice's `next_action` tells you to call `kairos_begin` with its URI.
-- `role: "refine"` — get step-by-step help turning the user's request into a better query. That choice's `next_action` tells you to call `kairos_begin` with its URI (refining-help protocol).
-- `role: "create"` — system action to create a new protocol (`score: null`). That choice's `next_action` tells you to call `kairos_begin` with the creation protocol URI.
+- `role: "match"` — search result with `score` (0.0–1.0). Higher score
+  = closer match. That choice's `next_action` directs you to call
+  `kairos_begin` with its URI.
+- `role: "refine"` — step-by-step help to build a more specific query. That
+  choice's `next_action` directs you to call `kairos_begin` with the
+  refine-help protocol URI.
+- `role: "create"` — create a new protocol (`score: null`). That
+  choice's `next_action` directs you to call `kairos_begin` with the
+  creation protocol URI.
 
-**Ordering:** Match choices first (top N from search), then refine (if present), then create (if present). Refine and create are not part of the search limit.
+**Ordering:** Match choices first (top N), then refine (if present),
+then create (if present). Refine and create are not part of the search
+limit.
 
-**After search:** Pick the choice that best fits user intent (use `label`, `chain_label`, `tags`, `score`). Then follow that choice's `next_action` exactly (always `kairos_begin` with that choice's URI).
+**AI decision tree:** `must_obey: true` — pick one choice and follow
+**that choice's `next_action`**. The global `next_action` says: "Pick
+one choice and follow that choice's next_action."
+
+When results are weak (no scores above 0.7), pick the refine choice and
+run that protocol for step-by-step help improving the query.
+
+**MUST ALWAYS**
+
+- Follow the chosen choice's `next_action`, not the global `next_action`.
+- Call `kairos_begin` with the chosen URI as the next step.
+
+**MUST NEVER**
+
+- Reuse a vague query that already returned no strong match.
+- Run `kairos_begin` with a URI not returned by this response.

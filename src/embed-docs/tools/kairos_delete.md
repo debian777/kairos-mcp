@@ -1,5 +1,22 @@
-Delete one or more memories from the KAIROS.
+Delete one or more memories from KAIROS.
 
-**When to call:** When the user wants to delete, remove, purge, or clean KAIROS content. Resolve the target memory URIs first (e.g. via `kairos_search` and chain navigation).
+**Precondition:** You have the target memory URI(s). Resolve URIs via
+`kairos_search` and chain navigation before calling.
 
-**Input:** `uris` (non-empty array of kairos://mem/{uuid} URIs to delete).
+**Input:**
+
+- `uris` (required, non-empty array) — `kairos://mem/{uuid}` URIs to
+  delete.
+
+**Response:** Confirmation of deleted URIs.
+
+**MUST ALWAYS**
+
+- Resolve and verify the target URIs before deleting.
+- Confirm the user's intent to delete before calling when acting on
+  user instruction.
+
+**MUST NEVER**
+
+- Delete a URI you have not resolved or verified.
+- Call with an empty `uris` array.

@@ -1,78 +1,116 @@
-# KAIROS MCP Server
+# KAIROS MCP
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
 
-AI agents need durable memory and repeatable execution. KAIROS MCP gives them persistent knowledge and a deterministic protocol loop that integrates into real tools.
+KAIROS MCP gives AI agents persistent memory and deterministic protocol
+execution. Agents store, retrieve, and run reusable protocol chains across
+sessions — without losing context between runs.
 
-## Mission
+## Why KAIROS
 
-Make agent work durable and executable by providing:
+Without persistent memory, agents repeat work, lose context, and cannot
+follow multi-step procedures reliably. KAIROS fixes this with three
+primitives:
 
-- **Persistent memory** across sessions (store, retrieve, update, delete)
-- **Deterministic protocol execution** (search → begin → next → attest)
-- **Agent-facing interfaces** that teach correct usage and recover from errors
+- **Persistent memory** — store and retrieve protocol chains across sessions
+- **Deterministic execution** — search → begin → next → attest; the server
+  drives `next_action` at every step
+- **Agent-facing design** — tool descriptions and error messages built for
+  programmatic consumption and recovery
 
-## Goals
+## Quick start
 
-KAIROS MCP wins by being the most reliable "memory + protocol" substrate that agent hosts can depend on. We focus on a small set of primitives that compose into many workflows, schemas and error messages that minimize agent confusion, and backends that orchestrate complexity so the agent-facing surface stays simple.
+KAIROS runs as a Docker stack. Docker and Docker Compose are required.
 
-**Success** means new clients can implement the tool flow without guesswork; execution is repeatable and traceable; and the system can evolve without breaking agents or requiring hidden tribal knowledge.
+1. Download the Compose file and environment template:
 
-## Non-goals
+   ```bash
+   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/compose.yaml
+   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/env.example.txt
+   cp env.example.txt .env
+   cp env.example.txt .env.prod
+   ```
 
-KAIROS MCP does not try to be: a general-purpose agent framework or planner; a vector DB or database abstraction; a UI product for humans (agents are the primary users); or a place to store secrets, credentials, or regulated personal data.
+2. Open `.env.prod` and set your embedding provider. For OpenAI:
 
-## Quick start (Docker)
+   ```bash
+   OPENAI_API_KEY=sk-proj-...
+   ```
 
-**Option A — Full stack (recommended):** Run the complete stack with Docker Compose (Redis, Qdrant, MCP server).
+3. Start the infrastructure (Redis, Qdrant, Postgres, Keycloak):
 
-```bash
-git clone https://github.com/debian777/kairos-mcp.git
-cd kairos-mcp
-cp env.example.txt .env.prod
-# Edit .env.prod (secrets, Keycloak; see env.example.txt)
-docker compose -p kairos-mcp --profile prod up -d
-# For infra-only (Redis, Qdrant, Keycloak): docker compose -p kairos-mcp --env-file .env.prod --profile infra up -d
-```
+   ```bash
+   docker compose -p kairos-mcp --profile infra up -d
+   ```
 
-Access the server at `http://localhost:3000`; health check at `http://localhost:3000/health`.
+4. Start the KAIROS server:
 
-**Option B — Developer:** Infra via Docker, app via Node (for local development).
+   ```bash
+   docker compose -p kairos-mcp --profile prod up -d
+   ```
 
-```bash
-git clone https://github.com/debian777/kairos-mcp.git
-cd kairos-mcp
-npm ci
-cp env.example.txt .env.dev
-# Configure .env.dev (see env.example.txt)
-npm run infra:up
-npm run dev:start
-```
+5. Confirm the server is healthy:
 
-Full developer workflow (build, test, lint, dev/qa commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+   ```bash
+   curl http://localhost:3000/health
+   ```
 
-**Running without Redis (memory backend):** Omit `REDIS_URL` or set it to empty in `.env.dev`. The app uses an in-memory store for proof-of-work and cache; suitable for dev or single-process setups. Set `REDIS_URL` for production (Redis backend).
+   A `200 OK` response confirms the server is running.
 
-## What you get
+## Installation
 
-- **Persistent memory** — Store and retrieve protocol chains in Qdrant; update and mint via tools.
-- **Deterministic execution** — Search → begin → next (loop) → attest; server drives `next_action`.
-- **Agent-facing design** — Tool descriptions, schemas, and errors built for programmatic consumption and recovery.
-- **Redis + Qdrant** — Proof-of-work state and vector store; optional Docker Compose for infra or full stack. For dev or simple setups without Redis, leave `REDIS_URL` unset or empty to use an in-memory backend (see [env.example.txt](env.example.txt)).
+- **Docker Compose (recommended)** — full stack with Redis and Qdrant; see
+  the quick start above.
 
-## Contributing
+- **npm (CLI only)** — install the `kairos` command-line tool globally.
+  Node.js 24 or later is required.
 
-Contributions are welcome. Developer setup, all npm commands (build, deploy, test, dev/qa, lint, infra, Docker), and contribution guidelines are in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+  ```bash
+  npm install -g @debian777/kairos-mcp
+  ```
 
-## License
+  See [KAIROS CLI](docs/CLI.md) for usage.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+For development setup and all `npm run` commands, see
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Documentation
+
+- [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md)
+- [KAIROS CLI reference](docs/CLI.md)
+- [Architecture and protocol workflows](docs/architecture/README.md)
+- [Protocol examples and challenge types](docs/examples/README.md)
+- [All documentation](docs/README.md)
+
+## Troubleshooting
+
+**The server does not start.** Check that ports 3000, 6333 (Qdrant), and
+6379 (Redis) are free. Run `docker compose -p kairos-mcp logs` to inspect
+errors.
+
+**Embeddings fail on startup.** Confirm `OPENAI_API_KEY` is set in
+`.env.prod`, or configure a TEI (Text Embeddings Inference) endpoint with
+`TEI_BASE_URL`.
+
+**Health check returns 503.** Qdrant or Redis may still be initializing.
+Wait 10–15 seconds, then retry.
+
+**Container exits immediately.** Run
+`docker compose -p kairos-mcp --profile prod logs app-prod` and look for
+missing required environment variables.
 
 ## Support
 
-- 📖 [Documentation](docs/README.md)
-- 📐 [Agent-facing design principles](CONTRIBUTING.md#agent-facing-design-principles)
-  — for contributors designing or reviewing MCP tools and APIs
-- 🐛 [Issue Tracker](https://github.com/debian777/kairos-mcp/issues)
-- 💬 [Discussions](https://github.com/debian777/kairos-mcp/discussions)
+- [Documentation](docs/README.md)
+- [Issue tracker](https://github.com/debian777/kairos-mcp/issues)
+- [Discussions](https://github.com/debian777/kairos-mcp/discussions)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, contribution
+guidelines, and agent-facing design principles.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

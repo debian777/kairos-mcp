@@ -1,8 +1,8 @@
 # kairos_begin workflow
 
-Loads step 1 of a protocol and returns the first challenge. Step 1 never
-requires a solution. If a non-step-1 URI is provided, auto-redirects to
-step 1.
+`kairos_begin` loads step 1 of a protocol and returns the first challenge.
+Step 1 never requires a solution from the caller. If you pass a non-step-1
+URI, KAIROS auto-redirects to step 1 of the same chain.
 
 ## Response schema
 
@@ -25,26 +25,24 @@ step 1.
 }
 ```
 
-The AI decision tree:
+AI decision rules:
 
-- `must_obey: true` -> follow `next_action`
-- `must_obey: false` -> use judgment, choose from options in `next_action`
+- `must_obey: true` → follow `next_action`
+- `must_obey: false` → use judgment, choose from options in `next_action`
 
 Fields that no longer exist:
 
-- `next_step` -- removed; the URI for the next call is in `next_action`
-- `protocol_status` -- removed; `next_action` tells the AI what to do next
-- `attest_required` -- removed; for single-step protocols `next_action` says
-  next_action to call kairos_attest (single-step; attest finalizes)
-- `genesis_hash` -- renamed to `proof_hash`
-- `final_challenge` -- removed; last step is a normal verification step
-
----
+- `next_step` — removed; the URI for the next call is in `next_action`
+- `protocol_status` — removed; `next_action` tells the AI what to do next
+- `attest_required` — removed; for single-step protocols `next_action`
+  says to call `kairos_attest`
+- `genesis_hash` — renamed to `proof_hash`
+- `final_challenge` — removed; the last step is a normal verification step
 
 ## Scenario 1: multi-step protocol (continue)
 
-The protocol has more than 1 step. After begin, the AI executes the
-challenge and calls `kairos_next` with the URI from `next_action`.
+The protocol has more than 1 step. The AI executes the challenge and calls
+`kairos_next` with the URI from `next_action`.
 
 ### Input
 
@@ -80,8 +78,8 @@ challenge and calls `kairos_next` with the URI from `next_action`.
 
 ### AI behavior
 
-1. `must_obey` is `true` -- follow `next_action`.
-2. Read `current_step.content` to understand what to do.
+1. `must_obey: true` — follow `next_action`.
+2. Read `current_step.content` to understand the task.
 3. Read `challenge` to know the required proof.
 4. Execute the shell command `mkdir -p src`.
 5. Read `next_action` to get the next URI.
@@ -104,12 +102,10 @@ challenge and calls `kairos_next` with the URI from `next_action`.
 }
 ```
 
----
-
 ## Scenario 2: single-step protocol (completed)
 
-The protocol has only 1 step. After begin, the AI must call `kairos_attest`
-as instructed by `next_action`.
+The protocol has only 1 step. The AI must call `kairos_attest` as
+instructed by `next_action`.
 
 ### Input
 
@@ -145,9 +141,9 @@ as instructed by `next_action`.
 
 ### AI behavior
 
-1. `must_obey` is `true` -- follow `next_action`.
+1. `must_obey: true` — follow `next_action`.
 2. Read `current_step.content` and execute the challenge.
-3. `next_action` says "call kairos_attest" -- so call it:
+3. `next_action` says "call kairos_attest" — call it:
 
 ```json
 {
@@ -157,12 +153,10 @@ as instructed by `next_action`.
 }
 ```
 
----
-
 ## Scenario 3: auto-redirect (non-step-1 URI)
 
-The AI called `kairos_begin` on a step that is not step 1. KAIROS
-auto-redirects to step 1 of the same chain and presents it normally.
+When you call `kairos_begin` on a step that is not step 1, KAIROS
+auto-redirects to step 1 of the same chain.
 
 ### Input
 
@@ -200,17 +194,22 @@ resolves the chain, finds step 1, and returns it:
 
 ### AI behavior
 
-Transparent to the AI -- it called begin, got step 1. Proceeds normally.
-
----
+Transparent to the AI — it called `kairos_begin`, got step 1, and proceeds
+normally.
 
 ## Validation rules
 
-1. `must_obey` is `true` for all `kairos_begin` responses (no retry
-   escalation applies here since step 1 never requires a solution).
-2. `current_step` always has `uri`, `content`, `mimeType`.
+1. `must_obey` is `true` for all `kairos_begin` responses (step 1 never
+   requires a solution, so no retry escalation applies).
+2. `current_step` always has `uri`, `content`, and `mimeType`.
 3. `challenge` always has `type` and `description`.
 4. `next_action` is always present and contains a `kairos://mem/` URI.
-5. The following fields must NOT be present: `next_step`,
-   `protocol_status`, `attest_required`, `genesis_hash`, `final_challenge`,
-   `final_solution`.
+5. These fields must not be present: `next_step`, `protocol_status`,
+   `attest_required`, `genesis_hash`, `final_challenge`, `final_solution`.
+
+## See also
+
+- [kairos_search workflow](workflow-kairos-search.md)
+- [kairos_next workflow](workflow-kairos-next.md)
+- [kairos_attest workflow](workflow-kairos-attest.md)
+- [Full execution workflow](workflow-full-execution.md)

@@ -1,39 +1,41 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
-We actively support the latest version of KAIROS MCP. Security updates will be provided for:
+KAIROS MCP actively supports the latest release. Security fixes are applied
+to the versions listed below.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
+| Version | Supported |
+| ------- | --------- |
+| 3.x     | Yes       |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-If you discover a security vulnerability, do not open a public issue. Report it
-privately:
+Do not open a public issue for security vulnerabilities. Report privately
+by emailing the maintainer at kuba@expl.pl.
 
-1. Email the maintainer: kuba@xpl.pl
-2. Include a detailed description of the vulnerability
-3. Include steps to reproduce (if applicable)
-4. Include potential impact assessment
+Include:
 
-We will respond within 48 hours and work with you to address the issue before making it public.
+- A description of the vulnerability
+- Steps to reproduce, if applicable
+- Potential impact
 
-## Security Best Practices
+We aim to respond within 48 hours and coordinate disclosure before any
+public announcement.
 
-Follow these practices when running KAIROS MCP:
+## Security best practices
 
-- **Never commit secrets**: Ensure `.env*` files are in `.gitignore` and never committed
-- **Use environment variables**: Store API keys, tokens, and credentials in environment variables, not in code
-- **Keep dependencies updated**: Regularly update dependencies to receive security patches
-- **Use HTTPS**: Always use HTTPS in production environments
-- **Restrict network access**: Limit network access to Qdrant and Redis to trusted sources only
-- **Review permissions**: Ensure proper file system permissions for data directories
+When running KAIROS MCP in production:
 
-## Known Security Considerations
-
-- Qdrant API keys are optional but recommended for production
-- Redis should be secured with authentication in production
-- Environment variables containing secrets should be kept secure
-- The `data/` directory contains runtime data and should not be publicly accessible
+- Store all secrets in environment variables. Never commit `.env*` files.
+- Use HTTPS for all external endpoints.
+- Set a strong `SESSION_SECRET` (32 characters minimum) when
+  `AUTH_ENABLED=true`.
+- Restrict network access to Qdrant (port 6333) and Redis (port 6379) to
+  trusted hosts only.
+- Set a Qdrant API key (`QDRANT_API_KEY`) for any Qdrant instance exposed
+  beyond localhost.
+- Secure Redis with a password for any Redis instance exposed beyond
+  localhost.
+- Keep dependencies up to date to receive security patches.
+- Ensure the `data/` directory is not publicly accessible.
