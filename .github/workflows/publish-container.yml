@@ -1,4 +1,4 @@
-name: Publish Docker Image
+name: Publish Container Image
 
 on:
   workflow_dispatch:
@@ -28,9 +28,6 @@ jobs:
             echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync version into package.json
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -43,14 +40,26 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Login to Quay
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
+          build-args: |
+            PACKAGE_VERSION=${{ steps.version.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             debian777/kairos-mcp:latest
             debian777/kairos-mcp:${{ steps.version.outputs.version }}
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
