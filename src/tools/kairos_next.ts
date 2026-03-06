@@ -12,6 +12,7 @@ import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
 import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
+import { buildMissingProofPayload } from './kairos_next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 
@@ -287,52 +288,40 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             if (options.qdrantService) {
               await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
             }
-            const prev = await resolveChainPreviousStep(memory, options.qdrantService);
-            const prevMemory = prev?.uuid ? await loadMemoryWithCache(memoryStore, prev.uuid) : null;
-            const prevUri = prev?.uuid ? `kairos://mem/${prev.uuid}` : requestedUri;
-            const isPrevStep1 = !prevMemory?.chain || prevMemory.chain.step_index <= 1;
-            const expectedPrevHash = isPrevStep1
-              ? GENESIS_HASH
-              : (await (async () => {
-                  const p = await resolveChainPreviousStep(prevMemory!, options.qdrantService);
-                  return p?.uuid ? proofOfWorkStore.getProofHash(p.uuid) : null;
-                })()) ?? GENESIS_HASH;
-            let challenge = await buildChallenge(prevMemory, prevMemory?.proof_of_work);
-            challenge = { ...challenge, proof_hash: expectedPrevHash };
-            const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
-            const retryCount = await proofOfWorkStore.incrementRetry(storedNonce ?? uuid);
-            const blockedPayload = {
-              must_obey: retryCount < 3,
-              current_step: buildCurrentStep(prevMemory, prevUri),
-              challenge,
+            const payload = await buildMissingProofPayload(
+              memory,
+              previousBlock,
+              requestedUri,
+              uuid,
+              (id) => loadMemoryWithCache(memoryStore, id),
+              options.qdrantService
+            );
+            return respond({
+              must_obey: payload.retry_count < 3,
+              current_step: payload.current_step,
+              challenge: payload.challenge,
               message: previousBlock.message,
-              next_action: previousBlock.next_action ?? `retry kairos_next with ${prevUri} -- complete previous step first`,
+              next_action: payload.next_action,
               error_code: previousBlock.error_code || 'MISSING_PROOF',
-              retry_count: retryCount
-            };
-            return respond(blockedPayload);
+              retry_count: payload.retry_count
+            });
           }
-
           if (options.qdrantService && !submissionOutcome.alreadyRecorded) {
             await updateStepQuality(options.qdrantService, memory, 'success', tenantId);
           }
         }
-
         // Resolve next step
         const nextStepInfo = memory ? await resolveChainNextStep(memory, options.qdrantService) : undefined;
         const nextMemory = nextStepInfo ? await loadMemoryWithCache(memoryStore, nextStepInfo.uuid) : null;
         const displayMemory = nextMemory ?? memory;
         const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
         const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
-
         // Resolve the step AFTER the display step to get next_action URI
         const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, options.qdrantService) : undefined;
         const nextStepUri = nextFromDisplay?.uuid
           ? `kairos://mem/${nextFromDisplay.uuid}`
           : null;
-
         const output = await buildKairosNextPayload(displayMemory, displayUri, nextStepUri, challengeProof);
-
         if (submissionOutcome?.proofHash) {
           output.proof_hash = submissionOutcome.proofHash;
         }
