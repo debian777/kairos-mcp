@@ -9,33 +9,35 @@ import { QDRANT_SNAPSHOT_DIR } from '../config.js';
  * @param app Express application instance
  * @param qdrantService Qdrant service instance
  */
+/** 503 when backup directory is not configured. */
+const SNAPSHOT_NOT_CONFIGURED_MESSAGE = 'Backup directory is not defined in server settings.';
+
 export function setupSnapshotRoute(app: express.Express, qdrantService: QdrantService) {
     app.post('/api/snapshot', async (_req, res) => {
-        try {
-            const result = await triggerQdrantSnapshot(qdrantService, {
-                enabled: true,
-                directory: QDRANT_SNAPSHOT_DIR,
-                reason: 'api'
+        if (!QDRANT_SNAPSHOT_DIR) {
+            res.status(503).json({
+                error: 'Backup not configured',
+                message: SNAPSHOT_NOT_CONFIGURED_MESSAGE
             });
-
-            const statusCode = result.success ? 200 : result.skipped ? 202 : 502;
-            res.status(statusCode).json({
-                status: result.success ? 'completed' : result.skipped ? 'skipped' : 'failed',
-                target: 'qdrant',
-                snapshotName: result.snapshotName,
-                filePath: result.filePath,
-                bytesWritten: result.bytesWritten,
-                durationMs: result.durationMs,
-                message: result.message
-            });
-        } catch (error) {
-            structuredLogger.error('Snapshot endpoint crashed', error);
-            res.status(500).json({
-                status: 'failed',
-                target: 'qdrant',
-                message: error instanceof Error ? error.message : 'Snapshot pipeline crashed'
-            });
+            return;
         }
+
+        const result = await triggerQdrantSnapshot(qdrantService, {
+            enabled: true,
+            directory: QDRANT_SNAPSHOT_DIR,
+            reason: 'api'
+        });
+
+        const statusCode = result.success ? 200 : result.skipped ? 202 : 503;
+        res.status(statusCode).json({
+            status: result.success ? 'completed' : result.skipped ? 'skipped' : 'failed',
+            target: 'qdrant',
+            snapshotName: result.snapshotName,
+            filePath: result.filePath,
+            bytesWritten: result.bytesWritten,
+            durationMs: result.durationMs,
+            message: result.message
+        });
     });
 }
 

@@ -148,6 +148,8 @@ services:
       # Container must reach Qdrant by service name
       - QDRANT_URL=http://qdrant:6333
       - METRICS_PORT=${METRICS_PORT:-9090}
+      # Snapshot backup dir (volume mount); omit to disable backup (503 on POST /api/snapshot)
+      - QDRANT_SNAPSHOT_DIR=/snapshots
       # REDIS_URL and KEYCLOAK_INTERNAL_URL from .env (set for fullstack; omit for mini)
     volumes:
       - snapshots-prod:/snapshots

@@ -100,11 +100,12 @@ describe('HTTP REST API Endpoints', () => {
 
       const response = await apiFetch(`${API_BASE}/snapshot`, { method: 'POST' });
 
-      // Snapshot may succeed (200), be skipped (202), fail from Qdrant (502), or server error e.g. unwritable dir (500)
-      expect([200, 202, 502, 500]).toContain(response.status);
+      // When backup dir is configured (e.g. CI: QDRANT_SNAPSHOT_DIR=var/snapshots), we expect success only
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty('status');
+      expect(data).toHaveProperty('status', 'completed');
       expect(data).toHaveProperty('target', 'qdrant');
+      expect(data).toHaveProperty('snapshotName');
     }, 30000);
   });
 
