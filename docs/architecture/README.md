@@ -69,4 +69,5 @@ Keycloak URL each party uses and how `KEYCLOAK_URL` vs
 - For Cursor setup, see [Install KAIROS MCP in Cursor](../INSTALL-MCP.md).
 - For agent-facing design doctrine, see
   [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles).
-- For historical design decisions, see [Design plans](../plans/README.md).
+- For protocol examples and challenge types, see
+  [Examples](../examples/README.md).
