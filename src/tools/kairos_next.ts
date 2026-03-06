@@ -287,14 +287,26 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
             if (options.qdrantService) {
               await updateStepQuality(options.qdrantService, memory, 'failure', tenantId);
             }
+            const prev = await resolveChainPreviousStep(memory, options.qdrantService);
+            const prevMemory = prev?.uuid ? await loadMemoryWithCache(memoryStore, prev.uuid) : null;
+            const prevUri = prev?.uuid ? `kairos://mem/${prev.uuid}` : requestedUri;
+            const isPrevStep1 = !prevMemory?.chain || prevMemory.chain.step_index <= 1;
+            const expectedPrevHash = isPrevStep1
+              ? GENESIS_HASH
+              : (await (async () => {
+                  const p = await resolveChainPreviousStep(prevMemory!, options.qdrantService);
+                  return p?.uuid ? proofOfWorkStore.getProofHash(p.uuid) : null;
+                })()) ?? GENESIS_HASH;
+            let challenge = await buildChallenge(prevMemory, prevMemory?.proof_of_work);
+            challenge = { ...challenge, proof_hash: expectedPrevHash };
             const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
             const retryCount = await proofOfWorkStore.incrementRetry(storedNonce ?? uuid);
             const blockedPayload = {
               must_obey: retryCount < 3,
-              current_step: buildCurrentStep(memory, requestedUri),
-              challenge: await buildChallenge(memory, memory?.proof_of_work),
+              current_step: buildCurrentStep(prevMemory, prevUri),
+              challenge,
               message: previousBlock.message,
-              next_action: previousBlock.next_action ?? `retry kairos_next with ${requestedUri} -- complete previous step first`,
+              next_action: previousBlock.next_action ?? `retry kairos_next with ${prevUri} -- complete previous step first`,
               error_code: previousBlock.error_code || 'MISSING_PROOF',
               retry_count: retryCount
             };
