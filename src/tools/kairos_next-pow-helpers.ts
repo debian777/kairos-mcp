@@ -204,24 +204,25 @@ export async function handleProofSubmission(
   // Accept both proof_hash (v2) and previousProofHash (v1 compat)
   const submittedProofHash = submission.proof_hash ?? submission.previousProofHash;
 
-  // Helper to build error with retry counting (key by nonce so each challenge instance has unique count).
-  // Reuse existing nonce in the error response so we do not overwrite the stored nonce (buildChallenge
-  // would otherwise set a new one and reset the retry key, breaking MAX_RETRIES).
+  // Build error with retry counting; reuse existing nonce so we don't reset retry key. For step 2+, set
+  // challenge.proof_hash to expectedPreviousHash so the client can echo it back (avoids PROOF_HASH_MISMATCH on retry).
   const blocked = async (msg: string, code: string, currentStep?: any, challengeObj?: any) => {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     const retryKey = storedNonce ?? uuid;
     const retryCount = await proofOfWorkStore.incrementRetry(retryKey);
     const cs = currentStep || { uri: `kairos://mem/${uuid}`, content: '', mimeType: 'text/markdown' };
-    const ch =
+    let ch =
       challengeObj ||
       (storedNonce != null
         ? await buildChallenge(memory, memory.proof_of_work, { existingNonce: storedNonce })
         : await buildChallenge(memory, memory.proof_of_work));
+    if (options?.expectedPreviousHash != null) {
+      ch = { ...ch, proof_hash: options.expectedPreviousHash };
+    }
     return {
       blockedPayload: buildErrorPayload(memory, cs, ch, msg, code, retryCount)
     };
   };
-
   // Nonce validation
   if (memory.memory_uuid) {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
@@ -339,7 +340,6 @@ export async function handleProofSubmission(
   if (memory.proof_of_work.required && record.status === 'failed') {
     return blocked('Proof of work failed. Fix and retry.', 'COMMAND_FAILED');
   }
-
   // Success -- reset retry counter for this challenge instance
   const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
   const retryKey = storedNonce ?? uuid;
