@@ -208,7 +208,6 @@ reports/
 !reports/.gitkeep
 .env.*
 !scripts/env/.env.template
-!scripts/env/.env.dev.template
 docs/.obsidian .kilocodeignore
 docs/.obsidian
 .obsidian

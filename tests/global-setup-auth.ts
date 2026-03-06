@@ -92,7 +92,7 @@ function loadEnv(): void {
   const root = process.cwd();
   const opts = { override: true };
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
-  if (existsSync(join(root, '.env.dev'))) config({ path: join(root, '.env.dev'), ...opts });
+  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
 }
 
 export default async function globalSetup(): Promise<void> {

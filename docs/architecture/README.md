@@ -58,7 +58,7 @@ when proof is missing (for example, telling the agent to ask the user for
 
 [Auth URLs: QA and Docker topology](auth-urls-qa.md) explains which
 Keycloak URL each party uses and how `KEYCLOAK_URL` vs
-`KEYCLOAK_INTERNAL_URL` are set in `.env.qa` and `compose.yaml`.
+`KEYCLOAK_INTERNAL_URL` are set in `.env` and `compose.yaml`.
 
 ## Next steps
 

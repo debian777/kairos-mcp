@@ -3,7 +3,7 @@
 Delete KAIROS Keycloak realms (kairos-dev, kairos-prod) via Admin API.
 After running, restart Keycloak so --import-realm re-imports from scripts/keycloak/import (if using Docker import); otherwise run scripts/configure-keycloak-realms.py to re-create realms.
 
-Requires KEYCLOAK_ADMIN_PASSWORD in .env.prod or .env; Keycloak at KEYCLOAK_URL
+Requires KEYCLOAK_ADMIN_PASSWORD in .env; Keycloak at KEYCLOAK_URL
 (default http://localhost:8080).
 
 Usage:
@@ -44,7 +44,7 @@ def load_env_file(path: Path) -> dict[str, str]:
 def get_admin_password(root: Path) -> str | None:
     if os.environ.get("KEYCLOAK_ADMIN_PASSWORD"):
         return os.environ["KEYCLOAK_ADMIN_PASSWORD"]
-    for name in (".env.prod", ".env"):
+    for name in (".env",):
         env = load_env_file(root / name)
         if env.get("KEYCLOAK_ADMIN_PASSWORD"):
             return env["KEYCLOAK_ADMIN_PASSWORD"]
@@ -93,7 +93,7 @@ def main() -> int:
     base_url = os.environ.get("KEYCLOAK_URL", "http://localhost:8080")
     admin_password = get_admin_password(root)
     if not admin_password:
-        sys.exit("KEYCLOAK_ADMIN_PASSWORD not set (set in .env.prod or .env)")
+        sys.exit("KEYCLOAK_ADMIN_PASSWORD not set (set in .env)")
 
     token = get_admin_token(base_url, admin_password)
     for realm in REALMS_TO_DELETE:

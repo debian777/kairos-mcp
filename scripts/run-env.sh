@@ -46,10 +46,10 @@ print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Environment setup
+# Environment setup (single .env for all)
 ENV="${ENV:-dev}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${PROJECT_DIR}/.env.${ENV}"
+ENV_FILE="${PROJECT_DIR}/.env"
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
@@ -185,7 +185,7 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
-            # Start the dev server with env from .env.dev so OPENAI_API_KEY etc are set (CI and local)
+            # Start the dev server with env from .env (CI and local)
             dev_port="${PORT:-3300}"
             case "$LOG_TARGET" in
                 file)

@@ -12,7 +12,7 @@ export const TEST_USERNAME = 'kairos-tester';
 export const TEST_PASSWORD = 'kairos-tester-secret';
 
 export interface KeycloakTestEnv {
-  /** Set when using Testcontainers; undefined when using existing Keycloak from .env.dev */
+  /** Set when using Testcontainers; undefined when using existing Keycloak from .env */
   container?: StartedTestContainer;
   keycloakUrl: string;
   realm: string;
