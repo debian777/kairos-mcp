@@ -1,13 +1,36 @@
-Read-only inspection of a memory or full protocol. Returns **markdown_doc** for use with `kairos_update` or `kairos_mint`. No run state, no nonce.
+Read-only inspection of a memory or full protocol. Returns
+`markdown_doc` for use with `kairos_update` or `kairos_mint`. No run
+state, no nonce.
 
-**When to call:** When you have a memory URI and need to read its content before updating or re-minting. For example: after `kairos_mint` returns SIMILAR_MEMORY_FOUND (dump the existing protocol to compare), or before calling `kairos_update` to edit a step.
+**Precondition:** You have a memory URI.
 
-**Input:** `uri` (kairos://mem/{uuid}), optional `protocol` (default false). When `protocol` is true, returns the full chain as one markdown document; otherwise returns the single step’s content.
+**Input:**
 
-**Output:** `markdown_doc` (string). In default mode also optional `uri`, `label`, `position`, `challenge`. In protocol mode also optional `uri` (chain head), `label`, `step_count`.
+- `uri` — `kairos://mem/{uuid}`.
+- `protocol` (optional, default `false`) — when `true`, returns the
+  full chain as one markdown document; otherwise returns the single
+  step's content.
 
-**Use with update:** Get `markdown_doc` for one step → edit → `kairos_update({ uris: [uri], markdown_doc: [markdown_doc] })`.
+**Output:**
 
-**Use with mint:** Get `markdown_doc` with `protocol: true` → compare or edit → `kairos_mint({ markdown_doc, llm_model_id, force_update: true })`.
+- Default mode: `markdown_doc` (string), and optionally `uri`, `label`,
+  `position`, `challenge`.
+- Protocol mode: `markdown_doc` (string), and optionally `uri` (chain
+  head), `label`, `step_count`.
 
-Do not use dump to bypass execution; use it only for inspection and round-trip edit flows.
+**Round-trip edit flow (single step):**
+
+1. `kairos_dump(uri)` → receive `markdown_doc`.
+2. Edit `markdown_doc`.
+3. `kairos_update({ uris: [uri], markdown_doc: [edited] })`.
+
+**Round-trip edit flow (full protocol):**
+
+1. `kairos_dump(uri, { protocol: true })` → receive full `markdown_doc`.
+2. Edit.
+3. `kairos_mint({ markdown_doc, llm_model_id, force_update: true })`.
+
+**MUST NEVER**
+
+- Use `kairos_dump` to bypass execution; use it only for inspection and
+  round-trip edit flows.

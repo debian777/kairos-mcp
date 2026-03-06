@@ -31,6 +31,7 @@ out/
 .vscode/
 .idea/
 .cursor/plans
+.cursor/rules/version-bump-policy.mdc
 *.swp
 *.swo
 *~
@@ -168,6 +169,8 @@ docker-compose.override.yml
 # Kubernetes
 *.kubeconfig
 
+# Helm (ignored for now)
+helm/
 # Helm chart dependencies (run: helm dependency update in helm/kairos-fullstack)
 helm/kairos-fullstack/charts/*.tgz
 

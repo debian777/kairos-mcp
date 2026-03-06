@@ -1,17 +1,35 @@
+> **Note:** This document describes a design decision made in February 2026.
+> The bug fix and the `kairos_attest`-as-last-step design are both
+> implemented. See the agreed decisions at the top of this document.
+
 # MISSING_PROOF fix: JSON examples
 
-Two-step protocol (step 1 = user_input "Confirm deployment", step 2 = last step, no challenge). Agent follows `next_action` and calls **kairos_next(uri=step2, solution=step1_solution)**.
+Two-step protocol (step 1 = `user_input` "Confirm deployment", step 2 =
+last step, no challenge). The agent follows `next_action` and calls
+`kairos_next(uri=step2, solution=step1_solution)`.
 
 ## Agreed decisions
 
-- **MISSING_PROOF fix:** Bug confirmed; fix implemented. When the agent calls `kairos_next(uri=step_with_no_proof, solution=for_previous_step)`, the server validates and stores the solution against the **previous** step, then continues (ensurePreviousProofCompleted passes; quality uses the completed previous step). Same behavior for MCP and HTTP API. Code: `src/tools/kairos_next.ts`, `src/http/http-api-next.ts`; helpers: `handleProofSubmission`, `ensurePreviousProofCompleted`, `resolveChainPreviousStep`, `loadMemoryWithCache`.
-- **kairos_attest as last step:** Agreed design (MCP/agent UX). When there are no more content steps, `next_action` always directs the agent to **call kairos_attest** (no "Run complete." with no tool call). Rationale: deterministic completion (single pattern: "call kairos_attest" vs ambiguous "Run complete"), explicit outcome and message, simpler `must_obey` handling. This is the chosen pattern for agent-facing completion.
-
----
+- **MISSING_PROOF fix:** Bug confirmed; fix implemented. When the agent
+  calls `kairos_next(uri=step_with_no_proof, solution=for_previous_step)`,
+  the server validates and stores the solution against the **previous**
+  step, then continues (`ensurePreviousProofCompleted` passes; quality uses
+  the completed previous step). Same behavior for MCP and HTTP API. Code:
+  `src/tools/kairos_next.ts`, `src/http/http-api-next.ts`; helpers:
+  `handleProofSubmission`, `ensurePreviousProofCompleted`,
+  `resolveChainPreviousStep`, `loadMemoryWithCache`.
+- **kairos_attest as last step:** Agreed design (MCP/agent UX). When there
+  are no more content steps, `next_action` always directs the agent to call
+  `kairos_attest`. This gives deterministic completion (single pattern:
+  "call kairos_attest" vs ambiguous "Run complete"), explicit outcome and
+  message, and simpler `must_obey` handling.
 
 ## Sample kairos_begin
 
-Agent starts the protocol with the chain head URI (from search or mint). Step 1 has a user_input challenge; `next_action` tells the agent to call kairos_next with **step 2’s URI** and a solution matching the challenge.
+The agent starts the protocol with the chain head URI (from search or
+mint). Step 1 has a `user_input` challenge; `next_action` tells the agent
+to call `kairos_next` with **step 2's URI** and a solution matching the
+challenge.
 
 ### Request
 
@@ -42,13 +60,18 @@ Agent starts the protocol with the chain head URI (from search or mint). Step 1 
 }
 ```
 
-The agent then performs the challenge (gets user confirmation), and calls **kairos_next** with `uri: "kairos://mem/cd24bae8-474e-40c0-b3a1-ab1c51cc8a09"` (step 2) and the solution for step 1 (user_input + nonce + proof_hash from above). The sections below show what happens when that kairos_next call is made.
+The agent performs the challenge (gets user confirmation) and calls
+`kairos_next` with `uri: "kairos://mem/cd24bae8-474e-40c0-b3a1-ab1c51cc8a09"`
+(step 2) and the solution for step 1. The sections below show what
+happened before and after the fix.
 
----
+## 1. Original bug
 
-## 1. Current problem
-
-Agent calls kairos_next with the **next** step URI (step 2) and the solution for **step 1**. Server loads step 2 (no `proof_of_work`), does not apply the solution to step 1, then runs ensurePreviousProofCompleted → step 1 has no stored result → **MISSING_PROOF**.
+The agent calls `kairos_next` with the **next** step URI (step 2) and the
+solution for **step 1**. The server loads step 2 (no `proof_of_work`),
+does not apply the solution to step 1, runs
+`ensurePreviousProofCompleted` → step 1 has no stored result →
+**MISSING_PROOF**.
 
 ### Request (agent follows next_action from kairos_begin)
 
@@ -87,37 +110,15 @@ Agent calls kairos_next with the **next** step URI (step 2) and the solution for
 }
 ```
 
-**Problem:** Solution was never stored for step 1. Agent is stuck: it sent the right URI and solution, but the server did not apply it.
+**Problem:** The solution was never stored for step 1. The agent was stuck:
+it sent the right URI and solution, but the server did not apply it.
 
----
+## 2. After the fix
 
-## 2. Status after re-adding kairos_attest
-
-We restored kairos_attest as the last step. So when there are no more content steps, `next_action` always directs to **call kairos_attest** (no more "Run complete." with no next action). The **MISSING_PROOF bug is unchanged**: the same request still gets the same error response. We still do not apply the solution to the previous step when the requested step has no proof_of_work.
-
-### Same request (unchanged)
-
-```json
-{
-  "uri": "kairos://mem/cd24bae8-474e-40c0-b3a1-ab1c51cc8a09",
-  "solution": {
-    "type": "user_input",
-    "user_input": { "confirmation": "Yes, approved." },
-    "nonce": "86e77edabbd060ae513f7196bc43c864",
-    "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e"
-  }
-}
-```
-
-### Response (still MISSING_PROOF)
-
-Same as in section 1. Error shape and message are the same; only the default challenge for the “no proof” step might show a comment-type challenge. No next_action to attest yet, because we never reach the success path.
-
----
-
-## 3. After the fix
-
-With the "apply solution to previous step" fix: when the requested step (step 2) has no `proof_of_work`, we validate and store the solution against the **previous** step (step 1), then run ensurePreviousProofCompleted (it passes), and return success. So the same request now succeeds and returns a proper next_action (to kairos_attest).
+With the fix: when the requested step (step 2) has no `proof_of_work`, the
+server validates and stores the solution against the **previous** step
+(step 1), runs `ensurePreviousProofCompleted` (which now passes), and
+returns success. The same request now succeeds.
 
 ### Same request (unchanged)
 
@@ -155,16 +156,20 @@ With the "apply solution to previous step" fix: when the requested step (step 2)
 }
 ```
 
-**Result:** Step 1’s proof is stored. Agent can now call **kairos_attest(uri, outcome, message)** to finish the run. No MISSING_PROOF; every step has a clear next_action (next kairos_next or kairos_attest).
-
----
+**Result:** Step 1's proof is stored. The agent calls
+`kairos_attest(uri, outcome, message)` to finish the run.
 
 ## Summary
 
-| Scenario              | Request                          | Response                                      |
-|-----------------------|-----------------------------------|-----------------------------------------------|
-| Current problem       | uri=step2, solution=step1         | MISSING_PROOF, retry same URI                 |
-| After attest restored | uri=step2, solution=step1         | Same MISSING_PROOF (bug unchanged)            |
-| After fix             | uri=step2, solution=step1         | Success, next_action → kairos_attest          |
+| Scenario | Request | Response |
+|----------|---------|----------|
+| Original bug | uri=step2, solution=step1 | MISSING_PROOF, retry same URI |
+| After fix | uri=step2, solution=step1 | Success, next_action → kairos_attest |
 
-The fix and kairos_attest-as-last-step design above are agreed; see **Agreed decisions** at the top of this document.
+## See also
+
+- [Agent recovery UX](agent-recovery-ux.md) — design principles for
+  MISSING_PROOF messages
+- [kairos_next workflow](workflow-kairos-next.md) — full error code list
+  and recovery paths
+- [kairos_attest workflow](workflow-kairos-attest.md)

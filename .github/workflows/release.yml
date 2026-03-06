@@ -1,0 +1,160 @@
+# Single release pipeline: on version tag push, publish npm then Docker.
+# Only acceptable final output: npm package in registry, Docker image on Docker Hub and Quay.
+# Triggered by release-tag-on-version-bump after merge of a version-bump PR to main.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Tag to release (e.g. v3.0.1-beta.5). Leave empty when triggered by tag push.'
+        required: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-npm:
+    name: Publish npm
+    runs-on: ubuntu-latest
+    # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set version and npm tag from ref
+        id: version
+        run: |
+          ref="${{ github.event.inputs.ref }}"
+          if [ -n "$ref" ]; then
+            v="${ref#v}"
+          else
+            v="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if echo "$v" | grep -q '-'; then
+            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync version from tag
+        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Knip
+        run: npm run knip
+
+      - name: Prepare publish (build tgz + test install)
+        run: npm run prepare:publish
+
+      - name: Publish to npm
+        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
+
+  publish-docker:
+    name: Publish Docker image
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          ref="${{ github.event.inputs.ref }}"
+          if [ -n "$ref" ]; then
+            echo "version=${ref#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Quay
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          build-args: |
+            PACKAGE_VERSION=${{ steps.version.outputs.version }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            debian777/kairos-mcp:latest
+            debian777/kairos-mcp:${{ steps.version.outputs.version }}
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest
+            quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-npm, publish-docker]
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Set tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.ref }}" ]; then
+            echo "tag_name=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: ${{ steps.tag.outputs.tag_name }}
+          generate_release_notes: true
+          draft: false

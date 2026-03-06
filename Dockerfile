@@ -1,29 +1,33 @@
-# kairos MCP Server - no local repo dependency; install from public npm registry
-# Multi-arch: linux/amd64, linux/arm64 (Buildx uses node image per platform)
+# Release image: install published package from npm (no source build).
+# Used by CI/release; version passed as build-arg. For local dev build-from-source, use Dockerfile.dev.
+# Multi-arch: build for linux/amd64,linux/arm64 (set by buildx).
 FROM node:25-alpine
 
-# Pin kairos version at build time (default: latest). CI passes e.g. 3.0.0 from tag.
-ARG KAIROS_VERSION=latest
-ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
-
-WORKDIR /app
-RUN npm init -y && npm install kairos@${KAIROS_VERSION} && npm cache clean --force
-
 VOLUME /snapshots
+
+# Pin version at build time (required; set by release workflow).
+ARG PACKAGE_VERSION
+RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
 
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S kairos -u 1001
 
+WORKDIR /app
+
+# Install the published package (and its deps) from registry
+RUN npm install @debian777/kairos-mcp@${PACKAGE_VERSION} && \
+    npm cache clean --force && \
+    chown -R kairos:nodejs /app
+
+# Create directories for logs and data
 RUN mkdir -p logs storage/qdrant && \
     chown -R kairos:nodejs /app logs storage
 
 USER kairos
 
-# Port configuration (configurable via build arg)
 ARG PORT=3500
 ENV PORT=${PORT}
-
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
 
@@ -35,6 +39,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories
-# ENV QDRANT_API_KEY=change_me_with_safe_characters
 
-CMD ["node", "node_modules/kairos/dist/index.js"]
+# Run the installed package's main entry (dist/index.js is inside node_modules)
+CMD ["node", "node_modules/@debian777/kairos-mcp/dist/index.js"]

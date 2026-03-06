@@ -1,10 +1,10 @@
 # kairos_update workflow
 
-Updates one or more KAIROS memories by URI. Use this when the user wants
-to replace, modify, update, edit, or change existing content. Prefer
-`markdown_doc` for content changes; use `updates` for advanced field-level
-updates. Referenced from `kairos_next` when max retries are exceeded and
-the agent chooses to fix a step for future executions.
+`kairos_update` updates one or more KAIROS memories by URI. Use it when
+the user wants to replace, modify, update, edit, or change existing
+content. Prefer `markdown_doc` for content changes; use `updates` for
+targeted field-level changes. `kairos_next` references this tool when max
+retries are exceeded and the agent chooses to fix a broken step.
 
 ## Input schema
 
@@ -20,14 +20,14 @@ Fields:
 
 - `uris` — non-empty array of `kairos://mem/{uuid}` URIs to update.
 - `markdown_doc` — optional. Array of markdown strings; length must match
-  `uris`. Each string is the new body or full KAIROS render; if
+  `uris`. Each string is the new body or full KAIROS render. When
   `<!-- KAIROS:BODY-START -->` / `<!-- KAIROS:BODY-END -->` markers are
-  present, only the BODY is extracted and stored as `text`.
+  present, only the body between them is extracted and stored as `text`.
 - `updates` — optional. Record of field names to values applied to each
-  URI. If `updates.text` contains KAIROS BODY markers, the BODY is
+  URI. If `updates.text` contains KAIROS body markers, the body is
   extracted and stored as `text`; otherwise updates are applied as-is.
 
-Exactly one of `markdown_doc` or `updates` must be provided.
+Provide exactly one of `markdown_doc` or `updates`.
 
 ## Response schema
 
@@ -51,16 +51,13 @@ Fields:
 - `total_updated` — count of URIs successfully updated.
 - `total_failed` — count of URIs that failed.
 
----
-
 ## Scenario 1: update by markdown_doc (single memory)
 
 The agent updates one step with new markdown content.
 
 ### Input
 
-Example document for the single step (actual payload: this content with newlines
-as `\n` in JSON):
+Example document for the single step (actual payload uses `\n` in JSON):
 
 ````
 Set up configuration files.
@@ -95,21 +92,18 @@ Set up configuration files.
 
 ### AI behavior
 
-Use this after fixing a broken step (for example when `kairos_next` returned
-`MAX_RETRIES_EXCEEDED` and the agent chose to fix the step). Then retry
-`kairos_next` or inform the user that the protocol was updated.
-
----
+Use this after fixing a broken step (for example, when `kairos_next`
+returned `MAX_RETRIES_EXCEEDED` and the agent chose to fix the step). Then
+retry `kairos_next` or inform the user that the protocol was updated.
 
 ## Scenario 2: update multiple memories (markdown_doc)
 
-The agent updates several steps in one call; `markdown_doc` length must
+The agent updates several steps in one call. `markdown_doc` length must
 match `uris` length.
 
 ### Input
 
-Example documents (actual payload: each block as a string with newlines as
-`\n` in JSON). Step 1:
+Step 1 document:
 
 ````
 Create the project directory.
@@ -119,7 +113,7 @@ Create the project directory.
 ```
 ````
 
-Step 2:
+Step 2 document:
 
 ````
 Write config.
@@ -162,15 +156,12 @@ Write config.
 
 ### AI behavior
 
-Process `results` to see which URIs succeeded. If `total_failed` is greater
-than zero, report failures to the user or retry failed URIs.
-
----
+Check `results` to see which URIs succeeded. When `total_failed` is greater
+than zero, report failures to the user or retry the failed URIs.
 
 ## Scenario 3: update by updates (field-level)
 
-The agent sends raw field updates (e.g. `text`, or other payload fields).
-Use when not supplying full markdown.
+The agent sends raw field updates. Use when not supplying full markdown.
 
 ### Input
 
@@ -204,12 +195,10 @@ Use when not supplying full markdown.
 Use for small or field-specific changes. For full step content, prefer
 `markdown_doc` so structure and challenge blocks stay consistent.
 
----
-
 ## Scenario 4: partial failure
 
-Some URIs update successfully; others fail (e.g. missing memory, invalid
-UUID). Each result has its own `status` and `message`.
+Some URIs update successfully; others fail (for example, missing memory or
+invalid UUID). Each result has its own `status` and `message`.
 
 ### Expected output
 
@@ -237,14 +226,19 @@ UUID). Each result has its own `status` and `message`.
 Report which URIs failed and why. Do not treat the call as fully successful
 when `total_failed` > 0.
 
----
-
 ## Validation rules
 
 1. `uris` must be a non-empty array of valid `kairos://mem/{uuid}` strings.
-2. If `markdown_doc` is provided, its length must equal `uris.length`.
-3. Exactly one of `markdown_doc` or `updates` must be provided; otherwise
-   the server returns an error (e.g. "Provide markdown_doc or updates").
+2. When `markdown_doc` is provided, its length must equal `uris.length`.
+3. Provide exactly one of `markdown_doc` or `updates`; otherwise the server
+   returns an error (for example, "Provide markdown_doc or updates").
 4. `total_updated` + `total_failed` equals `results.length`.
 5. Each result has `uri`, `status` (`"updated"` or `"error"`), and
    `message`.
+
+## See also
+
+- [kairos_dump workflow](workflow-kairos-dump.md) — read content before
+  updating
+- [kairos_next workflow](workflow-kairos-next.md) — references
+  `kairos_update` in the max-retries recovery path

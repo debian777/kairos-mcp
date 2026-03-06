@@ -11,7 +11,7 @@ import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
-import { tryApplySolutionToPreviousStep, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
+import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 
@@ -229,6 +229,35 @@ export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantSto
                 if (prevResult.outcome.proofHash) output.proof_hash = prevResult.outcome.proofHash;
                 return respond(output);
               }
+            }
+          }
+
+          if (memory.proof_of_work && solutionToUse) {
+            const prevResultWhenMatch = await tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
+              memory,
+              solutionToUse,
+              (id) => loadMemoryWithCache(memoryStore, id),
+              options.qdrantService
+            );
+            if (prevResultWhenMatch.applied) {
+              if (prevResultWhenMatch.outcome.blockedPayload) {
+                if (options.qdrantService) {
+                  await updateStepQuality(options.qdrantService, prevResultWhenMatch.prevMemory, 'failure', tenantId);
+                }
+                return respond(prevResultWhenMatch.outcome.blockedPayload);
+              }
+              if (options.qdrantService && !prevResultWhenMatch.outcome.alreadyRecorded) {
+                await updateStepQuality(options.qdrantService, prevResultWhenMatch.prevMemory, 'success', tenantId);
+              }
+              const nextFromRequested = await resolveChainNextStep(memory, options.qdrantService);
+              const nextStepUri = nextFromRequested?.uuid
+                ? `kairos://mem/${nextFromRequested.uuid}`
+                : null;
+              const nextMemory = nextFromRequested ? await loadMemoryWithCache(memoryStore, nextFromRequested.uuid) : null;
+              const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
+              const output = await buildKairosNextPayload(memory, requestedUri, nextStepUri, challengeProof);
+              if (prevResultWhenMatch.outcome.proofHash) output.proof_hash = prevResultWhenMatch.outcome.proofHash;
+              return respond(output);
             }
           }
 

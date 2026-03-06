@@ -7,7 +7,7 @@ import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, handleProofSubmission, GENESIS_HASH, type HandleProofResult } from '../tools/kairos_next-pow-helpers.js';
 import { updateStepQuality } from '../tools/kairos_next.js';
-import { tryApplySolutionToPreviousStep } from '../tools/kairos_next-previous-step.js';
+import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious } from '../tools/kairos_next-previous-step.js';
 
 /**
  * Set up API route for kairos_next (V2: no next_step/protocol_status/attest_required/final_challenge,
@@ -114,6 +114,54 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
 
             let submissionOutcome: HandleProofResult | undefined;
             if (memory?.proof_of_work) {
+                // PROOF_HASH_MISMATCH fix: client may call with next_action URI (next step) and submit
+                // solution for the step we just showed (previous). Apply to previous when solution matches.
+                const prevResultWhenMatch = await tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
+                    memory,
+                    solution,
+                    (id) => memoryStore.getMemory(id),
+                    qdrantService
+                );
+                if (prevResultWhenMatch.applied) {
+                    if (prevResultWhenMatch.outcome.blockedPayload) {
+                        await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'failure', 'http');
+                        const duration = Date.now() - startTime;
+                        return res.status(200).json({
+                            ...prevResultWhenMatch.outcome.blockedPayload,
+                            metadata: { duration_ms: duration }
+                        });
+                    }
+                    if (!prevResultWhenMatch.outcome.alreadyRecorded) {
+                        await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'success', 'http');
+                    }
+                    const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
+                    const nextStepUri = nextFromRequested?.uuid
+                        ? `kairos://mem/${nextFromRequested.uuid}`
+                        : null;
+                    const current_step = {
+                        uri: requestedUri,
+                        content: memory ? extractMemoryBody(memory.text) : '',
+                        mimeType: 'text/markdown' as const
+                    };
+                    const nextMemory = nextFromRequested ? await memoryStore.getMemory(nextFromRequested.uuid) : null;
+                    const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
+                    const challenge = await buildChallenge(memory, challengeProof);
+                    const output: any = {
+                        must_obey: true,
+                        current_step,
+                        challenge
+                    };
+                    if (nextStepUri) {
+                        output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
+                    } else {
+                        output.message = 'Protocol steps complete. Call kairos_attest to finalize.';
+                        output.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
+                    }
+                    if (prevResultWhenMatch.outcome.proofHash) output.proof_hash = prevResultWhenMatch.outcome.proofHash;
+                    const duration = Date.now() - startTime;
+                    return res.status(200).json({ ...output, metadata: { duration_ms: duration } });
+                }
+
                 const isStep1 = !memory.chain || memory.chain.step_index <= 1;
                 let expectedPreviousHash: string;
                 if (isStep1) {
