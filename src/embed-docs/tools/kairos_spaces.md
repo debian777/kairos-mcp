@@ -1,9 +1,30 @@
-List the agent's available spaces with human-readable names and chain counts. Use when the agent needs to see which spaces exist and how many chains (protocols) each contains.
+List the agent's available spaces with human-readable names and chain
+counts.
 
-**When to call:** When the user or agent asks what spaces exist, how many protocols are in each space, or for a summary of stored content per space.
+**Precondition:** None.
 
-**Input:** `include_chain_titles` (optional, default false). When true, each space includes a list of chains with `chain_id`, `title`, and `step_count`.
+**Input:**
 
-**Output:** `spaces` array. Each item has `name` (human-readable: "Personal", "Group: <ref>", "Kairos app"), `chain_count`, and optionally `chains` (array of `{ chain_id, title, step_count }`).
+- `include_chain_titles` (optional, default `false`) — when `true`,
+  each space includes a `chains` array with `chain_id`, `title`, and
+  `step_count`.
 
-Spaces include the agent's personal space, any group spaces, and the Kairos app space (read-only protocols). Use space names in tool parameters (e.g. `kairos_mint` space param); do not rely on raw space ids.
+**Output:** `spaces` array. Each item has:
+
+- `name` — human-readable: `"Personal"`, `"Group: <ref>"`, or
+  `"Kairos app"`.
+- `chain_count` — number of protocol chains in this space.
+- `chains` (optional) — array of `{ chain_id, title, step_count }` when
+  `include_chain_titles: true`.
+
+Spaces include the agent's personal space, any group spaces, and the
+Kairos app space (read-only protocols).
+
+**MUST ALWAYS**
+
+- Use space names (not raw IDs) in tool parameters such as `kairos_mint`.
+
+**MUST NEVER**
+
+- Pass raw space IDs in tool parameters; the backend resolves names to
+  IDs.

@@ -49,6 +49,47 @@ export async function tryApplySolutionToPreviousStep(
   return { applied: true, outcome, prevMemory };
 }
 
+/**
+ * PROOF_HASH_MISMATCH fix: when the client calls kairos_next with the URI from next_action (the *next*
+ * step), they are submitting the solution for the step we just showed (the previous step). If the
+ * requested step has proof_of_work but the previous step has none stored yet and the solution type
+ * matches the previous step's challenge, apply the solution to the previous step and return applied.
+ * This prevents PROOF_HASH_MISMATCH because we expect the hash from the previous response, not
+ * the hash of the previous step (which is not stored yet).
+ */
+export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
+  requestedMemory: Memory,
+  solution: ProofOfWorkSubmission,
+  loadMemory: (uuid: string) => Promise<Memory | null>,
+  qdrantService: QdrantService | undefined
+): Promise<TryApplyToPreviousResult> {
+  if (!requestedMemory.proof_of_work) return { applied: false };
+  const prevInfo = await resolveChainPreviousStep(requestedMemory, qdrantService);
+  if (!prevInfo?.uuid) return { applied: false };
+  const prevMemory = await loadMemory(prevInfo.uuid);
+  if (!prevMemory?.proof_of_work?.required) return { applied: false };
+
+  const storedResult = await proofOfWorkStore.getResult(prevInfo.uuid);
+  if (storedResult) return { applied: false };
+
+  const requiredType = prevMemory.proof_of_work.type || 'shell';
+  const solutionType = solution.type || 'shell';
+  if (solutionType !== requiredType) return { applied: false };
+
+  const prevIsStep1 = !prevMemory.chain || prevMemory.chain.step_index <= 1;
+  const expectedPrevHash = prevIsStep1
+    ? GENESIS_HASH
+    : (await (async () => {
+        const p = await resolveChainPreviousStep(prevMemory, qdrantService);
+        return p?.uuid ? await proofOfWorkStore.getProofHash(p.uuid) : null;
+      })()) ?? GENESIS_HASH;
+
+  const outcome = await handleProofSubmission(solution, prevMemory, {
+    expectedPreviousHash: expectedPrevHash
+  });
+  return { applied: true, outcome, prevMemory };
+}
+
 export async function ensurePreviousProofCompleted(
   memory: Memory,
   loadMemory: (uuid: string) => Promise<Memory | null>,

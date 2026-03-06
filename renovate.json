@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate replaces Dependabot: npm, github-actions, Dockerfiles, docker-compose. Disable Dependabot version updates in Settings → Code security and analysis.",
+  "schedule": ["before 10am on monday"],
+  "openPullRequestsLimit": 1,
+  "packageRules": [
+    {
+      "description": "Group npm updates into one PR",
+      "managers": ["npm"],
+      "groupName": "npm",
+      "commitMessagePrefix": "deps(npm)"
+    },
+    {
+      "description": "Group GitHub Actions updates into one PR",
+      "managers": ["github-actions"],
+      "groupName": "github-actions",
+      "commitMessagePrefix": "deps(actions)"
+    },
+    {
+      "description": "Group Dockerfile image updates into one PR",
+      "managers": ["dockerfile"],
+      "groupName": "docker",
+      "commitMessagePrefix": "deps(docker)"
+    },
+    {
+      "description": "Group docker-compose image updates into one PR",
+      "managers": ["docker-compose"],
+      "groupName": "docker-compose",
+      "commitMessagePrefix": "deps(compose)"
+    }
+  ]
+}

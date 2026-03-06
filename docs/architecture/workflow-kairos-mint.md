@@ -1,11 +1,11 @@
 # kairos_mint workflow
 
-Stores a markdown document as a KAIROS memory or protocol chain. Each H1
-defines a chain; each H2 defines a step. Use this when the user wants to
-create, add, mint, store, or save a protocol or document. For executable
-protocols, add a challenge per step (e.g. a JSON code block with
+`kairos_mint` stores a markdown document as a KAIROS memory or protocol
+chain. H1 headings define a chain; H2 headings define steps. Use it when
+the user wants to create, add, mint, store, or save a protocol or document.
+For executable protocols, add a challenge per step (a JSON code block with
 `{"challenge": ...}`) so the chain can be run via search → begin → next →
-run complete.
+attest.
 
 ## Input schema
 
@@ -19,10 +19,11 @@ run complete.
 
 Fields:
 
-- `markdown_doc` — the markdown document to store (H1 = protocol, H2 = steps).
-- `llm_model_id` — LLM model ID used for embedding/storage context.
-- `force_update` — if `true`, overwrite an existing chain with the same
-  label; otherwise duplicate/similar checks apply.
+- `markdown_doc` — the markdown document to store (H1 = protocol, H2 =
+  steps).
+- `llm_model_id` — LLM model ID used for embedding and storage context.
+- `force_update` — when `true`, overwrite an existing chain with the same
+  label. Otherwise duplicate and similarity checks apply.
 
 ## Success response schema
 
@@ -42,21 +43,15 @@ Fields:
 
 Fields:
 
-- `items` — one entry per stored memory (one step or multiple steps in a chain).
+- `items` — one entry per stored memory (one step, or multiple steps in a
+  chain).
 - `status` — always `"stored"` on success.
-
----
 
 ## Challenge types and examples
 
-Add a single challenge per step as a trailing JSON code block so the chain is
-executable. Mix types as needed.
-
-**Challenge as JSON code block.** Use a fenced code block (e.g. ` ```json `)
-at the end of a step containing a single
-JSON object with a `challenge` key. The value has the same shape as
-`ProofOfWorkDefinition` and the runtime `challenge`. Dump emits the challenge as
-`{"challenge": ...}`. Examples (one per type):
+Add one challenge per step as a trailing JSON code block. Mix types as
+needed. Use a fenced ` ```json ` block at the end of a step containing a
+single JSON object with a `challenge` key.
 
 **Shell:**
 
@@ -109,10 +104,8 @@ JSON object with a `challenge` key. The value has the same shape as
 }
 ```
 
-Legacy lines above remain valid for backward compatibility; JSON block wins
-when both are present in a step.
-
----
+When both a legacy inline challenge and a JSON block are present in a step,
+the JSON block takes precedence.
 
 ## Scenario 1: store new protocol chain
 
@@ -120,8 +113,8 @@ The document is new. All steps are stored and URIs are returned.
 
 ### Input
 
-Example `markdown_doc` (actual request body is this content with newlines as
-`\n` in JSON):
+Example `markdown_doc` (actual request body uses `\n` for newlines in
+JSON):
 
 ````
 # Deploy Checklist
@@ -175,15 +168,12 @@ Deploy to staging.
 ### AI behavior
 
 Use the returned URIs for search/begin or to inform the user. To run the
-protocol, the user (or agent) can call `kairos_search` with a query that
-matches the chain, then follow `next_action`.
-
----
+protocol, call `kairos_search` with a query matching the chain label, then
+follow `next_action`.
 
 ## Scenario 2: force_update overwrites existing chain
 
-A chain with the same label already exists. The caller sets
-`force_update: true` to replace it.
+A chain with the same label exists. Set `force_update: true` to replace it.
 
 ### Input
 
@@ -197,22 +187,19 @@ A chain with the same label already exists. The caller sets
 
 ### Expected output
 
-Same shape as Scenario 1: `items` for each step (possibly new UUIDs after
+Same shape as scenario 1: `items` for each step (possibly new UUIDs after
 replace), `status: "stored"`.
 
 ### AI behavior
 
 Only use `force_update: true` after the user or agent has confirmed that
-the existing protocol should be replaced (for example after
-`kairos_begin` on the existing URI to compare content).
-
----
+the existing protocol must be replaced (for example, after using
+`kairos_dump` to compare content).
 
 ## Scenario 3: error — DUPLICATE_CHAIN
 
-The store logic detected an existing chain with the same identity and
-`force_update` was not set. The tool returns an error body, not a normal
-success response.
+The store detected an existing chain with the same identity and
+`force_update` was not set.
 
 ### Expected output (error body)
 
@@ -224,21 +211,15 @@ success response.
 }
 ```
 
-Details may include `chain_id` and `items`. The agent must not overwrite
-without explicit user intent; use `force_update: true` to replace after
-confirmation.
-
 ### AI behavior
 
 Inform the user that a chain with this content already exists. Offer to
-open it via `kairos_begin` with the existing URI or to replace it with
-`kairos_mint` and `force_update: true` if the user confirms.
-
----
+open it via `kairos_begin` with the existing URI, or to replace it with
+`kairos_mint` and `force_update: true` after the user confirms.
 
 ## Scenario 4: error — SIMILAR_MEMORY_FOUND
 
-Another memory is very similar by title/label (e.g. above a similarity
+Another memory is very similar by title or label (above the similarity
 threshold). The server returns a structured error so the agent can compare
 and decide.
 
@@ -265,15 +246,13 @@ and decide.
 
 ### AI behavior
 
-1. When `must_obey` is `true`, follow `next_action`: call `kairos_dump`
-   with `uri` from `existing_memory.uri` and `protocol: true` to get the
-   existing protocol as `markdown_doc`.
+1. `must_obey: true` — follow `next_action`: call `kairos_dump` with the
+   URI from `existing_memory.uri` and `protocol: true` to get the existing
+   protocol as `markdown_doc`.
 2. Compare the existing content with the intended mint payload.
 3. Either call `kairos_mint` with `force_update: true` to replace, or
-   change the document (title/content) to make it distinct and call
-   `kairos_mint` again without overwriting.
-
----
+   change the document (title or content) to make it distinct and call
+   `kairos_mint` again.
 
 ## Scenario 5: error — STORE_FAILED
 
@@ -290,16 +269,23 @@ A generic storage or processing failure occurred.
 
 ### AI behavior
 
-Retry if transient; otherwise report the error to the user and do not
-claim success.
-
----
+Retry if the failure is transient. Otherwise report the error to the user
+and do not claim success.
 
 ## Validation rules
 
 1. On success, `items` is a non-empty array and `status` is `"stored"`.
-2. Each item has `uri`, `memory_uuid`, `label`, `tags`.
+2. Each item has `uri`, `memory_uuid`, `label`, and `tags`.
 3. Error responses are returned as MCP error content with a JSON body
    containing `error` and scenario-specific fields.
 4. For `SIMILAR_MEMORY_FOUND`, `existing_memory` includes `uri` and
    `next_action` is present when the agent must follow a recovery path.
+
+## See also
+
+- [kairos_dump workflow](workflow-kairos-dump.md) — inspect existing
+  content before overwriting
+- [kairos_update workflow](workflow-kairos-update.md) — update individual
+  steps
+- [kairos_search workflow](workflow-kairos-search.md) — find existing
+  protocols before minting a duplicate

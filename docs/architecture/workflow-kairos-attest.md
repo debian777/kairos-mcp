@@ -1,14 +1,13 @@
 # kairos_attest workflow
 
-**Deprecated in the default protocol.** The run is complete when the last
-`kairos_next` (or `kairos_begin` for single-step) returns `next_action` directing you to call `kairos_attest`. Quality is updated
-per step in `kairos_next`; you do not need to call `kairos_attest`. This
-tool remains available for optional override (e.g. to set outcome or add a
-final message after the fact) or backward compatibility.
+`kairos_attest` is the required final step of every protocol run. When the
+last `kairos_next` (or `kairos_begin` for a single-step protocol) has no
+more content steps, `next_action` always directs the AI to call
+`kairos_attest` with the last step URI, an outcome, and a message. Calling
+it finalizes the run and updates quality metrics in Qdrant.
 
-When used: finalize with an outcome. Updates quality metrics in Qdrant. No
-`final_solution` required — the last step's solution was already validated
-via `kairos_next`.
+No `final_solution` is required — the last step's challenge was already
+validated by `kairos_next`.
 
 ## Input schema
 
@@ -22,15 +21,15 @@ via `kairos_next`.
 
 Fields:
 
-- `uri` -- the URI of the last step in the protocol
-- `outcome` -- `"success"` or `"failure"`
-- `message` -- short summary of how the protocol went
+- `uri` — the URI of the last step in the protocol
+- `outcome` — `"success"` or `"failure"`
+- `message` — short summary of how the protocol went
 
 Fields that no longer exist:
 
-- `final_solution` -- removed; the last step's challenge is solved via
-  `kairos_next` like every other step. `kairos_attest` is just a stamp
-  of completion, not a challenge/solution gate.
+- `final_solution` — removed; the last step's challenge is solved via
+  `kairos_next` like every other step. `kairos_attest` is a completion
+  stamp, not a challenge/solution gate.
 
 ## Response schema
 
@@ -52,11 +51,9 @@ Fields that no longer exist:
 
 Fields:
 
-- `results` -- array of rating outcomes (one per URI attested)
-- `total_rated` -- count of successfully rated URIs
-- `total_failed` -- count of failed ratings
-
----
+- `results` — array of rating outcomes (one per URI attested)
+- `total_rated` — count of successfully rated URIs
+- `total_failed` — count of failed ratings
 
 ## Scenario 1: success attestation
 
@@ -92,14 +89,13 @@ The protocol completed successfully. Quality metrics are boosted.
 
 ### AI behavior
 
-After attestation, the protocol is done. The AI may now respond to the user.
-
----
+After attestation the protocol run is complete. The AI may now respond to
+the user.
 
 ## Scenario 2: failure attestation
 
-The protocol failed (e.g., max retries exceeded, or the AI decided to
-abort). Quality metrics are penalized.
+The protocol failed (for example, max retries exceeded, or the AI aborted).
+Quality metrics are penalized.
 
 ### Input
 
@@ -131,15 +127,22 @@ abort). Quality metrics are penalized.
 
 ### AI behavior
 
-After failure attestation, the protocol is done. The AI should inform the
+After failure attestation the protocol run is complete. The AI informs the
 user about what went wrong.
-
----
 
 ## Validation rules
 
 1. `results` is always a non-empty array.
-2. Each result has `uri`, `outcome`, `quality_bonus`, `message`, `rated_at`.
+2. Each result has `uri`, `outcome`, `quality_bonus`, `message`, and
+   `rated_at`.
 3. `total_rated` + `total_failed` equals `results.length`.
 4. `rated_at` is a valid ISO 8601 timestamp.
-5. The following fields must NOT be present in the input: `final_solution`.
+5. The `final_solution` field must not be present in the input.
+
+## See also
+
+- [kairos_next workflow](workflow-kairos-next.md) — how the last step
+  directs the AI to call `kairos_attest`
+- [Full execution workflow](workflow-full-execution.md)
+- [Quality metadata](quality-metadata.md) — how attestation updates
+  quality scores

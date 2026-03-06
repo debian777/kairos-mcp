@@ -1,0 +1,54 @@
+# Local dev: build from source (no npm publish required).
+# Use: docker build -f Dockerfile.dev -t kairos-mcp:dev .
+# Release images use Dockerfile and install from npm.
+# Multi-arch support for x64 and ARM64
+FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY eslint.config.cjs ./
+
+RUN npm ci && npm cache clean --force
+
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY docs/ ./docs/
+
+ENV DOCKER_BUILD=1
+RUN npm run build
+
+FROM node:25-alpine AS production
+
+VOLUME /snapshots
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S kairos -u 1001
+
+WORKDIR /app
+
+COPY --from=builder --chown=kairos:nodejs /app/dist ./dist
+COPY --from=builder --chown=kairos:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=kairos:nodejs /app/package.json ./
+
+RUN mkdir -p logs storage/qdrant && \
+    chown -R kairos:nodejs logs storage
+
+USER kairos
+
+ARG PORT=3500
+ENV PORT=${PORT}
+ARG METRICS_PORT=9090
+ENV METRICS_PORT=${METRICS_PORT}
+
+EXPOSE ${PORT} ${METRICS_PORT}
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+
+ENV NODE_ENV=production
+ENV QDRANT_URL=http://qdrant:6333
+ENV QDRANT_COLLECTION=kairos_memories
+
+CMD ["node", "dist/index.js"]

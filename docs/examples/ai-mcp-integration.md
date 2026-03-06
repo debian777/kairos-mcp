@@ -25,6 +25,19 @@ Use this when an AI agent should run protocols on **kairos-dev** from a **real u
 - **Flow in each report:** Import → run workflow. For each step: **what you did** and **why** (UX), then the full **request/response JSON** in a markdown code block. Use **pretty-printed JSON** (indented, human-readable). Put all call/response data inline in the report.
 - **Always regenerate reports.** Do not edit existing reports; (re)generate each report in full when writing.
 
+## MUST ALWAYS
+
+- Import and run each protocol individually.
+- Write one report per protocol file to the designated path.
+- Regenerate each report in full when writing.
+
+## MUST NEVER
+
+- Read `docs/examples/README.md`.
+- Run shell commands.
+- Fabricate shell output — skip protocols with `shell` challenges.
+- Write files outside `reports/<run-id>/`.
+
 ## Why one-by-one
 
 Protocols are the unit of behavior. Importing and running them one by one ensures each protocol is executed as intended and makes it clear which chain and which step succeeded or failed.
