@@ -1,62 +1,72 @@
 # Architecture and protocol workflows
 
-This section describes how the KAIROS protocol works end-to-end and how each
-MCP tool fits into the flow. Use it when implementing clients, debugging
-execution, or designing new agent-facing behavior.
+Use this section when implementing clients, debugging execution, or
+designing new agent-facing behavior. It covers how the KAIROS protocol
+works end-to-end and how each MCP tool fits into the flow.
 
 ## What you will find here
 
-- **Infrastructure:** Container topology, port map, startup sequence, volume
-  layout, and service wiring — all with Mermaid diagrams.
-- **Full execution:** A single walkthrough from search to run complete with
-  example requests and responses.
-- **Tool workflows:** Per-tool response shapes, scenarios, and AI decision
-  rules for execution tools (`kairos_search`, `kairos_begin`, `kairos_next`),
-  content tools (`kairos_mint`, `kairos_update`, `kairos_delete`), and
-  inspection (`kairos_dump`). `kairos_attest` is the final step of every run.
+- **Infrastructure:** Container topology, port map, startup sequence,
+  volume layout, and service wiring — all with Mermaid diagrams.
+- **Full execution:** A single walkthrough from search to run complete
+  with example requests and responses.
+- **Tool workflows:** Per-tool response shapes, scenarios, and AI
+  decision rules for execution tools (`kairos_search`, `kairos_begin`,
+  `kairos_next`), content tools (`kairos_mint`, `kairos_update`,
+  `kairos_delete`), and inspection (`kairos_dump`).
+  `kairos_attest` finalizes every run.
 
 Protocol order is always: search → begin → next (loop) → attest.
 
 ## Infrastructure
 
-[Infrastructure architecture](infrastructure.md) covers the Docker Compose topology,
-port map, startup sequence, volume layout, Redis/Qdrant data models, and embedding
-provider selection — all with Mermaid diagrams.
+[Infrastructure architecture](infrastructure.md) covers the Docker
+Compose topology, port map, startup sequence, volume layout, Redis/Qdrant
+data models, and embedding provider selection — all with Mermaid diagrams.
 
 ## Full execution walkthrough
 
-[Full execution workflow: search to run complete](workflow-full-execution.md) shows
-one complete run of a 3-step protocol. It includes raw JSON for each call and
-how `next_action` chains the flow.
+[Full execution workflow: search to run complete](workflow-full-execution.md)
+shows one complete run of a 3-step protocol. It includes raw JSON for
+each call and how `next_action` chains the flow.
 
 ## Tool workflow reference
 
-| Tool                                       | Purpose                                                    |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| [kairos_search](workflow-kairos-search.md) | Find protocols by query; get `choices` and `next_action`.  |
-| [kairos_begin](workflow-kairos-begin.md)   | Load step 1 and first challenge; no solution required.     |
-| [kairos_next](workflow-kairos-next.md)     | Submit a solution and receive the next step or completion. |
-| [kairos_attest](workflow-kairos-attest.md) | Final step. Call after last kairos_next to finalize the run. |
-| [kairos_mint](workflow-kairos-mint.md)     | Store markdown as protocol chain; duplicate/similar handling. |
+| Tool | Purpose |
+| ---- | ------- |
+| [kairos_search](workflow-kairos-search.md) | Find protocols by query; get `choices` and `next_action`. |
+| [kairos_begin](workflow-kairos-begin.md) | Load step 1 and first challenge; no solution required. |
+| [kairos_next](workflow-kairos-next.md) | Submit a solution and receive the next step or completion. |
+| [kairos_attest](workflow-kairos-attest.md) | Final step. Call after the last `kairos_next` to finalize the run. |
+| [kairos_mint](workflow-kairos-mint.md) | Store markdown as a protocol chain; handles duplicate and similar chains. |
 | [kairos_update](workflow-kairos-update.md) | Update one or more memories by URI (markdown or field updates). |
-| [kairos_delete](workflow-kairos-delete.md) | Delete one or more memories by URI.                        |
-| [kairos_dump](workflow-kairos-dump.md)     | Read-only inspection; returns markdown_doc for update or mint. |
-| [quality_metadata](quality-metadata.md)    | How we use quality_metadata in Qdrant payloads; JSON examples and data flow. |
+| [kairos_delete](workflow-kairos-delete.md) | Delete one or more memories by URI. |
+| [kairos_dump](workflow-kairos-dump.md) | Read-only inspection; returns `markdown_doc` for update or re-mint. |
+| [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
 
 Read the tool docs in that order when tracing a full run or implementing a
 client.
 
 ## Agent recovery UX
 
-[Agent recovery UX](agent-recovery-ux.md) describes how to reduce step-skipping by
-agent users: challenge-type-specific error messages and `next_action` when proof
-is missing (e.g. tell the agent to ask the user for user_input instead of
-inferring).
+[Agent recovery UX](agent-recovery-ux.md) describes how to reduce
+step-skipping: challenge-type-specific error messages and `next_action`
+when proof is missing (for example, telling the agent to ask the user for
+`user_input` instead of inferring the answer).
+
+## Auth URL topology (QA / Docker)
+
+[Auth URLs: QA and Docker topology](auth-urls-qa.md) explains which
+Keycloak URL each party uses and how `KEYCLOAK_URL` vs
+`KEYCLOAK_INTERNAL_URL` are set in `.env.qa` and `compose.yaml`.
 
 ## Next steps
 
-- For the project’s mission and goals, see the [README](../../README.md).
+- For the project's mission and goals, see the [README](../../README.md).
+- For setup and contribution workflow, see
+  [CONTRIBUTING.md](../../CONTRIBUTING.md).
 - For CLI usage, see [CLI](../CLI.md).
 - For Cursor setup, see [Install KAIROS MCP in Cursor](../INSTALL-MCP.md).
 - For agent-facing design doctrine, see
   [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles).
+- For historical design decisions, see [Design plans](../plans/README.md).

@@ -1,32 +1,41 @@
-# Infrastructure Architecture
+# Infrastructure architecture
 
-This document describes the deployment topology, container composition, network layout,
-and service relationships for KAIROS MCP. Derived from `compose.yaml` and `src/index.ts`.
-
----
+This document describes the deployment topology, container composition,
+network layout, and service relationships for KAIROS MCP. It is derived
+from [`compose.yaml`](../../compose.yaml) and `src/index.ts`.
 
 ## Deployment profiles
 
-The compose file uses Docker profiles to control which services start together.
+`compose.yaml` uses Docker profiles to control which services start
+together. Start infrastructure first (`infra`), then the application
+profile (`qa` or `prod`).
 
-| Profile | Services started |
-|---------|-----------------|
-| `infra` | redis, redisinsight, qdrant, postgres *(Keycloak DB only, env-driven)* |
-| `prod`  | redis, redisinsight, qdrant, postgres, app-prod |
-| `qa`    | app-qa *(connects to externally running infra)* |
+| Profile    | Services started |
+|------------|-----------------|
+| `infra`    | redis, qdrant, postgres, keycloak |
+| `infra-ui` | redisinsight (optional Redis web UI; combine with `infra`) |
+| `qa`       | app-qa (connects to externally running infra) |
+| `prod`     | app-prod (connects to externally running infra) |
 
 ```bash
-docker compose -p kairos-mcp --profile infra up -d   # infrastructure only
-docker compose -p kairos-mcp --profile prod  up -d   # full production stack
-docker compose -p kairos-mcp --profile qa    up -d   # QA app against existing infra
+# Infrastructure only
+docker compose -p kairos-mcp --profile infra up -d
+
+# QA app against running infra
+docker compose -p kairos-mcp --profile infra --profile qa up -d
+
+# Full production stack
+docker compose -p kairos-mcp --profile infra --profile prod up -d
+
+# Add Redis web UI
+docker compose -p kairos-mcp --profile infra --profile infra-ui up -d
 ```
 
----
+Or use `npm run infra:up` to start infrastructure (uses `.env.dev`).
 
 ## Container topology
 
-Containers live on a single bridge network (`kairos-network`). Volumes are all
-rooted under `${VOLUME_LOCAL_PATH}` on the host.
+All containers run on a single bridge network (`kairos-network`).
 
 ```mermaid
 flowchart TB
@@ -34,17 +43,23 @@ flowchart TB
         subgraph NET["🌐  kairos-network  (bridge)"]
             direction TB
 
-            subgraph INFRA["profile: infra / prod"]
+            subgraph INFRA["profile: infra"]
                 REDIS["🗄 redis:7-alpine
                 :6379  TCP
                 maxmem 512 MB · allkeys-lru
                 AOF + RDB"]
                 RI["🔍 redisinsight
                 :5540  HTTP
-                Web UI"]
+                Web UI (profile: infra-ui)"]
                 QDRANT["🧠 qdrant/qdrant
                 :6333  HTTP · :6344  gRPC
                 maxmem 4 GB"]
+                PG["🐘 postgres:16
+                :5432  TCP
+                Keycloak DB only"]
+                KC["🔐 keycloak:26
+                :8080  HTTP · :9000  HTTP
+                OIDC / auth"]
             end
 
             subgraph PROD["profile: prod"]
@@ -58,26 +73,29 @@ flowchart TB
             end
 
             RI    -->|"depends_on"| REDIS
-            APP   -->|"depends_on"| REDIS
-            APP   -->|"depends_on"| QDRANT
+            KC    -->|"depends_on (healthy)"| PG
             APP   -->|"REDIS_URL"| REDIS
             APP   -->|"QDRANT_URL"| QDRANT
             QAAPP -->|"REDIS_URL"| REDIS
             QAAPP -->|"QDRANT_URL"| QDRANT
+            APP   -->|"KEYCLOAK_INTERNAL_URL"| KC
+            QAAPP -->|"KEYCLOAK_INTERNAL_URL"| KC
         end
 
         subgraph VOLS["💾  Persistent Volumes"]
             direction LR
-            VR[("data/redis")]
-            VQ[("data/qdrant")]
-            VRI[("data/redisinsight")]
-            VSP[("snapshots/prod")]
-            VSQ[("snapshots/qa")]
+            VR[("redis-data")]
+            VQ[("qdrant-data")]
+            VRI[("redisinsight-data")]
+            VPG[("postgres-data")]
+            VSP[("snapshots-prod")]
+            VSQ[("snapshots-qa")]
         end
 
         REDIS  -.->|mount| VR
         QDRANT -.->|mount| VQ
         RI     -.->|mount| VRI
+        PG     -.->|mount| VPG
         APP    -.->|mount| VSP
         QAAPP  -.->|mount| VSQ
     end
@@ -87,34 +105,32 @@ flowchart TB
     classDef qasvc    fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
     classDef vol      fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
-    class REDIS,RI,QDRANT infrasvc
+    class REDIS,RI,QDRANT,PG,KC infrasvc
     class APP appsvc
     class QAAPP qasvc
-    class VR,VQ,VRI,VSP,VSQ vol
+    class VR,VQ,VRI,VPG,VSP,VSQ vol
 ```
-
----
 
 ## Port map
 
 | Service      | Host port | Container port | Protocol | Purpose |
 |-------------|-----------|---------------|----------|---------|
 | redis        | 6379  | 6379  | TCP  | Key-value store |
-| redisinsight | 5540  | 5540  | HTTP | Redis web UI |
+| redisinsight | 5540  | 5540  | HTTP | Redis web UI (profile `infra-ui`) |
 | qdrant       | 6333  | 6333  | HTTP | Vector DB REST API |
 | qdrant       | 6344  | 6344  | gRPC | Vector DB gRPC API |
+| postgres     | 5432  | 5432  | TCP  | Postgres (Keycloak DB only) |
+| keycloak     | 8080  | 8080  | HTTP | OIDC / auth |
+| keycloak     | 9000  | 9000  | HTTP | Keycloak health endpoint |
 | app-prod     | 3000  | 3000  | HTTP | MCP + REST API |
 | app-prod     | 9090  | 9090  | HTTP | Prometheus metrics |
 | app-qa       | 3500  | 3500  | HTTP | MCP + REST API |
 | app-qa       | 9090  | 9090  | HTTP | Prometheus metrics |
-| postgres     | 5432  | 5432  | TCP  | Postgres (Keycloak DB; profiles `infra` / `prod`) |
-
----
 
 ## Application startup sequence
 
-`src/index.ts` enforces a strict boot order. No HTTP traffic is accepted until
-every step completes successfully.
+`src/index.ts` enforces a strict boot order. No HTTP traffic is accepted
+until every step completes successfully.
 
 ```mermaid
 sequenceDiagram
@@ -165,12 +181,10 @@ sequenceDiagram
     HTTP-->>-PROC: listening :3000 ✅
 ```
 
----
-
 ## Internal service wiring
 
-How the application layers connect at runtime — from an incoming HTTP/MCP call
-down through the service layer to external infrastructure.
+This diagram shows how an incoming HTTP/MCP call flows from the transport
+layer down through the service layer to external infrastructure.
 
 ```mermaid
 flowchart LR
@@ -262,22 +276,22 @@ flowchart LR
     class OPENAI,TEI ext
 ```
 
----
-
 ## Health checks
 
 | Service  | Method | Interval | Timeout | Retries | Start period |
 |----------|--------|----------|---------|---------|-------------|
 | redis    | `redis-cli ping` | 10 s | 3 s | 3 | — |
 | qdrant   | `/proc/net/tcp` hex port `:18BD` (= 6333) | 30 s | 5 s | 3 | — |
+| postgres | `pg_isready -U keycloak` | 5 s | 5 s | 10 | — |
 | app-prod | `wget /health` on `$PORT` | 30 s | 5 s | 3 | 40 s |
 | app-qa   | `wget /health` on `$PORT` | 30 s | 5 s | 3 | 40 s |
 
----
-
 ## Volume layout
 
-**Default** `compose.yaml` uses **Docker named volumes** (redis-data, qdrant-data, postgres-data, snapshots-qa, snapshots-prod); no host path required. **Alternative** `compose-dir-volumes.yaml` uses bind mounts under `${VOLUME_LOCAL_PATH}`:
+The default `compose.yaml` uses Docker named volumes (`redis-data`,
+`qdrant-data`, `postgres-data`, `snapshots-qa`, `snapshots-prod`); no
+host path required. The alternative `compose-dir-volumes.yaml` uses bind
+mounts under `${VOLUME_LOCAL_PATH}`:
 
 ```
 ${VOLUME_LOCAL_PATH}/
@@ -285,31 +299,29 @@ ${VOLUME_LOCAL_PATH}/
 │   ├── redis/             # AOF journal + RDB snapshot (60 s / 1000 writes)
 │   ├── qdrant/            # Vector storage (segments, WAL, indexes)
 │   ├── redisinsight/      # RedisInsight UI settings
-│   └── postgres/          # Postgres data (profiles infra/prod; Keycloak DB only, env-driven)
+│   └── postgres/          # Postgres data (Keycloak DB only)
 └── snapshots/
     ├── prod/qdrant/       # On-demand or startup snapshots — prod
     └── qa/qdrant/         # On-demand or startup snapshots — qa
 ```
 
----
-
 ## Redis data model
 
-Redis holds only **transient** state; all durable protocol data lives in Qdrant.
+Redis holds only **transient** state; all durable protocol data lives in
+Qdrant.
 
 | Key pattern | TTL | Purpose |
 |-------------|-----|---------|
 | `kairos:pow:<nonce>` | short | Proof-of-work challenge; consumed on first valid submission |
 | `kairos:cache:*` | configurable | Optional response cache |
 
-Config: `maxmemory 512mb`, `allkeys-lru`, persistence via `appendonly yes` + `save 60 1000`.
-
----
+Config: `maxmemory 512mb`, `allkeys-lru`, persistence via
+`appendonly yes` + `save 60 1000`.
 
 ## Qdrant data model
 
-One collection (default `kairos`) holds every protocol step as a
-vector + payload point. H1 headings become chain headers; H2 headings become steps.
+One collection (default `kairos`) holds every protocol step as a vector +
+payload point. H1 headings become chain headers; H2 headings become steps.
 
 ```mermaid
 erDiagram
@@ -340,12 +352,10 @@ erDiagram
     MEMORY_POINT   ||--o| QUALITY_METADATA : "tracks quality via"
 ```
 
----
-
 ## Embedding provider selection
 
-`EMBEDDING_PROVIDER` (default `auto`) determines the vector backend at both
-mint and search time.
+`EMBEDDING_PROVIDER` (default `auto`) determines the vector backend at
+both mint and search time.
 
 ```mermaid
 flowchart TD
@@ -368,13 +378,14 @@ flowchart TD
     INTRO --> VEC
 ```
 
----
-
 ## See also
 
-- [Full execution workflow](workflow-full-execution.md) — protocol run end-to-end
+- [Full execution workflow](workflow-full-execution.md) — protocol run
+  end-to-end
 - [Quality metadata](quality-metadata.md) — scoring and bonus structure
-- [Keycloak OIDC dev plan](../plans/keycloak-oidc-dev.md) — optional Keycloak (not in current compose)
+- [Auth URLs: QA and Docker topology](auth-urls-qa.md) — Keycloak URL
+  routing
 - [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
-- [`compose-dir-volumes.yaml`](../../compose-dir-volumes.yaml) — bind mounts under VOLUME_LOCAL_PATH
+- [`compose-dir-volumes.yaml`](../../compose-dir-volumes.yaml) — bind
+  mounts under VOLUME_LOCAL_PATH
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults
