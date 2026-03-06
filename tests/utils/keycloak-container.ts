@@ -341,7 +341,4 @@ export async function startKeycloakWithTestUser(): Promise<KeycloakTestEnv> {
   };
 }
 
-export {
-  useExistingKeycloakFromEnv,
-  useExistingKeycloakForQa
-} from './keycloak-existing-env';
+export { useExistingKeycloakFromEnv } from './keycloak-existing-env';

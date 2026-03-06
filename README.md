@@ -56,7 +56,7 @@ KAIROS runs as a Docker stack. Docker and Docker Compose are required.
    curl http://localhost:3000/health
    ```
 
-   A `200 OK` response confirms the server is running.
+   A `200 OK` response confirms the server is running. Full developer workflow (build, test, lint, dev commands) is documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
