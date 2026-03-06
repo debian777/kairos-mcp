@@ -98,6 +98,18 @@ flowchart TB
 
 The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. In the workflow they are referenced as `${{ secrets.OPENAI_API_KEY }}` etc. Non-sensitive values use **repository variables** as `${{ vars.VAR_NAME }}`. If optional secrets are not set, the job uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
 
+**Embeddings (OpenAI or TEI):** Integration tests need an embedding provider. The workflow accepts either:
+
+- **OPENAI_API_KEY** (Actions secret): when set, the app uses OpenAI for embeddings.
+- **TEI (no secret):** when `OPENAI_API_KEY` is not set, the workflow starts a [Text Embeddings Inference](https://huggingface.co/docs/text-embeddings-inference) (TEI) container and configures the app to use it, so embedding tests run without any API key.
+
+**Dependabot and secrets:** Workflows triggered by **Dependabot** PRs do not have access to **Actions** secrets (by design). Only **Dependabot** secrets are available. To give Dependabot PRs access to OpenAI:
+
+1. Go to **Settings → Secrets and variables → Actions** and ensure `OPENAI_API_KEY` is set (for normal and manual runs).
+2. Go to **Settings → Secrets and variables → Dependabot** and add a secret with the same name `OPENAI_API_KEY`. Dependabot-triggered runs will then use it. The workflow references `${{ secrets.OPENAI_API_KEY }}` for both; the runner gets Actions or Dependabot secrets depending on who triggered the run.
+
+If you do not add a Dependabot secret, Dependabot PRs still pass: the workflow detects the missing key and uses TEI instead.
+
 ### Running the integration workflow manually
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
