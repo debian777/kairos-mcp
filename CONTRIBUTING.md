@@ -46,25 +46,24 @@ tests run against the live process, not in-process.
 
 ## Developer commands
 
+All build, deploy, and test operations are npm scripts. **Always deploy before testing:** tests run against the running dev server, so deploy your changes first.
+
 **Build**
 
 ```bash
 npm run dev:build    # lint + TypeScript → dist/ (dev)
-npm run qa:build     # lint + TypeScript → dist/ (QA)
 ```
 
 **Deploy**
 
 ```bash
 npm run dev:deploy   # dev:build + restart dev server
-npm run qa:deploy    # qa:build + start QA server
 ```
 
 **Test**
 
 ```bash
 npm run dev:deploy && npm run dev:test
-npm run qa:deploy  && npm run qa:test
 
 # Run a single test file after deploy:
 npm run dev:test -- tests/integration/kairos-dump.test.ts
@@ -81,7 +80,7 @@ AUTH_ENABLED=false npm run dev:test
 
 Jest global-setup starts Keycloak via Testcontainers when `KEYCLOAK_URL`
 is unset, provisions the test user, and writes
-`.test-auth-env.{dev,qa}.json`. The app must already be running.
+`.test-auth-env.dev.json`. The app must already be running.
 
 ```bash
 npm run dev:deploy
@@ -99,18 +98,6 @@ npm run dev:logs      # view logs
 npm run dev:status    # check status
 npm run dev:redis-cli # Redis CLI (dev)
 npm run dev:qdrant-curl # Qdrant via curl (dev)
-```
-
-**QA environment controls**
-
-```bash
-npm run qa:start      # start
-npm run qa:stop       # stop
-npm run qa:restart    # restart
-npm run qa:logs       # view logs
-npm run qa:status     # check status
-npm run qa:redis-cli  # Redis CLI (QA)
-npm run qa:qdrant-curl # Qdrant via curl (QA)
 ```
 
 **Infrastructure**
@@ -153,7 +140,7 @@ tests/             Test files
 tests/test-data/   Test fixtures
 tests/workflow-test/ Agent workflow test prompt and instructions
 reports/           Workflow test output (gitignored except .gitkeep)
-docs/examples/     Mintable protocol examples for dev/qa workflow tests
+docs/examples/     Mintable protocol examples for dev workflow tests
 scripts/           Build and utility scripts
 ```
 
@@ -329,7 +316,7 @@ structured, actionable instructions.
 ## Constraints
 
 KAIROS MCP must remain safe to run in production with clear environment
-separation (dev/qa/live). Agent-facing changes must preserve backward
+separation (dev/live). Agent-facing changes must preserve backward
 compatibility or provide explicit upgrade paths. Operational dependencies
 (Redis + Qdrant) must be predictable; avoid hidden state.
 

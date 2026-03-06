@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # kairos Environment Management Script
-# USAGE: ENV=dev|qa|prod ./scripts/run-env.sh [build|start|stop|restart|status|test|logs|health]
+# USAGE: ENV=dev|prod ./scripts/run-env.sh [build|start|stop|restart|status|test|logs|health]
 #
 # ENVIRONMENTS:
 # - dev: Direct Node.js (PORT=3300, optional deps, unit tests)
-# - qa: Docker Compose (PORT=3500, required deps, integration tests)
 # - prod: Read-only CLI (qdrant-curl, redis-cli, health); app managed externally
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
@@ -29,7 +28,6 @@ if [ -z "${ENV+x}" ] && [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     echo "Use npm scripts instead. Common targets include:"
     echo "  - npm run dev:start    (start development environment)"
     echo "  - npm run dev:test     (run tests in development)"
-    echo "  - npm run qa:start     (start QA environment)"
     echo ""
     echo "See package.json for the full list of available npm scripts."
     exit 1
@@ -68,20 +66,18 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     AUTH_ENABLED_BEFORE="${AUTH_ENABLED:-}"
     [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
     [ -n "${AUTH_ENABLED_BEFORE}" ] && export AUTH_ENABLED="$AUTH_ENABLED_BEFORE"
-    # QA: .env.qa is self-contained (Keycloak/compose vars); .env no longer required
 fi
 
 # Validate environment (skip for ensure-coding-rules)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
-    case "$ENV" in dev|qa|prod) ;; *) print_error "Invalid ENV: $ENV (use dev, qa, or prod)"; exit 1 ;; esac
+    case "$ENV" in dev|prod) ;; *) print_error "Invalid ENV: $ENV (use dev or prod)"; exit 1 ;; esac
 fi
 
-# Environment defaults (PORT from .env.* or dev=3300 / qa=3500)
+# Environment defaults (PORT from .env.* or dev=3300)
 METRICS_PORT="${METRICS_PORT:-9390}"
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in
         dev)  PORT="${PORT:-3300}" ;;
-        qa)   PORT="${PORT:-3500}" ;;
         prod) PORT="${PORT:-3500}" ;;
     esac
 fi
@@ -164,10 +160,6 @@ build() {
     print_info "Building project..."
     cd "$PROJECT_DIR"
     case "$ENV" in
-        qa)
-            print_info "Running prebuild verification (no mocks, no console.log in src)"
-            docker build -t debian777/kairos-mcp:latest . && print_success "Docker build complete"
-            ;;
         dev|prod)
             print_info "Running prebuild (embed-docs) and verification..."
             npm run prebuild
@@ -222,19 +214,6 @@ start() {
                 print_error "lsof not available; cannot determine dev server PID (PID file not created)"
             fi
 
-            show_urls
-
-            ;;
-        qa)
-            # Check required dependencies (TEI only if not using OpenAI embeddings)
-            check_qdrant && check_redis || { print_error "QA requires Qdrant and Redis"; exit 1; }
-            if [[ "${EMBEDDING_PROVIDER:-}" != "openai" ]] && [[ -z "${OPENAI_API_KEY:-}" || -n "${TEI_BASE_URL:-}" ]]; then
-                check_tei || { print_error "QA requires TEI when not using OpenAI embeddings"; exit 1; }
-            fi
-            COMPOSE_ENV=""
-            [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
-            docker-compose -p kairos-mcp -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" --profile qa up -d
-            print_success "QA environment started on http://localhost:$PORT"
             show_urls
 
             ;;
@@ -302,11 +281,6 @@ stop() {
                 print_error "lsof not available; cannot attempt port-based stop for dev server"
             fi
             ;;
-        qa)
-            COMPOSE_ENV=""
-            [ -f ".env" ] && COMPOSE_ENV="--env-file .env"
-            docker-compose -p kairos-mcp -f compose.yaml $COMPOSE_ENV --env-file ".env.qa" down && print_success "QA environment stopped"
-            ;;
         prod)
             print_info "Prod is not stopped from this script."
             ;;
@@ -325,10 +299,6 @@ deploy() {
             build
             restart
             ;;
-        qa)
-            build
-            start
-            ;;
         prod)
             build
             print_info "Prod deploy: use your deployment pipeline (build only)."
@@ -343,9 +313,6 @@ status() {
     case "$ENV" in
         dev)
             [ -f "$PID_FILE" ] && print_success "Process running (PID: $(cat "$PID_FILE"))" || print_warning "No process found"
-            ;;
-        qa)
-            docker-compose -p kairos-mcp -f compose.yaml --env-file ".env.qa" ps -q | grep -q . && print_success "Docker Compose running" || print_warning "Docker Compose not running"
             ;;
         prod)
             print_info "Prod status: check your deployment."
@@ -415,14 +382,6 @@ test() {
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
-        qa)
-            # deploy - now need to run manually: npm run qa:deploy
-            if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE" 
-            else
-                MCP_URL="http://localhost:${PORT:-3500}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE" 
-            fi
-            ;;
         prod)
             print_warning "Tests are not run against prod from this script."
             ;;
@@ -433,9 +392,6 @@ logs() {
     case "$ENV" in
         dev)
             [ -f "$LOG_FILE" ] && cat "$LOG_FILE" || print_warning "No log file found"
-            ;;
-        qa)
-            docker-compose -p kairos-mcp -f compose.yaml --env-file ".env.qa" logs
             ;;
         prod)
             print_warning "Prod logs: check your deployment."
@@ -564,11 +520,10 @@ ensure_coding_rules() {
 
 help() {
     echo "kairos Environment Script"
-    echo "USAGE: ENV=dev|qa|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
+    echo "USAGE: ENV=dev|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
     echo ""
     echo "ENVIRONMENTS:"
     echo "  dev  - Direct Node.js (PORT=3300, optional deps)"
-    echo "  qa   - Docker Compose (PORT=3500, required deps)"
     echo "  prod - Read-only CLI (qdrant-curl, redis-cli, health); app managed externally"
     echo ""
     echo "ENV VARS:"
@@ -596,7 +551,7 @@ help() {
     echo "  health-tei - Check TEI health"
     echo "  ensure-coding-rules - Verify git state (not on main, clean working tree) for AI coding rules enforcement"
     # echo "  handoff - Complete workflow: ensure git safe, deploy, test, and verify git safe again"
-    echo "  redis-cli [commands...] - Execute Redis CLI commands against QA Redis server"
+    echo "  redis-cli [commands...] - Execute Redis CLI commands against Redis server"
     
 }
 

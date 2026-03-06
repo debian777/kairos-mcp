@@ -58,7 +58,7 @@ Proof of work: rg -n "Build|Deploy|Test" README.md
 **Follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST: Check README.md for test commands. Use ONLY the documented npm scripts.**
 
 1. Read README.md to find the correct test command
-2. Run the documented test command (e.g., `npm run dev:test` or `npm run qa:test`)
+2. Run the documented test command (e.g., `npm run dev:test`)
 3. Archive output: `reports/tests/baseline-<timestamp>.log`
 4. Record commit hash and branch
 
@@ -141,7 +141,7 @@ Proof of work: run `git diff --stat` to prove the surface stayed minimal.
 **Follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST: Check README.md for test commands. Use ONLY the documented npm scripts.**
 
 1. Read README.md to find the correct test command
-2. Run the documented test command (e.g., `npm run dev:test` or `npm run qa:test`)
+2. Run the documented test command (e.g., `npm run dev:test`)
 3. Capture output to temporary file: `reports/tests/test-{timestamp}.log`
 4. All tests MUST pass
 

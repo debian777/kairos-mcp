@@ -57,7 +57,7 @@ export default {
     setupFiles: ['<rootDir>/tests/env-loader.ts', 'dotenv/config'],
     // Global test setup runs before all tests
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-    // When AUTH_ENABLED=true: start Keycloak + server, write .test-auth-env.{dev,qa}.json
+    // When AUTH_ENABLED=true: start Keycloak + server, write .test-auth-env.dev.json
     globalSetup: '<rootDir>/tests/global-setup-auth.ts',
     // When AUTH_ENABLED=true: stop server and Keycloak container
     globalTeardown: '<rootDir>/tests/global-teardown-auth.ts',

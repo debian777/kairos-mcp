@@ -67,31 +67,3 @@ export async function useExistingKeycloakFromEnv(): Promise<KeycloakTestEnv> {
     getTestUserToken
   };
 }
-
-const QA_REALM = 'kairos-qa';
-
-/**
- * Use existing QA Keycloak from .env.qa (KEYCLOAK_URL). Provisions test user on QA realm.
- * No container; no server spawn — tests hit existing QA app on port 3500.
- */
-export async function useExistingKeycloakForQa(): Promise<KeycloakTestEnv> {
-  const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '') ?? '';
-  const realm = process.env.KEYCLOAK_REALM ?? QA_REALM;
-  const clientId = process.env.KEYCLOAK_CLIENT_ID ?? CLIENT_ID;
-  if (!keycloakUrl) {
-    throw new Error(
-      'useExistingKeycloakForQa requires KEYCLOAK_URL in .env.qa (e.g. http://localhost:8080)'
-    );
-  }
-  await provisionTestUserOnExistingKeycloak(keycloakUrl, realm);
-  const getTestUserToken = () =>
-    getTestUserTokenFromKeycloak(keycloakUrl, realm, clientId, TEST_USERNAME, TEST_PASSWORD);
-  return {
-    keycloakUrl,
-    realm,
-    clientId,
-    testUsername: TEST_USERNAME,
-    testPassword: TEST_PASSWORD,
-    getTestUserToken
-  };
-}

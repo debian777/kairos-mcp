@@ -15,7 +15,7 @@ if (process.env.DEBUG_TEST_ENV === '1') {
   );
 }
 
-// When AUTH_ENABLED=true, globalSetup writes env-specific .test-auth-env.{dev,qa}.json; refresh token so it stays valid, set KAIROS_BEARER_TOKEN for CLI child processes.
+// When AUTH_ENABLED=true, globalSetup writes .test-auth-env.dev.json; refresh token so it stays valid, set KAIROS_BEARER_TOKEN for CLI child processes.
 import { getTestBearerToken, refreshTestAuthToken } from './utils/auth-headers.js';
 
 beforeAll(async () => {

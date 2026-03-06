@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Delete KAIROS Keycloak realms (kairos-dev, kairos-qa, kairos-prod) via Admin API.
+Delete KAIROS Keycloak realms (kairos-dev, kairos-prod) via Admin API.
 After running, restart Keycloak so --import-realm re-imports from scripts/keycloak/import (if using Docker import); otherwise run scripts/configure-keycloak-realms.py to re-create realms.
 
 Requires KEYCLOAK_ADMIN_PASSWORD in .env.prod or .env; Keycloak at KEYCLOAK_URL
@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REALMS_TO_DELETE = ("kairos-dev", "kairos-qa", "kairos-prod")
+REALMS_TO_DELETE = ("kairos-dev", "kairos-prod")
 
 
 def load_env_file(path: Path) -> dict[str, str]:

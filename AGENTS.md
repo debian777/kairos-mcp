@@ -21,7 +21,7 @@ compute them.
 | `tests/` | Integration tests |
 | `tests/workflow-test/` | Agent workflow test prompt and instructions |
 | `reports/` | Workflow test output (`reports/<run-id>/report.md`) |
-| `docs/examples/` | Mintable protocol examples for dev/qa workflow tests |
+| `docs/examples/` | Mintable protocol examples for dev workflow tests |
 | `scripts/` | Build and utility scripts |
 
 ## Protocol execution model
@@ -63,7 +63,7 @@ Execute every protocol in this exact order:
 - Use Context7 when you need library/API documentation or setup steps.
 - Add a `challenge` JSON block to every verifiable step when minting.
 - Use space names in tool parameters; the backend resolves to IDs.
-- Deploy to dev/qa before testing: `npm run dev:deploy && npm run
+- Deploy to dev before testing: `npm run dev:deploy && npm run
   dev:test`.
 
 ## MUST NEVER
@@ -77,7 +77,7 @@ Execute every protocol in this exact order:
 - Submit a solution whose `type` does not match `challenge.type`.
 - Skip `kairos_attest` at the end of a protocol run.
 - Pass raw space IDs in tool parameters; use human-readable space names.
-- Promote code to live without full validation in dev/qa.
+- Promote code to live without full validation in dev.
 
 ## Challenge types
 
@@ -164,15 +164,16 @@ When minting (`kairos_mint`) or editing (`kairos_update`) a protocol:
 
 ## Environment context
 
+**CRITICAL:** You are connected to **KAIROS LIVE** (production environment). Your local development environment is **dev**.
+
+**IMPORTANT:** All code changes must follow the **full ELITE AI CODING STANDARDS protocol** to be promoted from dev to live. This means: (1) Follow the complete protocol (not just step 1 — feature branch isolation). (2) Establish baseline tests. (3) Run full test suite after changes. (4) Deploy to dev first (`npm run dev:deploy`). (5) Test against dev server. (6) Only after full validation in dev can changes be promoted to live.
+
 | Environment | Purpose |
 |-------------|---------|
 | dev | Local development and integration testing |
-| qa | Pre-production validation |
 | live | Production (KAIROS LIVE) |
 
-Validate all code changes in dev/qa before promoting to live.
-
-Deploy: `npm run dev:deploy && npm run dev:test`
+Validate all code changes in dev before promoting to live. Deploy: `npm run dev:deploy && npm run dev:test`
 
 ## Context7 usage
 

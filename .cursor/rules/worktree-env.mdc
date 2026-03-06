@@ -5,11 +5,11 @@ alwaysApply: true
 
 # Worktree env setup
 
-This workspace is a **git worktree**. Environment files (`.env`, `.env.dev`, `.env.qa`, `.env.prod`) are not shared across worktrees.
+This workspace is a **git worktree**. Environment files (`.env`, `.env.dev`, `.env.prod`) are not shared across worktrees.
 
 **Automatic behaviour (no manual step needed):**
 
-- **First `npm run dev:*` or `npm run qa:*`** (e.g. `dev:deploy`, `dev:restart`, `qa:start`): if `.env.<ENV>` is missing, `run-env.sh` runs `./scripts/copy-env-from-main.sh` and then continues. So the first dev/qa command in a new worktree copies env from the main worktree.
+- **First `npm run dev:*`** (e.g. `dev:deploy`, `dev:restart`): if `.env.<ENV>` is missing, `run-env.sh` runs `./scripts/copy-env-from-main.sh` and then continues. So the first dev command in a new worktree copies env from the main worktree.
 - **First `npm install` / `npm ci`** in the worktree: `postinstall` runs `copy-env-from-main.sh` when both `.env` and `.env.dev` are missing, so env is in place before you run any dev command.
 
 **When to run the script manually:**
