@@ -31,8 +31,8 @@ does not describe how to implement or migrate; that is a separate plan.
 
 ## Reference
 
-- Source of the target vision:
-  [`../../cache/experimental-mcp.md`](../../cache/experimental-mcp.md).
+- Source of the target vision: the `experimental/experimental-mcp` branch
+  in the repository (not merged; kept for historical reference).
 - Current protocol and tool workflows:
   [../architecture/README.md](../architecture/README.md).
 

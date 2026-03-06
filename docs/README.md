@@ -42,5 +42,7 @@ The examples show how to build and structure protocols.
 
 ## Archived material
 
-Older or superseded documents live in [archived/](archived/). They are
-kept for reference only and may not reflect current behavior.
+Older or superseded documents (phase snapshots, one-off reports, raw
+scenario data) are kept for reference only and may not reflect current
+behavior. Contact the maintainers if you need to locate a specific
+historical document.

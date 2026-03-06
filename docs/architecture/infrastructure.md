@@ -290,8 +290,9 @@ flowchart LR
 
 The default `compose.yaml` uses Docker named volumes (`redis-data`,
 `qdrant-data`, `postgres-data`, `snapshots-qa`, `snapshots-prod`); no
-host path required. The alternative `compose-dir-volumes.yaml` uses bind
-mounts under `${VOLUME_LOCAL_PATH}`:
+host path required. To use bind mounts instead, set `VOLUME_LOCAL_PATH`
+to the desired host path and update the volume definitions in
+`compose.yaml` accordingly:
 
 ```
 ${VOLUME_LOCAL_PATH}/
@@ -386,6 +387,5 @@ flowchart TD
 - [Auth URLs: QA and Docker topology](auth-urls-qa.md) — Keycloak URL
   routing
 - [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
-- [`compose-dir-volumes.yaml`](../../compose-dir-volumes.yaml) — bind
-  mounts under VOLUME_LOCAL_PATH
+- `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env.dev` or `.env.prod`)
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults

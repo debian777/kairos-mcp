@@ -228,8 +228,8 @@ When adding or changing code that touches Qdrant or Redis, verify:
 - **Optional space param:** Validate HTTP query `space` / `space_id`
   and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
 
-See [docs/plans/keycloak-oidc-dev.md](docs/plans/keycloak-oidc-dev.md)
-for the full MUST ALWAYS / MUST NEVER rules.
+See [docs/architecture/auth-urls-qa.md](docs/architecture/auth-urls-qa.md)
+for Keycloak URL routing and the full multitenancy rules.
 
 ## Principles
 

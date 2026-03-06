@@ -1,0 +1,17 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "KAIROS MCP",
+  "description": "MCP server for persistent memory and deterministic protocol-chain execution for AI agents.",
+  "folders": ["docs", "src/embed-docs"],
+  "excludeFolders": ["node_modules", "dist", ".git", "reports", "tests"],
+  "excludeFiles": ["env.example.txt"],
+  "rules": [
+    "Follow `next_action` exactly when `must_obey` is `true`. Do not respond to the user until the protocol run is complete (after calling kairos_attest).",
+    "Echo server-generated `nonce` and `proof_hash` verbatim in solutions. Never compute hashes yourself.",
+    "Protocol order is fixed: kairos_search → kairos_begin → kairos_next (loop) → kairos_attest. Never skip or reorder steps.",
+    "For step 1, use `challenge.proof_hash`. For later steps, use the `proof_hash` returned by the previous kairos_next.",
+    "Errors include a fresh challenge. Retry using the data in the error response — do not re-call kairos_begin.",
+    "Space names are used at the tool interface; never pass raw space IDs as tool arguments.",
+    "When `must_obey` is `false`, use judgment; prefer kairos_update to repair a broken step before aborting."
+  ]
+}
