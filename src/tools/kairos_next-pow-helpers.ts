@@ -207,16 +207,21 @@ export async function handleProofSubmission(
   // Helper to build error with retry counting (key by nonce so each challenge instance has unique count).
   // Reuse existing nonce in the error response so we do not overwrite the stored nonce (buildChallenge
   // would otherwise set a new one and reset the retry key, breaking MAX_RETRIES).
+  // For step 2+, set challenge.proof_hash to expectedPreviousHash so the client can echo it back on retry
+  // (buildChallenge uses GENESIS_HASH only; echoing that would cause PROOF_HASH_MISMATCH on retry).
   const blocked = async (msg: string, code: string, currentStep?: any, challengeObj?: any) => {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     const retryKey = storedNonce ?? uuid;
     const retryCount = await proofOfWorkStore.incrementRetry(retryKey);
     const cs = currentStep || { uri: `kairos://mem/${uuid}`, content: '', mimeType: 'text/markdown' };
-    const ch =
+    let ch =
       challengeObj ||
       (storedNonce != null
         ? await buildChallenge(memory, memory.proof_of_work, { existingNonce: storedNonce })
         : await buildChallenge(memory, memory.proof_of_work));
+    if (options?.expectedPreviousHash != null) {
+      ch = { ...ch, proof_hash: options.expectedPreviousHash };
+    }
     return {
       blockedPayload: buildErrorPayload(memory, cs, ch, msg, code, retryCount)
     };
