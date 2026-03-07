@@ -1,6 +1,6 @@
 # Possible theme colors
 
-Reference palettes for future theme options. **Approved mockups use the default (teal) theme only;** see `docs/design/mockups/default/`.
+Reference palettes for future theme options. **The app and Storybook use the default (teal) theme;** see `docs/design/mockups/static/` (Storybook export) or run `npm run storybook`.
 
 These token sets can be re-used (e.g. as `[data-theme="…"]` in `ui/src/theme/tokens.css`) if the product adds theme switching.
 

@@ -3,7 +3,7 @@
 **Date:** 2025-03-07  
 **Scope:** Built UI under `src/ui/`, served at URL `/ui`.
 
-**Update:** Implementation has been aligned with `docs/design/mockups/default/` (sidebar nav, Home / KAIROS / Account, Home copy and stats, KAIROS page for search results, Account intro and secondary Log out). See [mockup-implementation-1-to-1.md](mockup-implementation-1-to-1.md) for keeping mockups and implementation in sync.
+**Update:** Implementation matches the design (sidebar nav, Home / KAIROS / Account, Home copy and stats, KAIROS page for search results, Account intro and secondary Log out). Mockups = Storybook; see [mockup-implementation-1-to-1.md](mockup-implementation-1-to-1.md).
 
 ## Sections 1–4 verification
 
