@@ -3,11 +3,11 @@
 Add a user to a Keycloak realm with an auto-generated password.
 
 Uses Keycloak Admin REST API. Requires Keycloak running and KEYCLOAK_ADMIN_PASSWORD
-in environment or in .env.prod / .env (in repo root).
+in environment or in .env (in repo root).
 
 Usage:
   python scripts/add-keycloak-user --realm kairos-dev --user demo
-  python scripts/add-keycloak-user -r kairos-qa -u myuser
+  python scripts/add-keycloak-user -r kairos-prod -u myuser
   KEYCLOAK_URL=http://keycloak:8080 python scripts/add-keycloak-user -r kairos-dev -u demo
 
 Prints the generated password once. If the user already exists, only the password is updated.
@@ -44,7 +44,7 @@ def get_admin_password(root: Path) -> str | None:
 
     if os.environ.get("KEYCLOAK_ADMIN_PASSWORD"):
         return os.environ["KEYCLOAK_ADMIN_PASSWORD"]
-    for name in (".env.prod", ".env"):
+    for name in (".env",):
         env = load_env_file(root / name)
         if env.get("KEYCLOAK_ADMIN_PASSWORD"):
             return env["KEYCLOAK_ADMIN_PASSWORD"]
@@ -134,7 +134,7 @@ def main() -> int:
     parser.add_argument(
         "-r", "--realm",
         required=True,
-        help="Realm name (e.g. kairos-dev, kairos-qa, kairos-prod)",
+        help="Realm name (e.g. kairos-dev, kairos-prod)",
     )
     parser.add_argument(
         "-u", "--user",
@@ -157,7 +157,7 @@ def main() -> int:
     admin_password = get_admin_password(root)
     if not admin_password:
         print(
-            "ERROR: KEYCLOAK_ADMIN_PASSWORD not set. Set it in .env.prod or .env, or export it.",
+            "ERROR: KEYCLOAK_ADMIN_PASSWORD not set. Set it in .env or export it.",
             file=sys.stderr,
         )
         return 1

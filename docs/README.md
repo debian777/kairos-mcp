@@ -12,6 +12,7 @@ all installation options. Read it first.
 
 These guides walk you through connecting to and using KAIROS.
 
+- [Install and environment](install/README.md) — env examples (minimal, fullstack, full reference); copy one to `.env`.
 - [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — add the KAIROS MCP
   server to Cursor and connect to a running KAIROS instance.
 - [KAIROS CLI](CLI.md) — command-line usage: installation, configuration,

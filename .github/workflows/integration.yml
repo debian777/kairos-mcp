@@ -12,64 +12,15 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      publish:
-        description: 'Run publish job (npm + docker) after integration'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
-  build:
-    name: Build + pack + artifact
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "npm"
-
-      - name: Sync version from tag
-        if: github.ref != '' && startsWith(github.ref, 'refs/tags/v')
-        run: npm version ${GITHUB_REF_NAME#v} --no-git-tag-version
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Knip
-        run: npm run knip
-
-      - name: Build
-        run: npm run build
-
-      - name: Pack
-        run: npm pack
-
-      - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: kairos-*.tgz
-
   integration:
-    name: Integration test from artifact
-    needs: build
+    name: Infra + dev deploy + integration tests (AUTH on)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download npm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -77,16 +28,16 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Generate .env and .env.dev
+      - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python3 scripts/generate_dev_secrets.py
 
-      - name: Verify .env and .env.dev exist
-        run: ls -la .env .env.dev
+      - name: Verify .env exists
+        run: ls -la .env
 
       - name: Restore infra Docker image cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         id: docker-infra-cache
         with:
           path: .cache/docker-infra
@@ -96,8 +47,8 @@ jobs:
         if: steps.docker-infra-cache.outputs.cache-hit == 'true'
         run: docker load -i .cache/docker-infra/images.tar
 
-      - name: Start Docker infra
-        run: docker compose -p kairos-mcp --env-file .env.dev --profile infra up -d
+      - name: Start Docker infra (no app container; app runs via npm)
+        run: docker compose -p kairos-mcp --env-file .env --profile fullstack up -d redis qdrant postgres keycloak
 
       - name: Save infra Docker images for cache
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
@@ -110,7 +61,7 @@ jobs:
             quay.io/keycloak/keycloak:26.5.4
 
       - name: Cache infra Docker images
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
         with:
           path: .cache/docker-infra
@@ -119,7 +70,7 @@ jobs:
       - name: Wait for Redis
         run: |
           for i in $(seq 1 30); do
-            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
+            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -135,7 +86,7 @@ jobs:
       - name: Wait for Postgres
         run: |
           for i in $(seq 1 30); do
-            docker compose -p kairos-mcp --env-file .env.dev --profile infra exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
+            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T postgres pg_isready -U keycloak -d keycloak 2>/dev/null && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
@@ -151,41 +102,43 @@ jobs:
       - name: Configure Keycloak realms and test user
         run: python3 scripts/configure-keycloak-realms.py
 
-      - name: Install dependencies for tests
+      - name: Install dependencies
         run: npm ci
 
-      - name: Start app from artifact and run integration tests
+      - name: Knip (compliance)
+        run: npm run knip
+
+      - name: Build package (tgz)
+        run: npm run build:tgz
+
+      - name: Install package from tgz
+        run: npm install ./dist/debian777-kairos-mcp-$(node -p "require('./package.json').version").tgz
+
+      - name: Start app (from installed package)
         env:
-          HEALTH_CHECK_ATTEMPTS: 20
+          HEALTH_CHECK_ATTEMPTS: 15
+          # App runs on host; use localhost for JWKS (keycloak:8080 only resolves inside Docker)
+          KEYCLOAK_INTERNAL_URL: http://localhost:8080
+          # Writable snapshot dir so POST /api/snapshot returns 200/502, not 500
+          QDRANT_SNAPSHOT_DIR: var/snapshots
         run: |
-          set -a
-          [ -f .env.dev ] && source .env.dev
-          set +a
-          export PORT=3300
-          mkdir -p run-app var/log
-          cp kairos-*.tgz run-app/
-          cd run-app
-          npm init -y
-          npm install ./kairos-*.tgz
-          echo "Starting app from artifact..."
-          ( set -a; [ -f ../.env.dev ] && source ../.env.dev; set +a; export PORT=3300; node node_modules/@debian777/kairos-mcp/dist/index.js ) > ../var/log/kairos.log 2>&1 &
-          APP_PID=$!
-          cd ..
-          echo "Waiting for app at http://localhost:3300/health (up to ${HEALTH_CHECK_ATTEMPTS:-20} attempts)..."
-          sleep 5
-          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS:-20}); do
-            if curl -sSf -o /dev/null http://localhost:3300/health; then
-              echo "App healthy after $i attempt(s)."
-              break
-            fi
-            [ $i -eq ${HEALTH_CHECK_ATTEMPTS:-20} ] && { echo "App failed to become healthy. Last 80 lines of kairos.log:"; tail -80 var/log/kairos.log; kill $APP_PID 2>/dev/null || true; exit 1; }
+          mkdir -p var/log var/snapshots
+          npm run dev:start:installed > var/log/kairos.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:3300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
             sleep 2
           done
-          echo "Running integration tests..."
-          MCP_URL="http://localhost:3300/mcp" NODE_OPTIONS='--experimental-vm-modules' npx jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/"
-          EXIT=$?
-          kill $APP_PID 2>/dev/null || true
-          exit $EXIT
+
+      - name: Run auth integration test
+        run: npm run dev:test
+
+      - name: Upload kairos log - check
+        if: always() && failure()
+        run: |
+          pwd
+          ls -la var/log 2>/dev/null || true
+          if [ -f var/log/kairos.log ]; then ls -la var/log/kairos.log; cat var/log/kairos.log; else echo "No var/log/kairos.log"; fi
 
       - name: Upload kairos log
         if: always()
@@ -194,64 +147,3 @@ jobs:
           name: kairos-log
           path: var/log/kairos.log
           if-no-files-found: ignore
-
-  publish:
-    name: Publish npm + Docker
-    needs: integration
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download npm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Get version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish to npm
-        run: npm publish ./kairos-*.tgz --access public
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            KAIROS_VERSION=${{ steps.version.outputs.version }}
-          tags: |
-            debian777/kairos-mcp:latest
-            debian777/kairos-mcp:${{ steps.version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

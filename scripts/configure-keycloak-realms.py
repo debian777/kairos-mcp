@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Idempotent Keycloak realm setup: import from scripts/keycloak/import, set trusted hosts, create test user (dev/qa).
+Idempotent Keycloak realm setup: import from scripts/keycloak/import, set trusted hosts, create test user (dev).
 
 Runs entirely via Admin API (no Docker import mount). Use when Keycloak is already running.
 Reads realm JSONs from scripts/keycloak/import relative to repo root (works regardless of CWD).
 
 1. Realms: create with defaults if missing, then always apply config from scripts/keycloak/import/*.json (idempotent).
-2. Trusted hosts: set env-specific IPs (dev: Docker gateway; qa: app-qa; prod: app-prod).
-3. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev and qa realms (for tests).
+2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
+3. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev realm (for tests).
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
 TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
-Loaded from .env.prod, .env, .env.dev.
+Loaded from .env.
 
 Usage:
   python scripts/configure-keycloak-realms.py
@@ -34,7 +34,6 @@ CLIENT_REGISTRATION_POLICY_TYPE = "org.keycloak.services.clientregistration.poli
 TRUSTED_HOSTS_PROVIDER_ID = "trusted-hosts"
 REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),
-    ("kairos-qa", "kairos-qa-realm.json"),
     ("kairos-prod", "kairos-prod-realm.json"),
 ]
 
@@ -55,7 +54,7 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 def get_env(root: Path) -> dict[str, str]:
     env: dict[str, str] = {}
-    for name in (".env.prod", ".env", ".env.dev"):
+    for name in (".env",):
         env.update(load_env_file(root / name))
     for k, v in os.environ.items():
         if v is not None:
@@ -240,12 +239,7 @@ def get_trusted_hosts_for_env(env: str) -> list[str]:
     """Trusted hosts: localhost + all Docker /16 bridge gateways (172.16–31.0.1) +
     env-specific container IPs."""
     base = ["127.0.0.1", "localhost"] + DOCKER_BRIDGE_GATEWAYS
-    if env == "qa":
-        ip = _docker_container_ip_on_network("app-qa")
-        if ip:
-            base.append(ip)
-        base.append("app-qa")
-    elif env == "prod":
+    if env == "prod":
         ip = _docker_container_ip_on_network("app-prod")
         if ip:
             base.append(ip)
@@ -390,7 +384,7 @@ def main() -> int:
     base_url = env.get("KEYCLOAK_URL", "http://localhost:8080")
     admin_password = env.get("KEYCLOAK_ADMIN_PASSWORD")
     if not admin_password:
-        sys.exit("KEYCLOAK_ADMIN_PASSWORD not set. Set in .env.prod, .env, or export.")
+        sys.exit("KEYCLOAK_ADMIN_PASSWORD not set. Set in .env or export.")
 
     test_username = env.get("TEST_USERNAME", "kairos-tester")
     test_password = env.get("TEST_PASSWORD", "kairos-tester-secret")
@@ -414,13 +408,13 @@ def main() -> int:
         update_realm(base_url, realm_name, merged, token)
         print(f"Updated realm {realm_name}.")
 
-    # 2. Set trusted hosts per realm (dev / qa / prod)
+    # 2. Set trusted hosts per realm (dev / prod)
     for realm_name, _ in REALM_FILES:
         env_key = realm_name.replace("kairos-", "")
         ensure_trusted_hosts(base_url, realm_name, env_key, token)
 
-    # 3. Test user in dev and qa only
-    for realm_name in ("kairos-dev", "kairos-qa"):
+    # 3. Test user in dev only
+    for realm_name in ("kairos-dev",):
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
 
     print("Keycloak realms configured.")

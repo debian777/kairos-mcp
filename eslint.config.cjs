@@ -97,7 +97,7 @@ module.exports = [
       '**/*.py',
       '**/.cursorrules',
       '**/.cursor/**',
-      'env.example.txt',
+      'docs/install/env.example.*.txt',
       '**/snapshots/**',
       '**/*.snapshot'
     ],

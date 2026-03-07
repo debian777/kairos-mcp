@@ -1,4 +1,4 @@
-# Workflow tests (dev/qa)
+# Workflow tests (dev)
 
 This directory defines **agent-driven workflow tests** for KAIROS: an AI agent runs scenarios using **only MCP tools**, with no shell or filesystem access except writing to `reports/`. The canonical protocol examples live in [docs/examples/](../../docs/examples/).
 
@@ -23,9 +23,9 @@ The same constraints are available as a Cursor rule in [.cursor/rules/workflow-t
 
 ## How to run
 
-1. **Deploy dev or QA server** so MCP is available:
+1. **Deploy dev server** so MCP is available:
    ```bash
-   npm run dev:deploy   # or npm run qa:deploy
+   npm run dev:deploy
    ```
 2. **Start a session** with the workflow-test prompt active (paste [PROMPT.md](PROMPT.md) or open a chat in Cursor with the rule that applies under `tests/workflow-test/` or when `reports/` is in scope).
 3. **Ask the agent** to run the four scenarios (imports; search + workflows; update step; update chain). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.

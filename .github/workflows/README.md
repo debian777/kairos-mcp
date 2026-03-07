@@ -130,8 +130,9 @@ sequenceDiagram
 
 **Flow:** When a version-bump PR is merged to main, this workflow **only** creates and pushes the tag if needed. The tag push then triggers the **Release** workflow (npm → Docker → GitHub Release).
 
-Branch protection does not block tag pushes by default. If you use "Restrict pushes that create matching tags", allow this repo's GitHub Actions to create tags or run the tag step with a token that can push tags.
+**Required for Release to run:** GitHub does not trigger workflows when a tag is pushed by another workflow using the default `GITHUB_TOKEN`. To have the **Release** workflow run after the tag is pushed, add a **Personal Access Token (PAT)** with `repo` scope as repository secret **`GH_PAT`**. Without it, the tag is still pushed but Release will not run (run it manually from Actions → Release → Run workflow with the new tag ref).
 
+Branch protection does not block tag pushes by default. If you use “Restrict pushes that create matching tags”, allow this repo’s GitHub Actions to create tags or run the tag step with a token that can push tags.
 ## Release workflow (tag → npm + Docker)
 
 **Release** (`release.yml`) runs on **tag push** `v*.*.*` or `v*.*.*-*` (e.g. `v3.0.1`, `v3.0.1-beta.4`). It is the **only** path that publishes. Jobs run in order:

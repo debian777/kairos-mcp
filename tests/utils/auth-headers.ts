@@ -1,16 +1,14 @@
 /**
  * Auth headers for integration tests when AUTH_ENABLED=true.
- * Reads .test-auth-env.{dev,qa}.json written by globalSetup (when server requires auth).
- * Env-specific filenames allow dev:test and qa:test to run in parallel without clobbering each other.
+ * Reads .test-auth-env.dev.json written by globalSetup (when server requires auth).
  */
 
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-/** Same convention as global-setup-auth: ENV=qa -> .test-auth-env.qa.json, else .test-auth-env.dev.json */
+/** Same convention as global-setup-auth: .test-auth-env.dev.json */
 function getAuthEnvFilePath(): string {
-  const suffix = process.env.ENV === 'qa' ? 'qa' : 'dev';
-  return join(process.cwd(), `.test-auth-env.${suffix}.json`);
+  return join(process.cwd(), '.test-auth-env.dev.json');
 }
 
 const TEST_USERNAME = 'kairos-tester';
@@ -77,7 +75,7 @@ async function fetchKeycloakToken(
 
 /**
  * Fetch a fresh Keycloak token and update the env-specific auth file.
- * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env (e.g. .env.dev or .env.qa). Returns true if refreshed.
+ * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env. Returns true if refreshed.
  */
 export async function refreshTestAuthToken(): Promise<boolean> {
   if (process.env.AUTH_ENABLED !== 'true') return false;
@@ -115,7 +113,7 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 /**
- * Base URL for the app. When AUTH_ENABLED=true and the env-specific auth file exists, use its baseUrl (auth server on 3300 / QA 3500); otherwise http://localhost:PORT.
+ * Base URL for the app. When AUTH_ENABLED=true and the auth file exists, use its baseUrl; otherwise http://localhost:PORT.
  */
 export function getTestAuthBaseUrl(): string {
   if (process.env.AUTH_ENABLED === 'true') {
@@ -126,7 +124,7 @@ export function getTestAuthBaseUrl(): string {
   return `http://localhost:${port}`;
 }
 
-/** True when server requires auth (from env, e.g. .env.dev). */
+/** True when server requires auth (from .env). */
 export function serverRequiresAuth(): boolean {
   return process.env.AUTH_ENABLED === 'true';
 }

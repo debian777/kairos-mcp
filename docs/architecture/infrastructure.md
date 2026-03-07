@@ -6,32 +6,26 @@ from [`compose.yaml`](../../compose.yaml) and `src/index.ts`.
 
 ## Deployment profiles
 
-`compose.yaml` uses Docker profiles to control which services start
-together. Start infrastructure first (`infra`), then the application
-profile (`qa` or `prod`).
+`compose.yaml` uses Docker profiles so that **default = minimal** (Qdrant + app only). Full stack adds Redis, Postgres, and Keycloak.
 
-| Profile    | Services started |
-|------------|-----------------|
-| `infra`    | redis, qdrant, postgres, keycloak |
-| `infra-ui` | redisinsight (optional Redis web UI; combine with `infra`) |
-| `qa`       | app-qa (connects to externally running infra) |
-| `prod`     | app-prod (connects to externally running infra) |
+| Profile     | Services added |
+|-------------|----------------|
+| *(default)* | qdrant, app-prod |
+| `fullstack` | redis, postgres, keycloak |
+| `infra-ui`  | redisinsight (optional; use with `fullstack`) |
 
 ```bash
-# Infrastructure only
-docker compose -p kairos-mcp --profile infra up -d
+# Minimal (default): Qdrant + app
+docker compose -p kairos-mcp up -d
 
-# QA app against running infra
-docker compose -p kairos-mcp --profile infra --profile qa up -d
+# Full stack: add Redis, Postgres, Keycloak
+docker compose -p kairos-mcp --profile fullstack up -d
 
-# Full production stack
-docker compose -p kairos-mcp --profile infra --profile prod up -d
-
-# Add Redis web UI
-docker compose -p kairos-mcp --profile infra --profile infra-ui up -d
+# Add Redis web UI (with fullstack)
+docker compose -p kairos-mcp --profile fullstack --profile infra-ui up -d
 ```
 
-Or use `npm run infra:up` to start infrastructure (uses `.env.dev`).
+Use `npm run infra:up` to start the full stack and configure Keycloak realms (uses `.env`).
 
 ## Container topology
 
@@ -43,7 +37,15 @@ flowchart TB
         subgraph NET["🌐  kairos-network  (bridge)"]
             direction TB
 
-            subgraph INFRA["profile: infra"]
+            subgraph DEFAULT["default (mini)"]
+                QDRANT["🧠 qdrant/qdrant
+                :6333  HTTP · :6344  gRPC
+                maxmem 4 GB"]
+                APP["🚀 kairos-mcp
+                App :3000 · Metrics :9090"]
+            end
+
+            subgraph FULL["profile: fullstack"]
                 REDIS["🗄 redis:7-alpine
                 :6379  TCP
                 maxmem 512 MB · allkeys-lru
@@ -51,9 +53,6 @@ flowchart TB
                 RI["🔍 redisinsight
                 :5540  HTTP
                 Web UI (profile: infra-ui)"]
-                QDRANT["🧠 qdrant/qdrant
-                :6333  HTTP · :6344  gRPC
-                maxmem 4 GB"]
                 PG["🐘 postgres:16
                 :5432  TCP
                 Keycloak DB only"]
@@ -62,24 +61,11 @@ flowchart TB
                 OIDC / auth"]
             end
 
-            subgraph PROD["profile: prod"]
-                APP["🚀 kairos-mcp
-                App :3000 · Metrics :9090"]
-            end
-
-            subgraph QA["profile: qa"]
-                QAAPP["🧪 kairos-mcp
-                App :3500 · Metrics :9090"]
-            end
-
             RI    -->|"depends_on"| REDIS
             KC    -->|"depends_on (healthy)"| PG
             APP   -->|"REDIS_URL"| REDIS
             APP   -->|"QDRANT_URL"| QDRANT
-            QAAPP -->|"REDIS_URL"| REDIS
-            QAAPP -->|"QDRANT_URL"| QDRANT
             APP   -->|"KEYCLOAK_INTERNAL_URL"| KC
-            QAAPP -->|"KEYCLOAK_INTERNAL_URL"| KC
         end
 
         subgraph VOLS["💾  Persistent Volumes"]
@@ -89,7 +75,6 @@ flowchart TB
             VRI[("redisinsight-data")]
             VPG[("postgres-data")]
             VSP[("snapshots-prod")]
-            VSQ[("snapshots-qa")]
         end
 
         REDIS  -.->|mount| VR
@@ -97,18 +82,15 @@ flowchart TB
         RI     -.->|mount| VRI
         PG     -.->|mount| VPG
         APP    -.->|mount| VSP
-        QAAPP  -.->|mount| VSQ
     end
 
     classDef infrasvc fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:2px
     classDef appsvc   fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
-    classDef qasvc    fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
     classDef vol      fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
     class REDIS,RI,QDRANT,PG,KC infrasvc
     class APP appsvc
-    class QAAPP qasvc
-    class VR,VQ,VRI,VPG,VSP,VSQ vol
+    class VR,VQ,VRI,VPG,VSP vol
 ```
 
 ## Port map
@@ -124,8 +106,6 @@ flowchart TB
 | keycloak     | 9000  | 9000  | HTTP | Keycloak health endpoint |
 | app-prod     | 3000  | 3000  | HTTP | MCP + REST API |
 | app-prod     | 9090  | 9090  | HTTP | Prometheus metrics |
-| app-qa       | 3500  | 3500  | HTTP | MCP + REST API |
-| app-qa       | 9090  | 9090  | HTTP | Prometheus metrics |
 
 ## Application startup sequence
 
@@ -284,15 +264,14 @@ flowchart LR
 | qdrant   | `/proc/net/tcp` hex port `:18BD` (= 6333) | 30 s | 5 s | 3 | — |
 | postgres | `pg_isready -U keycloak` | 5 s | 5 s | 10 | — |
 | app-prod | `wget /health` on `$PORT` | 30 s | 5 s | 3 | 40 s |
-| app-qa   | `wget /health` on `$PORT` | 30 s | 5 s | 3 | 40 s |
 
 ## Volume layout
 
 The default `compose.yaml` uses Docker named volumes (`redis-data`,
-`qdrant-data`, `postgres-data`, `snapshots-qa`, `snapshots-prod`); no
-host path required. To use bind mounts instead, set `VOLUME_LOCAL_PATH`
-to the desired host path and update the volume definitions in
-`compose.yaml` accordingly:
+`qdrant-data`, `postgres-data`, `snapshots-prod`); no host path
+required. To use bind mounts instead, set `VOLUME_LOCAL_PATH` to the
+desired host path and update the volume definitions in `compose.yaml`
+accordingly.
 
 ```
 ${VOLUME_LOCAL_PATH}/
@@ -302,8 +281,7 @@ ${VOLUME_LOCAL_PATH}/
 │   ├── redisinsight/      # RedisInsight UI settings
 │   └── postgres/          # Postgres data (Keycloak DB only)
 └── snapshots/
-    ├── prod/qdrant/       # On-demand or startup snapshots — prod
-    └── qa/qdrant/         # On-demand or startup snapshots — qa
+    └── prod/qdrant/       # On-demand or startup snapshots — prod
 ```
 
 ## Redis data model
@@ -387,5 +365,5 @@ flowchart TD
 - [Auth URLs: QA and Docker topology](auth-urls-qa.md) — Keycloak URL
   routing
 - [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
-- `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env.dev` or `.env.prod`)
+- `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env`)
 - [`src/config.ts`](../../src/config.ts) — all env vars and defaults

@@ -5,7 +5,6 @@ Realm JSONs in this directory are used by **scripts/configure-keycloak-realms.py
 ## Files
 
 - **kairos-dev-realm.json** – Dev realm: `kairos-dev`, client `kairos-mcp` (direct access grants, redirect URIs). Browser SSO is kept; MCP clients should send `prompt=login` when building the auth URL (see `authorization_request_parameters` in `/.well-known/oauth-protected-resource`).
-- **kairos-qa-realm.json** – QA realm: `kairos-qa`, client `kairos-mcp`.
 - **kairos-prod-realm.json** – Prod realm: `kairos-prod`, client `kairos-mcp`.
 
 ## One-shot configuration: `configure-keycloak-realms.py`
@@ -20,11 +19,11 @@ npm run infra:up
 
 The script:
 
-1. **Imports realms** from `scripts/keycloak/import/*.json` via Admin API (creates kairos-dev, kairos-qa, kairos-prod if missing).
-2. **Sets trusted hosts** per realm (IP only, no port/wildcard): dev = 127.0.0.1 + Docker `kairos-network` gateway; qa = 127.0.0.1 + app-qa IP; prod = 127.0.0.1 + app-prod IP.
-3. **Creates test user** (dev and qa only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
+1. **Imports realms** from `scripts/keycloak/import/*.json` via Admin API (creates kairos-dev, kairos-prod if missing).
+2. **Sets trusted hosts** per realm (IP only, no port/wildcard): dev = 127.0.0.1 + Docker `kairos-network` gateway; prod = 127.0.0.1 + app-prod IP.
+3. **Creates test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
 
-Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env.prod`, `.env`, or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
+Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
 
 ## Adding other users
 

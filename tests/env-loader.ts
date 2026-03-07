@@ -1,5 +1,5 @@
 /**
- * Load .env.${ENV} (e.g. .env.dev) into process.env before any tests run.
+ * Load .env into process.env before any tests run.
  * Ensures the test process sees the same env as the server (run-env.sh sources
  * the same file). Run before dotenv/config so ENV-specific file wins.
  * Fixes CI/local cases where Jest workers or globalSetup would otherwise miss vars.

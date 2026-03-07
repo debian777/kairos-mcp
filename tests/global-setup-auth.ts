@@ -1,7 +1,6 @@
 /**
  * Jest globalSetup when AUTH_ENABLED=true.
- * Dev: provisions Keycloak (if needed) and test token; app must already be running (e.g. npm run dev:deploy).
- * QA: uses existing server on PORT (from .env.qa).
+ * Provisions Keycloak (if needed) and test token; app must already be running (e.g. npm run dev:deploy).
  * Cleans stale auth state at start so tests never rely on old tokens or wrong baseUrl.
  */
 
@@ -11,14 +10,12 @@ import { join } from 'path';
 import { config } from 'dotenv';
 import {
   startKeycloakWithTestUser,
-  useExistingKeycloakFromEnv,
-  useExistingKeycloakForQa
+  useExistingKeycloakFromEnv
 } from './utils/keycloak-container';
 
-/** Env suffix for parallel dev/qa test runs (e.g. .test-auth-env.dev.json). Default 'dev'. */
+/** Env suffix for test auth file (e.g. .test-auth-env.dev.json). */
 function getEnvSuffix(): string {
-  const env = process.env.ENV;
-  return env === 'qa' ? 'qa' : 'dev';
+  return 'dev';
 }
 
 function getAuthEnvFile(root: string): string {
@@ -95,11 +92,7 @@ function loadEnv(): void {
   const root = process.cwd();
   const opts = { override: true };
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
-  if (process.env.ENV === 'qa') {
-    if (existsSync(join(root, '.env.qa'))) config({ path: join(root, '.env.qa'), ...opts });
-  } else {
-    if (existsSync(join(root, '.env.dev'))) config({ path: join(root, '.env.dev'), ...opts });
-  }
+  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
 }
 
 export default async function globalSetup(): Promise<void> {
@@ -107,30 +100,7 @@ export default async function globalSetup(): Promise<void> {
   cleanStaleAuthState(process.cwd());
   if (process.env.AUTH_ENABLED !== 'true') return;
 
-  const isQa = process.env.ENV === 'qa';
-  const port = process.env.PORT || (isQa ? '3500' : '3300');
-
-  if (isQa) {
-    const baseUrl = `http://localhost:${port}`;
-    const keycloakUrl = process.env.KEYCLOAK_URL?.trim() ?? '';
-    const cwd = process.cwd();
-    if (!keycloakUrl) {
-      // No Keycloak configured for QA: write baseUrl only so tests hit QA app; auth tests accept 200/401
-      writeFileSync(getAuthEnvFile(cwd), JSON.stringify({ baseUrl }));
-      writeFileSync(getAuthStateFile(cwd), JSON.stringify({ containerId: undefined, serverPid: undefined }));
-      return;
-    }
-    const env = await useExistingKeycloakForQa();
-    const bearerToken = await env.getTestUserToken();
-    const spaceId = spaceIdFromToken(bearerToken);
-    writeFileSync(
-      getAuthEnvFile(cwd),
-      JSON.stringify({ bearerToken, baseUrl, keycloakUrl: env.keycloakUrl, ...(spaceId && { spaceId }) })
-    );
-    writeFileSync(getAuthStateFile(cwd), JSON.stringify({ containerId: undefined, serverPid: undefined }));
-    return;
-  }
-
+  const port = process.env.PORT || '3300';
   const useExisting =
     process.env.KEYCLOAK_URL != null && process.env.KEYCLOAK_URL.trim() !== '';
   const baseUrl = `http://localhost:${port}`;

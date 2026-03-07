@@ -100,11 +100,12 @@ describe('HTTP REST API Endpoints', () => {
 
       const response = await apiFetch(`${API_BASE}/snapshot`, { method: 'POST' });
 
-      // Snapshot may succeed (200), be skipped (202), or fail (502)
-      expect([200, 202, 502]).toContain(response.status);
+      // When backup dir is configured (e.g. CI: QDRANT_SNAPSHOT_DIR=var/snapshots), we expect success only
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty('status');
+      expect(data).toHaveProperty('status', 'completed');
       expect(data).toHaveProperty('target', 'qdrant');
+      expect(data).toHaveProperty('snapshotName');
     }, 30000);
   });
 
@@ -309,15 +310,17 @@ describe('HTTP REST API Endpoints', () => {
         })
       });
 
-      // May return 200 (success) or 500 (if memory doesn't exist)
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 200) {
-        const data = await response.json();
-        expect(data).toHaveProperty('results');
-        expect(data).toHaveProperty('total_deleted');
-        expect(data).toHaveProperty('total_failed');
-        expect(data.metadata).toHaveProperty('duration_ms');
-      }
+      // API returns 200 with per-URI results; non-existent UUID is reported in results/total_failed, not 500.
+      // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toHaveProperty('results');
+      expect(data).toHaveProperty('total_deleted');
+      expect(data).toHaveProperty('total_failed');
+      expect(data.metadata).toHaveProperty('duration_ms');
+      expect(data.total_deleted).toBe(0);
+      expect(data.total_failed).toBe(1);
+      expect(data.results[0]).toMatchObject({ status: 'error', uri: 'kairos://mem/00000000-0000-0000-0000-000000000000' });
     }, 30000);
   });
 });
