@@ -179,7 +179,9 @@ Use these prefixes:
 
 - **Language:** TypeScript for all source files.
 - **Linter:** ESLint. Run `npm run lint` before committing. Use
-  `npm run lint:fix` for auto-fixable issues.
+  `npm run lint:fix` for auto-fixable issues. The pre-commit hook runs
+  lint automatically; version-bump commits (only `package.json` and
+  `package-lock.json` staged) skip hooks so no `--no-verify` is needed.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for
   classes and types; `SCREAMING_SNAKE_CASE` for module-level constants

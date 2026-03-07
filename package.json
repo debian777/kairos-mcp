@@ -50,6 +50,7 @@
     "dev:status": "ENV=dev ./scripts/run-env.sh status",
     "dev:stop": "ENV=dev ./scripts/run-env.sh stop",
     "dev:test": "ENV=dev ./scripts/run-env.sh test",
+    "dev:test-embedding-key": "node scripts/test-embedding-key.mjs",
     "dev:ai-mcp-integration": "node scripts/run-ai-mcp-integration.mjs",
     "prod:health": "ENV=prod ./scripts/run-env.sh health",
     "prod:status": "ENV=prod ./scripts/run-env.sh status",
