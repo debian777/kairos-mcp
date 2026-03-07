@@ -103,6 +103,8 @@ module.exports = [
       '**/*.disabled',
       '**/*.sh',
       '**/*.py',
+      '**/__pycache__/**',
+      '**/*.pyc',
       '**/.cursorrules',
       '**/.cursor/**',
       'docs/install/env.example.*.txt',

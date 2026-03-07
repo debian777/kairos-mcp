@@ -28,3 +28,5 @@ To verify the key locally: `npm run dev:test-embedding-key` (or `OPENAI_API_KEY=
 - **Quick start (minimal, default):** `cp env.example.minimal.txt .env`, set `OPENAI_API_KEY` (or TEI), then `docker compose -p kairos-mcp up -d`.
 - **Full stack (Redis, Keycloak):** `cp env.example.fullstack.txt .env`, set secrets and `REDIS_URL=redis://redis:6379`, then `docker compose -p kairos-mcp --profile fullstack up -d`.
 - **CI / generate script:** Uses `scripts/env/.env.template` (fullstack). Run `python3 scripts/generate_dev_secrets.py` to produce `.env`.
+
+For **Google sign-in in dev**, see [Google auth (dev)](google-auth-dev.md).
