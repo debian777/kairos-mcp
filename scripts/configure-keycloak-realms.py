@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-Idempotent Keycloak realm setup: import from scripts/keycloak/import, set trusted hosts, create test user (dev).
+Idempotent Keycloak realm setup: apply config from scripts/keycloak/import via Admin API.
 
-Runs entirely via Admin API (no Docker import mount). Use when Keycloak is already running.
-Reads realm JSONs from scripts/keycloak/import relative to repo root (works regardless of CWD).
+Single source of truth for realm config. Use when Keycloak is already running. Do not use
+Keycloak startup --import-realm (would conflict with existing realms). Reads realm JSONs
+from scripts/keycloak/import relative to repo root (works regardless of CWD).
 
-1. Realms: create with defaults if missing, then always apply config from scripts/keycloak/import/*.json (idempotent).
+1. Realms: create minimal if missing, then always merge and PUT config from import/*.json (idempotent).
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
 3. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev realm (for tests).
+
+Identity providers (e.g. Google) are not in realm JSON; configure via configure-keycloak-google-idp.py.
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
 TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
@@ -159,7 +162,7 @@ def _merge_realm(current: dict, desired: dict) -> dict:
         if key in desired:
             merged[key] = desired[key]
 
-    # Clients: by clientId, replace with desired and keep current id
+    # Clients: by clientId, overlay desired onto existing so Keycloak-managed fields (e.g. defaultClientScopes, protocol) are preserved for local/direct grant login
     desired_client_ids = {c.get("clientId") for c in desired.get("clients") or [] if c.get("clientId")}
     current_clients = list(current.get("clients") or [])
     merged_clients = [c for c in current_clients if c.get("clientId") not in desired_client_ids]
@@ -168,9 +171,14 @@ def _merge_realm(current: dict, desired: dict) -> dict:
         if not cid:
             continue
         existing = next((c for c in current_clients if c.get("clientId") == cid), None)
-        new_client = dict(d_client)
-        if existing and existing.get("id") is not None:
-            new_client["id"] = existing["id"]
+        if existing:
+            new_client = dict(existing)
+            for k, v in d_client.items():
+                new_client[k] = v
+            if existing.get("id") is not None:
+                new_client["id"] = existing["id"]
+        else:
+            new_client = dict(d_client)
         merged_clients.append(new_client)
     merged["clients"] = merged_clients
 
@@ -188,6 +196,10 @@ def _merge_realm(current: dict, desired: dict) -> dict:
             new_flow["id"] = existing["id"]
         merged_flows.append(new_flow)
     merged["authenticationFlows"] = merged_flows
+
+    # Identity providers: GET /admin/realms/{realm} does not return them; preserve by not sending
+    # (IdPs are managed separately via configure-keycloak-google-idp.py). Do not set merged["identityProviders"]
+    # so Keycloak PUT does not overwrite/clear them (realm PUT can replace IdP list if we send it).
 
     return merged
 
@@ -237,9 +249,14 @@ def _docker_container_ip_on_network(service_name: str) -> str | None:
 
 def get_trusted_hosts_for_env(env: str) -> list[str]:
     """Trusted hosts: localhost + all Docker /16 bridge gateways (172.16–31.0.1) +
-    env-specific container IPs."""
+    env-specific container IPs and hostnames."""
     base = ["127.0.0.1", "localhost"] + DOCKER_BRIDGE_GATEWAYS
-    if env == "prod":
+    if env == "dev":
+        base.extend(["keycloak", "app-dev", "host.docker.internal"])
+        ip = _docker_container_ip_on_network("app-dev")
+        if ip:
+            base.append(ip)
+    elif env == "prod":
         ip = _docker_container_ip_on_network("app-prod")
         if ip:
             base.append(ip)
