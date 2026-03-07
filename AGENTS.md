@@ -159,6 +159,8 @@ When minting (`kairos_mint`) or editing (`kairos_update`) a protocol:
 - Use H2 for each step label.
 - End every verifiable step with a trailing ` ```json ` block containing
   `{"challenge": {...}}` (same shape as `kairos_begin`/`kairos_next`).
+- The opening \`\`\`json must be on its own line (line start). Blocks with
+  text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
 - Add a `## Natural Language Triggers` section as the first H2.
 - Add a `## Completion Rule` section as the last H2.
 
