@@ -64,7 +64,7 @@ returned by `kairos_begin`/`kairos_next`; it round-trips with
 
 **`shell`:**
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "shell",
@@ -76,7 +76,7 @@ returned by `kairos_begin`/`kairos_next`; it round-trips with
 
 **`mcp`:**
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "mcp",
@@ -88,7 +88,7 @@ returned by `kairos_begin`/`kairos_next`; it round-trips with
 
 **`user_input`:**
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "user_input",
@@ -100,7 +100,7 @@ returned by `kairos_begin`/`kairos_next`; it round-trips with
 
 **`comment`:**
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "comment",
@@ -142,6 +142,9 @@ For agent execution rules (what agents must do per type), see the
 - Place the challenge at the **end** of an H2 section as a single
   trailing ` ```json ` block.
 - Only the **last** code block in a step is parsed as the challenge.
+- Ensure the opening \`\`\`json is at **line start** (on its own line,
+  no prefix). Blocks with text on the same line (e.g. `Example: \`\`\`json`)
+  are not parsed as steps.
 
 **`kairos_mint` usage:**
 

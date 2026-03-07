@@ -1,10 +1,11 @@
 import type { ProofOfWorkDefinition } from '../../types/memory.js';
 
 /** Match the last fenced code block (```json or ```) at end of step body. Captures prefix (group 1) and block content (group 2). */
+// Note: Requires \n before the fence, so only matches line-start blocks (aligns with line-start-only rule).
 const TRAILING_JSON_BLOCK_REGEX = /([\s\S]*)\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
 
-/** Match a single fenced ```json or ``` block (for finding all blocks in content). */
-const ANY_JSON_BLOCK_REGEX = /```(?:json)?\s*\n([\s\S]*?)```/g;
+/** Match a single fenced ```json or ``` block (for finding all blocks in content). Only matches when opening fence is at line start (after ^ or \n). */
+const ANY_JSON_BLOCK_REGEX = /(^|\n)(```(?:json)?\s*\n([\s\S]*?)```)/gm;
 
 export interface ChallengeBlockMatch {
   /** Start index of the opening ``` in content. */
@@ -23,7 +24,10 @@ export function findAllChallengeBlocks(content: string): ChallengeBlockMatch[] {
   let match: RegExpExecArray | null;
   ANY_JSON_BLOCK_REGEX.lastIndex = 0;
   while ((match = ANY_JSON_BLOCK_REGEX.exec(content)) !== null) {
-    const blockContent = match[1]!.trim();
+    // match[1] = (^|\n) - the line start prefix
+    // match[2] = the full block (```...```)
+    // match[3] = the block content (JSON)
+    const blockContent = match[3]!.trim();
     let parsed: { challenge?: unknown };
     try {
       parsed = JSON.parse(blockContent) as { challenge?: unknown };
@@ -36,9 +40,13 @@ export function findAllChallengeBlocks(content: string): ChallengeBlockMatch[] {
     const challenge = parsed.challenge as Record<string, unknown>;
     const required = typeof challenge['required'] === 'boolean' ? challenge['required'] : true;
     const proof: ProofOfWorkDefinition = { ...challenge, required } as ProofOfWorkDefinition;
+    // Calculate start/end: start is the opening ``` position (after the line-start prefix)
+    const lineStartPrefixLength = match[1]!.length;
+    const blockStart = match.index! + lineStartPrefixLength;
+    const blockLength = match[2]!.length;
     results.push({
-      start: match.index,
-      end: match.index + match[0].length,
+      start: blockStart,
+      end: blockStart + blockLength,
       proof
     });
   }

@@ -13,7 +13,10 @@ H2 steps, and a trailing ` ```json ` challenge block per verifiable step.
 
 **Challenge block format:** Place a single trailing ` ```json ` block at
 the end of each H2 step. The object must have a `challenge` key. Only
-the last code block in a step is parsed as the challenge.
+the last code block in a step is parsed as the challenge. **The opening
+\`\`\`json must be at line start** (on its own line with no text before
+it). Blocks with text on the same line (e.g. `Example: \`\`\`json`) are
+not parsed as steps.
 
 Add a challenge to every step that can be verified. Omit challenges only
 for purely informational steps where no verification is possible.
@@ -22,7 +25,7 @@ for purely informational steps where no verification is possible.
 
 `shell` — run a command:
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "shell",
@@ -34,7 +37,7 @@ for purely informational steps where no verification is possible.
 
 `comment` — verification text:
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "comment",
@@ -46,7 +49,7 @@ for purely informational steps where no verification is possible.
 
 `user_input` — human confirmation:
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "user_input",
@@ -58,7 +61,7 @@ for purely informational steps where no verification is possible.
 
 `mcp` — call an MCP tool:
 
-```json
+Example: ```json
 {
   "challenge": {
     "type": "mcp",
