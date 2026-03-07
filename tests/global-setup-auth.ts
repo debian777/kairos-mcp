@@ -91,7 +91,9 @@ function cleanStaleAuthState(root: string): void {
 function loadEnv(): void {
   const root = process.cwd();
   const opts = { override: true };
-  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  const env = process.env.ENV || 'dev';
+  const envFile = join(root, `.env.${env}`);
+  if (existsSync(envFile)) config({ path: envFile, ...opts });
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
 }
 

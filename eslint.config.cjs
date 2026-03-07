@@ -102,7 +102,6 @@ module.exports = [
       'docs/install/env.example.*.txt',
       '**/snapshots/**',
       '**/*.snapshot',
-      'ui/**',
       'docs/design/mockups/**',
       '**/*.html',
       '**/*.css',
@@ -146,15 +145,46 @@ module.exports = [
   },
 
   // ---------------------------------------------------------------------------
-  // 2. Base TypeScript / JavaScript config for source + tests
-  //    (TS-aware parsing, project-aware, TS no-unused-vars)
+  // 2a. Frontend (src/ui): use tsconfig.ui.json, allow console for dev
   // ---------------------------------------------------------------------------
   {
-    files: ['src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}', 'tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+    files: ['src/ui/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        // Ensure ESLint/TS can resolve the tsconfigs correctly
+        tsconfigRootDir: __dirname,
+        project: ['./tsconfig.ui.json'],
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: {
+      'max-lines': [
+        'error',
+        { max: 350, skipBlankLines: false, skipComments: false },
+      ],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { caughtErrorsIgnorePattern: '^_' },
+      ],
+      'no-console': 'off',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // 2b. Base TypeScript / JavaScript config for backend source + tests
+  //     (excludes src/ui; uses tsconfig.json, tsconfig.tests.json)
+  // ---------------------------------------------------------------------------
+  {
+    files: [
+      'src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
+      'tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
+    ],
+    ignores: ['src/ui/**'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
         tsconfigRootDir: __dirname,
         project: ['./tsconfig.json', './tsconfig.tests.json'],
       },
@@ -186,10 +216,11 @@ module.exports = [
   },
 
   // ---------------------------------------------------------------------------
-  // 3. Source files: strict (no console, no jest/vi mocks)
+  // 3. Backend source files: strict (no console, no jest/vi mocks)
   // ---------------------------------------------------------------------------
   {
     files: ['src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+    ignores: ['src/ui/**'],
     rules: {
       'no-console': 'error',
       ...NO_TEST_MOCKS_RULE,
@@ -206,6 +237,23 @@ module.exports = [
     rules: {
       'no-console': 'off',
       ...NO_TEST_MOCKS_RULE,
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // 4b. UI tests (Vitest): allow vi.mock in setup and test files
+  // ---------------------------------------------------------------------------
+  {
+    files: ['tests/ui/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'jest',
+          property: 'mock',
+          message: 'Do not use jest.mock() outside unit tests',
+        },
+      ],
     },
   },
 

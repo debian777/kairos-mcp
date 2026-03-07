@@ -5,14 +5,17 @@ const config: KnipConfig = {
         'src/index.ts',           // MCP server entry
         'src/cli/index.ts',       // CLI bin entry
         'src/metrics-server.ts',  // Standalone metrics server
+        'src/ui/main.tsx',        // UI entry (Vite)
         'scripts/**/*.{ts,mjs}',  // Build-time scripts
     ],
     project: [
         'src/**/*.ts',
+        'src/ui/**/*.{ts,tsx}',
         'scripts/**/*.{ts,mjs}',
         // Include tests so devDeps used only in tests (e.g. testcontainers in keycloak-container.ts)
         // are not reported as unused.
         'tests/**/*.ts',
+        'tests/ui/**/*.{ts,tsx}',
     ],
     ignore: [
         'dist/**',
@@ -27,6 +30,10 @@ const config: KnipConfig = {
         'dotenv-cli',
         'pino-pretty',
         'concurrently',
+        // UI build: used by Vite/PostCSS config, not imported in source
+        '@tailwindcss/postcss',
+        'autoprefixer',
+        'tailwindcss',
     ],
     // Knip reports "Unlisted binaries: python3" because it's referenced in package.json scripts
     // but not declared as a dependency. It's a system binary used by infra:up for Keycloak

@@ -375,6 +375,15 @@ test() {
 
     case "$ENV" in
         dev)
+            # Forward env so globalSetup and tests see same vars as server (Jest may run globalSetup in a separate process).
+            export ENV="${ENV:-dev}"
+            export PORT="${PORT:-3300}"
+            export AUTH_ENABLED="${AUTH_ENABLED:-}"
+            export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
+            export KEYCLOAK_REALM="${KEYCLOAK_REALM:-}"
+            export KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID:-}"
+            export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
+            export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest --silent --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"

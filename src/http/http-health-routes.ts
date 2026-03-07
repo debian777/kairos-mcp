@@ -81,24 +81,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
         });
     });
 
-    // Basic info endpoint (non-MCP)
-    app.get('/', (req, res) => {
-        const body: Record<string, unknown> = {
-            service: 'KAIROS MCP Server',
-            version: getBuildVersion(),
-            transports: ['http'],
-            endpoints: {
-                health: '/health',
-                mcp: '/mcp',
-                api: '/api'
-            },
-            note: 'Use POST /mcp for MCP protocol communication'
-        };
-        if (AUTH_ENABLED) {
-            body['api_note'] = 'GET /api and POST /api/* require authentication (session or Bearer). Use login_url from 401 or /auth/callback flow.';
-        }
-        res.json(body);
-    });
+    // GET / is handled by setupUiStatic: redirect to /ui
 
     // API root (when AUTH_ENABLED, only reached when authenticated)
     app.get('/api', (req, res) => {

@@ -18,6 +18,7 @@ Project design info for the KAIROS public UI. Harmonized with:
 | [kairos-logo-requirements.md](kairos-logo-requirements.md) | Logo brief for agencies: naming (KAIROS MCP), deliverables, colour, formats. |
 | [logos/](../../logos/) | SVG logo mockups: wordmark, icon, lockup (light and dark variants). |
 | [mockups/default/](mockups/default/) | HTML mockups (approved teal theme): 01-home-search, 03-protocol-detail, 04-error-recovery, 05-account, 06-protocol-create-edit, 07-kairos-actions. |
+| [mockup-implementation-1-to-1.md](mockup-implementation-1-to-1.md) | **WYSIWYG / 1:1:** How to keep mockups and implementation in sync (React + Storybook recommended). |
 | [theme-colors.md](theme-colors.md) | Possible theme palettes (it-pro navy, it-pro-2 soft blue, blue KAIROS MCP brand) for future use. |
 
 ## Using the designer
