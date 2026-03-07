@@ -61,6 +61,7 @@
     "docker:build:dev": "docker build -f Dockerfile.dev -t debian777/kairos-mcp:dev .",
     "docker:push": "docker push debian777/kairos-mcp:latest && docker push debian777/kairos-mcp:$(node -p \"require('./package.json').version\")",
     "docker:publish": "npm run docker:build && npm run docker:push",
+    "ui:build": "cd ui && npm run build",
     "pack": "npm run build && npm pack",
     "npm:publish": "npm run build && npm publish --access public",
     "npm:publish:dry": "npm run build && npm publish --access public --dry-run",

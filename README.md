@@ -1,9 +1,11 @@
 # KAIROS MCP
 
+![KAIROS MCP logo](docs/design/logo-mockups/kairos-mcp-lockup.svg)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
 
-KAIROS MCP gives AI agents persistent memory and deterministic protocol
+KAIROS MCP™ gives AI agents persistent memory and deterministic protocol
 execution. Agents store, retrieve, and run reusable protocol chains across
 sessions — without losing context between runs.
 
@@ -102,6 +104,17 @@ For development setup and all `npm run` commands, see
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, contribution
 guidelines, and agent-facing design principles.
+
+## Trademark
+
+KAIROS MCP™ and the KAIROS MCP logo are trademarks of the project.
+
+The software is open source under the MIT License,
+but the name and branding are not covered by that license.
+
+Forks must remove the KAIROS MCP branding.
+
+See [TRADEMARK.md](TRADEMARK.md) for details.
 
 ## License
 

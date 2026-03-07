@@ -57,6 +57,7 @@ module.exports = [
     ignores: [
       'node_modules/**',
       'dist/**',
+      '**/dist/**',
       'build/**',
       'coverage/**',
       'cache/**',
@@ -65,6 +66,7 @@ module.exports = [
       '.ai/**',
       '.git',
       '.git/**',
+      '**/.git/**',
       '.turbo/**',
       '.next/**',
       // Keep ESLint from trying to lint its own config by default
@@ -99,7 +101,20 @@ module.exports = [
       '**/.cursor/**',
       'docs/install/env.example.*.txt',
       '**/snapshots/**',
-      '**/*.snapshot'
+      '**/*.snapshot',
+      'ui/**',
+      'docs/design/mockups/**',
+      '**/*.html',
+      '**/*.css',
+      '**/*.tsbuildinfo',
+      '**/*.woff2',
+      '**/*.pack',
+      '**/*.idx',
+      '**/*.rev',
+      // Logos and SVG assets (not lintable)
+      '**/*.svg',
+      'logo/**',
+      'docs/design/logo-mockups/**'
     ],
   },
 
