@@ -114,7 +114,7 @@ module.exports = [
       // Logos and SVG assets (not lintable)
       '**/*.svg',
       'logo/**',
-      'docs/design/logo-mockups/**'
+      'logos/**'
     ],
   },
 
