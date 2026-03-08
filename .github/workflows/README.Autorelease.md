@@ -24,3 +24,36 @@ flowchart LR
 **Who** = actor (human or workflow). **What** = action. **When** = trigger or condition. **Outcome** = observable result.
 
 For workflow files, triggers, and job details, see [README.md](README.md) in this directory.
+
+---
+
+## Invariants
+
+- The only path that publishes is: merge to main → Integration passes → Auto tag (if version bumped) → Release workflow on tag. Manual publish workflows exist only for one-off repair or debugging, not as the normal path.
+- Tag creation is conditional on version comparison; duplicate or out-of-order tags for the same version are not created by the auto-tag workflow.
+- If the tag is pushed by automation, a PAT (`GH_PAT`) must be set to allow the Release workflow to run on that tag push; without it the tag is still pushed but Release must be run manually (see [README.md](README.md) for details).
+
+---
+
+## How to test it
+
+Testing is split into: (1) verifying the pipeline behavior end-to-end, and (2) validating that docs and config match that behavior.
+
+### 1. End-to-end pipeline test (dry or real)
+
+- **Scope:** One full run: merge a version bump to main → observe Integration → Auto tag → Release workflow → GitHub Release (and npm/Docker if acceptable).
+- **Approach:** Use a test branch and a small version bump (e.g. patch). Optionally use a pre-release tag or a separate repo clone to avoid polluting production tags.
+- **Pass criteria:**
+  - Integration runs and passes on the merge.
+  - Auto-tag workflow runs on push to main; it creates and pushes the expected `v*.*.*` only when version was increased.
+  - Release workflow runs on that tag; npm publish (and Docker push) succeed; GitHub Release is created and points to the correct tag and artifacts.
+- **Negative check:** Push to main without a version bump → auto-tag does not create a new tag and no npm or Docker publish occurs. Merge with Integration failing → no new tag (and thus no publish) from that push.
+
+### 2. Docs and config consistency
+
+- **Scope:** This file and [README.md](README.md) (and any links from the root [README.md](../../README.md)).
+- **Approach:** Read the "who / what / when / outcome" table and the workflow docs; walk through the repo's workflow files and triggers.
+- **Pass criteria:**
+  - The described flow (release branch → Integration → Auto tag → Publish → Release) matches the actual triggers and job order in the workflows.
+  - Required secrets/variables are documented where they are used (see [README.md](README.md) for the full list: `GH_PAT`, Docker/Quay credentials, `QUAY_NAMESPACE`, npm Trusted Publisher).
+  - Links from the root README to "Release cycle (autorelease)" point to this doc and this doc's flow matches the above behavior.
