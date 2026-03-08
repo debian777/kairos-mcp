@@ -4,6 +4,11 @@
 # acceptable final output: npm package in registry, Docker image on Hub.
 # Requires branch protection to allow this workflow to push tags.
 #
+# Also triggered via workflow_run after Integration passes on a release/** branch
+# push. This ensures Integration gates the auto-tag on release branches, so a tag
+# is only created from a green build. The flow for release/** branches is:
+#   push to release/** → Integration passes → this workflow → tag → Release workflow.
+#
 # IMPORTANT: Tag pushes made with the default GITHUB_TOKEN do NOT trigger other
 # workflows. To have the Release workflow run on tag push, set repo secret
 # GH_PAT to a Personal Access Token (repo scope). See .github/workflows/README.md.
@@ -12,10 +17,17 @@ name: Release tag on version bump
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Integration"]
+    types: [completed]
+    branches: ['release/**']
 
 jobs:
   tag-release:
     name: Tag if version bumped
+    # For push to main: always run.
+    # For workflow_run (release/**): only run if Integration succeeded.
+    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write  # push tag
@@ -25,6 +37,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # For workflow_run events (release/**), check out the commit that triggered
+          # Integration, not the default branch HEAD.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
