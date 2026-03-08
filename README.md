@@ -78,6 +78,7 @@ For development setup and all `npm run` commands, see
 - [KAIROS CLI reference](docs/CLI.md)
 - [Architecture and protocol workflows](docs/architecture/README.md)
 - [Protocol examples and challenge types](docs/examples/README.md)
+- [Release cycle (autorelease)](.github/workflows/README.Autorelease.md)
 - [All documentation](docs/README.md)
 
 ## Troubleshooting
@@ -97,6 +98,10 @@ For development setup and all `npm run` commands, see
 - [Documentation](docs/README.md)
 - [Issue tracker](https://github.com/debian777/kairos-mcp/issues)
 - [Discussions](https://github.com/debian777/kairos-mcp/discussions)
+
+## Release cycle
+
+See [Release cycle (autorelease)](.github/workflows/README.Autorelease.md) (who, what, when, outcome: release branch → integration → auto tag → publish npm/Docker → GitHub Release).
 
 ## Contributing
 

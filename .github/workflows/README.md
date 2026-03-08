@@ -46,6 +46,8 @@ flowchart LR
 
 **Manual-only:** Publish npm and Publish Container are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.
 
+Full auto release cycle (who, what, when, outcome): see [README.Autorelease.md](README.Autorelease.md).
+
 ## Workflows and job dependencies
 
 Each workflow is made of one or more **jobs**. Arrows show `needs:` — the target job runs only after the source job succeeds.
