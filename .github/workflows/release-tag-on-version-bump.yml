@@ -1,12 +1,7 @@
 # When a merge to main changes package.json version to a value greater than the
-# latest existing tag, create and push that tag. The tag push triggers the
-# Release workflow (release.yml): npm publish then Docker Hub push. Only
-# acceptable final output: npm package in registry, Docker image on Hub.
+# latest existing tag, create and push that tag, then trigger the Release workflow
+# via workflow_dispatch (tag pushes from Actions do not trigger other workflows).
 # Requires branch protection to allow this workflow to push tags.
-#
-# IMPORTANT: Tag pushes made with the default GITHUB_TOKEN do NOT trigger other
-# workflows. To have the Release workflow run on tag push, set repo secret
-# GH_PAT to a Personal Access Token (repo scope). See .github/workflows/README.md.
 name: Release tag on version bump
 
 on:
@@ -19,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # push tag
+      actions: write  # trigger Release workflow
 
     steps:
       - name: Checkout
@@ -45,8 +41,6 @@ jobs:
 
       - name: Create and push tag if version increased
         id: push_tag
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           pkg="${{ steps.pkg.outputs.version }}"
           latest="${{ steps.tag.outputs.version }}"
@@ -56,12 +50,7 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             tag="v${pkg}"
             git tag "$tag"
-            if [ -n "$GH_PAT" ]; then
-              git push "https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git" "$tag"
-            else
-              echo "::warning::GH_PAT secret not set. Pushing with GITHUB_TOKEN; Release workflow will NOT be triggered. Add a PAT (repo scope) as secret GH_PAT to fix."
-              git push origin "$tag"
-            fi
+            git push origin "$tag"
             echo "tag_created=true" >> "$GITHUB_OUTPUT"
             echo "version=${pkg}" >> "$GITHUB_OUTPUT"
             echo "Created and pushed tag $tag"
@@ -70,6 +59,18 @@ jobs:
             echo "version=" >> "$GITHUB_OUTPUT"
             echo "No tag needed (package version $pkg not greater than latest $latest)"
           fi
+
+      - name: Trigger Release workflow
+        if: steps.push_tag.outputs.tag_created == 'true'
+        run: |
+          tag="v${{ steps.push_tag.outputs.version }}"
+          curl -sSf -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"ref\":\"$tag\"}}"
+          echo "Triggered Release workflow for $tag"
+
     outputs:
       tag_created: ${{ steps.push_tag.outputs.tag_created }}
       version: ${{ steps.push_tag.outputs.version }}

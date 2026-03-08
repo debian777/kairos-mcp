@@ -127,6 +127,29 @@ def set_password(
         sys.exit(f"Set password failed: {e.code} {body}")
 
 
+def clear_required_actions(base_url: str, realm: str, user_id: str, token: str) -> None:
+    """Clear required actions so login is not blocked (e.g. Update password)."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users/{user_id}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            user = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Get user failed: {e.code} {body}")
+    user["requiredActions"] = []
+    payload = json.dumps(user).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="PUT")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Update user failed: {e.code} {body}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Add a Keycloak user with auto-generated password."
@@ -173,6 +196,7 @@ def main() -> int:
             return 1
 
     set_password(args.keycloak_url, args.realm, user_id, password, token)
+    clear_required_actions(args.keycloak_url, args.realm, user_id, token)
 
     if args.password is None:
         print(f"realm={args.realm} username={args.user} password={password}")

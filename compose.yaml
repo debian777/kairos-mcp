@@ -113,9 +113,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Idempotent realm setup via scripts/configure-keycloak-realms.py only (npm run infra:up). Do not add --import-realm.
     command:
       - start-dev
-      # Realms: run scripts/configure-keycloak-realms.py to create from scripts/keycloak/import via API
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}

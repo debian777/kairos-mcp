@@ -1,2 +1,21 @@
 #!/bin/sh
-npm run build:tgz
+# Disallow commits on main — use a branch and open a PR.
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ "$branch" = "main" ]; then
+  echo ""
+  echo "  Commits to main are not allowed. Use a branch and open a PR."
+  echo "  Example: git checkout -b fix/my-change && git commit ..."
+  echo ""
+  exit 1
+fi
+
+# Skip heavy checks for version-bump commits (only package.json + package-lock.json).
+# Real workflow: full build runs in dev:deploy and CI; version bumps need no build on commit.
+staged=$(git diff --cached --name-only)
+count=$(echo "$staged" | wc -l | tr -d ' ')
+if [ "$count" -eq 2 ]; then
+  if echo "$staged" | grep -q '^package\.json$' && echo "$staged" | grep -q '^package-lock\.json$'; then
+    exit 0
+  fi
+fi
+npm run lint
