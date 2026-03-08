@@ -7,6 +7,7 @@ flowchart LR
   subgraph triggers["Triggers"]
     PR[PR → main]
     PUSH[Push → main]
+    PUSH_REL["Push → release/**"]
     TAG[Tag push v*.*.*]
     MANUAL[Manual dispatch]
   end
@@ -22,7 +23,9 @@ flowchart LR
 
   PR --> INT
   PUSH --> INT
+  PUSH_REL --> INT
   PUSH --> RTAG
+  PUSH_REL -->|"workflow_run: Integration passed"| RTAG
   TAG --> INT
   TAG --> REL
   RTAG -->|"if version > latest tag"| TAG
@@ -35,14 +38,16 @@ flowchart LR
   classDef trigger fill:#e2e8f0,stroke:#64748b,color:#1e293b
   classDef integration fill:#dcfce7,stroke:#16a34a,color:#166534
   classDef release fill:#fef3c7,stroke:#d97706,color:#92400e
-  class PR,PUSH,TAG,MANUAL trigger
+  class PR,PUSH,PUSH_REL,TAG,MANUAL trigger
   class INT integration
   class RTAG,REL,PNPM,PIMG,PCONT release
 ```
 
-**Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
+**Release path via `release/**` branch (recommended):** Push version bump to a `release/**` branch → **Integration** runs; if it passes, **Release tag on version bump** fires (via `workflow_run`) and pushes the tag if `package.json` version > latest tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
 
-**Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
+**Release path via `main` (merge-based):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push.
+
+**Integration:** Runs on every PR to `main`, every push to `main` or `release/**` (and on tag push to re-verify the released ref). Manual run available.
 
 **Manual-only:** Publish npm and Publish Container are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.
 
@@ -94,7 +99,7 @@ flowchart TB
 
 ## Integration workflow
 
-`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
+`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** to `main`, **push** to `main` or `release/**`, and on **tag push** to re-verify the released ref. **workflow_dispatch** is still available for manual runs.
 
 ### Secrets and variables
 
@@ -106,33 +111,44 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 ## Release: only acceptable final output
 
-After a version-bump PR is merged to main, the **only** path that publishes is: **Release tag on version bump** (creates tag if needed) → **Release** workflow (publish-npm → publish-docker → create GitHub Release).
+After a version-bump push to `release/**` or a merge to `main`, the **only** path that publishes is: **Integration passes** → **Release tag on version bump** (creates tag if needed) → **Release** workflow (publish-npm → publish-docker → create GitHub Release).
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#e2e8f0', 'primaryTextColor':'#1e293b', 'primaryBorderColor':'#64748b', 'lineColor':'#64748b', 'secondaryColor':'#fef3c7', 'tertiaryColor':'#dcfce7' }}}%%
 sequenceDiagram
-  participant Main as Main #e2e8f0
+  participant RelBranch as release/** branch #e2e8f0
+  participant INT as Integration workflow #dcfce7
   participant RTAG as Release tag on version bump #fef3c7
   participant REL as Release workflow #fef3c7
 
-  Main->>RTAG: push to main (after merge)
-  RTAG->>RTAG: package.json version > latest tag?
-  alt version increased
-    RTAG->>RTAG: git push origin v<version>
-  RTAG->>REL: tag push v*.*.*
-  REL->>REL: Publish npm job
-  REL->>REL: Publish image job (needs: publish-npm)
-  REL->>REL: Create GitHub Release (needs: publish-docker)
-  else no bump
-    RTAG->>RTAG: No tag needed
+  RelBranch->>INT: push to release/**
+  INT->>INT: full CI (infra + deploy + tests)
+  alt Integration passes
+    INT->>RTAG: workflow_run (conclusion=success)
+    RTAG->>RTAG: package.json version > latest tag?
+    alt version increased
+      RTAG->>RTAG: git push origin v<version>
+      RTAG->>REL: tag push v*.*.*
+      REL->>REL: Publish npm job
+      REL->>REL: Publish image job (needs: publish-npm)
+      REL->>REL: Create GitHub Release (needs: publish-docker)
+    else no bump
+      RTAG->>RTAG: No tag needed
+    end
+  else Integration fails
+    INT->>INT: No tag, no publish
   end
 ```
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on **push to main**. If `package.json` version is **greater** than the latest existing tag (e.g. tag `v3.0.0` exists and package is `3.0.1`), it creates and pushes tag `v<version>`. That tag push triggers the **Release** workflow (`release.yml`).
+`release-tag-on-version-bump.yml` runs on **push to `main`** and, via `workflow_run`, **after Integration passes on a `release/**` branch push**. If `package.json` version is **greater** than the latest existing tag (e.g. tag `v3.0.0` exists and package is `3.0.1`), it creates and pushes tag `v<version>`. That tag push triggers the **Release** workflow (`release.yml`).
 
-**Flow:** When a version-bump PR is merged to main, this workflow **only** creates and pushes the tag if needed. The tag push then triggers the **Release** workflow (npm → Docker → GitHub Release).
+**Flow (release/* branch):** Push to `release/x.y.z` → Integration runs → if Integration passes, this workflow checks version; if greater than latest tag, creates and pushes tag → Release workflow (npm → Docker → GitHub Release).
+
+**Flow (main):** When a version-bump PR is merged to main, this workflow **only** creates and pushes the tag if needed. The tag push then triggers the **Release** workflow (npm → Docker → GitHub Release).
+
+**Integration gate for release/\*\*:** The `workflow_run` trigger only fires when Integration `conclusion == 'success'`. If Integration fails on a `release/**` push, auto-tag does not run — no tag and no publish.
 
 **Required for Release to run:** GitHub does not trigger workflows when a tag is pushed by another workflow using the default `GITHUB_TOKEN`. To have the **Release** workflow run after the tag is pushed, add a **Personal Access Token (PAT)** with `repo` scope as repository secret **`GH_PAT`** (e.g. `gh secret set GH_PAT` or Settings → Secrets → Actions). Without it, the tag is still pushed but Release will not run (run it manually from Actions → Release → Run workflow with the new tag ref).
 
