@@ -8,7 +8,7 @@
 
 import { createClient, RedisClientType } from 'redis';
 import { logger } from '../utils/logger.js';
-import { REDIS_URL, KAIROS_REDIS_PREFIX } from '../config.js';
+import { REDIS_URL, KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';
 
@@ -94,8 +94,11 @@ export class RedisService implements IKeyValueStore {
         }
     }
 
-    /** Key is namespaced by current space (AsyncLocalStorage) so cache and proof-of-work do not collide across spaces. */
+    /** Key is namespaced by current space (AsyncLocalStorage) so cache and proof-of-work do not collide across spaces. Memory cache keys (mem:*) are global: same UUID, one key. */
     private getKey(key: string): string {
+        if (key.startsWith(MEMORY_CACHE_KEY_PREFIX)) {
+            return `${this.prefix}${key}`;
+        }
         const spaceId = getSpaceIdFromStorage();
         return `${this.prefix}${spaceId}:${key}`;
     }
