@@ -45,6 +45,8 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 export const REDIS_URL = (getEnvString('REDIS_URL', '')).trim();
 export const USE_REDIS = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
+/** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
+export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', '');
 export const OPENAI_API_KEY = getEnvString('OPENAI_API_KEY', '');
 export const EMBEDDING_PROVIDER = getEnvString('EMBEDDING_PROVIDER', 'auto');

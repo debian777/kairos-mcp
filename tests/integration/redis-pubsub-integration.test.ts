@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { keyValueStore } from '../../src/services/key-value-store-factory.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
-import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, USE_REDIS } from '../../src/config.js';
+import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, USE_REDIS, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
 import { runWithSpaceContext } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
 
@@ -19,9 +19,14 @@ function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
   );
 }
 
-/** Build full Redis key as the app does: prefix + spaceId + ':' + suffix */
+/** Build full Redis key for space-scoped keys: prefix + spaceId + ':' + suffix */
 function redisKey(suffix: string): string {
   return `${KAIROS_REDIS_PREFIX}${KAIROS_APP_SPACE_ID}:${suffix}`;
+}
+
+/** Build full Redis key for memory cache (global, no space): prefix + mem: + uuid */
+function memoryRedisKey(uuid: string): string {
+  return `${KAIROS_REDIS_PREFIX}${MEMORY_CACHE_KEY_PREFIX}${uuid}`;
 }
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
@@ -151,11 +156,11 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
           created_at: new Date().toISOString()
         };
 
-        // Store memory (uses RedisService which namespaces by space: prefix + spaceId + logicalKey)
+        // Store memory (uses global key: prefix + mem:uuid, no space namespace)
         await redisCacheService.setMemoryResource(testMemory);
 
-        // Verify key exists in Redis (same key format as app: prefix + KAIROS_APP_SPACE_ID + :mem:uuid)
-        const key = redisKey(`mem:${testMemory.memory_uuid}`);
+        // Verify key exists in Redis (global memory key)
+        const key = memoryRedisKey(testMemory.memory_uuid);
         const exists = await testClient.exists(key);
         expect(exists).toBe(1);
 
@@ -226,8 +231,8 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
         // Store memory
         await redisCacheService.setMemoryResource(testMemory);
 
-        // Verify it exists (keys are namespaced by space)
-        const key = redisKey(`mem:${testMemory.memory_uuid}`);
+        // Verify it exists (memory keys are global)
+        const key = memoryRedisKey(testMemory.memory_uuid);
         expect(await testClient.exists(key)).toBe(1);
 
         // Invalidate memory cache
