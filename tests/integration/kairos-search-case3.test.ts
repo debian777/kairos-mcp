@@ -28,7 +28,20 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
   test('returns V2 unified schema with non-perfect match candidates in choices', async () => {
     const ts = Date.now();
     const uniqueTitle = `PartialMatchCase3 ${ts}`;
-    const content = `# ${uniqueTitle}\n\nThis protocol tests CASE 3 behavior: no perfect match but good candidate.`;
+    const content = `# ${uniqueTitle}
+
+## Natural Language Triggers
+Run when user says "partial match case 3".
+
+## Step 1
+This protocol tests CASE 3 behavior: no perfect match but good candidate.
+
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
 
     // Store the protocol
     const storeResult = await mcpConnection.client.callTool({

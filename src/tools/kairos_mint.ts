@@ -6,6 +6,7 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize, kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
+import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 
 interface RegisterKairosMintOptions {
   toolName?: string;
@@ -104,6 +105,23 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
 
       try {
         const { markdown_doc, llm_model_id, force_update } = params as { markdown_doc: string; llm_model_id: string; force_update?: boolean };
+        const validation = validateProtocolStructure(markdown_doc);
+        if (!validation.valid) {
+          const body = {
+            error: 'PROTOCOL_STRUCTURE_INVALID',
+            message: validation.message,
+            missing: validation.missing,
+            must_obey: true,
+            next_action: `call kairos_begin with ${CREATION_PROTOCOL_URI} for guided protocol creation`
+          };
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
+            isError: true,
+            content: [{ type: 'text', text: JSON.stringify(body) }]
+          };
+        }
         const docs = [markdown_doc];
         let memories: Memory[] = [];
         try {

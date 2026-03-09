@@ -13,6 +13,10 @@ Execute.
 
 ---
 
+## Natural Language Triggers
+
+Run when user says "AI coding rules" or "coding rules".
+
 ## AI-FRIENDLY COMMUNICATION AND TOOL USAGE
 
 **Use AI-friendly, prompt-like language:**
@@ -272,3 +276,7 @@ Provide:
 - Any remaining risks
 
 Proof of work: final response must include summary, validation commands, test log path, and risks.
+
+## Completion Rule
+
+Only reachable after all prior steps are solved.

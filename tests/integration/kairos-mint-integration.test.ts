@@ -28,14 +28,29 @@ describe('Kairos Mint Integration', () => {
   }
 
   test('kairos_begin returns valid chain initiation response', async () => {
-    // Use one timestamp for store + query
+    // Use one timestamp for store + query; include required Natural Language Triggers and Completion Rule
     const ts = Date.now();
     const testQuery = `CacheCheckDoc ${ts}`;
-    const content = `# ${testQuery}\n\nThis document exists to test kairos_begin response.`;
+    const content = `# ${testQuery}
+
+## Natural Language Triggers
+Run when user says "cache check".
+
+This document exists to test kairos_begin response.
+
+## Step 1
+Body.
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(content),
+        markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }

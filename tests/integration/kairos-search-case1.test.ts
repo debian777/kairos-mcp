@@ -28,7 +28,20 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
   test('returns V2 unified schema with must_obey: true and choices containing our match', async () => {
     const ts = Date.now();
     const uniqueTitle = `PerfectMatchCase1 ${ts}`;
-    const content = `# ${uniqueTitle}\n\nThis protocol tests CASE 1 behavior: single perfect match.`;
+    const content = `# ${uniqueTitle}
+
+## Natural Language Triggers
+Run when user says "perfect match case 1".
+
+## Step 1
+This protocol tests CASE 1 behavior: single perfect match.
+
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
 
     // Store the protocol (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({

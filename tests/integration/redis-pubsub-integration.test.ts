@@ -2,13 +2,18 @@ import { createClient, RedisClientType } from 'redis';
 import { keyValueStore } from '../../src/services/key-value-store-factory.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
 import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, USE_REDIS, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
-import { runWithSpaceContext } from '../../src/utils/tenant-context.js';
+import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
 
-/** Run cache operations in default space context so keys match test expectations (prefix + KAIROS_APP_SPACE_ID). */
-function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * Key layout must match RedisService.getKey() and RedisCacheService:
+ * - Space-scoped (search, begin, stats): prefix + spaceId + ':' + logicalKey
+ * - Memory (mem:*): prefix + mem: + uuid (global, no space)
+ * Use runWithSpaceContextAsync so context persists across await (required for cache ops).
+ */
+async function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
   const spaceId = KAIROS_APP_SPACE_ID;
-  return runWithSpaceContext(
+  return runWithSpaceContextAsync(
     {
       userId: '',
       groupIds: [],

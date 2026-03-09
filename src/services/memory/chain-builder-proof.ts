@@ -4,8 +4,8 @@ import type { ProofOfWorkDefinition } from '../../types/memory.js';
 // Note: Requires \n before the fence, so only matches line-start blocks (aligns with line-start-only rule).
 const TRAILING_JSON_BLOCK_REGEX = /([\s\S]*)\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
 
-/** Match a single fenced ```json or ``` block (for finding all blocks in content). Only matches when opening fence is at line start (after ^ or \n). */
-const ANY_JSON_BLOCK_REGEX = /(^|\n)(```(?:json)?\s*\n([\s\S]*?)```)/gm;
+/** Match a single fenced ```json block (for finding all challenge blocks). Only ```json counts so we avoid matching other fences (e.g. ```typescript) or stray ```\n. */
+const ANY_JSON_BLOCK_REGEX = /(^|\n)(```json\s*\n([\s\S]*?)```)/gm;
 
 export interface ChallengeBlockMatch {
   /** Start index of the opening ``` in content. */

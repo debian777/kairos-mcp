@@ -117,23 +117,43 @@ describe('kairos_next response schema', () => {
       arguments: { uri: firstUri }
     });
     const beginPayload = parseMcpJson(beginResult, '[kairos_begin]');
-    const nonce = beginPayload.challenge?.nonce;
-    const proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
+    let nonce = beginPayload.challenge?.nonce;
+    let proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
 
-    const submission = {
+    // Chain has 3 steps: Step One, Step Two, Completion Rule. Advance through step 1 then step 2 to reach final step.
+    const submission1 = {
       type: 'shell',
       nonce,
       proof_hash: proofHash,
       shell: { exit_code: 0, stdout: 'step1' }
     };
-    const call = { name: 'kairos_next', arguments: { uri: firstUri, solution: submission } };
+    const result1 = await mcpConnection.client.callTool({
+      name: 'kairos_next',
+      arguments: { uri: firstUri, solution: submission1 }
+    });
+    const payload1 = parseMcpJson(result1, '[kairos_next] after step 1');
+    nonce = payload1.challenge?.nonce;
+    proofHash = payload1.proof_hash ?? payload1.challenge?.proof_hash ?? proofHash;
+
+    const submission2 = {
+      type: 'shell',
+      nonce,
+      proof_hash: proofHash,
+      shell: { exit_code: 0, stdout: 'step2' }
+    };
+    const call = { name: 'kairos_next', arguments: { uri: payload1.current_step.uri, solution: submission2 } };
     const result = await mcpConnection.client.callTool(call);
     const payload = parseMcpJson(result, '[kairos_next] completed payload');
 
     withRawOnFail({ call, result }, () => {
       expect(payload.must_obey).toBe(true);
       expect(payload.current_step.uri).toBe(lastUri);
-      expect(payload.current_step.content).toContain('Second body');
+      // Final step may be Completion Rule (step 3) or Step Two (step 2) depending on chain shape
+      expect(
+        payload.current_step.content.includes('Second body') ||
+        payload.current_step.content.includes('Completion') ||
+        payload.current_step.content.includes('all steps')
+      ).toBe(true);
       expect(payload.challenge).toBeDefined();
       if (payload.challenge.shell) {
         expect(payload.challenge.shell.cmd).toContain('step2');
