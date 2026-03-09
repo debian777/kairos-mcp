@@ -38,6 +38,7 @@ The examples show how to build and structure protocols.
 
 ## For contributors
 
+- [Developer commands](../CONTRIBUTING.md#developer-commands) — build, deploy, and test (`dev:build`, `dev:deploy`, `dev:test`). Always deploy before testing.
 - [Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)
   — doctrine for MCP tools, schemas, descriptions, and error shapes.
 

@@ -43,7 +43,7 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
   for (const filePath of testFiles) {
     const fileName = filePath.split('/').pop() ?? filePath;
     test(`import: ${fileName}`, async () => {
-      const content = JSON.stringify(readFileSync(filePath, 'utf-8'));
+      const content = readFileSync(filePath, 'utf-8');
 
       const result = await mcpConnection.client.callTool({
         name: 'kairos_mint',

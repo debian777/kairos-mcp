@@ -4,6 +4,11 @@ a chain; each H2 defines a step.
 **Precondition:** You have a complete markdown document with H1 title,
 H2 steps, and a trailing ` ```json ` challenge block per verifiable step.
 
+**Recommended:** For guided protocol creation, call `kairos_begin` with
+`kairos://mem/00000000-0000-0000-0000-000000002001`. Direct minting
+requires: `## Natural Language Triggers` (first H2), `## Completion Rule`
+(last H2), and at least one challenge block.
+
 **Input:**
 
 - `markdown_doc` (string) — the markdown protocol document.
@@ -78,6 +83,8 @@ Example: ```json
 
 - Pass `markdown_doc` as a string.
 - Include `llm_model_id`.
+- Include a `## Natural Language Triggers` section as the first H2 and a
+  `## Completion Rule` section as the last H2.
 - Use `force_update: true` when overwriting an existing chain with the
   same label.
 

@@ -62,11 +62,17 @@ npm run dev:deploy   # dev:build + restart dev server
 
 **Test**
 
-```bash
-npm run dev:deploy && npm run dev:test
+Deploy first, then run only what you need. Prefer a single test file during development instead of the full suite.
 
-# Run a single test file after deploy:
+```bash
+# Deploy so the dev server has your changes
+npm run dev:deploy
+
+# Run a single test file (recommended while iterating)
 npm run dev:test -- tests/integration/kairos-dump.test.ts
+
+# Run the full integration suite when done or before PR
+npm run dev:test
 ```
 
 To test without Keycloak, set `AUTH_ENABLED=false` in `.env`, then
