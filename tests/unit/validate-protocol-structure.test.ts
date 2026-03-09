@@ -246,6 +246,28 @@ No Completion Rule.`;
     expect(result.missing).toContain('completion_rule');
   });
 
+  test('multi-H1: first section empty (no H2s) fails validation', () => {
+    const doc = `# First Protocol
+
+No H2s here.
+
+# Second Protocol
+
+## Natural Language Triggers
+Second.
+
+## Step A
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Second done.`;
+    const result = validateProtocolStructure(doc);
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain('natural_language_triggers');
+  });
+
   test('H2 inside code block is ignored', () => {
     const doc = `# My Protocol
 

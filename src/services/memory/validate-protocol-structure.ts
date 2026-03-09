@@ -63,6 +63,7 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
   const lines = markdown.split(/\r?\n/);
   const sections: string[][] = [];
   let current: string[] = [];
+  let seenH1 = false;
   let inFence = false;
   let fenceChar = '';
 
@@ -80,9 +81,10 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
     if (inFence) continue;
 
     if (/^#\s+/.test(line) && !/^##\s+/.test(line)) {
-      if (current.length > 0) {
+      if (seenH1) {
         sections.push(current);
       }
+      seenH1 = true;
       current = [];
       continue;
     }
