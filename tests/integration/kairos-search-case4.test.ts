@@ -53,14 +53,16 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       expect(parsed.next_action).toBeDefined();
       expect(typeof parsed.next_action).toBe('string');
 
-      // choices: always an array with at least one entry (create or match)
+      // choices: always an array with at least one entry; no relevant results must offer create
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      // Must have at least one create choice (offer to create), or match choices (shared dev DB may return low-score matches)
       const createChoices = parsed.choices.filter((c) => c.role === 'create');
-      const matchChoices = parsed.choices.filter((c) => c.role === 'match');
-      expect(createChoices.length >= 1 || matchChoices.length >= 1).toBe(true);
+      const relevantMatches = parsed.choices.filter((c) => c.role === 'match' && (c.score ?? 0) >= 0.7);
+      expect(createChoices.length >= 1 || relevantMatches.length >= 1).toBe(true);
+      if (relevantMatches.length === 0) {
+        expect(createChoices.length).toBeGreaterThanOrEqual(1);
+      }
       for (const cc of createChoices) {
         expect(cc.uri).toBeDefined();
         expect(typeof cc.uri).toBe('string');

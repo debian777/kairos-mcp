@@ -7,6 +7,9 @@ const TRAILING_JSON_BLOCK_REGEX = /([\s\S]*)\n```(?:json)?\s*\n([\s\S]*?)```\s*$
 /** Match a single fenced ```json block (for finding all challenge blocks). Only ```json counts so we avoid matching other fences (e.g. ```typescript) or stray ```\n. */
 const ANY_JSON_BLOCK_REGEX = /(^|\n)(```json\s*\n([\s\S]*?)```)/gm;
 
+/** Match plain ``` (no json) fenced blocks at line start. Used to reject mixed-fence docs. */
+const ANY_PLAIN_FENCE_REGEX = /(^|\n)(```(?!json)\s*\n([\s\S]*?)```)/gm;
+
 export interface ChallengeBlockMatch {
   /** Start index of the opening ``` in content. */
   start: number;
@@ -51,6 +54,28 @@ export function findAllChallengeBlocks(content: string): ChallengeBlockMatch[] {
     });
   }
   return results;
+}
+
+/**
+ * Returns true if the document has any plain ``` (no "json") fenced block whose content
+ * is valid JSON with a "challenge" key. Such docs would pass "at least one ```json challenge"
+ * but chain parsing would ignore the plain blocks, minting fewer steps than the doc implies.
+ */
+export function hasPlainFenceChallengeBlock(content: string): boolean {
+  let match: RegExpExecArray | null;
+  ANY_PLAIN_FENCE_REGEX.lastIndex = 0;
+  while ((match = ANY_PLAIN_FENCE_REGEX.exec(content)) !== null) {
+    const blockContent = match[3]!.trim();
+    try {
+      const parsed = JSON.parse(blockContent) as { challenge?: unknown };
+      if (parsed && typeof parsed === 'object' && parsed.challenge && typeof parsed.challenge === 'object') {
+        return true;
+      }
+    } catch {
+      // not valid JSON, ignore
+    }
+  }
+  return false;
 }
 
 /**
