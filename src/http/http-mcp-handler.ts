@@ -139,8 +139,9 @@ export function setupMcpRoutes(app: express.Express, server: any) {
             clearTimeout(timeoutHandler);
         } catch (error) {
             const duration = Date.now() - requestStart;
+            const errMsg = error instanceof Error ? error.message : String(error);
             structuredLogger.error(
-              `✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} after ${duration}ms`,
+              `✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} after ${duration}ms: ${errMsg}`,
               error,
               { request_id: requestId }
             );

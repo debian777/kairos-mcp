@@ -180,6 +180,72 @@ Only after all steps.`;
     expect(result.missing).not.toContain('challenge_block');
   });
 
+  test('rejects doc with plain ``` block containing challenge (mixed fences)', () => {
+    const doc = `# My Protocol
+
+## Natural Language Triggers
+Content.
+
+## Step 1
+\`\`\`
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Done.`;
+    const result = validateProtocolStructure(doc);
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain('mixed_challenge_fences');
+    expect(result.message).toMatch(/only .*json.* challenge/);
+  });
+
+  test('multi-H1: each section must have Triggers and Completion Rule', () => {
+    const doc = `# First Protocol
+
+## Natural Language Triggers
+First.
+
+## Step A
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+First done.
+
+# Second Protocol
+
+## Step X
+No Triggers here.
+
+## Completion Rule
+Second done.`;
+    const result = validateProtocolStructure(doc);
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain('natural_language_triggers');
+  });
+
+  test('multi-H1: second protocol missing Completion Rule fails', () => {
+    const doc = `# First Protocol
+
+## Natural Language Triggers
+First.
+
+## Completion Rule
+First done.
+
+# Second Protocol
+
+## Natural Language Triggers
+Second.
+
+## Last Step
+No Completion Rule.`;
+    const result = validateProtocolStructure(doc);
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain('completion_rule');
+  });
+
   test('H2 inside code block is ignored', () => {
     const doc = `# My Protocol
 

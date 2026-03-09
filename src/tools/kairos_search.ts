@@ -136,8 +136,10 @@ async function generateUnifiedOutput(
     });
   }
 
-  // Single match: only that choice. Zero or multiple: append refine + create.
-  if (matchCount !== 1) {
+  // No matches, or multiple matches, or single match below relevance threshold: offer refine + create.
+  const RELEVANT_SCORE = 0.7;
+  const singleMatchNotRelevant = matchCount === 1 && (choices[0]?.score ?? 0) < RELEVANT_SCORE;
+  if (matchCount !== 1 || singleMatchNotRelevant) {
     choices.push(
       {
         uri: REFINING_PROTOCOL_URI,
