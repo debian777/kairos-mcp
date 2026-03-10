@@ -26,7 +26,7 @@ RUN mkdir -p logs storage/qdrant && \
 
 USER kairos
 
-ARG PORT=3500
+ARG PORT=3000
 ENV PORT=${PORT}
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
