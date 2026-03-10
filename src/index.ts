@@ -15,6 +15,7 @@ import { startMetricsServer } from './metrics-server.js';
 import { PORT, METRICS_PORT, QDRANT_SNAPSHOT_ON_START, QDRANT_SNAPSHOT_DIR } from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
+import { probeEmbeddingDimension } from './services/embedding/service.js';
 // Import system metrics to ensure they're initialized
 import './services/metrics/system-metrics.js';
 
@@ -56,6 +57,9 @@ async function main(): Promise<void> {
 
         // Wait for Qdrant to be available before initializing
         await waitForQdrant(memoryStore);
+
+        const embeddingDim = await probeEmbeddingDimension();
+        structuredLogger.info(`Embedding dimension resolved: ${embeddingDim}`);
 
         structuredLogger.info('Initializing Qdrant memory store...');
         await memoryStore.init();

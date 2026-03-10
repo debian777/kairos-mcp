@@ -2,7 +2,7 @@ import type { Memory } from '../../types/memory.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { logger } from '../../utils/logger.js';
 import { embeddingService } from '../embedding/service.js';
-import { getEmbeddingDimension } from '../../config.js';
+import { getEmbeddingDimension } from '../embedding/config.js';
 import { IDGenerator } from '../id-generator.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';

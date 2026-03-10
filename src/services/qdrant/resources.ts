@@ -6,7 +6,7 @@ import { buildDomainTypeTaskURI, buildProtocolStepURI } from '../../utils/uri-bu
 import { sanitizeAndUpsert, validatePayload, validateAndConvertId } from './utils.js';
 import { redisCacheService } from '../redis-cache.js';
 import { logger } from '../../utils/logger.js';
-import { getEmbeddingDimension } from '../../config.js';
+import { getEmbeddingDimension } from '../embedding/config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 
