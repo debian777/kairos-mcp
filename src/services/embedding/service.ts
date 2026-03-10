@@ -4,8 +4,8 @@
  * Implements pure OpenAI embedding support.
  * Uses environment variables:
  *  - OPENAI_API_KEY
- *  - OPENAI_EMBEDDING_MODEL
- *  - EMBEDDING_DIMENSION
+ *  - OPENAI_EMBEDDING_MODEL (default text-embedding-3-small)
+ *  - Dimension is auto-detected at startup via probeEmbeddingDimension().
  *
  * Supports OpenAI and TEI (Text Embeddings Inference) providers. Selection:
  *  - If OPENAI_API_KEY is set, OpenAI is used.
@@ -14,7 +14,7 @@
 
 import { logger } from '../../utils/logger.js';
 import { EMBEDDING_PROVIDER, OPENAI_API_KEY, TEI_BASE_URL, TEI_MODEL, TEI_API_KEY } from '../../config.js';
-import { DEFAULT_MODEL, DEFAULT_DIMENSION, TEI_EMBEDDING_ENDPOINT } from './config.js';
+import { OPENAI_EMBEDDING_MODEL, TEI_EMBEDDING_ENDPOINT, getResolvedEmbeddingDimension, setResolvedEmbeddingDimension } from './config.js';
 import { postEmbeddings, postEmbeddingsOpenAI, postEmbeddingsTEI } from './providers.js';
 import type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
 import {
@@ -30,10 +30,8 @@ import { getTenantId } from '../../utils/tenant-context.js';
 export type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
 
 export class EmbeddingService {
-    private readonly embeddingDimension: number;
-
-    constructor() {
-        this.embeddingDimension = DEFAULT_DIMENSION;
+    private get embeddingDimension(): number {
+        return getResolvedEmbeddingDimension();
     }
 
     async generateEmbedding(text: string): Promise<EmbeddingResult> {
@@ -62,7 +60,7 @@ export class EmbeddingService {
             
             return {
                 embedding,
-                model: DEFAULT_MODEL,
+                model: OPENAI_EMBEDDING_MODEL,
                 usage: { prompt_tokens: 0, total_tokens: 0 },
             };
         } catch (error) {
@@ -119,7 +117,7 @@ export class EmbeddingService {
             
             return {
                 embeddings: vectors,
-                model: DEFAULT_MODEL,
+                model: OPENAI_EMBEDDING_MODEL,
                 usage: { prompt_tokens: 0, total_tokens: 0 },
             };
         } catch (error) {
@@ -175,7 +173,7 @@ export class EmbeddingService {
 
             if (providerPref === 'openai') {
                 // Explicit OpenAI only - enforce duo
-                if (!OPENAI_API_KEY || !DEFAULT_MODEL) {
+                if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) {
                     return { healthy: false, message: 'OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL' };
                 }
                 try {
@@ -206,7 +204,7 @@ export class EmbeddingService {
             }
 
             // Auto mode: prefer OpenAI if both OPENAI vars are present, otherwise TEI
-            if (OPENAI_API_KEY && DEFAULT_MODEL) {
+            if (OPENAI_API_KEY && OPENAI_EMBEDDING_MODEL) {
                 try {
                     const res = await postEmbeddingsOpenAI('health check');
                     return { healthy: Array.isArray(res) && res.length > 0, message: 'openai embeddings operational' };
@@ -263,11 +261,7 @@ export class EmbeddingService {
 
                     if (Array.isArray(embeddings) && embeddings.length > 0 && Array.isArray(embeddings[0])) {
                         const dim = embeddings[0].length;
-                        if (dim !== DEFAULT_DIMENSION) {
-                            // If env explicitly sets EMBEDDING_DIMENSION, validate against it
-                            logger.warn(`[EmbeddingService] TEI embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}`);
-                            return { healthy: false, message: `TEI embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}` };
-                        }
+                        setResolvedEmbeddingDimension(dim);
                         return { healthy: true, message: 'TEI embeddings operational' };
                     }
 
@@ -289,7 +283,7 @@ export class EmbeddingService {
         const pref = EMBEDDING_PROVIDER;
         if (pref === 'openai') return 'openai';
         if (pref === 'tei') return 'tei';
-        if (OPENAI_API_KEY && DEFAULT_MODEL) return 'openai';
+        if (OPENAI_API_KEY && OPENAI_EMBEDDING_MODEL) return 'openai';
         if (TEI_BASE_URL && TEI_MODEL) return 'tei';
         return 'local'; // fallback
     }
@@ -299,14 +293,14 @@ export class EmbeddingService {
         const pref = EMBEDDING_PROVIDER;
         if (pref === 'openai') provider = 'openai';
         else if (pref === 'tei') provider = 'tei';
-        else if (OPENAI_API_KEY && DEFAULT_MODEL) provider = 'openai';
+        else if (OPENAI_API_KEY && OPENAI_EMBEDDING_MODEL) provider = 'openai';
         else if (TEI_BASE_URL && TEI_MODEL) provider = 'tei';
 
         return {
-            model: provider === 'openai' ? DEFAULT_MODEL : (TEI_MODEL || DEFAULT_MODEL),
+            model: provider === 'openai' ? OPENAI_EMBEDDING_MODEL : (TEI_MODEL || OPENAI_EMBEDDING_MODEL),
             dimension: this.embeddingDimension,
             provider,
-            apiKeyConfigured: !!OPENAI_API_KEY && !!DEFAULT_MODEL,
+            apiKeyConfigured: !!OPENAI_API_KEY && !!OPENAI_EMBEDDING_MODEL,
             teiConfigured: !!TEI_BASE_URL && !!TEI_MODEL,
             providerPref: EMBEDDING_PROVIDER
         };
@@ -314,3 +308,9 @@ export class EmbeddingService {
 }
 
 export const embeddingService = new EmbeddingService();
+
+/** Run one minimal embed to resolve and cache dimension; call at startup before memoryStore.init(). */
+export async function probeEmbeddingDimension(): Promise<number> {
+    await postEmbeddings('probe');
+    return getResolvedEmbeddingDimension();
+}

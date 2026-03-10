@@ -47,17 +47,18 @@ export const USE_REDIS = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
-export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', '');
+export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
+/** Base URL for OpenAI API (e.g. https://api.openai.com or Azure endpoint). No trailing slash. */
+export const OPENAI_API_URL = getEnvString('OPENAI_API_URL', 'https://api.openai.com').replace(/\/$/, '');
 export const OPENAI_API_KEY = getEnvString('OPENAI_API_KEY', '');
 export const EMBEDDING_PROVIDER = getEnvString('EMBEDDING_PROVIDER', 'auto');
 export const TEI_BASE_URL = getEnvString('TEI_BASE_URL', '');
-export const TEI_MODEL = getEnvString('TEI_MODEL', '');
+export const TEI_MODEL = getEnvString('TEI_MODEL', 'Alibaba-NLP/gte-large-en-v1.5');
 export const TEI_API_KEY = getEnvString('TEI_API_KEY', '');
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
 export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
-export const TEI_URL = getEnvString('TEI_URL', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
 export const KAIROS_SEARCH_MAX_FETCH = getEnvString('KAIROS_SEARCH_MAX_FETCH', '200');
 export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvString('KAIROS_ENABLE_GROUP_COLLAPSE', 'true');
@@ -130,14 +131,6 @@ export function getQdrantUrl(): string {
 
 export function getQdrantCollection(defaultValue = 'kairos'): string {
   return getEnvString('QDRANT_COLLECTION', defaultValue);
-}
-
-export function getEmbeddingDimension(defaultValue = 1024): number {
-  return getEnvInt('EMBEDDING_DIMENSION', defaultValue);
-}
-
-export function getTeiDimension(defaultValue = 0): number {
-  return getEnvInt('TEI_DIMENSION', defaultValue);
 }
 
 // Trusted issuers: from env, or from KEYCLOAK_URL/REALM when unset. Add loopback alias (localhost <-> 127.0.0.1) so tokens match either.

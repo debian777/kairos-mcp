@@ -1,26 +1,20 @@
-import { getEmbeddingDimension, QDRANT_COLLECTION_CURRENT, getQdrantCollection } from '../config.js';
+import { QDRANT_COLLECTION_CURRENT, getQdrantCollection } from '../config.js';
+import { getEmbeddingDimension } from '../services/embedding/config.js';
 
-/**
- * Get the vector size from environment variable EMBEDDING_DIMENSION
- */
+/** Vector size from resolved embedding dimension (set at startup probe). */
 export type VectorDescriptor = { size: number; distance?: 'Cosine' | 'Euclid' | 'Dot'; on_disk?: boolean };
 export type VectorDescriptorMap = Record<string, VectorDescriptor>;
 
-/**
- * Get the vector size for the default provider (OpenAI) from environment variable EMBEDDING_DIMENSION
- * Backwards compatible helper for single-vector deployments.
- */
 export function getVectorSize(): number {
   return getEmbeddingDimension();
 }
 
 /**
- * Build a named vector configuration object from environment variables.
+ * Build a named vector configuration object from resolved dimension.
  * Uses "vs{DIMENSION}" naming to support migration between dimensions.
- * Only one vector space active at a time, but supports migration from old to new.
  */
 export function getVectorDescriptors(): VectorDescriptorMap {
-  const dim = getEmbeddingDimension(1536);
+  const dim = getEmbeddingDimension();
   const map: VectorDescriptorMap = {};
   map[`vs${dim}`] = { size: dim, distance: 'Cosine', on_disk: true };
   return map;
