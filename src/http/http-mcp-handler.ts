@@ -51,23 +51,6 @@ function mcpErrorToHelp(error: unknown): { message: string; error_code: string; 
   };
 }
 
-/** Help text and error_code for clients; never expose internal error details. */
-function mcpErrorToHelp(error: unknown): { message: string; error_code: string; retry_hint: string } {
-  const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes('Already connected to a transport')) {
-    return {
-      message: 'Server is busy with another request. Wait a few seconds and retry; if it continues, start a new MCP session.',
-      error_code: 'CONNECTION_CONFLICT',
-      retry_hint: 'Wait a few seconds and retry the same request; if repeated, start a new MCP session.'
-    };
-  }
-  return {
-    message: 'An unexpected error occurred. Please retry. If the problem continues, start a new MCP session.',
-    error_code: 'SERVER_ERROR',
-    retry_hint: 'Retry the request; if it persists, start a new MCP session.'
-  };
-}
-
 /**
  * Set up MCP endpoint handling.
  * Uses a new MCP server instance per request so many requests can be handled
