@@ -1,5 +1,7 @@
 # Install KAIROS MCP in Cursor
 
+**Agent skill:** Install the [KAIROS agent skill](../README.md#agent-skill) and ask your agent to run KAIROS protocols; for MCP config the agent can help or use this section. This section is for manual configuration.
+
 This guide shows you how to connect KAIROS to Cursor as an MCP server. Once
 connected, Cursor can call KAIROS tools automatically without prompting for
 each one.
