@@ -67,7 +67,20 @@ Install the KAIROS skill so your agent can run protocols (/k, /apply, /search) w
 npx skills add debian777/kairos-mcp
 ```
 
-Optional: `-g` for global install, `-a cursor` to target Cursor only. Then run the skill or ask your agent to run KAIROS protocols. For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
+**Popular agents (global install, non-interactive):**
+
+| Agents | Command |
+|--------|---------|
+| Cursor | `npx skills add debian777/kairos-mcp -y -g -a cursor` |
+| Claude Code | `npx skills add debian777/kairos-mcp -y -g -a claude-code` |
+| Cursor + Claude Code | `npx skills add debian777/kairos-mcp -y -g -a cursor -a claude-code` |
+| All detected agents | `npx skills add debian777/kairos-mcp -y -g` (omit `-a` to install to all) |
+
+```bash
+npx skills remove kairos -g
+```
+
+Run without `-y` to choose agents interactively. For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
 
 ## Documentation
 
