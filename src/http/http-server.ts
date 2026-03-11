@@ -15,7 +15,7 @@ import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
 
-export function startHttpServer(port: number, server: any, memoryStore: MemoryQdrantStore) {
+export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     const app = express();
 
     // Configure middleware
@@ -31,19 +31,19 @@ export function startHttpServer(port: number, server: any, memoryStore: MemoryQd
     // Protected route handlers (require auth when AUTH_ENABLED)
     setupHealthRoutes(app, memoryStore);
     setupApiRoutes(app, memoryStore, { qdrantService });
-    setupMcpRoutes(app, server);
+    setupMcpRoutes(app, memoryStore);
     setupErrorHandlers(app);
 
     // Start server with error handling
     return startHttpServerWithErrorHandling(app, port);
 }
 
-export async function startServer(server: any, memoryStore: MemoryQdrantStore) {
+export async function startServer(memoryStore: MemoryQdrantStore) {
     const httpPort = PORT;
 
     structuredLogger.success('🚀 KAIROS MCP Server starting', 'HTTP transport only');
     structuredLogger.info('HTTP transport: enabled');
     structuredLogger.info('Port: ' + httpPort);
 
-    startHttpServer(httpPort, server, memoryStore);
+    startHttpServer(httpPort, memoryStore);
 }

@@ -84,7 +84,6 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
         },
     };
     structuredLogger.debug(`runtime config ${JSON.stringify(config)}`);
-
-    structuredLogger.info('MCP server created and configured');
+    structuredLogger.debug('MCP server created and configured');
     return server;
 }

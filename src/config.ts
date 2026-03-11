@@ -113,6 +113,8 @@ export const QDRANT_SNAPSHOT_DIR =
 
 // Int configurations
 export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);
+/** Raw env: positive = override, -1 = disabled, 0 or unset = auto-detect from cgroup/memory. */
+export const MAX_CONCURRENT_MCP_REQUESTS_RAW = getEnvInt('MAX_CONCURRENT_MCP_REQUESTS', 0);
 
 // Float configurations (tunable via env; relaxed defaults so more results pass into choices)
 export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
