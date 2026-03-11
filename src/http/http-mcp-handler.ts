@@ -9,6 +9,23 @@ import { setWwwAuthenticate } from './http-auth-middleware.js';
  */
 const requestTimestamps = new Map<string, number>();
 
+/** Help text and error_code for clients; never expose internal error details. */
+function mcpErrorToHelp(error: unknown): { message: string; error_code: string; retry_hint: string } {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes('Already connected to a transport')) {
+    return {
+      message: 'Server is busy with another request. Wait a few seconds and retry; if it continues, start a new MCP session.',
+      error_code: 'CONNECTION_CONFLICT',
+      retry_hint: 'Wait a few seconds and retry the same request; if repeated, start a new MCP session.'
+    };
+  }
+  return {
+    message: 'An unexpected error occurred. Please retry. If the problem continues, start a new MCP session.',
+    error_code: 'SERVER_ERROR',
+    retry_hint: 'Retry the request; if it persists, start a new MCP session.'
+  };
+}
+
 /**
  * Set up MCP endpoint handling
  * @param app Express application instance
@@ -140,17 +157,21 @@ export function setupMcpRoutes(app: express.Express, server: any) {
         } catch (error) {
             const duration = Date.now() - requestStart;
             const errMsg = error instanceof Error ? error.message : String(error);
+            const errName = error instanceof Error ? error.constructor?.name ?? 'Error' : typeof error;
+            const errStack = error instanceof Error ? error.stack : undefined;
             structuredLogger.error(
               `✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} after ${duration}ms: ${errMsg}`,
               error,
-              { request_id: requestId }
+              { request_id: requestId, stack: errStack, error_name: errName }
             );
             if (!res.headersSent) {
+                const help = mcpErrorToHelp(error);
                 res.status(500).json({
                     jsonrpc: '2.0',
                     error: {
                         code: -32603,
-                        message: 'Internal server error'
+                        message: help.message,
+                        data: { error_code: help.error_code, retry_hint: help.retry_hint }
                     },
                     id: requestId === 'unknown' ? null : requestId
                 });
