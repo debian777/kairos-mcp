@@ -8,7 +8,6 @@ import { structuredLogger } from './utils/structured-logger.js';
 import { installGlobalErrorHandlers } from './utils/global-error-handlers.js';
 import { logger } from './utils/logger.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
-import { createServer } from './server.js';
 import { startServer } from './http/http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
@@ -90,8 +89,7 @@ async function main(): Promise<void> {
         structuredLogger.info(`Application server: ${PORT}`);
         structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
 
-        const server = createServer(memoryStore);
-        await startServer(server, memoryStore);
+        await startServer(memoryStore);
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 
