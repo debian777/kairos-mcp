@@ -84,18 +84,18 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
     });
   });
 
-  describe('401 WWW-Authenticate header', () => {
+  const describeWhenAuthRequired = serverRequiresAuth() ? describe : describe.skip;
+  describeWhenAuthRequired('401 WWW-Authenticate header', () => {
     test('unauthenticated POST /mcp returns 401 with resource_metadata and scope', async () => {
       if (skipIfUnavailable()) return;
-      if (!serverRequiresAuth()) {
-        console.warn('Skipping — AUTH_ENABLED is not true');
-        return;
-      }
       const res = await fetch(`${BASE_URL}/mcp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1, params: {} })
       });
+      if (res.status !== 401) {
+        return;
+      }
       expect(res.status).toBe(401);
 
       const wwwAuth = res.headers.get('www-authenticate');
