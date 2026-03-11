@@ -105,6 +105,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: TypeScript check
+        run: npx tsc --noEmit
+        # Fail fast on TS errors (e.g. duplicate function); full build runs later.
+
       - name: Knip (compliance)
         run: npm run knip
 
