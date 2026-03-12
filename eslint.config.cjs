@@ -113,6 +113,8 @@ module.exports = [
       '**/snapshots/**',
       '**/*.snapshot',
       'docs/design/mockups/**',
+      'storybook-static/**',
+      '.storybook/**',
       '**/*.html',
       '**/*.css',
       '**/*.tsbuildinfo',
