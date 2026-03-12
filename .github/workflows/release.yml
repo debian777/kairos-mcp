@@ -22,6 +22,8 @@ jobs:
   publish-npm:
     name: Publish npm
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
     permissions:
       contents: read
@@ -89,6 +91,8 @@ jobs:
     name: Publish Docker image
     needs: publish-npm
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: read
 
@@ -149,6 +153,8 @@ jobs:
     needs: [publish-npm, publish-docker]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
 

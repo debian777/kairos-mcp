@@ -16,6 +16,8 @@ jobs:
     name: Tag if version bumped
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write  # push tag
       actions: write  # trigger Release workflow
