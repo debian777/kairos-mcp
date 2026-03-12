@@ -121,6 +121,9 @@ jobs:
       - name: Knip (compliance)
         run: npm run knip
 
+      - name: Run UI tests
+        run: npm run test:ui
+
       - name: Build package (tgz)
         run: npm run build:tgz
 
