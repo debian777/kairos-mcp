@@ -1,8 +1,10 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 
-/** Always serve the built SPA from dist/ui (dev runs from src via ts-node, so we use cwd). */
-const UI_DIR = path.resolve(process.cwd(), "dist", "ui");
+/** Serve the built SPA from dist/ui. Resolve relative to this module so it works when run from npm-installed package (cwd is /app, UI is in node_modules/.../dist/ui). */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UI_DIR = path.resolve(__dirname, "..", "ui");
 
 /**
  * Serve the built SPA at URL /ui.
