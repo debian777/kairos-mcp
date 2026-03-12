@@ -56,6 +56,7 @@ module.exports = [
   {
     ignores: [
       'node_modules/**',
+      '.venv/**',
       'dist/**',
       '**/dist/**',
       'build/**',

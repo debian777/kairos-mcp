@@ -141,10 +141,11 @@ in Docker; use `./data/qdrant/snapshots` in dev). Trigger on demand:
 ```
 src/               TypeScript source
 src/embed-docs/    Built-in protocol chains embedded as MCP resources
+skills/kairos-dev/ Agent instructions for kairos-dev (ai-mcp-integration, workflow-test)
 dist/              Compiled output (generated)
 tests/             Test files
 tests/test-data/   Test fixtures
-tests/workflow-test/ Agent workflow test prompt and instructions
+tests/workflow-test/ Workflow test harness; canonical agent prompt in skills/kairos-dev/
 reports/           Workflow test output (gitignored except .gitkeep)
 docs/examples/     Mintable protocol examples for dev workflow tests
 scripts/           Build and utility scripts
@@ -180,6 +181,21 @@ Use these prefixes:
 - Docs are updated when behavior changes.
 - Branch is up to date with `main`.
 - PR description states what changed, why, and how to test it.
+
+## Merge queue (repository setting)
+
+To enable a [merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue) for `main` (GitHub’s equivalent of GitLab merge trains):
+
+1. **Repo** → **Settings** → **Rules** → **Rulesets** → open the ruleset that applies to `main`, or **Branches** → **Branch protection** for `main`.
+2. Enable **Require merge queue**.
+3. Optional settings:
+   - **Merge method:** merge / rebase / squash (e.g. **Squash** for single-commit PRs).
+   - **Build concurrency:** 1–100 (max concurrent `merge_group` runs; e.g. **3**).
+   - **Only merge non-failing pull requests:** on = **ALLGREEN** (every PR in the group must pass); off = **HEADGREEN** (only the combined head must pass).
+   - **Status check timeout:** how long to wait for CI before treating as failed (e.g. 15 min).
+   - **Merge limits:** min/max PRs per merge (e.g. 1–5), and wait time for minimum group size.
+
+The integration workflow (`.github/workflows/integration.yml`) already triggers on `merge_group`, so required checks run when PRs are in the queue. Use `gh pr merge` (no strategy) to add a PR to the queue; use `gh pr merge --admin` to bypass the queue.
 
 ## Code style
 

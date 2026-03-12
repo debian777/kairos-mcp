@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * AI–MCP integration: run protocols on KAIROS (kairos-dev).
- * Implements docs/examples/ai-mcp-integration.md:
+ * Implements skills/kairos-dev/ai-mcp-integration.md:
  * - Import each protocol from docs/examples/protocol-example-*.md via POST /api/kairos_mint/raw
  * - Search, begin, next (loop) until next_action says kairos_attest
  * - Write one report per protocol under reports/<run-id>/<protocol-folder>/report.md

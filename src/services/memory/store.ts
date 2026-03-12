@@ -119,7 +119,11 @@ export class MemoryQdrantStore {
     }
   }
 
-  async storeChain(docs: string[], llmModelId: string, options: { forceUpdate?: boolean } = {}): Promise<Memory[]> {
+  async storeChain(
+    docs: string[],
+    llmModelId: string,
+    options: { forceUpdate?: boolean; protocolVersion?: string } = {}
+  ): Promise<Memory[]> {
     return this.chainStore.storeChain(docs, llmModelId, options);
   }
 

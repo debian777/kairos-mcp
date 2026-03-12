@@ -11,7 +11,10 @@ instructions zero-drift template`).
 
 **Response:** Always `must_obey: true`. Contains `choices` array (each
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
-`next_action`), `message`, and a global `next_action`.
+`next_action`, and optional `protocol_version`), `message`, and a
+global `next_action`. For match choices, `protocol_version` is the
+stored protocol version (e.g. semver); compare with skill-bundled
+protocol to decide if re-mint is needed.
 
 **Choice roles:**
 

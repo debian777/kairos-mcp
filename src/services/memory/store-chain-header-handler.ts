@@ -89,7 +89,8 @@ export async function storeHeaderBasedChain(
           id: chainUuid,
           label: chainLabel,
           step_index: i + 1,
-          step_count: chainStepCount
+          step_count: chainStepCount,
+          ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version })
         }
       }
     });
