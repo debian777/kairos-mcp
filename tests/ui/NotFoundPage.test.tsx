@@ -1,15 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "./helpers";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 describe("NotFoundPage", () => {
   it("renders heading and ErrorAlert with go-back link", () => {
-    render(
-      <MemoryRouter>
-        <NotFoundPage />
-      </MemoryRouter>
-    );
+    renderWithProviders(<NotFoundPage />);
     expect(screen.getByRole("heading", { name: "notFound.title", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText("notFound.message")).toBeInTheDocument();
