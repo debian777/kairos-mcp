@@ -7,6 +7,44 @@ SKILL.md
 spec](https://github.com/cursor/skills/blob/main/create-skill/SKILL.md) and
 KAIROS protocol execution (search → begin → next → attest).
 
+## Installing skills from this repo
+
+The repo ships **multiple skills**. Adding the repo without `--skill` typically installs **all** of them. Use `--skill` to install only the ones you need.
+
+**Install all skills:**
+
+```bash
+npx skills add debian777/kairos-mcp
+```
+
+**Install only specific skills** (repeat `--skill` for each):
+
+```bash
+npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
+```
+
+**List available skills:** `npx skills add debian777/kairos-mcp --list`
+
+| Skill | Purpose |
+|-------|---------|
+| kairos | Run protocols; /k, /apply, /search. |
+| kairos-code | ELITE AI CODING STANDARDS; /code. |
+| kairos-ai-docs | Zero-drift AI instructions; /ai-docs. |
+| kairos-create-protocol | Create and mint new protocol chains. |
+| kairos-create-skill | Create skills that ship protocols. |
+| kairos-refine-search | Refine a weak/empty search (better query). |
+| kairos-dev | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
+
+**Global install for Cursor / Claude Code** (non-interactive): add `-y -g` and optionally `-a cursor` or `-a claude-code`. Example:
+
+```bash
+npx skills add debian777/kairos-mcp --skill kairos-code -y -g -a cursor
+```
+
+**Remove:** `npx skills remove <skill-name> -g` (e.g. `kairos`, `kairos-code`).
+
+See the [main README](../README.md#agent-skills) for a short table and agent-specific commands.
+
 ## Purpose
 
 - **Single unit of delivery:** A skill can ship both instructions and the

@@ -59,13 +59,35 @@ Node.js 24 or later is required.
 For development setup and all `npm run` commands, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Agent skill
+### Agent skills
 
-Install the KAIROS skill so your agent can run protocols (/k, /apply, /search) without extra prompting:
+This repo ships **multiple skills**. Adding the repo typically installs **all** of them; use `--skill` to install only the ones you want.
+
+**Install all skills from this repo:**
 
 ```bash
 npx skills add debian777/kairos-mcp
 ```
+
+**Install only specific skills** (e.g. just protocol execution, or just the coding-standard skill):
+
+```bash
+npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
+```
+
+List what’s available: `npx skills add debian777/kairos-mcp --list`
+
+| Skill | Purpose |
+|-------|---------|
+| `kairos` | Run protocols (/k, /apply, /search). |
+| `kairos-code` | ELITE AI CODING STANDARDS — /code, full protocol (branch, tests, deploy, promote). |
+| `kairos-ai-docs` | Zero-drift AI instructions template — /ai-docs, write/update AI instructions. |
+| `kairos-create-protocol` | Create and mint new KAIROS protocol chains. |
+| `kairos-create-skill` | Create Cursor/agent skills that ship protocols. |
+| `kairos-refine-search` | Refine a weak or empty search (step-by-step better query). |
+| `kairos-dev` | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
+
+The **kairos** skill is the one that enables running protocols (/k, /apply, /search). The table above lists all skills in this repo.
 
 **Popular agents (global install, non-interactive):**
 
@@ -76,11 +98,15 @@ npx skills add debian777/kairos-mcp
 | Cursor + Claude Code | `npx skills add debian777/kairos-mcp -y -g -a cursor -a claude-code` |
 | All detected agents | `npx skills add debian777/kairos-mcp -y -g` (omit `-a` to install to all) |
 
+Optionally add `--skill kairos --skill kairos-code` (etc.) to any command to install only selected skills instead of all.
+
+**Remove a skill** (use the skill name, e.g. `kairos`, `kairos-code`):
+
 ```bash
 npx skills remove kairos -g
 ```
 
-Run without `-y` to choose agents interactively. For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
+Run without `-y` to choose agents interactively. Full list and install details: [skills/README.md](skills/README.md). For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
 
 ## Documentation
 
