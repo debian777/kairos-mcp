@@ -109,9 +109,9 @@ out
 .nuxt
 dist
 
-# Gatsby files
+# Gatsby / Next build output (root only; src/ui/public is Vite app assets, tracked)
 .cache/
-public
+/public
 
 # Storybook build outputs
 .out

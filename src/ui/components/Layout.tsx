@@ -23,6 +23,17 @@ export function Layout() {
           className="w-48 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-4"
           aria-label="Main navigation"
         >
+          <div className="px-4 pb-4">
+            <NavLink to="/" end className="block w-full rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)]">
+              <img
+                src="/ui/logo.svg"
+                alt="KAIROS MCP"
+                className="h-10 w-10 rounded-lg object-contain"
+                width="40"
+                height="40"
+              />
+            </NavLink>
+          </div>
           <nav className="flex flex-col gap-0.5">
             <NavLink to="/" end aria-current={path === "/" ? "page" : undefined} className={navLinkClass}>
               {t("nav.home")}

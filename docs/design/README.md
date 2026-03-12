@@ -16,7 +16,7 @@ Project design info for the KAIROS public UI. Harmonized with:
 | [designer-checklist.md](designer-checklist.md) | **DRAFT:** KAIROS design sign-off protocol (compliance checklist). |
 | [design-lint-report.md](design-lint-report.md) | Example design-lint report format and past results. |
 | [kairos-logo-requirements.md](kairos-logo-requirements.md) | Logo brief for agencies: naming (KAIROS MCP), deliverables, colour, formats. |
-| [logos/](../../logos/) | SVG logo mockups: wordmark, icon, lockup (light and dark variants). |
+| [logo/](../../logo/) | Official logo: [kaiiros-mcp.svg](../../logo/kaiiros-mcp.svg) (SVG). |
 | [mockups/static/](mockups/static/) | Storybook export (1:1 with app). Generate with `npm run storybook:export-mockups`. |
 | [mockup-implementation-1-to-1.md](mockup-implementation-1-to-1.md) | **WYSIWYG / 1:1:** How to keep mockups and implementation in sync (React + Storybook recommended). |
 | [theme-colors.md](theme-colors.md) | Possible theme palettes (it-pro navy, it-pro-2 soft blue, blue KAIROS MCP brand) for future use. |

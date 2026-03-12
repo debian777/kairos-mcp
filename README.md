@@ -1,7 +1,6 @@
 # KAIROS MCP
 
-![KAIROS MCP logo](logos/kairos-mcp-lockup.svg)  
-*Placeholder logo; final logo not yet chosen.*
+![KAIROS MCP logo](logo/kaiiros-mcp.svg)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)

@@ -1,12 +1,11 @@
 # KAIROS MCP Logo
 
-Logos use the **default (teal) theme**: structure and “KAIROS” wordmark `#0f172a` (Deep Navy); accent and “MCP” `#0f766e` (stronger teal than UI primary for logo punch). Optional secondary `#0d9488` (theme primary) where needed.
+This directory contains the official KAIROS MCP logo.
 
-The logo files in this directory are copyright © 2026 Jakub Plichcinski.
+| File | Description |
+|------|-------------|
+| [kaiiros-mcp.svg](kaiiros-mcp.svg) | Primary logo — “Deterministic Path” symbol (512×512). Dark background, gradient path with four nodes. Use for app icon, favicon, sidebar, and docs. |
 
-They are NOT licensed under the MIT license used for the software code.
+The logo is used in the repo at: root README, web app (`src/ui/` favicon and sidebar), design mockups (`docs/design/mockups/static/favicon.svg`), and [TRADEMARK.md](../TRADEMARK.md).
 
-Use of the logo is governed by the trademark policy in TRADEMARK.md.
-
-The logo may be used when referring to the official project,
-but may not be reused for derivative products.
+**Copyright © 2026 Jakub Plichcinski.** The logo is not licensed under the MIT license used for the software code. Use is governed by [TRADEMARK.md](../TRADEMARK.md): you may use it when referring to the official project; you may not reuse it for derivative products.

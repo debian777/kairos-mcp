@@ -2,7 +2,7 @@
 
 ## Trademark Notice
 
-"KAIROS MCP™", the KAIROS MCP logo (once chosen), and related brand assets are trademarks
+"KAIROS MCP™", the KAIROS MCP logo (see [logo/kaiiros-mcp.svg](logo/kaiiros-mcp.svg)), and related brand assets are trademarks
 of Jakub Plichcinski and the KAIROS MCP project.
 
 The trademarks and branding are NOT covered by the MIT License.
