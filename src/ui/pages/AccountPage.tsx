@@ -18,7 +18,7 @@ export function AccountPage() {
         <p className="text-[var(--color-text-muted)]">{t("account.notSignedIn")}</p>
         <a
           href="/auth/callback"
-          className="mt-4 min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline"
+          className="mt-4 min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         >
           {t("account.signIn")}
         </a>

@@ -18,6 +18,8 @@ jobs:
   integration:
     name: Infra + dev deploy + integration tests (AUTH on)
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -143,6 +145,17 @@ jobs:
 
       - name: Run auth integration test
         run: npm run dev:test
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
 
       - name: Upload kairos log - check
         if: always() && failure()

@@ -32,6 +32,8 @@ execute end-to-end.
 - [Skills that ship KAIROS protocols](../skills/README.md) —
   how a skill can bundle a protocol, declare requirements, and run
   search → mint if missing → execute.
+- [Known issues and limitations](known-issues-and-limitations.md) —
+  current limitations, upgrade policy, and where to find breaking changes.
 
 ## Examples
 

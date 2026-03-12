@@ -1,13 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
+import { useSpaces } from "@/hooks/useSpaces";
 
 /**
  * Home page per mockup 01-home-search: overview, search form (submits to KAIROS),
- * stats row, and CTA to KAIROS. No search results here.
+ * space protocol counts, and CTA to KAIROS. No search results here.
  */
 export function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { data, isLoading, isError } = useSpaces();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -15,6 +17,9 @@ export function HomePage() {
     const q = (form.querySelector('input[name="q"]') as HTMLInputElement)?.value?.trim() ?? "";
     navigate(q ? `/kairos?q=${encodeURIComponent(q)}` : "/kairos");
   };
+
+  const spaces = data?.spaces ?? [];
+  const showPlaceholder = isLoading || isError || spaces.length === 0;
 
   return (
     <div>
@@ -43,7 +48,7 @@ export function HomePage() {
           autoComplete="off"
           placeholder={t("home.searchPlaceholder")}
           aria-describedby="home-search-hint"
-          className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus:outline focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
+          className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         />
         <p id="home-search-hint" className="text-sm text-[var(--color-text-muted)] mt-2">
           {t("home.searchHint")}
@@ -54,30 +59,27 @@ export function HomePage() {
         className="flex gap-4 flex-wrap mb-6"
         aria-label={t("home.statsLabel")}
       >
-        <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
-            {t("home.stats.personalProtocols")}
-          </span>
-          <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
-            {t("home.stats.personalProtocolsLabel")}
-          </span>
-        </div>
-        <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
-            {t("home.stats.kairosApp")}
-          </span>
-          <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
-            {t("home.stats.kairosAppLabel")}
-          </span>
-        </div>
-        <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
-            {t("home.stats.spaces")}
-          </span>
-          <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
-            {t("home.stats.spacesLabel")}
-          </span>
-        </div>
+        {showPlaceholder && spaces.length === 0 ? (
+          <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+            <span className="text-2xl font-semibold text-[var(--color-text-heading)]">—</span>
+            <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
+              {t("home.stats.spacesLabel")}
+            </span>
+          </div>
+        ) : null}
+        {spaces.map((space) => (
+          <div
+            key={space.name}
+            className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4"
+          >
+            <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
+              {isLoading ? "—" : space.chain_count}
+            </span>
+            <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
+              {space.name}
+            </span>
+          </div>
+        ))}
       </div>
 
       <p className="text-sm text-[var(--color-text-muted)]">

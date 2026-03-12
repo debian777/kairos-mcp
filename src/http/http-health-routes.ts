@@ -96,7 +96,8 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
                 kairos_mint: 'POST /api/kairos_mint/raw',
                 kairos_update: 'POST /api/kairos_update',
                 kairos_delete: 'POST /api/kairos_delete',
-                kairos_dump: 'POST /api/kairos_dump'
+                kairos_dump: 'POST /api/kairos_dump',
+                kairos_spaces: 'POST /api/kairos_spaces'
             }
         };
         if (AUTH_ENABLED) {

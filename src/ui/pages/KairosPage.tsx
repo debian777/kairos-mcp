@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSearch } from "@/hooks/useSearch";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -31,7 +32,17 @@ export function KairosPage() {
     setSearchParams(query ? { q: query } : {}, { replace: true });
   };
 
-  const choices = data?.choices ?? [];
+  const choicesRaw = data?.choices ?? [];
+  const roleOrder: Record<string, number> = { match: 0, refine: 1, create: 2 };
+  const choices = choicesRaw
+    .slice()
+    .sort((a, b) => {
+      const ro = (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
+      if (ro !== 0) return ro;
+      const as = a.score ?? -1;
+      const bs = b.score ?? -1;
+      return bs - as;
+    });
   const topScore =
     choices.length > 0
       ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
@@ -61,14 +72,14 @@ export function KairosPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("kairos.searchPlaceholder")}
           aria-describedby="kairos-search-hint"
-          className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus:outline focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
+          className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         />
         <p id="kairos-search-hint" className="text-sm text-[var(--color-text-muted)] mt-2">
           {t("kairos.searchHint")}
         </p>
         <button
           type="submit"
-          className="mt-3 min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+          className="mt-3 min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         >
           {t("kairos.search")}
         </button>
@@ -83,18 +94,31 @@ export function KairosPage() {
       )}
 
       {isLoading && submittedQuery && (
-        <p className="text-[var(--color-text-muted)] text-sm mb-4">{t("kairos.loading")}</p>
+        <div className="mb-4" aria-live="polite" aria-busy="true">
+          <p className="sr-only">{t("kairos.loading")}</p>
+          <SearchResultsSkeleton />
+        </div>
       )}
 
       {!isLoading && !isError && submittedQuery && (
         <>
           {choices.length === 0 ? (
-            <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6">
+            <div
+              className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6"
+              role="status"
+              aria-live="polite"
+            >
               <p className="text-[var(--color-text-muted)] mb-4">{t("kairos.empty")}</p>
               <div className="flex flex-wrap gap-2">
                 <Link
+                  to="/kairos"
+                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium border border-[var(--color-border)] text-[var(--color-text)] no-underline hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                >
+                  {t("kairos.refineSearch")}
+                </Link>
+                <Link
                   to="/protocols/new"
-                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 no-underline"
+                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                 >
                   {t("kairos.createNew")}
                 </Link>
@@ -103,7 +127,12 @@ export function KairosPage() {
           ) : (
             <>
               {choices.length > 0 && (
-                <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                <p
+                  id="kairos-results-summary"
+                  className="text-sm text-[var(--color-text-muted)] mb-4"
+                  aria-live="polite"
+                  role="status"
+                >
                   {t("kairos.foundMatches", {
                     count: choices.length,
                     top: topScore != null ? Math.round(topScore) : 0,
@@ -123,6 +152,7 @@ export function KairosPage() {
                       <div className="text-sm text-[var(--color-text-muted)] mt-1">
                         {choice.chain_label ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
                         {choice.score != null && ` · ${t("kairos.score")}: ${Math.round(choice.score * 100)}%`}
+                        {choice.protocol_version && ` · ${t("kairos.version")}: ${choice.protocol_version}`}
                       </div>
                       <span
                         className={`inline-block mt-1 text-xs uppercase tracking-wide px-2 py-0.5 rounded ${roleBadgeClass[choice.role] ?? "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}
@@ -130,12 +160,24 @@ export function KairosPage() {
                       >
                         {choice.role}
                       </span>
+                      {choice.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2" aria-label={t("kairos.tagsLabel")}>
+                          {choice.tags.slice(0, 8).map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-block text-xs px-2 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
                       {choice.role === "match" && (
                         <Link
                           to={`/protocols/${encodeURIComponent(choice.uri)}`}
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline"
+                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                         >
                           {t("kairos.view")}
                         </Link>
@@ -143,7 +185,7 @@ export function KairosPage() {
                       {choice.role === "refine" && (
                         <Link
                           to={`/protocols/${encodeURIComponent(choice.uri)}`}
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline"
+                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                         >
                           {t("kairos.refineSearch")}
                         </Link>
@@ -151,7 +193,7 @@ export function KairosPage() {
                       {choice.role === "create" && (
                         <Link
                           to="/protocols/new"
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline"
+                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                         >
                           {t("kairos.createNew")}
                         </Link>

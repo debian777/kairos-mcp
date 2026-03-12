@@ -1,4 +1,5 @@
 // eslint.config.cjs
+// Storybook: eslint-plugin-storybook can be added via require() if needed for .storybook or *.stories.*
 
 // -----------------------------------------------------------------------------
 // Shared rule snippets

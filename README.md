@@ -58,7 +58,7 @@ Node.js 24 or later is required.
   ```
   See [KAIROS CLI](docs/CLI.md) for usage.
 
-For development setup and all `npm run` commands, see
+For development setup, all `npm run` commands, and **how we do releases**, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Agent skills

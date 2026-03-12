@@ -24,6 +24,8 @@ const config: KnipConfig = {
         // listResourceKeys) are part of the MCP resource API and may be used by MCP clients or
         // tooling; they are not imported in src, so knip reports them as unused.
         'src/resources/embedded-mcp-resources.ts',
+        // Vite ambient types and module declarations; not imported by source
+        'src/ui/vite-env.d.ts',
     ],
     ignoreDependencies: [
         // Runtime tools used in scripts/shell, not imported directly
@@ -34,8 +36,9 @@ const config: KnipConfig = {
         '@tailwindcss/postcss',
         'autoprefixer',
         'tailwindcss',
-        // Storybook: peer/optional for addon-essentials docs, not imported in our code
-        '@storybook/blocks',
+        // Storybook: used by storybook CLI and .storybook config, not by app source
+        '@storybook/react',
+        'eslint-plugin-storybook',
     ],
     // Knip reports "Unlisted binaries: python3" because it's referenced in package.json scripts
     // but not declared as a dependency. It's a system binary used by infra:up for Keycloak

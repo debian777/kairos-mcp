@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AppRoutes } from "@/App";
 
 /**
@@ -6,6 +6,7 @@ import { AppRoutes } from "@/App";
  * Use these as the design surface; changes here are the implementation.
  *
  * Seed API data via `parameters.queryData` (React Query cache) when a page needs it.
+ * Layout shows "Kairos" / "MCP" branding; Home shows space protocol counts; Detail/Edit show Download and Upload.
  */
 const meta: Meta<typeof AppRoutes> = {
   title: "Screens",
@@ -17,8 +18,21 @@ export default meta;
 
 type Story = StoryObj<typeof AppRoutes>;
 
-/** Home — overview, search form, stats row, CTA to KAIROS (mockup 01). */
+const mockSpaces = [
+  { name: "Personal", chain_count: 3 },
+  { name: "Kairos app", chain_count: 12 },
+];
+
+/** Home — overview, search form, space protocol counts, CTA to KAIROS (mockup 01). */
 export const Home: Story = {
+  parameters: {
+    initialEntry: "/",
+    queryData: [[["spaces"], { spaces: mockSpaces }]],
+  },
+};
+
+/** Home — loading spaces (no cache). */
+export const HomeLoadingSpaces: Story = {
   parameters: { initialEntry: "/" },
 };
 

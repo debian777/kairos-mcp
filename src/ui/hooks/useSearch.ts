@@ -9,6 +9,7 @@ export interface SearchChoice {
   role: "match" | "refine" | "create";
   tags: string[];
   next_action: string;
+  protocol_version?: string | null;
 }
 
 export interface SearchResult {
