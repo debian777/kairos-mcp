@@ -85,7 +85,17 @@ jobs:
         run: npm run prepare:publish
 
       - name: Publish to npm
-        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: |
+          set +e
+          out=$(npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -eq 0 ]; then exit 0; fi
+          if echo "$out" | grep -q "You cannot publish over the previously published versions"; then
+            echo "Version already on npm; continuing to Docker and GitHub Release"
+            exit 0
+          fi
+          exit 1
 
   publish-docker:
     name: Publish Docker image
