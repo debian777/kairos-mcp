@@ -2,7 +2,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 
 /**
- * CASE 3 — NO PERFECT MATCH, BUT ONE GOOD CANDIDATE (0.7 ≤ score < 1.0)
+ * CASE 3 — NO PERFECT MATCH, BUT ONE GOOD CANDIDATE (0.5 ≤ score < 1.0)
  * → Offer with confidence — never force
  * 
  * Tests from reports/outputs.md

@@ -8,6 +8,7 @@ import * as resources from './resources.js';
 import * as search from './search.js';
 import * as protocol from './protocol.js';
 import * as listing from './listing.js';
+import * as attestPropagation from './attest-propagation.js';
 import { UpsertResourceItem, UpsertResourceResult } from './types.js';
 import { logger } from '../../utils/logger.js';
 import { getQdrantUrl, QDRANT_API_KEY, getQdrantCollection } from '../../config.js';
@@ -95,6 +96,11 @@ export class QdrantService {
 
   updateQualityMetadata(id: string, qualityMetadata: any) {
     return quality.updateQualityMetadata(this.conn, id, qualityMetadata);
+  }
+
+  /** Propagate attest metrics from completion step to chain head so search can see them. */
+  propagateAttestToChainHead(stepPointId: string, metricsUpdate: Record<string, unknown>): Promise<string | null> {
+    return attestPropagation.propagateAttestToChainHead(this.conn, stepPointId, metricsUpdate);
   }
 
   trackPendingValidation(id: string, modelId: string, protocolStep?: number) {

@@ -3,6 +3,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { logger } from '../../utils/logger.js';
 import { embeddingService } from '../embedding/service.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
+import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { IDGenerator } from '../id-generator.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
@@ -68,9 +69,13 @@ export async function storeHeaderBasedChain(
       dtt.type,
       memory.tags
     );
+    const sparse = bm25Tokenizer.tokenize(`${memory.label} ${memory.text}`);
     return ({
       id: memory.memory_uuid,
-      vector: { [currentVectorName]: vectors[i]! },
+      vector: {
+        [currentVectorName]: vectors[i]!,
+        bm25: { indices: sparse.indices, values: sparse.values }
+      },
       payload: {
         space_id: spaceId,
         label: memory.label,
@@ -105,7 +110,21 @@ export async function storeHeaderBasedChain(
   );
 
   logger.debug(`[Qdrant][upsert] collection=${collection} points=${points.length}`);
-  await client.upsert(collection, { points });
+  try {
+    await client.upsert(collection, { points });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('Bad Request') || msg.includes('sparse') || msg.includes('vector')) {
+      const pointsDenseOnly = points.map(p => ({
+        ...p,
+        vector: { [currentVectorName]: (p.vector as any)[currentVectorName] }
+      }));
+      logger.warn(`[Qdrant][upsert] retrying without bm25 (collection may lack sparse config): ${msg}`);
+      await client.upsert(collection, { points: pointsDenseOnly });
+    } else {
+      throw err;
+    }
+  }
 
   // Publish cache invalidation
   await redisCacheService.invalidateAfterUpdate();

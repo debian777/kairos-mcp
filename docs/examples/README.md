@@ -20,7 +20,7 @@ Each file below is a complete protocol (H1 + H2 steps with ````json` challenge b
 
 ## Use in dev/qa workflow tests
 
-- **Imports:** Mint each mintable example via `kairos_mint` (e.g. from integration tests or an agent). See [skills/kairos-dev/](../../skills/kairos-dev/) (workflow-test, ai-mcp-integration) and [Workflow test README](../../tests/workflow-test/README.md).
+- **Imports:** Mint each mintable example via `kairos_mint` (e.g. from integration tests or an agent). See [skills/kairos-development/](../../skills/kairos-development/) (workflow-test, ai-mcp-integration) and [Workflow test README](../../tests/workflow-test/README.md).
 - **Search + workflows:** After minting, use `kairos_search` → choose chain → `kairos_begin` → `kairos_next` (loop) until run complete.
 - **Update step / update chain:** Use `kairos_search` or existing URI, `kairos_dump` for content, then `kairos_update` with edited `markdown_doc` (one step or multiple URIs).
 
@@ -33,7 +33,7 @@ When running **MCP-only** workflow tests (no shell, no filesystem except `report
 ## Related docs
 
 - [Architecture and protocol workflows](../architecture/README.md) — End-to-end flow (search → begin → next → run complete) and per-tool workflows.
-- [skills/kairos-dev/](../../skills/kairos-dev/) — Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). [Workflow test README](../../tests/workflow-test/README.md) — Test harness and how to run.
+- [skills/kairos-development/](../../skills/kairos-development/) — Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). [Workflow test README](../../tests/workflow-test/README.md) — Test harness and how to run.
 - Building KAIROS workflows is described in the MCP resource **building-kairos-workflows** and in the tool description for `kairos_mint`.
 - [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles) — For contributors designing or reviewing MCP tools and APIs.
 

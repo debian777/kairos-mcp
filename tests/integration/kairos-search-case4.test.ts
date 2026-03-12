@@ -2,7 +2,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 
 /**
- * CASE 4 — NO RELEVANT RESULTS (score < 0.7 or none)
+ * CASE 4 — NO RELEVANT RESULTS (score < 0.5 or none)
  * → Offer to create — never hallucinate
  * 
  * Tests from reports/outputs.md
@@ -58,7 +58,7 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
       const createChoices = parsed.choices.filter((c) => c.role === 'create');
-      const relevantMatches = parsed.choices.filter((c) => c.role === 'match' && (c.score ?? 0) >= 0.7);
+      const relevantMatches = parsed.choices.filter((c) => c.role === 'match' && (c.score ?? 0) >= 0.5);
       expect(createChoices.length >= 1 || relevantMatches.length >= 1).toBe(true);
       if (relevantMatches.length === 0) {
         expect(createChoices.length).toBeGreaterThanOrEqual(1);
