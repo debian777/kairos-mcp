@@ -3,7 +3,7 @@ name: kairos-code
 description: Run the KAIROS ELITE AI CODING STANDARDS protocol. Use when the user invokes /code, asks for AI coding rules, or wants code changes to follow the full protocol (feature branch, baseline tests, full suite, deploy to dev, validate, then promote).
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
-  version: "1.0.0"
+  version: "3.0.1"
   author: kairos-mcp
   protocol: references/KAIROS.md
   protocol_query: ELITE AI CODING STANDARDS code

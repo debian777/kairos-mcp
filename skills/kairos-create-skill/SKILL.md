@@ -3,7 +3,7 @@ name: kairos-create-skill
 description: Run the KAIROS protocol for creating a KAIROS skill (Agent Skill with optional references/KAIROS.md or multiple references/KAIROS-{alias}.md protocols). Use when the user wants to create a KAIROS skill, create a skill with a KAIROS protocol, write SKILL.md, or asks about skill structure and Agent Skills format (agentskills.io).
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
-  version: "1.0.0"
+  version: "3.0.1"
   author: kairos-mcp
   protocol: references/KAIROS.md
   protocol_query: create KAIROS skill with KAIROS.md protocol

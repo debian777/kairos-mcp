@@ -3,7 +3,7 @@ name: kairos-refine-search
 description: Run the KAIROS "Get help refining your search" protocol when kairos_search has no strong match (score ≥ 0.5). Use when the response suggests refining the query or improving the search.
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
-  version: "1.0.0"
+  version: "3.0.1"
   author: kairos-mcp
   protocol: references/KAIROS.md
   protocol_query: get help refining your search
