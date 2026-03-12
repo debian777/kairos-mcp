@@ -2,6 +2,10 @@
 
 One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to mint with `kairos_mint`.
 
+## Natural Language Triggers
+
+Run when user says "example all types" or "all challenge types".
+
 ## Step 1 — Run a command
 
 Run the given shell command. Exit code 0 means success.
@@ -70,3 +74,7 @@ Write a short summary of what was done in this protocol (at least 30 characters)
 ## Step 5 — Run complete
 
 Only reachable after Steps 1–4 are solved. Show the outputs from Steps 1–4 to the user (command result, MCP result, user confirmation, summary). No additional challenge.
+
+## Completion Rule
+
+Only reachable after all prior steps are solved.

@@ -18,9 +18,9 @@ primitives:
 
 - **Persistent memory** — store and retrieve protocol chains across sessions
 - **Deterministic execution** — search → begin → next → attest; the server
-  drives `next_action` at every step
-- **Agent-facing design** — tool descriptions and error messages built for
-  programmatic consumption and recovery
+drives `next_action` at every step
+- **Agent-facing design** — tool descriptions and error messages built for  
+programmatic consumption and recovery
 
 ## Quick start
 
@@ -29,51 +29,48 @@ KAIROS runs as a Docker stack. Docker and Docker Compose are required.
 **Minimal (default):** Qdrant + app only. No Redis or auth.
 
 1. Download the Compose file and minimal env example:
-
-   ```bash
+  ```bash
    curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/compose.yaml
    curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/docs/install/env.example.minimal.txt
    cp env.example.minimal.txt .env
-   ```
-
+  ```
 2. Set your embedding provider in `.env` (e.g. `OPENAI_API_KEY=sk-proj-...`).
-
 3. Start the stack:
-
-   ```bash
+  ```bash
    docker compose -p kairos-mcp up -d
-   ```
-
+  ```
 4. Confirm the server is healthy:
-
-   ```bash
+  ```bash
    curl http://localhost:3000/health
-   ```
+  ```
 
 **Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `REDIS_URL=redis://redis:6379` and your secrets, then:
-
-   ```bash
-   docker compose -p kairos-mcp --profile fullstack up -d
-   ```
 
 See [docs/install/README.md](docs/install/README.md) for env variants. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
 - **Docker Compose (recommended)** — minimal (Qdrant + app) by default, or
-  full stack with Redis and Keycloak; see the quick start above.
-
+full stack with Redis and Keycloak; see the quick start above.
 - **npm (CLI only)** — install the `kairos` command-line tool globally.
-  Node.js 24 or later is required.
-
+Node.js 24 or later is required.
   ```bash
   npm install -g @debian777/kairos-mcp
   ```
-
   See [KAIROS CLI](docs/CLI.md) for usage.
 
 For development setup and all `npm run` commands, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Agent skill
+
+Install the KAIROS skill so your agent can run protocols (/k, /apply, /search) without extra prompting:
+
+```bash
+npx skills add debian777/kairos-mcp
+```
+
+Optional: `-g` for global install, `-a cursor` to target Cursor only. Then run the skill or ask your agent to run KAIROS protocols. For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
 
 ## Documentation
 

@@ -32,6 +32,11 @@ SECRET_KEYS = [
     "OPENAI_API_KEY",
 ]
 
+# Dev defaults applied when generating .env (merged after template; template can override).
+DEV_DEFAULTS = {
+    "MAX_CONCURRENT_MCP_REQUESTS": "10",
+}
+
 PLACEHOLDER_RE = re.compile(r"^__([A-Za-z_][A-Za-z0-9_]*)__$")
 
 
@@ -138,6 +143,9 @@ def main() -> None:
     secrets_map = resolve_secrets(SECRET_KEYS, existing, args.force)
     data = parse_env_file(env_tpl)
     data = replace_placeholders(data, secrets_map)
+    for k, v in DEV_DEFAULTS.items():
+        if k not in data or not (data.get(k) or "").strip():
+            data[k] = v
     for k in SECRET_KEYS:
         if k not in data or not (data.get(k) or "").strip():
             data[k] = secrets_map.get(k, "")

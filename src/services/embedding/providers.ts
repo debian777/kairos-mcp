@@ -1,12 +1,12 @@
 import { logger } from '../../utils/logger.js';
 import { OPENAI_API_KEY, EMBEDDING_PROVIDER, TEI_BASE_URL, TEI_MODEL, TEI_API_KEY } from '../../config.js';
-import { DEFAULT_MODEL, DEFAULT_DIMENSION, OPENAI_ENDPOINT, TEI_EMBEDDING_ENDPOINT } from './config.js';
+import { OPENAI_EMBEDDING_MODEL, OPENAI_ENDPOINT, TEI_EMBEDDING_ENDPOINT, setResolvedEmbeddingDimension } from './config.js';
 
 async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][]> {
-    if (!OPENAI_API_KEY || !DEFAULT_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
+    if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
     const inputArray = Array.isArray(input) ? input : [input];
     const body = {
-        model: DEFAULT_MODEL,
+        model: OPENAI_EMBEDDING_MODEL,
         input: inputArray,
     };
     const headers: Record<string, string> = {
@@ -46,16 +46,12 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
         return d.embedding as number[];
     });
 
-    // Basic dimension validation
     if (embeddings.length > 0 && embeddings[0]) {
         const dim = embeddings[0].length;
-        if (dim !== DEFAULT_DIMENSION) {
-            logger.warn(`[EmbeddingService] Embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}`);
-            throw new Error(`Embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}`);
-        }
+        setResolvedEmbeddingDimension(dim);
     }
-
-    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${DEFAULT_DIMENSION}) [provider=openai]`);
+    const dim = embeddings.length > 0 && embeddings[0] ? embeddings[0].length : 0;
+    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
     return embeddings;
 }
 
@@ -105,14 +101,9 @@ async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> 
         throw new Error('TEI returned unexpected embedding shape');
     }
 
-    // Validate dimensions
     const dim = embeddings[0].length;
-    if (dim !== DEFAULT_DIMENSION) {
-        logger.warn(`[EmbeddingService] TEI embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}`);
-        throw new Error(`TEI embedding dimension mismatch: got ${dim}, expected ${DEFAULT_DIMENSION}`);
-    }
-
-    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${DEFAULT_DIMENSION}) [provider=tei]`);
+    setResolvedEmbeddingDimension(dim);
+    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=tei]`);
     return embeddings as number[][];
 }
 
@@ -120,7 +111,7 @@ async function postEmbeddings(input: string[] | string): Promise<number[][]> {
     // Choose provider based on explicit ENV override or auto-discovery
     const providerPref = EMBEDDING_PROVIDER; // 'auto' | 'openai' | 'tei'
     if (providerPref === 'openai') {
-        if (!OPENAI_API_KEY || !DEFAULT_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
+        if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
         return await postEmbeddingsOpenAI(input);
     }
     if (providerPref === 'tei') {
@@ -128,7 +119,7 @@ async function postEmbeddings(input: string[] | string): Promise<number[][]> {
         return await postEmbeddingsTEI(input);
     }
     // Auto detection: prefer OpenAI if both OPENAI vars present, otherwise TEI
-    if (OPENAI_API_KEY && DEFAULT_MODEL) {
+    if (OPENAI_API_KEY && OPENAI_EMBEDDING_MODEL) {
         try {
             return await postEmbeddingsOpenAI(input);
         } catch (err) {

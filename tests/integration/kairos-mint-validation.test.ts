@@ -22,6 +22,72 @@ describe('Kairos Mint Validation', () => {
     }
   });
 
+  test('kairos_mint returns PROTOCOL_STRUCTURE_INVALID for incomplete markdown', async () => {
+    const incompleteMd = `# My Protocol
+
+## Step 1 First
+Content without Natural Language Triggers section.
+
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Done.`;
+
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: incompleteMd,
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].type).toBe('text');
+    const body = JSON.parse(result.content[0].text);
+    expect(body.error).toBe('PROTOCOL_STRUCTURE_INVALID');
+    expect(body.must_obey).toBe(true);
+    expect(body.next_action).toContain('kairos_begin');
+    expect(body.next_action).toContain('00000000-0000-0000-0000-000000002001');
+    expect(Array.isArray(body.missing)).toBe(true);
+    expect(body.missing).toContain('natural_language_triggers');
+    expect(body.message).toMatch(/Natural Language Triggers|required structure/i);
+  });
+
+  test('kairos_mint stores valid markdown with required sections (no regression)', async () => {
+    const validMd = `# Valid Protocol ${Date.now()}
+
+## Natural Language Triggers
+Run when user says "run valid protocol".
+
+## Step 1
+Do something.
+
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
+
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: validMd,
+        llm_model_id: 'minimax/minimax-m2:free',
+        force_update: true
+      }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const body = JSON.parse(result.content[0].text);
+    expect(body.status).toBe('stored');
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(body.items.length).toBeGreaterThanOrEqual(1);
+    expect(body.items[0].uri).toMatch(/^kairos:\/\/mem\//);
+  });
+
   test('kairos_mint reports clear error for empty markdown_doc', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'kairos_mint',

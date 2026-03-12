@@ -1,5 +1,4 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
-import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 /**
  * Kairos Mint integration tests (edge cases).
@@ -23,13 +22,9 @@ describe('Kairos Mint Edge Cases', () => {
     }
   });
 
-  function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_mint raw MCP result');
-  }
-
-  test('kairos_mint falls back to single memory for documents without headers', async () => {
-    // Document without proper H1/H2 headers
-    const simpleContent = `This is a simple document without any markdown headers. It should still be stored as a single memory. ${Date.now()}`;
+  test('kairos_mint rejects documents without required structure (PROTOCOL_STRUCTURE_INVALID)', async () => {
+    // Document without H1, H2, or challenge blocks is rejected by validation gate
+    const simpleContent = `This is a simple document without any markdown headers. ${Date.now()}`;
 
     const result = await mcpConnection.client.callTool({
       name: 'kairos_mint',
@@ -40,25 +35,13 @@ describe('Kairos Mint Edge Cases', () => {
       }
     });
 
-    const response = expectValidJsonResult(result);
-
-    expect(response).toHaveProperty('items');
-    expect(Array.isArray(response.items)).toBe(true);
-    expect(response.items).toHaveLength(1); // Should fallback to single memory
-
-    const item = response.items[0];
-    expect(item).toHaveProperty('uri');
-    expect(item.uri).toMatch(/^kairos:\/\/mem\//);
-    expect(item).toHaveProperty('memory_uuid');
-    expect(typeof item.memory_uuid).toBe('string');
-    expect(item.memory_uuid.length).toBeGreaterThan(0);
-    expect(item).toHaveProperty('label');
-    expect(typeof item.label).toBe('string');
-    expect(item).toHaveProperty('tags');
-    expect(Array.isArray(item.tags)).toBe(true);
-
-    expect(response).toHaveProperty('status');
-    expect(response.status).toBe('stored');
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text);
+    expect(body.error).toBe('PROTOCOL_STRUCTURE_INVALID');
+    expect(body.must_obey).toBe(true);
+    expect(body.next_action).toContain('kairos_begin');
+    expect(body.next_action).toContain('00000000-0000-0000-0000-000000002001');
+    expect(Array.isArray(body.missing)).toBe(true);
   });
 
 });

@@ -12,11 +12,13 @@ function challengeBlock(cmd: string, timeoutSeconds: number): string {
 
 export function buildProofMarkdown(title: string, steps: ProofStepDefinition[]): string {
   const h1 = `# ${title}`;
+  const triggers = '\n\n## Natural Language Triggers\n\nRun when user says run.';
   const sections = steps.map((step, index) => {
     const timeout = step.timeoutSeconds ?? 30;
     const cmd = step.proofCmd || `echo "step-${index + 1}"`;
     return `\n\n## ${step.heading}\n${step.body}${challengeBlock(cmd, timeout)}`;
   }).join('');
-  return `${h1}${sections}`;
+  const completionRule = '\n\n## Completion Rule\n\nOnly after all steps.';
+  return `${h1}${triggers}${sections}${completionRule}`;
 }
 

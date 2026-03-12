@@ -1,7 +1,7 @@
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
 import { keyValueStore } from './key-value-store-factory.js';
-import { KAIROS_REDIS_PREFIX } from '../config.js';
+import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 
 export interface SearchResult {
@@ -21,7 +21,7 @@ export class RedisCacheService {
   private cachePrefix = 'search:';
   private invalidationChannel = 'cache:invalidation';
   private statsPrefix = 'stats:';
-  private memoryPrefix = 'mem:';
+  private memoryPrefix = MEMORY_CACHE_KEY_PREFIX;
 
   constructor() {
     logger.info('[RedisCacheService] Initialized with RedisService');
@@ -93,7 +93,7 @@ export class RedisCacheService {
     }
   }
 
-  // Remove cached memory by UUID (kb:<prefix>mem:{uuid})
+  // Remove cached memory by UUID. Key is global (prefix+mem:uuid), so one del invalidates for all spaces.
   async invalidateMemoryCache(uuid: string): Promise<void> {
     try {
       if (!uuid || typeof uuid !== 'string') {

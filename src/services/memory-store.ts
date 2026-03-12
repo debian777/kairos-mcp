@@ -5,7 +5,7 @@
  */
 
 import { logger } from '../utils/logger.js';
-import { KAIROS_REDIS_PREFIX } from '../config.js';
+import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';
 
@@ -34,6 +34,9 @@ export class MemoryStore implements IKeyValueStore {
   }
 
   private getKey(key: string): string {
+    if (key.startsWith(MEMORY_CACHE_KEY_PREFIX)) {
+      return `${this.prefix}${key}`;
+    }
     const spaceId = getSpaceIdFromStorage();
     return `${this.prefix}${spaceId}:${key}`;
   }

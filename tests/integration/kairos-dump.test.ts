@@ -25,11 +25,24 @@ describe('Kairos Dump (MCP)', () => {
 
   test('kairos_dump returns single-step content for valid URI', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Single ${ts}\n\n## Step A\nBody for dump single.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}\n\`\`\``;
+    const md = `# Dump Single ${ts}
+
+## Natural Language Triggers
+Run when user says "dump single".
+
+## Step A
+Body for dump single.
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
     const mintResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'test',
         force_update: true
       }
@@ -63,11 +76,31 @@ describe('Kairos Dump (MCP)', () => {
 
   test('kairos_dump with protocol: true returns full chain markdown', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Protocol ${ts}\n\n## First\nFirst step.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo one","timeout_seconds":5},"required":true}}\n\`\`\`\n\n## Second\nSecond step.\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}\n\`\`\``;
+    const md = `# Dump Protocol ${ts}
+
+## Natural Language Triggers
+Run when user says "dump protocol".
+
+## First
+First step.
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo one","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Second
+Second step.
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
     const mintResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'test',
         force_update: true
       }

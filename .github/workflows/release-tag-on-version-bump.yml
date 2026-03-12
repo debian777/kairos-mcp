@@ -1,16 +1,20 @@
 # When a merge to main changes package.json version to a value greater than the
 # latest existing tag, create and push that tag, then trigger the Release workflow
 # via workflow_dispatch (tag pushes from Actions do not trigger other workflows).
+# Runs after Integration workflow succeeds on main so the tagged commit has passed tests.
 # Requires branch protection to allow this workflow to push tags.
 name: Release tag on version bump
 
 on:
-  push:
+  workflow_run:
+    workflows: [Integration]
+    types: [completed]
     branches: [main]
 
 jobs:
   tag-release:
     name: Tag if version bumped
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write  # push tag
@@ -20,6 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Set up Node.js

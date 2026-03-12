@@ -23,10 +23,11 @@ describe('Kairos Mint Basic Functionality', () => {
     }
   });
 
-  // Helper to generate unique markdown with timestamp to avoid duplicate-chain rejections
+  // Helper to generate unique markdown with required structure (Natural Language Triggers first, Completion Rule last)
   function uniqueMd(titlePrefix, sections) {
     const ts = Date.now();
     const h1 = `# ${titlePrefix} ${ts}`;
+    const triggers = '\n\n## Natural Language Triggers\n\nRun when user says "run this".';
     const body = sections
       .map((s, index) => {
         const proofCmd = s.proof || `echo step-${index + 1}`;
@@ -36,7 +37,8 @@ describe('Kairos Mint Basic Functionality', () => {
         return `\n\n## ${s.h2}\n${s.body}${block}`;
       })
       .join('');
-    return `${h1}${body}`;
+    const completionRule = '\n\n## Completion Rule\n\nOnly after all steps.';
+    return `${h1}${triggers}${body}${completionRule}`;
   }
 
   function expectValidJsonResult(result) {
@@ -48,12 +50,11 @@ describe('Kairos Mint Basic Functionality', () => {
       { h2: 'Intro', body: 'Alpha content' },
       { h2: 'Details', body: 'Beta content' }
     ]);
-    const testContent = JSON.stringify(md);
 
     const result = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: testContent,
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -81,15 +82,35 @@ describe('Kairos Mint Basic Functionality', () => {
   }, 20000); // Increase timeout for large document processing
 
   test('kairos_mint duplicate policy with label-based chain UUID and force_update', async () => {
-    // 1) Create timestamp for unique chain label
+    // 1) Create timestamp for unique chain label; include required Natural Language Triggers and Completion Rule
     const ts = Date.now().toString();
-    const md = `# Unique Store ${ts}\n\n## Step 1\nAlpha\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo alpha","timeout_seconds":5},"required":true}}\n\`\`\`\n\n## Step 2\nBeta\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo beta","timeout_seconds":5},"required":true}}\n\`\`\``;
+    const md = `# Unique Store ${ts}
+
+## Natural Language Triggers
+Run when user says "unique store".
+
+## Step 1
+Alpha
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo alpha","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Step 2
+Beta
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo beta","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
 
     // 2) First store → stored (force_update bypasses similarity check in shared dev collection)
     const first = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -103,7 +124,7 @@ describe('Kairos Mint Basic Functionality', () => {
     const second = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -131,7 +152,7 @@ describe('Kairos Mint Basic Functionality', () => {
     const third = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -144,12 +165,25 @@ describe('Kairos Mint Basic Functionality', () => {
 
   test('kairos_mint SIMILAR_MEMORY_FOUND response shape (must_obey, next_action, content_preview)', async () => {
     const ts = Date.now().toString();
-    const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}\n\n## Step 1\nContent\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}\n\`\`\``;
+    const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}
+
+## Natural Language Triggers
+Run when user says "similar shape".
+
+## Step 1
+Content
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
 
     const first = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -160,7 +194,7 @@ describe('Kairos Mint Basic Functionality', () => {
     const second = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: {
-        markdown_doc: JSON.stringify(md),
+        markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -187,6 +221,9 @@ describe('Kairos Mint Basic Functionality', () => {
     // Document with code blocks containing searchable identifiers
     const ts = Date.now();
     const codeContent = `# Code Example Documentation ${ts}
+
+## Natural Language Triggers
+Run when user says "code example docs".
 
 ## Function Implementation
 Here's how to implement a data processor:
@@ -221,7 +258,10 @@ This demonstrates the data processing functionality.
 
 \`\`\`json
 {"challenge":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
-\`\`\``;
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
 
     // Store the document (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
@@ -234,6 +274,9 @@ This demonstrates the data processing functionality.
     });
 
     const storeResponse = expectValidJsonResult(storeResult);
+    if (storeResponse.error) {
+      throw new Error(`kairos_mint failed: ${storeResponse.error} - ${storeResponse.message ?? ''}`);
+    }
     expect(storeResponse.status).toBe('stored');
     // PoW-based mint: each ```json challenge block defines a step; this doc has 2 blocks so expect >= 1 (chain stored)
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(1);

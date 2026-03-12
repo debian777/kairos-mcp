@@ -185,17 +185,19 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
-            # Start the dev server with env from .env (CI and local)
+            # Start the dev server with env from .env (CI and local).
+            # Use 'env VAR=...' after dotenv so MAX_CONCURRENT_MCP_REQUESTS from .env is visible to node (dotenv -e can override inherited env).
             dev_port="${PORT:-3300}"
+            mcpr="${MAX_CONCURRENT_MCP_REQUESTS:-}"
             case "$LOG_TARGET" in
                 file)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts &
                     ;;
                 both)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 

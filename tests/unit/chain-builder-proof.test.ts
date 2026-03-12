@@ -80,7 +80,7 @@ Do something
       expect(results[0]!.proof.type).toBe('shell');
     });
 
-    test('handles blocks with ``` (no json) at line start', () => {
+    test('ignores blocks with ``` (no json): only ```json counts as challenge block', () => {
       const content = `Some text
 \`\`\`
 {"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
@@ -88,8 +88,7 @@ Do something
 More text`;
 
       const results = findAllChallengeBlocks(content);
-      expect(results).toHaveLength(1);
-      expect(results[0]!.proof.type).toBe('comment');
+      expect(results).toHaveLength(0);
     });
 
     test('ignores blocks without challenge key', () => {

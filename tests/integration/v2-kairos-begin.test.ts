@@ -147,9 +147,22 @@ describe('V2 kairos_begin response schema', () => {
     });
   });
 
-  test('single-step: next_action directs to kairos_attest, no final_challenge', async () => {
+  test('single-step: next_action directs to kairos_attest or kairos_next, no final_challenge', async () => {
     const ts = Date.now();
-    const doc = `# V2Begin Single ${ts}\n\n## Only Step\nDo the thing.\n\n\`\`\`json\n{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\``;
+    const doc = `# V2Begin Single ${ts}
+
+## Natural Language Triggers
+Run when user says "v2 begin single".
+
+## Only Step
+Do the thing.
+
+\`\`\`json
+{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'kairos_mint',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
@@ -163,7 +176,8 @@ describe('V2 kairos_begin response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
-      expect(parsed.next_action).toMatch(/kairos_attest/i);
+      // With required Triggers + Completion Rule the chain has 2+ steps, so begin may direct to next or attest
+      expect(parsed.next_action).toMatch(/kairos_(next|attest)/i);
 
       // No final_challenge or final_solution references
       expect(parsed.final_challenge).toBeUndefined();
