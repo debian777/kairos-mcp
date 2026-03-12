@@ -197,6 +197,30 @@ To enable a [merge queue](https://docs.github.com/en/repositories/configuring-br
 
 The integration workflow (`.github/workflows/integration.yml`) already triggers on `merge_group`, so required checks run when PRs are in the queue. Use `gh pr merge` (no strategy) to add a PR to the queue; use `gh pr merge --admin` to bypass the queue.
 
+## Releases
+
+Releases are driven by **version in `package.json`**. Do not create git tags manually; the tag is created when a version-bump PR is merged to main.
+
+**Flow:** Bump version → open PR to main → merge → [Release tag on version bump](.github/workflows/README.md#release-tag-on-version-bump) creates tag if `package.json` version &gt; latest tag → [Release](.github/workflows/README.md#release-workflow-tag--npm--docker) runs on tag push (publish npm → Docker → GitHub Release).
+
+### How to cut a release
+
+1. **Check latest version:** `git tag -l 'v*' | sort -V | tail -1` or use `package.json`.
+2. **Bump version** (do not create a git tag):
+   - **Prerelease** (e.g. `3.0.1-beta.18` → `3.0.1-beta.19`):  
+     `npm version prerelease --preid=beta --no-git-tag-version`
+   - **Stable** (e.g. `3.0.1` → `3.0.2`):  
+     `npm version patch --no-git-tag-version` (or `minor` / `major` as appropriate).
+3. **Sync skill/embed-docs version:**  
+   `npm run version:sync-skills`  
+   Commit the changed files (e.g. `src/embed-docs/mem/*.md`) together with `package.json` and `package-lock.json`.
+4. **Open a version-bump PR to main:**  
+   Use a branch named `release/<version>` (e.g. `release/3.0.2`).  
+   Example: `git checkout -b release/3.0.2`, commit, push, then `gh pr create --base main --head release/3.0.2`.
+5. **Merge the PR.** After merge, the workflow creates the tag and runs the Release workflow (npm publish, Docker, GitHub Release). Ensure repository secret `GH_PAT` is set so the tag push triggers Release; see [workflows README](.github/workflows/README.md#release-tag-on-version-bump).
+
+Full pipeline details, secrets, and manual publish options: [.github/workflows/README.md](.github/workflows/README.md).
+
 ## Code style
 
 - **Language:** TypeScript for all source files.
