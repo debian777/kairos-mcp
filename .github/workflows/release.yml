@@ -65,6 +65,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Set up Python (skills-ref)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install skills-ref and validate skills
+        run: |
+          python -m pip install --upgrade pip
+          pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
+          npm run lint:skills
+
       - name: Knip
         run: npm run knip
 

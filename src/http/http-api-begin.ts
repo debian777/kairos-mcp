@@ -22,6 +22,7 @@ interface UnifiedChoice {
     role: 'match' | 'refine' | 'create';
     tags: string[];
     next_action: string;
+    protocol_version: string | null;
 }
 
 /**
@@ -127,7 +128,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                     score: result.score,
                     role: 'match',
                     tags: result.tags,
-                    next_action: `call kairos_begin with ${head.uri} to execute this protocol`
+                    next_action: `call kairos_begin with ${head.uri} to execute this protocol`,
+                    protocol_version: result.memory.chain?.protocol_version ?? null
                 });
             }
 
@@ -140,7 +142,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                         score: null,
                         role: 'refine',
                         tags: ['meta', 'refine'],
-                        next_action: REFINING_NEXT_ACTION
+                        next_action: REFINING_NEXT_ACTION,
+                        protocol_version: null
                     },
                     {
                         uri: CREATION_PROTOCOL_URI,
@@ -149,7 +152,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                         score: null,
                         role: 'create',
                         tags: ['meta', 'creation'],
-                        next_action: CREATE_NEXT_ACTION
+                        next_action: CREATE_NEXT_ACTION,
+                        protocol_version: null
                     }
                 );
             }

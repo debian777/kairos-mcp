@@ -3,6 +3,7 @@ export interface ChainInfo {
   label: string;                   // Title of the chain (H1) when part of a header-sliced document
   step_index: number;              // 1-based step index in the chain
   step_count: number;              // Total number of steps in the chain
+  protocol_version?: string;       // Optional semver from frontmatter or kairos_mint (for agent comparison)
 }
 
 export type ProofOfWorkType = 'shell' | 'mcp' | 'user_input' | 'comment';
