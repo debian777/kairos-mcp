@@ -1,0 +1,86 @@
+---
+version: "1.0.0"
+
+title: Get help refining your search
+---
+
+# Get help refining your search
+
+**You are an AI agent.** You ran `kairos_search` and got no solid match (or only weak/ambiguous ones). This protocol helps you turn the user's vague request into a better query so the next `kairos_search` can find the right protocol.
+
+## Natural Language Triggers
+
+**Run this protocol when:**
+
+- `kairos_search` returned no match, or only choices with low score (e.g. all &lt; 0.7).
+- The response included a **refine** (or equivalent) choice directing you to improve the query.
+
+**Trigger pattern:** After **kairos_search** when result is no strong match / refine suggested.
+
+**Must Never:**
+
+- Run when a strong match (score ≥ 0.7) already exists — use that choice and `kairos_begin` instead.
+- Run when the user has not yet asked for anything (no prior search context).
+
+**Must Always:**
+
+- Run at most once per user request — if refining twice still yields no match, stop and offer to create a new protocol or ask the user to clarify.
+
+**Good trigger examples:**
+
+- Search returned only "refine" / weak matches → run this protocol
+- "No protocol matched 'do the thing'" → run this protocol
+
+**Bad trigger examples:**
+
+- Search returned a strong match → use that match, not this protocol
+- User asked "what protocols exist?" → use search/list, not this protocol
+
+## Step 1: Extract what the user actually wants
+
+From the user's original message, identify:
+- **Goal:** What outcome do they want? (e.g. "run tests", "write docs", "create a Jira ticket")
+- **Context:** Any project, tool, domain, or proper noun they mentioned?
+- **Gaps:** What is missing or ambiguous? (e.g. "which repo?", "which doc type?", "which project key?")
+
+If the request was a slash-command or shorthand (e.g. "/ai-docs", "do the thing"), expand it: what would a concrete version of that command look like?
+
+Write your analysis as your solution (goal + context + gaps, minimum 30 characters).
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 30 },
+    "required": true
+  }
+}
+```
+
+## Step 2: Build and run a refined kairos_search query
+
+Using your Step 1 analysis, construct a single search query:
+- Use 3–8 specific words (nouns and verbs, no filler). Examples: "write ai instructions zero-drift template", "jira create story BIB", "npm test lint deploy".
+- Include domain or tool names if known (e.g. "jira", "gitlab", "coding standards").
+- Do not reuse the user's exact vague phrase — that already failed.
+
+Write your refined query as your solution, then call `kairos_search` with it.
+
+- **Strong match (score >= 0.7):** Pick that choice and call `kairos_begin` with its URI.
+- **Weak matches only (all scores < 0.7):** Ask the user to clarify, or pick the create choice to build a new protocol.
+
+Do not loop this refining protocol more than once — if two searches fail, the protocol likely does not exist yet.
+
+```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_search" },
+    "required": true
+  }
+}
+```
+
+## Completion Rule
+
+Only reachable after all prior steps are solved.

@@ -37,6 +37,7 @@ interface UnifiedChoice {
   role: 'match' | 'refine' | 'create';
   tags: string[];
   next_action: string;
+  protocol_version: string | null;
 }
 
 function addCandidate(
@@ -132,7 +133,8 @@ async function generateUnifiedOutput(
       score: result.score,
       role: 'match',
       tags: result.tags,
-      next_action: `call kairos_begin with ${head.uri} to execute this protocol`
+      next_action: `call kairos_begin with ${head.uri} to execute this protocol`,
+      protocol_version: result.memory.chain?.protocol_version ?? null
     });
   }
 
@@ -148,7 +150,8 @@ async function generateUnifiedOutput(
         score: null,
         role: 'refine',
         tags: ['meta', 'refine'],
-        next_action: REFINING_NEXT_ACTION
+        next_action: REFINING_NEXT_ACTION,
+        protocol_version: null
       },
       {
         uri: CREATION_PROTOCOL_URI,
@@ -157,7 +160,8 @@ async function generateUnifiedOutput(
         score: null,
         role: 'create',
         tags: ['meta', 'creation'],
-        next_action: CREATE_NEXT_ACTION
+        next_action: CREATE_NEXT_ACTION,
+        protocol_version: null
       }
     );
   }
@@ -216,7 +220,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
       role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
       tags: z.array(z.string()),
-      next_action: z.string().describe('Instruction for this choice: call kairos_begin with this choice\'s uri.')
+      next_action: z.string().describe('Instruction for this choice: call kairos_begin with this choice\'s uri.'),
+      protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.')
     })).describe('Options: match(es) first, then refine (if present), then create (if present).')
   });
 

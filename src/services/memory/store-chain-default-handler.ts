@@ -25,7 +25,8 @@ export async function storeDefaultChain(
   normalizedDocs: string[],
   llmModelId: string,
   now: Date,
-  forceUpdate: boolean
+  forceUpdate: boolean,
+  protocolVersion?: string
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
@@ -63,6 +64,13 @@ export async function storeDefaultChain(
     const allTags = [...baseTags, ...codeTags];
 
     const stepLabel = generateLabel(processed.original);
+    const chain: Memory['chain'] = {
+      id: chainUuid,
+      label: firstGeneratedLabel,
+      step_index: index + 1,
+      step_count: normalizedDocs.length
+    };
+    if (protocolVersion) chain.protocol_version = protocolVersion;
     return {
       memory_uuid,
       label: stepLabel,
@@ -70,12 +78,7 @@ export async function storeDefaultChain(
       text: processed.enhanced,
       llm_model_id: llmModelId,
       created_at: now.toISOString(),
-      chain: {
-        id: chainUuid,
-        label: firstGeneratedLabel,
-        step_index: index + 1,
-        step_count: normalizedDocs.length
-      }
+      chain
     };
   });
 
@@ -110,7 +113,8 @@ export async function storeDefaultChain(
           id: memory.chain!.id,
           label: memory.chain!.label,
           step_index: memory.chain!.step_index,
-          step_count: memory.chain!.step_count
+          step_count: memory.chain!.step_count,
+          ...(memory.chain!.protocol_version && { protocol_version: memory.chain!.protocol_version })
         }
       }
     });

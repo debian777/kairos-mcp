@@ -150,6 +150,33 @@ protocol is not installed and may point the user to where to get it.
   `force_update: true` only when the user or skill explicitly requests an
   update.
 
+## Protocol versioning
+
+Protocols can carry a **version** (e.g. semver `1.0.0`) so agents can detect
+when the bundled protocol is newer than the one stored in KAIROS.
+
+- **Where the version comes from:** Put `version: "1.0.0"` in YAML frontmatter
+  at the top of the protocol markdown (between the first `---` and second
+  `---`). When minting, the server parses this and stores it on the chain.
+  You can also pass an optional `protocol_version` argument to `kairos_mint`
+  to override or supply the version when the document has no frontmatter.
+- **Exposure to agents:** `kairos_search` returns a `protocol_version` field
+  on each match choice (null for refine/create). `kairos_dump` includes
+  `protocol_version` when the memory is part of a chain that has one.
+- **Re-mint when bundled is newer:** After search, if there is a match, the
+  agent should compare the choice's `protocol_version` with the version in
+  the skill's bundled protocol file (e.g. `references/KAIROS.md` frontmatter).
+  If the bundled version is newer (e.g. by semver) or the stored protocol has
+  no version, call `kairos_mint` with the full protocol document and
+  `force_update: true`, then search again and run the chosen match. Skills
+  that ship protocols document this step in their workflow.
+
+When releasing the MCP package, skill versions (SKILL.md `metadata.version`
+and references/KAIROS.md frontmatter `version`) are kept in sync with
+`package.json`: run `npm run version:sync-skills` as part of the
+version-bump flow and commit the updated skill files with the package bump.
+CI runs `npm run version:check-skills` to ensure alignment.
+
 ## Example: skill that runs or installs one protocol
 
 **Directory:**
@@ -186,6 +213,15 @@ metadata:
 The agent has everything it needs: when to apply the skill (description),
 what to search for (`protocol_query`), where to get the doc to mint
 (`protocol`), and how to execute (search → mint if missing → run).
+
+## Validating skills (optional dev dependency)
+
+The repo runs skill validation in CI and optionally on pre-commit when files
+under `skills/` are staged. Validation uses **skills-ref** (Python), which is
+not an npm package — it is an optional dev dependency in the project sense.
+
+- **CI:** Workflows install it with `pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"` and run `npm run lint:skills`.
+- **Local:** If `skills-ref` is not installed, `npm run lint:skills` skips validation and exits 0 so commits succeed; CI will still validate. To validate locally, install the same pip package and ensure `skills-ref` is on your `PATH`.
 
 ## Relation to existing docs
 

@@ -289,6 +289,35 @@ function collectAllKeys(obj: any, prefix: string = '', keys: string[] = []): str
   } else {
     logger.warn(`Mem source directory not found: ${memSourceDir}`);
   }
+
+  // App as canonical: copy built-in mem protocols to their skills at build time
+  const memToSkill: Array<{ memFile: string; skillPath: string; label: string }> = [
+    {
+      memFile: '00000000-0000-0000-0000-000000002001.md',
+      skillPath: 'kairos-create-protocol/references/KAIROS.md',
+      label: 'creation protocol: mem/2001 -> kairos-create-protocol',
+    },
+    {
+      memFile: '00000000-0000-0000-0000-000000002002.md',
+      skillPath: 'kairos-refine-search/references/KAIROS.md',
+      label: 'refine-search protocol: mem/2002 -> kairos-refine-search',
+    },
+  ];
+  const skillsDir = path.join(__dirname, '../skills');
+  for (const { memFile, skillPath, label } of memToSkill) {
+    const src = path.join(memSourceDir, memFile);
+    const dest = path.join(skillsDir, skillPath);
+    if (fs.existsSync(src)) {
+      const destDir = path.dirname(dest);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+      fs.copyFileSync(src, dest);
+      logger.info(`Synced ${label}`);
+    } else {
+      logger.warn(`Mem file not found: ${src}`);
+    }
+  }
 }
 
 main();

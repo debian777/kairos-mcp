@@ -1,5 +1,6 @@
 ---
-version: 1.0.0
+version: "1.0.0"
+
 title: Create KAIROS skill (with KAIROS.md protocol)
 ---
 
@@ -55,7 +56,23 @@ Submit a comment (at least 50 characters) confirming the directory path, that SK
 }
 ```
 
-## Step 2: Gather requirements and draft SKILL.md
+## Step 2: Consult Agent Skills specification via Context7 (/c7)
+
+Use Context7 (c7 skill or `/c7`) to fetch the [Agent Skills specification](https://agentskills.io/specification). Resolve the Agent Skills library (e.g. `/websites/agentskills_io` or `/agentskills/agentskills`) and query for: SKILL.md format, directory structure, frontmatter fields (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`), optional directories (`scripts/`, `references/`, `assets/`), and validation. This ensures the skill draft in the next step aligns with the official spec.
+
+Submit a comment (at least 60 characters) confirming you used Context7 (/c7) to fetch the Agent Skills specification and listing at least two spec details you will apply (e.g. frontmatter fields, directory structure, or validation).
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 60 },
+    "required": true
+  }
+}
+```
+
+## Step 3: Gather requirements and draft SKILL.md
 
 Gather from the user (or infer): purpose and scope, target location (personal `~/.cursor/skills/` or project `.cursor/skills/`), trigger scenarios, key domain knowledge, output format. Draft the skill directory and `SKILL.md` with YAML frontmatter and body.
 
@@ -75,7 +92,7 @@ Submit a comment (at least 80 characters) confirming the draft includes a valid 
 }
 ```
 
-## Step 3: Create protocol via KAIROS (if skill ships a protocol)
+## Step 4: Create protocol via KAIROS (if skill ships a protocol)
 
 If the skill should bundle a KAIROS protocol (per [skills README](../../README.md)):
 
@@ -84,7 +101,7 @@ If the skill should bundle a KAIROS protocol (per [skills README](../../README.m
 3. Save the resulting protocol markdown to **references/KAIROS.md** in the skill directory. If the protocol was minted in KAIROS, you can instead `kairos_dump` that chain with `protocol: true` and save the markdown to references/KAIROS.md. Add YAML frontmatter (`version`, `title`) if desired.
 4. Update the skill’s SKILL.md so `metadata.protocol` points to `references/KAIROS.md` and `metadata.protocol_query` is set; add mint-if-missing workflow steps if needed.
 
-If the skill does **not** ship a protocol, state that in your comment and skip to the next step.
+If the skill does **not** ship a protocol, state that in your comment and skip to Step 5.
 
 Submit a comment (at least 60 characters): either the path to references/KAIROS.md and a one-line summary of the protocol, or "No protocol bundled; skill does not ship a KAIROS protocol."
 
@@ -98,7 +115,7 @@ Submit a comment (at least 60 characters): either the path to references/KAIROS.
 }
 ```
 
-## Step 4: Mint protocol (if references/KAIROS.md exists)
+## Step 5: Mint protocol (if references/KAIROS.md exists)
 
 If the skill has **references/KAIROS.md** (or another protocol file):
 
@@ -120,9 +137,9 @@ Submit a comment (at least 20 characters): the chain head URI from `kairos_mint`
 }
 ```
 
-## Step 5: Verify protocol by execution (if protocol was minted)
+## Step 6: Verify protocol by execution (if protocol was minted)
 
-If a protocol was minted in Step 4: run that protocol (or the skill’s workflow) in a **subagent or new chat with no prior context** — e.g. invoke the skill in a fresh session or use a subagent that only has the KAIROS MCP and the skill instructions. Goal: confirm the protocol runs correctly without relying on prior conversation context.
+If a protocol was minted in Step 5: run that protocol (or the skill’s workflow) in a **subagent or new chat with no prior context** — e.g. invoke the skill in a fresh session or use a subagent that only has the KAIROS MCP and the skill instructions. Goal: confirm the protocol runs correctly without relying on prior conversation context.
 
 Report outcome in a comment: **pass** or **fail**, and if fail, a short note (e.g. missing step, wrong query, attestation error). If no protocol was minted, state **No protocol to verify; skipped.**
 
@@ -138,7 +155,7 @@ Submit a comment (at least 40 characters) with the result.
 }
 ```
 
-## Step 6: Lint skill
+## Step 7: Lint skill
 
 Run **skills-ref validate** on the skill directory (see [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref)):
 

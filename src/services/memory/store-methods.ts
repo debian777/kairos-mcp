@@ -267,7 +267,10 @@ export class MemoryQdrantStoreMethods {
         id: payload.chain.id,
         label: typeof payload.chain.label === 'string' ? payload.chain.label : 'Knowledge Chain',
         step_index: typeof payload.chain.step_index === 'number' ? payload.chain.step_index : 1,
-        step_count: typeof payload.chain.step_count === 'number' ? payload.chain.step_count : 1
+        step_count: typeof payload.chain.step_count === 'number' ? payload.chain.step_count : 1,
+        ...(typeof (payload.chain as any).protocol_version === 'string' && {
+          protocol_version: (payload.chain as any).protocol_version
+        })
       };
     } else if (typeof payload.memory_chain_id === 'string') {
       // Backward compatibility: read flat fields during transition

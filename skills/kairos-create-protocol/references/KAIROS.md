@@ -1,5 +1,6 @@
 ---
-version: 1.0.0
+version: "1.0.0"
+
 title: Create New KAIROS Protocol Chain
 ---
 
@@ -14,6 +15,32 @@ A challenge is defined as a **JSON object in a fenced ` ```json ` block** at the
 end of each step: use an object with a `challenge` key whose value has the same
 shape as the `challenge` returned by kairos_begin and kairos_next; round-trips
 cleanly with kairos_dump and kairos_mint.
+
+## Natural Language Triggers
+
+**Run this protocol when the user says ANY of:**
+
+- "create a new KAIROS protocol" / "create new protocol chain"
+- "mint a workflow" / "create a new workflow"
+- "create new protocol" (when kairos_search found no match and user confirms)
+
+**Trigger pattern:** **create** / **mint** + (protocol / workflow / chain) [ + (new / KAIROS) ].
+
+**Must Never:**
+- Run when the user only asked to run an existing protocol (use search → begin → next → attest).
+- Trigger when a strong match already exists from kairos_search.
+
+**Must Always:**
+- Confirm with the user that they want to create a new protocol when search found no match.
+- Include Natural Language Triggers as the first H2 and Completion Rule as the last H2 in any drafted protocol.
+
+**Good trigger examples:**
+- "Create a new KAIROS protocol for code review" → run this protocol
+- "No match found; I want to create a new protocol" → run this protocol
+
+**Bad trigger examples:**
+- "Run the standardize project protocol" → use search/begin, not this
+- "Search for deployment protocol" → use kairos_search, not this
 
 ## How to write a Natural Language Triggers section
 

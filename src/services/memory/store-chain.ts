@@ -6,9 +6,15 @@ import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { memoryStoreDuration } from '../metrics/memory-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
 import { normalizeMarkdownBlob, generateLabel } from '../../utils/memory-store-utils.js';
+import { parseFrontmatter } from '../../utils/frontmatter.js';
 import { storeHeaderBasedChain } from './store-chain-header-handler.js';
 import { storeDefaultChain } from './store-chain-default-handler.js';
 import { checkSimilarMemoryByTitle } from './store-chain-helpers.js';
+
+export interface StoreChainOptions {
+  forceUpdate?: boolean;
+  protocolVersion?: string;
+}
 
 export class MemoryQdrantStoreChain {
   constructor(
@@ -18,7 +24,7 @@ export class MemoryQdrantStoreChain {
     private methods: MemoryQdrantStoreMethods
   ) {}
 
-  async storeChain(docs: string[], llmModelId: string, options: { forceUpdate?: boolean } = {}): Promise<Memory[]> {
+  async storeChain(docs: string[], llmModelId: string, options: StoreChainOptions = {}): Promise<Memory[]> {
     const tenantId = getTenantId();
     const timer = memoryStoreDuration.startTimer({ tenant_id: tenantId });
     
@@ -35,23 +41,31 @@ export class MemoryQdrantStoreChain {
 
       const now = new Date();
 
-      // Extract label from first document for similarity check
-      const firstDocLabel = generateLabel(normalizedDocs[0]!);
-      
-      // Check for similar memories by title before storing
-      await checkSimilarMemoryByTitle(
-        this.methods,
-        firstDocLabel,
-        options.forceUpdate || false
-      );
+      // Effective protocol version: explicit option, or (for single doc) parsed from frontmatter when we fall back to default chain.
+      let effectiveProtocolVersion: string | undefined = options.protocolVersion;
 
       // Special case: if we have a single doc, try header-based slicing first.
-      // If that fails, fallback to single memory storage.
+      // Parse frontmatter for protocol_version; use body for chain building.
       if (normalizedDocs.length === 1) {
         const markdownDoc = normalizedDocs[0]!;
-        const headerChainMemories = this.methods.buildHeaderMemoryChain(markdownDoc, llmModelId, now);
+        const parsed = parseFrontmatter(markdownDoc);
+        const docForChain = parsed.body.length > 0 ? parsed.body : markdownDoc;
+        effectiveProtocolVersion = options.protocolVersion ?? parsed.version;
+
+        const headerChainMemories = this.methods.buildHeaderMemoryChain(docForChain, llmModelId, now);
 
         if (headerChainMemories.length > 0) {
+          if (effectiveProtocolVersion) {
+            for (const m of headerChainMemories) {
+              if (m.chain) m.chain.protocol_version = effectiveProtocolVersion;
+            }
+          }
+          const firstDocLabel = generateLabel(docForChain);
+          await checkSimilarMemoryByTitle(
+            this.methods,
+            firstDocLabel,
+            options.forceUpdate || false
+          );
           return await storeHeaderBasedChain(
             this.client,
             this.collection,
@@ -60,13 +74,20 @@ export class MemoryQdrantStoreChain {
             llmModelId,
             options.forceUpdate || false
           );
-        } else {
-          // Fallback to single memory storage when header requirements aren't met
-          logger.debug('[MemoryQdrantStore] Header-based chain failed, falling back to single memory storage');
         }
+        // Fallback to single memory storage when header requirements aren't met (effectiveProtocolVersion is already set from frontmatter)
+        logger.debug('[MemoryQdrantStore] Header-based chain failed, falling back to single memory storage');
       }
 
-      // Default behavior: each doc becomes a memory
+      // Extract label from first document for similarity check (default path)
+      const firstDocLabel = generateLabel(normalizedDocs[0]!);
+      await checkSimilarMemoryByTitle(
+        this.methods,
+        firstDocLabel,
+        options.forceUpdate || false
+      );
+
+      // Default behavior: each doc becomes a memory (pass effectiveProtocolVersion so single-doc frontmatter fallback keeps version)
       return await storeDefaultChain(
         this.client,
         this.collection,
@@ -75,7 +96,8 @@ export class MemoryQdrantStoreChain {
         normalizedDocs,
         llmModelId,
         now,
-        options.forceUpdate || false
+        options.forceUpdate || false,
+        effectiveProtocolVersion
       );
     } finally {
       // End duration timer
