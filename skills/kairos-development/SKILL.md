@@ -1,9 +1,9 @@
 ---
-name: kairos-dev
+name: kairos-development
 description: Use when an AI agent should run protocols or workflow tests against kairos-dev (KAIROS MCP in this repo's dev environment). Covers AI–MCP integration and workflow-test flows; MCP-only, reports/ output.
 ---
 
-# KAIROS dev — agent instructions for kairos-dev MCP
+# KAIROS development — agent instructions for kairos-dev MCP
 
 Use this skill when an AI agent should run protocols or workflow tests against **kairos-dev** (the KAIROS MCP in this repo’s dev environment). All instructions assume MCP-only usage: no shell, no filesystem except writing to `reports/`.
 

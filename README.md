@@ -85,7 +85,7 @@ List what’s available: `npx skills add debian777/kairos-mcp --list`
 | `kairos-create-protocol` | Create and mint new KAIROS protocol chains. |
 | `kairos-create-skill` | Create Cursor/agent skills that ship protocols. |
 | `kairos-refine-search` | Refine a weak or empty search (step-by-step better query). |
-| `kairos-dev` | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
+| `kairos-development` | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
 
 The **kairos** skill is the one that enables running protocols (/k, /apply, /search). The table above lists all skills in this repo.
 

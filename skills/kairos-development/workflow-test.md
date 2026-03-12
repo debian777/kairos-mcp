@@ -1,6 +1,6 @@
 # Workflow test prompt — MCP-only, reports/ output
 
-Use this prompt when running dev/qa workflow tests so the agent is constrained to MCP tools only and writes all output into `reports/`. Canonical copy: `skills/kairos-dev/workflow-test.md`. Same content is in `tests/workflow-test/PROMPT.md` for the test harness.
+Use this prompt when running dev/qa workflow tests so the agent is constrained to MCP tools only and writes all output into `reports/`. Canonical copy: `skills/kairos-development/workflow-test.md`. Same content is in `tests/workflow-test/PROMPT.md` for the test harness.
 
 ## Constraints (non-negotiable)
 

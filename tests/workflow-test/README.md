@@ -2,7 +2,7 @@
 
 This directory defines **agent-driven workflow tests** for KAIROS: an AI agent runs scenarios using **only MCP tools**, with no shell or filesystem access except writing to `reports/`. The canonical protocol examples live in [docs/examples/](../../docs/examples/).
 
-**Canonical agent instructions** (prompt and constraints) are in [skills/kairos-dev/workflow-test.md](../../skills/kairos-dev/workflow-test.md). The prompt below is a copy for the test harness; use the skill for a single source of truth.
+**Canonical agent instructions** (prompt and constraints) are in [skills/kairos-development/workflow-test.md](../../skills/kairos-development/workflow-test.md). The prompt below is a copy for the test harness; use the skill for a single source of truth.
 
 ## Purpose
 
@@ -15,7 +15,7 @@ All tool calls and outcomes must be recorded under `reports/` so runs are reprod
 
 ## Prompt and constraints
 
-Use the prompt in [PROMPT.md](PROMPT.md) (or [skills/kairos-dev/workflow-test.md](../../skills/kairos-dev/workflow-test.md)) when running these tests. It enforces:
+Use the prompt in [PROMPT.md](PROMPT.md) (or [skills/kairos-development/workflow-test.md](../../skills/kairos-development/workflow-test.md)) when running these tests. It enforces:
 
 - **MCP tools only** (no filesystem, no shell).
 - **Exception:** write only under `reports/`.
