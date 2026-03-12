@@ -9,9 +9,19 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
+staged=$(git diff --cached --name-only)
+# Version check: mem = package.json, skills = last stable (same as CI). Run when version-related files are staged.
+if echo "$staged" | grep -q '^package\.json$' || echo "$staged" | grep -q '^skills/' || echo "$staged" | grep -q '^src/embed-docs/mem/'; then
+  if ! npm run version:check-skills; then
+    echo ""
+    echo "  Tip: If 'last stable' looks wrong (e.g. 1.0.0), run: git fetch --tags"
+    echo "  After a version bump, run: npm run version:sync-skills && git add skills/ src/embed-docs/mem/"
+    echo ""
+    exit 1
+  fi
+fi
 # Skip heavy checks for version-bump commits (only package.json + package-lock.json).
 # Real workflow: full build runs in dev:deploy and CI; version bumps need no build on commit.
-staged=$(git diff --cached --name-only)
 count=$(echo "$staged" | wc -l | tr -d ' ')
 if [ "$count" -eq 2 ]; then
   if echo "$staged" | grep -q '^package\.json$' && echo "$staged" | grep -q '^package-lock\.json$'; then
