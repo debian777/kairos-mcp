@@ -22,7 +22,7 @@ Run the **Create KAIROS skill (with KAIROS.md protocol)** protocol via KAIROS. T
 ## Workflow
 
 1. **Search** — Call `kairos_search` with query `create KAIROS skill with KAIROS.md protocol` (or the user’s phrasing, e.g. "create KAIROS skill", "create skill with protocol"). Use the `space` parameter if the user or environment specifies one; otherwise omit (default space).
-2. **If no strong match** (e.g. no choice with `score` ≥ 0.7) — Pick the **refine** choice from the response and run that protocol to improve the query, then search again.
+2. **If no strong match** (e.g. no choice with `score` ≥ 0.5) — Pick the **refine** choice from the response and run that protocol to improve the query, then search again.
 3. **If no match** — Read [references/KAIROS.md](references/KAIROS.md). If it has YAML frontmatter (lines between `---`), pass only the markdown **after** the closing `---` to `kairos_mint` so the document starts with the H1. Use the same space as for search. Then search again.
 4. **Run** — Follow the chosen match’s `next_action`: `kairos_begin` → `kairos_next` (loop) → `kairos_attest`. Echo nonces and proof hashes from the server. Do not respond to the user before `kairos_attest` when `must_obey: true`.
 

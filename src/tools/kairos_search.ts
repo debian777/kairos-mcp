@@ -139,7 +139,8 @@ async function generateUnifiedOutput(
   }
 
   // No matches, or multiple matches, or single match below relevance threshold: offer refine + create.
-  const RELEVANT_SCORE = 0.7;
+  // RRF + attest yields scores typically in 0.33–0.58 range; 0.5 = top band, so one match at ≥0.5 is "strong" (do not force refine/create).
+  const RELEVANT_SCORE = 0.5;
   const singleMatchNotRelevant = matchCount === 1 && (choices[0]?.score ?? 0) < RELEVANT_SCORE;
   if (matchCount !== 1 || singleMatchNotRelevant) {
     choices.push(

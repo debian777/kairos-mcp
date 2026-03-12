@@ -2,12 +2,20 @@ import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
+
+/** Attest boost: below this many runs we do not apply boost. */
+const MIN_ATTEST_RUNS = 3;
+/** Attest boost: at this many runs confidence is 1. */
+const RUNS_FULL_CONFIDENCE = 10;
+/** Max additive boost from attest (tiebreaker within RRF bands; < half of ~0.167 band gap). */
+const ATTEST_BOOST_MAX = 0.08;
 import { getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
+import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
 
 export class MemoryQdrantStoreMethods {
@@ -126,55 +134,80 @@ export class MemoryQdrantStoreMethods {
       return { memories: [], scores: [] };
     }
 
-    // 1. Vector search (primary)
     const vectorResult = await this.vectorSearch(normalizedQuery, query, limit);
-
-    // 2. Keyword fallback: if vector results insufficient, add keyword matches and merge
-    if (vectorResult.memories.length < limit) {
-      const keywordResult = await this.keywordSearch(normalizedQuery, limit);
-      const merged = this.mergeSearchResults(vectorResult, keywordResult, limit);
-      const result = {
-        memories: merged.memories,
-        scores: merged.scores
-      };
-      await redisCacheService.setSearchResult(normalizedQuery, limit, result, { collapse });
-      return result;
-    }
-
     await redisCacheService.setSearchResult(normalizedQuery, limit, vectorResult, { collapse });
     return vectorResult;
   }
 
-  /** Vector similarity search only; used as primary path. */
+  /** Hybrid search: dense + BM25 sparse via Query API prefetch + RRF fusion. */
   private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
     const queryVector = queryEmbeddingResult.embedding;
+    const vectorName = `vs${queryVector.length}`;
     const searchLimit = Math.min(limit * 3, 200);
+    const sparseQuery = bm25Tokenizer.tokenize(query);
 
     const searchSpaceIds = getSearchSpaceIds();
-    const filter = buildSpaceFilter(searchSpaceIds);
-    const vectorResults = await this.client.search(this.collection, {
-      vector: { name: `vs${queryVector.length}`, vector: queryVector },
-      limit: searchLimit,
-      filter,
-      with_payload: true,
-      with_vector: false
+    const filter = buildSpaceFilter(searchSpaceIds, {
+      must: [{ key: 'chain.step_index', match: { value: 1 } }]
     });
 
-    // Raw Qdrant score + bounded quality boost from payload.quality_metadata.step_quality_score
-    // so successful protocols rank higher. Boost capped so it does not dominate the vector score.
-    const QUALITY_BOOST_COEFF = 0.1;
-    const QUALITY_SCORE_CAP = 1;
-
+    let points: Array<{ id: string | number; score?: number; payload?: Record<string, unknown> | null }>;
+    try {
+      const queryResponse = await this.client.query(this.collection, {
+        prefetch: [
+          {
+            query: queryVector,
+            using: vectorName,
+            limit: 40,
+            filter,
+            params: { quantization: { rescore: true } }
+          },
+          {
+            query: { indices: sparseQuery.indices, values: sparseQuery.values },
+            using: 'bm25',
+            limit: 40,
+            filter
+          }
+        ],
+        query: { fusion: 'rrf' },
+        with_payload: true,
+        limit: searchLimit
+      });
+      points = queryResponse?.points ?? [];
+    } catch (queryErr) {
+      logger.warn(
+        `Hybrid query failed, falling back to dense search: ${queryErr instanceof Error ? queryErr.message : String(queryErr)}`
+      );
+      const searchResults = await this.client.search(this.collection, {
+        vector: { name: vectorName, vector: queryVector },
+        limit: searchLimit,
+        filter,
+        params: { quantization: { rescore: true } },
+        with_payload: true,
+        with_vector: false
+      });
+      points = searchResults ?? [];
+    }
     type SearchHit = { id: string | number; score?: number; payload?: Record<string, unknown> | null };
-    const scored = (vectorResults || []).map((r: SearchHit) => {
+    const scored = points.map((r: SearchHit) => {
       const payload = r.payload || {};
       const memory = this.pointToMemory({ id: String(r.id), payload });
-      const rawScore = typeof r.score === 'number' ? r.score : 0.5;
-      const qMeta = payload['quality_metadata'] as { step_quality_score?: number } | undefined;
-      const stepQualityScore = typeof qMeta?.step_quality_score === 'number' ? qMeta.step_quality_score : 0;
-      const boundedQuality = Math.min(Math.max(stepQualityScore, 0), QUALITY_SCORE_CAP);
-      const score = rawScore * (1 + QUALITY_BOOST_COEFF * boundedQuality);
+      let score = typeof r.score === 'number' ? r.score : 0.5;
+      const qm = (payload['quality_metrics'] as { successCount?: number; failureCount?: number } | undefined) ?? {};
+      const successCount = typeof qm.successCount === 'number' ? qm.successCount : 0;
+      const failureCount = typeof qm.failureCount === 'number' ? qm.failureCount : 0;
+      const runs = successCount + failureCount;
+      let attestBoost = 0;
+      if (runs >= MIN_ATTEST_RUNS) {
+        const successRatio = runs > 0 ? successCount / runs : 0;
+        const confidence = Math.min(runs / RUNS_FULL_CONFIDENCE, 1);
+        attestBoost = Math.min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX);
+        logger.debug(
+          `[vectorSearch] attest boost point=${r.id} runs=${runs} successRatio=${successRatio.toFixed(2)} confidence=${confidence.toFixed(2)} boost=${attestBoost.toFixed(4)}`
+        );
+      }
+      score += attestBoost;
       return { memory, score };
     });
 
@@ -193,60 +226,6 @@ export class MemoryQdrantStoreMethods {
     return {
       memories: filtered.map(entry => entry.memory),
       scores: filtered.map(entry => entry.score)
-    };
-  }
-
-  /** Bounded scroll + in-memory label/text contains filter; used when vector results are insufficient. */
-  private async keywordSearch(normalizedQuery: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
-    const maxScroll = 500;
-    const filter = buildSpaceFilter(getSearchSpaceIds());
-    const page = await this.client.scroll(this.collection, {
-      filter,
-      with_payload: true,
-      with_vector: false,
-      limit: maxScroll
-    });
-    const points = page?.points || [];
-    const memories: Memory[] = [];
-    for (const p of points) {
-      const memory = this.pointToMemory({ id: String(p.id), payload: (p as { payload?: Record<string, unknown> }).payload || {} });
-      const labelMatch = (memory.label || '').toLowerCase().includes(normalizedQuery);
-      const textMatch = (memory.text || '').toLowerCase().includes(normalizedQuery);
-      if (labelMatch || textMatch) {
-        memories.push(memory);
-        if (memories.length >= limit) break;
-      }
-    }
-    const scores = memories.map(() => 0.5);
-    return { memories, scores };
-  }
-
-  /** Merge vector and keyword results, deduplicate by memory_uuid, preserve order (vector first). */
-  private mergeSearchResults(
-    vectorResult: { memories: Memory[], scores: number[] },
-    keywordResult: { memories: Memory[], scores: number[] },
-    limit: number
-  ): { memories: Memory[], scores: number[] } {
-    const seen = new Set<string>();
-    const memories: Memory[] = [];
-    const scores: number[] = [];
-    for (let i = 0; i < vectorResult.memories.length; i++) {
-      const m = vectorResult.memories[i];
-      if (!m || seen.has(m.memory_uuid)) continue;
-      seen.add(m.memory_uuid);
-      memories.push(m);
-      scores.push(vectorResult.scores[i] ?? 0.5);
-    }
-    for (let i = 0; i < keywordResult.memories.length && memories.length < limit; i++) {
-      const m = keywordResult.memories[i];
-      if (!m || seen.has(m.memory_uuid)) continue;
-      seen.add(m.memory_uuid);
-      memories.push(m);
-      scores.push(keywordResult.scores[i] ?? 0.5);
-    }
-    return {
-      memories: memories.slice(0, limit),
-      scores: scores.slice(0, limit)
     };
   }
 

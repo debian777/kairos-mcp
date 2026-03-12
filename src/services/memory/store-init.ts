@@ -1,7 +1,140 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { logger } from '../../utils/logger.js';
+import type { VectorDescriptorMap } from '../../utils/qdrant-vector-types.js';
 import { getVectorDescriptors, createQdrantCollection, getCollectionVectorConfig, addVectorsToCollection, migrateVectorSpace, removeVectorFromCollection, countPointsWithVector, getVectorSize } from '../../utils/qdrant-utils.js';
 import { embeddingService } from '../embedding/service.js';
+import { tokenizeToSparse } from '../embedding/bm25-tokenizer.js';
+
+const BM25_MIGRATION_BATCH_SIZE = 256;
+const BM25_MIGRATION_TEMP_SUFFIX = '_bm25_mig';
+
+/**
+ * Returns true if collection has bm25 sparse vector config.
+ */
+function collectionHasBm25(info: { config?: { params?: { sparse_vectors?: unknown } } }): boolean {
+  const sparse = (info.config?.params as { sparse_vectors?: Record<string, unknown> } | undefined)?.sparse_vectors;
+  return Boolean(sparse && typeof sparse === 'object' && Object.prototype.hasOwnProperty.call(sparse, 'bm25'));
+}
+
+/**
+ * Recreation-based migration: copy collection to a new collection with dense + BM25 schema, then replace original.
+ * Used when updateCollection(sparse_vectors) is not supported by the server. Idempotent if collection already has bm25.
+ * Rollback: if migration aborts before deleting source, no change. If it aborts after delete, temp collection holds data (use as QDRANT_COLLECTION).
+ */
+async function migrateCollectionToBm25Recreation(
+  client: QdrantClient,
+  collection: string,
+  denseVectorName: string,
+  vectorDescriptors: VectorDescriptorMap
+): Promise<void> {
+  const tempCollection = `${collection}${BM25_MIGRATION_TEMP_SUFFIX}`;
+  logger.info(`[MemoryQdrantStore] BM25 migration: creating temp collection ${tempCollection} (recreation path)`);
+  await createQdrantCollection(client, tempCollection, vectorDescriptors);
+
+  let sourceCount = 0;
+  let offset: string | number | null | undefined = undefined;
+  const scrollOpts = { with_payload: true, with_vector: true, limit: BM25_MIGRATION_BATCH_SIZE } as const;
+
+  // Phase 1: scroll source → compute bm25 → upsert to temp (no filter = all points)
+  do {
+    const scrollParams = offset != null ? { ...scrollOpts, offset } : scrollOpts;
+    const page = await client.scroll(collection, scrollParams);
+    const points = page.points ?? [];
+    if (points.length === 0) break;
+
+    const batch = points.map((p) => {
+      const payload = p.payload ?? {};
+      const label = (payload['label'] as string) ?? '';
+      const text = (payload['text'] as string) ?? '';
+      const sparse = tokenizeToSparse(`${label} ${text}`.trim());
+      const vec = p.vector;
+      const denseVec = typeof vec === 'object' && vec !== null && !Array.isArray(vec) ? (vec as Record<string, number[]>)[denseVectorName] : Array.isArray(vec) ? vec : null;
+      if (!denseVec || !Array.isArray(denseVec)) {
+        throw new Error(`[MemoryQdrantStore] BM25 migration: point ${String(p.id)} has no dense vector ${denseVectorName}`);
+      }
+      return {
+        id: p.id,
+        vector: { [denseVectorName]: denseVec, bm25: { indices: sparse.indices, values: sparse.values } },
+        payload,
+      };
+    });
+
+    await client.upsert(tempCollection, { points: batch, wait: true });
+    sourceCount += batch.length;
+    logger.info(`[MemoryQdrantStore] BM25 migration: copied batch of ${batch.length} points to ${tempCollection} (total ${sourceCount})`);
+    const next = page.next_page_offset;
+    offset = typeof next === 'string' || typeof next === 'number' ? next : undefined;
+  } while (offset !== undefined);
+
+  const tempInfo = await client.getCollection(tempCollection);
+  const tempPoints = (tempInfo as { points_count?: number }).points_count ?? sourceCount;
+  if (sourceCount !== tempPoints) {
+    await client.deleteCollection(tempCollection).catch(() => {});
+    throw new Error(`[MemoryQdrantStore] BM25 migration: count mismatch source=${sourceCount} temp=${tempPoints}; aborted, temp collection deleted`);
+  }
+
+  logger.info(`[MemoryQdrantStore] BM25 migration: deleting original collection ${collection}`);
+  await client.deleteCollection(collection);
+  await new Promise((r) => setTimeout(r, 500));
+
+  logger.info(`[MemoryQdrantStore] BM25 migration: recreating ${collection} with dense+bm25 schema`);
+  await createQdrantCollection(client, collection, vectorDescriptors);
+
+  // Phase 2: scroll temp → upsert to original (points already have both vectors)
+  let restored = 0;
+  offset = undefined;
+  do {
+    const scrollParams = offset != null ? { ...scrollOpts, offset } : scrollOpts;
+    const page = await client.scroll(tempCollection, scrollParams);
+    const points = page.points ?? [];
+    if (points.length === 0) break;
+
+    const batch = points.map((p) => ({
+      id: p.id,
+      vector: p.vector!,
+      payload: p.payload ?? {},
+    }));
+    await client.upsert(collection, { points: batch, wait: true } as any);
+    restored += batch.length;
+    logger.info(`[MemoryQdrantStore] BM25 migration: restored batch of ${batch.length} to ${collection} (total ${restored})`);
+    const nextRestore = page.next_page_offset;
+    offset = typeof nextRestore === 'string' || typeof nextRestore === 'number' ? nextRestore : undefined;
+  } while (offset !== undefined);
+
+  const finalInfo = await client.getCollection(collection);
+  const finalPoints = (finalInfo as { points_count?: number }).points_count ?? restored;
+  if (restored !== finalPoints) {
+    logger.error(`[MemoryQdrantStore] BM25 migration: restored=${restored} final=${finalPoints}; temp ${tempCollection} kept for recovery`);
+    throw new Error(`[MemoryQdrantStore] BM25 migration: restore count mismatch; check collection ${tempCollection}`);
+  }
+
+  await client.deleteCollection(tempCollection);
+  logger.info(`[MemoryQdrantStore] BM25 migration: complete for ${collection}; points=${finalPoints}; temp collection removed`);
+}
+
+/**
+ * Ensure existing collection has bm25 sparse vector config (idempotent).
+ * Tries updateCollection first; on failure runs recreation-based migration so the collection always ends with BM25.
+ */
+async function ensureBm25SparseConfig(
+  client: QdrantClient,
+  collection: string,
+  denseVectorName: string,
+  vectorDescriptors: VectorDescriptorMap
+): Promise<void> {
+  const info = await client.getCollection(collection);
+  if (collectionHasBm25(info)) {
+    logger.debug(`[MemoryQdrantStore] Collection ${collection} already has bm25 sparse vector config`);
+    return;
+  }
+  try {
+    await client.updateCollection(collection, { sparse_vectors: { bm25: {} } } as Parameters<QdrantClient['updateCollection']>[1]);
+    logger.info(`[MemoryQdrantStore] Added bm25 sparse vector config to collection ${collection}`);
+  } catch (err) {
+    logger.warn(`[MemoryQdrantStore] updateCollection(sparse_vectors) not supported: ${err instanceof Error ? err.message : String(err)}; running recreation migration`);
+    await migrateCollectionToBm25Recreation(client, collection, denseVectorName, vectorDescriptors);
+  }
+}
 
 export async function initializeQdrantStore(client: QdrantClient, collection: string, url: string): Promise<void> {
   try {
@@ -131,6 +264,9 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
         }
         logger.info(`[MemoryQdrantStore] Migration complete for collection "${collection}" - status=SUCCESS`);
       }
+
+      // Ensure bm25 sparse vector config (idempotent; required for hybrid search). Uses recreation if updateCollection not supported.
+      await ensureBm25SparseConfig(client, collection, currentVectorName, vectorDescriptors);
     }
   } catch (error) {
     logger.error(

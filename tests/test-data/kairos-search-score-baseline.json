@@ -1,0 +1,59 @@
+{
+  "recordedAt": "2026-03-12T08:47:31.959Z",
+  "queries": {
+    "ScoreBaseline": {
+      "topScore": 0.35016227,
+      "topLabel": "Natural Language Triggers",
+      "choices": [
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.35016227
+        },
+        {
+          "label": "Natural Language Triggers",
+          "score": 0.32354596
+        },
+        {
+          "label": "Get help refining your search",
+          "score": null
+        },
+        {
+          "label": "Create New KAIROS Protocol Chain",
+          "score": null
+        }
+      ]
+    }
+  }
+}

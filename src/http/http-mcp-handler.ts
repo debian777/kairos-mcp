@@ -5,6 +5,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { LOG_LEVEL, AUTH_ENABLED, MAX_CONCURRENT_MCP_REQUESTS_RAW } from '../config.js';
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
+import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 
@@ -181,12 +182,15 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             await server.connect(transport as Parameters<typeof server.connect>[0]);
             (transport as any)._requestContext = req;
 
-            await mcpRequestStore.run({ req, transport }, async () => {
-              await transport.handleRequest(
-                req as unknown as Parameters<typeof transport.handleRequest>[0],
-                res,
-                req.body
-              );
+            const spaceCtx = req.spaceContext ?? getSpaceContext(req);
+            await runWithSpaceContextAsync(spaceCtx, async () => {
+              await mcpRequestStore.run({ req, transport }, async () => {
+                await transport.handleRequest(
+                  req as unknown as Parameters<typeof transport.handleRequest>[0],
+                  res,
+                  req.body
+                );
+              });
             });
 
             requestCompleted = true;

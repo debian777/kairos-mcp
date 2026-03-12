@@ -26,6 +26,9 @@ export async function createQdrantCollection(client: QdrantClient, collectionNam
 
   await client.createCollection(collectionName, {
     vectors: vectorConfig,
+    sparse_vectors: {
+      bm25: {}
+    },
     quantization_config: {
       scalar: {
         type: "int8",
