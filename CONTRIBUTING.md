@@ -141,10 +141,11 @@ in Docker; use `./data/qdrant/snapshots` in dev). Trigger on demand:
 ```
 src/               TypeScript source
 src/embed-docs/    Built-in protocol chains embedded as MCP resources
+skills/kairos-dev/ Agent instructions for kairos-dev (ai-mcp-integration, workflow-test)
 dist/              Compiled output (generated)
 tests/             Test files
 tests/test-data/   Test fixtures
-tests/workflow-test/ Agent workflow test prompt and instructions
+tests/workflow-test/ Workflow test harness; canonical agent prompt in skills/kairos-dev/
 reports/           Workflow test output (gitignored except .gitkeep)
 docs/examples/     Mintable protocol examples for dev workflow tests
 scripts/           Build and utility scripts

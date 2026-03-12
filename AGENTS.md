@@ -17,9 +17,10 @@ compute them.
 |------|---------|
 | `src/` | TypeScript source |
 | `src/embed-docs/` | MCP resources served to agents (tools, mem, prompts) |
+| `skills/kairos-dev/` | Agent instructions for kairos-dev (ai-mcp-integration, workflow-test) |
 | `dist/` | Compiled output |
 | `tests/` | Integration tests |
-| `tests/workflow-test/` | Agent workflow test prompt and instructions |
+| `tests/workflow-test/` | Workflow test harness (prompt copy, how to run; canonical agent text in `skills/kairos-dev/`) |
 | `reports/` | Workflow test output (`reports/<run-id>/report.md`) |
 | `docs/examples/` | Mintable protocol examples for dev workflow tests |
 | `scripts/` | Build and utility scripts |
