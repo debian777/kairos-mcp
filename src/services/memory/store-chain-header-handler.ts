@@ -104,12 +104,11 @@ export async function storeHeaderBasedChain(
   logger.tool(
     'memory-qdrant-store',
     'upsert',
-    `mode=h1-h2 sections=${headerChainMemories.length} collection=${collection} payload=${JSON.stringify({
-      points
-    })}`
+    `mode=h1-h2 sections=${headerChainMemories.length} collection=${collection} points=${points.length}`
   );
-
-  logger.debug(`[Qdrant][upsert] collection=${collection} points=${points.length}`);
+  logger.debug(
+    `[Qdrant][upsert] collection=${collection} points=${points.length} payload=${JSON.stringify({ points })}`
+  );
   try {
     await client.upsert(collection, { points });
   } catch (err) {

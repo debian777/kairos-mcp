@@ -70,7 +70,7 @@ export class RedisCacheService {
 
   async invalidateSearchCache(): Promise<void> {
     try {
-      logger.info(`[RedisCacheService] Search cache invalidation requested`);
+      logger.debug(`[RedisCacheService] Search cache invalidation requested`);
       // Delete keys matching search cache pattern (all collapse modes)
       const keys = await keyValueStore.keys(`${this.cachePrefix}*`);
       if (!keys || keys.length === 0) {
@@ -85,7 +85,7 @@ export class RedisCacheService {
         k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
       );
       await Promise.all(stripped.map(k => keyValueStore.del(k)));
-      logger.info(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
+      logger.debug(`[RedisCacheService] Invalidated ${stripped.length} search cache keys`);
       // Publish invalidation event
       await this.publishInvalidation('search');
     } catch (error) {
@@ -185,7 +185,7 @@ export class RedisCacheService {
   // Invalidate begin cache (kairos_begin tool results)
   async invalidateBeginCache(): Promise<void> {
     try {
-      logger.info(`[RedisCacheService] Begin cache invalidation requested`);
+      logger.debug(`[RedisCacheService] Begin cache invalidation requested`);
       // Delete keys matching begin cache pattern
       const keys = await keyValueStore.keys('begin:*');
       if (!keys || keys.length === 0) {
@@ -198,7 +198,7 @@ export class RedisCacheService {
         k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
       );
       await Promise.all(stripped.map(k => keyValueStore.del(k)));
-      logger.info(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
+      logger.debug(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate begin cache:', error);
     }
@@ -207,7 +207,7 @@ export class RedisCacheService {
   // For atomic operations as per plan
   // System is mostly read-heavy, so invalidate aggressively on writes
   async invalidateAfterUpdate(): Promise<void> {
-    logger.info('[RedisCacheService] Cache invalidation after Qdrant update - clearing all search and begin caches');
+    logger.debug('[RedisCacheService] Cache invalidation after Qdrant update - clearing all search and begin caches');
     await Promise.all([
       this.invalidateSearchCache(),
       this.invalidateBeginCache()
