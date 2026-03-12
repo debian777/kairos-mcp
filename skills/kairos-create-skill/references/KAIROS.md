@@ -6,7 +6,11 @@ title: Create KAIROS skill (with KAIROS.md protocol)
 
 # Create KAIROS skill (with KAIROS.md protocol)
 
-Guide creating an Agent Skill for Cursor (or compatible host) that can bundle a KAIROS protocol in `references/KAIROS.md`, per the [Agent Skills specification](https://agentskills.io/specification) and [skills README](../../README.md). Covers directory structure, SKILL.md draft, protocol creation (via “create new KAIROS protocol” flow), minting, execution verification, and linting.
+Guide creating an Agent Skill for Cursor (or compatible host) that can bundle one or more KAIROS protocols, per the [Agent Skills specification](https://agentskills.io/specification) and [skills README](../../README.md). Covers directory structure, SKILL.md draft, protocol creation (via “create new KAIROS protocol” flow), minting, execution verification, and linting.
+
+**Single protocol:** One file `references/KAIROS.md`; SKILL.md uses `metadata.protocol` and `metadata.protocol_query`.
+
+**Multiple protocols (aliases):** One file per alias, `references/KAIROS-{alias}.md` (e.g. `references/KAIROS-workflow-test.md`, `references/KAIROS-ai-mcp-integration.md`). SKILL.md uses `metadata.protocols` mapping alias → path (e.g. `workflow-test: references/KAIROS-workflow-test.md`); optionally `metadata.protocol_queries` mapping alias → search query. User triggers (e.g. `/workflow-test`, “run workflow test”) select the alias; the agent loads and runs the matching protocol.
 
 ## Natural Language Triggers
 
@@ -74,13 +78,18 @@ Submit a comment (at least 60 characters) confirming you used Context7 (/c7) to 
 
 ## Step 3: Gather requirements and draft SKILL.md
 
-Gather from the user (or infer): purpose and scope, target location (personal `~/.cursor/skills/` or project `.cursor/skills/`), trigger scenarios, key domain knowledge, output format. Draft the skill directory and `SKILL.md` with YAML frontmatter and body.
+Gather from the user (or infer): purpose and scope, target location (personal `~/.cursor/skills/` or project `.cursor/skills/`), trigger scenarios, key domain knowledge, output format. Decide whether the skill has **one protocol** or **multiple protocols (aliases)**.
 
-**Frontmatter:** `name` (required), `description` (required). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental).
+- **One protocol:** Bundle in `references/KAIROS.md`. In SKILL.md set `metadata.protocol: references/KAIROS.md` and `metadata.protocol_query` (search query for this protocol).
+- **Multiple protocols (aliases):** One protocol per alias in `references/KAIROS-{alias}.md` (e.g. `references/KAIROS-workflow-test.md` for alias `workflow-test`). In SKILL.md set `metadata.protocols` as a map from alias to path (e.g. `workflow-test: references/KAIROS-workflow-test.md`); optionally `metadata.protocol_queries` from alias to search query. Document in the body which trigger phrases or `/alias` map to which protocol.
+
+Draft the skill directory and `SKILL.md` with YAML frontmatter and body.
+
+**Frontmatter:** `name` (required), `description` (required). Optional: `license`, `compatibility`, `metadata` (including `protocol`/`protocol_query` or `protocols`/`protocol_queries`), `allowed-tools` (experimental).
 
 **Body:** Step-by-step instructions, examples, edge cases. Use relative paths for `references/`, `scripts/`, `assets/`. When the skill provides runnable tooling, document how to invoke scripts under `scripts/` (skills give new functionality — we can ship scripts, not depend only on generic shell). Keep file references one level deep.
 
-Submit a comment (at least 80 characters) confirming the draft includes a valid `name` and `description`, the skill path, and whether the skill will bundle a KAIROS protocol (references/KAIROS.md).
+Submit a comment (at least 80 characters) confirming the draft includes a valid `name` and `description`, the skill path, and whether the skill bundles one protocol (references/KAIROS.md) or multiple (references/KAIROS-{alias}.md) with alias list.
 
 ```json
 {
@@ -92,18 +101,24 @@ Submit a comment (at least 80 characters) confirming the draft includes a valid 
 }
 ```
 
-## Step 4: Create protocol via KAIROS (if skill ships a protocol)
+## Step 4: Create protocol(s) via KAIROS (if skill ships protocols)
 
-If the skill should bundle a KAIROS protocol (per [skills README](../../README.md)):
+If the skill should bundle one or more KAIROS protocols (per [skills README](../../README.md)):
+
+**Single protocol:** Create one protocol and save to **references/KAIROS.md**. Ensure SKILL.md has `metadata.protocol` and `metadata.protocol_query`.
+
+**Multiple protocols (aliases):** For each alias (e.g. `workflow-test`, `ai-mcp-integration`), create a protocol and save to **references/KAIROS-{alias}.md**. Ensure SKILL.md has `metadata.protocols` (alias → path) and optionally `metadata.protocol_queries` (alias → search query).
+
+For each protocol to create:
 
 1. Call `kairos_search` with query **create new KAIROS protocol chain**.
 2. Pick the match (or **create** choice) and run that protocol: `kairos_begin` → `kairos_next` (loop) → `kairos_attest`. Follow the protocol to produce a new protocol document (Confirm intent → Gather requirements → Draft markdown → User review → Mint, or equivalent).
-3. Save the resulting protocol markdown to **references/KAIROS.md** in the skill directory. If the protocol was minted in KAIROS, you can instead `kairos_dump` that chain with `protocol: true` and save the markdown to references/KAIROS.md. Add YAML frontmatter (`version`, `title`) if desired.
-4. Update the skill’s SKILL.md so `metadata.protocol` points to `references/KAIROS.md` and `metadata.protocol_query` is set; add mint-if-missing workflow steps if needed.
+3. Save the resulting protocol markdown to **references/KAIROS.md** (single) or **references/KAIROS-{alias}.md** (multi). If the protocol was minted in KAIROS, you can instead `kairos_dump` that chain with `protocol: true` and save the markdown. Add YAML frontmatter (`version`, `title`) if desired.
+4. Update the skill’s SKILL.md: for single, set `metadata.protocol` and `metadata.protocol_query`; for multiple, set `metadata.protocols` (and optionally `metadata.protocol_queries`); add mint-if-missing workflow steps if needed.
 
-If the skill does **not** ship a protocol, state that in your comment and skip to Step 5.
+If the skill does **not** ship any protocol, state that in your comment and skip to Step 5.
 
-Submit a comment (at least 60 characters): either the path to references/KAIROS.md and a one-line summary of the protocol, or "No protocol bundled; skill does not ship a KAIROS protocol."
+Submit a comment (at least 60 characters): either the path(s) created (e.g. references/KAIROS.md or references/KAIROS-workflow-test.md, references/KAIROS-ai-mcp-integration.md) and a one-line summary per protocol, or "No protocol bundled; skill does not ship a KAIROS protocol."
 
 ```json
 {
@@ -115,17 +130,19 @@ Submit a comment (at least 60 characters): either the path to references/KAIROS.
 }
 ```
 
-## Step 5: Mint protocol (if references/KAIROS.md exists)
+## Step 5: Mint protocol(s) (for each references/KAIROS*.md)
 
-If the skill has **references/KAIROS.md** (or another protocol file):
+If the skill has **references/KAIROS.md** (single) or any **references/KAIROS-{alias}.md** (multi):
+
+For each such file:
 
 1. Read the file. If it has YAML frontmatter (lines between `---`), strip it so the document starts with the H1.
 2. Call `kairos_mint` with the markdown (and required `llm_model_id`; use same space as for any prior KAIROS calls).
-3. Report the chain head URI or any error.
+3. Report the chain head URI or any error for that file.
 
-If the skill does **not** bundle a protocol, report **No protocol bundled, mint skipped** in your comment.
+If the skill does **not** bundle any protocol, report **No protocol bundled, mint skipped** in your comment.
 
-Submit a comment (at least 20 characters): the chain head URI from `kairos_mint`, or "No protocol bundled, mint skipped", or an error summary.
+Submit a comment (at least 20 characters): the chain head URI(s) from `kairos_mint` (one per file), or "No protocol bundled, mint skipped", or an error summary.
 
 ```json
 {
@@ -137,11 +154,11 @@ Submit a comment (at least 20 characters): the chain head URI from `kairos_mint`
 }
 ```
 
-## Step 6: Verify protocol by execution (if protocol was minted)
+## Step 6: Verify protocol(s) by execution (if any were minted)
 
-If a protocol was minted in Step 5: run that protocol (or the skill’s workflow) in a **subagent or new chat with no prior context** — e.g. invoke the skill in a fresh session or use a subagent that only has the KAIROS MCP and the skill instructions. Goal: confirm the protocol runs correctly without relying on prior conversation context.
+If one or more protocols were minted in Step 5: run each (or a representative subset) in a **subagent or new chat with no prior context** — e.g. invoke the skill with the relevant alias/trigger in a fresh session or use a subagent that only has the KAIROS MCP and the skill instructions. Goal: confirm the protocol(s) run correctly without relying on prior conversation context.
 
-Report outcome in a comment: **pass** or **fail**, and if fail, a short note (e.g. missing step, wrong query, attestation error). If no protocol was minted, state **No protocol to verify; skipped.**
+Report outcome in a comment: **pass** or **fail** per protocol (or overall), and if fail, a short note (e.g. missing step, wrong query, attestation error). If no protocol was minted, state **No protocol to verify; skipped.**
 
 Submit a comment (at least 40 characters) with the result.
 
