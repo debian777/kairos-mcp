@@ -1,0 +1,333 @@
+---
+version: 1.0.0
+title: Create New KAIROS Protocol Chain
+---
+
+# Create New KAIROS Protocol Chain
+
+Guide an AI agent through creating a new executable protocol chain in KAIROS.
+This protocol is offered when kairos_search finds no match. **Use a challenge
+on every step that can be verified** — it makes protocols runnable, auditable,
+and self-healing. When in doubt, add a challenge.
+
+A challenge is defined as a **JSON object in a fenced ` ```json ` block** at the
+end of each step: use an object with a `challenge` key whose value has the same
+shape as the `challenge` returned by kairos_begin and kairos_next; round-trips
+cleanly with kairos_dump and kairos_mint.
+
+## How to write a Natural Language Triggers section
+
+Every protocol **must** include a `## Natural Language Triggers` section as the
+**first H2** after the H1 title and introductory paragraph. This section tells
+agents when to activate the protocol from human speech.
+
+**Required structure (exact order):**
+
+1. **Trigger phrases** — 3–6 quoted phrases a user would say to invoke this protocol.
+2. **Trigger pattern** — verb + noun formula: `**verb** + (noun1 / noun2 / noun3)`.
+3. **Must Never** — 1–3 cases where this protocol must NOT be triggered.
+4. **Must Always** — 1–3 mandatory behaviours when the protocol IS triggered.
+5. **Good trigger examples** — 2–3 phrases that correctly activate, with `→ run this protocol`.
+6. **Bad trigger examples** — 2–3 phrases that should NOT activate, with `→ use X instead`.
+
+**Must Never:**
+- Use vague descriptions: ❌ "Run when the user wants to do something with UI"
+- Overlap with another protocol's triggers without disambiguation
+- Omit the section — every protocol needs one
+
+**Must Always:**
+- Use imperative language in Must Never / Must Always (no "should", "consider", "might")
+- Include at least one Good and one Bad example
+- Match trigger verbs to the protocol's actual purpose
+
+**Good example** (for a deployment protocol):
+
+```markdown
+## Natural Language Triggers
+
+**Run this protocol when the user says ANY of:**
+
+- "deploy to staging" / "push to production"
+- "release this version" / "ship it"
+
+**Trigger verbs** + (staging / production / environment / release):
+- **deploy** / **push** / **release** / **ship** / **promote**
+
+**Must Never:**
+- Trigger on "deploy" when the user means a local dev server
+- Run without confirming the target environment
+
+**Must Always:**
+- Confirm target environment before Step 1
+- Check that CI pipeline passed before deploying
+
+**Good trigger examples:**
+- "Deploy the API to staging" → run this protocol
+- "Ship v2.3.0 to production" → run this protocol
+
+**Bad trigger examples:**
+- "Start the dev server" → not a deployment, do not trigger
+- "Show me the last deployment" → use search, not this protocol
+```
+
+**Bad example** (vague, no verbs, no Good/Bad):
+
+```markdown
+## When to Use
+This protocol can be used for deployments and releases.
+```
+
+## Why use a challenge on every step
+
+- **Runnable:** Agents and users can execute the protocol step-by-step and
+  prove completion.
+- **Deterministic:** Each step has a clear success criterion (command exit
+  code, comment length, user confirmation, or MCP result).
+- **Recoverable:** If a step fails, kairos_next returns a fresh challenge
+  and the agent can retry or fix the step via kairos_update.
+
+Prefer a challenge on every step; omit only for purely informational steps
+where no verification is possible.
+
+Example: ```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 10 },
+    "required": true
+  }
+}
+```
+
+## Challenge types and JSON examples
+
+Place a fenced ` ```json ` block at the end of the step with an object with a
+`challenge` key. Use the type that fits the step; mix types in one protocol.
+
+**shell** — Step requires running a command (build, test, deploy script).
+
+Example: ```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": {
+      "cmd": "npm test",
+      "timeout_seconds": 60
+    },
+    "required": true
+  }
+}
+```
+
+**comment** — Step requires a short verification (review, summary, checklist).
+
+Example: ```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+**user_input** — Step requires human confirmation (approvals, go/no-go).
+
+Example: ```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Approve deployment?" },
+    "required": true
+  }
+}
+```
+
+**mcp** — Step requires calling an MCP tool (e.g. kairos_mint, kairos_update).
+
+Example: ```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_mint" },
+    "required": true
+  }
+}
+```
+
+## Example protocol (for inspiration)
+
+Use H1 for the protocol title, H2 for each step, then step body, then a
+` ```json ` block with the challenge for that step.
+
+**Step 1 — shell:** Run the test suite and linter.
+
+Example: ```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": {
+      "cmd": "npm test && npm run lint",
+      "timeout_seconds": 60
+    },
+    "required": true
+  }
+}
+```
+
+**Step 2 — comment:** Summarize what changed and why (min 50 chars).
+
+Example: ```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+**Step 3 — user_input:** Get user approval for merge.
+
+Example: ```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Approve these changes for merge?" },
+    "required": true
+  }
+}
+```
+
+**Step 4 — mcp:** Call the merge tool.
+
+Example: ```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "merge_tool" },
+    "required": true
+  }
+}
+```
+
+---
+
+Example step format: H2, body, then a trailing ` ```json ` block with `challenge`.
+
+Format: ```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 10 },
+    "required": true
+  }
+}
+```
+
+## Step 1: Confirm Intent
+
+Before creating a new protocol, confirm the user actually wants this.
+They may have misspelled a search query, or the protocol may exist under
+a different name.
+
+Ask the user: "No existing protocol matched your query. Would you like
+to create a new one, or refine your search?"
+
+```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Confirm you want to create a new protocol chain" },
+    "required": true
+  }
+}
+```
+
+## Step 2: Gather Requirements
+
+Collect the key details for the new protocol:
+
+- **Title**: A clear, descriptive name for the protocol chain (H1 heading)
+- **Steps**: What steps should the protocol have? (each becomes an H2 heading)
+- **Challenges**: For each step, add a ` ```json ` block with a `challenge` key (one of):
+  - **shell** — `{"challenge":{"type":"shell","shell":{"cmd":"...","timeout_seconds":30},"required":true}}`
+  - **comment** — `{"challenge":{"type":"comment","comment":{"min_length":50},"required":true}}`
+  - **user_input** — `{"challenge":{"type":"user_input","user_input":{"prompt":"..."},"required":true}}`
+  - **mcp** — `{"challenge":{"type":"mcp","mcp":{"tool_name":"kairos_mint"},"required":true}}`
+
+Summarize the gathered requirements as a structured list.
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 50 },
+    "required": true
+  }
+}
+```
+
+## Step 3: Draft Markdown
+
+Using the requirements from step 2, draft the full markdown document
+that will be passed to `kairos_mint`. Use H1 for title, H2 per step,
+step body, then a ` ```json ` block with the challenge for that step.
+**Add a challenge (```json block) to every step** that can be verified (see
+examples above). Post the full drafted markdown in your verification comment.
+
+**Must Always include in the draft:**
+- **Natural Language Triggers** section as the first H2 — follow the structure
+  and Good/Bad examples defined in "How to write a Natural Language Triggers
+  section" above.
+- **Completion Rule** section as the last H2.
+
+```json
+{
+  "challenge": {
+    "type": "comment",
+    "comment": { "min_length": 100 },
+    "required": true
+  }
+}
+```
+
+## Step 4: User Review
+
+Present the drafted protocol markdown to the user for review.
+Ask them to approve, request changes, or cancel.
+
+If they request changes, update the draft before proceeding.
+
+```json
+{
+  "challenge": {
+    "type": "user_input",
+    "user_input": { "prompt": "Approve the protocol draft for minting" },
+    "required": true
+  }
+}
+```
+
+## Step 5: Mint Protocol
+
+Call `kairos_mint` with the approved markdown document. Use
+`force_update: false` (default) unless the user explicitly asks to
+overwrite an existing protocol.
+
+Confirm the mint was successful and report the chain head URI back
+to the user.
+
+```json
+{
+  "challenge": {
+    "type": "mcp",
+    "mcp": { "tool_name": "kairos_mint" },
+    "required": true
+  }
+}
+```
+
+## Completion Rule
+
+Only reachable after all prior steps are solved.
