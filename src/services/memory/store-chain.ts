@@ -41,6 +41,9 @@ export class MemoryQdrantStoreChain {
 
       const now = new Date();
 
+      // Docs to use for default path (each becomes a memory). Single-doc fallback uses frontmatter-stripped body.
+      let docsForDefaultPath = normalizedDocs;
+
       // Effective protocol version: explicit option, or (for single doc) parsed from frontmatter when we fall back to default chain.
       let effectiveProtocolVersion: string | undefined = options.protocolVersion;
 
@@ -75,12 +78,13 @@ export class MemoryQdrantStoreChain {
             options.forceUpdate || false
           );
         }
-        // Fallback to single memory storage when header requirements aren't met (effectiveProtocolVersion is already set from frontmatter)
+        // Fallback to single memory storage when header requirements aren't met; use body only (no frontmatter in stored text).
+        docsForDefaultPath = [docForChain];
         logger.debug('[MemoryQdrantStore] Header-based chain failed, falling back to single memory storage');
       }
 
       // Extract label from first document for similarity check (default path)
-      const firstDocLabel = generateLabel(normalizedDocs[0]!);
+      const firstDocLabel = generateLabel(docsForDefaultPath[0]!);
       await checkSimilarMemoryByTitle(
         this.methods,
         firstDocLabel,
@@ -93,7 +97,7 @@ export class MemoryQdrantStoreChain {
         this.collection,
         this.methods,
         this.codeBlockProcessor,
-        normalizedDocs,
+        docsForDefaultPath,
         llmModelId,
         now,
         options.forceUpdate || false,

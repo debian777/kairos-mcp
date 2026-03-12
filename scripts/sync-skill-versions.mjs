@@ -70,29 +70,30 @@ function replaceSkillVersionLine(content, newVersion) {
   return content.replace(/^(\s{2}version:\s*)["']?[^"'\n]*["']?\s*$/m, `$1"${newVersion}"`);
 }
 
-/** Extract version from first frontmatter block in KAIROS.md (line "version: 1.0.0" or version: "1.0.0") */
+/** Extract version from frontmatter at the start of content only (line "version: 1.0.0" or version: "1.0.0"). Ignores --- mid-document (horizontal rules). */
 function getKairosVersionFromContent(content) {
-  const first = content.indexOf('---');
-  if (first === -1) return null;
-  const afterFirst = content.slice(first + 3);
-  const second = afterFirst.indexOf('---');
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith('---')) return null;
+  const afterFirst = trimmed.slice(3);
+  const second = afterFirst.indexOf('\n---');
   if (second === -1) return null;
   const block = afterFirst.slice(0, second);
   const m = block.match(/^version:\s*["']?([^"'\s\n]+)["']?\s*$/m);
   return m ? m[1] : null;
 }
 
-/** Replace version line in first frontmatter block of KAIROS.md */
+/** Replace version line in frontmatter at the start of content only. Ignores --- mid-document. */
 function replaceKairosVersionLine(content, newVersion) {
-  const first = content.indexOf('---');
-  if (first === -1) return content;
-  const afterFirst = content.slice(first + 3);
-  const second = afterFirst.indexOf('---');
+  const trimmed = content.trimStart();
+  const leadingWhitespace = content.slice(0, content.length - trimmed.length);
+  if (!trimmed.startsWith('---')) return content;
+  const afterFirst = trimmed.slice(3);
+  const second = afterFirst.indexOf('\n---');
   if (second === -1) return content;
   const block = afterFirst.slice(0, second);
   const rest = afterFirst.slice(second);
   const newBlock = block.replace(/^(version:\s*)["']?[^"'\n]*["']?\s*$/m, `$1"${newVersion}"\n`);
-  return content.slice(0, first + 3) + newBlock + rest;
+  return leadingWhitespace + trimmed.slice(0, 3) + newBlock + rest;
 }
 
 async function main() {
