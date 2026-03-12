@@ -15,7 +15,7 @@ export function isValidUUID(uuid: string): boolean {
 export function convertTestIdToUUID(testId: string): string {
   if (isValidUUID(testId)) return testId;
   const deterministicUUID = uuidv4();
-  logger.info(`Converted test ID "${testId}" to UUID: ${deterministicUUID}`);
+  logger.debug(`Converted test ID "${testId}" to UUID: ${deterministicUUID}`);
   return deterministicUUID;
 }
 

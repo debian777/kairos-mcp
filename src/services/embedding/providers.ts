@@ -51,7 +51,7 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
         setResolvedEmbeddingDimension(dim);
     }
     const dim = embeddings.length > 0 && embeddings[0] ? embeddings[0].length : 0;
-    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
+    logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
     return embeddings;
 }
 
@@ -103,7 +103,7 @@ async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> 
 
     const dim = embeddings[0].length;
     setResolvedEmbeddingDimension(dim);
-    logger.info(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=tei]`);
+    logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=tei]`);
     return embeddings as number[][];
 }
 

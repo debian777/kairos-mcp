@@ -34,18 +34,18 @@ export async function storeMemory(
     if (uuid) {
       // Use provided UUID directly
       qdrantId = uuid;
-      logger.info(`storeMemory: Using provided UUID as qdrantId: ${qdrantId}`);
+      logger.debug(`storeMemory: Using provided UUID as qdrantId: ${qdrantId}`);
     } else {
       // Generate URI and Qdrant ID as before
       if (protocol && protocol.step) {
         humanUri = buildProtocolStepURI(domain, type, task, protocol.step);
-        logger.info(`storeMemory: Built protocol URI for step ${protocol.step}: ${humanUri}`);
+        logger.debug(`storeMemory: Built protocol URI for step ${protocol.step}: ${humanUri}`);
       } else {
         humanUri = buildDomainTypeTaskURI(domain, type, task);
-        logger.info(`storeMemory: Built non-protocol URI: ${humanUri}`);
+        logger.debug(`storeMemory: Built non-protocol URI: ${humanUri}`);
       }
       qdrantId = IDGenerator.buildQdrantId(humanUri);
-      logger.info(`storeMemory: Generated Qdrant ID from URI: ${qdrantId} (from ${humanUri})`);
+      logger.debug(`storeMemory: Generated Qdrant ID from URI: ${qdrantId} (from ${humanUri})`);
     }
 
     let aiWithContext: { model_id: string; memory_uuid?: string } = { model_id: 'unknown' };
@@ -96,9 +96,9 @@ export async function storeMemory(
       }
     };
 
-    logger.info(`storeMemory: About to upsert point with qdrantId: ${qdrantId}, humanUri: ${humanUri}`);
+    logger.debug(`storeMemory: About to upsert point with qdrantId: ${qdrantId}, humanUri: ${humanUri}`);
     const upsertResult = await sanitizeAndUpsert(conn.client, conn.collectionName, [point]);
-    logger.info(`storeMemory: Upsert result for qdrantId ${qdrantId}: ${JSON.stringify(upsertResult)}`);
+    logger.debug(`storeMemory: Upsert result for qdrantId ${qdrantId}: ${JSON.stringify(upsertResult)}`);
     
     // Invalidate cache after creation (publishes invalidation events internally)
     await redisCacheService.invalidateMemoryCache(qdrantId);
