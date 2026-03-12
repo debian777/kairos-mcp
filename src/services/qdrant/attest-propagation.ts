@@ -70,7 +70,13 @@ export async function propagateAttestToChainHead(
 
     const chainHeadId = String((points[0] as { id: string | number }).id);
     await updateQualityMetrics(conn, chainHeadId, metricsUpdate);
-    await redisCacheService.invalidateBeginCache();
+    try {
+      await redisCacheService.invalidateBeginCache();
+    } catch (cacheErr) {
+      logger.warn(
+        `[attest-propagation] Cache invalidation failed after chain head update (chainHeadId=${chainHeadId}); attest succeeded: ${cacheErr instanceof Error ? cacheErr.message : String(cacheErr)}`
+      );
+    }
     logger.info(`[attest-propagation] Updated chain head ${chainHeadId} with attest metrics for chain ${chainId}`);
     return chainHeadId;
   });

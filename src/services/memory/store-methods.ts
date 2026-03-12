@@ -2,16 +2,9 @@ import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
-
-/** Attest boost: below this many runs we do not apply boost. */
-const MIN_ATTEST_RUNS = 3;
-/** Attest boost: at this many runs confidence is 1. */
-const RUNS_FULL_CONFIDENCE = 10;
-/** Max additive boost from attest (tiebreaker within RRF bands; < half of ~0.167 band gap). */
-const ATTEST_BOOST_MAX = 0.08;
+import { MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX, KAIROS_APP_SPACE_ID } from '../../config.js';
 import { getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
-import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
