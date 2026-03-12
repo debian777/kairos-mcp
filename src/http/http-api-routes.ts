@@ -10,6 +10,8 @@ import { setupAttestRoute } from './http-api-attest.js';
 import { setupUpdateRoute } from './http-api-update.js';
 import { setupDeleteRoute } from './http-api-delete.js';
 import { setupDumpRoute } from './http-api-dump.js';
+import { setupMeRoute } from './http-api-me.js';
+import { setupSpacesRoute } from './http-api-spaces.js';
 
 /**
  * Set up all API routes
@@ -20,6 +22,8 @@ import { setupDumpRoute } from './http-api-dump.js';
 export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantStore, deps: { qdrantService: QdrantService }) {
     const { qdrantService } = deps;
 
+    setupMeRoute(app);
+    setupSpacesRoute(app, memoryStore);
     setupMintRoute(app, memoryStore);
     setupSnapshotRoute(app, qdrantService);
     setupBeginRoute(app, memoryStore, qdrantService); // /api/kairos_search

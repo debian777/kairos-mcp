@@ -22,7 +22,7 @@ RUN npm install @debian777/kairos-mcp@${PACKAGE_VERSION} && \
 
 # Create directories for logs and data
 RUN mkdir -p logs storage/qdrant && \
-    chown -R kairos:nodejs logs storage
+    chown -R kairos:nodejs /app logs storage
 
 USER kairos
 

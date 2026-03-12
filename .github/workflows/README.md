@@ -1,4 +1,4 @@
-# GitHub Actions workflows
+# GitHub Actions – workflow design
 
 ## Overview
 
@@ -82,7 +82,7 @@ flowchart TB
 ```
 
 | Workflow | Job(s) | Dependencies |
-|----------|--------|---------------|
+|----------|--------|--------------|
 | Integration | `integration` | — |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -92,13 +92,11 @@ flowchart TB
 
 ## Integration workflow
 
-`integration.yml` runs Docker infra (Redis, Qdrant, Postgres, Keycloak) with **AUTH enabled**, configures Keycloak realms and test user, then `npm run dev:deploy && npm run dev:test`. It runs on **pull_request** and **push** to `main` so main stays green; **workflow_dispatch** is still available for manual runs.
-
 ### Secrets and variables
 
 The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. In the workflow they are referenced as `${{ secrets.OPENAI_API_KEY }}` etc. Non-sensitive values use **repository variables** as `${{ vars.VAR_NAME }}`. If optional secrets are not set, the job uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
 
-### Running the integration workflow manually
+**Triggers:** `push` tags `v*.*.*`, `workflow_dispatch` (optional force input).
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
@@ -135,7 +133,6 @@ sequenceDiagram
 **Required for Release to run:** GitHub does not trigger workflows when a tag is pushed by another workflow using the default `GITHUB_TOKEN`. To have the **Release** workflow run after the tag is pushed, add a **Personal Access Token (PAT)** with `repo` scope as repository secret **`GH_PAT`** (e.g. `gh secret set GH_PAT` or Settings → Secrets → Actions). Without it, the tag is still pushed but Release will not run (run it manually from Actions → Release → Run workflow with the new tag ref).
 
 Branch protection does not block tag pushes by default. If you use “Restrict pushes that create matching tags”, allow this repo’s GitHub Actions to create tags or run the tag step with a token that can push tags.
-
 ## Release workflow (tag → npm + Docker)
 
 **Release** (`release.yml`) runs on **tag push** `v*.*.*` or `v*.*.*-*` (e.g. `v3.0.1`, `v3.0.1-beta.4`). It is the **only** path that publishes. Jobs run in order:

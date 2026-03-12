@@ -52,6 +52,7 @@ const AUTH_SUCCESS_HTML = `<!DOCTYPE html>
   <div class="box">
     <h1>Authentication successful</h1>
     <p>You can close this page and return to your MCP client.</p>
+    <p style="margin-top: 1rem;"><a href="/ui" style="color: #7dd3fc;">Open KAIROS UI</a></p>
   </div>
 </body>
 </html>
@@ -83,6 +84,11 @@ const AUTH_LOGGED_OUT_HTML = `<!DOCTYPE html>
 const COOKIE_CLEAR_OPTIONS = { path: '/', httpOnly: true, sameSite: 'lax' as const };
 
 export function setupAuthCallback(app: express.Express): void {
+  // Base /auth: redirect to UI (browser) or 404 for API
+  app.get('/auth', (_req: Request, res: Response) => {
+    res.redirect(302, '/ui');
+  });
+
   app.get('/auth/success', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(AUTH_SUCCESS_HTML);

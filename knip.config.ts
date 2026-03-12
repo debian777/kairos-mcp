@@ -5,14 +5,17 @@ const config: KnipConfig = {
         'src/index.ts',           // MCP server entry
         'src/cli/index.ts',       // CLI bin entry
         'src/metrics-server.ts',  // Standalone metrics server
+        'src/ui/main.tsx',        // UI entry (Vite)
         'scripts/**/*.{ts,mjs}',  // Build-time scripts
     ],
     project: [
         'src/**/*.ts',
+        'src/ui/**/*.{ts,tsx}',
         'scripts/**/*.{ts,mjs}',
         // Include tests so devDeps used only in tests (e.g. testcontainers in keycloak-container.ts)
         // are not reported as unused.
         'tests/**/*.ts',
+        'tests/ui/**/*.{ts,tsx}',
     ],
     ignore: [
         'dist/**',
@@ -21,12 +24,21 @@ const config: KnipConfig = {
         // listResourceKeys) are part of the MCP resource API and may be used by MCP clients or
         // tooling; they are not imported in src, so knip reports them as unused.
         'src/resources/embedded-mcp-resources.ts',
+        // Vite ambient types and module declarations; not imported by source
+        'src/ui/vite-env.d.ts',
     ],
     ignoreDependencies: [
         // Runtime tools used in scripts/shell, not imported directly
         'dotenv-cli',
         'pino-pretty',
         'concurrently',
+        // UI build: used by Vite/PostCSS config, not imported in source
+        '@tailwindcss/postcss',
+        'autoprefixer',
+        'tailwindcss',
+        // Storybook: used by storybook CLI and .storybook config, not by app source
+        '@storybook/react',
+        'eslint-plugin-storybook',
     ],
     // Knip reports "Unlisted binaries: python3" because it's referenced in package.json scripts
     // but not declared as a dependency. It's a system binary used by infra:up for Keycloak

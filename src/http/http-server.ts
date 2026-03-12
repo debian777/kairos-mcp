@@ -11,6 +11,7 @@ import { setupHealthRoutes } from './http-health-routes.js';
 import { setupWellKnown } from './http-well-known.js';
 import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
+import { setupUiStatic } from './http-ui-static.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
@@ -32,6 +33,7 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     setupHealthRoutes(app, memoryStore);
     setupApiRoutes(app, memoryStore, { qdrantService });
     setupMcpRoutes(app, memoryStore);
+    setupUiStatic(app);
     setupErrorHandlers(app);
 
     // Start server with error handling

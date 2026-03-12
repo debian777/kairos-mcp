@@ -22,7 +22,7 @@ interface ChainInfo {
   step_count: number;
 }
 
-interface SpaceInfo {
+export interface SpaceInfo {
   name: string;
   chain_count: number;
   chains?: ChainInfo[];
@@ -98,6 +98,27 @@ function buildSpaceInfo(
   return { name, chain_count: chainCount, ...(includeChainTitles ? { chains } : {}) };
 }
 
+/**
+ * List spaces and chain counts. Uses current request space context (set by auth middleware).
+ * Call from HTTP handlers or MCP tool.
+ */
+export async function executeSpaces(
+  memoryStore: MemoryQdrantStore,
+  options: { include_chain_titles?: boolean } = {}
+): Promise<{ spaces: SpaceInfo[] }> {
+  const includeChainTitles = options.include_chain_titles ?? false;
+  const spaceIds = getSpacesToReport();
+  const { client, collection } = memoryStore.getQdrantAccess();
+  const spaces: SpaceInfo[] = [];
+
+  for (const spaceId of spaceIds) {
+    const points = await scrollSpace(client, collection, spaceId);
+    spaces.push(buildSpaceInfo(spaceId, points, includeChainTitles));
+  }
+
+  return { spaces };
+}
+
 export interface RegisterKairosSpacesOptions {
   toolName?: string;
 }
@@ -138,17 +159,7 @@ export function registerKairosSpacesTool(server: any, memoryStore: MemoryQdrantS
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
       try {
-        const includeChainTitles = params?.include_chain_titles ?? false;
-        const spaceIds = getSpacesToReport();
-        const { client, collection } = memoryStore.getQdrantAccess();
-        const spaces: SpaceInfo[] = [];
-
-        for (const spaceId of spaceIds) {
-          const points = await scrollSpace(client, collection, spaceId);
-          spaces.push(buildSpaceInfo(spaceId, points, includeChainTitles));
-        }
-
-        const output = { spaces };
+        const output = await executeSpaces(memoryStore, { include_chain_titles: params?.include_chain_titles ?? false });
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
         timer({ tool: toolName, status: 'success', tenant_id: tenantId });

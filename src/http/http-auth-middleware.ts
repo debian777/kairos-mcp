@@ -110,9 +110,15 @@ function hasBearer(req: Request): boolean {
   return getBearerToken(req) !== null;
 }
 
-/** Paths that require auth when AUTH_ENABLED: /api, /api/*, and /mcp (MCP-over-HTTP). */
+/** Paths that require auth when AUTH_ENABLED: /api, /api/*, /mcp, and /ui (SPA). */
 function isProtectedPath(path: string): boolean {
-  return path === '/api' || path.startsWith('/api/') || path === '/mcp';
+  return (
+    path === '/api' ||
+    path.startsWith('/api/') ||
+    path === '/mcp' ||
+    path === '/ui' ||
+    path.startsWith('/ui/')
+  );
 }
 
 /** Build WWW-Authenticate value. Use error=invalid_token so MCP clients clear stored token and restart OAuth (e.g. after Keycloak session cleanup). */

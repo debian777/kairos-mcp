@@ -377,6 +377,15 @@ test() {
 
     case "$ENV" in
         dev)
+            # Forward env so globalSetup and tests see same vars as server (Jest may run globalSetup in a separate process).
+            export ENV="${ENV:-dev}"
+            export PORT="${PORT:-3300}"
+            export AUTH_ENABLED="${AUTH_ENABLED:-}"
+            export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
+            export KEYCLOAK_REALM="${KEYCLOAK_REALM:-}"
+            export KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID:-}"
+            export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
+            export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
