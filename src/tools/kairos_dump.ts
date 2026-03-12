@@ -99,12 +99,14 @@ export async function executeDump(
         uri: normalizedUri,
         label: memory.label,
         chain_label: memory.chain?.label ?? null,
-        step_count: 1
+        step_count: 1,
+        ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version })
       };
     }
     const chainId = memory.chain.id;
     const chainLabel = memory.chain.label;
     const stepCount = memory.chain.step_count;
+    const protocolVersion = memory.chain.protocol_version;
     const points = qdrantService && typeof qdrantService.getChainMemories === 'function'
       ? await qdrantService.getChainMemories(chainId)
       : [];
@@ -120,7 +122,8 @@ export async function executeDump(
       uri: headUri,
       label: chainLabel,
       chain_label: chainLabel,
-      step_count: stepCount
+      step_count: stepCount,
+      ...(protocolVersion && { protocol_version: protocolVersion })
     };
   }
 
@@ -135,6 +138,9 @@ export async function executeDump(
       step_index: memory.chain.step_index,
       step_count: memory.chain.step_count
     };
+    if (memory.chain.protocol_version) {
+      out['protocol_version'] = memory.chain.protocol_version;
+    }
   }
   const challenge = buildChallengeShapeForDisplay(memory.proof_of_work);
   if (challenge && Object.keys(challenge).length > 0) {

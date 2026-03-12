@@ -27,6 +27,12 @@ execute end-to-end.
   protocol runs end-to-end (search → begin → next → run complete),
   per-tool workflow reference, response shapes, and scenarios.
 
+## Concepts
+
+- [Skills that ship KAIROS protocols](../skills/README.md) —
+  how a skill can bundle a protocol, declare requirements, and run
+  search → mint if missing → execute.
+
 ## Examples
 
 The examples show how to build and structure protocols.

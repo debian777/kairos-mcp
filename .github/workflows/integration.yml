@@ -28,6 +28,12 @@ jobs:
           node-version: "24"
           cache: "npm"
 
+      - name: Check versions (mem = package.json, skills = last stable)
+        run: npm run version:check-skills
+
+      - name: Lint skills (skills-ref)
+        run: python3 scripts/lint_skills.py
+
       - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

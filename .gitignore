@@ -2,6 +2,9 @@
 
 # Dependencies
 node_modules/
+
+# Python (skills-ref, lint_skills.py)
+.venv/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

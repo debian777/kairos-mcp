@@ -15,6 +15,10 @@ requires: `## Natural Language Triggers` (first H2), `## Completion Rule`
 - `llm_model_id` (required) — e.g. `"minimax/minimax-m2:free"`.
 - `force_update` (optional, default `false`) — set `true` to overwrite
   an existing chain with the same label.
+- `protocol_version` (optional) — e.g. `"1.0.0"`. Overrides or supplies
+  the version when the document has no YAML frontmatter; otherwise
+  version is parsed from frontmatter. Stored and exposed in
+  `kairos_search` choices for agent comparison.
 
 **Challenge block format:** Place a single trailing ` ```json ` block at
 the end of each H2 step. The object must have a `challenge` key. Only

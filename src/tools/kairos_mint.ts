@@ -22,6 +22,7 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
     markdown_doc: z.string().min(1).describe('Markdown document to store'),
     llm_model_id: z.string().min(1).describe('LLM model ID'),
     force_update: z.boolean().optional().default(false).describe('Overwrite existing memory chain with the same label'),
+    protocol_version: z.string().optional().describe('Protocol version (e.g. semver). Overrides or supplies version when document has no frontmatter.'),
     space: z.enum(['personal']).or(z.string()).optional().describe('Target space: "personal" (default) or group name to mint into that group space')
   });
 
@@ -104,7 +105,12 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
       let result: any;
 
       try {
-        const { markdown_doc, llm_model_id, force_update } = params as { markdown_doc: string; llm_model_id: string; force_update?: boolean };
+        const { markdown_doc, llm_model_id, force_update, protocol_version } = params as {
+          markdown_doc: string;
+          llm_model_id: string;
+          force_update?: boolean;
+          protocol_version?: string;
+        };
         const validation = validateProtocolStructure(markdown_doc);
         if (!validation.valid) {
           const body = {
@@ -126,7 +132,10 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
         let memories: Memory[] = [];
         try {
           memories = await runWithSpaceContextAsync(narrowedContext, () =>
-            memoryStore.storeChain(docs, llm_model_id, { forceUpdate: !!force_update })
+            memoryStore.storeChain(docs, llm_model_id, {
+              forceUpdate: !!force_update,
+              ...(protocol_version && { protocolVersion: protocol_version })
+            })
           );
         } catch (error) {
           // Handle duplicate chain error explicitly
