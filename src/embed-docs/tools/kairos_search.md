@@ -36,7 +36,7 @@ limit.
 **that choice's `next_action`**. The global `next_action` says: "Pick
 one choice and follow that choice's next_action."
 
-When results are weak (no scores above 0.7), pick the refine choice and
+When results are weak (no scores above 0.5), pick the refine choice and
 run that protocol for step-by-step help improving the query.
 
 **MUST ALWAYS**

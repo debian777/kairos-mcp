@@ -12,14 +12,14 @@ title: Get help refining your search
 
 **Run this protocol when:**
 
-- `kairos_search` returned no match, or only choices with low score (e.g. all &lt; 0.7).
+- `kairos_search` returned no match, or only choices with low score (e.g. all &lt; 0.5).
 - The response included a **refine** (or equivalent) choice directing you to improve the query.
 
 **Trigger pattern:** After **kairos_search** when result is no strong match / refine suggested.
 
 **Must Never:**
 
-- Run when a strong match (score ≥ 0.7) already exists — use that choice and `kairos_begin` instead.
+- Run when a strong match (score ≥ 0.5) already exists — use that choice and `kairos_begin` instead.
 - Run when the user has not yet asked for anything (no prior search context).
 
 **Must Always:**
@@ -66,8 +66,8 @@ Using your Step 1 analysis, construct a single search query:
 
 Write your refined query as your solution, then call `kairos_search` with it.
 
-- **Strong match (score >= 0.7):** Pick that choice and call `kairos_begin` with its URI.
-- **Weak matches only (all scores < 0.7):** Ask the user to clarify, or pick the create choice to build a new protocol.
+- **Strong match (score >= 0.5):** Pick that choice and call `kairos_begin` with its URI.
+- **Weak matches only (all scores < 0.5):** Ask the user to clarify, or pick the create choice to build a new protocol.
 
 Do not loop this refining protocol more than once — if two searches fail, the protocol likely does not exist yet.
 

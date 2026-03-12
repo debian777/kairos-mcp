@@ -186,7 +186,7 @@ create choices are appended.
 
 ## Scenario 3: weak matches
 
-No strong match; top scores are modest (for example, 0.38–0.47). Refine
+No strong match (score &lt; 0.5); top scores are modest (for example, 0.38–0.47). Refine
 and create remain available.
 
 ### Input

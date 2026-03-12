@@ -33,6 +33,7 @@ out/
 # IDE and editor files
 .vscode/
 .idea/
+.claude/
 .cursor/plans
 .cursor/rules/version-bump-policy.mdc
 *.swp

@@ -121,6 +121,13 @@ export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
 /** Mint: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
 export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 0.9);
 
+/** Attest boost: below this many runs we do not apply boost. */
+export const MIN_ATTEST_RUNS = getEnvInt('MIN_ATTEST_RUNS', 3);
+/** Attest boost: at this many runs confidence is 1. */
+export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
+/** Max additive boost from attest (tiebreaker within RRF bands). */
+export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
+
 // Transport: stdio | http. Logging and server use this single source.
 const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
 export const TRANSPORT_TYPE: 'stdio' | 'http' =

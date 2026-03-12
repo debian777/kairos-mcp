@@ -5,7 +5,8 @@ import { parseBooleanEnv } from './utils.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 
 /**
- * Initialization related helpers that operate using QdrantConnection
+ * Initialization related helpers that operate using QdrantConnection.
+ * BM25 sparse vector config migration runs in store-init.ts (upgrade at boot).
  */
 
 export async function initializeCollection(conn: QdrantConnection): Promise<void> {

@@ -1,6 +1,6 @@
 ---
 name: kairos-refine-search
-description: Run the KAIROS "Get help refining your search" protocol when kairos_search has no strong match. Use when the response suggests refining the query or improving the search.
+description: Run the KAIROS "Get help refining your search" protocol when kairos_search has no strong match (score ≥ 0.5). Use when the response suggests refining the query or improving the search.
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
   version: "1.0.0"
@@ -21,7 +21,7 @@ Run the **Get help refining your search** protocol via KAIROS. The protocol is b
 
 ## Workflow
 
-1. **When to run** — After `kairos_search` returned no strong match (or only weak/ambiguous ones), or the response included a **refine** choice. Follow that choice's `next_action` (typically `kairos_begin` with the refine protocol URI).
+1. **When to run** — After `kairos_search` returned no strong match (score ≥ 0.5) or only weak/ambiguous ones, or the response included a **refine** choice. Follow that choice's `next_action` (typically `kairos_begin` with the refine protocol URI).
 2. **If protocol not installed** — Read [references/KAIROS.md](references/KAIROS.md), pass the markdown after the closing frontmatter `---` to `kairos_mint`, then run the protocol.
 3. **Run** — Follow the match's `next_action`: `kairos_begin` → `kairos_next` (loop) → `kairos_attest`. Echo nonces and proof hashes. Do not respond to the user before `kairos_attest` when `must_obey: true`.
 

@@ -81,6 +81,7 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
             }
 
             await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
+            await qdrantService.propagateAttestToChainHead(qdrantUuid, metricsUpdate);
 
             if (currentPoint.payload) {
                 const { description_short, domain, task, type, tags } = currentPoint.payload;
