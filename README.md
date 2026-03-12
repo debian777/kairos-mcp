@@ -1,6 +1,6 @@
 # KAIROS MCP
 
-![KAIROS MCP logo](logo/kaiiros-mcp.svg)
+<img src="logo/kaiiros-mcp.svg" width="128" alt="KAIROS MCP logo" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
