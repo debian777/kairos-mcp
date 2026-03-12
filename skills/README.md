@@ -171,11 +171,13 @@ when the bundled protocol is newer than the one stored in KAIROS.
   `force_update: true`, then search again and run the chosen match. Skills
   that ship protocols document this step in their workflow.
 
-When releasing the MCP package, skill versions (SKILL.md `metadata.version`
-and references/KAIROS.md frontmatter `version`) are kept in sync with
-`package.json`: run `npm run version:sync-skills` as part of the
-version-bump flow and commit the updated skill files with the package bump.
-CI runs `npm run version:check-skills` to ensure alignment.
+Skill versions (SKILL.md `metadata.version` and references/KAIROS.md
+frontmatter `version`) are kept in sync with the **last stable release**
+(latest git tag `vX.Y.Z`, or `1.0.0` if none). Built-in protocol sources in
+`src/embed-docs/mem` use the **package.json** version. Run
+`npm run version:sync-skills` as part of the release flow (e.g. after
+tagging a stable release); CI runs `npm run version:check-skills` to ensure
+alignment.
 
 ## Example: skill that runs or installs one protocol
 

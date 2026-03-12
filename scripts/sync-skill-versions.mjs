@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Sync or check skill and embed-docs mem file versions against the repo's
- * "last stable" version (latest git tag v* without prerelease suffix) or 1.0.0.
- * - Default: update metadata.version in each skill's SKILL.md, version in
- *   each skill's references/KAIROS.md, and version in src/embed-docs/mem/*.md
- *   frontmatter to that version.
- * - --check: only compare; exit 1 if any version differs from the target version.
+ * Sync or check versions with two targets:
+ * - src/embed-docs/mem/*.md frontmatter = package.json version (current app, can be prerelease).
+ * - skills/** (SKILL.md metadata.version + references/KAIROS.md frontmatter) = last stable
+ *   (latest git tag vX.Y.Z or 1.0.0).
+ * - Default: update files to the appropriate target.
+ * - --check: compare; exit 1 if any version differs from its target.
  *
  * Usage: node scripts/sync-skill-versions.mjs [--check]
  */
@@ -23,6 +23,15 @@ const MEM_DIR = path.join(REPO_ROOT, 'src', 'embed-docs', 'mem');
 const CHECK = process.argv.includes('--check');
 
 const DEFAULT_VERSION = '1.0.0';
+
+/** Get package.json version from repo root. */
+async function getPackageVersion() {
+  const p = path.join(REPO_ROOT, 'package.json');
+  const text = await fs.readFile(p, 'utf8');
+  const j = JSON.parse(text);
+  if (typeof j.version !== 'string') throw new Error('package.json missing version');
+  return j.version;
+}
 
 /**
  * Resolve last stable release version: latest git tag vX.Y.Z (no prerelease suffix), or 1.0.0.
@@ -87,7 +96,8 @@ function replaceKairosVersionLine(content, newVersion) {
 }
 
 async function main() {
-  const targetVersion = getLastStableVersion();
+  const skillsTarget = getLastStableVersion();
+  const memTarget = await getPackageVersion();
   const skillDirs = await fs.readdir(SKILLS_DIR, { withFileTypes: true }).then((entries) =>
     entries.filter((e) => e.isDirectory()).map((e) => e.name)
   );
@@ -99,15 +109,15 @@ async function main() {
     const skillMdPath = path.join(SKILLS_DIR, dir, 'SKILL.md');
     const kairosPath = path.join(SKILLS_DIR, dir, 'references', 'KAIROS.md');
 
-    // SKILL.md metadata.version
+    // SKILL.md metadata.version -> skillsTarget (last stable)
     try {
       const skillContent = await fs.readFile(skillMdPath, 'utf8');
       const current = getSkillVersionFromContent(skillContent);
       if (current !== null) {
         if (CHECK) {
-          if (current !== targetVersion) mismatches.push(`${dir}/SKILL.md: ${current} (expected ${targetVersion})`);
+          if (current !== skillsTarget) mismatches.push(`${dir}/SKILL.md: ${current} (expected ${skillsTarget}, skills=last stable)`);
         } else {
-          const newContent = replaceSkillVersionLine(skillContent, targetVersion);
+          const newContent = replaceSkillVersionLine(skillContent, skillsTarget);
           if (newContent !== skillContent) {
             await fs.writeFile(skillMdPath, newContent, 'utf8');
             updated.push(`${dir}/SKILL.md`);
@@ -118,15 +128,15 @@ async function main() {
       if (err.code !== 'ENOENT') throw err;
     }
 
-    // references/KAIROS.md frontmatter version
+    // references/KAIROS.md frontmatter version -> skillsTarget (last stable)
     try {
       const kairosContent = await fs.readFile(kairosPath, 'utf8');
       const current = getKairosVersionFromContent(kairosContent);
       if (current !== null) {
         if (CHECK) {
-          if (current !== targetVersion) mismatches.push(`${dir}/references/KAIROS.md: ${current} (expected ${targetVersion})`);
+          if (current !== skillsTarget) mismatches.push(`${dir}/references/KAIROS.md: ${current} (expected ${skillsTarget}, skills=last stable)`);
         } else {
-          const newContent = replaceKairosVersionLine(kairosContent, targetVersion);
+          const newContent = replaceKairosVersionLine(kairosContent, skillsTarget);
           if (newContent !== kairosContent) {
             await fs.writeFile(kairosPath, newContent, 'utf8');
             updated.push(`${dir}/references/KAIROS.md`);
@@ -138,7 +148,7 @@ async function main() {
     }
   }
 
-  // src/embed-docs/mem/*.md frontmatter version
+  // src/embed-docs/mem/*.md frontmatter version -> memTarget (package.json)
   try {
     const memFiles = await fs.readdir(MEM_DIR).then((names) => names.filter((n) => n.endsWith('.md')));
     for (const name of memFiles) {
@@ -147,9 +157,9 @@ async function main() {
       const current = getKairosVersionFromContent(content);
       if (current !== null) {
         if (CHECK) {
-          if (current !== targetVersion) mismatches.push(`src/embed-docs/mem/${name}: ${current} (expected ${targetVersion})`);
+          if (current !== memTarget) mismatches.push(`src/embed-docs/mem/${name}: ${current} (expected ${memTarget}, mem=package.json)`);
         } else {
-          const newContent = replaceKairosVersionLine(content, targetVersion);
+          const newContent = replaceKairosVersionLine(content, memTarget);
           if (newContent !== content) {
             await fs.writeFile(memPath, newContent, 'utf8');
             updated.push(`src/embed-docs/mem/${name}`);
@@ -163,7 +173,7 @@ async function main() {
 
   if (CHECK) {
     if (mismatches.length > 0) {
-      console.error('Version(s) do not match target version (last stable or 1.0.0):', targetVersion);
+      console.error('Version(s) do not match targets (mem=package.json, skills=last stable):');
       for (const m of mismatches) console.error('  -', m);
       process.exit(1);
     }
@@ -171,7 +181,7 @@ async function main() {
   }
 
   if (updated.length > 0) {
-    console.log('Updated versions to', targetVersion + ':', updated.join(', '));
+    console.log('Updated: mem ->', memTarget + ', skills ->', skillsTarget + ':', updated.join(', '));
   }
 }
 
