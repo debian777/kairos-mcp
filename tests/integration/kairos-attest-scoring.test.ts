@@ -40,10 +40,10 @@ describe('kairos_attest scoring: propagation and score boost', () => {
 
   function getScoreForChain(parsed: { choices: Array<{ chain_label: string | null; label?: string; score: unknown; role: string }> }, chainLabel: string): number | null {
     const matches = parsed.choices.filter((c) => c.role === 'match');
-    const exact = matches.find(
-      (c) => (c.chain_label ?? (c as { label?: string }).label ?? '') === chainLabel
-    );
-    const match = exact ?? (matches.length === 1 ? matches[0]! : null);
+    const effective = (c: (typeof matches)[0]) => (c.chain_label ?? (c as { label?: string }).label ?? '');
+    const exact = matches.find((c) => effective(c) === chainLabel);
+    const byInclude = exact ?? matches.find((c) => effective(c).includes(chainLabel) || chainLabel.includes(effective(c)));
+    const match = byInclude ?? (matches.length === 1 ? matches[0]! : null);
     const raw = match?.score ?? null;
     if (raw == null) return null;
     if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;

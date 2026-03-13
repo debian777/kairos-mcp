@@ -27,6 +27,11 @@
       "managers": ["docker-compose"],
       "groupName": "docker-compose",
       "commitMessagePrefix": "deps(compose)"
+    },
+    {
+      "description": "Pin Docker image digests for immutability and supply-chain compliance",
+      "matchDatasources": ["docker"],
+      "pinDigests": true
     }
   ]
 }

@@ -51,7 +51,10 @@ export async function storeDefaultChain(
 
   let embeddings: any;
   try {
-    embeddings = await embeddingService.generateBatchEmbeddings(processedDocs.map(p => p.enhanced));
+    const textsToEmbed = processedDocs.map((p, idx) =>
+      idx === 0 ? `${firstGeneratedLabel}\n\n${p.enhanced}` : p.enhanced
+    );
+    embeddings = await embeddingService.generateBatchEmbeddings(textsToEmbed);
   } catch (err) {
     logger.warn('[MemoryQdrantStore] Failed to generate embeddings for default path; falling back to zero vectors: ' + (err instanceof Error ? err.message : String(err)));
     const vectorSize = getEmbeddingDimension();
@@ -93,7 +96,8 @@ export async function storeDefaultChain(
       type,
       memory.tags
     );
-    const sparse = bm25Tokenizer.tokenize(`${memory.label} ${memory.text}`);
+    const sparseInput = index === 0 ? `${memory.chain!.label} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
+    const sparse = bm25Tokenizer.tokenize(sparseInput);
     return ({
       id: memory.memory_uuid,
       vector: {
