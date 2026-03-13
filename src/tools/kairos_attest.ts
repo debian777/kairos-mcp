@@ -157,13 +157,13 @@ export function registerKairosAttestTool(server: any, qdrantService: QdrantServi
             logger.success('rate', `rated ${uri} with ${outcome} (${totalQualityBonus} bonus)`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
+            // Keep result shape strictly within outputSchema (no extra properties) so MCP clients do not reject with -32602.
             results.push({
               uri: uri,
               outcome: outcome,
               quality_bonus: 0,
               message: `Failed to rate ${uri}: ${errorMessage}`,
-              rated_at: new Date().toISOString(),
-              error: errorMessage
+              rated_at: new Date().toISOString()
             });
             totalFailed++;
 

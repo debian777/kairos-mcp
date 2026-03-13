@@ -36,8 +36,10 @@ export async function storeHeaderBasedChain(
   // Handle duplicate chain
   await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
 
-  // Generate embeddings for each H2 section
-  const sectionTexts = headerChainMemories.map(m => m.text);
+  // Generate embeddings: for chain head (step 1) include protocol title so search ranks by protocol name, not just step heading
+  const sectionTexts = headerChainMemories.map((m, i) =>
+    i === 0 ? `${chainLabel}\n\n${m.text}` : m.text
+  );
   const vectorSize = getEmbeddingDimension();
   const currentVectorName = `vs${vectorSize}`;
   let vectors: number[][];
@@ -69,7 +71,8 @@ export async function storeHeaderBasedChain(
       dtt.type,
       memory.tags
     );
-    const sparse = bm25Tokenizer.tokenize(`${memory.label} ${memory.text}`);
+    const sparseInput = i === 0 ? `${chainLabel} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
+    const sparse = bm25Tokenizer.tokenize(sparseInput);
     return ({
       id: memory.memory_uuid,
       vector: {

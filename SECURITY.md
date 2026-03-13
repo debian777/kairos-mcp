@@ -14,7 +14,7 @@ to the versions listed below.
 ## Reporting a vulnerability
 
 Do not open a public issue for security vulnerabilities. Report privately
-by emailing the maintainer at [kuba@expl.pl](mailto:kuba@expl.pl).
+by emailing the maintainer at [kuba@xpl.pl](mailto:kuba@xpl.pl).
 
 Include:
 

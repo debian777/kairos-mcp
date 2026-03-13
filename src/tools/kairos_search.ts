@@ -293,7 +293,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
 
           const candidateMap = await searchAndBuildCandidates(
             memoryStore,
-            query,
+            query || '',
             normalizedQuery,
             enableGroupCollapse
           );
