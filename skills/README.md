@@ -38,7 +38,7 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
 **Global install for Cursor / Claude Code** (non-interactive): add `-y -g` and optionally `-a cursor` or `-a claude-code`. Example:
 
 ```bash
-npx skills add debian777/kairos-mcp --skill kairos-code -y -g -a cursor
+npx skills add debian777/kairos-mcp --skill kairos-code -y -g -a cursor -a claude-cod
 ```
 
 **Remove:** `npx skills remove <skill-name> -g` (e.g. `kairos`, `kairos-code`).
