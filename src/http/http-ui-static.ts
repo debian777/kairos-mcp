@@ -2,9 +2,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 
-/** Serve the built SPA from dist/ui. Resolve relative to this module so it works when run from npm-installed package (cwd is /app, UI is in node_modules/.../dist/ui). */
+/** Serve the built SPA from dist/ui. Resolve so it works: (1) local dev with ts-node from src/ → dist/ui; (2) run from dist/ or npm-installed/Docker → .../dist/ui. */
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UI_DIR = path.resolve(__dirname, "..", "ui");
+const parentDirName = path.basename(path.resolve(__dirname, ".."));
+const UI_DIR =
+  parentDirName === "src"
+    ? path.resolve(__dirname, "..", "..", "dist", "ui")
+    : path.resolve(__dirname, "..", "ui");
 
 /**
  * Serve the built SPA at URL /ui.

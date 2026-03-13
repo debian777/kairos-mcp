@@ -139,7 +139,8 @@ Touch min 44×44px. Focus: 2px outline, offset 2px. Radius: `--radius-sm` 0.25re
 
 ## 8. Screens to design
 
-Mockups live under `docs/design/mockups/`. Entry concept: `ui/index.html`; screens map to `ui/src/pages/`, `ui/src/components/`.
+Use Storybook as the primary review surface. Screens map to
+`src/ui/pages/`, `src/ui/components/`, and related Storybook stories.
 
 **1. Account** — User name/email (session), Log out. Optional profile, language. No login form.
 
@@ -162,12 +163,16 @@ Mockups live under `docs/design/mockups/`. Entry concept: `ui/index.html`; scree
 ## 10. How to work
 
 1. **Use only this skill** when user invokes `/kairos-ui-designer` with a plan or brief. No need to read other files; act as expert and start.
-2. **Design mockups** as browser canvas (e.g. HTML in `docs/design/mockups/`). Iterate with the user until approved.
+2. **Design mockups** as browser canvas or Storybook-ready concepts.
+   Iterate with the user until approved.
 3. **Apply** guidelines (§4) and tokens (§6) to every decision.
 4. **Design review:** After approval, run design-lint (§11) and document violations and fixes.
 5. **No code** in design phase unless the plan explicitly asks for implementation. Building is a separate plan.
 
-**Optional:** For deeper reference only, `docs/design/` (designer-library, ui-design-system, ui-frontend-stack-decision) and `docs/guidelines/ux-design/` (INDEX, 00–10).
+**Optional:** For deeper reference only, `docs/design/`
+(`designer-library`, `ui-design-system`) and `docs/architecture/`
+(`ui-frontend-stack-decision`) plus `docs/guidelines/ux-design/`
+(INDEX, 00–10).
 
 ---
 

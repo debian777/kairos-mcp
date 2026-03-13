@@ -50,10 +50,17 @@ export function KairosPage() {
 
   return (
     <div>
-      <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-4">
+      <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">
         {t("kairos.title")}
       </h1>
+      <p className="text-sm text-[var(--color-text-muted)] mb-6">
+        {t("kairos.searchHint")}
+      </p>
 
+      <section className="mb-6" aria-labelledby="browse-search-label">
+        <h2 id="browse-search-label" className="sr-only">
+          {t("kairos.searchLabel")}
+        </h2>
       <form
         onSubmit={handleSubmit}
         className="mb-6"
@@ -84,6 +91,7 @@ export function KairosPage() {
           {t("kairos.search")}
         </button>
       </form>
+      </section>
 
       {isError && (
         <ErrorAlert
@@ -100,9 +108,18 @@ export function KairosPage() {
         </div>
       )}
 
-      {!isLoading && !isError && submittedQuery && (
+      {!isLoading && !isError && (
         <>
-          {choices.length === 0 ? (
+          {!submittedQuery ? (
+            <section aria-labelledby="browse-by-label-heading">
+              <h2 id="browse-by-label-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-3">
+                {t("kairos.browseByLabel")}
+              </h2>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {t("kairos.enterQueryHint")}
+              </p>
+            </section>
+          ) : choices.length === 0 ? (
             <div
               className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6"
               role="status"
@@ -124,7 +141,7 @@ export function KairosPage() {
                 </Link>
               </div>
             </div>
-          ) : (
+          ) : submittedQuery ? (
             <>
               {choices.length > 0 && (
                 <p
@@ -203,7 +220,7 @@ export function KairosPage() {
                 ))}
               </ul>
             </>
-          )}
+          ) : null}
         </>
       )}
     </div>

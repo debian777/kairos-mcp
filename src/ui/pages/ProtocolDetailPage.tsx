@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown } from "@/hooks/useProtocol";
@@ -24,6 +24,17 @@ export function ProtocolDetailPage() {
   const decodedUri = uri ? decodeURIComponent(uri) : undefined;
   const { data, isLoading, isError, error } = useProtocol(decodedUri, true);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [exportOpen]);
 
   if (isLoading && !data) {
     return <p className="text-[var(--color-text-muted)]">{t("protocol.loading")}</p>;
@@ -44,7 +55,7 @@ export function ProtocolDetailPage() {
 
   const { title, steps, triggers, completion } = parseProtocolMarkdown(data.markdown_doc);
 
-  const handleDownload = () => {
+  const handleDownloadMarkdown = () => {
     const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
     const blob = new Blob([data.markdown_doc], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -53,6 +64,20 @@ export function ProtocolDetailPage() {
     a.download = `${safeName}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    setExportOpen(false);
+  };
+
+  const handleDownloadSkill = () => {
+    const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
+    const skillMd = `# ${title}\n\n${data.markdown_doc}`;
+    const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeName}-skill.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
   };
 
   return (
@@ -71,13 +96,49 @@ export function ProtocolDetailPage() {
           label={t("protocol.copyUri")}
           className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         />
-        <button
-          type="button"
-          onClick={handleDownload}
-          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+        <div className="relative" ref={exportRef}>
+          <button
+            type="button"
+            onClick={() => setExportOpen((o) => !o)}
+            aria-expanded={exportOpen}
+            aria-haspopup="true"
+            aria-label={t("protocol.download")}
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+          >
+            {t("protocol.download")}
+          </button>
+          {exportOpen && (
+            <div
+              className="absolute left-0 top-full z-10 mt-1 min-w-[12rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-sm"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDownloadMarkdown}
+                className="flex w-full min-h-[44px] items-center justify-between px-3 py-2 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)] focus:bg-[var(--color-surface-elevated)] focus:outline-none"
+              >
+                {t("protocol.downloadAsMarkdown")}
+                <span className="text-[var(--color-text-muted)]">.md</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDownloadSkill}
+                className="flex w-full min-h-[44px] items-center justify-between px-3 py-2 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)] focus:bg-[var(--color-surface-elevated)] focus:outline-none"
+              >
+                {t("protocol.downloadAsSkill")}
+                <span className="text-[var(--color-text-muted)]">.md</span>
+              </button>
+            </div>
+          )}
+        </div>
+        <Link
+          to={`/protocols/${encodeURIComponent(data.uri)}/skill`}
+          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-surface)] no-underline hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
         >
-          {t("protocol.download")}
-        </button>
+          {t("protocol.editAsSkill")}
+        </Link>
       </div>
       <div className="flex flex-wrap gap-2 mb-6">
         <Link

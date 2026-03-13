@@ -70,7 +70,6 @@
     "ui:preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "storybook:export-mockups": "npm run storybook:build && node scripts/copy-storybook-to-mockups.mjs",
     "test:ui": "NODE_OPTIONS='--no-webstorage' vitest run --config vitest.config.ts",
     "test:ui:watch": "NODE_OPTIONS='--no-webstorage' vitest --config vitest.config.ts",
     "pack": "npm run build && npm pack",
@@ -97,6 +96,10 @@
     "@modelcontextprotocol/sdk": "^1.27.0",
     "@qdrant/js-client-rest": "^1.17.0",
     "@tanstack/react-query": "^5.62.0",
+    "@tiptap/extension-link": "^3.20.1",
+    "@tiptap/markdown": "^3.20.1",
+    "@tiptap/react": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
     "commander": "^14.0.3",
     "express": "^5.2.1",
     "i18next": "^24.2.0",
@@ -114,6 +117,7 @@
   },
   "devDependencies": {
     "@jest/test-sequencer": "^30.2.0",
+    "@storybook/addon-docs": "10.2.17",
     "@storybook/react": "10.2.17",
     "@storybook/react-vite": "10.2.17",
     "@tailwindcss/postcss": "^4.0.0",
@@ -133,6 +137,7 @@
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
     "eslint": "^10.0.2",
+    "eslint-plugin-storybook": "10.2.17",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jsdom": "^25.0.0",
@@ -146,9 +151,7 @@
     "typescript": "^5.9.3",
     "undici": "^7.22.0",
     "vite": "^6.0.0",
-    "vitest": "^2.1.0",
-    "eslint-plugin-storybook": "10.2.17",
-    "@storybook/addon-docs": "10.2.17"
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=24.0.0"

@@ -1,5 +1,5 @@
 /**
- * Run guided (target) mock for Protocol UX Storybook. Used only by ProtocolUXMockups.stories.
+ * Test Run (target) mock for Protocol UX Storybook. Used only by ProtocolUXMockups.stories.
  */
 
 import { ChallengeCardMock, StepFlowGraphMock } from "./ProtocolUXMockupContent";
@@ -15,8 +15,14 @@ export function RunGuidedTargetContent() {
   const currentStepIndex = 1;
   return (
     <div>
+      <h1 className="mb-1 text-2xl font-semibold text-[var(--color-text-heading)]">Test Run</h1>
+      <p className="mb-4 text-sm text-[var(--color-text-muted)]">
+        Step through the saved run in the browser and submit the same data the current run flow expects.
+      </p>
+
       <div className="mb-4 flex items-center gap-2 text-sm text-[var(--color-text-muted)]" role="status">
         <span className="font-medium text-[var(--color-text-heading)]">Step 2 of 4</span>
+        <span>· Active manual test session</span>
       </div>
 
       <section className="mb-6" aria-labelledby="run-flow-heading">
@@ -53,7 +59,9 @@ export function RunGuidedTargetContent() {
           Solution
         </h2>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <div className="text-sm text-[var(--color-text-muted)] mb-2">Submit shell result (exit code, stdout, stderr)</div>
+          <div className="text-sm text-[var(--color-text-muted)] mb-2">
+            Submit shell result (exit code, stdout, stderr)
+          </div>
           <button
             type="button"
             className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white"
