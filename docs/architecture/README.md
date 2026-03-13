@@ -24,6 +24,13 @@ Protocol order is always: search → begin → next (loop) → attest.
 Compose topology, port map, startup sequence, volume layout, Redis/Qdrant
 data models, and embedding provider selection — all with Mermaid diagrams.
 
+## UI frontend
+
+[UI frontend architecture](ui-frontend-architecture.md) explains the
+current React/Vite frontend, route structure under `/ui`, API boundary,
+Storybook's role, and the reasons the UI stays inside the existing
+Express deployment.
+
 ## Full execution walkthrough
 
 [Full execution workflow: search to run complete](workflow-full-execution.md)

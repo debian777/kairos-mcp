@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseProtocolMarkdown } from "@/hooks/useProtocol";
+import {
+  parseProtocolMarkdown,
+  parseProtocolMarkdownToForm,
+  buildMarkdownFromForm,
+} from "@/hooks/useProtocol";
 
 describe("parseProtocolMarkdown", () => {
   it("returns default title and empty steps for empty input", () => {
@@ -180,5 +184,72 @@ Done.
     expect(result.steps[0]!.label).toBe("Step A");
     expect(result.steps[1]!.label).toBe("Step B");
     expect(result.steps[1]!.summary).toBe("Shell: echo ok");
+  });
+});
+
+describe("parseProtocolMarkdownToForm and buildMarkdownFromForm", () => {
+  it("round-trips protocol with triggers, steps, and completion", () => {
+    const md = `# Deploy and test
+
+## Natural language triggers
+
+deploy and test
+run tests and deploy
+
+## Build
+
+Run the build.
+
+\`\`\`json
+{"challenge": {"type": "shell", "shell": {"cmd": "npm run build"}}}
+\`\`\`
+
+## Completion rule
+
+When each step is verified and attestation is done.
+`;
+    const form = parseProtocolMarkdownToForm(md);
+    expect(form.protocolLabel).toBe("Deploy and test");
+    expect(form.triggersMarkdown).toContain("deploy and test");
+    expect(form.steps).toHaveLength(1);
+    expect(form.steps[0]!.label).toBe("Build");
+    expect(form.steps[0]!.type).toBe("shell");
+    expect(form.steps[0]!.shell?.cmd).toBe("npm run build");
+    expect(form.steps[0]!.bodyMarkdown).toContain("Run the build");
+    expect(form.completionMarkdown).toContain("When each step is verified");
+
+    const rebuilt = buildMarkdownFromForm(form);
+    expect(rebuilt).toContain("# Deploy and test");
+    expect(rebuilt).toContain("## Natural language triggers");
+    expect(rebuilt).toContain("## Build");
+    expect(rebuilt).toContain("npm run build");
+    expect(rebuilt).toContain("## Completion rule");
+
+    const reparsed = parseProtocolMarkdown(rebuilt);
+    expect(reparsed.title).toBe(form.protocolLabel);
+    expect(reparsed.steps.length).toBe(form.steps.length);
+    expect(reparsed.steps[0]!.label).toBe(form.steps[0]!.label);
+    expect(reparsed.steps[0]!.type).toBe("shell");
+  });
+
+  it("preserves empty challenge fields on round-trip (shell cmd, mcp tool_name, user_input prompt)", () => {
+    const form = {
+      protocolLabel: "Empty fields",
+      triggersMarkdown: "test",
+      steps: [
+        { label: "Empty shell", bodyMarkdown: "TBD", type: "shell" as const, shell: { cmd: "" } },
+        { label: "Empty mcp", bodyMarkdown: "TBD", type: "mcp" as const, mcp: { tool_name: "" } },
+        { label: "Empty prompt", bodyMarkdown: "TBD", type: "user_input" as const, user_input: { prompt: "" } },
+      ],
+      completionMarkdown: "Done",
+    };
+    const rebuilt = buildMarkdownFromForm(form);
+    expect(rebuilt).toContain('"cmd": ""');
+    expect(rebuilt).toContain('"tool_name": ""');
+    expect(rebuilt).toContain('"prompt": ""');
+    const reparsedForm = parseProtocolMarkdownToForm(rebuilt);
+    expect(reparsedForm.steps[0]!.shell?.cmd).toBe("");
+    expect(reparsedForm.steps[1]!.mcp?.tool_name).toBe("");
+    expect(reparsedForm.steps[2]!.user_input?.prompt).toBe("");
   });
 });

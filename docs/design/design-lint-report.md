@@ -4,8 +4,12 @@ Validated against the **kairos-ui-designer** skill (§3–§4, §6) and the **aw
 
 ## Scope
 
-- **App:** `src/ui/` — Layout, HomePage, KairosPage, AccountPage, ProtocolDetailPage, ProtocolEditPage, RunGuidedPage, RunsPage, NotFoundPage, ErrorAlert, CopyButton, SearchResultsSkeleton; `theme/tokens.css`, `index.css`; `index.html`.
-- **Mockups:** Storybook export + `Screens.stories.tsx` (1:1 with app).
+- **App:** `src/ui/` — Layout, HomePage, KairosPage, AccountPage,
+  ProtocolDetailPage, ProtocolEditPage, RunGuidedPage, RunsPage,
+  NotFoundPage, ErrorAlert, CopyButton, SearchResultsSkeleton;
+  `theme/tokens.css`, `index.css`; `index.html`.
+- **Stories:** `Screens.stories.tsx` and related Storybook stories used
+  for UI review.
 
 ## Violations (previous audit) — all fixed
 

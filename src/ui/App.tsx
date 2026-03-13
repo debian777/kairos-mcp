@@ -6,6 +6,7 @@ import { ProtocolDetailPage } from "./pages/ProtocolDetailPage";
 import { ProtocolEditPage } from "./pages/ProtocolEditPage";
 import { RunGuidedPage } from "./pages/RunGuidedPage";
 import { RunsPage } from "./pages/RunsPage";
+import { SkillBundlePage } from "./pages/SkillBundlePage";
 import { AccountPage } from "./pages/AccountPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
@@ -20,6 +21,7 @@ export function AppRoutes() {
         <Route path="protocols/new" element={<ProtocolEditPage />} />
         <Route path="protocols/:uri/edit" element={<ProtocolEditPage />} />
         <Route path="protocols/:uri/run" element={<RunGuidedPage />} />
+        <Route path="protocols/:uri/skill" element={<SkillBundlePage />} />
         <Route path="protocols/:uri" element={<ProtocolDetailPage />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="*" element={<NotFoundPage />} />

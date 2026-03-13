@@ -114,7 +114,6 @@ module.exports = [
       'docs/install/env.example.*.txt',
       '**/snapshots/**',
       '**/*.snapshot',
-      'docs/design/mockups/**',
       'storybook-static/**',
       '.storybook/**',
       '**/*.html',
@@ -184,6 +183,15 @@ module.exports = [
       ],
       'no-console': 'off',
     },
+  },
+
+  // Long UI files: allow >350 lines (form builder, mockup content)
+  {
+    files: [
+      'src/ui/pages/ProtocolEditPage.tsx',
+      'src/ui/mockups/ProtocolUXMockupContent.tsx',
+    ],
+    rules: { 'max-lines': 'off' },
   },
 
   // ---------------------------------------------------------------------------
