@@ -66,7 +66,8 @@ jobs:
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p .cache/docker-infra
-          IMAGES=$(docker compose -p kairos-mcp --env-file .env --profile fullstack config --images)
+          # Only save images for services we start (redis, qdrant, postgres, keycloak); config --images includes app image which is not pulled
+          IMAGES=$(docker compose -p kairos-mcp --env-file .env --profile fullstack config --format json | jq -r '.services | to_entries[] | select(.key | test("^(redis|qdrant|postgres|keycloak)$")) | .value.image')
           docker save -o .cache/docker-infra/images.tar $IMAGES
 
       - name: Cache infra Docker images
