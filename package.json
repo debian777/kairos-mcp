@@ -158,6 +158,9 @@
     "node": ">=24.0.0"
   },
   "overrides": {
+    "@joshwooding/vite-plugin-react-docgen-typescript": {
+      "vite": "$vite"
+    },
     "glob": "^13.0.0",
     "minimatch": "^10.2.1"
   }
