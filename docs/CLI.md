@@ -5,7 +5,7 @@ command line. It connects to any running KAIROS server over HTTP.
 
 ## Installation
 
-Install the CLI globally with npm. Node.js 24 or later is required.
+Install the CLI globally with npm. Node.js 25 or later is required.
 
 ```bash
 npm install -g @debian777/kairos-mcp
@@ -160,7 +160,7 @@ kairos attest kairos://mem/xxx success "All steps completed"
 
 ## Troubleshooting
 
-**`kairos: command not found`** — confirm Node.js 24 or later is installed
+**`kairos: command not found`** — confirm Node.js 25 or later is installed
 (`node --version`), then re-run `npm install -g @debian777/kairos-mcp`.
 
 **`ECONNREFUSED` or connection errors** — confirm the KAIROS server is
