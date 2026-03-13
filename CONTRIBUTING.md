@@ -10,7 +10,7 @@ Participants must maintain a respectful and inclusive environment.
 
 ## Prerequisites
 
-- Node.js >= 24.0.0
+- Node.js >= 25.0.0
 - Docker and Docker Compose (v2)
 - Git
 

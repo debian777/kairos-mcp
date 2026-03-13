@@ -3,7 +3,7 @@
 <img src="logo/kaiiros-mcp.svg" width="128" alt="KAIROS MCP logo" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org/)
 
 KAIROS MCP™ gives AI agents persistent memory and deterministic protocol
 execution. Agents store, retrieve, and run reusable protocol chains across
@@ -52,7 +52,7 @@ See [docs/install/README.md](docs/install/README.md) for env variants. Full deve
 - **Docker Compose (recommended)** — minimal (Qdrant + app) by default, or
 full stack with Redis and Keycloak; see the quick start above.
 - **npm (CLI only)** — install the `kairos` command-line tool globally.
-Node.js 24 or later is required.
+Node.js 25 or later is required.
   ```bash
   npm install -g @debian777/kairos-mcp
   ```
