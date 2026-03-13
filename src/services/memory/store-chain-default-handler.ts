@@ -128,12 +128,11 @@ export async function storeDefaultChain(
   logger.tool(
     'memory-qdrant-store',
     'upsert',
-    `mode=default docs=${normalizedDocs.length} collection=${collection} payload=${JSON.stringify({
-      points
-    })}`
+    `mode=default docs=${normalizedDocs.length} collection=${collection} points=${points.length}`
   );
-
-  logger.debug(`[Qdrant][upsert] collection=${collection} points=${points.length}`);
+  logger.debug(
+    `[Qdrant][upsert] collection=${collection} points=${points.length} payload=${JSON.stringify({ points })}`
+  );
   try {
     await client.upsert(collection, { points });
   } catch (err) {

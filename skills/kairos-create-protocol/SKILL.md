@@ -3,7 +3,7 @@ name: kairos-create-protocol
 description: Run the KAIROS "Create New KAIROS Protocol Chain" protocol. Use when the user invokes /k create new protocol, or asks to create a new protocol, mint a workflow, or build a protocol (when kairos_search found no match and user confirms).
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
-  version: "1.0.0"
+  version: "3.0.1"
   author: kairos-mcp
   protocol: references/KAIROS.md
   protocol_query: create new KAIROS protocol chain

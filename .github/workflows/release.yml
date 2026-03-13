@@ -22,6 +22,8 @@ jobs:
   publish-npm:
     name: Publish npm
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
     permissions:
       contents: read
@@ -83,12 +85,24 @@ jobs:
         run: npm run prepare:publish
 
       - name: Publish to npm
-        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: |
+          set +e
+          out=$(npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -eq 0 ]; then exit 0; fi
+          if echo "$out" | grep -q "You cannot publish over the previously published versions"; then
+            echo "Version already on npm; continuing to Docker and GitHub Release"
+            exit 0
+          fi
+          exit 1
 
   publish-docker:
     name: Publish Docker image
     needs: publish-npm
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: read
 
@@ -149,11 +163,13 @@ jobs:
     needs: [publish-npm, publish-docker]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
 
     steps:
-      - name: Set tag name
+      - name: Set tag name and prerelease flag
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.ref }}" ]; then
@@ -161,6 +177,11 @@ jobs:
           else
             echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
+          # Tag with hyphen (e.g. v3.1.0-pre.0, v3.0.1-beta.1) => prerelease; GitHub then shows latest stable as "Latest release"
+          case "${{ steps.tag.outputs.tag_name }}" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -169,3 +190,4 @@ jobs:
           name: ${{ steps.tag.outputs.tag_name }}
           generate_release_notes: true
           draft: false
+          prerelease: ${{ steps.tag.outputs.prerelease }}

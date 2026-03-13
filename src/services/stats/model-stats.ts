@@ -43,18 +43,18 @@ function ensureStatsStateShape(state?: Partial<StatsState>): StatsState {
 function addRecentDiscovery(state: StatsState, discovery: RecentDiscovery): void {
     state.recentDiscoveries.unshift(discovery);
     state.recentDiscoveries = state.recentDiscoveries.slice(0, 20);
-    logger.info(`Added recent discovery by ${discovery.agent} (${discovery.score}pts)`);
+    logger.debug(`Added recent discovery by ${discovery.agent} (${discovery.score}pts)`);
 }
 
 async function updateImplementationBonusHelper(state: StatsState, llm_model_id: string, bonusPoints: number): Promise<void> {
     state.implementationBonuses[llm_model_id] = (state.implementationBonuses[llm_model_id] || 0) + bonusPoints;
-    logger.info(`Implementation bonus: ${llm_model_id} earned ${bonusPoints} points`);
+    logger.debug(`Implementation bonus: ${llm_model_id} earned ${bonusPoints} points`);
     await saveStatsState(state);
 }
 
 async function updateHealerBonusHelper(state: StatsState, llm_model_id: string, bonusPoints: number): Promise<void> {
     state.healerBonuses[llm_model_id] = (state.healerBonuses[llm_model_id] || 0) + bonusPoints;
-    logger.info(`Healer bonus: ${llm_model_id} earned ${bonusPoints} points`);
+    logger.debug(`Healer bonus: ${llm_model_id} earned ${bonusPoints} points`);
     await saveStatsState(state);
 }
 

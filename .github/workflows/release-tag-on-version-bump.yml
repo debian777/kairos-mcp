@@ -16,6 +16,8 @@ jobs:
     name: Tag if version bumped
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write  # push tag
       actions: write  # trigger Release workflow
@@ -37,10 +39,11 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Get latest tag (by version in repo)
+      - name: Get latest stable tag (by version in repo)
         id: tag
         run: |
-          latest=$(git tag -l 'v*' --sort=-v:refname | head -1 || echo "v0.0.0")
+          # Only consider stable tags (vX.Y.Z); prereleases (v3.0.1-pre.0) must not block creating v3.0.1
+          latest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || echo "v0.0.0")
           echo "tag=${latest}" >> "$GITHUB_OUTPUT"
           echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
 

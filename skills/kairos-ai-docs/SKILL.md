@@ -3,7 +3,7 @@ name: kairos-ai-docs
 description: Find and run the zero-drift minimal template for writing AI instructions via KAIROS. Use when the user invokes /ai-docs or asks to write, generate, or update AI instructions using the zero-drift template.
 compatibility: Requires KAIROS MCP server to be configured and connected.
 metadata:
-  version: "1.0.0"
+  version: "3.0.1"
   author: kairos-mcp
   protocol: references/KAIROS.md
   protocol_query: write AI instructions zero-drift minimal template
