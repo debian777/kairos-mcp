@@ -32,6 +32,25 @@ export KAIROS_API_URL=http://localhost:3000
 
 The default URL is `http://localhost:3000`.
 
+## Authentication
+
+When the server has authentication enabled, requests must include a Bearer token.
+Set `KAIROS_BEARER_TOKEN` to a valid access token, or run `kairos login` to store a
+token (either `kairos login --token <token>` or browser login with PKCE when
+`KAIROS_CLIENT_ID` is set). You can also log in via the server's login URL in a
+browser and obtain a token from your IdP.
+
+Token and API URL can be stored in a config file (used when env vars are not set).
+Location: `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json`
+on Windows). The file is created by `kairos login` and is user-only readable; do not
+commit it (it contains secrets).
+
+When a command fails because authentication is required, the CLI prints the login URL
+on the next line. Run the same command with **`--open`** to open that URL in your
+default browser (for example, `kairos --open search "query"`). Browser-based
+`kairos login` uses a local callback server so the CLI can receive the token; the
+login URL shown on 401 responses points to the server's callback for web sessions.
+
 ## Commands
 
 ### search — find protocols
@@ -127,6 +146,31 @@ kairos delete kairos://mem/xxx
 kairos delete kairos://mem/xxx kairos://mem/yyy kairos://mem/zzz
 ```
 
+### login — store a Bearer token
+
+Log in and store a token for the current server (env or config base URL).
+
+```bash
+# Store a token you already have (validated with GET /api/me)
+kairos login --token <your-bearer-token>
+
+# Browser login (requires KAIROS_CLIENT_ID for a public/PKCE client)
+kairos login
+```
+
+**Options:**
+
+- `--token <token>` — validate and store this token; skip browser flow
+
+### logout — clear stored token
+
+Remove the stored Bearer token from the config file. Does not change
+`KAIROS_BEARER_TOKEN` in the environment.
+
+```bash
+kairos logout
+```
+
 ### attest — record step completion
 
 Record success or failure for a protocol step.
@@ -170,6 +214,10 @@ address.
 **`404 Not Found` on a URI** — the memory may have been deleted. Run
 `kairos search` to find current URIs.
 
+**`Authentication required`** — the server requires a Bearer token. Run the command
+with `--open` to open the login URL in your browser, or run `kairos login`. See
+[Authentication](#authentication).
+
 ## Help
 
 Get help for any command:
@@ -183,6 +231,8 @@ kairos mint --help
 kairos update --help
 kairos delete --help
 kairos attest --help
+kairos login --help
+kairos logout --help
 ```
 
 ## Next steps

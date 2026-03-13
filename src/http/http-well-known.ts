@@ -26,6 +26,11 @@ function buildProtectedResourceMetadata(): Record<string, unknown> {
     bearer_methods_supported: ['header'],
     resource_name: 'KAIROS MCP'
   };
+  // Optional: expose endpoints so CLI and other clients can build auth URLs without 401 or hardcoded paths.
+  if (issuer) {
+    metadata['authorization_endpoint'] = `${issuer}/protocol/openid-connect/auth`;
+    metadata['token_endpoint'] = `${issuer}/protocol/openid-connect/token`;
+  }
   // RFC 9728 allows additional parameters. MCP clients that support it should add these
   // to the authorization request (e.g. prompt=login) to avoid already_logged_in when
   // the user is logged in elsewhere, without disabling SSO for normal browser use.
