@@ -4,7 +4,7 @@
   "description": "kairos MCP Server - AI Knowledge Memory System for AI Agent Consciousness Infrastructure",
   "type": "module",
   "main": "dist/index.js",
-  "author": "Jakub Plichcinski <kuba@expl.pl>",
+  "author": "Jakub Plichcinski <kuba@xpl.pl>",
   "license": "MIT",
   "repository": {
     "type": "git",
