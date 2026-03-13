@@ -11,6 +11,9 @@ import { embeddingService } from '../embedding/service.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
 
+/** Built-in refine protocol (always offered at bottom of kairos_search). Excluded from vector results. */
+const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+
 export class MemoryQdrantStoreMethods {
   private client: QdrantClient;
   private collection: string;
@@ -132,7 +135,12 @@ export class MemoryQdrantStoreMethods {
     return vectorResult;
   }
 
-  /** Hybrid search: dense + BM25 sparse via Query API prefetch + RRF fusion. */
+  /**
+   * Hybrid search: dense + BM25 via Query API with formula-based title boosting.
+   * Inner prefetch: 1× dense + 3× BM25 fused via RRF.
+   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: query).
+   * match.text requires ALL query tokens in chain.label, boosting only exact title matches.
+   */
   private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
     const queryVector = queryEmbeddingResult.embedding;
@@ -141,29 +149,53 @@ export class MemoryQdrantStoreMethods {
     const sparseQuery = bm25Tokenizer.tokenize(query);
 
     const searchSpaceIds = getSearchSpaceIds();
-    const filter = buildSpaceFilter(searchSpaceIds, {
+    const baseFilter = buildSpaceFilter(searchSpaceIds, {
       must: [{ key: 'chain.step_index', match: { value: 1 } }]
     });
+    const filter = {
+      ...baseFilter,
+      must_not: [{ has_id: [REFINING_PROTOCOL_UUID] }]
+    };
+
+    const bm25Leg = {
+      query: { indices: sparseQuery.indices, values: sparseQuery.values },
+      using: 'bm25' as const,
+      filter
+    };
 
     let points: Array<{ id: string | number; score?: number; payload?: Record<string, unknown> | null }>;
     try {
+      const TITLE_BOOST = 0.5;
       const queryResponse = await this.client.query(this.collection, {
-        prefetch: [
-          {
-            query: queryVector,
-            using: vectorName,
-            limit: 40,
-            filter,
-            params: { quantization: { rescore: true } }
-          },
-          {
-            query: { indices: sparseQuery.indices, values: sparseQuery.values },
-            using: 'bm25',
-            limit: 40,
-            filter
+        prefetch: {
+          prefetch: [
+            {
+              query: queryVector,
+              using: vectorName,
+              limit: 40,
+              filter,
+              params: { quantization: { rescore: true } }
+            },
+            { ...bm25Leg, limit: 40 },
+            { ...bm25Leg, limit: 30 },
+            { ...bm25Leg, limit: 20 }
+          ],
+          query: { fusion: 'rrf' },
+          limit: 50,
+        },
+        query: {
+          formula: {
+            sum: [
+              '$score',
+              {
+                mult: [
+                  TITLE_BOOST,
+                  { key: 'chain.label', match: { text: normalizedQuery } }
+                ]
+              }
+            ]
           }
-        ],
-        query: { fusion: 'rrf' },
+        },
         with_payload: true,
         limit: searchLimit
       });
@@ -204,8 +236,10 @@ export class MemoryQdrantStoreMethods {
       return { memory, score };
     });
 
+    const isRefineProtocol = (m: Memory) =>
+      m.memory_uuid === REFINING_PROTOCOL_UUID || m.chain?.id === REFINING_PROTOCOL_UUID;
     let filtered = scored
-      .filter(entry => entry.score > 0)
+      .filter(entry => entry.score > 0 && !isRefineProtocol(entry.memory))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return (a.memory.memory_uuid ?? '').localeCompare(b.memory.memory_uuid ?? '');
@@ -213,7 +247,10 @@ export class MemoryQdrantStoreMethods {
       .slice(0, limit);
 
     if (filtered.length === 0 && scored.length > 0) {
-      filtered = scored.slice(0, limit).map(entry => ({ memory: entry.memory, score: 0.5 }));
+      filtered = scored
+        .filter(entry => !isRefineProtocol(entry.memory))
+        .slice(0, limit)
+        .map(entry => ({ memory: entry.memory, score: 0.5 }));
     }
 
     return {

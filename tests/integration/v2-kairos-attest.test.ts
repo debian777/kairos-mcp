@@ -3,8 +3,14 @@
  * Validates the schema from docs/workflow-kairos-attest.md.
  * Key change: no final_solution required.
  * These tests are expected to FAIL against v1 code.
+ *
+ * Also asserts no additional properties on results[] (MCP outputSchema has additionalProperties: false).
+ * See reports/new/mcp-bug-user-KAIROS-kairos-attest-schema-mismatch-2026-03-13.md.
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
+
+/** Allowed keys for each result item; must match tool outputSchema (additionalProperties: false). */
+const ATTEST_RESULT_KEYS = ['uri', 'outcome', 'quality_bonus', 'message', 'rated_at'] as const;
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
@@ -80,6 +86,10 @@ describe('V2 kairos_attest response schema', () => {
       expect(typeof r.message).toBe('string');
       expect(typeof r.rated_at).toBe('string');
 
+      // MCP schema has additionalProperties: false; extra keys cause -32602 (schema mismatch).
+      const resultKeys = Object.keys(r).sort();
+      expect(resultKeys).toEqual([...ATTEST_RESULT_KEYS].sort());
+
       expect(typeof parsed.total_rated).toBe('number');
       expect(typeof parsed.total_failed).toBe('number');
     });
@@ -105,6 +115,7 @@ describe('V2 kairos_attest response schema', () => {
       const r = parsed.results[0];
       expect(r.outcome).toBe('failure');
       expect(typeof r.quality_bonus).toBe('number');
+      expect(Object.keys(r).sort()).toEqual([...ATTEST_RESULT_KEYS].sort());
     });
   });
 });

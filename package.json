@@ -58,6 +58,7 @@
     "prod:status": "ENV=prod ./scripts/run-env.sh status",
     "prod:qdrant-curl": "ENV=prod ./scripts/run-env.sh qdrant-curl",
     "prod:raw-qdrant-search": "node -r dotenv/config scripts/raw-qdrant-search.mjs",
+    "query-scoring": "node -r dotenv/config scripts/run-query-scoring.mjs",
     "prod:redis-cli": "ENV=prod ./scripts/run-env.sh redis-cli",
     "prod:logs": "ENV=prod ./scripts/run-env.sh logs",
     "build": "npm run prebuild && node -e \"if(!process.env.DOCKER_BUILD){const r=require('child_process').spawnSync('npm',['run','lint'],{stdio:'inherit'});if(r.status!==0)process.exit(r.status!=null?r.status:1)}\" && npm run ui:build && npx tsc && chmod +x dist/cli/index.js",
