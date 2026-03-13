@@ -92,6 +92,7 @@ module.exports = [
       '**/.gitignore',
       '**/.cursorignore',
       '**/.npmignore',
+      '**/.npmrc',
       '**/.dockerignore',
       'Dockerfile',
       'Dockerfile.dev',
