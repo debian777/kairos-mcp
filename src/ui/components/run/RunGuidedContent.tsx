@@ -71,9 +71,7 @@ export function RunGuidedContent({
                 <p className="text-sm text-[var(--color-text-muted)] m-0">{t("run.noStepContent")}</p>
               )}
             </>
-          ) : (
-            <p className="text-sm text-[var(--color-text-muted)] m-0">{t("run.noStepContent")}</p>
-          )}
+          ) : null}
         </div>
       </section>
 
