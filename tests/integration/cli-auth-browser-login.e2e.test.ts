@@ -74,9 +74,17 @@ async function spawnLoginAndGetAuthUrl(configHome: string): Promise<{
         const match = line.match(/^(https?:\/\/[^\s]+)/);
         if (match && !settled) {
           settled = true;
+          // Create exitPromise with timeout to prevent hangs
+          const exitPromise = Promise.race<number | null>([
+            new Promise<number | null>((r) => proc.on('close', r)),
+            new Promise<number | null>((r) => setTimeout(() => {
+              proc.kill('SIGKILL');
+              r(1); // Timeout = error exit code
+            }, 30000))
+          ]);
           resolve({
             authUrl: match[1],
-            exitPromise: new Promise<number | null>((r) => proc.on('close', r))
+            exitPromise
           });
         }
       });
@@ -96,6 +104,12 @@ async function spawnLoginAndGetAuthUrl(configHome: string): Promise<{
         if (!settled) {
           settled = true;
           proc.kill('SIGTERM');
+          // Force kill after a short grace period
+          setTimeout(() => {
+            if (!proc.killed) {
+              proc.kill('SIGKILL');
+            }
+          }, 2000);
           resolve('timeout');
         }
       }, 20000);
@@ -168,7 +182,11 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
 
       await page.waitForURL((url) => url.origin === `http://localhost:${callbackPort}` && url.pathname === '/callback', { timeout: 15000 });
 
-      const exitCode = await exitPromise;
+      // Wait for exit with timeout to prevent hangs
+      const exitCode = await Promise.race([
+        exitPromise,
+        new Promise<number>((resolve) => setTimeout(() => resolve(1), 30000))
+      ]);
       expect(exitCode).toBe(0);
     } finally {
       await browser.close();
