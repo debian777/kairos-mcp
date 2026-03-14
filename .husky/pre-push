@@ -1,2 +1,14 @@
 #!/bin/sh
+# Restraint 3: tag pushes must have message matching x.y.z (from npm version)
+while read local_ref local_sha remote_ref remote_sha; do
+  if echo "$remote_ref" | grep -q "refs/tags/v"; then
+    msg=$(git log -1 --format="%s" "$local_sha" 2>/dev/null) || exit 0
+    if ! echo "$msg" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
+      echo ""
+      echo "  Tag pushes must be created via 'npm version'. Run: npm version patch|minor|major"
+      echo ""
+      exit 1
+    fi
+  fi
+done
 exit 0
