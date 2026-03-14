@@ -18,24 +18,25 @@ function renderApp(initialPath = "/") {
 }
 
 describe("App", () => {
-  it("renders layout with main content at /", () => {
+  it("renders layout with main content at /", async () => {
     renderApp("/");
     expect(screen.getByRole("main")).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "home.title" });
   });
 
-  it("shows Home at /", () => {
+  it("shows Home at /", async () => {
     renderApp("/");
-    expect(screen.getByRole("heading", { name: "home.title" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "home.title" })).toBeInTheDocument();
   });
 
-  it("shows Account page at /account", () => {
+  it("shows Account page at /account", async () => {
     renderApp("/account");
     // AccountPage shows loading until useMe resolves; we only assert we're on account route
-    expect(screen.getByText("account.loading")).toBeInTheDocument();
+    expect(await screen.findByText("account.loading")).toBeInTheDocument();
   });
 
-  it("shows Not found at unknown path", () => {
+  it("shows Not found at unknown path", async () => {
     renderApp("/unknown");
-    expect(screen.getByRole("heading", { name: "notFound.title" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "notFound.title" })).toBeInTheDocument();
   });
 });

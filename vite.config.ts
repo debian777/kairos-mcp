@@ -14,6 +14,23 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/ui"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 20 },
+            { name: "tiptap", test: /[\\/]node_modules[\\/]@tiptap[\\/]/, priority: 15 },
+            {
+              name: "vendor",
+              test: /[\\/]node_modules[\\/]/,
+              minSize: 20_000,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
   },
   server: {
     port: 5173,
