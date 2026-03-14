@@ -3,7 +3,16 @@ import { KairosError } from '../../types/index.js';
 import { sanitizeAndUpsert } from './utils.js';
 import { logger } from '../../utils/logger.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
-import { KAIROS_APP_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID, MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX } from '../../config.js';
+
+/** Compute attest_boost for search formula (same logic as former app-side boost). */
+function computeAttestBoost(successCount: number, failureCount: number): number {
+  const runs = successCount + failureCount;
+  if (runs < MIN_ATTEST_RUNS) return 0;
+  const successRatio = runs > 0 ? successCount / runs : 0;
+  const confidence = Math.min(runs / RUNS_FULL_CONFIDENCE, 1);
+  return Math.min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX);
+}
 
 /**
  * Quality management functions:
@@ -43,8 +52,12 @@ export async function updateQualityMetrics(conn: QdrantConnection, id: string, m
       qualityBonus: currentMetrics.qualityBonus + (metrics.qualityBonus || 0)
     };
 
+    const successCount = updatedMetrics.successCount ?? 0;
+    const failureCount = updatedMetrics.failureCount ?? 0;
+    const attest_boost = computeAttestBoost(successCount, failureCount);
+
     const spaceId = existingPayload.space_id ?? getSpaceContext().defaultWriteSpaceId;
-    const updatedPayload = { ...existingPayload, space_id: spaceId, quality_metrics: updatedMetrics, updated_at: new Date().toISOString() };
+    const updatedPayload = { ...existingPayload, space_id: spaceId, quality_metrics: updatedMetrics, attest_boost, updated_at: new Date().toISOString() };
     await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id, vector: existingPoint.vector as any, payload: updatedPayload }]);
   });
 }

@@ -14,6 +14,19 @@ const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
 const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
+/** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
+function queryForSearch(query: string): string {
+  let q = (query || '').trim();
+  for (const token of [REFINING_PROTOCOL_URI, REFINING_PROTOCOL_UUID, CREATION_PROTOCOL_URI, CREATION_PROTOCOL_UUID]) {
+    q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
+  }
+  return q.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface UnifiedChoice {
     uri: string;
     label: string;
@@ -45,7 +58,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
 
             structuredLogger.info(`-> POST /api/kairos_search (query: ${query})`);
 
-            const normalizedQuery = query.trim().toLowerCase();
+            const searchQuery = queryForSearch(query);
+            const normalizedQuery = searchQuery.toLowerCase();
             const parseEnvBool = (name: string, defaultVal: boolean) => {
                 const v = process.env[name];
                 if (v === undefined) return defaultVal;
@@ -65,7 +79,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 });
             }
 
-            const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
+            const { memories, scores } = await memoryStore.searchMemories(searchQuery, 40, enableGroupCollapse);
             const candidateMap = new Map<string, { memory: Memory; score: number }>();
 
             const addCandidate = (memory: Memory, score: number) => {
@@ -90,7 +104,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
             memories.forEach((memory, idx) => addCandidate(memory, scores[idx] ?? 0));
 
             if (candidateMap.size < 10 && enableGroupCollapse) {
-                const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
+                const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(searchQuery, 80, false);
                 moreMemories.forEach((memory, idx) => addCandidate(memory, moreScores[idx] ?? 0));
             }
 
