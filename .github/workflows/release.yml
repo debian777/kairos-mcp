@@ -191,4 +191,5 @@ jobs:
           name: ${{ steps.tag.outputs.tag_name }}
           generate_release_notes: true
           draft: false
-          prerelease: ${{ steps.tag.outputs.prerelease }}
+          # Hyphenated tags (v*.*.*-*) must be pre-releases so "Latest" stays on last stable
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
