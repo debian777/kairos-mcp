@@ -465,6 +465,7 @@ function RichTextEditorMock({
     extensions: [
       StarterKit.configure({
         heading: false,
+        link: false,
       }),
       Link.configure({ openOnClick: false, autolink: false }),
       Markdown,

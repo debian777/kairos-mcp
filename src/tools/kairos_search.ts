@@ -11,6 +11,24 @@ import { SCORE_THRESHOLD } from '../config.js';
 import { generateUnifiedOutput } from './kairos_search_output.js';
 import type { SearchCandidate } from './kairos_search_output.js';
 
+const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
+const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
+const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
+
+/** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
+function queryForSearch(query: string): string {
+  let q = (query || '').trim();
+  for (const token of [REFINING_PROTOCOL_URI, REFINING_PROTOCOL_UUID, CREATION_PROTOCOL_URI, CREATION_PROTOCOL_UUID]) {
+    q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
+  }
+  return q.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface RegisterSearchOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -48,6 +66,7 @@ async function searchAndBuildCandidates(
   const candidateMap = new Map<string, { memory: Memory; score: number }>();
   const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
   memories.forEach((memory, idx) => addCandidate(candidateMap, memory, scores[idx] ?? 0));
+
   if (candidateMap.size < 10 && enableGroupCollapse) {
     const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
     moreMemories.forEach((memory, idx) => addCandidate(candidateMap, memory, moreScores[idx] ?? 0));
@@ -117,7 +136,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       };
       try {
         return runWithOptionalSpaceAsync(spaceParam, async () => {
-          const normalizedQuery = (query || '').trim().toLowerCase();
+          const searchQuery = queryForSearch(query || '');
+          const normalizedQuery = searchQuery.toLowerCase();
           const parseEnvBool = (name: string, defaultVal: boolean) => {
             const v = process.env[name];
             if (v === undefined) return defaultVal;
@@ -129,7 +149,12 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
           const cachedResult = await redisCacheService.get(cacheKey);
           if (cachedResult) return respond(JSON.parse(cachedResult));
 
-          const candidateMap = await searchAndBuildCandidates(memoryStore, query || '', normalizedQuery, enableGroupCollapse);
+          const candidateMap = await searchAndBuildCandidates(
+            memoryStore,
+            searchQuery,
+            normalizedQuery,
+            enableGroupCollapse
+          );
           let headCandidates = Array.from(candidateMap.values()).sort((a, b) => b.score - a.score);
           if (headCandidates.length > 10) headCandidates = headCandidates.slice(0, 10);
           const results = headCandidates.length > 0 ? createResults(headCandidates) : [];

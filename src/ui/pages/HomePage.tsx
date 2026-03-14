@@ -26,13 +26,13 @@ export function HomePage() {
       <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">
         {t("home.title")}
       </h1>
-      <p className="text-sm text-[var(--color-text-muted)] mb-6">
+      <p className="text-sm text-[var(--color-text-muted)] mb-8">
         {t("home.tagline")}
       </p>
 
       <form
         onSubmit={handleSubmit}
-        className="mb-6"
+        className="mb-8 max-w-xl"
         aria-label={t("home.searchLabel")}
       >
         <label
@@ -56,11 +56,11 @@ export function HomePage() {
       </form>
 
       <div
-        className="flex gap-4 flex-wrap mb-6"
+        className="flex gap-4 flex-wrap mb-8"
         aria-label={t("home.statsLabel")}
       >
         {showPlaceholder && spaces.length === 0 ? (
-          <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+          <div className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5">
             <span className="text-2xl font-semibold text-[var(--color-text-heading)]">—</span>
             <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
               {t("home.stats.spacesLabel")}
@@ -70,7 +70,7 @@ export function HomePage() {
         {spaces.map((space) => (
           <div
             key={space.name}
-            className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4"
+            className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
           >
             <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
               {isLoading ? "—" : space.chain_count}

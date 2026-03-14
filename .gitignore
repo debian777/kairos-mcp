@@ -36,6 +36,7 @@ storybook-static/
 .idea/
 .claude/
 .cursor/plans
+.cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
 *.swp
 *.swo
