@@ -545,7 +545,8 @@ Target stack for implementation (separate build plan):
 - shadcn/ui (Radix primitives + Tailwind)
 - React Router v7, TanStack Query, react-i18next, Zod
 
-Rationale: [docs/architecture/ui-frontend-stack-decision.md](../architecture/ui-frontend-stack-decision.md)
+Architecture reference:
+[docs/architecture/ui-frontend-architecture.md](../architecture/ui-frontend-architecture.md)
 
 ---
 

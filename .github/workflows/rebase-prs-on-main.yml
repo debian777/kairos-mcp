@@ -15,7 +15,7 @@ jobs:
   rebase:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     steps:
       - name: Checkout (fetch all refs)
         uses: actions/checkout@v4

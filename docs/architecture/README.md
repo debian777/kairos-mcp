@@ -33,6 +33,13 @@ separate Qdrant service initialization (payload indexes, alias).
 
 [KAIROS search query architecture](search-query.md) describes how `kairos_search` works end-to-end: query normalization, space scope, Qdrant hybrid query (dense + BM25, RRF, formula), filters, attest-based score adjustment, and cache. Read this when implementing or debugging search.
 
+## UI frontend
+
+[UI frontend architecture](ui-frontend-architecture.md) explains the
+current React/Vite frontend, route structure under `/ui`, API boundary,
+Storybook's role, and the reasons the UI stays inside the existing
+Express deployment.
+
 ## Full execution walkthrough
 
 [Full execution workflow: search to run complete](workflow-full-execution.md)

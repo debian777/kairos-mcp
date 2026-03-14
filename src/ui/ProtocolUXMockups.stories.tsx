@@ -3,17 +3,23 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
+  BrowseTargetContent,
+  EditorToolbarIconSetTargetContent,
+  HomeTargetContent,
   ProtocolDetailTargetContent,
   ProtocolEditTargetContent,
   RunGuidedTargetContent,
+  RunsTargetContent,
+  SkillBundleTargetContent,
 } from "@/mockups/ProtocolUXMockupContent";
 
 /**
  * **Protocol UX (Target) mockups.** Design reference for the next implementation phase.
- * These stories show the intended UI: step flow graph, challenge cards, Markdown-rendered
- * content, and editor layout. They are presentational only (no real Markdown renderer or editor).
+ * These stories show the intended UI: simple browse-by-label discovery, rendered rich-text editing
+ * with a real embedded Tiptap editor, explicit export actions, skill bundle preparation, and the
+ * restored Test Run surfaces.
  *
- * Run `npm run storybook` to view; `npm run storybook:export-mockups` to refresh static export.
+ * Run `npm run storybook` to view.
  */
 
 function MockupWrapper({ children }: { children: ReactNode }) {
@@ -36,6 +42,24 @@ export default meta;
 
 type Story = StoryObj<typeof MockupWrapper>;
 
+/** Home — lightweight orientation page with direct paths to browse, create, and testing. */
+export const HomeTarget: Story = {
+  render: () => (
+    <MockupWrapper>
+      <HomeTargetContent />
+    </MockupWrapper>
+  ),
+};
+
+/** Browse — simple search plus browse-by-label default. */
+export const BrowseTarget: Story = {
+  render: () => (
+    <MockupWrapper>
+      <BrowseTargetContent />
+    </MockupWrapper>
+  ),
+};
+
 /** Protocol detail — target design: step flow graph, challenge cards, rendered-looking content. */
 export const ProtocolDetailTarget: Story = {
   render: () => (
@@ -45,7 +69,7 @@ export const ProtocolDetailTarget: Story = {
   ),
 };
 
-/** Protocol edit — target design: editor area with toolbar + preview panel. */
+/** Protocol edit — target design: rendered editor, step builder, and Markdown-safe formatting only. */
 export const ProtocolEditTarget: Story = {
   render: () => (
     <MockupWrapper>
@@ -54,8 +78,35 @@ export const ProtocolEditTarget: Story = {
   ),
 };
 
-/** Run guided — target design: step progress, flow with current highlighted, challenge card, solution form. */
-export const RunGuidedTarget: Story = {
+/** Editor icon set — review the proposed toolbar iconography in isolation. */
+export const EditorIconSetTarget: Story = {
+  render: () => (
+    <MockupWrapper>
+      <EditorToolbarIconSetTargetContent />
+    </MockupWrapper>
+  ),
+};
+
+/** Edit as skill — target design: bundle review and zip preparation before download. */
+export const SkillBundleTarget: Story = {
+  render: () => (
+    <MockupWrapper>
+      <SkillBundleTargetContent />
+    </MockupWrapper>
+  ),
+};
+
+/** Test Run list — restored Runs-style page with saved sessions. */
+export const TestRunListTarget: Story = {
+  render: () => (
+    <MockupWrapper>
+      <RunsTargetContent />
+    </MockupWrapper>
+  ),
+};
+
+/** Test Run — restored guided run flow with relabeled copy only. */
+export const TestRunTarget: Story = {
   render: () => (
     <MockupWrapper>
       <RunGuidedTargetContent />

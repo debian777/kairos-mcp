@@ -1,7 +1,11 @@
+import React from "react";
 import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { expect } from "vitest";
+
+// So JSX in test files has React in scope (Vitest/esbuild may not inject automatic runtime for tests)
+(globalThis as unknown as { React: typeof React }).React = React;
 
 expect.extend(matchers);
 

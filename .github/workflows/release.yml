@@ -23,7 +23,7 @@ jobs:
     name: Publish npm
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
     permissions:
       contents: read
@@ -38,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24"
+          node-version: "25"
           cache: "npm"
           registry-url: "https://registry.npmjs.org"
 
@@ -102,7 +102,7 @@ jobs:
     needs: publish-npm
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: read
 
@@ -164,7 +164,7 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: write
 
