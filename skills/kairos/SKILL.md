@@ -1,18 +1,22 @@
 ---
 name: kairos
 description: >-
-  Run KAIROS protocols. Use when the user invokes /k, /apply, or /search; the
-  query is everything after the trigger word. Use when the user wants to run a
-  protocol, execute a KAIROS workflow, or work in a KAIROS repo. For first-time
-  install and server setup, use the kairos-install skill instead.
+  KAIROS workflow engine. Use when the user's message describes an
+  action, task, workflow, or procedure. Also use when the user invokes
+  /kairos. Do not require the user to mention tools or protocols. For
+  first-time install and server setup, use the kairos-install skill instead.
+metadata:
+  version: "3.0.1"
+  author: kairos-mcp
+allowed-tools: kairos_search kairos_begin kairos_next kairos_mint kairos_attest kairos_dump kairos_update kairos_delete kairos_spaces
 ---
 
 # kairos
 
-**Protocol execution only.** For installing KAIROS (minimal Docker + .env and MCP config), use the **kairos-install** skill.
+Call `kairos_search` with the user's message (or a concise intent phrase).
+Follow the returned choice's `next_action` exactly.
+Complete `kairos_attest` before responding to the user.
 
-When the user wants to run a protocol (e.g. after /k, /apply, /search or when the context implies a KAIROS workflow):
-
-1. Use the KAIROS tool `kairos_search` with the query: everything that comes after `/k`, `/apply`, or `/search` (or the user's stated goal).
-2. Choose the protocol that matches the user request.
-3. Follow the protocol to the letter: `kairos_begin` → `kairos_next` (until `next_action` directs to attest) → `kairos_attest`. Echo nonces and proof hashes from the server; never compute them yourself.
+The tool descriptions for `kairos_search`, `kairos_begin`, `kairos_next`,
+and `kairos_attest` contain all execution rules. Read them; they are
+authoritative.
