@@ -12,9 +12,6 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
 const MIN_ATTEST_RUNS = 3;
 
 describe('kairos_attest scoring: propagation and score boost', () => {
-  // Requires minted protocol to appear in search (same space; dev server must preserve space context).
-  // Skip by default; set RUN_ATTEST_SCORING=true to run (e.g. when dev has few protocols so mint ranks in results).
-  const attestScoringSkip = process.env.RUN_ATTEST_SCORING !== 'true';
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
@@ -106,7 +103,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     parseMcpJson(result, 'kairos_attest');
   }
 
-  (attestScoringSkip ? test.skip : test)('positive attest: search score increases after MIN_ATTEST_RUNS successes', async () => {
+  test('positive attest: search score increases after MIN_ATTEST_RUNS successes', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringPositive ${ts}`;
     const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);
@@ -135,7 +132,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     });
   }, 45000);
 
-  (attestScoringSkip ? test.skip : test)('negative attest: search score decreases or stays same after failure', async () => {
+  test('negative attest: search score decreases or stays same after failure', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNegative ${ts}`;
     const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);
@@ -161,7 +158,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     );
   }, 45000);
 
-  (attestScoringSkip ? test.skip : test)('no boost when runs < MIN_ATTEST_RUNS: one success does not change score', async () => {
+  test('no boost when runs < MIN_ATTEST_RUNS: one success does not change score', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNoBoost ${ts}`;
     const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);

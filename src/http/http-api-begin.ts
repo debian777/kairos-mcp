@@ -2,7 +2,7 @@ import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { SCORE_THRESHOLD } from '../config.js';
+import { SCORE_THRESHOLD, KAIROS_ENABLE_GROUP_COLLAPSE } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import type { Memory } from '../types/memory.js';
@@ -13,6 +13,19 @@ const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
 const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+
+/** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
+function queryForSearch(query: string): string {
+  let q = (query || '').trim();
+  for (const token of [REFINING_PROTOCOL_URI, REFINING_PROTOCOL_UUID, CREATION_PROTOCOL_URI, CREATION_PROTOCOL_UUID]) {
+    q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
+  }
+  return q.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 interface UnifiedChoice {
     uri: string;
@@ -45,15 +58,9 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
 
             structuredLogger.info(`-> POST /api/kairos_search (query: ${query})`);
 
-            const normalizedQuery = query.trim().toLowerCase();
-            const parseEnvBool = (name: string, defaultVal: boolean) => {
-                const v = process.env[name];
-                if (v === undefined) return defaultVal;
-                const low = String(v).toLowerCase();
-                return !(low === 'false' || low === '0' || low === 'no' || low === 'n');
-            };
-            const enableGroupCollapse = parseEnvBool('KAIROS_ENABLE_GROUP_COLLAPSE', true);
-            const cacheKey = `begin:v3:${normalizedQuery}:${enableGroupCollapse}`;
+            const searchQuery = queryForSearch(query);
+            const normalizedQuery = searchQuery.toLowerCase();
+            const cacheKey = `begin:v3:${normalizedQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}`;
 
             const cachedResult = await redisCacheService.get(cacheKey);
             if (cachedResult) {
@@ -65,7 +72,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 });
             }
 
-            const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
+            const { memories, scores } = await memoryStore.searchMemories(searchQuery, 40, KAIROS_ENABLE_GROUP_COLLAPSE);
             const candidateMap = new Map<string, { memory: Memory; score: number }>();
 
             const addCandidate = (memory: Memory, score: number) => {
@@ -89,8 +96,8 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
 
             memories.forEach((memory, idx) => addCandidate(memory, scores[idx] ?? 0));
 
-            if (candidateMap.size < 10 && enableGroupCollapse) {
-                const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
+            if (candidateMap.size < 10 && KAIROS_ENABLE_GROUP_COLLAPSE) {
+                const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(searchQuery, 80, false);
                 moreMemories.forEach((memory, idx) => addCandidate(memory, moreScores[idx] ?? 0));
             }
 

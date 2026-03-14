@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { logger } from '../../utils/logger.js';
-import { MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX, KAIROS_APP_SPACE_ID } from '../../config.js';
+import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { CodeBlockProcessor } from '../code-block-processor.js';
@@ -192,9 +192,11 @@ export class MemoryQdrantStoreMethods {
                   TITLE_BOOST,
                   { key: 'chain.label', match: { text: normalizedQuery } }
                 ]
-              }
+              },
+              'attest_boost'
             ]
-          }
+          },
+          defaults: { attest_boost: 0 }
         },
         with_payload: true,
         limit: searchLimit
@@ -218,21 +220,7 @@ export class MemoryQdrantStoreMethods {
     const scored = points.map((r: SearchHit) => {
       const payload = r.payload || {};
       const memory = this.pointToMemory({ id: String(r.id), payload });
-      let score = typeof r.score === 'number' ? r.score : 0.5;
-      const qm = (payload['quality_metrics'] as { successCount?: number; failureCount?: number } | undefined) ?? {};
-      const successCount = typeof qm.successCount === 'number' ? qm.successCount : 0;
-      const failureCount = typeof qm.failureCount === 'number' ? qm.failureCount : 0;
-      const runs = successCount + failureCount;
-      let attestBoost = 0;
-      if (runs >= MIN_ATTEST_RUNS) {
-        const successRatio = runs > 0 ? successCount / runs : 0;
-        const confidence = Math.min(runs / RUNS_FULL_CONFIDENCE, 1);
-        attestBoost = Math.min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX);
-        logger.debug(
-          `[vectorSearch] attest boost point=${r.id} runs=${runs} successRatio=${successRatio.toFixed(2)} confidence=${confidence.toFixed(2)} boost=${attestBoost.toFixed(4)}`
-        );
-      }
-      score += attestBoost;
+      const score = typeof r.score === 'number' ? r.score : 0.5;
       return { memory, score };
     });
 
