@@ -1,2 +1,23 @@
 #!/bin/sh
+# Restraint 2: reject Co-Authored-By lines for known AI assistants
+msg_file="${1:-}"
+if [ -z "$msg_file" ] || [ ! -f "$msg_file" ]; then
+  exit 0
+fi
+blocked_regex='(claude|claud|chatgpt|cursor|copilot|noreply@anthropic\.com|@openai\.com)'
+blocked_line=""
+while IFS= read -r line; do
+  case "$line" in
+    [Cc]o-[Aa]uthored-[Bb]y:*)
+      if echo "$line" | grep -qiE "$blocked_regex"; then
+        blocked_line="$line"
+        break
+      fi
+      ;;
+  esac
+done < "$msg_file"
+if [ -n "$blocked_line" ]; then
+  echo "commit-msg: AI co-authors not allowed. Remove: $blocked_line" >&2
+  exit 1
+fi
 exit 0
