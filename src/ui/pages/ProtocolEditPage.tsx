@@ -166,14 +166,20 @@ export function ProtocolEditPage() {
     comment: t("protocolEdit.challengeComment"),
   };
 
+  const pageTitle = !isNew && form.protocolLabel.trim()
+    ? form.protocolLabel.trim()
+    : isNew
+      ? t("protocolEdit.newTitle")
+      : t("protocolEdit.editTitle");
+
   return (
     <div>
       <h1 className="mb-1 text-2xl font-semibold text-[var(--color-text-heading)]">
-        {isNew ? t("protocolEdit.newTitle") : t("protocolEdit.editTitle")}
+        {pageTitle}
       </h1>
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.hint")}</p>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5">
         <div>
           <div className="font-medium text-[var(--color-text-heading)]">Import existing content</div>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.uploadHint")}</p>
@@ -207,8 +213,8 @@ export function ProtocolEditPage() {
       </div>
 
       <form onSubmit={handleSubmit} aria-label={t("protocolEdit.formLabel")}>
-        <div className="mb-6 grid gap-4 xl:grid-cols-[1.45fr_1fr]">
-          <div className="space-y-4">
+        <div className="mb-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <div className="space-y-6">
             <div>
               <label htmlFor="protocol-label" className="mb-2 block font-medium text-[var(--color-text-heading)]">
                 {t("protocolEdit.protocolLabel")}
@@ -233,10 +239,12 @@ export function ProtocolEditPage() {
             {form.steps.map((step, index) => (
               <div
                 key={index}
-                className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4"
+                className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5 space-y-5"
               >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-[var(--color-text-heading)]">Step {index + 1}</div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm text-[var(--color-text-muted)]">
+                    Step {index + 1}{step.label.trim() ? `: ${step.label.trim()}` : ""}
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeStep(index)}
@@ -246,16 +254,16 @@ export function ProtocolEditPage() {
                     {t("protocolEdit.removeStep")}
                   </button>
                 </div>
-                <div className="mb-4">
+                <div>
                   <label className="mb-2 block font-medium text-[var(--color-text-heading)]">{t("protocolEdit.stepLabel")}</label>
                   <input
                     type="text"
                     value={step.label}
                     onChange={(e) => setStep(index, { label: e.target.value })}
-                    className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                    className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)]                     focus-visible:outline-offset-2"
                   />
                 </div>
-                <div className="mb-4">
+                <div>
                   <div className="mb-2 font-medium text-[var(--color-text-heading)]">{t("protocolEdit.challengeType")}</div>
                   <div className="flex flex-wrap gap-2">
                     {CHALLENGE_TYPE_KEYS.map((type) => (
@@ -283,7 +291,7 @@ export function ProtocolEditPage() {
                     ))}
                   </div>
                 </div>
-                <div className="mb-4">
+                <div>
                   <RichTextEditor
                     label={t("protocolEdit.stepContent")}
                     value={step.bodyMarkdown}

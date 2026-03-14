@@ -178,7 +178,7 @@ export function RichTextEditor({ value, onChange, label, hint, id, contentKey }:
     key: contentKey ?? "default",
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ heading: false }),
+      StarterKit.configure({ heading: false, link: false }),
       Link.configure({ openOnClick: false, autolink: false }),
       Markdown,
     ],
@@ -196,7 +196,7 @@ export function RichTextEditor({ value, onChange, label, hint, id, contentKey }:
   useEffect(() => {
     if (!editor || contentKey === lastKey.current) return;
     lastKey.current = contentKey;
-    editor.commands.setContent(value, false, { preserveWhitespace: "full" });
+    editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
   }, [contentKey, value, editor]);
 
   return (
