@@ -38,7 +38,10 @@ function getEnvFloat(key: string, defaultValue: number): number {
 function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   const val = process.env[key];
   if (val === undefined) return defaultValue;
-  return val !== 'false';
+  const low = String(val).trim().toLowerCase();
+  if (low === 'false' || low === '0' || low === 'no' || low === 'n') return false;
+  if (low === 'true' || low === '1' || low === 'yes' || low === 'y') return true;
+  return defaultValue;
 }
 
 // REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend
@@ -60,8 +63,14 @@ export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
-export const KAIROS_SEARCH_MAX_FETCH = getEnvString('KAIROS_SEARCH_MAX_FETCH', '200');
-export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvString('KAIROS_ENABLE_GROUP_COLLAPSE', 'true');
+export const KAIROS_SEARCH_MAX_FETCH = getEnvInt('KAIROS_SEARCH_MAX_FETCH', 200);
+/** Default number of match choices returned by kairos_search when agent omits max_choices. */
+export const KAIROS_SEARCH_MAX_CHOICES = getEnvInt('KAIROS_SEARCH_MAX_CHOICES', 10);
+/** Absolute cap for kairos_search max_choices (prevents abuse and excessive resolveHead latency). */
+export const KAIROS_SEARCH_LIMIT_CAP = getEnvInt('KAIROS_SEARCH_LIMIT_CAP', 50);
+/** Minimum match choices when agent passes max_choices. */
+export const KAIROS_SEARCH_LIMIT_MIN = getEnvInt('KAIROS_SEARCH_LIMIT_MIN', 5);
+export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_COLLAPSE', true);
 
 // Auth (Keycloak OIDC). One Keycloak per env: each env file sets KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID.
 // When AUTH_ENABLED=true these must be set (no empty string); startup will throw otherwise.

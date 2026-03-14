@@ -2,7 +2,7 @@ import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { SCORE_THRESHOLD } from '../config.js';
+import { SCORE_THRESHOLD, KAIROS_ENABLE_GROUP_COLLAPSE } from '../config.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import type { Memory } from '../types/memory.js';
@@ -60,14 +60,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
 
             const searchQuery = queryForSearch(query);
             const normalizedQuery = searchQuery.toLowerCase();
-            const parseEnvBool = (name: string, defaultVal: boolean) => {
-                const v = process.env[name];
-                if (v === undefined) return defaultVal;
-                const low = String(v).toLowerCase();
-                return !(low === 'false' || low === '0' || low === 'no' || low === 'n');
-            };
-            const enableGroupCollapse = parseEnvBool('KAIROS_ENABLE_GROUP_COLLAPSE', true);
-            const cacheKey = `begin:v3:${normalizedQuery}:${enableGroupCollapse}`;
+            const cacheKey = `begin:v3:${normalizedQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}`;
 
             const cachedResult = await redisCacheService.get(cacheKey);
             if (cachedResult) {
@@ -79,7 +72,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 });
             }
 
-            const { memories, scores } = await memoryStore.searchMemories(searchQuery, 40, enableGroupCollapse);
+            const { memories, scores } = await memoryStore.searchMemories(searchQuery, 40, KAIROS_ENABLE_GROUP_COLLAPSE);
             const candidateMap = new Map<string, { memory: Memory; score: number }>();
 
             const addCandidate = (memory: Memory, score: number) => {
@@ -103,7 +96,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
 
             memories.forEach((memory, idx) => addCandidate(memory, scores[idx] ?? 0));
 
-            if (candidateMap.size < 10 && enableGroupCollapse) {
+            if (candidateMap.size < 10 && KAIROS_ENABLE_GROUP_COLLAPSE) {
                 const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(searchQuery, 80, false);
                 moreMemories.forEach((memory, idx) => addCandidate(memory, moreScores[idx] ?? 0));
             }
