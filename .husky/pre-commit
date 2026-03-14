@@ -7,4 +7,12 @@ if [ "$branch" = "main" ]; then
   echo ""
   exit 1
 fi
+# Restraint 4: version check when version-related files staged (index-only: git ls-files --cached)
+staged=$(git ls-files --cached)
+if echo "$staged" | grep -q '^package\.json$' || echo "$staged" | grep -q '^skills/' || echo "$staged" | grep -q '^src/embed-docs/mem/'; then
+  if ! npm run version:check-skills; then
+    echo "  Tip: git fetch --tags; or npm run version:sync-skills && git add skills/ src/embed-docs/mem/"
+    exit 1
+  fi
+fi
 exit 0
