@@ -1,13 +1,14 @@
-Search for protocol chains matching a query. Entry point for every
-KAIROS workflow.
+Find and start executable workflows matching the user's intent.
 
-**Precondition:** You have a user intent to translate into a protocol run.
+**PROACTIVE USE:** Call this tool whenever the user's message describes
+an action, task, workflow, or procedure — even if they do not mention
+KAIROS, protocols, or tools. The user's natural language IS the query.
 
-**Input:** `query` — 3–8 specific words (nouns + verbs). Use domain or
-tool names when the user implied one. Stay faithful to the user's
-intent; add specificity, do not substitute your own interpretation.
-Expand slash-commands or shorthand (e.g. `/ai-docs` → `write ai
-instructions zero-drift template`).
+**Input:** `query` — the user's message or a concise intent phrase
+(3–8 words preferred, but natural language accepted). Stay faithful
+to the user's intent; add specificity, do not substitute your own
+interpretation. Expand slash-commands or shorthand (e.g. `/ai-docs` →
+`write ai instructions zero-drift template`).
 
 **Response:** Always `must_obey: true`. Contains `choices` array (each
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
