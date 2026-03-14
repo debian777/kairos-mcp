@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
 export function updateCommand(program: Command): void {
@@ -63,10 +64,9 @@ export function updateCommand(program: Command): void {
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {
                     writeError('File not found');
-                } else {
-                    writeError(error instanceof Error ? error.message : String(error));
+                    process.exit(1);
                 }
-                process.exit(1);
+                handleApiError(error, program.opts()['open']);
             }
         });
 }

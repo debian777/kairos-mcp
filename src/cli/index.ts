@@ -12,6 +12,8 @@ import { mintCommand } from './commands/mint.js';
 import { updateCommand } from './commands/update.js';
 import { deleteCommand } from './commands/delete.js';
 import { attestCommand } from './commands/attest.js';
+import { loginCommand } from './commands/login.js';
+import { logoutCommand } from './commands/logout.js';
 import { getApiUrl } from './config.js';
 
 const require = createRequire(import.meta.url);
@@ -24,6 +26,7 @@ program
     .description('CLI tool for interacting with KAIROS REST API')
     .version(version)
     .option('-u, --url <url>', 'KAIROS API base URL', getApiUrl())
+    .option('--open', 'open login URL in browser when authentication is required')
     .hook('preAction', (thisCommand) => {
         // Store the URL option globally for use in commands
         const opts = thisCommand.opts();
@@ -40,6 +43,8 @@ mintCommand(program);     // kairos_mint
 updateCommand(program);   // kairos_update
 deleteCommand(program);  // kairos_delete
 attestCommand(program);   // kairos_attest
+loginCommand(program);
+logoutCommand(program);
 
 // Parse arguments
 program.parse();

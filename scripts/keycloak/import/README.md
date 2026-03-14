@@ -4,8 +4,8 @@ Realm JSONs in this directory are applied **idempotently** by **scripts/configur
 
 ## Files
 
-- **kairos-dev-realm.json** – Dev realm: `kairos-dev`, client `kairos-mcp` (direct access grants, redirect URIs). Browser SSO is kept; MCP clients should send `prompt=login` when building the auth URL (see `authorization_request_parameters` in `/.well-known/oauth-protected-resource`).
-- **kairos-prod-realm.json** – Prod realm: `kairos-prod`, client `kairos-mcp`.
+- **kairos-dev-realm.json** – Dev realm: `kairos-dev`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE). Browser SSO is kept; MCP clients should send `prompt=login` when building the auth URL (see `authorization_request_parameters` in `/.well-known/oauth-protected-resource`).
+- **kairos-prod-realm.json** – Prod realm: `kairos-prod`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE).
 
 ## Idempotent configuration: `configure-keycloak-realms.py`
 

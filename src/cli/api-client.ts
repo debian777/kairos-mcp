@@ -2,7 +2,9 @@
  * API Client for KAIROS REST API
  */
 
+import { AuthRequiredError } from './auth-error.js';
 import { getApiUrl } from './config.js';
+import { readConfig } from './config-file.js';
 
 export interface ApiResponse<T = any> {
     data?: T;
@@ -18,9 +20,9 @@ export class ApiClient {
     private baseUrl: string;
 
     constructor(baseUrl?: string) {
-        // Check environment variable first (set by CLI hook), then parameter, then default
-        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || getApiUrl();
-        // Remove trailing slash
+        // Precedence: env, then parameter, then config file, then default
+        const config = readConfig();
+        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || config.KAIROS_API_URL || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
     }
 
@@ -32,7 +34,7 @@ export class ApiClient {
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
-        const bearer = process.env['KAIROS_BEARER_TOKEN'];
+        const bearer = process.env['KAIROS_BEARER_TOKEN'] || readConfig().KAIROS_BEARER_TOKEN;
         if (bearer) {
             defaultHeaders['Authorization'] = `Bearer ${bearer}`;
         }
@@ -50,10 +52,15 @@ export class ApiClient {
         }) as ApiResponse<T>;
 
         if (!response.ok) {
-            const errorData = data as any;
-            throw new Error(
-                errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
-            );
+            const errorData = data as { message?: string; error?: string; login_url?: string };
+            const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            if (response.status === 401 && errorData.login_url) {
+                throw new AuthRequiredError(
+                    `${msg}\n\nLog in at:\n${errorData.login_url}`,
+                    errorData.login_url
+                );
+            }
+            throw new Error(msg);
         }
 
         return data;
@@ -85,7 +92,7 @@ export class ApiClient {
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
-        const bearer = process.env['KAIROS_BEARER_TOKEN'];
+        const bearer = process.env['KAIROS_BEARER_TOKEN'] || readConfig().KAIROS_BEARER_TOKEN;
         if (bearer) {
             headers['Authorization'] = `Bearer ${bearer}`;
         }
@@ -109,10 +116,15 @@ export class ApiClient {
         }) as ApiResponse;
 
         if (!response.ok) {
-            const errorData = data as any;
-            throw new Error(
-                errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
-            );
+            const errorData = data as { message?: string; error?: string; login_url?: string };
+            const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            if (response.status === 401 && errorData.login_url) {
+                throw new AuthRequiredError(
+                    `${msg}\n\nLog in at:\n${errorData.login_url}`,
+                    errorData.login_url
+                );
+            }
+            throw new Error(msg);
         }
 
         return data;
