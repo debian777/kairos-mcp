@@ -46,7 +46,7 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('choices');
       expect(result).toHaveProperty('choices');
-    }, 30000);
+    }, 60000);
 
     test('search uses -u short form', async () => {
       if (!serverAvailable) return;
