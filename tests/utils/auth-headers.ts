@@ -11,8 +11,8 @@ function getAuthEnvFilePath(): string {
   return join(process.cwd(), '.test-auth-env.dev.json');
 }
 
-const TEST_USERNAME = 'kairos-tester';
-const TEST_PASSWORD = 'kairos-tester-secret';
+export const TEST_USERNAME = 'kairos-tester';
+export const TEST_PASSWORD = 'kairos-tester-secret';
 
 interface TestAuthEnv {
   bearerToken?: string;
