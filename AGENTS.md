@@ -10,7 +10,7 @@ compute them.
 
 ## Architecture
 
-**Tech stack:** TypeScript (Node.js ≥ 24), Qdrant (vector DB), Redis
+**Tech stack:** TypeScript (Node.js ≥ 25), Qdrant (vector DB), Redis
 (state/caching), optional Keycloak (OIDC auth).
 
 | Path | Purpose |
