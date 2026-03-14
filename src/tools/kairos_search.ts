@@ -5,7 +5,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage } from '../utils/tenant-context.js';
+import { getTenantId, getSpaceContextFromStorage, runWithOptionalSpaceAsync } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import {
   SCORE_THRESHOLD,
@@ -81,23 +81,18 @@ async function searchAndBuildCandidates(
     const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, secondLimit, false);
     moreMemories.forEach((memory, idx) => addCandidate(candidateMap, memory, moreScores[idx] ?? 0));
   }
-
   return candidateMap;
 }
 
 /**
  * Register kairos_search tool
- * 
+ *
  * V2 unified response: always must_obey: true, choices array with score/role,
  * creation protocol always available as fallback.
  */
 export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterSearchOptions = {}) {
   const toolName = options.toolName || 'kairos_search';
-  const memoryUriSchema = z
-    .string()
-    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
-  const choiceUriSchema = memoryUriSchema;
-
+  const memoryUriSchema = z.string().regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
   const inputSchema = z.object({
     query: z.string().min(1).describe('Search query for chain heads'),
     space: z.string().optional().describe('Scope results to this space (must be in your allowed spaces)'),
@@ -110,25 +105,22 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       .optional()
       .describe('Max match choices to return. Omit for server default; use higher for broad/vague queries.')
   });
-
   const outputSchema = z.object({
     must_obey: z.boolean().describe('Always true. Follow next_action.'),
     message: z.string().describe('Human-readable summary'),
-    next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
+    next_action: z.string().describe("You MUST pick the top choice (index 0) and follow that choice's next_action."),
     choices: z.array(z.object({
-      uri: choiceUriSchema,
+      uri: memoryUriSchema,
       label: z.string(),
       chain_label: z.string().nullable(),
       score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
       role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
       tags: z.array(z.string()),
       next_action: z.string().describe('Instruction for this choice: call kairos_begin with this choice\'s uri.'),
-      protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.')
-    })).describe('Options: match(es) first, then refine (if present), then create (if present).')
+      protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create.')
+    })).describe('Best action is always at index 0; follow that choice\'s next_action.')
   });
 
-  structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(inputSchema)}`);
-  structuredLogger.debug(`kairos_search registration outputSchema: ${JSON.stringify(outputSchema)}`);
   server.registerTool(
     toolName,
     {
@@ -152,30 +144,12 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       );
       const inputSize = JSON.stringify({ query }).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
-
-      const timer = mcpToolDuration.startTimer({
-        tool: toolName,
-        tenant_id: tenantId
-      });
+      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
       const respond = (payload: any) => {
-        const structured = {
-          content: [{
-            type: 'text', text: JSON.stringify(payload)
-          }],
-          structuredContent: payload
-        };
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        const outputSize = JSON.stringify(structured).length;
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
-        timer({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
+        const structured = { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload };
+        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(structured).length);
+        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
         return structured;
       };
       try {
@@ -219,27 +193,24 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-          return {
-            content: [{ type: 'text', text: JSON.stringify({ error: 'forbidden', message: error.message }) }],
-            isError: true
-          };
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'forbidden', message: error.message }) }], isError: true };
         }
         const ctxErr = getSpaceContextFromStorage();
         structuredLogger.warn(`kairos_search error (returning empty results) space_id=${ctxErr?.defaultWriteSpaceId ?? 'default'}: ${error instanceof Error ? error.message : String(error)}`);
-        mcpToolCalls.inc({ 
-          tool: toolName, 
+        mcpToolCalls.inc({
+          tool: toolName,
           status: 'error',
-          tenant_id: tenantId 
+          tenant_id: tenantId
         });
-        mcpToolErrors.inc({ 
-          tool: toolName, 
+        mcpToolErrors.inc({
+          tool: toolName,
           status: 'error',
-          tenant_id: tenantId 
+          tenant_id: tenantId
         });
-        timer({ 
-          tool: toolName, 
+        timer({
+          tool: toolName,
           status: 'error',
-          tenant_id: tenantId 
+          tenant_id: tenantId
         });
         const fallback = await generateUnifiedOutput([], options.qdrantService, {
           refiningUri: REFINING_PROTOCOL_URI,

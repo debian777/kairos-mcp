@@ -30,7 +30,7 @@ compute them.
 Execute every protocol in this exact order:
 
 1. **`kairos_search(query)`** — Returns `choices` with URIs. `must_obey:
-   true`. Pick the best-matching choice; follow that choice's
+   true`. You MUST pick the top choice (`choices[0]`) and follow its
    `next_action` (always `kairos_begin` with its URI).
 2. **`kairos_begin(uri)`** — Loads step 1, returns its `challenge`. Step
    1 never requires a solution. Follow `next_action`.
