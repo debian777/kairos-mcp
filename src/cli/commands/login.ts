@@ -66,7 +66,11 @@ async function loginWithBrowser(baseUrl: string): Promise<boolean> {
     const state = randomBytes(16).toString('base64url');
 
     return new Promise((resolve) => {
-        let listenPort = 0;
+        // Read callback port from env (default 0 = ephemeral)
+        const callbackPortEnv = process.env['KAIROS_LOGIN_CALLBACK_PORT'];
+        const callbackPort = callbackPortEnv ? parseInt(callbackPortEnv, 10) : 0;
+        const noBrowser = !!process.env['KAIROS_LOGIN_NO_BROWSER'];
+        let listenPort = callbackPort;
         const server = createServer(async (req, res) => {
             const url = new URL(req.url ?? '/', `http://localhost`);
             if (url.pathname !== '/callback') {
@@ -130,8 +134,14 @@ async function loginWithBrowser(baseUrl: string): Promise<boolean> {
             authUrl.searchParams.set('code_challenge', codeChallenge);
             authUrl.searchParams.set('code_challenge_method', 'S256');
             authUrl.searchParams.set('prompt', 'login');
-            openBrowser(authUrl.toString());
-            writeStdout('Opening browser. Complete login in the browser.');
+            const authUrlStr = authUrl.toString();
+            if (noBrowser) {
+                // E2E/automation: print URL to stdout instead of opening browser
+                writeStdout(authUrlStr);
+            } else {
+                openBrowser(authUrlStr);
+                writeStdout('Opening browser. Complete login in the browser.');
+            }
         });
     });
 }

@@ -6,7 +6,7 @@ When **AUTH_ENABLED** is true, the KAIROS server requires authentication for `/a
 
 - **Mechanisms:** Session cookie (browser, OAuth PKCE via Keycloak) or **Bearer JWT** (validated with JWKS; issuer and audience from config).
 - **Unauthenticated requests:** GET (non-MCP) → 302 redirect to IdP; POST / MCP → **401** with JSON `{ error, message, login_url }` and `WWW-Authenticate` header (RFC 9728 / MCP discovery).
-- **Discovery:** `GET /.well-known/oauth-protected-resource` (no auth) returns `authorization_servers`, `authorization_endpoint`, `token_endpoint`, and `resource` so clients can build login URLs without hitting 401 first. In production, serve the app (and well-known) over HTTPS.
+- **Discovery:** `GET /.well-known/oauth-protected-resource` (no auth) returns `authorization_servers`, `authorization_endpoint`, `token_endpoint`, `resource`, and `kairos_cli_client_id` (KAIROS-specific extension) so clients can build login URLs without hitting 401 first. In production, serve the app (and well-known) over HTTPS.
 
 See [install/README.md](install/README.md) and [install/google-auth-dev.md](install/google-auth-dev.md) for enabling auth and configuring Keycloak.
 
@@ -16,14 +16,20 @@ All REST endpoints and POST `/mcp` use the same auth middleware. There is no sep
 
 ## Shared config: CLI and MCP
 
+**Three roles, two Keycloak clients, one config file:**
+
+- **`kairos-mcp`** — Server's own client for browser redirect login (session cookie flow). Used by server auth middleware and callback handler.
+- **`kairos-cli`** — Public client with PKCE for native/CLI/MCP-host login. Used by CLI `login` command and any MCP host doing OAuth.
+- **`config.json`** — Single shared token file. Both CLI and MCP hosts read from and write to it. API server never touches it.
+
 **Both CLI and MCP clients use the same token location** so one login works for both:
 
 - **Config path:** `$XDG_CONFIG_HOME/kairos/config.json` (Unix) or `%APPDATA%\kairos\config.json` (Windows). Env `KAIROS_BEARER_TOKEN` overrides the config file when set.
 - **Contract:**  
   1. **Try read:** Use token from env, then from config file.  
   2. **If absent:** Perform auth (see below), then **save** the token (and optionally API URL) to that same config file.
-- **CLI:** Reads from env then config; `kairos login` (browser or `--token`) performs auth and writes to config. Other commands use the token from env/config; on 401 they prompt to log in.
-- **MCP:** The host (e.g. Cursor) that connects to KAIROS should read the token from the same path (or from `KAIROS_BEARER_TOKEN`). If no token, the host should direct the user to run `kairos login` (which saves to config), or implement the same OAuth PKCE flow and write the token to the config path so CLI and MCP share it.
+- **CLI:** Reads from env then config; `kairos login` (browser PKCE or `--token`) performs auth and writes to config. Other commands use the token from env/config; on 401 they prompt to log in.
+- **MCP:** The host (e.g. Cursor) that connects to KAIROS should read the token from the same path (or from `KAIROS_BEARER_TOKEN`). If no token, the host can discover auth endpoints via `/.well-known/oauth-protected-resource` (which exposes `kairos_cli_client_id`), perform OAuth PKCE using that client, and write the token to the config path so CLI and MCP share it. Alternatively, the host can direct the user to run `kairos login` first.
 
 ## CLI
 

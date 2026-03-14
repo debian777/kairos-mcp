@@ -75,6 +75,11 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
         expect(body.authorization_endpoint).toMatch(/\/protocol\/openid-connect\/auth$/);
         expect(body.token_endpoint).toMatch(/\/protocol\/openid-connect\/token$/);
       }
+
+      // KAIROS-specific extension: expose kairos_cli_client_id for MCP hosts doing PKCE
+      expect(body).toHaveProperty('kairos_cli_client_id');
+      expect(typeof body.kairos_cli_client_id).toBe('string');
+      expect(body.kairos_cli_client_id).toBeTruthy();
     });
   });
 

@@ -176,21 +176,18 @@ for (const iss of _authIssuersBase) {
 }
 export const AUTH_TRUSTED_ISSUERS = _authIssuersExpanded;
 
-// Allowed audiences: from env, or default to server + CLI client IDs so both web and CLI logins work. Add "account" for Keycloak access tokens when we have realm issuers.
+// Allowed audiences: from env if set (explicit config wins), or default to server + CLI client IDs + account.
+// If AUTH_ALLOWED_AUDIENCES is explicitly set, use it as-is (no magic injection).
 const _authAudFromEnv = AUTH_ALLOWED_AUDIENCES_STRING.split(',')
   .map((s) => s.trim())
   .filter(Boolean);
-const _authAudDefault = [
-  ...(KEYCLOAK_CLIENT_ID ? [KEYCLOAK_CLIENT_ID] : []),
-  ...(KEYCLOAK_CLI_CLIENT_ID && KEYCLOAK_CLI_CLIENT_ID !== KEYCLOAK_CLIENT_ID ? [KEYCLOAK_CLI_CLIENT_ID] : [])
-];
-const _authAudBaseRaw =
-  _authAudFromEnv.length > 0 ? _authAudFromEnv : _authAudDefault;
-// Ensure CLI client is allowed so Bearer tokens from `kairos login` (kairos-cli) are accepted
-const _authAudBase =
-  KEYCLOAK_CLI_CLIENT_ID && !_authAudBaseRaw.includes(KEYCLOAK_CLI_CLIENT_ID)
-    ? [..._authAudBaseRaw, KEYCLOAK_CLI_CLIENT_ID]
-    : _authAudBaseRaw;
+const _authAudDefault: string[] = [];
+if (KEYCLOAK_CLIENT_ID) _authAudDefault.push(KEYCLOAK_CLIENT_ID);
+if (KEYCLOAK_CLI_CLIENT_ID && KEYCLOAK_CLI_CLIENT_ID !== KEYCLOAK_CLIENT_ID) {
+  _authAudDefault.push(KEYCLOAK_CLI_CLIENT_ID);
+}
+const _authAudBase = _authAudFromEnv.length > 0 ? _authAudFromEnv : _authAudDefault;
+// Add "account" for Keycloak access tokens when we have realm issuers
 const _hasKeycloakRealm = _authIssuersBase.some((u) => u.includes('/realms/'));
 export const AUTH_ALLOWED_AUDIENCES =
   _hasKeycloakRealm && !_authAudBase.includes('account')
