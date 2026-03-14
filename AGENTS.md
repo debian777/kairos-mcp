@@ -10,17 +10,17 @@ compute them.
 
 ## Architecture
 
-**Tech stack:** TypeScript (Node.js ≥ 24), Qdrant (vector DB), Redis
+**Tech stack:** TypeScript (Node.js ≥ 25), Qdrant (vector DB), Redis
 (state/caching), optional Keycloak (OIDC auth).
 
 | Path | Purpose |
 |------|---------|
 | `src/` | TypeScript source |
 | `src/embed-docs/` | MCP resources served to agents (tools, mem, prompts) |
-| `skills/kairos-development/` | Agent instructions for kairos-dev (ai-mcp-integration, workflow-test) |
+| `skills/.system/kairos-development/` | Agent instructions for kairos-dev (ai-mcp-integration, workflow-test) |
 | `dist/` | Compiled output |
 | `tests/` | Integration tests |
-| `tests/workflow-test/` | Workflow test harness (prompt copy, how to run; canonical agent text in `skills/kairos-development/`) |
+| `tests/workflow-test/` | Workflow test harness (prompt copy, how to run; canonical agent text in `skills/.system/kairos-development/`) |
 | `reports/` | Workflow test output (`reports/<run-id>/report.md`) |
 | `docs/examples/` | Mintable protocol examples for dev workflow tests |
 | `scripts/` | Build and utility scripts |

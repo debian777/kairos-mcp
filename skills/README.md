@@ -33,17 +33,32 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
 | kairos-create-protocol | Create and mint new protocol chains. |
 | kairos-create-skill | Create skills that ship protocols. |
 | kairos-refine-search | Refine a weak/empty search (better query). |
-| kairos-development | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
 
-**Global install for Cursor / Claude Code** (non-interactive): add `-y -g` and optionally `-a cursor` or `-a claude-code`. Example:
+*kairos-development* (workflow-test, ai-mcp-integration) lives in `skills/.system/kairos-development/` and is **internal** — it does not appear in `--list` unless `INSTALL_INTERNAL_SKILLS=1`. Contributors: `INSTALL_INTERNAL_SKILLS=1 npx skills add debian777/kairos-mcp --skill kairos-development -y -g -a cursor`.
+
+**Global install for Cursor / Claude Code** (non-interactive): use `-y -g` and repeat `-a <agent>` per agent (see [vercel-labs/skills](https://github.com/vercel-labs/skills) for options). Example:
 
 ```bash
-npx skills add debian777/kairos-mcp --skill kairos-code -y -g -a cursor -a claude-cod
+npx skills add debian777/kairos-mcp -y -g -a cursor -a claude-code
 ```
+
+**If symlinks are not possible or skills don't appear:** Run the same command **without** `-y` to open the interactive installer. You can then choose **Copy** instead of Symlink, pick scope and agents in the UI, and complete the installation. Alternatively use a **project** install (omit `-g`) so skills live in `.agents/skills`, or symlink the agent's skills dir to the canonical one (e.g. `ln -s ~/.agents/skills ~/.cursor/skills`). See [Installation Scope](https://github.com/vercel-labs/skills#installation-scope) and [Supported Agents](https://github.com/vercel-labs/skills#supported-agents) in the official docs.
+
+Full options: `npx skills --help` (e.g. `--copy`, `--skill '*'`).
 
 **Remove:** `npx skills remove <skill-name> -g` (e.g. `kairos`, `kairos-code`).
 
 See the [main README](../README.md#agent-skills) for a short table and agent-specific commands.
+
+### Where to put development-only skills
+
+The [skills CLI](https://github.com/vercel-labs/skills) discovers skills in `skills/`, `skills/.curated/`, `skills/.experimental/`, and `skills/.system/`. Those subfolders are **organizational only** — they do not change install behavior. To hide a skill from normal discovery (e.g. dev/workflow-test only), use **frontmatter**: set `metadata.internal: true` in `SKILL.md`; then the skill is only listed and installable when `INSTALL_INTERNAL_SKILLS=1` is set.
+
+- **`skills/.system/`** — Conventional place for tooling/system skills (e.g. repo dev, CI, workflow-test). Still discoverable by default unless you set `metadata.internal: true`.
+- **`skills/.experimental/`** — For experimental or unstable skills.
+- **`metadata.internal: true`** — Use for skills meant only for contributors or internal tooling; they won’t appear in `npx skills add ... --list` unless the env var is set.
+
+So: put a development skill (e.g. kairos-development) in **`skills/.system/`** if you want to signal “for repo/system use,” and add **`metadata.internal: true`** in its `SKILL.md` if you want it hidden from normal installs.
 
 ## Purpose
 
