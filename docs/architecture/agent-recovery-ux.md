@@ -54,5 +54,3 @@ When adding a new proof type:
   (errors teach; `next_action` in errors)
 - [kairos_next workflow](workflow-kairos-next.md) — error codes and
   recovery paths
-- [MISSING_PROOF fix examples](missing-proof-fix-examples.md) — concrete
-  JSON examples of the fix
