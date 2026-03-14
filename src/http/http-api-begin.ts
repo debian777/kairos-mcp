@@ -14,6 +14,33 @@ const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
 const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
+/** Detect explicit creation intent from query (create/mint/build new protocol/workflow/chain). */
+const CREATION_INTENT_REGEX = /\b(create|mint|build|new)\b.*\b(protocol|workflow|chain)\b/i;
+const RELEVANT_SCORE = 0.5;
+const STRICT_NEXT_ACTION = "You MUST pick the top choice (index 0) and follow that choice's next_action.";
+
+const refineChoice: UnifiedChoice = {
+    uri: REFINING_PROTOCOL_URI,
+    label: 'Get help refining your search',
+    chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
+    score: null,
+    role: 'refine',
+    tags: ['meta', 'refine'],
+    next_action: REFINING_NEXT_ACTION,
+    protocol_version: null
+};
+
+const createChoice: UnifiedChoice = {
+    uri: CREATION_PROTOCOL_URI,
+    label: 'Create New KAIROS Protocol Chain',
+    chain_label: 'Create New KAIROS Protocol Chain',
+    score: null,
+    role: 'create',
+    tags: ['meta', 'creation'],
+    next_action: CREATE_NEXT_ACTION,
+    protocol_version: null
+};
+
 interface UnifiedChoice {
     uri: string;
     label: string;
@@ -112,7 +139,7 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 }))
                 .filter(r => r.score >= SCORE_THRESHOLD);
 
-            // Build unified choices: matches with per-choice next_action, then refine (if 0 or >1 matches), then create (if 0 or >1)
+            // Build match choices with per-choice next_action
             const choices: UnifiedChoice[] = [];
             const matchCount = results.length;
 
@@ -133,52 +160,47 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
                 });
             }
 
-            if (matchCount !== 1) {
-                choices.push(
-                    {
-                        uri: REFINING_PROTOCOL_URI,
-                        label: 'Get help refining your search',
-                        chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
-                        score: null,
-                        role: 'refine',
-                        tags: ['meta', 'refine'],
-                        next_action: REFINING_NEXT_ACTION,
-                        protocol_version: null
-                    },
-                    {
-                        uri: CREATION_PROTOCOL_URI,
-                        label: 'Create New KAIROS Protocol Chain',
-                        chain_label: 'Create New KAIROS Protocol Chain',
-                        score: null,
-                        role: 'create',
-                        tags: ['meta', 'creation'],
-                        next_action: CREATE_NEXT_ACTION,
-                        protocol_version: null
-                    }
-                );
+            const singleMatchNotRelevant = matchCount === 1 && (choices[0]?.score ?? 0) < RELEVANT_SCORE;
+            const offerRefineAndCreate = matchCount !== 1 || singleMatchNotRelevant;
+            const hasCreationIntent = CREATION_INTENT_REGEX.test(normalizedQuery);
+            const topScore = choices[0]?.score ?? 0;
+            const hasStrongTopMatch = matchCount >= 1 && topScore >= RELEVANT_SCORE;
+
+            // Server-side semantic dispatch: best action at index 0
+            let finalChoices: UnifiedChoice[];
+            if (!offerRefineAndCreate) {
+                finalChoices = choices;
+            } else if (hasCreationIntent) {
+                finalChoices = [createChoice, ...choices, refineChoice];
+            } else if (matchCount === 0) {
+                finalChoices = [refineChoice, createChoice];
+            } else if (!hasStrongTopMatch) {
+                finalChoices = [refineChoice, ...choices, createChoice];
+            } else {
+                finalChoices = [...choices, refineChoice, createChoice];
             }
 
             let message: string;
-            let nextAction: string;
+            const topRole = finalChoices[0]?.role;
 
-            if (matchCount === 0) {
-                message = 'No existing protocol matched your query. Refine your search or create a new one.';
-                nextAction = "Pick one choice and follow that choice's next_action.";
-            } else if (matchCount === 1) {
+            if (hasCreationIntent && offerRefineAndCreate) {
+                message = 'Creation intent detected. Follow the top choice to create a new protocol.';
+            } else if (matchCount === 0 || topRole === 'refine') {
+                message = 'No strong match found. Follow the top choice to refine your search.';
+            } else if (matchCount === 1 && topRole === 'match') {
                 message = 'Found 1 match.';
-                nextAction = "Follow the choice's next_action.";
+            } else if (matchCount >= 1 && topRole === 'match') {
+                const confidencePercent = Math.round((finalChoices[0]!.score ?? 0) * 100);
+                message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%).`;
             } else {
-                const topMatch = choices[0]!;
-                const confidencePercent = Math.round((topMatch.score || 0) * 100);
-                message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new protocol.`;
-                nextAction = "Pick one choice and follow that choice's next_action.";
+                message = 'Follow the top choice.';
             }
 
             const output = {
                 must_obey: true,
                 message,
-                next_action: nextAction,
-                choices
+                next_action: STRICT_NEXT_ACTION,
+                choices: finalChoices
             };
 
             await redisCacheService.set(cacheKey, JSON.stringify(output), 300);

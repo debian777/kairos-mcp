@@ -28,21 +28,17 @@ protocol to decide if re-mint is needed.
   choice's `next_action` directs you to call `kairos_begin` with the
   creation protocol URI.
 
-**Ordering:** Match choices first (top N), then refine (if present),
-then create (if present). Refine and create are not part of the search
-limit.
+**Ordering:** The server places the best action at **index 0**. You MUST
+follow the top choice only; do not evaluate or pick among other choices.
 
-**AI decision tree:** `must_obey: true` — pick one choice and follow
-**that choice's `next_action`**. The global `next_action` says: "Pick
-one choice and follow that choice's next_action."
-
-When results are weak (no scores above 0.5), pick the refine choice and
-run that protocol for step-by-step help improving the query.
+**AI decision tree:** `must_obey: true` — follow **`choices[0]`**.
+The global `next_action` says: "You MUST pick the top choice (index 0)
+and follow its next_action."
 
 **MUST ALWAYS**
 
-- Follow the chosen choice's `next_action`, not the global `next_action`.
-- Call `kairos_begin` with the chosen URI as the next step.
+- Follow the top choice's `next_action` (choices[0]). Call `kairos_begin`
+  with that choice's URI as the next step.
 
 **MUST NEVER**
 

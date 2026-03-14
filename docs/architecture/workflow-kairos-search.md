@@ -1,10 +1,9 @@
 # kairos_search workflow
 
 `kairos_search` returns a unified `choices` array for all scenarios. Every
-response has `must_obey: true`. Each choice has its own `next_action`.
-The `refine` choice (role `refine`) points to a built-in protocol the
-agent runs via `kairos_begin` to get step-by-step help improving the
-query.
+response has `must_obey: true`. The **server places the best action at
+index 0**; the agent MUST follow the top choice only (no evaluation of
+other choices). Each choice has its own `next_action`.
 
 ## Unified response schema
 
@@ -12,7 +11,7 @@ query.
 {
   "must_obey": true,
   "message": "<string>",
-  "next_action": "Pick one choice and follow that choice's next_action.",
+  "next_action": "You MUST pick the top choice (index 0) and follow that choice's next_action.",
   "choices": [
     {
       "uri": "kairos://mem/<uuid>",
@@ -30,12 +29,9 @@ query.
 Fields:
 
 - `must_obey` — always `true`
-- `message` — summary (for example, "Found N matches (top confidence:
-  X%). Choose one, refine your search, or create a new protocol.")
-- `next_action` — global directive: "Pick one choice and follow that
-  choice's next_action." Single-match responses may use a shorter
-  variant: "Follow the choice's next_action."
-- `choices` — array of options; each has:
+- `message` — summary (e.g. "Found 1 match.", "No strong match found. Follow the top choice to refine your search.")
+- `next_action` — global directive: "You MUST pick the top choice (index 0) and follow that choice's next_action."
+- `choices` — array of options; **the best action is always at index 0**. Each choice has:
   - `uri` — protocol URI (`kairos://mem/<uuid>`)
   - `label`, `chain_label`, `score`, `role`, `tags` — unchanged semantics
   - **`next_action`** — the exact instruction for that option:
@@ -57,11 +53,11 @@ Roles:
   `score: null`
 - `create` — system action to create a new protocol; `score: null`
 
-**Ordering and count:** Match choices come first (top N), then at most
-one `refine` choice, then one `create` choice. Refine and create are not
-counted in the search limit. For a limit of 10, the list has up to 10
-match choices, then choice 11 = refine, choice 12 = create (12 total).
-The match count in `message` counts only search results.
+**Ordering:** The server performs semantic dispatch and places the best
+action at **index 0**. For a strong single match, that match is at 0. For
+no match or weak top score, refine is at 0. For explicit creation intent
+(e.g. "create new protocol"), create is at 0. The agent must follow
+`choices[0]` only.
 
 ## Scenario 1: single match
 
@@ -82,7 +78,7 @@ One protocol matches. The only choice carries `next_action` to call
 {
   "must_obey": true,
   "message": "Found 1 match.",
-  "next_action": "Follow the choice's next_action.",
+  "next_action": "You MUST pick the top choice (index 0) and follow that choice's next_action.",
   "choices": [
     {
       "uri": "kairos://mem/bd939b2a-b35f-40f2-8dec-7dec74a65116",
@@ -99,8 +95,8 @@ One protocol matches. The only choice carries `next_action` to call
 
 ### AI behavior
 
-1. Read the global `next_action` — follow the choice's `next_action`.
-2. Call `kairos_begin` with the URI from the single choice.
+1. Follow the top choice (index 0); call `kairos_begin` with its URI.
+2. Do not evaluate other choices; the server has placed the best action at 0.
 
 ## Scenario 2: multiple matches
 
@@ -120,8 +116,8 @@ create choices are appended.
 ```json
 {
   "must_obey": true,
-  "message": "Found 3 matches (top confidence: 52%). Choose one, refine your search, or create a new protocol.",
-  "next_action": "Pick one choice and follow that choice's next_action.",
+  "message": "Found 3 matches (top confidence: 52%).",
+  "next_action": "You MUST pick the top choice (index 0) and follow that choice's next_action.",
   "choices": [
     {
       "uri": "kairos://mem/2ab737f0-a9b1-49a0-bb10-5c8105c4f6e8",
@@ -174,20 +170,13 @@ create choices are appended.
 
 ### AI behavior
 
-1. Read the global `next_action` — pick one choice and follow it.
-2. Use `label`, `chain_label`, `score`, and `tags` to pick the best match
-   (for example, Bug vs Story vs Task).
-3. If a match fits: follow that choice's `next_action` → call
-   `kairos_begin` with that URI.
-4. If none fit and the query may need improvement: pick **refine** and
-   follow its `next_action`.
-5. If the user wants a new protocol: pick **create** and follow its
-   `next_action`.
+1. Follow the top choice (index 0) only; call `kairos_begin` with its URI.
+2. The server has placed the best match at index 0; do not evaluate other choices.
 
 ## Scenario 3: weak matches
 
-No strong match (score &lt; 0.5); top scores are modest (for example, 0.38–0.47). Refine
-and create remain available.
+No strong match (score &lt; 0.5); top scores are modest (e.g. 0.38–0.47). The server
+places **refine** at index 0 so the agent runs the refine protocol first.
 
 ### Input
 
@@ -202,9 +191,18 @@ and create remain available.
 ```json
 {
   "must_obey": true,
-  "message": "Found 2 matches (top confidence: 47%). Choose one, refine your search, or create a new protocol.",
-  "next_action": "Pick one choice and follow that choice's next_action.",
+  "message": "No strong match found. Follow the top choice to refine your search.",
+  "next_action": "You MUST pick the top choice (index 0) and follow that choice's next_action.",
   "choices": [
+    {
+      "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
+      "label": "Get help refining your search",
+      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
+      "score": null,
+      "role": "refine",
+      "tags": ["meta", "refine"],
+      "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
+    },
     {
       "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
       "label": "Database Operations / Migration Steps",
@@ -224,15 +222,6 @@ and create remain available.
       "next_action": "call kairos_begin with kairos://mem/bbb22222-2222-2222-2222-222222222222 to execute this protocol"
     },
     {
-      "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
-      "label": "Get help refining your search",
-      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
-      "score": null,
-      "role": "refine",
-      "tags": ["meta", "refine"],
-      "next_action": "call kairos_begin with kairos://mem/00000000-0000-0000-0000-000000002002 to get step-by-step help turning the user's request into a better search query"
-    },
-    {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002001",
       "label": "Create New KAIROS Protocol Chain",
       "chain_label": "Create New KAIROS Protocol Chain",
@@ -247,10 +236,8 @@ and create remain available.
 
 ### AI behavior
 
-1. Pick one choice using `label`, `chain_label`, `tags`, and `score`.
-2. If a match fits intent: follow that choice's `next_action`.
-3. If results are off-topic: pick **refine** and use more words or details.
-4. If the user wants a new protocol: pick **create**.
+1. Follow the top choice (index 0) — **refine**. Call `kairos_begin` with the refine protocol URI.
+2. Do not evaluate other choices; the server has placed refine at 0 for weak matches.
 
 ## Scenario 4: no matches
 
@@ -269,8 +256,8 @@ No choices above threshold. Only refine and create are available.
 ```json
 {
   "must_obey": true,
-  "message": "No existing protocol matched your query. Refine your search or create a new one.",
-  "next_action": "Pick one choice and follow that choice's next_action.",
+  "message": "No strong match found. Follow the top choice to refine your search.",
+  "next_action": "You MUST pick the top choice (index 0) and follow that choice's next_action.",
   "choices": [
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
@@ -296,10 +283,8 @@ No choices above threshold. Only refine and create are available.
 
 ### AI behavior
 
-1. No matches; only **refine** and **create** are available.
-2. Pick **refine** to try a different query, or **create** to start the
-   creation protocol.
-3. Follow the chosen choice's `next_action`.
+1. Follow the top choice (index 0) — **refine**. Call `kairos_begin` with the refine protocol URI.
+2. Do not evaluate other choices; the server has placed refine at 0 when there are no matches.
 
 ## Validation rules
 
@@ -313,11 +298,8 @@ No choices above threshold. Only refine and create are available.
 6. The **refine** choice, when present, has
    `uri: "kairos://mem/00000000-0000-0000-0000-000000002002"`.
 7. The **create** choice, when present, has the creation protocol URI.
-8. Global `next_action` is a short directive and does not embed a
-   specific protocol URI (except in single-choice edge cases where it
-   may duplicate the choice's `next_action`).
-9. **Choice order:** All `role: "match"` entries come first; then at
-   most one `role: "refine"`; then one `role: "create"`.
+8. Global `next_action` is always: "You MUST pick the top choice (index 0) and follow that choice's next_action."
+9. **Choice order:** The server determines the best action and places it at **index 0**. The agent must follow `choices[0]` only. Remaining order (matches, refine, create) depends on dispatch: strong match at 0, or refine at 0 for weak/no match, or create at 0 for creation intent.
 
 ## See also
 

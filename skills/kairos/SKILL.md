@@ -1,18 +1,21 @@
 ---
 name: kairos
 description: >-
-  Run KAIROS protocols. Use when the user invokes /k, /apply, or /search; the
-  query is everything after the trigger word. Use when the user wants to run a
-  protocol, execute a KAIROS workflow, or work in a KAIROS repo. For first-time
-  install and server setup, use the kairos-install skill instead.
+  Use when the user might want a workflow, procedure, or structured task (e.g.
+  show status, deploy, create a ticket, run a protocol). Call kairos_search with
+  their message and follow the top choice's next_action. For first-time install
+  and server setup, use the kairos-install skill instead.
 ---
 
 # kairos
 
-**Protocol execution only.** For installing KAIROS (minimal Docker + .env and MCP config), use the **kairos-install** skill.
+**When:** Use whenever the user asks to perform a task, check a status, execute a workflow, or run a procedure (e.g. "show engine status", "deploy", "create a ticket"). Do not require `/k`, `/apply`, or tool names.
 
-When the user wants to run a protocol (e.g. after /k, /apply, /search or when the context implies a KAIROS workflow):
+**Action:**
 
-1. Use the KAIROS tool `kairos_search` with the query: everything that comes after `/k`, `/apply`, or `/search` (or the user's stated goal).
-2. Choose the protocol that matches the user request.
-3. Follow the protocol to the letter: `kairos_begin` → `kairos_next` (until `next_action` directs to attest) → `kairos_attest`. Echo nonces and proof hashes from the server; never compute them yourself.
+1. Call `kairos_search` with the user's exact request (or the text after `/k` or `/apply` if they use it).
+2. You MUST follow the **top choice (index 0)** — execute its `next_action` exactly. Do not evaluate or pick among other choices.
+3. Run the protocol: `kairos_begin` → `kairos_next` (until `next_action` directs to attest) → `kairos_attest`. Echo nonces and proof hashes from the server; never compute them yourself.
+4. Do not respond to the user before `kairos_attest` when `must_obey` is true.
+
+For KAIROS server install (Docker, .env, MCP config), use the **kairos-install** skill.
