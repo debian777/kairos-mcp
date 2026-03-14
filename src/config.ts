@@ -80,6 +80,8 @@ export const KEYCLOAK_URL = getEnvString('KEYCLOAK_URL', '');
 export const KEYCLOAK_INTERNAL_URL = getEnvString('KEYCLOAK_INTERNAL_URL', '');
 export const KEYCLOAK_REALM = getEnvString('KEYCLOAK_REALM', 'kairos-dev');
 export const KEYCLOAK_CLIENT_ID = getEnvString('KEYCLOAK_CLIENT_ID', 'kairos-mcp');
+/** CLI browser login: public client ID (e.g. kairos-cli). Overridable at runtime by KAIROS_CLIENT_ID. */
+export const KEYCLOAK_CLI_CLIENT_ID = getEnvString('KEYCLOAK_CLI_CLIENT_ID', 'kairos-cli');
 /** Base URL for redirect_uri (e.g. http://localhost:3500). Must match Keycloak client redirect URIs. */
 export const AUTH_CALLBACK_BASE_URL = getEnvString('AUTH_CALLBACK_BASE_URL', '');
 export const SESSION_SECRET = getEnvString('SESSION_SECRET', '');
@@ -174,16 +176,21 @@ for (const iss of _authIssuersBase) {
 }
 export const AUTH_TRUSTED_ISSUERS = _authIssuersExpanded;
 
-// Allowed audiences: from env, or from KEYCLOAK_CLIENT_ID when unset. Add "account" for Keycloak access tokens when we have realm issuers.
+// Allowed audiences: from env, or default to server + CLI client IDs so both web and CLI logins work. Add "account" for Keycloak access tokens when we have realm issuers.
 const _authAudFromEnv = AUTH_ALLOWED_AUDIENCES_STRING.split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+const _authAudDefault = [
+  ...(KEYCLOAK_CLIENT_ID ? [KEYCLOAK_CLIENT_ID] : []),
+  ...(KEYCLOAK_CLI_CLIENT_ID && KEYCLOAK_CLI_CLIENT_ID !== KEYCLOAK_CLIENT_ID ? [KEYCLOAK_CLI_CLIENT_ID] : [])
+];
+const _authAudBaseRaw =
+  _authAudFromEnv.length > 0 ? _authAudFromEnv : _authAudDefault;
+// Ensure CLI client is allowed so Bearer tokens from `kairos login` (kairos-cli) are accepted
 const _authAudBase =
-  _authAudFromEnv.length > 0
-    ? _authAudFromEnv
-    : KEYCLOAK_CLIENT_ID
-      ? [KEYCLOAK_CLIENT_ID]
-      : [];
+  KEYCLOAK_CLI_CLIENT_ID && !_authAudBaseRaw.includes(KEYCLOAK_CLI_CLIENT_ID)
+    ? [..._authAudBaseRaw, KEYCLOAK_CLI_CLIENT_ID]
+    : _authAudBaseRaw;
 const _hasKeycloakRealm = _authIssuersBase.some((u) => u.includes('/realms/'));
 export const AUTH_ALLOWED_AUDIENCES =
   _hasKeycloakRealm && !_authAudBase.includes('account')

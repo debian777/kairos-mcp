@@ -26,7 +26,10 @@ export function getConfigDir(): string {
     return join(base, CONFIG_DIR_NAME);
 }
 
-function getConfigPath(): string {
+/**
+ * Full path to config file. Use this path for shared read/write so CLI and MCP hosts use the same file.
+ */
+export function getConfigPath(): string {
     return join(getConfigDir(), CONFIG_FILE_NAME);
 }
 

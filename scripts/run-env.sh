@@ -384,6 +384,7 @@ test() {
             export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
             export KEYCLOAK_REALM="${KEYCLOAK_REALM:-}"
             export KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID:-}"
+            export KEYCLOAK_CLI_CLIENT_ID="${KEYCLOAK_CLI_CLIENT_ID:-}"
             export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
             export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
             # In CI, run without --silent so the step log shows which test failed

@@ -5,7 +5,7 @@
 import { Command } from 'commander';
 import { createServer } from 'http';
 import { createHash, randomBytes } from 'crypto';
-import { getApiUrl } from '../config.js';
+import { getApiUrl, KEYCLOAK_CLI_CLIENT_ID } from '../config.js';
 import { openBrowser } from '../auth-error.js';
 import { readConfig, writeConfig } from '../config-file.js';
 import { writeError, writeStdout } from '../output.js';
@@ -36,9 +36,9 @@ interface WellKnownMeta {
 }
 
 async function loginWithBrowser(baseUrl: string): Promise<boolean> {
-    const clientId = process.env['KAIROS_CLIENT_ID']?.trim();
+    const clientId = (process.env['KAIROS_CLIENT_ID']?.trim() || KEYCLOAK_CLI_CLIENT_ID).trim();
     if (!clientId) {
-        writeError('Browser login requires KAIROS_CLIENT_ID (public client ID). Use "kairos login --token <token>" instead.');
+        writeError('Browser login requires KAIROS_CLIENT_ID or KEYCLOAK_CLI_CLIENT_ID (public client ID). Use "kairos login --token <token>" instead.');
         return false;
     }
 

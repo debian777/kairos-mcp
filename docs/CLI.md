@@ -35,15 +35,13 @@ The default URL is `http://localhost:3000`.
 ## Authentication
 
 When the server has authentication enabled, requests must include a Bearer token.
-Set `KAIROS_BEARER_TOKEN` to a valid access token, or run `kairos login` to store a
-token (either `kairos login --token <token>` or browser login with PKCE when
-`KAIROS_CLIENT_ID` is set). You can also log in via the server's login URL in a
-browser and obtain a token from your IdP.
 
-Token and API URL can be stored in a config file (used when env vars are not set).
-Location: `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json`
-on Windows). The file is created by `kairos login` and is user-only readable; do not
-commit it (it contains secrets).
+**Shared config (CLI and MCP):** Both read the token from the same place; if absent, perform auth and save to the same file.
+
+1. **Try read:** Use `KAIROS_BEARER_TOKEN` from the environment, then token from `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json` on Windows).
+2. **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`). The CLI writes the token (and API URL) to that config file so MCP hosts can use it too.
+
+Token and API URL are stored in the config file when env vars are not set. The file is created by `kairos login` and is user-only readable (`0o600`); do not commit it (it contains secrets).
 
 When a command fails because authentication is required, the CLI prints the login URL
 on the next line. Run the same command with **`--open`** to open that URL in your
@@ -154,7 +152,7 @@ Log in and store a token for the current server (env or config base URL).
 # Store a token you already have (validated with GET /api/me)
 kairos login --token <your-bearer-token>
 
-# Browser login (requires KAIROS_CLIENT_ID for a public/PKCE client)
+# Browser login (uses KEYCLOAK_CLI_CLIENT_ID or KAIROS_CLIENT_ID for public/PKCE client)
 kairos login
 ```
 
