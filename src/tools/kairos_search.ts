@@ -15,6 +15,19 @@ const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
 
+/** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
+function queryForSearch(query: string): string {
+  let q = (query || '').trim();
+  for (const token of [REFINING_PROTOCOL_URI, REFINING_PROTOCOL_UUID, CREATION_PROTOCOL_URI, CREATION_PROTOCOL_UUID]) {
+    q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
+  }
+  return q.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface RegisterSearchOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -74,16 +87,9 @@ async function searchAndBuildCandidates(
   const { memories, scores } = await memoryStore.searchMemories(query, 40, enableGroupCollapse);
   memories.forEach((memory, idx) => addCandidate(candidateMap, memory, scores[idx] ?? 0));
 
-  if (normalizedQuery === 'ai coding rules') {
-    structuredLogger.warn(`[search-debug] initial results=${memories.length} uniqueChains=${candidateMap.size} enableCollapse=${enableGroupCollapse}`);
-  }
-
   if (candidateMap.size < 10 && enableGroupCollapse) {
     const { memories: moreMemories, scores: moreScores } = await memoryStore.searchMemories(query, 80, false);
     moreMemories.forEach((memory, idx) => addCandidate(candidateMap, memory, moreScores[idx] ?? 0));
-    if (normalizedQuery === 'ai coding rules') {
-      structuredLogger.warn(`[search-debug] after fallback uniqueChains=${candidateMap.size}`);
-    }
   }
 
   return candidateMap;
@@ -240,8 +246,6 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       const tenantId = getTenantId();
       const { query, space, space_id } = params as { query: string; space?: string; space_id?: string };
       const spaceParam = space ?? space_id;
-      const ctxBefore = getSpaceContextFromStorage();
-      structuredLogger.debug(`kairos_search query="${(query || '').slice(0, 60)}" space_param=${spaceParam ?? 'none'} space_effective=${ctxBefore?.defaultWriteSpaceId ?? 'default'}`);
       const inputSize = JSON.stringify({ query }).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
 
@@ -272,9 +276,8 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
       };
       try {
         return runWithOptionalSpaceAsync(spaceParam, async () => {
-          const normalizedQuery = (query || '').trim().toLowerCase();
-          const ctxInCallback = getSpaceContextFromStorage();
-          structuredLogger.debug(`kairos_search executing space_id=${ctxInCallback?.defaultWriteSpaceId ?? 'default'}`);
+          const searchQuery = queryForSearch(query || '');
+          const normalizedQuery = searchQuery.toLowerCase();
           const parseEnvBool = (name: string, defaultVal: boolean) => {
             const v = process.env[name];
             if (v === undefined) return defaultVal;
@@ -293,7 +296,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
 
           const candidateMap = await searchAndBuildCandidates(
             memoryStore,
-            query || '',
+            searchQuery,
             normalizedQuery,
             enableGroupCollapse
           );
