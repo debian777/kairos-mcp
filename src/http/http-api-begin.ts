@@ -27,6 +27,11 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Detect explicit creation intent from query (create/mint/build new protocol/workflow/chain). */
+const CREATION_INTENT_REGEX = /\b(create|mint|build|new)\b.*\b(protocol|workflow|chain)\b/i;
+const RELEVANT_SCORE = 0.5;
+const STRICT_NEXT_ACTION = "You MUST pick the top choice (index 0) and follow that choice's next_action.";
+
 interface UnifiedChoice {
     uri: string;
     label: string;
@@ -37,6 +42,28 @@ interface UnifiedChoice {
     next_action: string;
     protocol_version: string | null;
 }
+
+const refineChoice: UnifiedChoice = {
+    uri: REFINING_PROTOCOL_URI,
+    label: 'Get help refining your search',
+    chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
+    score: null,
+    role: 'refine',
+    tags: ['meta', 'refine'],
+    next_action: REFINING_NEXT_ACTION,
+    protocol_version: null
+};
+
+const createChoice: UnifiedChoice = {
+    uri: CREATION_PROTOCOL_URI,
+    label: 'Create New KAIROS Protocol Chain',
+    chain_label: 'Create New KAIROS Protocol Chain',
+    score: null,
+    role: 'create',
+    tags: ['meta', 'creation'],
+    next_action: CREATE_NEXT_ACTION,
+    protocol_version: null
+};
 
 /**
  * Set up API route for kairos_search (V2 unified response)
