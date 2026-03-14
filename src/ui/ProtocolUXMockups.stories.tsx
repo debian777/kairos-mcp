@@ -25,8 +25,8 @@ import {
 function MockupWrapper({ children }: { children: ReactNode }) {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={children} />
+      <Route path="*" element={<Layout />}>
+        <Route path="*" element={children} />
       </Route>
     </Routes>
   );
@@ -35,7 +35,7 @@ function MockupWrapper({ children }: { children: ReactNode }) {
 const meta: Meta<typeof MockupWrapper> = {
   title: "Mockups / Protocol UX (Target)",
   component: MockupWrapper,
-  parameters: { layout: "fullscreen", initialEntry: "/" },
+  parameters: { layout: "fullscreen" },
 };
 
 export default meta;
@@ -44,6 +44,7 @@ type Story = StoryObj<typeof MockupWrapper>;
 
 /** Home — lightweight orientation page with direct paths to browse, create, and testing. */
 export const HomeTarget: Story = {
+  parameters: { initialEntry: "/" },
   render: () => (
     <MockupWrapper>
       <HomeTargetContent />
@@ -53,6 +54,7 @@ export const HomeTarget: Story = {
 
 /** Browse — simple search plus browse-by-label default. */
 export const BrowseTarget: Story = {
+  parameters: { initialEntry: "/kairos" },
   render: () => (
     <MockupWrapper>
       <BrowseTargetContent />
@@ -62,6 +64,7 @@ export const BrowseTarget: Story = {
 
 /** Protocol detail — target design: step flow graph, challenge cards, rendered-looking content. */
 export const ProtocolDetailTarget: Story = {
+  parameters: { initialEntry: "/protocols/kairos%3A%2F%2Fmem%2Fmock" },
   render: () => (
     <MockupWrapper>
       <ProtocolDetailTargetContent />
@@ -71,6 +74,7 @@ export const ProtocolDetailTarget: Story = {
 
 /** Protocol edit — target design: rendered editor, step builder, and Markdown-safe formatting only. */
 export const ProtocolEditTarget: Story = {
+  parameters: { initialEntry: "/protocols/new" },
   render: () => (
     <MockupWrapper>
       <ProtocolEditTargetContent />
@@ -80,6 +84,7 @@ export const ProtocolEditTarget: Story = {
 
 /** Editor icon set — review the proposed toolbar iconography in isolation. */
 export const EditorIconSetTarget: Story = {
+  parameters: { initialEntry: "/" },
   render: () => (
     <MockupWrapper>
       <EditorToolbarIconSetTargetContent />
@@ -89,6 +94,7 @@ export const EditorIconSetTarget: Story = {
 
 /** Edit as skill — target design: bundle review and zip preparation before download. */
 export const SkillBundleTarget: Story = {
+  parameters: { initialEntry: "/protocols/kairos%3A%2F%2Fmem%2Fmock/skill" },
   render: () => (
     <MockupWrapper>
       <SkillBundleTargetContent />
@@ -98,6 +104,7 @@ export const SkillBundleTarget: Story = {
 
 /** Test Run list — restored Runs-style page with saved sessions. */
 export const TestRunListTarget: Story = {
+  parameters: { initialEntry: "/runs" },
   render: () => (
     <MockupWrapper>
       <RunsTargetContent />
@@ -107,6 +114,7 @@ export const TestRunListTarget: Story = {
 
 /** Test Run — restored guided run flow with relabeled copy only. */
 export const TestRunTarget: Story = {
+  parameters: { initialEntry: "/protocols/kairos%3A%2F%2Fmem%2Fmock/run" },
   render: () => (
     <MockupWrapper>
       <RunGuidedTargetContent />
