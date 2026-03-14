@@ -27,7 +27,7 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
 
 | Skill | Purpose |
 |-------|---------|
-| kairos | Run protocols; /k, /apply, /search. |
+| kairos | Run protocols from natural language or /k, /apply, /search. |
 | kairos-code | ELITE AI CODING STANDARDS; /code. |
 | kairos-ai-docs | Zero-drift AI instructions; /ai-docs. |
 | kairos-create-protocol | Create and mint new protocol chains. |

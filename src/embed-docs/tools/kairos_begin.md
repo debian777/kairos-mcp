@@ -1,8 +1,8 @@
 Start protocol execution. Loads step 1 and returns its challenge.
 Step 1 never requires a solution submission.
 
-**Precondition:** You have a URI from `kairos_search` (via a choice's
-`next_action`). Do not call with a URI you invented.
+**Precondition:** You have a URI from `kairos_run`, `kairos_search` (via a
+choice's `next_action`), or another tool. Do not call with a URI you invented.
 
 **Input:** `uri` — the protocol URI from `next_action`. If you supply a
 non-step-1 URI, KAIROS auto-redirects to step 1.

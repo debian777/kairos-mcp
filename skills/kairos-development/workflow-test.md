@@ -4,7 +4,7 @@ Use this prompt when running dev/qa workflow tests so the agent is constrained t
 
 ## Constraints (non-negotiable)
 
-- **MCP tools only.** Use only KAIROS MCP tools: `kairos_search`, `kairos_begin`, `kairos_next`, `kairos_mint`, `kairos_dump`, `kairos_update`, `kairos_attest`, `kairos_delete` (and any other MCP tools exposed by the KAIROS server). Do not call any other tools (e.g. filesystem, shell, run terminal commands, read/write arbitrary files).
+- **MCP tools only.** Use only KAIROS MCP tools: `kairos_run`, `kairos_search`, `kairos_begin`, `kairos_next`, `kairos_mint`, `kairos_dump`, `kairos_update`, `kairos_attest`, `kairos_delete` (and any other MCP tools exposed by the KAIROS server). Do not call any other tools (e.g. filesystem, shell, run terminal commands, read/write arbitrary files).
 - **No local filesystem access.** Do not read or write files outside the one exception below.
 - **No shell or terminal.** Do not execute shell commands, scripts, or CLI invocations.
 - **Exception: `reports/` folder.** You may (and must) write **only** under the workspace `reports/` directory. All run output must go there: a main report plus one file per MCP call/request in a subfolder (see Report format below).
@@ -37,7 +37,7 @@ For each workflow test run:
 Execute these in order and record results in the main report:
 
 1. **Imports** — Mint protocols from the canonical examples (e.g. content from `docs/examples/`). Use only MCP-only examples if the run forbids shell (protocol-example-mcp, protocol-example-comment, protocol-example-user-input). Call `kairos_mint` for each; expect `status: stored` or equivalent.
-2. **Search + workflows** — Run `kairos_search` with a query that should match the minted chains; pick a chain; call `kairos_begin` with its URI; then call `kairos_next` in a loop until `next_action` indicates run complete. Use protocols that do not require shell (MCP-only) if constraints forbid shell.
+2. **Search + workflows** — Call `kairos_run(message)` with a query that should match the minted chains (or use `kairos_search` then `kairos_begin` with the chosen URI); then call `kairos_next` in a loop until `next_action` indicates run complete. Use protocols that do not require shell (MCP-only) if constraints forbid shell.
 3. **Update step** — Resolve one step (e.g. via search → begin or existing URI). Call `kairos_dump` for that step URI; edit the returned `markdown_doc`; call `kairos_update` with `uris: [uri]` and `markdown_doc: [edited_doc]`. Confirm success.
 4. **Update chain** — Resolve a full chain (e.g. head URI). Call `kairos_dump` with `protocol: true` for the chain; edit the markdown; call `kairos_update` with multiple URIs and corresponding `markdown_doc` array. Confirm success.
 

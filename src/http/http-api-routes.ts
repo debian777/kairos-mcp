@@ -5,6 +5,7 @@ import { setupMintRoute } from './http-api-mint.js';
 import { setupSnapshotRoute } from './http-api-snapshot.js';
 import { setupBeginRoute } from './http-api-begin.js';
 import { setupBeginStepRoute } from './http-api-begin-step.js';
+import { setupRunRoute } from './http-api-run.js';
 import { setupNextRoute } from './http-api-next.js';
 import { setupAttestRoute } from './http-api-attest.js';
 import { setupUpdateRoute } from './http-api-update.js';
@@ -26,6 +27,7 @@ export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantSt
     setupSpacesRoute(app, memoryStore);
     setupMintRoute(app, memoryStore);
     setupSnapshotRoute(app, qdrantService);
+    setupRunRoute(app, memoryStore, qdrantService); // /api/kairos_run
     setupBeginRoute(app, memoryStore, qdrantService); // /api/kairos_search
     setupBeginStepRoute(app, memoryStore, qdrantService); // /api/kairos_begin
     setupNextRoute(app, memoryStore, qdrantService);

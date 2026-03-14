@@ -7,7 +7,7 @@ This directory defines **agent-driven workflow tests** for KAIROS: an AI agent r
 ## Purpose
 
 - **Imports:** Mint protocols from `docs/examples/` via `kairos_mint`.
-- **Search + workflows:** Execute search → begin → next (loop) until run complete.
+- **Search + workflows:** Execute via `kairos_run(message)` or search → begin → next (loop) until run complete.
 - **Update step:** Dump one step, edit, then `kairos_update` (single step).
 - **Update chain:** Dump full chain, edit, then `kairos_update` (multiple steps).
 

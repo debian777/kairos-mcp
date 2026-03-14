@@ -31,6 +31,7 @@ config**) if you prefer to edit the URL or tool list by hand:
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
       "alwaysAllow": [
+        "kairos_run",
         "kairos_search",
         "kairos_begin",
         "kairos_next",

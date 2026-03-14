@@ -27,7 +27,13 @@ compute them.
 
 ## Protocol execution model
 
-Execute every protocol in this exact order:
+**Canonical start:** Call **`kairos_run(message)`** when the user's intent
+maps to a workflow or procedure. The server searches and begins the best
+match or the refine protocol; then follow `next_action` (kairos_next loop,
+then kairos_attest). Tool descriptions for `kairos_run`, `kairos_begin`,
+`kairos_next`, and `kairos_attest` are authoritative.
+
+**Manual path (when you have a concrete query):**
 
 1. **`kairos_search(query)`** — Returns `choices` with URIs. `must_obey:
    true`. Pick the best-matching choice; follow that choice's
@@ -60,7 +66,7 @@ Execute every protocol in this exact order:
 - Echo the `proof_hash` from the previous `kairos_next` response for
   steps 2+.
 - Perform the actual challenge work before submitting a solution.
-- Call `kairos_search` before inventing a new workflow.
+- Call `kairos_run` (or `kairos_search` then `kairos_begin`) before inventing a new workflow.
 - Use Context7 when you need library/API documentation or setup steps.
 - Add a `challenge` JSON block to every verifiable step when minting.
 - Use space names in tool parameters; the backend resolves to IDs.

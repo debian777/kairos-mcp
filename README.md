@@ -81,7 +81,7 @@ List what’s available: `npx skills add debian777/kairos-mcp --list`
 
 | Skill | Purpose |
 |-------|---------|
-| `kairos` | Run protocols (/k, /apply, /search). |
+| `kairos` | Run protocols from natural language or /k, /apply, /search. |
 | `kairos-code` | ELITE AI CODING STANDARDS — /code, full protocol (branch, tests, deploy, promote). |
 | `kairos-ai-docs` | Zero-drift AI instructions template — /ai-docs, write/update AI instructions. |
 | `kairos-create-protocol` | Create and mint new KAIROS protocol chains. |
@@ -89,7 +89,7 @@ List what’s available: `npx skills add debian777/kairos-mcp --list`
 | `kairos-refine-search` | Refine a weak or empty search (step-by-step better query). |
 | `kairos-development` | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
 
-The **kairos** skill is the one that enables running protocols (/k, /apply, /search). The table above lists all skills in this repo.
+The **kairos** skill enables running protocols from the user's message or from /k, /apply, /search. The table above lists all skills in this repo.
 
 **Popular agents (global install, non-interactive):**
 

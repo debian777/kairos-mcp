@@ -17,7 +17,7 @@ Use this when an AI agent should run protocols on **kairos-dev** from a **real u
    For each mintable file in `docs/examples/`, read the file and import it via the MCP (one protocol per file, in order). Use only what the MCP provides to discover how.
 
 2. **Run a real workflow per protocol**  
-   After importing (or when a protocol is already present), run that protocol to completion using the MCP. For steps that would require shell or other non-MCP actions, either skip those protocols in this test or satisfy them only with the means you have (e.g. user input or comment). Do not run shell commands.
+   After importing (or when a protocol is already present), run that protocol to completion using the MCP. Prefer `kairos_run(message)` to start from natural language (the server searches and begins); then follow `next_action` (kairos_next loop, then kairos_attest). For steps that would require shell or other non-MCP actions, either skip those protocols in this test or satisfy them only with the means you have (e.g. user input or comment). Do not run shell commands.
 
 ## Reports
 

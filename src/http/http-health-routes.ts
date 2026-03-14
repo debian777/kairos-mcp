@@ -89,6 +89,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             service: 'KAIROS API',
             version: getBuildVersion(),
             endpoints: {
+                kairos_run: 'POST /api/kairos_run',
                 kairos_search: 'POST /api/kairos_search',
                 kairos_begin: 'POST /api/kairos_begin',
                 kairos_next: 'POST /api/kairos_next',

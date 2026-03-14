@@ -1,7 +1,9 @@
-Search for protocol chains matching a query. Entry point for every
-KAIROS workflow.
+Search for protocol chains matching a query. **For raw user messages, prefer
+`kairos_run(message)`** — it runs search and begin in one step. Use
+`kairos_search` when you already have a concrete query (e.g. from a
+protocol-specific skill or after refine).
 
-**Precondition:** You have a user intent to translate into a protocol run.
+**Precondition:** You have a search query (user intent or derived phrase).
 
 **Input:** `query` — 3–8 specific words (nouns + verbs). Use domain or
 tool names when the user implied one. Stay faithful to the user's

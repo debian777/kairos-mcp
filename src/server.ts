@@ -14,6 +14,7 @@ import { registerKairosUpdateTool } from './tools/kairos_update.js';
 import { registerKairosDeleteTool } from './tools/kairos_delete.js';
 import { registerSearchTool } from './tools/kairos_search.js';
 import { registerBeginTool } from './tools/kairos_begin.js';
+import { registerKairosRunTool } from './tools/kairos_run.js';
 import { registerKairosNextTool } from './tools/kairos_next.js';
 import { registerKairosAttestTool } from './tools/kairos_attest.js';
 import { registerKairosDumpTool } from './tools/kairos_dump.js';
@@ -37,7 +38,8 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
 
 
     // Register kairos tools
-    // New protocol workflow: search -> begin (step 1) -> next (steps 2+) -> attest
+    // Canonical start: kairos_run(message). Manual: search -> begin (step 1) -> next (steps 2+) -> attest
+    registerKairosRunTool(server, memoryStore, { qdrantService });
     registerSearchTool(server, memoryStore, { qdrantService });
     registerBeginTool(server, memoryStore, { qdrantService });
     registerKairosNextTool(server, memoryStore, { qdrantService });

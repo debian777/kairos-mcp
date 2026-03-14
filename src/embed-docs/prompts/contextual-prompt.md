@@ -13,8 +13,11 @@ skip steps. Respond to the user only after the protocol run is complete
 
 Follow this loop for any protocol run.
 
-1. Call `kairos_search` when the user's intent maps to a protocol.
-2. Choose a protocol from `choices`; call `kairos_begin` with its URI.
+1. When the user's intent maps to a workflow or procedure, call
+   `kairos_run(message)` with their message (or a short intent phrase).
+   The server searches and begins the best match or the refine protocol.
+2. If you need manual search (e.g. from a protocol-specific skill), use
+   `kairos_search(query)` then call `kairos_begin` with the chosen URI.
 3. While `next_action` says to call `kairos_next`:
    - Read the `challenge` for the current step.
    - Complete the work. By `challenge.type`:
