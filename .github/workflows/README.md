@@ -126,9 +126,13 @@ sequenceDiagram
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on **push to main**. If `package.json` version is **greater** than the latest existing tag (e.g. tag `v3.0.0` exists and package is `3.0.1`), it creates and pushes tag `v<version>`. That tag push triggers the **Release** workflow (`release.yml`).
+`release-tag-on-version-bump.yml` runs after **Integration** completes (any branch) or via **manual dispatch**.
 
-**Flow:** When a version-bump PR is merged to main, this workflow **only** creates and pushes the tag if needed. The tag push then triggers the **Release** workflow (npm → Docker → GitHub Release).
+- **Main:** Full releases (`vX.Y.Z`) and pre-releases (`vX.Y.Z-pre.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing stable tag. Same as before.
+- **Any other branch:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist. Full/pre releases are not created from non-main branches.
+- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `feat/seamless-kairos-opus-4.6-max`). Beta only: tags the commit if `package.json` version is a beta and the tag does not exist. Use when you want a beta release from a feature branch without merging to main. The ref does not need to have passed Integration first.
+
+**Flow:** When a tag is created (by this workflow), it triggers the **Release** workflow (npm → Docker → GitHub Release).
 
 **Required for Release to run:** GitHub does not trigger workflows when a tag is pushed by another workflow using the default `GITHUB_TOKEN`. To have the **Release** workflow run after the tag is pushed, add a **Personal Access Token (PAT)** with `repo` scope as repository secret **`GH_PAT`** (e.g. `gh secret set GH_PAT` or Settings → Secrets → Actions). Without it, the tag is still pushed but Release will not run (run it manually from Actions → Release → Run workflow with the new tag ref).
 

@@ -1,7 +1,8 @@
-# When a merge to main changes package.json version to a value greater than the
-# latest existing tag, create and push that tag, then trigger the Release workflow
-# via workflow_dispatch (tag pushes from Actions do not trigger other workflows).
-# Runs after Integration workflow succeeds on main so the tagged commit has passed tests.
+# When a merge to main changes package.json version, or when a branch has a beta version,
+# create and push the tag, then trigger the Release workflow via workflow_dispatch.
+# - Main: full releases (vX.Y.Z) and pre-releases (vX.Y.Z-pre.N) only when version > latest tag.
+# - Any other branch (or manual run): beta only (version must contain -beta.); tag if not already present.
+# Tag pushes from Actions do not trigger other workflows, so we dispatch Release manually.
 # Requires branch protection to allow this workflow to push tags.
 name: Release tag on version bump
 
@@ -9,12 +10,16 @@ on:
   workflow_run:
     workflows: [Integration]
     types: [completed]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to release (branch or SHA). Beta only. Example: feat/seamless-kairos-opus-4.6-max'
+        required: true
 
 jobs:
   tag-release:
     name: Tag if version bumped
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
@@ -26,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -39,10 +44,21 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Set branch and beta flags
+        id: flags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "is_main=false" >> "$GITHUB_OUTPUT"
+          else
+            branch="${{ github.event.workflow_run.head_branch }}"
+            if [ "$branch" = "main" ]; then echo "is_main=true" >> "$GITHUB_OUTPUT"; else echo "is_main=false" >> "$GITHUB_OUTPUT"; fi
+          fi
+          pkg="${{ steps.pkg.outputs.version }}"
+          if echo "$pkg" | grep -q '\-beta\.'; then echo "is_beta=true" >> "$GITHUB_OUTPUT"; else echo "is_beta=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Get latest stable tag (by version in repo)
         id: tag
         run: |
-          # Only consider stable tags (vX.Y.Z); prereleases (v3.0.1-pre.0) must not block creating v3.0.1
           latest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || echo "v0.0.0")
           echo "tag=${latest}" >> "$GITHUB_OUTPUT"
           echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
@@ -52,20 +68,38 @@ jobs:
         run: |
           pkg="${{ steps.pkg.outputs.version }}"
           latest="${{ steps.tag.outputs.version }}"
-          higher=$(printf '%s\n' "$latest" "$pkg" | sort -V | tail -n1)
-          if [ "$higher" = "$pkg" ] && [ "$latest" != "$pkg" ]; then
+          is_main="${{ steps.flags.outputs.is_main }}"
+          is_beta="${{ steps.flags.outputs.is_beta }}"
+          tag_name="v${pkg}"
+
+          do_tag=false
+          if [ "$is_main" = "true" ]; then
+            higher=$(printf '%s\n' "$latest" "$pkg" | sort -V | tail -n1)
+            if [ "$higher" = "$pkg" ] && [ "$latest" != "$pkg" ]; then do_tag=true; fi
+          else
+            if [ "$is_beta" = "true" ]; then
+              if ! git rev-parse "$tag_name" >/dev/null 2>&1; then do_tag=true; fi
+            fi
+          fi
+
+          if [ "$do_tag" = "true" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            tag="v${pkg}"
-            git tag "$tag"
-            git push origin "$tag"
+            git tag "$tag_name"
+            git push origin "$tag_name"
             echo "tag_created=true" >> "$GITHUB_OUTPUT"
             echo "version=${pkg}" >> "$GITHUB_OUTPUT"
-            echo "Created and pushed tag $tag"
+            echo "Created and pushed tag $tag_name"
           else
             echo "tag_created=false" >> "$GITHUB_OUTPUT"
             echo "version=" >> "$GITHUB_OUTPUT"
-            echo "No tag needed (package version $pkg not greater than latest $latest)"
+            if [ "$is_main" != "true" ] && [ "$is_beta" != "true" ]; then
+              echo "Skipped: non-main branches only allow beta versions (version must contain -beta.)"
+            elif [ "$is_main" != "true" ] && git rev-parse "$tag_name" >/dev/null 2>&1; then
+              echo "Skipped: tag $tag_name already exists"
+            else
+              echo "No tag needed (package version $pkg not greater than latest $latest)"
+            fi
           fi
 
       - name: Trigger Release workflow
