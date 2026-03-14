@@ -6,6 +6,7 @@
  * kairos-cli redirect URIs include localhost:38474–38476 (E2E tries these in order). Run: npm run dev:deploy && npm run dev:test -- tests/integration/cli-auth-browser-login.e2e.test.ts
  */
 
+import { jest } from '@jest/globals';
 import { spawn, exec } from 'child_process';
 import { mkdtempSync, readFileSync, existsSync, rmSync } from 'fs';
 import { join } from 'path';
