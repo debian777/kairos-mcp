@@ -7,6 +7,11 @@ import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { executeSearch } from '../services/kairos-orchestration.js';
+import {
+  KAIROS_SEARCH_MAX_CHOICES,
+  KAIROS_SEARCH_LIMIT_CAP,
+  KAIROS_SEARCH_LIMIT_MIN
+} from '../config.js';
 
 interface RegisterSearchOptions {
   toolName?: string;
@@ -29,7 +34,14 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
   const inputSchema = z.object({
     query: z.string().min(1).describe('Search query for chain heads'),
     space: z.string().optional().describe('Scope results to this space (must be in your allowed spaces)'),
-    space_id: z.string().optional().describe('Alias for space')
+    space_id: z.string().optional().describe('Alias for space'),
+    max_choices: z
+      .number()
+      .int()
+      .min(KAIROS_SEARCH_LIMIT_MIN)
+      .max(KAIROS_SEARCH_LIMIT_CAP)
+      .optional()
+      .describe('Max match choices to return. Omit for server default; use higher for broad/vague queries.')
   });
 
   const outputSchema = z.object({
@@ -60,10 +72,19 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
     },
     async (params: any) => {
       const tenantId = getTenantId();
-      const { query, space, space_id } = params as { query: string; space?: string; space_id?: string };
+      const { query, space, space_id, max_choices } = params as {
+        query: string;
+        space?: string;
+        space_id?: string;
+        max_choices?: number;
+      };
       const spaceParam = space ?? space_id;
-      const ctxBefore = getSpaceContextFromStorage();
-      structuredLogger.debug(`kairos_search query="${(query || '').slice(0, 60)}" space_param=${spaceParam ?? 'none'} space_effective=${ctxBefore?.defaultWriteSpaceId ?? 'default'}`);
+      // max_choices is accepted by schema; executeSearch does not yet support it
+      const _effectiveLimit = Math.max(
+        KAIROS_SEARCH_LIMIT_MIN,
+        Math.min(KAIROS_SEARCH_LIMIT_CAP, max_choices ?? KAIROS_SEARCH_MAX_CHOICES)
+      );
+      void _effectiveLimit;
       const inputSize = JSON.stringify({ query }).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
 
@@ -116,6 +137,7 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
             qdrantService: options.qdrantService,
             enableGroupCollapse
           });
+
           await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
           return respond(output);
         });

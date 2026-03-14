@@ -173,12 +173,13 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.ref }}" ]; then
-            echo "tag_name=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+            tag_name="${{ github.event.inputs.ref }}"
           else
-            echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            tag_name="${{ github.ref_name }}"
           fi
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
           # Tag with hyphen (e.g. v3.1.0-pre.0, v3.0.1-beta.1) => prerelease; GitHub then shows latest stable as "Latest release"
-          case "${{ steps.tag.outputs.tag_name }}" in
+          case "${tag_name}" in
             *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
             *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
@@ -190,4 +191,5 @@ jobs:
           name: ${{ steps.tag.outputs.tag_name }}
           generate_release_notes: true
           draft: false
-          prerelease: ${{ steps.tag.outputs.prerelease }}
+          # Hyphenated tags (v*.*.*-*) must be pre-releases so "Latest" stays on last stable
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}

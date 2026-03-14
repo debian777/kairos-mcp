@@ -24,6 +24,15 @@ Protocol order is always: search → begin → next (loop) → attest.
 Compose topology, port map, startup sequence, volume layout, Redis/Qdrant
 data models, and embedding provider selection — all with Mermaid diagrams.
 
+[Qdrant migrations at boot](qdrant-migrations-boot.md) explains how the
+vector database is initialized and migrated on startup: collection
+creation, dimension and BM25 migrations, and how this differs from the
+separate Qdrant service initialization (payload indexes, alias).
+
+## Search query (heart of operations)
+
+[KAIROS search query architecture](search-query.md) describes how `kairos_search` works end-to-end: query normalization, space scope, Qdrant hybrid query (dense + BM25, RRF, formula), filters, attest-based score adjustment, and cache. Read this when implementing or debugging search.
+
 ## UI frontend
 
 [UI frontend architecture](ui-frontend-architecture.md) explains the
@@ -41,7 +50,7 @@ each call and how `next_action` chains the flow.
 
 | Tool | Purpose |
 | ---- | ------- |
-| [kairos_search](workflow-kairos-search.md) | Find protocols by query; get `choices` and `next_action`. |
+| [kairos_search](workflow-kairos-search.md) | Find protocols by query; get `choices` and `next_action`. See [search query architecture](search-query.md) for the query pipeline. |
 | [kairos_begin](workflow-kairos-begin.md) | Load step 1 and first challenge; no solution required. |
 | [kairos_next](workflow-kairos-next.md) | Submit a solution and receive the next step or completion. |
 | [kairos_attest](workflow-kairos-attest.md) | Final step. Call after the last `kairos_next` to finalize the run. |

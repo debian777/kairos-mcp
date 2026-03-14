@@ -36,6 +36,7 @@ storybook-static/
 .idea/
 .claude/
 .cursor/plans
+.cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
 *.swp
 *.swo
@@ -231,3 +232,4 @@ cache
 data/
 .devcontainer.disable/
 snapshots
+.cursor/TODO.md

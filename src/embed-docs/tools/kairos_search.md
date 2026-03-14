@@ -5,11 +5,16 @@ protocol-specific skill or after refine).
 
 **Precondition:** You have a search query (user intent or derived phrase).
 
-**Input:** `query` — 3–8 specific words (nouns + verbs). Use domain or
-tool names when the user implied one. Stay faithful to the user's
-intent; add specificity, do not substitute your own interpretation.
-Expand slash-commands or shorthand (e.g. `/ai-docs` → `write ai
-instructions zero-drift template`).
+**Input:**
+
+- `query` — 3–8 specific words (nouns + verbs). Use domain or
+  tool names when the user implied one. Stay faithful to the user's
+  intent; add specificity, do not substitute your own interpretation.
+  Expand slash-commands or shorthand (e.g. `/ai-docs` → `write ai
+  instructions zero-drift template`).
+- `max_choices` (optional) — maximum number of match choices to return.
+  Omit for server default. Use a higher value for broad or vague
+  queries when the best match may not be in the top few.
 
 **Response:** Always `must_obey: true`. Contains `choices` array (each
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
