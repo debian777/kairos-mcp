@@ -54,7 +54,10 @@ function readConfigFromDir(configHome: string): Record<string, unknown> {
 }
 
 /** Spawn CLI login (no browser); try E2E_CALLBACK_PORTS until one binds. Returns auth URL, exit promise, and the port used. */
-async function spawnLoginAndGetAuthUrl(configHome: string): Promise<{
+async function spawnLoginAndGetAuthUrl(
+  configHome: string,
+  processTracker?: Array<{ proc: ReturnType<typeof spawn>; port: number }>
+): Promise<{
   authUrl: string;
   exitPromise: Promise<number | null>;
   callbackPort: number;
@@ -67,6 +70,10 @@ async function spawnLoginAndGetAuthUrl(configHome: string): Promise<{
         KAIROS_LOGIN_CALLBACK_PORT: String(port)
       };
       const proc = spawn('node', [CLI_PATH, '--url', BASE_URL, 'login'], { env: { ...process.env, ...env } });
+      // Track spawned process for cleanup
+      if (processTracker) {
+        processTracker.push({ proc, port });
+      }
       let settled = false;
       const stderrChunks: Buffer[] = [];
       proc.stdout?.on('data', (d: Buffer) => {
@@ -130,9 +137,13 @@ async function spawnLoginAndGetAuthUrl(configHome: string): Promise<{
 const describeWhenAuth = serverRequiresAuth() && hasAuthToken() ? describe : describe.skip;
 const env = (configHome: string) => ({ XDG_CONFIG_HOME: configHome });
 
+// Set global timeout to prevent test suite from hanging indefinitely
+jest.setTimeout(120000); // 2 minutes
+
 describeWhenAuth('CLI auth (browser login only, no --token)', () => {
   let serverAvailable = false;
   let configHome: string;
+  const spawnedProcesses: Array<{ proc: ReturnType<typeof spawn>; port: number }> = [];
 
   beforeAll(async () => {
     configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-browser-e2e-'));
@@ -146,6 +157,17 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
   }, 65000);
 
   afterAll(() => {
+    // Kill any remaining spawned processes
+    for (const { proc } of spawnedProcesses) {
+      if (!proc.killed && proc.exitCode === null) {
+        try {
+          proc.kill('SIGKILL');
+        } catch {
+          // Ignore errors when killing
+        }
+      }
+    }
+    spawnedProcesses.length = 0;
     if (configHome && existsSync(configHome)) {
       rmSync(configHome, { recursive: true });
     }
@@ -163,11 +185,12 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
     if (skipIfUnavailable()) return;
 
     const { chromium } = await import('playwright');
-    const { authUrl, exitPromise, callbackPort } = await spawnLoginAndGetAuthUrl(configHome);
+    const { authUrl, exitPromise, callbackPort } = await spawnLoginAndGetAuthUrl(configHome, spawnedProcesses);
 
     const browser = await chromium.launch({ headless: true });
+    let page;
     try {
-      const page = await browser.newPage();
+      page = await browser.newPage();
       await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
       await page.goto(authUrl, { waitUntil: 'load', timeout: 20000 });
       await page.waitForLoadState('networkidle').catch(() => {});
@@ -188,8 +211,22 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
         new Promise<number>((resolve) => setTimeout(() => resolve(1), 30000))
       ]);
       expect(exitCode).toBe(0);
+    } catch (error) {
+      // Ensure cleanup on error
+      if (page) {
+        try {
+          await page.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+      throw error;
     } finally {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch {
+        // Ignore cleanup errors
+      }
     }
 
     const config = readConfigFromDir(configHome);
