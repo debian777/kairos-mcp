@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown } from "@/hooks/useProtocol";
 import { CopyButton } from "@/components/CopyButton";
+import { RenderedMarkdown } from "@/components/RenderedMarkdown";
 
 const typeBadgeClass: Record<string, string> = {
   shell: "bg-[#fef3c7] text-[#92400e]",
@@ -82,10 +83,10 @@ export function ProtocolDetailPage() {
 
   return (
     <div>
-      <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">
+      <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-3">
         {title}
       </h1>
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <p className="text-sm text-[var(--color-text-muted)] m-0">
           <span className="sr-only">{t("protocol.uri")}: </span>
           <code className="text-xs bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded break-all">{data.uri}</code>
@@ -140,7 +141,7 @@ export function ProtocolDetailPage() {
           {t("protocol.editAsSkill")}
         </Link>
       </div>
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-8">
         <Link
           to={`/protocols/${encodeURIComponent(data.uri)}/run`}
           className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
@@ -161,16 +162,18 @@ export function ProtocolDetailPage() {
         </Link>
       </div>
 
-      <section aria-labelledby="steps-heading" className="mb-6">
+      <section aria-labelledby="steps-heading" className="mb-8">
         <h2 id="steps-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">
           {t("protocol.steps")}
         </h2>
         <ul className="list-none p-0 m-0 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] divide-y divide-[var(--color-border)]">
           {steps.map((step, i) => (
-            <li key={i} className="p-4">
+            <li key={i} className="p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <strong className="block text-[var(--color-text-heading)]">{step.label}</strong>
+                  <span className="block text-sm font-medium text-[var(--color-text)]">
+                    Step {i + 1}: {step.label}
+                  </span>
                   <div className="text-sm text-[var(--color-text-muted)] mt-1 break-words">
                     {step.summary}
                   </div>
@@ -209,7 +212,7 @@ export function ProtocolDetailPage() {
                   hidden={expandedStep !== i}
                   className="mt-3 pt-3 border-t border-[var(--color-border)]"
                 >
-                  <pre className="whitespace-pre-wrap text-sm text-[var(--color-text-muted)] m-0 font-sans">{step.body}</pre>
+                  <RenderedMarkdown content={step.body} />
                 </div>
               ) : null}
             </li>
@@ -218,28 +221,28 @@ export function ProtocolDetailPage() {
       </section>
 
       {triggers && (
-        <section aria-labelledby="triggers-heading" className="mb-6">
+        <section aria-labelledby="triggers-heading" className="mb-8">
           <h2 id="triggers-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">
             {t("protocol.triggers")}
           </h2>
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-            <pre className="whitespace-pre-wrap text-sm text-[var(--color-text)] m-0">{triggers}</pre>
+            <RenderedMarkdown content={triggers} />
           </div>
         </section>
       )}
 
       {completion && (
-        <section aria-labelledby="completion-heading" className="mb-6">
+        <section aria-labelledby="completion-heading" className="mb-8">
           <h2 id="completion-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">
             {t("protocol.completion")}
           </h2>
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-            <pre className="whitespace-pre-wrap text-sm text-[var(--color-text)] m-0">{completion}</pre>
+            <RenderedMarkdown content={completion} />
           </div>
         </section>
       )}
 
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 mt-6" role="region" aria-labelledby="how-to-use-heading">
+      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5 mt-8" role="region" aria-labelledby="how-to-use-heading">
         <h2 id="how-to-use-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-2">
           {t("protocol.howToUse")}
         </h2>

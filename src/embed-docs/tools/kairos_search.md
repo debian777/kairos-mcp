@@ -4,11 +4,16 @@ Find and start executable workflows matching the user's intent.
 an action, task, workflow, or procedure — even if they do not mention
 KAIROS, protocols, or tools. The user's natural language IS the query.
 
-**Input:** `query` — the user's message or a concise intent phrase
-(3–8 words preferred, but natural language accepted). Stay faithful
-to the user's intent; add specificity, do not substitute your own
-interpretation. Expand slash-commands or shorthand (e.g. `/ai-docs` →
-`write ai instructions zero-drift template`).
+**Input:**
+
+- `query` — the user's message or a concise intent phrase (3–8 words
+  preferred, but natural language accepted). Stay faithful to the
+  user's intent; add specificity, do not substitute your own
+  interpretation. Expand slash-commands or shorthand (e.g. `/ai-docs` →
+  `write ai instructions zero-drift template`).
+- `max_choices` (optional) — maximum number of match choices to return.
+  Omit for server default. Use a higher value for broad or vague
+  queries when the best match may not be in the top few.
 
 **Response:** Always `must_obey: true`. Contains `choices` array (each
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,

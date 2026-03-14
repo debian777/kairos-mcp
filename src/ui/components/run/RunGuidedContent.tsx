@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { RenderedMarkdown } from "@/components/RenderedMarkdown";
 import { SolutionForm } from "@/components/run/SolutionForm";
 import type { RunSession } from "@/hooks/useRunSession";
 import type { ProofOfWorkSubmission } from "@/lib/kairosRunTypes";
@@ -62,9 +63,11 @@ export function RunGuidedContent({
           <div className="text-sm text-[var(--color-text-muted)] mb-2">
             {t("run.stepUri")}: <span className="font-mono break-all">{run.current_step.uri}</span>
           </div>
-          <pre className="whitespace-pre-wrap text-sm text-[var(--color-text)] font-mono m-0">
-            {run.current_step.content || t("run.noStepContent")}
-          </pre>
+          {run.current_step.content ? (
+            <RenderedMarkdown content={run.current_step.content} />
+          ) : (
+            <p className="text-sm text-[var(--color-text-muted)] m-0">{t("run.noStepContent")}</p>
+          )}
         </div>
       </section>
 

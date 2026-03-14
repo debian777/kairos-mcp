@@ -12,13 +12,20 @@ const roleBadgeClass: Record<string, string> = {
   create: "bg-[#fef3c7] text-[#92400e]",
 };
 
+const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
 export function KairosPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
   const { data, isLoading, isError, error, refetch } = useSearch(submittedQuery, !!submittedQuery);
+  const { data: letterData, isLoading: letterLoading } = useSearch(
+    expandedLetter ?? "",
+    expandedLetter !== null && expandedLetter.length > 0
+  );
 
   useEffect(() => {
     const q = searchParams.get("q") ?? "";
@@ -48,22 +55,28 @@ export function KairosPage() {
       ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
       : null;
 
+  const letterChoicesRaw = expandedLetter ? (letterData?.choices ?? []) : [];
+  const letterChoices = letterChoicesRaw.filter((c) => {
+    const first = (c.label ?? "").trim().charAt(0).toUpperCase();
+    return first === expandedLetter?.toUpperCase();
+  });
+
   return (
     <div>
       <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">
         {t("kairos.title")}
       </h1>
-      <p className="text-sm text-[var(--color-text-muted)] mb-6">
+      <p className="text-sm text-[var(--color-text-muted)] mb-8">
         {t("kairos.searchHint")}
       </p>
 
-      <section className="mb-6" aria-labelledby="browse-search-label">
+      <section className="mb-8" aria-labelledby="browse-search-label">
         <h2 id="browse-search-label" className="sr-only">
           {t("kairos.searchLabel")}
         </h2>
       <form
         onSubmit={handleSubmit}
-        className="mb-6"
+        className="mb-6 max-w-xl"
         aria-label={t("kairos.searchLabel")}
       >
         <label
@@ -115,9 +128,62 @@ export function KairosPage() {
               <h2 id="browse-by-label-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-3">
                 {t("kairos.browseByLabel")}
               </h2>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                {t("kairos.enterQueryHint")}
+              <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                {t("kairos.browseByLetterHint")}
               </p>
+              <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
+                {A_Z.map((letter) => (
+                  <button
+                    key={letter}
+                    type="button"
+                    onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
+                    aria-expanded={expandedLetter === letter}
+                    aria-controls={expandedLetter === letter ? `browse-letter-panel-${letter}` : undefined}
+                    aria-pressed={expandedLetter === letter}
+                    className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
+                      expandedLetter === letter
+                        ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
+                        : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
+                    }`}
+                  >
+                    {letter}
+                  </button>
+                ))}
+              </div>
+              {expandedLetter && (
+                <div
+                  id={`browse-letter-panel-${expandedLetter}`}
+                  role="region"
+                  aria-labelledby="browse-letter-panel-heading"
+                  className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
+                >
+                  <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
+                    {t("kairos.labelsStartingWith", { letter: expandedLetter })}
+                  </h3>
+                  {letterLoading ? (
+                    <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.loading")}</p>
+                  ) : letterChoices.length === 0 ? (
+                    <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
+                  ) : (
+                    <ul className="list-none p-0 m-0 space-y-2" role="list">
+                      {letterChoices.map((choice) => (
+                        <li
+                          key={choice.uri}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+                        >
+                          <span className="font-medium text-[var(--color-text-heading)]">{choice.label}</span>
+                          <Link
+                            to={`/protocols/${encodeURIComponent(choice.uri)}`}
+                            className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          >
+                            {t("kairos.view")}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </section>
           ) : choices.length === 0 ? (
             <div
@@ -160,7 +226,7 @@ export function KairosPage() {
                 {choices.map((choice) => (
                   <li
                     key={choice.uri}
-                    className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 flex justify-between items-start gap-4"
+                    className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5 flex justify-between items-start gap-4"
                   >
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-[var(--color-text-heading)] block">

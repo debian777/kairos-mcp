@@ -28,6 +28,32 @@ const preview: Preview = {
   parameters: {
     controls: { matchers: { color: /(background|color)$/i, date: /Date$/i } },
     layout: "fullscreen",
+    // Viewport presets for responsive testing (addon-viewport removed in SB 10; params kept for future built-in support).
+    viewport: {
+      viewports: {
+        mobile: {
+          name: "Mobile (375)",
+          styles: { width: "375px", height: "667px" },
+          type: "mobile",
+        },
+        tablet: {
+          name: "Tablet (768)",
+          styles: { width: "768px", height: "1024px" },
+          type: "tablet",
+        },
+        desktop: {
+          name: "Desktop (1280)",
+          styles: { width: "1280px", height: "800px" },
+          type: "desktop",
+        },
+        wide: {
+          name: "Wide (1920)",
+          styles: { width: "1920px", height: "1080px" },
+          type: "desktop",
+        },
+      },
+      defaultViewport: "desktop",
+    },
   },
 };
 

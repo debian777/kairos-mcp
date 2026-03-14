@@ -38,6 +38,7 @@ storybook-static/
 .claude/*
 !.claude/settings.json
 .cursor/plans
+.cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
 *.swp
 *.swo
@@ -233,3 +234,4 @@ cache
 data/
 .devcontainer.disable/
 snapshots
+.cursor/TODO.md
