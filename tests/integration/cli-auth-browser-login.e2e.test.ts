@@ -137,9 +137,6 @@ async function spawnLoginAndGetAuthUrl(
 const describeWhenAuth = serverRequiresAuth() && hasAuthToken() ? describe : describe.skip;
 const env = (configHome: string) => ({ XDG_CONFIG_HOME: configHome });
 
-// Set global timeout to prevent test suite from hanging indefinitely
-jest.setTimeout(120000); // 2 minutes
-
 describeWhenAuth('CLI auth (browser login only, no --token)', () => {
   let serverAvailable = false;
   let configHome: string;
