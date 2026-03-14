@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
 export function searchCommand(program: Command): void {
@@ -28,8 +29,7 @@ export function searchCommand(program: Command): void {
                 // Pretty print the response
                 writeJson(response);
             } catch (error) {
-                writeError(error instanceof Error ? error.message : String(error));
-                process.exit(1);
+                handleApiError(error, program.opts()['open']);
             }
         });
 }

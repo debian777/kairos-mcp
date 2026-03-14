@@ -65,6 +65,16 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
       // If the client merges this into the auth request, Keycloak gets prompt=login and avoids already_logged_in.
       expect(body).toHaveProperty('authorization_request_parameters');
       expect(body.authorization_request_parameters).toEqual({ prompt: 'login' });
+
+      // Phase 3: when auth is configured, endpoints are exposed so CLI can obtain login URL without 401.
+      if (body.authorization_servers?.length > 0) {
+        expect(body).toHaveProperty('authorization_endpoint');
+        expect(body).toHaveProperty('token_endpoint');
+        expect(typeof body.authorization_endpoint).toBe('string');
+        expect(typeof body.token_endpoint).toBe('string');
+        expect(body.authorization_endpoint).toMatch(/\/protocol\/openid-connect\/auth$/);
+        expect(body.token_endpoint).toMatch(/\/protocol\/openid-connect\/token$/);
+      }
     });
   });
 
