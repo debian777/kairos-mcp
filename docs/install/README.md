@@ -19,16 +19,28 @@ Result: **Model capabilities** shows **Mixed**; only Embeddings has Request. The
 
 To verify the key locally: `npm run dev:test-embedding-key` (or `OPENAI_API_KEY=sk-... node scripts/test-embedding-key.mjs`).
 
+### Optional — Ollama (local embeddings)
+
+Use [Ollama](https://ollama.com) with an OpenAI-compatible embeddings endpoint (e.g. `nomic-embed-text`). KAIROS only needs the **base** URL; it appends `/v1/embeddings` itself — do **not** put `/v1` in `OPENAI_API_URL` or you get a double path.
+
+| App runs on | `OPENAI_API_URL` |
+|-------------|-------------------|
+| Host (e.g. `npm run dev`) | `http://localhost:11434` |
+| Docker, Ollama on host (Mac/Windows) | `http://host.docker.internal:11434` |
+
+In `.env`: set `OPENAI_EMBEDDING_MODEL=nomic-embed-text` and `OPENAI_API_KEY=ollama` (Ollama does not validate the key). Ensure Ollama is running and the model is pulled: `ollama pull nomic-embed-text`.
+
+**Note:** Switching to or from Ollama changes embedding dimension (e.g. 1536 → 768). On first start the app will migrate the Qdrant collection (recreate vectors, re-embed if there was existing data). Empty collections migrate quickly.
+
+See commented lines in `env.example.minimal.txt`.
+
 | File | Use case |
 |------|----------|
 | **env.example.minimal.txt** | App + Qdrant only (minimal; no Redis, no auth, no Keycloak). |
 | **env.example.fullstack.txt** | Full Docker stack: Redis, Qdrant, Postgres, Keycloak, auth enabled. Use for local full stack and CI. |
-| **env.example.full.txt** | All available options (reference). Copy and trim to your needs. |
 
 - **Quick start (minimal, default):** `cp env.example.minimal.txt .env`, set `OPENAI_API_KEY` (or TEI), then `docker compose -p kairos-mcp up -d`.
 - **Full stack (Redis, Keycloak):** `cp env.example.fullstack.txt .env`, set secrets and `REDIS_URL=redis://redis:6379`, then `docker compose -p kairos-mcp --profile fullstack up -d`.
 - **CI / generate script:** Uses `scripts/env/.env.template` (fullstack). Run `python3 scripts/generate_dev_secrets.py` to produce `.env`.
-
-If the CLI auth E2E test fails, check `reports/` for `e2e-cli-auth-failure-*.png` and `*.html` to see what Keycloak rendered.
 
 For **Google sign-in in dev**, see [Google auth (dev)](google-auth-dev.md).

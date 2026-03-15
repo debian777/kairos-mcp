@@ -176,12 +176,33 @@ Browser login binds to an open port and sends that callback URL to Keycloak. The
 
 ### logout — clear stored token
 
-Remove the stored Bearer token from the config file. (The CLI does not read
-token from the environment.)
+Remove the stored Bearer token from the config file for the current API URL.
+(The CLI does not read token from the environment.)
 
 ```bash
 kairos logout
 ```
+
+### token — print stored token (scripting)
+
+Print the stored Bearer token to stdout. Useful for scripts or tools that need
+to pass the token to another process.
+
+```bash
+# Print token (no validation)
+kairos token
+
+# Validate with GET /api/me before printing
+kairos token --validate
+
+# If no token, trigger browser login then print
+kairos token --login
+```
+
+**Options:**
+
+- `-v, --validate` — validate token with `GET /api/me` before printing; exit non-zero if invalid
+- `-l, --login` — if no stored token, run browser login and then print the new token
 
 ### attest — record step completion
 
@@ -245,6 +266,7 @@ kairos delete --help
 kairos attest --help
 kairos login --help
 kairos logout --help
+kairos token --help
 ```
 
 ## Next steps

@@ -8,7 +8,7 @@ When **AUTH_ENABLED** is true, the KAIROS server requires authentication for `/a
 - **Unauthenticated requests:** GET (non-MCP) → 302 redirect to IdP; POST / MCP → **401** with JSON `{ error, message, login_url }` and `WWW-Authenticate` header (RFC 9728 / MCP discovery).
 - **Discovery:** `GET /.well-known/oauth-protected-resource` (no auth) returns `authorization_servers`, `authorization_endpoint`, `token_endpoint`, `resource`, and `kairos_cli_client_id` (KAIROS-specific extension) so clients can build login URLs without hitting 401 first. In production, serve the app (and well-known) over HTTPS.
 
-See [install/README.md](install/README.md) and [install/google-auth-dev.md](install/google-auth-dev.md) for enabling auth and configuring Keycloak.
+See [install/README.md](../install/README.md) and [install/google-auth-dev.md](../install/google-auth-dev.md) for enabling auth and configuring Keycloak.
 
 ## API and MCP
 
@@ -36,8 +36,8 @@ All REST endpoints and POST `/mcp` use the same auth middleware. There is no sep
 ## CLI
 
 - **Token source:** Config file only. `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\kairos\config.json` on Windows). Created by `kairos login` with mode `0o600`. The CLI does **not** use the `KAIROS_BEARER_TOKEN` environment variable.
-- **Login:** `kairos login --token <token>` validates the token with `GET /api/me` and writes it (and the API URL) to config. `kairos login` (no flag) runs browser PKCE: the CLI uses a **hardcoded** `client_id` (`kairos-cli`) and discovers auth/token endpoints from well-known; it binds to an **open port** and sends that callback URL to Keycloak (best practice). The callback path includes a per-request token to avoid shared-link attacks. **Requirement:** run `python3 scripts/configure-keycloak-realms.py` so the `kairos-cli` client exists in Keycloak with redirect URIs allowing `http://localhost:*/callback/*`. Tests use `kairos login --no-browser` to get the URL from stdout; port can be pinned via `KAIROS_LOGIN_CALLBACK_PORT` (see [CLI.md](CLI.md)).
+- **Login:** `kairos login --token <token>` validates the token with `GET /api/me` and writes it (and the API URL) to config. `kairos login` (no flag) runs browser PKCE: the CLI uses a **hardcoded** `client_id` (`kairos-cli`) and discovers auth/token endpoints from well-known; it binds to an **open port** and sends that callback URL to Keycloak (best practice). The callback path includes a per-request token to avoid shared-link attacks. **Requirement:** run `python3 scripts/configure-keycloak-realms.py` so the `kairos-cli` client exists in Keycloak with redirect URIs allowing `http://localhost:*/callback/*`. Tests use `kairos login --no-browser` to get the URL from stdout; port can be pinned via `KAIROS_LOGIN_CALLBACK_PORT` (see [CLI.md](../CLI.md)).
 - **Logout:** `kairos logout` clears the stored token from config only (env unchanged).
 - **401 handling:** When auth is required, the CLI opens the browser by default (same PKCE flow as `kairos login`) and retries after storing the token. Use **`--no-browser`** to disable (e.g. in tests or scripts); then run `kairos login` and re-run the command.
 
-See [CLI.md](CLI.md) for full CLI usage and authentication.
+See [CLI.md](../CLI.md) for full CLI usage and authentication.
