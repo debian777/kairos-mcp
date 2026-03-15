@@ -100,7 +100,6 @@
     "publish": "npm run prepare:publish && npm publish ./dist/debian777-kairos-mcp-$(node -p \"require('./package.json').version\").tgz --access public"
   },
   "dependencies": {
-    "@debian777/kairos-mcp": "^3.2.0-pre.1",
     "@exodus/bytes": "^1.15.0",
     "@modelcontextprotocol/sdk": "^1.27.0",
     "@napi-rs/keyring": "^1.2.0",
