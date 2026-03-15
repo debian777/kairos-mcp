@@ -20,7 +20,7 @@ export async function setupCliConfigWithLogin(): Promise<string | null> {
   const token = process.env.AUTH_ENABLED === 'true' ? getTestBearerToken() : undefined;
   if (!token) return null;
   const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-config-'));
-  const env = { ...process.env, XDG_CONFIG_HOME: configHome };
+  const env = { ...process.env, KAIROS_CLI_NO_AUTO_LOGIN: '1', XDG_CONFIG_HOME: configHome };
   await new Promise<void>((resolve, reject) => {
     execFile('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 15000 }, (err) => {
       if (err) reject(err);
@@ -30,8 +30,10 @@ export async function setupCliConfigWithLogin(): Promise<string | null> {
   return configHome;
 }
 
+const NO_AUTO_LOGIN_ENV = { KAIROS_CLI_NO_AUTO_LOGIN: '1' };
+
 function envWithConfigHome(configHome: string | null): NodeJS.ProcessEnv {
-  const env = { ...process.env };
+  const env = { ...process.env, ...NO_AUTO_LOGIN_ENV };
   if (configHome) env.XDG_CONFIG_HOME = configHome;
   return env;
 }
@@ -49,7 +51,7 @@ export async function execAsync(
 /** Create an empty config dir (no login). Use to assert auth is required. */
 function emptyConfigEnv(): NodeJS.ProcessEnv {
   const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-noauth-'));
-  return { ...process.env, XDG_CONFIG_HOME: configHome };
+  return { ...process.env, ...NO_AUTO_LOGIN_ENV, XDG_CONFIG_HOME: configHome };
 }
 
 /** Run a CLI command with empty config (no token). Rejects on non-zero exit. Use to test auth failure. */
@@ -70,10 +72,10 @@ export async function execAsyncWithConfig(
   const dir = join(configHome, 'kairos');
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'config.json'), JSON.stringify(config, null, 2), { mode: 0o600 });
-  return promisify(exec)(command, { env: { ...process.env, XDG_CONFIG_HOME: configHome }, ...options }) as Promise<{
-    stdout: string;
-    stderr: string;
-  }>;
+  return promisify(exec)(command, {
+    env: { ...process.env, ...NO_AUTO_LOGIN_ENV, XDG_CONFIG_HOME: configHome },
+    ...options
+  }) as Promise<{ stdout: string; stderr: string }>;
 }
 
 export async function setupServerCheck() {
