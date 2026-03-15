@@ -90,7 +90,6 @@ export class ApiClient {
 
         return data as T;
     }
-
     async search(query: string): Promise<SearchOutput> {
         return this.request<SearchOutput>('/api/kairos_search', {
             method: 'POST',
