@@ -9,7 +9,7 @@ When you fix something that was only tracked informally, add a one-line “Fixed
 ## Limitations
 
 - **Single maintainer; no SLA.** This project is maintained by a single person. There is no formal support or uptime guarantee.
-- **Embedding provider required.** You must use either OpenAI (embeddings API) or a self-hosted TEI-compatible endpoint. See [Install and environment](install/README.md) and `EMBEDDING_PROVIDER` in [config](../src/config.ts).
+- **Embedding provider required.** You must use OpenAI (embeddings API), an OpenAI-compatible endpoint (e.g. [Ollama](install/README.md#optional--ollama-local-embeddings)), or a self-hosted TEI-compatible endpoint. See [Install and environment](install/README.md) and `EMBEDDING_PROVIDER` in [config](../src/config.ts).
 - **Keycloak optional but required for multi-tenant auth.** Without Keycloak (or another OIDC provider), the server runs without authentication. Multi-tenant or authenticated access requires Keycloak (or equivalent) configuration.
 - **Qdrant and (for production) Redis.** Vector storage (Qdrant) is always required. Redis is required for production use (proof-of-work state); in-memory backend is for dev only.
 

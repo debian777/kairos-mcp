@@ -2,7 +2,7 @@
  * Structured HTTP Access Logging for KAIROS MCP
  *
  * Uses shared Pino backend (log-core) for consistent JSON shape.
- * See docs/logging.md for levels, standard fields, and usage.
+ * See docs/architecture/logging.md for levels, standard fields, and usage.
  *
  * Features:
  * - request_id, client_ip, duration_ms, error_code

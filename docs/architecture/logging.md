@@ -96,8 +96,8 @@ logger.tool('kairos_attest', 'rate', `rated ${uri}`);
 | `TRANSPORT_TYPE` | `stdio` | `stdio` (logs to stderr; stdout reserved for MCP) or `http` (logs to stdout). |
 | `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
 
-See `docs/install/` for env examples. All env vars and defaults are in
-[`src/config.ts`](../src/config.ts).
+See [install/](../install/) for env examples. All env vars and defaults are in
+[`src/config.ts`](../../src/config.ts).
 
 ## HTTP and MCP traffic
 
@@ -120,7 +120,7 @@ Tool and API error responses use stable `error_code` values. Include
 - `MISSING_PROOF` — previous step proof missing or invalid
 - `MISSING_FIELD` — required field missing
 
-See [docs/architecture/workflow-kairos-next.md](architecture/workflow-kairos-next.md)
+See [workflow-kairos-next.md](workflow-kairos-next.md)
 for the full error code list.
 
 ## Verifying

@@ -12,7 +12,7 @@ all installation options. Read it first.
 
 These guides walk you through connecting to and using KAIROS.
 
-- [Install and environment](install/README.md) — env examples (minimal, fullstack, full reference); copy one to `.env`.
+- [Install and environment](install/README.md) — env examples (minimal, fullstack); copy one to `.env`.
 - [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — add the KAIROS MCP
   server to Cursor and connect to a running KAIROS instance.
 - [KAIROS CLI](CLI.md) — command-line usage: installation, configuration,
@@ -26,6 +26,8 @@ execute end-to-end.
 - [Architecture and protocol workflows](architecture/README.md) — how the
   protocol runs end-to-end (search → begin → next → run complete),
   per-tool workflow reference, response shapes, and scenarios.
+- [Authentication overview](architecture/auth-overview.md) — server auth (Bearer/session), shared CLI and MCP config, Keycloak, login flow.
+- [Logging](architecture/logging.md) — log levels, standard fields, env vars, error codes.
 
 ## Concepts
 
