@@ -76,6 +76,11 @@ when proof is missing (for example, telling the agent to ask the user for
 Keycloak URL each party uses and how `KEYCLOAK_URL` vs
 `KEYCLOAK_INTERNAL_URL` are set in `.env` and `compose.yaml`.
 
+## Authentication and logging
+
+- [Authentication overview](auth-overview.md) — server auth (Bearer/session), shared CLI and MCP config, Keycloak clients, and login flow.
+- [Logging](logging.md) — log levels, standard fields, logger usage in code, env vars, and error codes.
+
 ## Next steps
 
 - For the project's mission and goals, see the [README](../../README.md).

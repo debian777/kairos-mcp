@@ -100,6 +100,10 @@ KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- \
   tests/integration/auth-keycloak.test.ts
 ```
 
+**CLI auth E2E (browser login):** If the CLI auth E2E test fails, check
+`reports/` for `e2e-cli-auth-failure-*.png` and `*.html` to see what
+Keycloak rendered (screenshot and page HTML are saved on failure).
+
 **Dev environment controls**
 
 ```bash
@@ -246,7 +250,7 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
 - **Logger:** Use `structuredLogger` (from
   `src/utils/structured-logger.ts`) for HTTP/MCP request flow. Use
   `logger` (from `src/utils/logger.ts`) for services. See
-  [docs/logging.md](docs/logging.md) for levels, fields, and examples.
+  [docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
 - **Tests:** Write integration tests for new tools and API endpoints.
   Place them in `tests/integration/`.
 
