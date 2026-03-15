@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { KairosAttestResponse } from "@/lib/kairosRunTypes";
+import type { AttestOutput } from "../../tools/kairos_attest_schema.js";
 
 export type KairosAttestInput = {
   uri: string;
@@ -8,7 +8,7 @@ export type KairosAttestInput = {
   message: string;
 };
 
-async function kairosAttest(input: KairosAttestInput): Promise<KairosAttestResponse> {
+async function kairosAttest(input: KairosAttestInput): Promise<AttestOutput> {
   const res = await apiFetch("/api/kairos_attest", {
     method: "POST",
     body: JSON.stringify(input),

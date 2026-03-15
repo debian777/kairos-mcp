@@ -1,24 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import type { SearchOutput } from "../../tools/kairos_search_schema.js";
 
-export interface SearchChoice {
-  uri: string;
-  label: string;
-  chain_label: string | null;
-  score: number | null;
-  role: "match" | "refine" | "create";
-  tags: string[];
-  next_action: string;
-  protocol_version?: string | null;
-}
-
-export interface SearchResult {
-  choices: SearchChoice[];
-  message?: string;
-  next_action?: string;
-}
-
-async function searchProtocols(query: string): Promise<SearchResult> {
+async function searchProtocols(query: string): Promise<SearchOutput> {
   const res = await apiFetch("/api/kairos_search", {
     method: "POST",
     body: JSON.stringify({ query: query.trim() }),

@@ -4,6 +4,8 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
+import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
+import { utf8fromString, utf8toString } from '@exodus/bytes/utf8.js';
 import {
   AUTH_ENABLED,
   KEYCLOAK_URL,
@@ -24,8 +26,10 @@ function signSession(payload: {
   group_ids?: string[];
   exp: number;
 }): string {
-  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('base64url');
+  const payloadB64 = toBase64url(utf8fromString(JSON.stringify(payload)));
+  const sig = toBase64url(
+    new Uint8Array(crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest())
+  );
   return `${payloadB64}.${sig}`;
 }
 
@@ -168,7 +172,7 @@ export function setupAuthCallback(app: express.Express): void {
     try {
       const segment = tokenToDecode.split('.')[1];
       const payload = segment
-        ? (JSON.parse(Buffer.from(segment, 'base64url').toString()) as {
+        ? (JSON.parse(utf8toString(fromBase64url(segment))) as {
             sub?: string;
             iss?: string;
             groups?: string[];

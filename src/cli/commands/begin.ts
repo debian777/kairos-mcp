@@ -15,17 +15,6 @@ export function beginCommand(program: Command): void {
             try {
                 const client = new ApiClient();
                 const response = await client.begin(uri);
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
-                // Pretty print the response
                 writeJson(response);
             } catch (error) {
                 writeError(error instanceof Error ? error.message : String(error));

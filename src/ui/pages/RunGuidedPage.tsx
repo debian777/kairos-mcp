@@ -66,7 +66,7 @@ export function RunGuidedPage() {
         started_at: startedAt,
         updated_at: startedAt,
         status,
-        current_step: res.current_step,
+        current_step: res.current_step ?? null,
         challenge: res.challenge,
         next_action: res.next_action,
         last_message: res.message,
@@ -91,7 +91,7 @@ export function RunGuidedPage() {
   };
 
   const handleSubmitStep = async (draft: Omit<ProofOfWorkSubmission, "nonce" | "proof_hash" | "previousProofHash">) => {
-    if (!run) return;
+    if (!run?.current_step) return;
     const nonce = run.challenge.nonce;
     const proofHash = run.previous_proof_hash ?? run.challenge.proof_hash;
     const solution: ProofOfWorkSubmission = {
@@ -101,7 +101,7 @@ export function RunGuidedPage() {
     };
 
     try {
-      const res = await next.mutateAsync({ uri: run.current_step.uri, solution });
+      const res = await next.mutateAsync({ uri: run.current_step!.uri, solution });
       const updatedAt = nowIso();
       const readyToAttest = res.next_action?.includes("kairos_attest") || (res.message?.toLowerCase().includes("call kairos_attest") ?? false);
       const attestUri = extractFirstMemUri(res.next_action) ?? run.attest_uri;
@@ -109,7 +109,7 @@ export function RunGuidedPage() {
         ...run,
         updated_at: updatedAt,
         status: readyToAttest ? "ready_to_attest" : "running",
-        current_step: res.current_step,
+        current_step: res.current_step ?? null,
         challenge: res.challenge,
         next_action: res.next_action,
         last_message: res.message,
@@ -118,7 +118,7 @@ export function RunGuidedPage() {
         history: [
           ...run.history,
           {
-            step: run.current_step,
+            step: run.current_step!,
             challenge: run.challenge,
             solution,
             submitted_at: updatedAt,
@@ -139,7 +139,8 @@ export function RunGuidedPage() {
 
   const handleAttest = async () => {
     if (!run) return;
-    const attestUri = run.attest_uri ?? run.current_step.uri;
+    const attestUri = run.attest_uri ?? run.current_step?.uri;
+    if (!attestUri) return;
     try {
       const res = await attest.mutateAsync({
         uri: attestUri,
