@@ -34,7 +34,9 @@ storybook-static/
 # IDE and editor files
 .vscode/
 .idea/
-.claude/
+# Claude Code (session-start.sh etc.); project hooks disabled via .claude/settings.json
+.claude/*
+!.claude/settings.json
 .cursor/plans
 .cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
