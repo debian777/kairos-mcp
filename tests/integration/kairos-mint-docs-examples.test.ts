@@ -29,20 +29,20 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
   }
 
   const examplesDir = join(process.cwd(), 'docs', 'examples');
-  let testFiles: string[] = [];
-  try {
-    testFiles = readdirSync(examplesDir)
-      .filter((name) => name.startsWith('protocol-example-') && name.toLowerCase().endsWith('.md'))
-      .map((name) => join(examplesDir, name));
-  } catch (err) {
-    console.warn(
-      `[kairos_mint docs/examples] Skipping: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
+  const testFiles = readdirSync(examplesDir)
+    .filter((name) => name.startsWith('protocol-example-') && name.toLowerCase().endsWith('.md'))
+    .map((name) => join(examplesDir, name));
+
+  beforeAll(() => {
+    if (testFiles.length === 0) {
+      throw new Error('docs/examples has no protocol-example-*.md files');
+    }
+  });
 
   for (const filePath of testFiles) {
     const fileName = filePath.split('/').pop() ?? filePath;
     test(`import: ${fileName}`, async () => {
+      expect.hasAssertions();
       const content = readFileSync(filePath, 'utf-8');
 
       const result = await mcpConnection.client.callTool({
@@ -60,11 +60,5 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
       expect(response.items.length).toBeGreaterThanOrEqual(1);
       expect(response.status).toBe('stored');
     }, 30000);
-  }
-
-  if (testFiles.length === 0) {
-    test('docs/examples has at least one protocol-example-*.md', () => {
-      expect(testFiles.length).toBeGreaterThan(0);
-    });
   }
 });

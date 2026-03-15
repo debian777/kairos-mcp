@@ -20,7 +20,6 @@ describe('CLI Commands Advanced --url Tests', () => {
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
     configHome = await setupCliConfigWithLogin();
-    // Mint once and cache the URI for all tests to reuse
     if (serverAvailable && configHome) {
       const mintResult = await execAsync(
         `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`,
@@ -34,17 +33,10 @@ describe('CLI Commands Advanced --url Tests', () => {
     }
   }, 60000);
 
-  async function getMintedUri(): Promise<string | null> {
-    // Return cached URI to avoid expensive mint operations
-    return cachedMintedUri;
-  }
-
   describe('next command', () => {
     test('next uses --url parameter', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       // CLI next requires solution for steps 2+, and --output json for JSON format
       // Note: Minted URI is typically step 1, so kairos_next will be blocked
@@ -71,10 +63,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('next uses -u short form', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       // CLI next requires solution for steps 2+, and --output json for JSON format
       // Note: Minted URI is typically step 1, so kairos_next will be blocked
@@ -101,10 +91,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('next with --url and --solution', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const solution = JSON.stringify({
         type: 'comment',
@@ -131,10 +119,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
   describe('update command', () => {
     test('update uses --url parameter', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} update --url ${BASE_URL} --file "${TEST_FILE}" "${uri}"`,
@@ -148,10 +134,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('update uses -u short form', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} update -u ${BASE_URL} --file "${TEST_FILE}" "${uri}"`,
@@ -167,10 +151,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
   describe('attest command', () => {
     test('attest uses --url parameter', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test attestation"`,
@@ -184,10 +166,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('attest uses -u short form', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} attest -u ${BASE_URL} "${uri}" success "Test attestation"`,
@@ -201,10 +181,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('attest with --url and --quality-bonus', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test" --quality-bonus 5`,
@@ -218,10 +196,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('attest with --url and --model', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test" --model "test-model"`,
@@ -237,10 +213,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
   describe('delete command', () => {
     test('delete uses --url parameter', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} delete --url ${BASE_URL} "${uri}"`,
@@ -254,10 +228,8 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
 
     test('delete uses -u short form', async () => {
-      if (!serverAvailable || !configHome) return;
-
-      const uri = await getMintedUri();
-      if (!uri) return;
+      if (!serverAvailable || !configHome || !cachedMintedUri) return;
+      const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} delete -u ${BASE_URL} "${uri}"`,

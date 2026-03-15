@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { KairosBeginResponse } from "@/lib/kairosRunTypes";
+import type { BeginOutput } from "../../tools/kairos_begin.js";
 
-async function kairosBegin(uri: string): Promise<KairosBeginResponse> {
+async function kairosBegin(uri: string): Promise<BeginOutput> {
   const res = await apiFetch("/api/kairos_begin", {
     method: "POST",
     body: JSON.stringify({ uri }),

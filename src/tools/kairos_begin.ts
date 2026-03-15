@@ -79,100 +79,81 @@ function buildKairosBeginPayload(
   return payload;
 }
 
+import { z } from 'zod';
 import { buildBeginSchemas } from './kairos_begin_schema.js';
+
+const beginSchemas = buildBeginSchemas();
+export const beginInputSchema = beginSchemas.inputSchema;
+export const beginOutputSchema = beginSchemas.outputSchema;
+export type BeginInput = z.infer<typeof beginInputSchema>;
+export type BeginOutput = z.infer<typeof beginOutputSchema>;
+
+/**
+ * Shared execute: load step 1 (with auto-redirect) and return challenge/next_action. Used by MCP tool and HTTP route.
+ */
+export async function executeBegin(
+  memoryStore: MemoryQdrantStore,
+  qdrantService: QdrantService | undefined,
+  input: BeginInput
+): Promise<BeginOutput> {
+  const { uuid, uri: requestedUri } = normalizeMemoryUri(input.uri);
+  let memory = await loadMemoryWithCache(memoryStore, uuid);
+  let redirectMessage: string | undefined;
+
+  if (memory?.chain && memory.chain.step_index !== 1) {
+    const firstStep = await resolveChainFirstStep(memory, qdrantService);
+    if (firstStep?.uuid) {
+      const step1Memory = await loadMemoryWithCache(memoryStore, firstStep.uuid);
+      if (step1Memory) {
+        memory = step1Memory;
+        redirectMessage = 'Redirected to step 1 of this protocol chain.';
+      }
+    }
+  }
+
+  const nextStepInfo = memory
+    ? await resolveChainNextStep(memory, qdrantService)
+    : undefined;
+  const nextStepUri = nextStepInfo?.uuid ? `kairos://mem/${nextStepInfo.uuid}` : null;
+  const challenge = await buildChallenge(memory, memory?.proof_of_work);
+  return buildKairosBeginPayload(memory, requestedUri, nextStepUri, challenge, redirectMessage) as BeginOutput;
+}
 
 export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterBeginOptions = {}) {
   const toolName = options.toolName || 'kairos_begin';
-  const { inputSchema, outputSchema } = buildBeginSchemas();
-
-  structuredLogger.debug(`kairos_begin registration inputSchema: ${JSON.stringify(inputSchema)}`);
-  structuredLogger.debug(`kairos_begin registration outputSchema: ${JSON.stringify(outputSchema)}`);
+  structuredLogger.debug(`kairos_begin registration inputSchema: ${JSON.stringify(beginInputSchema)}`);
+  structuredLogger.debug(`kairos_begin registration outputSchema: ${JSON.stringify(beginOutputSchema)}`);
   server.registerTool(
     toolName,
     {
       title: 'Start protocol execution',
       description: getToolDoc('kairos_begin') || 'Loads step 1 and returns the first challenge. Auto-redirects to step 1 if non-step-1 URI is provided.',
-      inputSchema,
-      outputSchema
+      inputSchema: beginInputSchema,
+      outputSchema: beginOutputSchema
     },
-    async (params: any) => {
+    async (params: unknown) => {
       const tenantId = getTenantId();
       const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
       structuredLogger.debug(`kairos_begin space_id=${spaceId}`);
-      const inputSize = JSON.stringify(params).length;
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
-      
-      const timer = mcpToolDuration.startTimer({ 
-        tool: toolName,
-        tenant_id: tenantId 
-      });
-      const respond = (payload: any) => {
-        const structured = {
-          content: [{
-            type: 'text', text: JSON.stringify(payload)
-          }],
+      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
+      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
+      const respond = (payload: BeginOutput) => {
+        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(payload).length);
+        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(payload) }],
           structuredContent: payload
         };
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        const outputSize = JSON.stringify(structured).length;
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
-        timer({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        return structured;
       };
       try {
-        const { uri } = params as { uri: string };
-        const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
-
-        let memory = await loadMemoryWithCache(memoryStore, uuid);
-        let redirectMessage: string | undefined;
-        
-        // Auto-redirect: if not step 1, resolve and present step 1
-        if (memory?.chain && memory.chain.step_index !== 1) {
-          const firstStep = await resolveChainFirstStep(memory, options.qdrantService);
-          if (firstStep?.uuid) {
-            const step1Memory = await loadMemoryWithCache(memoryStore, firstStep.uuid);
-            if (step1Memory) {
-              memory = step1Memory;
-              redirectMessage = 'Redirected to step 1 of this protocol chain.';
-            }
-          }
-        }
-
-        // Resolve next step URI
-        const nextStepInfo = memory
-          ? await resolveChainNextStep(memory, options.qdrantService)
-          : undefined;
-        const nextStepUri = nextStepInfo?.uuid
-          ? `kairos://mem/${nextStepInfo.uuid}`
-          : null;
-
-        const challenge = await buildChallenge(memory, memory?.proof_of_work);
-        const output = buildKairosBeginPayload(memory, requestedUri, nextStepUri, challenge, redirectMessage);
+        const input = beginInputSchema.parse(params);
+        const output = await executeBegin(memoryStore, options.qdrantService, input);
         return respond(output);
       } catch (error) {
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        mcpToolErrors.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        timer({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
         throw error;
       }
     }

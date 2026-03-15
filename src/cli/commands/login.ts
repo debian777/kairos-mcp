@@ -19,13 +19,12 @@ function escapeHtml(s: string): string {
 }
 
 import { openBrowser } from '../auth-error.js';
-import { readConfig, writeConfig } from '../config-file.js';
+import { getDefaultApiUrlFromFile, readConfig, writeConfig } from '../config-file.js';
 import { writeError, writeStdout } from '../output.js';
 
 /** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
 export function getBaseUrl(): string {
-    const config = readConfig();
-    return (process.env['KAIROS_API_URL'] || config.apiUrl || getApiUrl()).replace(/\/$/, '');
+    return (process.env['KAIROS_API_URL'] || getDefaultApiUrlFromFile() || getApiUrl()).replace(/\/$/, '');
 }
 
 /** Check if token is valid (GET /api/me). Used by login to skip relogin and by ApiClient. */
@@ -45,7 +44,7 @@ async function loginWithToken(baseUrl: string, token: string): Promise<boolean> 
         writeError(body.message || `HTTP ${res.status}: token invalid or expired`);
         return false;
     }
-    writeConfig({ apiUrl: baseUrl, bearerToken: token });
+    await writeConfig({ apiUrl: baseUrl, bearerToken: token });
     writeStdout('Token validated and stored.');
     return true;
 }
@@ -158,7 +157,7 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
                     resolve(false);
                     return;
                 }
-                writeConfig({ apiUrl: baseUrl, bearerToken: tokens.access_token });
+                await writeConfig({ apiUrl: baseUrl, bearerToken: tokens.access_token });
                 writeStdout('Login successful. Token stored.');
                 resolve(true);
             } catch (e) {
@@ -214,7 +213,7 @@ export function loginCommand(program: Command): void {
                     process.exit(ok ? 0 : 1);
                     return;
                 }
-                const config = readConfig(baseUrl);
+                const config = await readConfig(baseUrl);
                 if (config.bearerToken && (await isTokenValid(baseUrl, config.bearerToken))) {
                     writeStdout('Already authenticated.');
                     process.exit(0);

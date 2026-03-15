@@ -33,7 +33,7 @@ function runCli(
   return new Promise((resolve) => {
     exec(
       `node ${CLI_PATH} ${args}`,
-      { env: { ...process.env, ...env } },
+      { env: { ...process.env, KAIROS_CLI_NO_KEYRING: '1', ...env } },
       (err, stdout, stderr) => {
         resolve({
           stdout: stdout ?? '',
@@ -92,7 +92,7 @@ async function spawnLoginAndCaptureAuthUrl(
   callbackPort: number;
 }> {
   return new Promise((resolve, reject) => {
-    const env = { XDG_CONFIG_HOME: configHome };
+    const env = { XDG_CONFIG_HOME: configHome, KAIROS_CLI_NO_KEYRING: '1' };
     const proc = spawn('node', [CLI_PATH, '--url', BASE_URL, 'login', '--no-browser'], {
       env: { ...process.env, ...env }
     });

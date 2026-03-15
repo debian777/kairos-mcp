@@ -1,6 +1,9 @@
 /**
  * CLI config file: token and API URL storage (XDG-compliant, user-only readable).
  * Supports multiple environments keyed by KAIROS_API_URL (normalized, no trailing slash).
+ * When keyring is available, bearer tokens are stored in the OS keyring; the config file
+ * holds only defaultUrl and environment keys. When keyring is unavailable, tokens are
+ * stored in the file (with a one-time warning).
  *
  * New format:
  *   { "defaultUrl": "http://localhost:3300", "environments": { "http://localhost:3300": { "bearerToken": "..." }, ... } }
@@ -10,6 +13,8 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
+import { getToken, setToken, deleteToken, isKeyringAvailable } from './keyring.js';
+import { writeStderr } from './output.js';
 
 export interface CliConfig {
     apiUrl?: string;
@@ -23,6 +28,15 @@ export function normalizeApiUrl(url: string): string {
 
 const CONFIG_DIR_NAME = 'kairos';
 const CONFIG_FILE_NAME = 'config.json';
+
+let fallbackWarned = false;
+
+function warnFallbackOnce(): void {
+    if (!fallbackWarned) {
+        fallbackWarned = true;
+        writeStderr('Keyring unavailable; storing token in config file. Set KAIROS_CLI_NO_KEYRING=1 to suppress this message.');
+    }
+}
 
 interface EnvironmentEntry {
     bearerToken?: string;
@@ -53,6 +67,13 @@ function parseConfigFile(path: string): ConfigFileShape | null {
     }
 }
 
+function writeConfigShape(shape: ConfigFileShape): void {
+    const dir = getConfigDir();
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const path = getConfigPath();
+    writeFileSync(path, JSON.stringify(shape, null, 2), { mode: 0o600 });
+}
+
 /**
  * Config directory: XDG_CONFIG_HOME/kairos on Unix; %APPDATA%\kairos on Windows.
  */
@@ -73,42 +94,97 @@ export function getConfigPath(): string {
 }
 
 /**
+ * Sync read of default API URL from config file (no keyring/token). Used by ApiClient constructor.
+ */
+export function getDefaultApiUrlFromFile(): string | undefined {
+    const path = getConfigPath();
+    const parsed = parseConfigFile(path);
+    if (!parsed) return undefined;
+    if (isLegacyFormat(parsed) && typeof parsed.KAIROS_API_URL === 'string') {
+        return normalizeApiUrl(parsed.KAIROS_API_URL);
+    }
+    if (typeof parsed.defaultUrl === 'string') return normalizeApiUrl(parsed.defaultUrl);
+    const envs = parsed.environments ?? {};
+    const first = Object.keys(envs)[0];
+    return first ? normalizeApiUrl(first) : undefined;
+}
+
+/**
  * Read config from disk. When baseUrl is given, returns config for that environment (token for that URL).
  * When omitted, returns the default environment (defaultUrl). Returns empty object if file missing or invalid.
+ * Tokens are read from keyring when available; tokens in the file are migrated to keyring on first read.
  */
-export function readConfig(baseUrl?: string): CliConfig {
+export async function readConfig(baseUrl?: string): Promise<CliConfig> {
     const path = getConfigPath();
     const parsed = parseConfigFile(path);
     if (!parsed) return {};
 
+    let effectiveUrl: string | undefined;
+    let tokenFromFile: string | undefined;
+
     if (isLegacyFormat(parsed)) {
         const apiUrl = typeof parsed.KAIROS_API_URL === 'string' ? parsed.KAIROS_API_URL : undefined;
-        const bearerToken = typeof parsed.bearerToken === 'string' ? parsed.bearerToken : undefined;
+        tokenFromFile = typeof parsed.bearerToken === 'string' ? parsed.bearerToken : undefined;
         if (baseUrl) {
             const normalized = normalizeApiUrl(baseUrl);
             if (apiUrl && normalizeApiUrl(apiUrl) === normalized) {
+                const fromKeyring = await getToken(normalized);
+                const token = fromKeyring ?? (tokenFromFile && isKeyringAvailable() ? (await setToken(normalized, tokenFromFile), tokenFromFile) : tokenFromFile);
                 const out: CliConfig = {};
                 if (apiUrl) out.apiUrl = apiUrl;
-                if (bearerToken) out.bearerToken = bearerToken;
+                if (token) out.bearerToken = token;
+                if (tokenFromFile && isKeyringAvailable()) {
+                    writeConfigShape({ defaultUrl: normalized, environments: {} });
+                }
                 return out;
             }
-            return { apiUrl: normalized };
+            effectiveUrl = normalized;
+        } else {
+            effectiveUrl = apiUrl ?? '';
+            if (!effectiveUrl) return {};
+            const fromKeyring = await getToken(effectiveUrl);
+            const token = fromKeyring ?? (tokenFromFile && isKeyringAvailable() ? (await setToken(effectiveUrl, tokenFromFile), tokenFromFile) : tokenFromFile);
+            const out: CliConfig = {};
+            if (apiUrl) out.apiUrl = apiUrl;
+            if (token) out.bearerToken = token;
+            if (tokenFromFile && isKeyringAvailable()) {
+                writeConfigShape({ defaultUrl: effectiveUrl, environments: {} });
+            }
+            return out;
         }
-        const out: CliConfig = {};
-        if (apiUrl) out.apiUrl = apiUrl;
-        if (bearerToken) out.bearerToken = bearerToken;
-        return out;
+    } else {
+        const environments = parsed.environments ?? {};
+        const defaultUrl = typeof parsed.defaultUrl === 'string' ? normalizeApiUrl(parsed.defaultUrl) : undefined;
+        effectiveUrl = baseUrl ? normalizeApiUrl(baseUrl) : defaultUrl ?? Object.keys(environments)[0];
+        if (!effectiveUrl) return {};
+        const entry = environments[effectiveUrl];
+        tokenFromFile = entry && typeof entry.bearerToken === 'string' ? entry.bearerToken : undefined;
     }
 
-    const environments = parsed.environments ?? {};
-    const defaultUrl = typeof parsed.defaultUrl === 'string' ? normalizeApiUrl(parsed.defaultUrl) : undefined;
-    const effectiveUrl = baseUrl ? normalizeApiUrl(baseUrl) : defaultUrl ?? Object.keys(environments)[0];
     if (!effectiveUrl) return {};
+    const fromKeyring = await getToken(effectiveUrl);
+    let token = fromKeyring;
+    if (!token && tokenFromFile && isKeyringAvailable()) {
+        await setToken(effectiveUrl, tokenFromFile);
+        token = tokenFromFile;
+        const parsed2 = parseConfigFile(path);
+        if (parsed2 && !isLegacyFormat(parsed2)) {
+            const envs = { ...(parsed2.environments ?? {}) };
+            const ent = envs[effectiveUrl];
+            if (ent) {
+                delete ent.bearerToken;
+                if (Object.keys(ent).length === 0) delete envs[effectiveUrl];
+            }
+            const next: ConfigFileShape =
+                typeof parsed2.defaultUrl === 'string' ? { defaultUrl: parsed2.defaultUrl, environments: envs } : { environments: envs };
+            writeConfigShape(next);
+        }
+    } else if (!token) {
+        token = tokenFromFile ?? null;
+    }
 
-    const entry = environments[effectiveUrl];
-    const bearerToken = entry && typeof entry.bearerToken === 'string' ? entry.bearerToken : undefined;
-    const out: CliConfig = { apiUrl: effectiveUrl };
-    if (bearerToken) out.bearerToken = bearerToken;
+    const out: CliConfig = { apiUrl: effectiveUrl as string };
+    if (token) out.bearerToken = token;
     return out;
 }
 
@@ -121,10 +197,9 @@ export type WriteConfigInput = {
 /**
  * Write config (merge with existing). Pass bearerToken: null to clear the token for the given apiUrl.
  * When apiUrl is provided, that environment is updated and set as defaultUrl. Creates directory and sets file mode 0o600.
+ * When keyring is available, tokens are stored only in the keyring (not in the file). When unavailable, tokens are written to the file with a one-time warning.
  */
-export function writeConfig(partial: WriteConfigInput): void {
-    const dir = getConfigDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+export async function writeConfig(partial: WriteConfigInput): Promise<void> {
     const path = getConfigPath();
     const parsed = parseConfigFile(path);
 
@@ -147,29 +222,52 @@ export function writeConfig(partial: WriteConfigInput): void {
     }
 
     const partialUrl = partial.apiUrl !== undefined ? normalizeApiUrl(partial.apiUrl) : undefined;
+    const useKeyring = isKeyringAvailable();
+
     if (partialUrl !== undefined) {
         defaultUrl = partialUrl;
         if (!environments[partialUrl]) environments[partialUrl] = {};
         if (partial.bearerToken === null) {
+            if (useKeyring) await deleteToken(partialUrl);
             delete environments[partialUrl].bearerToken;
             const ent = environments[partialUrl];
             if (ent && Object.keys(ent).length === 0) delete environments[partialUrl];
         } else if (partial.bearerToken !== undefined) {
-            environments[partialUrl].bearerToken = partial.bearerToken;
+            if (useKeyring) {
+                await setToken(partialUrl, partial.bearerToken);
+                delete environments[partialUrl].bearerToken;
+                if (Object.keys(environments[partialUrl]).length === 0) delete environments[partialUrl];
+            } else {
+                warnFallbackOnce();
+                environments[partialUrl].bearerToken = partial.bearerToken;
+            }
         }
     } else if (partial.bearerToken === null && defaultUrl) {
+        if (useKeyring) await deleteToken(defaultUrl);
         const ent = environments[defaultUrl];
         if (ent) {
             delete ent.bearerToken;
             if (Object.keys(ent).length === 0) delete environments[defaultUrl];
         }
     } else if (partial.bearerToken !== undefined && partial.bearerToken !== null && defaultUrl) {
-        const ent = environments[defaultUrl] ?? {};
-        ent.bearerToken = partial.bearerToken;
-        environments[defaultUrl] = ent;
+        if (useKeyring) {
+            await setToken(defaultUrl, partial.bearerToken);
+            const ent = environments[defaultUrl];
+            if (ent) {
+                delete ent.bearerToken;
+                if (Object.keys(ent).length === 0) delete environments[defaultUrl];
+            } else {
+                environments[defaultUrl] = {};
+            }
+        } else {
+            warnFallbackOnce();
+            const ent = environments[defaultUrl] ?? {};
+            ent.bearerToken = partial.bearerToken;
+            environments[defaultUrl] = ent;
+        }
     }
 
     const next: ConfigFileShape =
         defaultUrl !== undefined ? { defaultUrl, environments } : { environments };
-    writeFileSync(path, JSON.stringify(next, null, 2), { mode: 0o600 });
+    writeConfigShape(next);
 }

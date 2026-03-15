@@ -11,9 +11,9 @@ export function logoutCommand(program: Command): void {
     program
         .command('logout')
         .description('Clear the stored Bearer token from config file (for current --url / env)')
-        .action(() => {
+        .action(async () => {
             const baseUrl = getBaseUrl();
-            writeConfig({ apiUrl: baseUrl, bearerToken: null });
+            await writeConfig({ apiUrl: baseUrl, bearerToken: null });
             writeStdout('Token cleared from config.');
         });
 }

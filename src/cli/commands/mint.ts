@@ -27,17 +27,6 @@ export function mintCommand(program: Command): void {
                     mintOptions.force = options.force;
                 }
                 const response = await client.mint(markdown, mintOptions);
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
-                // Pretty print the response
                 writeJson(response);
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {

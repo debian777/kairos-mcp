@@ -5,6 +5,8 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
+import { utf8toString } from '@exodus/bytes/utf8.js';
 import {
   AUTH_ENABLED,
   KEYCLOAK_URL,
@@ -75,9 +77,11 @@ function getSessionPayload(req: Request): AuthPayload | null {
   try {
     const [payloadB64, sig] = cookie.split('.');
     if (!payloadB64 || !sig) return null;
-    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('base64url');
+    const expectedSig = toBase64url(
+      new Uint8Array(crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest())
+    );
     if (sig !== expectedSig) return null;
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString()) as {
+    const payload = JSON.parse(utf8toString(fromBase64url(payloadB64))) as {
       sub?: string;
       groups?: string[];
       realm?: string;

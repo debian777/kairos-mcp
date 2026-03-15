@@ -14,6 +14,7 @@ import { deleteCommand } from './commands/delete.js';
 import { attestCommand } from './commands/attest.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
+import { tokenCommand } from './commands/token.js';
 import { getApiUrl } from './config.js';
 
 const require = createRequire(import.meta.url);
@@ -45,6 +46,7 @@ deleteCommand(program);  // kairos_delete
 attestCommand(program);   // kairos_attest
 loginCommand(program);
 logoutCommand(program);
+tokenCommand(program);
 
 // Parse arguments
 program.parse();

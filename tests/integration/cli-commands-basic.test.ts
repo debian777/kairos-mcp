@@ -5,6 +5,7 @@
 
 import {
   execAsync,
+  execAsyncNoAuth,
   BASE_URL,
   CLI_PATH,
   TEST_FILE,
@@ -20,7 +21,6 @@ describe('CLI Commands Basic --url Tests', () => {
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
     configHome = await setupCliConfigWithLogin();
-    // Mint test protocol then get a URI from search (no longer rely on built-in mem docs)
     if (serverAvailable && configHome) {
       try {
         await execAsync(
@@ -34,11 +34,10 @@ describe('CLI Commands Basic --url Tests', () => {
           configHome
         );
         const searchData = JSON.parse(searchResult.stdout);
-        // V2: extract URI from choices array (first match)
         const matchChoice = Array.isArray(searchData.choices)
-          ? searchData.choices.find((c: any) => c.role === 'match')
+          ? searchData.choices.find((c: { role: string }) => c.role === 'match')
           : null;
-        cachedSearchUri = matchChoice?.uri || null;
+        cachedSearchUri = matchChoice?.uri ?? null;
       } catch {
         cachedSearchUri = null;
       }
@@ -180,6 +179,29 @@ describe('CLI Commands Basic --url Tests', () => {
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('status');
     }, 30000);
+  });
+
+  describe('token command', () => {
+    test('token prints bearer token to stdout when logged in', async () => {
+      if (!serverAvailable || !configHome) return;
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} token --url ${BASE_URL}`,
+        undefined,
+        configHome
+      );
+
+      expect(stderr).toBe('');
+      const token = stdout.trim();
+      expect(token.length).toBeGreaterThan(0);
+      expect(token).toMatch(/^eyJ/);
+    }, 30000);
+
+    test('token without auth fails with message', async () => {
+      await expect(
+        execAsyncNoAuth(`node ${CLI_PATH} token --url ${BASE_URL}`)
+      ).rejects.toThrow();
+    }, 10000);
   });
 });
 

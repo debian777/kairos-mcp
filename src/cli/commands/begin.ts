@@ -5,7 +5,7 @@
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
-import { writeError, writeJson } from '../output.js';
+import { writeJson } from '../output.js';
 
 export function beginCommand(program: Command): void {
     program
@@ -16,17 +16,6 @@ export function beginCommand(program: Command): void {
             try {
                 const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 const response = await client.begin(uri);
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
-                // Pretty print the response
                 writeJson(response);
             } catch (error) {
                 handleApiError(error, !program.opts()['noBrowser']);

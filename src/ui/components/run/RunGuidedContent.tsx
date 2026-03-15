@@ -60,11 +60,17 @@ export function RunGuidedContent({
           {t("run.currentStep")}
         </h2>
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <div className="text-sm text-[var(--color-text-muted)] mb-2">
-            {t("run.stepUri")}: <span className="font-mono break-all">{run.current_step.uri}</span>
-          </div>
-          {run.current_step.content ? (
-            <RenderedMarkdown content={run.current_step.content} />
+          {run.current_step ? (
+            <>
+              <div className="text-sm text-[var(--color-text-muted)] mb-2">
+                {t("run.stepUri")}: <span className="font-mono break-all">{run.current_step.uri}</span>
+              </div>
+              {run.current_step.content ? (
+                <RenderedMarkdown content={run.current_step.content} />
+              ) : (
+                <p className="text-sm text-[var(--color-text-muted)] m-0">{t("run.noStepContent")}</p>
+              )}
+            </>
           ) : (
             <p className="text-sm text-[var(--color-text-muted)] m-0">{t("run.noStepContent")}</p>
           )}

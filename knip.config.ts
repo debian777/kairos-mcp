@@ -26,8 +26,12 @@ const config: KnipConfig = {
         'src/resources/embedded-mcp-resources.ts',
         // Vite ambient types and module declarations; not imported by source
         'src/ui/vite-env.d.ts',
+        // Schema files: exported *Input/*Output types are for UI/CLI (Phase 2); schemas used by tools and tests
+        'src/tools/kairos_*_schema.ts',
     ],
     ignoreDependencies: [
+        // Loaded via createRequire in src/cli/keyring.ts (dynamic require for ESM)
+        '@napi-rs/keyring',
         // Runtime tools used in scripts/shell, not imported directly
         'dotenv-cli',
         'pino-pretty',

@@ -1,30 +1,28 @@
 /**
- * API Client for KAIROS REST API
+ * API Client for KAIROS REST API.
+ * Returns canonical response shapes (no metadata wrapper).
  */
 
 import { AuthRequiredError } from './auth-error.js';
 import { getApiUrl } from './config.js';
-import { readConfig } from './config-file.js';
+import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
-
-export interface ApiResponse<T = any> {
-    data?: T;
-    error?: string;
-    message?: string;
-    metadata?: {
-        duration_ms?: number;
-        cached?: boolean;
-    };
-}
+import type { SearchOutput } from '../tools/kairos_search_schema.js';
+import type { BeginOutput } from '../tools/kairos_begin.js';
+import type { NextOutput } from '../tools/kairos_next.js';
+import type { AttestOutput } from '../tools/kairos_attest_schema.js';
+import type { MintOutput } from '../tools/kairos_mint_schema.js';
+import type { UpdateOutput } from '../tools/kairos_update_schema.js';
+import type { DeleteOutput } from '../tools/kairos_delete_schema.js';
 
 export class ApiClient {
     private baseUrl: string;
     private openInBrowser: boolean;
 
     constructor(baseUrl?: string, openInBrowser?: boolean) {
-        // Precedence: env, then parameter, then config file, then default. openInBrowser true = auto-login on 401 or no token
-        const config = readConfig(); // default env for baseUrl resolution
-        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || config.apiUrl || getApiUrl();
+        // Precedence: env, then parameter, then config file (sync URL only), then default. openInBrowser true = auto-login on 401 or no token
+        const configUrl = getDefaultApiUrlFromFile();
+        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
         const noAutoLogin = process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === '1' || process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === 'true';
         this.openInBrowser = !noAutoLogin && (openInBrowser !== false);
@@ -34,12 +32,12 @@ export class ApiClient {
         endpoint: string,
         options: RequestInit = {},
         isRetryAfterLogin = false
-    ): Promise<ApiResponse<T>> {
+    ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
-        let bearer = readConfig(this.baseUrl).bearerToken;
+        let bearer = (await readConfig(this.baseUrl)).bearerToken;
         if (!bearer && this.openInBrowser && !isRetryAfterLogin) {
             const ok = await loginWithBrowser(this.baseUrl);
             if (ok) return this.request(endpoint, options, true);
@@ -72,13 +70,12 @@ export class ApiClient {
 
         const data = await response.json().catch(() => {
             throw new Error(`Failed to parse response from ${url}`);
-        }) as ApiResponse<T>;
+        });
 
         if (!response.ok) {
             const errorData = data as { message?: string; error?: string; login_url?: string };
             const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
             if (response.status === 401 && errorData.login_url) {
-                // On 401 with --open: run same PKCE flow as "kairos login", then retry once
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.request(endpoint, options, true);
@@ -91,25 +88,25 @@ export class ApiClient {
             throw new Error(msg);
         }
 
-        return data;
+        return data as T;
     }
 
-    async search(query: string): Promise<ApiResponse> {
-        return this.request('/api/kairos_search', {
+    async search(query: string): Promise<SearchOutput> {
+        return this.request<SearchOutput>('/api/kairos_search', {
             method: 'POST',
             body: JSON.stringify({ query }),
         });
     }
 
-    async begin(uri: string): Promise<ApiResponse> {
-        return this.request('/api/kairos_begin', {
+    async begin(uri: string): Promise<BeginOutput> {
+        return this.request<BeginOutput>('/api/kairos_begin', {
             method: 'POST',
             body: JSON.stringify({ uri }),
         });
     }
 
-    async next(uri: string, solution?: any): Promise<ApiResponse> {
-        return this.request('/api/kairos_next', {
+    async next(uri: string, solution?: unknown): Promise<NextOutput> {
+        return this.request<NextOutput>('/api/kairos_next', {
             method: 'POST',
             body: JSON.stringify({ uri, solution }),
         });
@@ -119,12 +116,12 @@ export class ApiClient {
         markdown: string,
         options?: { llmModelId?: string; force?: boolean },
         isRetryAfterLogin = false
-    ): Promise<ApiResponse> {
+    ): Promise<MintOutput> {
         const url = `${this.baseUrl}/api/kairos_mint/raw`;
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
-        const bearer = readConfig(this.baseUrl).bearerToken;
+        const bearer = (await readConfig(this.baseUrl)).bearerToken;
         if (bearer) {
             headers['Authorization'] = `Bearer ${bearer}`;
         }
@@ -145,36 +142,35 @@ export class ApiClient {
 
         const data = await response.json().catch(() => {
             throw new Error(`Failed to parse response from ${url}`);
-        }) as ApiResponse;
+        }) as MintOutput & { message?: string; error?: string; login_url?: string };
 
         if (!response.ok) {
-            const errorData = data as { message?: string; error?: string; login_url?: string };
-            const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401 && errorData.login_url) {
+            const msg = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
+            if (response.status === 401 && data.login_url) {
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.mint(markdown, options, true);
                 }
                 throw new AuthRequiredError(
-                    `${msg}\n\nLog in at:\n${errorData.login_url}`,
-                    errorData.login_url
+                    `${msg}\n\nLog in at:\n${data.login_url}`,
+                    data.login_url
                 );
             }
             throw new Error(msg);
         }
 
-        return data;
+        return data as MintOutput;
     }
 
-    async update(uris: string[], markdownDoc?: string[], updates?: Record<string, any>): Promise<ApiResponse> {
-        return this.request('/api/kairos_update', {
+    async update(uris: string[], markdownDoc?: string[], updates?: Record<string, unknown>): Promise<UpdateOutput> {
+        return this.request<UpdateOutput>('/api/kairos_update', {
             method: 'POST',
             body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),
         });
     }
 
-    async delete(uris: string[]): Promise<ApiResponse> {
-        return this.request('/api/kairos_delete', {
+    async delete(uris: string[]): Promise<DeleteOutput> {
+        return this.request<DeleteOutput>('/api/kairos_delete', {
             method: 'POST',
             body: JSON.stringify({ uris }),
         });
@@ -185,17 +181,16 @@ export class ApiClient {
         outcome: 'success' | 'failure',
         message: string,
         options?: { qualityBonus?: number; llmModelId?: string }
-    ): Promise<ApiResponse> {
-        return this.request('/api/kairos_attest', {
+    ): Promise<AttestOutput> {
+        return this.request<AttestOutput>('/api/kairos_attest', {
             method: 'POST',
             body: JSON.stringify({
                 uri,
                 outcome,
                 message,
-                quality_bonus: options?.qualityBonus || 0,
+                quality_bonus: options?.qualityBonus ?? 0,
                 llm_model_id: options?.llmModelId,
             }),
         });
     }
 }
-
