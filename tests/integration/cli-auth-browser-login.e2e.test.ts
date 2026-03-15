@@ -118,15 +118,16 @@ async function spawnLoginAndCaptureAuthUrl(
           reject(new Error('Could not parse callback port from auth URL'));
           return;
         }
-        const exitPromise = Promise.race<number | null>([
-          new Promise<number | null>((r) => proc.once('close', r)),
-          new Promise<number | null>((r) =>
-            setTimeout(() => {
-              proc.kill('SIGKILL');
-              r(1);
-            }, 30000)
-          )
-        ]);
+        const exitPromise = new Promise<number | null>((r) => {
+          const t = setTimeout(() => {
+            proc.kill('SIGKILL');
+            r(1);
+          }, 30000);
+          proc.once('close', (code) => {
+            clearTimeout(t);
+            r(code);
+          });
+        });
         resolve({ authUrl, exitPromise, callbackPort });
       }
     });
@@ -298,15 +299,17 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
 
   test('search without token after logout fails with auth message', async () => {
     // KAIROS_CLI_NO_AUTO_LOGIN=1 so CLI does not open browser; fails fast with auth error
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<{ stdout: string; stderr: string; code?: number }>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('CLI timed out after 12s (expected auth error)')), 12000);
+    });
     const searchResult = await Promise.race([
       runCli(`--url ${BASE_URL} search "test"`, {
         XDG_CONFIG_HOME: configHome,
         KAIROS_CLI_NO_AUTO_LOGIN: '1'
       }),
-      new Promise<{ stdout: string; stderr: string; code?: number }>((_, reject) =>
-        setTimeout(() => reject(new Error('CLI timed out after 12s (expected auth error)')), 12000)
-      )
-    ]);
+      timeoutPromise
+    ]).finally(() => clearTimeout(timeoutId!));
     expect(searchResult.code).not.toBe(0);
     expect(searchResult.stderr || searchResult.stdout).toMatch(
       /Authentication required|Unauthorized|login|Log in/i
