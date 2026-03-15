@@ -17,7 +17,15 @@ export class AuthRequiredError extends Error {
     }
 }
 
+/** When set, used instead of system default (open/xdg-open/start). URL is passed as first argument. */
 export function openBrowser(url: string): void {
+    const browserEnv = process.env['BROWSER'];
+    if (browserEnv) {
+        exec(`${browserEnv} "${url}"`, (err) => {
+            if (err) writeStderr(`Could not run BROWSER: ${err.message}. Open this URL manually:\n${url}`);
+        });
+        return;
+    }
     const cmd =
         platform() === 'win32'
             ? `start "${url}"`

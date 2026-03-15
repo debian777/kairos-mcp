@@ -14,7 +14,7 @@ export function beginCommand(program: Command): void {
         .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
         .action(async (uri: string) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 const response = await client.begin(uri);
 
                 if (response.error) {

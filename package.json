@@ -39,6 +39,8 @@
   ],
   "scripts": {
     "cli": "node dist/cli/index.js",
+    "cli:dev": "KAIROS_API_URL=http://localhost:3300 node dist/cli/index.js",
+    "dev:cli-ready": "./scripts/dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/run-env.sh build",
     "dev:deploy": "npm run dev:build && npm run dev:restart",

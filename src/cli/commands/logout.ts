@@ -9,9 +9,9 @@ import { writeStdout } from '../output.js';
 export function logoutCommand(program: Command): void {
     program
         .command('logout')
-        .description('Clear the stored Bearer token (config file only; env KAIROS_BEARER_TOKEN is unchanged)')
+        .description('Clear the stored Bearer token from config file')
         .action(() => {
-            writeConfig({ KAIROS_BEARER_TOKEN: null });
+            writeConfig({ bearerToken: null });
             writeStdout('Token cleared from config.');
         });
 }

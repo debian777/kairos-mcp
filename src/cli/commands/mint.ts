@@ -18,7 +18,7 @@ export function mintCommand(program: Command): void {
         .action(async (file: string, options: { model?: string; force?: boolean }) => {
             try {
                 const markdown = readFileSync(file, 'utf-8');
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 const mintOptions: { llmModelId?: string; force?: boolean } = {};
                 if (options.model) {
                     mintOptions.llmModelId = options.model;

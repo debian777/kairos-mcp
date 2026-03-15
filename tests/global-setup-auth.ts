@@ -97,6 +97,24 @@ function loadEnv(): void {
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
 }
 
+/** Run scripts/configure-keycloak-realms.py so realm and kairos-cli client exist (required for CLI auth E2E). */
+function configureKeycloakRealms(root: string): void {
+  const script = join(root, 'scripts', 'configure-keycloak-realms.py');
+  if (!existsSync(script)) return;
+  const keycloakUrl = process.env.KEYCLOAK_URL ?? '';
+  const hostReachable =
+    /^https?:\/\/keycloak:/.test(keycloakUrl)
+      ? 'http://localhost:8080'
+      : keycloakUrl;
+  const env = { ...process.env, KEYCLOAK_URL: hostReachable || 'http://localhost:8080' };
+  try {
+    execSync(`python3 "${script}"`, { stdio: 'pipe', env, cwd: root });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`configure-keycloak-realms.py failed: ${msg}`);
+  }
+}
+
 export default async function globalSetup(): Promise<void> {
   loadEnv();
   cleanStaleAuthState(process.cwd());
@@ -106,6 +124,10 @@ export default async function globalSetup(): Promise<void> {
   const useExisting =
     process.env.KEYCLOAK_URL != null && process.env.KEYCLOAK_URL.trim() !== '';
   const baseUrl = `http://localhost:${port}`;
+
+  if (useExisting) {
+    configureKeycloakRealms(process.cwd());
+  }
 
   const env = useExisting
     ? await useExistingKeycloakFromEnv()

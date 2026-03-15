@@ -18,7 +18,7 @@ export function updateCommand(program: Command): void {
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
         .action(async (uris: string[], options: { file?: string; files?: string[]; updates?: string }) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 let markdownDoc: string[] | undefined;
                 let updates: Record<string, any> | undefined;
 

@@ -24,7 +24,7 @@ export function nextCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 let solutionResult;
                 if (options.solution) {
                     try {

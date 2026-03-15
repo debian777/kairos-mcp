@@ -14,7 +14,7 @@ export function deleteCommand(program: Command): void {
         .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
         .action(async (uris: string[]) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 const response = await client.delete(uris);
 
                 if (response.error) {

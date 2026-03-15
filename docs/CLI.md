@@ -17,6 +17,15 @@ Verify the installation:
 kairos --help
 ```
 
+**Run from repo (dev server on port 3300):**
+
+1. One-time: start dev server (`npm run dev:start`), then run `npm run dev:cli-ready`. Complete login in the browser when it opens. Script exits 0 and prints `OK` when search works.
+2. Then use:
+   ```bash
+   npm run cli:dev -- search "test"
+   ```
+   Or with explicit URL: `npm run cli -- --url http://localhost:3300 search "test"`.
+
 ## Configuration
 
 The CLI connects to a KAIROS server. Set the server URL with the `--url`
@@ -36,12 +45,12 @@ The default URL is `http://localhost:3000`.
 
 When the server has authentication enabled, requests must include a Bearer token.
 
-**Shared config (CLI and MCP):** Both read the token from the same place; if absent, perform auth and save to the same file.
+**Shared config (CLI and MCP):** Both read the token from the same config file; if absent, perform auth and save to that file.
 
-1. **Try read:** Use `KAIROS_BEARER_TOKEN` from the environment, then token from `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json` on Windows).
+1. **Token read:** The CLI reads the token **only** from `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json` on Windows). The CLI does **not** use the `KAIROS_BEARER_TOKEN` environment variable.
 2. **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`). The CLI writes the token (and API URL) to that config file so MCP hosts can use it too.
 
-Token and API URL are stored in the config file when env vars are not set. The file is created by `kairos login` and is user-only readable (`0o600`); do not commit it (it contains secrets).
+The config file is created by `kairos login` and is user-only readable (`0o600`); do not commit it (it contains secrets).
 
 When a command fails because authentication is required, the CLI prints the login URL
 on the next line. Run the same command with **`--open`** to open that URL in your
@@ -152,18 +161,24 @@ Log in and store a token for the current server (env or config base URL).
 # Store a token you already have (validated with GET /api/me)
 kairos login --token <your-bearer-token>
 
-# Browser login (uses KEYCLOAK_CLI_CLIENT_ID or KAIROS_CLIENT_ID for public/PKCE client)
+# Browser login (PKCE; CLI uses fixed client_id kairos-cli and dynamic callback port)
 kairos login
+
+# Print login URL only (no browser); useful for tests or headless automation
+kairos login --no-browser
 ```
 
 **Options:**
 
 - `--token <token>` — validate and store this token; skip browser flow
+- `--no-browser` — print the login URL to stdout and do not open a browser
+
+Browser login binds to an open port and sends that callback URL to Keycloak. The callback path includes a per-request token. Set `KAIROS_LOGIN_CALLBACK_PORT` to pin the port (e.g. for tests).
 
 ### logout — clear stored token
 
-Remove the stored Bearer token from the config file. Does not change
-`KAIROS_BEARER_TOKEN` in the environment.
+Remove the stored Bearer token from the config file. (The CLI does not read
+token from the environment.)
 
 ```bash
 kairos logout

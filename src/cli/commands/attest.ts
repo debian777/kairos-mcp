@@ -36,7 +36,7 @@ export function attestCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 
                 const attestOptions: { qualityBonus?: number; llmModelId?: string } = {
                     qualityBonus,

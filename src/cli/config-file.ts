@@ -1,5 +1,6 @@
 /**
  * CLI config file: token and API URL storage (XDG-compliant, user-only readable).
+ * File keys: KAIROS_API_URL, bearerToken.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -7,8 +8,8 @@ import { join } from 'path';
 import { homedir, platform } from 'os';
 
 export interface CliConfig {
-    KAIROS_API_URL?: string;
-    KAIROS_BEARER_TOKEN?: string;
+    apiUrl?: string;
+    bearerToken?: string;
 }
 
 const CONFIG_DIR_NAME = 'kairos';
@@ -43,31 +44,33 @@ export function readConfig(): CliConfig {
         const raw = readFileSync(path, 'utf-8');
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         const out: CliConfig = {};
-        if (typeof parsed['KAIROS_API_URL'] === 'string') out.KAIROS_API_URL = parsed['KAIROS_API_URL'];
-        if (typeof parsed['KAIROS_BEARER_TOKEN'] === 'string') out.KAIROS_BEARER_TOKEN = parsed['KAIROS_BEARER_TOKEN'];
+        if (typeof parsed['KAIROS_API_URL'] === 'string') out.apiUrl = parsed['KAIROS_API_URL'];
+        if (typeof parsed['bearerToken'] === 'string') out.bearerToken = parsed['bearerToken'];
         return out;
     } catch {
         return {};
     }
 }
 
-/** Input for writeConfig: null for KAIROS_BEARER_TOKEN means clear the token. */
+/** Input for writeConfig: null for bearerToken means clear the token. */
 export type WriteConfigInput = {
-    KAIROS_API_URL?: string;
-    KAIROS_BEARER_TOKEN?: string | null;
+    apiUrl?: string;
+    bearerToken?: string | null;
 };
 
 /**
- * Write config (merge with existing). Pass KAIROS_BEARER_TOKEN: null to clear. Creates directory and sets file mode 0o600.
+ * Write config (merge with existing). Pass bearerToken: null to clear. Creates directory and sets file mode 0o600.
  */
 export function writeConfig(partial: WriteConfigInput): void {
     const dir = getConfigDir();
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const path = getConfigPath();
     const current = readConfig();
-    const next: CliConfig = { ...current };
-    if (partial.KAIROS_API_URL !== undefined) next.KAIROS_API_URL = partial.KAIROS_API_URL;
-    if (partial.KAIROS_BEARER_TOKEN === null) delete next.KAIROS_BEARER_TOKEN;
-    else if (partial.KAIROS_BEARER_TOKEN !== undefined) next.KAIROS_BEARER_TOKEN = partial.KAIROS_BEARER_TOKEN;
+    const next: Record<string, string | undefined> = {};
+    if (current.apiUrl !== undefined) next['KAIROS_API_URL'] = current.apiUrl;
+    if (current.bearerToken !== undefined) next['bearerToken'] = current.bearerToken;
+    if (partial.apiUrl !== undefined) next['KAIROS_API_URL'] = partial.apiUrl;
+    if (partial.bearerToken === null) delete next['bearerToken'];
+    else if (partial.bearerToken !== undefined) next['bearerToken'] = partial.bearerToken;
     writeFileSync(path, JSON.stringify(next, null, 2), { mode: 0o600 });
 }

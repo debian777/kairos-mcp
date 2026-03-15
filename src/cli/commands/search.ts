@@ -14,7 +14,7 @@ export function searchCommand(program: Command): void {
         .argument('<query...>', 'Search query (multiple words allowed)')
         .action(async (query: string[]) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, program.opts()['open'] !== false);
                 const response = await client.search(query.join(' '));
 
                 if (response.error) {
