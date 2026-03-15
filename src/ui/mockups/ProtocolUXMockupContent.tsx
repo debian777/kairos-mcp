@@ -1,14 +1,11 @@
 /**
  * Protocol UX target mock content for Storybook stories.
- * The edit stories intentionally use a real Tiptap editor so Storybook
- * demonstrates the actual authoring interaction rather than placeholder chrome.
+ * Uses the same RichTextEditor and RenderedMarkdown as the app for one editor, one renderer.
  */
 
 import type { ReactNode } from "react";
-import { EditorContent, type Editor, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import { Markdown } from "@tiptap/markdown";
+import { useState } from "react";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 const MOCK_URI = "kairos://mem/abc123";
 
@@ -220,34 +217,6 @@ function RenderedContentMock({
   );
 }
 
-function EditorButton({
-  label,
-  ariaLabel,
-  active = false,
-  onClick,
-}: {
-  label: ReactNode;
-  ariaLabel: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      title={ariaLabel}
-      onClick={onClick}
-      className={`inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
-        active
-          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
-          : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 function ToolbarIcon({
   children,
   className = "h-4 w-4",
@@ -313,6 +282,30 @@ function CodeBlockIcon() {
   );
 }
 
+function InlineCodeIcon() {
+  return (
+    <ToolbarIcon>
+      <path d="M6 5.5l2 5-2 5" />
+      <path d="M10 5.5l2 5-2 5" />
+    </ToolbarIcon>
+  );
+}
+
+function TableIcon() {
+  return (
+    <ToolbarIcon>
+      <path d="M2 3h12v2H2V3z" />
+      <path d="M2 7h12v1H2V7z" />
+      <path d="M2 11h12v1H2v-1z" />
+      <path d="M2 15h12v1H2v-1z" />
+      <path d="M2 4v11" />
+      <path d="M6 4v11" />
+      <path d="M10 4v11" />
+      <path d="M14 4v11" />
+    </ToolbarIcon>
+  );
+}
+
 function IconReviewTile({
   name,
   glyph,
@@ -358,7 +351,9 @@ export function EditorToolbarIconSetTargetContent() {
           <IconReviewTile name="Numbered list" glyph={<span className="text-sm font-semibold">1.</span>} note="Uses the familiar document-editor convention." />
           <IconReviewTile name="Link" glyph={<LinkIcon />} note="Chain icon stays monochrome so it does not fight the page theme." />
           <IconReviewTile name="Quote" glyph={<QuoteIcon />} note="Uses a compact quotation mark motif, not decorative speech bubbles." />
+          <IconReviewTile name="Inline code" glyph={<InlineCodeIcon />} note="Backtick-style glyph for single-backtick inline code." />
           <IconReviewTile name="Code block" glyph={<CodeBlockIcon />} note="Chevron and slash cue code without relying on color." />
+          <IconReviewTile name="Table" glyph={<TableIcon />} note="Grid icon for inserting a markdown table." />
         </div>
       </SurfaceCard>
 
@@ -382,76 +377,8 @@ export function EditorToolbarIconSetTargetContent() {
   );
 }
 
-function RichTextToolbar({ editor }: { editor: Editor | null }) {
-  if (!editor) return null;
-
-  const handleLink = () => {
-    const previousUrl = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Enter URL", previousUrl ?? "https://");
-    if (url == null) return;
-    const normalized = url.trim();
-    if (!normalized) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: normalized }).run();
-  };
-
-  return (
-    <div className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2">
-      <div className="flex flex-wrap gap-2">
-        <EditorButton
-          label={<span className="text-base leading-none">¶</span>}
-          ariaLabel="Paragraph"
-          active={editor.isActive("paragraph")}
-          onClick={() => editor.chain().focus().setParagraph().run()}
-        />
-        <EditorButton
-          label={<strong className="text-sm font-semibold">B</strong>}
-          ariaLabel="Bold"
-          active={editor.isActive("bold")}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-        />
-        <EditorButton
-          label={<em className="text-sm">I</em>}
-          ariaLabel="Italic"
-          active={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-        />
-        <EditorButton
-          label={<BulletListIcon />}
-          ariaLabel="Bullet list"
-          active={editor.isActive("bulletList")}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-        />
-        <EditorButton
-          label={<span className="text-sm font-semibold">1.</span>}
-          ariaLabel="Numbered list"
-          active={editor.isActive("orderedList")}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        />
-        <EditorButton label={<LinkIcon />} ariaLabel="Link" active={editor.isActive("link")} onClick={handleLink} />
-        <EditorButton
-          label={<QuoteIcon />}
-          ariaLabel="Quote"
-          active={editor.isActive("blockquote")}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        />
-        <EditorButton
-          label={<CodeBlockIcon />}
-          ariaLabel="Code block"
-          active={editor.isActive("codeBlock")}
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        />
-      </div>
-      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-        Real Tiptap editor in Storybook. The toolbar uses static monochrome icons that inherit theme color via <code>currentColor</code>; formatting stays limited to Markdown-safe controls.
-      </p>
-    </div>
-  );
-}
-
-function RichTextEditorMock({
+/** Wrapper for Storybook: uses the app's RichTextEditor with local state so demos are interactive. */
+function RichTextEditorDemo({
   label,
   markdown,
   hint,
@@ -460,36 +387,8 @@ function RichTextEditorMock({
   markdown: string;
   hint?: string;
 }) {
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        link: false,
-      }),
-      Link.configure({ openOnClick: false, autolink: false }),
-      Markdown,
-    ],
-    content: markdown,
-    contentType: "markdown",
-    editorProps: {
-      attributes: {
-        class:
-          "min-h-[11rem] px-4 py-3 text-sm leading-6 text-[var(--color-text)] focus:outline-none",
-      },
-    },
-  });
-
-  return (
-    <div>
-      <label className="mb-2 block font-medium text-[var(--color-text-heading)]">{label}</label>
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <RichTextToolbar editor={editor} />
-        <EditorContent editor={editor} />
-      </div>
-      {hint ? <p className="mt-2 text-sm text-[var(--color-text-muted)]">{hint}</p> : null}
-    </div>
-  );
+  const [value, setValue] = useState(markdown);
+  return <RichTextEditor value={value} onChange={setValue} label={label} hint={hint} />;
 }
 
 function StepEditorCard({
@@ -539,7 +438,7 @@ function StepEditorCard({
           ))}
         </div>
       </div>
-      <RichTextEditorMock label="Step content" markdown={bodyMarkdown} />
+      <RichTextEditorDemo label="Step content" markdown={bodyMarkdown} />
       <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="mb-3 text-sm font-medium text-[var(--color-text-heading)]">Challenge fields</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -864,7 +763,7 @@ export function ProtocolEditTargetContent() {
             </div>
           </div>
 
-          <RichTextEditorMock
+          <RichTextEditorDemo
             label="Natural language triggers"
             hint="Shown to humans as rendered text and serialized as Markdown-compatible content."
             markdown={`- Deploy and test\n- Run tests and deploy\n- Release a build after checks pass`}
@@ -905,7 +804,7 @@ export function ProtocolEditTargetContent() {
 
           <SecondaryButton>Add step</SecondaryButton>
 
-          <RichTextEditorMock
+          <RichTextEditorDemo
             label="Completion rule"
             markdown={`Complete when each step is verified and the final attestation records the release outcome.`}
           />
@@ -976,13 +875,13 @@ export function SkillBundleTargetContent() {
             </div>
           </div>
 
-          <RichTextEditorMock
+          <RichTextEditorDemo
             label="Skill description"
             hint="Describe what the skill does and when an AI assistant should use it."
             markdown={`Guide an agent through building, testing, and documenting a release.\n\nUse when the request involves releasing code after validation steps.`}
           />
 
-          <RichTextEditorMock
+          <RichTextEditorDemo
             label="When to use it"
             markdown={`- Deploy and test\n- Run tests before deployment\n- Prepare a release workflow`}
           />
