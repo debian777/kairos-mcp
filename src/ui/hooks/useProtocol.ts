@@ -1,15 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import type { DumpOutput } from "../../tools/kairos_dump_schema.js";
 
-export interface ProtocolDump {
-  markdown_doc: string;
-  uri: string;
-  label: string;
-  chain_label: string | null;
-  step_count?: number;
-}
-
-async function fetchProtocol(uri: string): Promise<ProtocolDump> {
+async function fetchProtocol(uri: string): Promise<DumpOutput> {
   const res = await apiFetch("/api/kairos_dump", {
     method: "POST",
     body: JSON.stringify({ uri, protocol: true }),

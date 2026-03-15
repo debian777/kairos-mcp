@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { logger } from '../utils/logger.js';
@@ -7,6 +6,53 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import { mintInputSchema, mintOutputSchema, type MintInput, type MintOutput } from './kairos_mint_schema.js';
+
+/** Thrown by executeMint on validation or store errors. */
+export class MintError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'MintError';
+  }
+}
+
+/**
+ * Shared execute: validate and store markdown chain. Used by MCP tool and HTTP route.
+ * @param runStore Runs the store call (e.g. with space context). Signature: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
+ */
+export async function executeMint(
+  memoryStore: MemoryQdrantStore,
+  input: MintInput,
+  runStore: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
+): Promise<MintOutput> {
+  const validation = validateProtocolStructure(input.markdown_doc);
+  if (!validation.valid) {
+    throw new MintError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
+      missing: validation.missing,
+      must_obey: true,
+      next_action: `call kairos_begin with ${CREATION_PROTOCOL_URI} for guided protocol creation`
+    });
+  }
+  const memories = await runStore(() =>
+    memoryStore.storeChain([input.markdown_doc], input.llm_model_id, {
+      forceUpdate: !!input.force_update,
+      ...(input.protocol_version && { protocolVersion: input.protocol_version })
+    })
+  );
+  return {
+    items: memories.map((memory) => ({
+      uri: `kairos://mem/${memory.memory_uuid}`,
+      memory_uuid: memory.memory_uuid,
+      label: memory.label,
+      tags: memory.tags
+    })),
+    status: 'stored'
+  };
+}
 
 interface RegisterKairosMintOptions {
   toolName?: string;
@@ -14,37 +60,15 @@ interface RegisterKairosMintOptions {
 
 export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterKairosMintOptions = {}) {
   const toolName = options.toolName || 'kairos_mint';
-  const memoryUriSchema = z
-    .string()
-    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
-
-  const inputSchema = z.object({
-    markdown_doc: z.string().min(1).describe('Markdown document to store'),
-    llm_model_id: z.string().min(1).describe('LLM model ID'),
-    force_update: z.boolean().optional().default(false).describe('Overwrite existing memory chain with the same label'),
-    protocol_version: z.string().optional().describe('Protocol version (e.g. semver). Overrides or supplies version when document has no frontmatter.'),
-    space: z.enum(['personal']).or(z.string()).optional().describe('Target space: "personal" (default) or group name to mint into that group space')
-  });
-
-  const outputSchema = z.object({
-    items: z.array(z.object({
-      uri: memoryUriSchema,
-      memory_uuid: z.string(),
-      label: z.string(),
-      tags: z.array(z.string())
-    })),
-    status: z.literal('stored')
-  });
-
-  logger.debug(`kairos_mint registration inputSchema: ${JSON.stringify(inputSchema)}`);
-  logger.debug(`kairos_mint registration outputSchema: ${JSON.stringify(outputSchema)}`);
+  logger.debug(`kairos_mint registration inputSchema: ${JSON.stringify(mintInputSchema)}`);
+  logger.debug(`kairos_mint registration outputSchema: ${JSON.stringify(mintOutputSchema)}`);
   server.registerTool(
     toolName,
     {
       title: 'Store memory or chain',
       description: getToolDoc('kairos_mint'),
-      inputSchema,
-      outputSchema
+      inputSchema: mintInputSchema,
+      outputSchema: mintOutputSchema
     },
     async (params: any) => {
       const tenantId = getTenantId();
@@ -102,175 +126,69 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
         defaultWriteSpaceId: resolvedSpaceId
       };
 
-      let result: any;
+      const respond = (output: MintOutput) => {
+        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
+        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output) }],
+          structuredContent: output
+        };
+      };
 
       try {
-        const { markdown_doc, llm_model_id, force_update, protocol_version } = params as {
-          markdown_doc: string;
-          llm_model_id: string;
-          force_update?: boolean;
-          protocol_version?: string;
-        };
-        const validation = validateProtocolStructure(markdown_doc);
-        if (!validation.valid) {
-          const body = {
-            error: 'PROTOCOL_STRUCTURE_INVALID',
-            message: validation.message,
-            missing: validation.missing,
-            must_obey: true,
-            next_action: `call kairos_begin with ${CREATION_PROTOCOL_URI} for guided protocol creation`
-          };
+        const input = mintInputSchema.parse(params);
+        const output = await executeMint(memoryStore, input, (fn) =>
+          runWithSpaceContextAsync(narrowedContext, fn)
+        );
+        return respond(output);
+      } catch (error) {
+        const err = error as { code?: string; details?: Record<string, unknown>; message?: string };
+        if (error instanceof MintError) {
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           timer({ tool: toolName, status: 'error', tenant_id: tenantId });
           return {
             isError: true,
-            content: [{ type: 'text', text: JSON.stringify(body) }]
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: error.code, message: error.message, ...error.details }) }]
           };
         }
-        const docs = [markdown_doc];
-        let memories: Memory[] = [];
-        try {
-          memories = await runWithSpaceContextAsync(narrowedContext, () =>
-            memoryStore.storeChain(docs, llm_model_id, {
-              forceUpdate: !!force_update,
-              ...(protocol_version && { protocolVersion: protocol_version })
-            })
-          );
-        } catch (error) {
-          // Handle duplicate chain error explicitly
-          const err = error as any;
-          if (err && (err.code === 'DUPLICATE_CHAIN' || err.code === 'DUPLICATE_KEY')) {
-            const body = {
-              error: 'DUPLICATE_CHAIN',
-              ...(err.details || {})
-            };
-            result = {
-              isError: true,
-              content: [{ type: 'text', text: JSON.stringify(body) }]
-            } as any;
-            mcpToolCalls.inc({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            mcpToolErrors.inc({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            timer({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            return result;
-          }
-          // Handle similar memory found by title (spec: must_obey, next_action, content_preview)
-          if (err && err.code === 'SIMILAR_MEMORY_FOUND') {
-            kairosMintSimilarMemoryFound.inc({ transport: 'mcp', tenant_id: tenantId });
-            const d = err.details || {};
-            const body = {
-              error: 'SIMILAR_MEMORY_FOUND',
-              existing_memory: d.existing_memory,
-              similarity_score: d.similarity_score,
-              message: d.message ?? 'A very similar memory already exists. Verify it before overwriting.',
-              must_obey: d.must_obey ?? true,
-              next_action: d.next_action,
-              ...(d.content_preview !== undefined && { content_preview: d.content_preview })
-            };
-            result = {
-              isError: true,
-              content: [{ type: 'text', text: JSON.stringify(body) }]
-            } as any;
-            mcpToolCalls.inc({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            mcpToolErrors.inc({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            timer({ 
-              tool: toolName, 
-              status: 'error',
-              tenant_id: tenantId 
-            });
-            return result;
-          }
-          logger.error(`[kairos_mint] Failed to store memory chain space_id=${resolvedSpaceId} (len=${markdown_doc?.length || 0}, model=${llm_model_id})`, error);
-          result = {
+        if (err?.code === 'DUPLICATE_CHAIN' || err?.code === 'DUPLICATE_KEY') {
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
             isError: true,
-            content: [{ type: 'text', text: JSON.stringify({ error: 'STORE_FAILED', message: err?.message || String(err) }) }]
-          } as any;
-          mcpToolCalls.inc({ 
-            tool: toolName, 
-            status: 'error',
-            tenant_id: tenantId 
-          });
-          mcpToolErrors.inc({ 
-            tool: toolName, 
-            status: 'error',
-            tenant_id: tenantId 
-          });
-          timer({ 
-            tool: toolName, 
-            status: 'error',
-            tenant_id: tenantId 
-          });
-          return result;
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'DUPLICATE_CHAIN', ...(err.details || {}) }) }]
+          };
         }
-        const output = {
-          items: memories.map(memory => ({
-            uri: `kairos://mem/${memory.memory_uuid}`,
-            memory_uuid: memory.memory_uuid,
-            label: memory.label,
-            tags: memory.tags
-          })),
-          status: 'stored'
+        if (err?.code === 'SIMILAR_MEMORY_FOUND') {
+          kairosMintSimilarMemoryFound.inc({ transport: 'mcp', tenant_id: tenantId });
+          const d = err.details || {};
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
+            isError: true,
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              error: 'SIMILAR_MEMORY_FOUND',
+              existing_memory: (d as any).existing_memory,
+              similarity_score: (d as any).similarity_score,
+              message: (d as any).message ?? 'A very similar memory already exists. Verify it before overwriting.',
+              must_obey: (d as any).must_obey ?? true,
+              next_action: (d as any).next_action,
+              ...((d as any).content_preview !== undefined && { content_preview: (d as any).content_preview })
+            }) }]
+          };
+        }
+        logger.error(`[kairos_mint] Failed to store memory chain space_id=${resolvedSpaceId}`, error);
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return {
+          isError: true,
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: 'STORE_FAILED', message: err?.message ?? String(error) }) }]
         };
-        result = {
-          content: [{ type: 'text', text: JSON.stringify(output) }],
-          structuredContent: output
-        };
-        
-        // Track success
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        
-        // Track output size
-        const outputSize = JSON.stringify(result).length;
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
-        
-        timer({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        
-        return result;
-      } catch (error) {
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        mcpToolErrors.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        timer({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        throw error;
       }
     }
   );

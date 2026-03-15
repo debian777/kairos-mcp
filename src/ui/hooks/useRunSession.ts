@@ -17,7 +17,8 @@ export type RunSession = {
   started_at: string;
   updated_at: string;
   status: "running" | "ready_to_attest" | "completed" | "error";
-  current_step: KairosStep;
+  /** May be null when response has no current_step (schema allows optional/nullable). */
+  current_step: KairosStep | null;
   challenge: Challenge;
   next_action?: string;
   last_message?: string;

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
@@ -15,6 +14,7 @@ import {
   KAIROS_ENABLE_GROUP_COLLAPSE
 } from '../config.js';
 import { createResults, generateUnifiedOutput } from './kairos_search_output.js';
+import { searchInputSchema, searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
@@ -85,6 +85,69 @@ async function searchAndBuildCandidates(
   return candidateMap;
 }
 
+/** Core search: build candidates and return unified output. Used by executeSearch. */
+async function doSearch(
+  memoryStore: MemoryQdrantStore,
+  qdrantService: QdrantService | undefined,
+  searchQuery: string,
+  effectiveLimit: number
+): Promise<SearchOutput> {
+  const normalizedQuery = searchQuery.toLowerCase();
+  const candidateMap = await searchAndBuildCandidates(
+    memoryStore,
+    searchQuery,
+    normalizedQuery,
+    KAIROS_ENABLE_GROUP_COLLAPSE,
+    effectiveLimit
+  );
+  let headCandidates = Array.from(candidateMap.values()).sort((a, b) => b.score - a.score);
+  if (headCandidates.length > effectiveLimit) {
+    headCandidates = headCandidates.slice(0, effectiveLimit);
+  }
+  const results = headCandidates.length > 0 ? createResults(headCandidates, SCORE_THRESHOLD) : [];
+  return generateUnifiedOutput(results, qdrantService, {
+    refiningUri: REFINING_PROTOCOL_URI,
+    refiningNextAction: REFINING_NEXT_ACTION,
+    createUri: CREATION_PROTOCOL_URI,
+    createNextAction: CREATE_NEXT_ACTION
+  });
+}
+
+/**
+ * Shared execute: search for protocol chains. Used by MCP tool and HTTP route.
+ * When runInSpace is provided and input has space/space_id, the search runs in that space context.
+ */
+export async function executeSearch(
+  memoryStore: MemoryQdrantStore,
+  qdrantService: QdrantService | undefined,
+  input: SearchInput,
+  options?: { runInSpace?: (fn: () => Promise<SearchOutput>) => Promise<SearchOutput> }
+): Promise<SearchOutput> {
+  const { query, space, space_id, max_choices } = input;
+  const effectiveLimit = Math.max(
+    KAIROS_SEARCH_LIMIT_MIN,
+    Math.min(KAIROS_SEARCH_LIMIT_CAP, max_choices ?? KAIROS_SEARCH_MAX_CHOICES)
+  );
+  const searchQuery = queryForSearch(query);
+  const normalizedQuery = searchQuery.toLowerCase();
+  const cacheKey = `begin:v3:${normalizedQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+
+  const cachedResult = await redisCacheService.get(cacheKey);
+  if (cachedResult) {
+    return searchOutputSchema.parse(JSON.parse(cachedResult)) as SearchOutput;
+  }
+
+  const run = () => doSearch(memoryStore, qdrantService, searchQuery, effectiveLimit);
+  const spaceParam = space ?? space_id;
+  const result =
+    options?.runInSpace && spaceParam != null
+      ? await options.runInSpace(run)
+      : await run();
+
+  await redisCacheService.set(cacheKey, JSON.stringify(result), 300);
+  return result;
+}
+
 /**
  * Register kairos_search tool
  * 
@@ -93,155 +156,63 @@ async function searchAndBuildCandidates(
  */
 export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterSearchOptions = {}) {
   const toolName = options.toolName || 'kairos_search';
-  const memoryUriSchema = z
-    .string()
-    .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
-  const choiceUriSchema = memoryUriSchema;
+  const qdrantService = options.qdrantService;
 
-  const inputSchema = z.object({
-    query: z.string().min(1).describe('Search query for chain heads'),
-    space: z.string().optional().describe('Scope results to this space (must be in your allowed spaces)'),
-    space_id: z.string().optional().describe('Alias for space'),
-    max_choices: z
-      .number()
-      .int()
-      .min(KAIROS_SEARCH_LIMIT_MIN)
-      .max(KAIROS_SEARCH_LIMIT_CAP)
-      .optional()
-      .describe('Max match choices to return. Omit for server default; use higher for broad/vague queries.')
-  });
-
-  const outputSchema = z.object({
-    must_obey: z.boolean().describe('Always true. Follow next_action.'),
-    message: z.string().describe('Human-readable summary'),
-    next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
-    choices: z.array(z.object({
-      uri: choiceUriSchema,
-      label: z.string(),
-      chain_label: z.string().nullable(),
-      score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
-      role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
-      tags: z.array(z.string()),
-      next_action: z.string().describe('Instruction for this choice: call kairos_begin with this choice\'s uri.'),
-      protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.')
-    })).describe('Options: match(es) first, then refine (if present), then create (if present).')
-  });
-
-  structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(inputSchema)}`);
-  structuredLogger.debug(`kairos_search registration outputSchema: ${JSON.stringify(outputSchema)}`);
+  structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(searchInputSchema)}`);
+  structuredLogger.debug(`kairos_search registration outputSchema: ${JSON.stringify(searchOutputSchema)}`);
   server.registerTool(
     toolName,
     {
       title: 'Search for protocol chains',
       description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query. Always returns must_obey: true with a choices array. Follow next_action.',
-      inputSchema,
-      outputSchema
+      inputSchema: searchInputSchema,
+      outputSchema: searchOutputSchema
     },
-    async (params: any) => {
+    async (params: unknown) => {
       const tenantId = getTenantId();
-      const { query, space, space_id, max_choices } = params as {
-        query: string;
-        space?: string;
-        space_id?: string;
-        max_choices?: number;
-      };
-      const spaceParam = space ?? space_id;
-      const effectiveLimit = Math.max(
-        KAIROS_SEARCH_LIMIT_MIN,
-        Math.min(KAIROS_SEARCH_LIMIT_CAP, max_choices ?? KAIROS_SEARCH_MAX_CHOICES)
-      );
-      const inputSize = JSON.stringify({ query }).length;
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
+      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
+      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
-      const timer = mcpToolDuration.startTimer({
-        tool: toolName,
-        tenant_id: tenantId
-      });
-      const respond = (payload: any) => {
-        const structured = {
-          content: [{
-            type: 'text', text: JSON.stringify(payload)
-          }],
+      const respond = (payload: SearchOutput) => {
+        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(payload).length);
+        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(payload) }],
           structuredContent: payload
         };
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        const outputSize = JSON.stringify(structured).length;
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, outputSize);
-        timer({ 
-          tool: toolName, 
-          status: 'success',
-          tenant_id: tenantId 
-        });
-        return structured;
       };
+
       try {
-        return runWithOptionalSpaceAsync(spaceParam, async () => {
-          const searchQuery = queryForSearch(query || '');
-          const normalizedQuery = searchQuery.toLowerCase();
-          const cacheKey = `begin:v3:${normalizedQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
-
-          const cachedResult = await redisCacheService.get(cacheKey);
-          if (cachedResult) {
-            const parsed = JSON.parse(cachedResult);
-            return respond(parsed);
-          }
-
-          const candidateMap = await searchAndBuildCandidates(
-            memoryStore,
-            searchQuery,
-            normalizedQuery,
-            KAIROS_ENABLE_GROUP_COLLAPSE,
-            effectiveLimit
-          );
-
-          let headCandidates = Array.from(candidateMap.values()).sort((a, b) => (b.score - a.score));
-          if (headCandidates.length > effectiveLimit) {
-            headCandidates = headCandidates.slice(0, effectiveLimit);
-          }
-
-          const results = headCandidates.length > 0 ? createResults(headCandidates, SCORE_THRESHOLD) : [];
-          const output = await generateUnifiedOutput(results, options.qdrantService, {
-            refiningUri: REFINING_PROTOCOL_URI,
-            refiningNextAction: REFINING_NEXT_ACTION,
-            createUri: CREATION_PROTOCOL_URI,
-            createNextAction: CREATE_NEXT_ACTION
-          });
-
-          await redisCacheService.set(cacheKey, JSON.stringify(output), 300);
-          return respond(output);
-        });
+        const input = searchInputSchema.parse(params);
+        const spaceParam = input.space ?? input.space_id;
+        const runInSpace =
+          spaceParam != null
+            ? (fn: () => Promise<SearchOutput>) => runWithOptionalSpaceAsync(spaceParam, fn)
+            : undefined;
+        const output = await executeSearch(
+          memoryStore,
+          qdrantService,
+          input,
+          runInSpace != null ? { runInSpace } : undefined
+        );
+        return respond(output);
       } catch (error) {
         if (error instanceof Error && error.message === 'Requested space is not in your allowed spaces') {
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           timer({ tool: toolName, status: 'error', tenant_id: tenantId });
           return {
-            content: [{ type: 'text', text: JSON.stringify({ error: 'forbidden', message: error.message }) }],
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'forbidden', message: error.message }) }],
             isError: true
           };
         }
         const ctxErr = getSpaceContextFromStorage();
         structuredLogger.warn(`kairos_search error (returning empty results) space_id=${ctxErr?.defaultWriteSpaceId ?? 'default'}: ${error instanceof Error ? error.message : String(error)}`);
-        mcpToolCalls.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        mcpToolErrors.inc({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        timer({ 
-          tool: toolName, 
-          status: 'error',
-          tenant_id: tenantId 
-        });
-        const fallback = await generateUnifiedOutput([], options.qdrantService, {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        const fallback = await generateUnifiedOutput([], qdrantService, {
           refiningUri: REFINING_PROTOCOL_URI,
           refiningNextAction: REFINING_NEXT_ACTION,
           createUri: CREATION_PROTOCOL_URI,

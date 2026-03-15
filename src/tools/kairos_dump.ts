@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
@@ -10,13 +9,9 @@ import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { dumpInputSchema, dumpOutputSchema } from './kairos_dump_schema.js';
 
 const DUMP_TOOL_NAME = 'kairos_dump';
-
-const dumpInputSchema = z.object({
-  uri: z.string().min(1).describe('kairos://mem/{uuid}'),
-  protocol: z.boolean().optional().default(false).describe('If true, return full chain as one markdown document')
-});
 
 function normalizeUri(value: string): { uuid: string; uri: string } {
   const normalized = (value || '').trim();
@@ -167,7 +162,8 @@ export function registerKairosDumpTool(
     {
       title: 'Inspect memory or protocol (read-only)',
       description: getToolDoc('kairos_dump') ?? 'Returns markdown_doc for use with kairos_update or kairos_mint.',
-      inputSchema: dumpInputSchema
+      inputSchema: dumpInputSchema,
+      outputSchema: dumpOutputSchema
     },
     async (params: any) => {
       const tenantId = getTenantId();

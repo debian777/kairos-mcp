@@ -32,19 +32,12 @@ export const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
 // Use minimal test file for CLI parameter tests (faster than full AI_CODING_RULES.md)
 export const TEST_FILE = join(process.cwd(), 'tests/test-data/cli-minimal-test.md');
 
-export async function setupServerCheck() {
-  let serverAvailable = false;
-  try {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-    serverAvailable = true;
-  } catch (_error) {
-    serverAvailable = false;
-    console.warn('Server not available, skipping CLI tests');
-  }
-  return serverAvailable;
+/** Throws if server is not available. Call in beforeAll; do not catch. */
+export async function setupServerCheck(): Promise<void> {
+  await waitForHealthCheck({
+    url: `${BASE_URL}/health`,
+    timeoutMs: 60000,
+    intervalMs: 500
+  });
 }
 

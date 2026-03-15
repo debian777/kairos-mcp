@@ -1,153 +1,117 @@
 /**
- * API Client for KAIROS REST API
+ * API Client for KAIROS REST API.
+ * Returns canonical response shapes (no metadata wrapper).
  */
 
 import { getApiUrl } from './config.js';
-
-export interface ApiResponse<T = any> {
-    data?: T;
-    error?: string;
-    message?: string;
-    metadata?: {
-        duration_ms?: number;
-        cached?: boolean;
-    };
-}
+import type { SearchOutput } from '../tools/kairos_search_schema.js';
+import type { BeginOutput } from '../tools/kairos_begin.js';
+import type { NextOutput } from '../tools/kairos_next.js';
+import type { AttestOutput } from '../tools/kairos_attest_schema.js';
+import type { MintOutput } from '../tools/kairos_mint_schema.js';
+import type { UpdateOutput } from '../tools/kairos_update_schema.js';
+import type { DeleteOutput } from '../tools/kairos_delete_schema.js';
 
 export class ApiClient {
-    private baseUrl: string;
+  private baseUrl: string;
 
-    constructor(baseUrl?: string) {
-        // Check environment variable first (set by CLI hook), then parameter, then default
-        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || getApiUrl();
-        // Remove trailing slash
-        this.baseUrl = this.baseUrl.replace(/\/$/, '');
+  constructor(baseUrl?: string) {
+    this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || getApiUrl();
+    this.baseUrl = this.baseUrl.replace(/\/$/, '');
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const defaultHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    const bearer = process.env['KAIROS_BEARER_TOKEN'];
+    if (bearer) defaultHeaders['Authorization'] = `Bearer ${bearer}`;
+
+    const response = await fetch(url, {
+      ...options,
+      headers: { ...defaultHeaders, ...(options.headers as Record<string, string> || {}) },
+    });
+
+    const data = await response.json().catch(() => {
+      throw new Error(`Failed to parse response from ${url}`);
+    });
+
+    if (!response.ok) {
+      const err = data as { message?: string; error?: string };
+      throw new Error(err.message || err.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    private async request<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<ApiResponse<T>> {
-        const url = `${this.baseUrl}${endpoint}`;
-        const defaultHeaders: Record<string, string> = {
-            'Content-Type': 'application/json',
-        };
-        const bearer = process.env['KAIROS_BEARER_TOKEN'];
-        if (bearer) {
-            defaultHeaders['Authorization'] = `Bearer ${bearer}`;
-        }
+    return data as T;
+  }
 
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                ...defaultHeaders,
-                ...(options.headers as Record<string, string> || {}),
-            },
-        });
+  async search(query: string): Promise<SearchOutput> {
+    return this.request<SearchOutput>('/api/kairos_search', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    });
+  }
 
-        const data = await response.json().catch(() => {
-            throw new Error(`Failed to parse response from ${url}`);
-        }) as ApiResponse<T>;
+  async begin(uri: string): Promise<BeginOutput> {
+    return this.request<BeginOutput>('/api/kairos_begin', {
+      method: 'POST',
+      body: JSON.stringify({ uri }),
+    });
+  }
 
-        if (!response.ok) {
-            const errorData = data as any;
-            throw new Error(
-                errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
-            );
-        }
+  async next(uri: string, solution?: unknown): Promise<NextOutput> {
+    return this.request<NextOutput>('/api/kairos_next', {
+      method: 'POST',
+      body: JSON.stringify({ uri, solution }),
+    });
+  }
 
-        return data;
+  async mint(markdown: string, options?: { llmModelId?: string; force?: boolean }): Promise<MintOutput> {
+    const url = `${this.baseUrl}/api/kairos_mint/raw`;
+    const headers: Record<string, string> = { 'Content-Type': 'text/markdown' };
+    const bearer = process.env['KAIROS_BEARER_TOKEN'];
+    if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
+    if (options?.llmModelId) headers['x-llm-model-id'] = options.llmModelId;
+    if (options?.force) headers['x-force-update'] = 'true';
+
+    const response = await fetch(url, { method: 'POST', headers, body: markdown });
+    const data = await response.json().catch(() => {
+      throw new Error(`Failed to parse response from ${url}`);
+    });
+    if (!response.ok) {
+      const err = data as { message?: string; error?: string };
+      throw new Error(err.message || err.error || `HTTP ${response.status}: ${response.statusText}`);
     }
+    return data as MintOutput;
+  }
 
-    async search(query: string): Promise<ApiResponse> {
-        return this.request('/api/kairos_search', {
-            method: 'POST',
-            body: JSON.stringify({ query }),
-        });
-    }
+  async update(uris: string[], markdownDoc?: string[], updates?: Record<string, unknown>): Promise<UpdateOutput> {
+    return this.request<UpdateOutput>('/api/kairos_update', {
+      method: 'POST',
+      body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),
+    });
+  }
 
-    async begin(uri: string): Promise<ApiResponse> {
-        return this.request('/api/kairos_begin', {
-            method: 'POST',
-            body: JSON.stringify({ uri }),
-        });
-    }
+  async delete(uris: string[]): Promise<DeleteOutput> {
+    return this.request<DeleteOutput>('/api/kairos_delete', {
+      method: 'POST',
+      body: JSON.stringify({ uris }),
+    });
+  }
 
-    async next(uri: string, solution?: any): Promise<ApiResponse> {
-        return this.request('/api/kairos_next', {
-            method: 'POST',
-            body: JSON.stringify({ uri, solution }),
-        });
-    }
-
-    async mint(markdown: string, options?: { llmModelId?: string; force?: boolean }): Promise<ApiResponse> {
-        const url = `${this.baseUrl}/api/kairos_mint/raw`;
-        const headers: Record<string, string> = {
-            'Content-Type': 'text/markdown',
-        };
-        const bearer = process.env['KAIROS_BEARER_TOKEN'];
-        if (bearer) {
-            headers['Authorization'] = `Bearer ${bearer}`;
-        }
-
-        if (options?.llmModelId) {
-            headers['x-llm-model-id'] = options.llmModelId;
-        }
-
-        if (options?.force) {
-            headers['x-force-update'] = 'true';
-        }
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: markdown,
-        });
-
-        const data = await response.json().catch(() => {
-            throw new Error(`Failed to parse response from ${url}`);
-        }) as ApiResponse;
-
-        if (!response.ok) {
-            const errorData = data as any;
-            throw new Error(
-                errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
-            );
-        }
-
-        return data;
-    }
-
-    async update(uris: string[], markdownDoc?: string[], updates?: Record<string, any>): Promise<ApiResponse> {
-        return this.request('/api/kairos_update', {
-            method: 'POST',
-            body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),
-        });
-    }
-
-    async delete(uris: string[]): Promise<ApiResponse> {
-        return this.request('/api/kairos_delete', {
-            method: 'POST',
-            body: JSON.stringify({ uris }),
-        });
-    }
-
-    async attest(
-        uri: string,
-        outcome: 'success' | 'failure',
-        message: string,
-        options?: { qualityBonus?: number; llmModelId?: string }
-    ): Promise<ApiResponse> {
-        return this.request('/api/kairos_attest', {
-            method: 'POST',
-            body: JSON.stringify({
-                uri,
-                outcome,
-                message,
-                quality_bonus: options?.qualityBonus || 0,
-                llm_model_id: options?.llmModelId,
-            }),
-        });
-    }
+  async attest(
+    uri: string,
+    outcome: 'success' | 'failure',
+    message: string,
+    options?: { qualityBonus?: number; llmModelId?: string }
+  ): Promise<AttestOutput> {
+    return this.request<AttestOutput>('/api/kairos_attest', {
+      method: 'POST',
+      body: JSON.stringify({
+        uri,
+        outcome,
+        message,
+        quality_bonus: options?.qualityBonus ?? 0,
+        llm_model_id: options?.llmModelId,
+      }),
+    });
+  }
 }
-
