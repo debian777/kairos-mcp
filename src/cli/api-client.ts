@@ -23,11 +23,11 @@ export class ApiClient {
 
     constructor(baseUrl?: string, openInBrowser?: boolean) {
         // Precedence: env, then parameter, then config file, then default. openInBrowser true = auto-login on 401 or no token
-        const config = readConfig();
+        const config = readConfig(); // default env for baseUrl resolution
         this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || config.apiUrl || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
         const noAutoLogin = process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === '1' || process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === 'true';
-        this.openInBrowser = noAutoLogin ? false : (openInBrowser ?? true);
+        this.openInBrowser = !noAutoLogin && (openInBrowser === true);
     }
 
     private async request<T>(
@@ -39,7 +39,7 @@ export class ApiClient {
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
-        let bearer = readConfig().bearerToken;
+        let bearer = readConfig(this.baseUrl).bearerToken;
         if (!bearer && this.openInBrowser && !isRetryAfterLogin) {
             const ok = await loginWithBrowser(this.baseUrl);
             if (ok) return this.request(endpoint, options, true);
@@ -124,7 +124,7 @@ export class ApiClient {
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
-        const bearer = readConfig().bearerToken;
+        const bearer = readConfig(this.baseUrl).bearerToken;
         if (bearer) {
             headers['Authorization'] = `Bearer ${bearer}`;
         }

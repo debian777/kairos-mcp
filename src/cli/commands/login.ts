@@ -22,7 +22,8 @@ import { openBrowser } from '../auth-error.js';
 import { readConfig, writeConfig } from '../config-file.js';
 import { writeError, writeStdout } from '../output.js';
 
-function getBaseUrl(): string {
+/** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
+export function getBaseUrl(): string {
     const config = readConfig();
     return (process.env['KAIROS_API_URL'] || config.apiUrl || getApiUrl()).replace(/\/$/, '');
 }
@@ -213,7 +214,7 @@ export function loginCommand(program: Command): void {
                     process.exit(ok ? 0 : 1);
                     return;
                 }
-                const config = readConfig();
+                const config = readConfig(baseUrl);
                 if (config.bearerToken && (await isTokenValid(baseUrl, config.bearerToken))) {
                     writeStdout('Already authenticated.');
                     process.exit(0);

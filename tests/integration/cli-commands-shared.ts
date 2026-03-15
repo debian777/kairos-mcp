@@ -65,7 +65,7 @@ export async function execAsyncNoAuth(
 /** Write config.json into a temp dir (for invalid-token test). Then run command with that XDG_CONFIG_HOME. */
 export async function execAsyncWithConfig(
   command: string,
-  config: { KAIROS_API_URL?: string; KAIROS_BEARER_TOKEN?: string },
+  config: { KAIROS_API_URL?: string; bearerToken?: string },
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
   const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-custom-'));

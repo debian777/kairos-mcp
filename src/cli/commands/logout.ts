@@ -1,17 +1,19 @@
 /**
- * kairos logout — clear stored Bearer token from config.
+ * kairos logout — clear stored Bearer token for the current environment (by API URL).
  */
 
 import { Command } from 'commander';
 import { writeConfig } from '../config-file.js';
+import { getBaseUrl } from './login.js';
 import { writeStdout } from '../output.js';
 
 export function logoutCommand(program: Command): void {
     program
         .command('logout')
-        .description('Clear the stored Bearer token from config file')
+        .description('Clear the stored Bearer token from config file (for current --url / env)')
         .action(() => {
-            writeConfig({ bearerToken: null });
+            const baseUrl = getBaseUrl();
+            writeConfig({ apiUrl: baseUrl, bearerToken: null });
             writeStdout('Token cleared from config.');
         });
 }

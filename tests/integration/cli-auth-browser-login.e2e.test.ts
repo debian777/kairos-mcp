@@ -45,11 +45,22 @@ function runCli(
   });
 }
 
+/** Read config and return legacy-style view: KAIROS_API_URL + bearerToken (for default env). */
 function readConfigFromDir(configHome: string): Record<string, unknown> {
   const configPath = join(configHome, 'kairos', 'config.json');
   if (!existsSync(configPath)) return {};
   try {
-    return JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+    const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+    if (raw.environments != null && typeof raw.environments === 'object') {
+      const defaultUrl = typeof raw.defaultUrl === 'string' ? raw.defaultUrl : undefined;
+      const envs = raw.environments as Record<string, { bearerToken?: string }>;
+      const entry = defaultUrl ? envs[defaultUrl] : undefined;
+      return {
+        KAIROS_API_URL: defaultUrl,
+        bearerToken: entry?.bearerToken
+      };
+    }
+    return raw;
   } catch {
     return {};
   }

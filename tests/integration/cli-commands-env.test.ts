@@ -153,7 +153,7 @@ describe('CLI Commands Environment & Error Tests', () => {
       try {
         await execAsyncWithConfig(
           `node ${CLI_PATH} search --url ${BASE_URL} "test query"`,
-          { KAIROS_API_URL: BASE_URL, KAIROS_BEARER_TOKEN: 'invalid-token' },
+          { KAIROS_API_URL: BASE_URL, bearerToken: 'invalid-token' },
           { timeout: 15000 }
         );
         expect('CLI should have exited with auth error').toBe(false);

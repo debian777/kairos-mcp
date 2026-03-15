@@ -401,6 +401,8 @@ test() {
             export KEYCLOAK_CLI_CLIENT_ID="${KEYCLOAK_CLI_CLIENT_ID:-}"
             export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
             export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
+            # Prevent CLI from opening browser during tests (inherited by child processes)
+            export KAIROS_CLI_NO_AUTO_LOGIN=1
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"

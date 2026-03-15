@@ -18,7 +18,7 @@ export function mintCommand(program: Command): void {
         .action(async (file: string, options: { model?: string; force?: boolean }) => {
             try {
                 const markdown = readFileSync(file, 'utf-8');
-                const client = new ApiClient(undefined, program.opts()['open'] !== false);
+                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
                 const mintOptions: { llmModelId?: string; force?: boolean } = {};
                 if (options.model) {
                     mintOptions.llmModelId = options.model;
@@ -44,7 +44,7 @@ export function mintCommand(program: Command): void {
                     writeError(`File not found: ${file}`);
                     process.exit(1);
                 }
-                handleApiError(error, program.opts()['open']);
+                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
             }
         });
 }

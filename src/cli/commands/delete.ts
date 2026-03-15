@@ -14,7 +14,7 @@ export function deleteCommand(program: Command): void {
         .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
         .action(async (uris: string[]) => {
             try {
-                const client = new ApiClient(undefined, program.opts()['open'] !== false);
+                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
                 const response = await client.delete(uris);
 
                 if (response.error) {
@@ -29,7 +29,7 @@ export function deleteCommand(program: Command): void {
                 // Pretty print the response
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, program.opts()['open']);
+                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
             }
         });
 }

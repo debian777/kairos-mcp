@@ -14,7 +14,7 @@ export function searchCommand(program: Command): void {
         .argument('<query...>', 'Search query (multiple words allowed)')
         .action(async (query: string[]) => {
             try {
-                const client = new ApiClient(undefined, program.opts()['open'] !== false);
+                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
                 const response = await client.search(query.join(' '));
 
                 if (response.error) {
@@ -29,7 +29,7 @@ export function searchCommand(program: Command): void {
                 // Pretty print the response
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, program.opts()['open']);
+                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
             }
         });
 }

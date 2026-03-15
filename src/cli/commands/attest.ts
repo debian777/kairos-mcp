@@ -36,7 +36,7 @@ export function attestCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient(undefined, program.opts()['open'] !== false);
+                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
                 
                 const attestOptions: { qualityBonus?: number; llmModelId?: string } = {
                     qualityBonus,
@@ -62,7 +62,7 @@ export function attestCommand(program: Command): void {
 
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, program.opts()['open']);
+                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
             }
         });
 }
