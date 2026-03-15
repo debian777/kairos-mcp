@@ -49,16 +49,6 @@ export function attestCommand(program: Command): void {
                     message,
                     attestOptions
                 );
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
                 writeJson(response);
             } catch (error) {
                 writeError(error instanceof Error ? error.message : String(error));

@@ -10,7 +10,7 @@ const memoryUriSchema = z
   .string()
   .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
 
-const solutionSchema = z.object({
+export const solutionSchema = z.object({
   type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Must match challenge.type'),
   nonce: z.string().optional().describe('Echo nonce from challenge'),
   proof_hash: z.string().optional().describe('Echo proof_hash from previous challenge or response'),
@@ -86,4 +86,5 @@ export const kairosNextOutputSchema = z.object({
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)')
 });
 
+export type SolutionSubmission = z.infer<typeof solutionSchema>;
 export { memoryUriSchema };

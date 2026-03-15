@@ -6,36 +6,29 @@
 import { execAsync, BASE_URL, CLI_PATH, TEST_FILE, setupServerCheck } from './cli-commands-shared.js';
 
 describe('CLI Commands Basic --url Tests', () => {
-  let serverAvailable = false;
   let cachedSearchUri: string | null = null;
 
   beforeAll(async () => {
-    serverAvailable = await setupServerCheck();
-    // Mint test protocol then get a URI from search (no longer rely on built-in mem docs)
-    if (serverAvailable) {
-      try {
-        await execAsync(
-          `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
-        );
-        const searchResult = await execAsync(
-          `node ${CLI_PATH} search --url ${BASE_URL} "Minimal CLI Test Document"`
-        );
-        const searchData = JSON.parse(searchResult.stdout);
-        // V2: extract URI from choices array (first match)
-        const matchChoice = Array.isArray(searchData.choices)
-          ? searchData.choices.find((c: any) => c.role === 'match')
-          : null;
-        cachedSearchUri = matchChoice?.uri || null;
-      } catch {
-        cachedSearchUri = null;
-      }
+    await setupServerCheck();
+    await execAsync(
+      `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
+    );
+    const searchResult = await execAsync(
+      `node ${CLI_PATH} search --url ${BASE_URL} "Minimal CLI Test Document"`
+    );
+    const searchData = JSON.parse(searchResult.stdout);
+    const matchChoice = Array.isArray(searchData.choices)
+      ? searchData.choices.find((c: { role: string }) => c.role === 'match')
+      : null;
+    cachedSearchUri = matchChoice?.uri ?? null;
+    if (!cachedSearchUri) {
+      throw new Error('Failed to get URI from search after mint');
     }
   }, 60000);
 
   describe('search command', () => {
     test('search uses --url parameter', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} search --url ${BASE_URL} "test query"`
       );
@@ -49,8 +42,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('search uses -u short form', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} search -u ${BASE_URL} "test query"`
       );
@@ -66,8 +58,7 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('begin command', () => {
     test('begin uses --url parameter with URI', async () => {
-      if (!serverAvailable || !cachedSearchUri) return;
-
+      expect.hasAssertions();
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} begin --url ${BASE_URL} "${cachedSearchUri}"`
       );
@@ -81,8 +72,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('begin uses -u short form with URI', async () => {
-      if (!serverAvailable || !cachedSearchUri) return;
-
+      expect.hasAssertions();
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} begin -u ${BASE_URL} "${cachedSearchUri}"`
       );
@@ -98,8 +88,7 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('mint command', () => {
     test('mint uses --url parameter', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
@@ -111,8 +100,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('mint uses -u short form', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} mint -u ${BASE_URL} --force "${TEST_FILE}"`
@@ -124,8 +112,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('mint with --url and --force (updates existing)', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       // Test that --force works on existing chain
       // Chain should already exist from previous tests, so this tests update path
       const { stdout, stderr } = await execAsync(
@@ -140,8 +127,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('mint with --url and --model', async () => {
-      if (!serverAvailable) return;
-
+      expect.hasAssertions();
       // Use --force to handle case where chain already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} mint --url ${BASE_URL} --force --model "test-model" "${TEST_FILE}"`

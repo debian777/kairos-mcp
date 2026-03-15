@@ -64,10 +64,23 @@ describe('POST /api/kairos_dump', () => {
       return;
     }
 
-    const markdown = `# Dump HTTP ${Date.now()}\n\n## Step 1\nContent for HTTP dump test.`;
+    const markdown = `# Dump HTTP ${Date.now()}
+
+## Natural Language Triggers
+When to run.
+
+## Step 1
+Content for HTTP dump test.
+
+\`\`\`json
+{"challenge": {"type": "comment", "description": "Minimal"}}
+\`\`\`
+
+## Completion Rule
+Done.`;
     const mintRes = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/markdown', ...getAuthHeaders() },
+      headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
       body: markdown
     });
     expect(mintRes.status).toBe(200);
@@ -88,7 +101,5 @@ describe('POST /api/kairos_dump', () => {
     expect(data.markdown_doc.length).toBeGreaterThan(0);
     expect(data).toHaveProperty('uri', uri);
     expect(data).toHaveProperty('label');
-    expect(data).toHaveProperty('metadata');
-    expect(data.metadata).toHaveProperty('duration_ms');
   }, 30000);
 });

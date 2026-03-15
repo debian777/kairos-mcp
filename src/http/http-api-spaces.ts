@@ -9,14 +9,12 @@ import { structuredLogger } from "../utils/structured-logger.js";
  */
 export function setupSpacesRoute(app: express.Express, memoryStore: MemoryQdrantStore): void {
   app.post("/api/kairos_spaces", async (req, res) => {
-    const startTime = Date.now();
     try {
       structuredLogger.info("-> POST /api/kairos_spaces");
       const body = (req.body ?? {}) as { include_chain_titles?: boolean };
       const includeChainTitles = Boolean(body.include_chain_titles);
       const payload = await executeSpaces(memoryStore, { include_chain_titles: includeChainTitles });
-      const duration = Date.now() - startTime;
-      res.status(200).json({ ...payload, metadata: { duration_ms: duration } });
+      res.status(200).json(payload);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       structuredLogger.debug(`kairos_spaces HTTP error: ${message}`);
