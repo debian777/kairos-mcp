@@ -43,19 +43,19 @@ KAIROS runs as a Docker stack. Docker and Docker Compose are required.
    curl http://localhost:3000/health
   ```
 
-**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `REDIS_URL=redis://redis:6379` and your secrets, then:
-
-See [docs/install/README.md](docs/install/README.md) for env variants. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `REDIS_URL=redis://redis:6379` and your secrets. See [docs/install/README.md](docs/install/README.md) for env variants and full stack setup. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
 - **Docker Compose (recommended)** — minimal (Qdrant + app) by default, or
 full stack with Redis and Keycloak; see the quick start above.
-- **npm (CLI only)** — install the `kairos` command-line tool globally.
+- **npm (CLI only)** — run the `kairos` CLI without installing, or install globally.
 Node.js 25 or later is required.
   ```bash
-  npm install -g @debian777/kairos-mcp
+  npx @debian777/kairos-mcp
   ```
+  Or install globally: `npm install -g @debian777/kairos-mcp` then run `kairos`.
+  Pre-release: `npm install -g @debian777/kairos-mcp@3.2.0-pre.1` (or latest `*-pre.*` on [npm](https://www.npmjs.com/package/@debian777/kairos-mcp?activeTab=versions)). Use `--install-links` to install link dependencies as real packages.
   See [KAIROS CLI](docs/CLI.md) for usage.
 
 For development setup, all `npm run` commands, and **how we do releases**, see

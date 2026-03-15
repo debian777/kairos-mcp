@@ -44,6 +44,8 @@ flowchart LR
 
 **Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
 
+**PR/MR tooling:** This repo uses the GitHub CLI (**gh**) for PRs. For GitLab MRs use **glab**. KAIROS protocols: *GitHub PR with gh* (create/track PRs with `gh`), *GitLab MR with glab* (create/track MRs with `glab`).
+
 **Manual-only:** Publish npm and Publish Container are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.
 
 ## Workflows and job dependencies
