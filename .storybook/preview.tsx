@@ -11,7 +11,13 @@ const preview: Preview = {
   decorators: [
     (Story, context) => {
       const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
+        defaultOptions: {
+          queries: {
+            retry: false,
+            refetchOnMount: false,
+            staleTime: Number.POSITIVE_INFINITY,
+          },
+        },
       });
       const queryData = context.parameters.queryData as QueryDataEntry[] | undefined;
       queryData?.forEach(([key, data]) => queryClient.setQueryData(key, data));

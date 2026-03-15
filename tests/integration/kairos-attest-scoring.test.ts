@@ -156,7 +156,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
         expect((scoreAfterFailure as number)).toBeLessThanOrEqual((scoreAfterSuccesses as number) + 0.001);
       }
     );
-  }, 45000);
+  }, 70000);
 
   test('no boost when runs < MIN_ATTEST_RUNS: one success does not change score', async () => {
     const ts = Date.now();

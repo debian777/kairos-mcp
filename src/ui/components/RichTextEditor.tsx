@@ -8,10 +8,12 @@ import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import { Markdown } from "@tiptap/markdown";
+import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { useEffect, useRef } from "react";
 
 const EDITOR_CLASS =
-  "min-h-[11rem] px-4 py-3 text-sm leading-6 text-[var(--color-text)] focus:outline-none prose prose-sm max-w-none";
+  "min-h-[11rem] px-4 py-3 text-sm leading-6 text-[var(--color-text)] focus:outline-none prose prose-sm max-w-none " +
+  "[&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-[var(--color-border)] [&_th]:bg-[var(--color-surface-elevated)] [&_th]:px-2 [&_th]:py-1.5 [&_td]:border [&_td]:border-[var(--color-border)] [&_td]:px-2 [&_td]:py-1.5";
 
 function ToolbarIcon({ children, className = "h-4 w-4" }: { children: ReactNode; className?: string }) {
   return (
@@ -62,12 +64,36 @@ function QuoteIcon() {
   );
 }
 
+function InlineCodeIcon() {
+  return (
+    <ToolbarIcon>
+      <path d="M6 5.5l2 5-2 5" />
+      <path d="M10 5.5l2 5-2 5" />
+    </ToolbarIcon>
+  );
+}
+
 function CodeBlockIcon() {
   return (
     <ToolbarIcon>
       <path d="M6 4L2.5 8L6 12" />
       <path d="M10 4l3.5 4L10 12" />
       <path d="M8.75 3.5L7.25 12.5" />
+    </ToolbarIcon>
+  );
+}
+
+function TableIcon() {
+  return (
+    <ToolbarIcon>
+      <path d="M2 3h12v2H2V3z" />
+      <path d="M2 7h12v1H2V7z" />
+      <path d="M2 11h12v1H2v-1z" />
+      <path d="M2 15h12v1H2v-1z" />
+      <path d="M2 4v11" />
+      <path d="M6 4v11" />
+      <path d="M10 4v11" />
+      <path d="M14 4v11" />
     </ToolbarIcon>
   );
 }
@@ -153,10 +179,22 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
       />
       <ToolbarButton
+        label={<InlineCodeIcon />}
+        ariaLabel="Inline code"
+        active={editor.isActive("code")}
+        onClick={() => editor.chain().focus().toggleCode().run()}
+      />
+      <ToolbarButton
         label={<CodeBlockIcon />}
         ariaLabel="Code block"
         active={editor.isActive("codeBlock")}
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+      />
+      <ToolbarButton
+        label={<TableIcon />}
+        ariaLabel="Insert table"
+        active={editor.isActive("table")}
+        onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
       />
     </div>
   );
@@ -180,6 +218,10 @@ export function RichTextEditor({ value, onChange, label, hint, id, contentKey }:
     extensions: [
       StarterKit.configure({ heading: false, link: false }),
       Link.configure({ openOnClick: false, autolink: false }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableCell,
+      TableHeader,
       Markdown,
     ],
     content: value,

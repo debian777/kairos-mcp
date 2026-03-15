@@ -72,11 +72,11 @@ export function HomePage() {
             key={space.name}
             className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
           >
-            <span className="text-2xl font-semibold text-[var(--color-text-heading)]">
-              {isLoading ? "—" : space.chain_count}
-            </span>
-            <span className="block text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
+            <span className="block font-semibold text-[var(--color-text-heading)]">
               {space.name}
+            </span>
+            <span className="block text-sm text-[var(--color-text-muted)] mt-1">
+              {isLoading ? "—" : t("home.stats.protocolCount", { count: space.chain_count })}
             </span>
           </div>
         ))}
