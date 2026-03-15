@@ -33,6 +33,7 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-code
 | kairos-create-protocol | Create and mint new protocol chains. |
 | kairos-create-skill | Create skills that ship protocols. |
 | kairos-refine-search | Refine a weak/empty search (better query). |
+| kairos-chat-gaps | Identify KAIROS gaps and blind spots from chat history; extract Cursor transcripts or supply JSON in documented format; scripts: extract, ingest, analyze. |
 | kairos-development | Agent instructions for kairos-dev (workflow-test, ai-mcp-integration). |
 
 **Global install for Cursor / Claude Code** (non-interactive): add `-y -g` and optionally `-a cursor` or `-a claude-code`. Example:
