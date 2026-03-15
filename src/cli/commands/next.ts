@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson, writeMarkdown } from '../output.js';
 
 export function nextCommand(program: Command): void {
@@ -23,7 +24,7 @@ export function nextCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 let solutionResult;
                 if (options.solution) {
                     try {
@@ -72,8 +73,7 @@ export function nextCommand(program: Command): void {
                 } while (options.follow);
 
             } catch (error) {
-                writeError(error instanceof Error ? error.message : String(error));
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

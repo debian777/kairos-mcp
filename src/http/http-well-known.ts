@@ -9,7 +9,7 @@
  * See: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
  */
 import type { Express, Request, Response } from 'express';
-import { AUTH_CALLBACK_BASE_URL, KEYCLOAK_URL, KEYCLOAK_REALM } from '../config.js';
+import { AUTH_CALLBACK_BASE_URL, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLI_CLIENT_ID } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
 function buildProtectedResourceMetadata(): Record<string, unknown> {
@@ -26,10 +26,19 @@ function buildProtectedResourceMetadata(): Record<string, unknown> {
     bearer_methods_supported: ['header'],
     resource_name: 'KAIROS MCP'
   };
+  // Optional: expose endpoints so CLI and other clients can build auth URLs without 401 or hardcoded paths.
+  if (issuer) {
+    metadata['authorization_endpoint'] = `${issuer}/protocol/openid-connect/auth`;
+    metadata['token_endpoint'] = `${issuer}/protocol/openid-connect/token`;
+  }
   // RFC 9728 allows additional parameters. MCP clients that support it should add these
   // to the authorization request (e.g. prompt=login) to avoid already_logged_in when
   // the user is logged in elsewhere, without disabling SSO for normal browser use.
   metadata['authorization_request_parameters'] = { prompt: 'login' };
+  // KAIROS-specific extension: expose the public client_id for PKCE flows (CLI and MCP hosts)
+  if (KEYCLOAK_CLI_CLIENT_ID) {
+    metadata['kairos_cli_client_id'] = KEYCLOAK_CLI_CLIENT_ID;
+  }
   return metadata;
 }
 

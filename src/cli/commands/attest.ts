@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
 export function attestCommand(program: Command): void {
@@ -35,7 +36,7 @@ export function attestCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 
                 const attestOptions: { qualityBonus?: number; llmModelId?: string } = {
                     qualityBonus,
@@ -51,8 +52,7 @@ export function attestCommand(program: Command): void {
                 );
                 writeJson(response);
             } catch (error) {
-                writeError(error instanceof Error ? error.message : String(error));
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

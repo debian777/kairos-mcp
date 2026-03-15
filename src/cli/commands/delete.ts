@@ -4,7 +4,8 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
-import { writeError, writeJson } from '../output.js';
+import { handleApiError } from '../auth-error.js';
+import { writeJson } from '../output.js';
 
 export function deleteCommand(program: Command): void {
     program
@@ -13,12 +14,11 @@ export function deleteCommand(program: Command): void {
         .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
         .action(async (uris: string[]) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 const response = await client.delete(uris);
                 writeJson(response);
             } catch (error) {
-                writeError(error instanceof Error ? error.message : String(error));
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

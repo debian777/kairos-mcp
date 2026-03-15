@@ -187,17 +187,22 @@ start() {
 
             # Start the dev server with env from .env (CI and local).
             # Use 'env VAR=...' after dotenv so MAX_CONCURRENT_MCP_REQUESTS from .env is visible to node (dotenv -e can override inherited env).
+            # For E2E and CLI browser login, well-known must expose a URL the browser can open. If .env has KEYCLOAK_URL with internal host (e.g. keycloak:8080), override for the dev process.
+            keycloak_export=""
+            if [[ "${KEYCLOAK_URL:-}" =~ ^https?://keycloak: ]]; then
+                keycloak_export="KEYCLOAK_URL=http://localhost:8080"
+            fi
             dev_port="${PORT:-3300}"
             mcpr="${MAX_CONCURRENT_MCP_REQUESTS:-}"
             case "$LOG_TARGET" in
                 file)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts &
                     ;;
                 both)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 
@@ -242,6 +247,15 @@ start() {
             fi
             attempt=$((attempt + 1))
         done
+    fi
+    # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
+    if [ "$ENV" = "dev" ]; then
+        print_info "Ensuring Keycloak realm and kairos-cli client..."
+        if ( cd "$PROJECT_DIR" && python3 scripts/configure-keycloak-realms.py 2>/dev/null ); then
+            print_success "Keycloak realm configured (kairos-cli client ready for CLI login)"
+        else
+            print_warning "Keycloak realm config failed or Keycloak not reachable. If you use auth, run: python3 scripts/configure-keycloak-realms.py or npm run infra:up"
+        fi
     fi
 }
 
@@ -384,8 +398,11 @@ test() {
             export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
             export KEYCLOAK_REALM="${KEYCLOAK_REALM:-}"
             export KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID:-}"
+            export KEYCLOAK_CLI_CLIENT_ID="${KEYCLOAK_CLI_CLIENT_ID:-}"
             export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
             export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
+            # Prevent CLI from opening browser during tests (inherited by child processes)
+            export KAIROS_CLI_NO_AUTO_LOGIN=1
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
