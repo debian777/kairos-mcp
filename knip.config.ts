@@ -30,6 +30,8 @@ const config: KnipConfig = {
         'src/tools/kairos_*_schema.ts',
     ],
     ignoreDependencies: [
+        // Loaded via createRequire in src/cli/keyring.ts (dynamic require for ESM)
+        '@napi-rs/keyring',
         // Runtime tools used in scripts/shell, not imported directly
         'dotenv-cli',
         'pino-pretty',

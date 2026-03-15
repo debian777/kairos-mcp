@@ -33,4 +33,5 @@ fi
 if echo "$staged" | grep -q '^skills/'; then
   npm run lint:skills || exit 1
 fi
+#npm run build || exit 1
 npm run lint

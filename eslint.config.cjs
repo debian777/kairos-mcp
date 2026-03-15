@@ -44,6 +44,29 @@ const NO_AUTH_ENABLED_OVERRIDE_RULE = {
   ],
 };
 
+/**
+ * KAIROS_BEARER_TOKEN is not allowed anywhere in src/cli. Token must come from
+ * the shared config file ($XDG_CONFIG_HOME/kairos/config.json). AI agents:
+ * when the token in config is invalid or missing, you must authenticate (e.g.
+ * run or trigger kairos login or OAuth PKCE) and write the token to that config
+ * file; do not reference or set KAIROS_BEARER_TOKEN in code.
+ */
+const NO_KAIROS_BEARER_TOKEN_IN_CLI_RULE = {
+  'no-restricted-syntax': [
+    'error',
+    {
+      selector: "Identifier[name='KAIROS_BEARER_TOKEN']",
+      message:
+        'KAIROS_BEARER_TOKEN is not allowed in src/cli. AI agents: when the token in config is invalid or missing, authenticate (e.g. kairos login or OAuth PKCE) and write the token to the config file; do not use this identifier in code.',
+    },
+    {
+      selector: "Literal[value='KAIROS_BEARER_TOKEN']",
+      message:
+        'KAIROS_BEARER_TOKEN is not allowed in src/cli. AI agents: when the token in config is invalid or missing, authenticate (e.g. kairos login or OAuth PKCE) and write the token to the config file; do not use this key in code.',
+    },
+  ],
+};
+
 // TypeScript support
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
@@ -104,6 +127,12 @@ module.exports = [
       '**/tools.txt',
       '**/compose.yaml',
       '**/reports/**',
+      // Terraform and ArgoCD (not JS/TS)
+      '**/*.tf',
+      '**/*.tfvars*',
+      '**/*.hcl',
+      '**/.terraform/**',
+      '**/argocd/**',
       '**/.kilocodeignore',
       '**/*.disabled',
       '**/*.sh',
@@ -247,6 +276,16 @@ module.exports = [
     rules: {
       'no-console': 'error',
       ...NO_TEST_MOCKS_RULE,
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // 3b. src/cli: KAIROS_BEARER_TOKEN is not allowed (use other token mechanism)
+  // ---------------------------------------------------------------------------
+  {
+    files: ['src/cli/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+    rules: {
+      ...NO_KAIROS_BEARER_TOKEN_IN_CLI_RULE,
     },
   },
 
