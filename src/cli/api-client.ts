@@ -27,7 +27,7 @@ export class ApiClient {
         this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || config.apiUrl || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
         const noAutoLogin = process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === '1' || process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === 'true';
-        this.openInBrowser = !noAutoLogin && (openInBrowser === true);
+        this.openInBrowser = !noAutoLogin && (openInBrowser !== false);
     }
 
     private async request<T>(

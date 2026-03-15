@@ -14,7 +14,7 @@ export function beginCommand(program: Command): void {
         .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
         .action(async (uri: string) => {
             try {
-                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 const response = await client.begin(uri);
 
                 if (response.error) {
@@ -29,7 +29,7 @@ export function beginCommand(program: Command): void {
                 // Pretty print the response
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

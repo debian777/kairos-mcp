@@ -53,8 +53,7 @@ When the server has authentication enabled, requests must include a Bearer token
 The config file is created by `kairos login` and is user-only readable (`0o600`); do not commit it (it contains secrets). It supports **multiple environments** keyed by API URL: each URL (e.g. `http://localhost:3300`, `https://api.kairos.example.com`) can have its own token. Format: `{ "defaultUrl": "<url>", "environments": { "<url>": { "bearerToken": "..." }, ... } }`. The default environment is used when `--url` and `KAIROS_API_URL` are not set; `kairos logout` clears the token for the current URL.
 
 When a command fails because authentication is required, the CLI prints the login URL
-on the next line. By default it does **not** open a browser; run the same command with
-**`--open`** to open that URL (for example, `kairos --open search "query"`). Use **`--no-open`** to disable opening the browser (e.g. in scripts or tests). Browser-based
+and **opens it in your browser by default**. Use **`--no-browser`** to disable (e.g. in scripts or tests). Browser-based
 `kairos login` uses a local callback server so the CLI can receive the token; the
 login URL shown on 401 responses points to the server's callback for web sessions.
 
@@ -228,7 +227,7 @@ address.
 `kairos search` to find current URIs.
 
 **`Authentication required`** — the server requires a Bearer token. Run the command
-with `--open` to open the login URL in your browser, or run `kairos login`. See
+(the CLI opens the login URL by default), or run `kairos login`. See
 [Authentication](#authentication).
 
 ## Help

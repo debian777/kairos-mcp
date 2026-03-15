@@ -24,7 +24,7 @@ export function nextCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 let solutionResult;
                 if (options.solution) {
                     try {
@@ -88,7 +88,7 @@ export function nextCommand(program: Command): void {
                 } while (options.follow);
 
             } catch (error) {
-                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

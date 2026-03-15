@@ -18,7 +18,7 @@ export function updateCommand(program: Command): void {
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
         .action(async (uris: string[], options: { file?: string; files?: string[]; updates?: string }) => {
             try {
-                const client = new ApiClient(undefined, (program.opts()['open'] === true && !program.opts()['noOpen']));
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 let markdownDoc: string[] | undefined;
                 let updates: Record<string, any> | undefined;
 
@@ -66,7 +66,7 @@ export function updateCommand(program: Command): void {
                     writeError('File not found');
                     process.exit(1);
                 }
-                handleApiError(error, program.opts()['open'] === true && !program.opts()['noOpen']);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

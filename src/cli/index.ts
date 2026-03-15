@@ -26,8 +26,7 @@ program
     .description('CLI tool for interacting with KAIROS REST API')
     .version(version)
     .option('-u, --url <url>', 'KAIROS API base URL', getApiUrl())
-    .option('--open', 'open login URL in browser when authentication is required')
-    .option('--no-open', 'do not open browser (default; use in tests or scripts)')
+    .option('--no-browser', 'do not open browser when auth is required (e.g. in tests or scripts)')
     .hook('preAction', (thisCommand) => {
         // Store the URL option globally for use in commands
         const opts = thisCommand.opts();
