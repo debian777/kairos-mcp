@@ -42,6 +42,7 @@
   "kairos.refineMeta": "Refine query",
   "kairos.createMeta": "Start from scratch",
   "kairos.view": "View",
+  "kairos.viewProtocol": "View {{title}}",
   "kairos.refineSearch": "Refine search",
   "kairos.createNew": "Create new",
   "protocol.loading": "Loading protocol…",

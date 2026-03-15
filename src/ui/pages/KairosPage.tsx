@@ -183,7 +183,7 @@ export function KairosPage() {
                       type="button"
                       onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
                       aria-expanded={expandedLetter === letter}
-                      aria-controls={expandedLetter === letter ? `browse-letter-panel-${letter}` : undefined}
+                      aria-controls={`browse-letter-panel-${letter}`}
                       aria-pressed={expandedLetter === letter}
                       aria-label={t("kairos.letterCount", { letter, count })}
                       className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
@@ -203,6 +203,7 @@ export function KairosPage() {
                   id={`browse-letter-panel-${expandedLetter}`}
                   role="region"
                   aria-labelledby="browse-letter-panel-heading"
+                  aria-live="polite"
                   className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
                 >
                   <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
@@ -211,7 +212,11 @@ export function KairosPage() {
                   {letterChains.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
                   ) : (
-                    <ul className="list-none p-0 m-0 space-y-2" role="list">
+                    <ul
+                      className="list-none p-0 m-0 space-y-2"
+                      role="list"
+                      aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
+                    >
                       {letterChains.map((chain) => {
                         const uri = `${PROTOCOL_URI_PREFIX}${chain.chain_id}`;
                         return (
@@ -222,6 +227,7 @@ export function KairosPage() {
                             <span className="font-medium text-[var(--color-text-heading)]">{chain.title}</span>
                             <Link
                               to={`/protocols/${encodeURIComponent(uri)}`}
+                              aria-label={t("kairos.viewProtocol", { title: chain.title })}
                               className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                             >
                               {t("kairos.view")}
@@ -309,6 +315,7 @@ export function KairosPage() {
                       {choice.role === "match" && (
                         <Link
                           to={`/protocols/${encodeURIComponent(choice.uri)}`}
+                          aria-label={t("kairos.viewProtocol", { title: choice.label })}
                           className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                         >
                           {t("kairos.view")}
