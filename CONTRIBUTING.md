@@ -14,12 +14,6 @@ Participants must maintain a respectful and inclusive environment.
 - Docker and Docker Compose (v2)
 - Git
 
-### Claude Code (`.claude/hooks`)
-
-Project-level hooks are **disabled** via committed `.claude/settings.json` (`"hooks": {}`). The rest of `.claude/` (e.g. `session-start.sh`) is gitignored so it never gets committed.
-
-If you use Claude Code and see git errors about `.claude/hooks/session-start.sh`, either: (1) the repo’s empty hooks config is already in effect, or (2) a global hook in `~/.claude/settings.json` is still running — remove or disable the `SessionStart` hook there. If the path is stuck in the index, run `git rm -r --cached .claude/` and commit.
-
 ## Setup from clone to passing tests
 
 1. Fork the repository on GitHub.
