@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson, writeMarkdown } from '../output.js';
 
 export function nextCommand(program: Command): void {
@@ -23,7 +24,7 @@ export function nextCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 let solutionResult;
                 if (options.solution) {
                     try {
@@ -40,27 +41,13 @@ export function nextCommand(program: Command): void {
 
                 do {
                     const response = await client.next(currentUri, solutionResult);
-
-                    if (response.error) {
-                        writeError(response.error);
-                        if (response.message) {
-                            writeError(response.message);
-                        }
-                        process.exit(1);
-                        return;
-                    }
-
-                    // Store the step
                     allSteps.push(response);
 
-                    // Output based on format
                     if (outputFormat === 'md') {
-                        const currentStep = (response as any).current_step;
+                        const currentStep = response.current_step;
                         if (currentStep?.content) {
                             writeMarkdown(currentStep.content);
-                            // Add separator between steps if following
-                            const nextAct = (response as any).next_action as string | undefined;
-                            if (options.follow && nextAct?.includes('kairos_next')) {
+                            if (options.follow && response.next_action?.includes('kairos_next')) {
                                 writeMarkdown('\n---\n\n');
                             }
                         }
@@ -68,11 +55,10 @@ export function nextCommand(program: Command): void {
                         writeJson(response);
                     }
 
-                    // Check if we should continue following
                     if (options.follow) {
-                        const nextAction = (response as any).next_action as string | undefined;
+                        const nextAction = response.next_action;
                         // Extract URI from next_action if it mentions kairos_next
-                        const nextUriMatch = nextAction?.match(/kairos_next\s+with\s+(kairos:\/\/mem\/[0-9a-f-]{36})/i);
+                        const nextUriMatch = typeof nextAction === 'string' ? nextAction.match(/kairos_next\s+with\s+(kairos:\/\/mem\/[0-9a-f-]{36})/i) : null;
                         if (nextUriMatch?.[1]) {
                             currentUri = nextUriMatch[1];
                             solutionResult = undefined;
@@ -87,8 +73,7 @@ export function nextCommand(program: Command): void {
                 } while (options.follow);
 
             } catch (error) {
-                writeError(error instanceof Error ? error.message : String(error));
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

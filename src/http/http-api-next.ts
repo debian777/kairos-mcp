@@ -2,264 +2,51 @@ import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
-import { extractMemoryBody } from '../utils/memory-body.js';
-import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, GENESIS_HASH, type HandleProofResult } from '../tools/kairos_next-pow-helpers.js';
-import { updateStepQuality } from '../tools/kairos_next.js';
-import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious } from '../tools/kairos_next-previous-step.js';
+import { kairosNextInputSchema } from '../tools/kairos_next_schema.js';
+import { executeNext, buildMissingSolutionPayload } from '../tools/kairos_next.js';
 
 /**
- * Set up API route for kairos_next (V2: no next_step/protocol_status/attest_required/final_challenge,
- * proof_hash replaces last_proof_hash, two-phase retry escalation)
+ * Set up API route for kairos_next (V2: no next_step/protocol_status/attest_required/final_challenge).
+ * Validates with canonical schema and returns executeNext result only (no metadata).
  */
 export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
-    app.post('/api/kairos_next', async (req, res) => {
-        const startTime = Date.now();
+  app.post('/api/kairos_next', async (req, res) => {
+    try {
+      const uri = req.body?.uri;
+      if (!uri || typeof uri !== 'string') {
+        res.status(400).json({ error: 'INVALID_INPUT', message: 'uri is required and must be a string' });
+        return;
+      }
 
-        try {
-            const { uri, solution } = req.body;
+      if (req.body?.solution == null) {
+        structuredLogger.info(`-> POST /api/kairos_next (uri: ${uri}, no solution)`);
+        const result = await buildMissingSolutionPayload(memoryStore, uri);
+        res.status(200).json(result);
+        return;
+      }
 
-            if (!uri || typeof uri !== 'string') {
-                res.status(400).json({
-                    error: 'INVALID_INPUT',
-                    message: 'uri is required and must be a string'
-                });
-                return;
-            }
+      const parsed = kairosNextInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const first = parsed.error.flatten().fieldErrors;
+        const msg = Object.keys(first).length
+          ? Object.entries(first)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+              .join('; ')
+          : parsed.error.message;
+        res.status(400).json({ error: 'INVALID_INPUT', message: msg });
+        return;
+      }
 
-            structuredLogger.info(`-> POST /api/kairos_next (uri: ${uri})`);
-
-            const normalizeMemoryUri = (value: string): { uuid: string; uri: string } => {
-                const normalized = (value || '').trim();
-                const uuid = normalized.split('/').pop()!;
-                if (!uuid) {
-                    throw new Error('Invalid kairos://mem URI');
-                }
-                const memUri = normalized.startsWith('kairos://mem/') ? normalized : `kairos://mem/${uuid}`;
-                return { uuid, uri: memUri };
-            };
-
-            const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
-
-            const memory = await memoryStore.getMemory(uuid);
-
-            // When requested step has no proof_of_work (e.g. last step), apply solution to previous step (MISSING_PROOF fix)
-            if (memory && !memory.proof_of_work && solution) {
-                const prevResult = await tryApplySolutionToPreviousStep(
-                    memory,
-                    solution,
-                    (id) => memoryStore.getMemory(id),
-                    qdrantService
-                );
-                if (prevResult.applied) {
-                    if (prevResult.outcome.blockedPayload) {
-                        await updateStepQuality(qdrantService, prevResult.prevMemory, 'failure', 'http');
-                        const duration = Date.now() - startTime;
-                        return res.status(200).json({
-                            ...prevResult.outcome.blockedPayload,
-                            metadata: { duration_ms: duration }
-                        });
-                    }
-                    if (!prevResult.outcome.alreadyRecorded) {
-                        await updateStepQuality(qdrantService, prevResult.prevMemory, 'success', 'http');
-                    }
-                    const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
-                    const nextStepUri = nextFromRequested?.uuid
-                        ? `kairos://mem/${nextFromRequested.uuid}`
-                        : null;
-                    const current_step = {
-                        uri: requestedUri,
-                        content: memory ? extractMemoryBody(memory.text) : '',
-                        mimeType: 'text/markdown' as const
-                    };
-                    const challenge = await buildChallenge(memory, undefined);
-                    const output: any = {
-                        must_obey: true,
-                        current_step,
-                        challenge
-                    };
-                    if (nextStepUri) {
-                        output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
-                    } else {
-                        output.message = 'Protocol steps complete. Call kairos_attest to finalize.';
-                        output.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
-                    }
-                    if (prevResult.outcome.proofHash) output.proof_hash = prevResult.outcome.proofHash;
-                    const duration = Date.now() - startTime;
-                    return res.status(200).json({ ...output, metadata: { duration_ms: duration } });
-                }
-            }
-
-            // Solution is required for steps 2+
-            if (!solution) {
-                const retryCount = await proofOfWorkStore.incrementRetry(uuid);
-                const noSolChallenge = await buildChallenge(null, undefined);
-                const duration = Date.now() - startTime;
-                return res.status(200).json({
-                    must_obey: retryCount < 3,
-                    current_step: {
-                        uri: requestedUri,
-                        content: memory ? extractMemoryBody(memory.text) : '',
-                        mimeType: 'text/markdown'
-                    },
-                    challenge: noSolChallenge,
-                    message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
-                    next_action: `retry kairos_next with ${requestedUri} -- include solution matching challenge`,
-                    error_code: 'MISSING_FIELD',
-                    retry_count: retryCount,
-                    metadata: { duration_ms: duration }
-                });
-            }
-
-            let submissionOutcome: HandleProofResult | undefined;
-            if (memory?.proof_of_work) {
-                // PROOF_HASH_MISMATCH fix: client may call with next_action URI (next step) and submit
-                // solution for the step we just showed (previous). Apply to previous when solution matches.
-                const prevResultWhenMatch = await tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
-                    memory,
-                    solution,
-                    (id) => memoryStore.getMemory(id),
-                    qdrantService
-                );
-                if (prevResultWhenMatch.applied) {
-                    if (prevResultWhenMatch.outcome.blockedPayload) {
-                        await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'failure', 'http');
-                        const duration = Date.now() - startTime;
-                        return res.status(200).json({
-                            ...prevResultWhenMatch.outcome.blockedPayload,
-                            metadata: { duration_ms: duration }
-                        });
-                    }
-                    if (!prevResultWhenMatch.outcome.alreadyRecorded) {
-                        await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'success', 'http');
-                    }
-                    const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
-                    const nextStepUri = nextFromRequested?.uuid
-                        ? `kairos://mem/${nextFromRequested.uuid}`
-                        : null;
-                    const current_step = {
-                        uri: requestedUri,
-                        content: memory ? extractMemoryBody(memory.text) : '',
-                        mimeType: 'text/markdown' as const
-                    };
-                    const nextMemory = nextFromRequested ? await memoryStore.getMemory(nextFromRequested.uuid) : null;
-                    const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
-                    const challenge = await buildChallenge(memory, challengeProof);
-                    const output: any = {
-                        must_obey: true,
-                        current_step,
-                        challenge
-                    };
-                    if (nextStepUri) {
-                        output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
-                    } else {
-                        output.message = 'Protocol steps complete. Call kairos_attest to finalize.';
-                        output.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
-                    }
-                    if (prevResultWhenMatch.outcome.proofHash) output.proof_hash = prevResultWhenMatch.outcome.proofHash;
-                    const duration = Date.now() - startTime;
-                    return res.status(200).json({ ...output, metadata: { duration_ms: duration } });
-                }
-
-                const isStep1 = !memory.chain || memory.chain.step_index <= 1;
-                let expectedPreviousHash: string;
-                if (isStep1) {
-                    expectedPreviousHash = GENESIS_HASH;
-                } else {
-                    const prev = await resolveChainPreviousStep(memory, qdrantService);
-                    const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
-                    expectedPreviousHash = prevHash ?? GENESIS_HASH;
-                }
-                submissionOutcome = await handleProofSubmission(solution, memory, { expectedPreviousHash });
-                if (submissionOutcome.blockedPayload) {
-                    await updateStepQuality(qdrantService, memory, 'failure', 'http');
-                    const duration = Date.now() - startTime;
-                    return res.status(200).json({
-                        ...submissionOutcome.blockedPayload,
-                        metadata: { duration_ms: duration }
-                    });
-                }
-            }
-
-            if (!memory) {
-                const duration = Date.now() - startTime;
-                return res.status(200).json({
-                    must_obey: true,
-                    current_step: {
-                        uri: requestedUri,
-                        content: '',
-                        mimeType: 'text/markdown'
-                    },
-                    challenge: await buildChallenge(null, undefined),
-                    message: 'Protocol steps complete. Call kairos_attest to finalize.',
-                    next_action: `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`,
-                    metadata: { duration_ms: duration }
-                });
-            }
-
-            if (memory.proof_of_work && submissionOutcome?.proofHash && !submissionOutcome.alreadyRecorded) {
-                await updateStepQuality(qdrantService, memory, 'success', 'http');
-            }
-
-            // Resolve next step for display
-            const nextStepInfo = await resolveChainNextStep(memory, qdrantService);
-            const nextMemory = nextStepInfo
-                ? await memoryStore.getMemory(nextStepInfo.uuid)
-                : null;
-            const displayMemory = nextMemory ?? memory;
-            const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
-            const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
-
-            // Resolve the step AFTER display to get next_action URI
-            const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, qdrantService) : undefined;
-            const nextStepUri = nextFromDisplay?.uuid
-                ? `kairos://mem/${nextFromDisplay.uuid}`
-                : null;
-
-            const current_step = {
-                uri: displayUri,
-                content: displayMemory ? extractMemoryBody(displayMemory.text) : '',
-                mimeType: 'text/markdown' as const
-            };
-
-            const challenge = await buildChallenge(displayMemory, challengeProof);
-
-            const output: any = {
-                must_obey: true,
-                current_step,
-                challenge
-            };
-
-            if (nextStepUri) {
-                output.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
-            } else {
-                output.message = 'Protocol steps complete. Call kairos_attest to finalize.';
-                output.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
-            }
-
-            if (submissionOutcome?.proofHash) {
-                output.proof_hash = submissionOutcome.proofHash;
-            }
-
-            const duration = Date.now() - startTime;
-            structuredLogger.info(`kairos_next completed in ${duration}ms`);
-
-            res.status(200).json({
-                ...output,
-                metadata: { duration_ms: duration }
-            });
-            return;
-
-        } catch (error) {
-            const duration = Date.now() - startTime;
-            structuredLogger.error(`kairos_next failed in ${duration}ms`, error);
-            res.status(500).json({
-                error: 'NEXT_FAILED',
-                message: error instanceof Error ? error.message : 'Failed to get next step',
-                duration_ms: duration
-            });
-            return;
-        }
-    });
+      structuredLogger.info(`-> POST /api/kairos_next (uri: ${parsed.data.uri})`);
+      const result = await executeNext(memoryStore, qdrantService, parsed.data, 'http');
+      res.status(200).json(result);
+      return;
+    } catch (error) {
+      structuredLogger.error('kairos_next failed', error);
+      res.status(500).json({
+        error: 'NEXT_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to get next step'
+      });
+    }
+  });
 }

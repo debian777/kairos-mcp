@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
 export function updateCommand(program: Command): void {
@@ -17,7 +18,7 @@ export function updateCommand(program: Command): void {
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
         .action(async (uris: string[], options: { file?: string; files?: string[]; updates?: string }) => {
             try {
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 let markdownDoc: string[] | undefined;
                 let updates: Record<string, any> | undefined;
 
@@ -48,25 +49,13 @@ export function updateCommand(program: Command): void {
                 }
 
                 const response = await client.update(uris, markdownDoc, updates);
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
-                // Pretty print the response
                 writeJson(response);
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {
                     writeError('File not found');
-                } else {
-                    writeError(error instanceof Error ? error.message : String(error));
+                    process.exit(1);
                 }
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

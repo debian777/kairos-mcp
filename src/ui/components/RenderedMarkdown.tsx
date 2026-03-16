@@ -1,21 +1,28 @@
 /**
  * Read-only markdown renderer. Renders markdown as formatted content so the user
- * never sees raw markdown. Uses react-markdown (no raw HTML by default — safe).
+ * never sees raw markdown. Uses react-markdown with remark-gfm (tables, etc.).
  */
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const contentClass =
   "text-sm leading-6 text-[var(--color-text)] [&_p]:mt-0 [&_p:first-child]:mt-0 [&_p+p]:mt-3 " +
   "[&_ul]:my-3 [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:pl-6 [&_li]:my-0.5 " +
   "[&_strong]:font-semibold [&_strong]:text-[var(--color-text-heading)] " +
+  /* 1. Inline code (single backticks): pill style for all code */
   "[&_code]:rounded [&_code]:bg-[var(--color-surface-elevated)] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_code]:font-mono " +
-  "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[var(--radius-md)] [&_pre]:bg-[var(--color-surface-elevated)] [&_pre]:p-3 [&_pre]:text-sm [&_pre]:font-mono [&_pre]:whitespace-pre-wrap " +
+  /* 2. Fenced code blocks (``` or ```json etc.): block style; inner code unstyled so pre defines the block */
+  "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[var(--radius-md)] [&_pre]:bg-[var(--color-surface-elevated)] [&_pre]:p-3 [&_pre]:text-sm [&_pre]:font-mono [&_pre]:whitespace-pre-wrap [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-inherit " +
   "[&_a]:text-[var(--color-primary)] [&_a]:underline [&_a:hover]:no-underline [&_a:focus-visible]:outline [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-[var(--color-focus-ring)] [&_a:focus-visible]:outline-offset-2 " +
   "[&_blockquote]:border-l-4 [&_blockquote]:border-[var(--color-border)] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[var(--color-text-muted)] " +
   "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-[var(--color-text-heading)] [&_h1]:mt-4 [&_h1]:mb-2 " +
   "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-[var(--color-text-heading)] [&_h2]:mt-4 [&_h2]:mb-2 " +
-  "[&_h3]:text-base [&_h3]:font-medium [&_h3]:text-[var(--color-text-heading)] [&_h3]:mt-3 [&_h3]:mb-1";
+  "[&_h3]:text-base [&_h3]:font-medium [&_h3]:text-[var(--color-text-heading)] [&_h3]:mt-3 [&_h3]:mb-1 " +
+  "[&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_table]:text-left " +
+  "[&_th]:border [&_th]:border-[var(--color-border)] [&_th]:bg-[var(--color-surface-elevated)] [&_th]:px-3 [&_th]:py-2 [&_th]:font-semibold [&_th]:text-[var(--color-text-heading)] " +
+  "[&_td]:border [&_td]:border-[var(--color-border)] [&_td]:px-3 [&_td]:py-2 " +
+  "[&_tr]:border-b [&_tr]:border-[var(--color-border)] [&_tr:last-child]:border-b-0";
 
 export interface RenderedMarkdownProps {
   content: string;
@@ -26,7 +33,7 @@ export function RenderedMarkdown({ content, className = "" }: RenderedMarkdownPr
   if (!content.trim()) return null;
   return (
     <div className={`${contentClass} ${className}`.trim()}>
-      <ReactMarkdown>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
 }

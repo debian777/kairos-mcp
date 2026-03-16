@@ -3,7 +3,6 @@
  * chain counts per space, and optionally chain titles and step counts.
  */
 
-import { z } from 'zod';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
@@ -12,6 +11,7 @@ import { buildSpaceFilter } from '../utils/space-filter.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { spacesInputSchema, spacesOutputSchema } from './kairos_spaces_schema.js';
 
 const SPACES_TOOL_NAME = 'kairos_spaces';
 const SCROLL_LIMIT = 2000;
@@ -125,24 +125,8 @@ export interface RegisterKairosSpacesOptions {
 
 export function registerKairosSpacesTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterKairosSpacesOptions = {}): void {
   const toolName = options.toolName ?? SPACES_TOOL_NAME;
-
-  const inputSchema = z.object({
-    include_chain_titles: z.boolean().optional().default(false).describe('If true, include for each space a list of chains with title and step_count')
-  });
-
-  const chainInfoSchema = z.object({
-    chain_id: z.string(),
-    title: z.string(),
-    step_count: z.number()
-  });
-  const spaceInfoSchema = z.object({
-    name: z.string(),
-    chain_count: z.number(),
-    chains: z.array(chainInfoSchema).optional()
-  });
-  const outputSchema = z.object({
-    spaces: z.array(spaceInfoSchema)
-  });
+  const inputSchema = spacesInputSchema;
+  const outputSchema = spacesOutputSchema;
 
   server.registerTool(
     toolName,

@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { ApiClient } from '../api-client.js';
+import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
 export function mintCommand(program: Command): void {
@@ -17,7 +18,7 @@ export function mintCommand(program: Command): void {
         .action(async (file: string, options: { model?: string; force?: boolean }) => {
             try {
                 const markdown = readFileSync(file, 'utf-8');
-                const client = new ApiClient();
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 const mintOptions: { llmModelId?: string; force?: boolean } = {};
                 if (options.model) {
                     mintOptions.llmModelId = options.model;
@@ -26,25 +27,13 @@ export function mintCommand(program: Command): void {
                     mintOptions.force = options.force;
                 }
                 const response = await client.mint(markdown, mintOptions);
-
-                if (response.error) {
-                    writeError(response.error);
-                    if (response.message) {
-                        writeError(response.message);
-                    }
-                    process.exit(1);
-                    return;
-                }
-
-                // Pretty print the response
                 writeJson(response);
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {
                     writeError(`File not found: ${file}`);
-                } else {
-                    writeError(error instanceof Error ? error.message : String(error));
+                    process.exit(1);
                 }
-                process.exit(1);
+                handleApiError(error, !program.opts()['noBrowser']);
             }
         });
 }

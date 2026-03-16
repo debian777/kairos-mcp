@@ -115,6 +115,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
       - name: TypeScript check
         run: npx tsc --noEmit
         # Fail fast on TS errors (e.g. duplicate function); full build runs later.

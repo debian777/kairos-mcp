@@ -13,7 +13,6 @@ export function setupDumpRoute(
   qdrantService: QdrantService
 ): void {
   app.post('/api/kairos_dump', async (req, res) => {
-    const startTime = Date.now();
     try {
       const { uri, protocol } = req.body;
       if (!uri || typeof uri !== 'string' || uri.trim().length === 0) {
@@ -28,8 +27,7 @@ export function setupDumpRoute(
         uri: uri.trim(),
         protocol: Boolean(protocol)
       });
-      const duration = Date.now() - startTime;
-      res.status(200).json({ ...payload, metadata: { duration_ms: duration } });
+      res.status(200).json(payload);
     } catch (error: unknown) {
       const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
       const message = error instanceof Error ? error.message : String(error);

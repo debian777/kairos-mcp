@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSearch } from "@/hooks/useSearch";
+import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
 
@@ -14,6 +15,9 @@ const roleBadgeClass: Record<string, string> = {
 
 const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+/** Protocol URI prefix for chain_id from kairos_spaces. */
+const PROTOCOL_URI_PREFIX = "kairos://mem/";
+
 export function KairosPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,11 +25,16 @@ export function KairosPage() {
   const [query, setQuery] = useState(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
+
   const { data, isLoading, isError, error, refetch } = useSearch(submittedQuery, !!submittedQuery);
-  const { data: letterData, isLoading: letterLoading } = useSearch(
-    expandedLetter ?? "",
-    expandedLetter !== null && expandedLetter.length > 0
-  );
+  const showBrowse = !submittedQuery;
+  const {
+    data: spacesData,
+    isLoading: spacesLoading,
+    isError: spacesError,
+    error: spacesErrorDetail,
+    refetch: refetchSpaces,
+  } = useSpaces(showBrowse, { includeChainTitles: true });
 
   useEffect(() => {
     const q = searchParams.get("q") ?? "";
@@ -55,11 +64,29 @@ export function KairosPage() {
       ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
       : null;
 
-  const letterChoicesRaw = expandedLetter ? (letterData?.choices ?? []) : [];
-  const letterChoices = letterChoicesRaw.filter((c) => {
-    const first = (c.label ?? "").trim().charAt(0).toUpperCase();
-    return first === expandedLetter?.toUpperCase();
-  });
+  const { browseChains, countsByLetter } = useMemo(() => {
+    const chains: Array<{ chain_id: string; title: string; step_count: number }> = [];
+    for (const space of spacesData?.spaces ?? []) {
+      for (const c of space.chains ?? []) {
+        chains.push({ chain_id: c.chain_id, title: c.title, step_count: c.step_count });
+      }
+    }
+    const byLetter: Record<string, number> = {};
+    for (const letter of A_Z) byLetter[letter] = 0;
+    for (const c of chains) {
+      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
+      if (A_Z.includes(first)) byLetter[first] = (byLetter[first] ?? 0) + 1;
+    }
+    return { browseChains: chains, countsByLetter: byLetter };
+  }, [spacesData?.spaces]);
+
+  const letterChains = useMemo(() => {
+    if (!expandedLetter) return [];
+    return browseChains.filter((c) => {
+      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
+      return first === expandedLetter;
+    });
+  }, [browseChains, expandedLetter]);
 
   return (
     <div>
@@ -114,6 +141,14 @@ export function KairosPage() {
         />
       )}
 
+      {showBrowse && spacesError && (
+        <ErrorAlert
+          message={spacesErrorDetail instanceof Error ? spacesErrorDetail.message : String(spacesErrorDetail)}
+          onRetry={() => refetchSpaces()}
+          showGoBack={true}
+        />
+      )}
+
       {isLoading && submittedQuery && (
         <div className="mb-4" aria-live="polite" aria-busy="true">
           <p className="sr-only">{t("kairos.loading")}</p>
@@ -121,7 +156,14 @@ export function KairosPage() {
         </div>
       )}
 
-      {!isLoading && !isError && (
+      {showBrowse && spacesLoading && (
+        <div className="mb-4" aria-live="polite" aria-busy="true">
+          <p className="sr-only">{t("kairos.loading")}</p>
+          <SearchResultsSkeleton />
+        </div>
+      )}
+
+      {!isLoading && !isError && !(showBrowse && spacesError) && (
         <>
           {!submittedQuery ? (
             <section aria-labelledby="browse-by-label-heading">
@@ -131,55 +173,68 @@ export function KairosPage() {
               <p className="text-sm text-[var(--color-text-muted)] mb-4">
                 {t("kairos.browseByLetterHint")}
               </p>
+              {!spacesLoading && (
               <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
-                {A_Z.map((letter) => (
-                  <button
-                    key={letter}
-                    type="button"
-                    onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
-                    aria-expanded={expandedLetter === letter}
-                    aria-controls={expandedLetter === letter ? `browse-letter-panel-${letter}` : undefined}
-                    aria-pressed={expandedLetter === letter}
-                    className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
-                      expandedLetter === letter
-                        ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
-                    }`}
-                  >
-                    {letter}
-                  </button>
-                ))}
+                {A_Z.map((letter) => {
+                  const count = countsByLetter[letter] ?? 0;
+                  return (
+                    <button
+                      key={letter}
+                      type="button"
+                      onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
+                      aria-expanded={expandedLetter === letter}
+                      aria-controls={`browse-letter-panel-${letter}`}
+                      aria-pressed={expandedLetter === letter}
+                      aria-label={t("kairos.letterCount", { letter, count })}
+                      className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
+                        expandedLetter === letter
+                          ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
+                      }`}
+                    >
+                      {letter}: {count}
+                    </button>
+                  );
+                })}
               </div>
-              {expandedLetter && (
+              )}
+              {expandedLetter && !spacesLoading && (
                 <div
                   id={`browse-letter-panel-${expandedLetter}`}
                   role="region"
                   aria-labelledby="browse-letter-panel-heading"
+                  aria-live="polite"
                   className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
                 >
                   <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
                     {t("kairos.labelsStartingWith", { letter: expandedLetter })}
                   </h3>
-                  {letterLoading ? (
-                    <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.loading")}</p>
-                  ) : letterChoices.length === 0 ? (
+                  {letterChains.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
                   ) : (
-                    <ul className="list-none p-0 m-0 space-y-2" role="list">
-                      {letterChoices.map((choice) => (
-                        <li
-                          key={choice.uri}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
-                        >
-                          <span className="font-medium text-[var(--color-text-heading)]">{choice.label}</span>
-                          <Link
-                            to={`/protocols/${encodeURIComponent(choice.uri)}`}
-                            className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                    <ul
+                      className="list-none p-0 m-0 space-y-2"
+                      role="list"
+                      aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
+                    >
+                      {letterChains.map((chain) => {
+                        const uri = `${PROTOCOL_URI_PREFIX}${chain.chain_id}`;
+                        return (
+                          <li
+                            key={chain.chain_id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                           >
-                            {t("kairos.view")}
-                          </Link>
-                        </li>
-                      ))}
+                            <span className="font-medium text-[var(--color-text-heading)]">{chain.title}</span>
+                            <Link
+                              to={`/protocols/${encodeURIComponent(uri)}`}
+                              aria-label={t("kairos.viewProtocol", { title: chain.title })}
+                              className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                            >
+                              {t("kairos.view")}
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
@@ -260,6 +315,7 @@ export function KairosPage() {
                       {choice.role === "match" && (
                         <Link
                           to={`/protocols/${encodeURIComponent(choice.uri)}`}
+                          aria-label={t("kairos.viewProtocol", { title: choice.label })}
                           className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                         >
                           {t("kairos.view")}

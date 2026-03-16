@@ -1,6 +1,6 @@
 {
   "name": "@debian777/kairos-mcp",
-  "version": "3.1.0-pre.2",
+  "version": "3.2.0",
   "description": "kairos MCP Server - AI Knowledge Memory System for AI Agent Consciousness Infrastructure",
   "type": "module",
   "main": "dist/index.js",
@@ -38,6 +38,9 @@
     "LICENSE"
   ],
   "scripts": {
+    "cli": "node dist/cli/index.js",
+    "cli:dev": "KAIROS_API_URL=http://localhost:3300 node dist/cli/index.js",
+    "dev:cli-ready": "./scripts/dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/run-env.sh build",
     "dev:deploy": "npm run dev:build && npm run dev:restart",
@@ -97,10 +100,13 @@
     "publish": "npm run prepare:publish && npm publish ./dist/debian777-kairos-mcp-$(node -p \"require('./package.json').version\").tgz --access public"
   },
   "dependencies": {
+    "@exodus/bytes": "^1.15.0",
     "@modelcontextprotocol/sdk": "^1.27.0",
+    "@napi-rs/keyring": "^1.2.0",
     "@qdrant/js-client-rest": "^1.17.0",
     "@tanstack/react-query": "^5.62.0",
     "@tiptap/extension-link": "^3.20.1",
+    "@tiptap/extension-table": "^3.20.1",
     "@tiptap/markdown": "^3.20.1",
     "@tiptap/react": "^3.20.1",
     "@tiptap/starter-kit": "^3.20.1",
@@ -117,6 +123,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.4.0",
     "redis": "^5.11.0",
+    "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
   },

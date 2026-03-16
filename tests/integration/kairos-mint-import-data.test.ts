@@ -23,19 +23,20 @@ describe('Kairos Mint Data Import (tests/test-data)', () => {
   }
 
   const testDataDir = join(process.cwd(), 'tests', 'test-data');
-  let testFiles = [];
-  try {
-    testFiles = readdirSync(testDataDir)
-      .filter(name => name.toLowerCase().endsWith('.md'))
-      .map(name => join(testDataDir, name));
-  } catch (err) {
+  const testFiles = readdirSync(testDataDir)
+    .filter((name) => name.toLowerCase().endsWith('.md'))
+    .map((name) => join(testDataDir, name));
 
-    console.warn(`[kairos_mint import] Skipping test-data import: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  beforeAll(() => {
+    if (testFiles.length === 0) {
+      throw new Error('tests/test-data has no .md files');
+    }
+  });
 
   for (const filePath of testFiles) {
     const fileName = filePath.split('/').pop() || filePath;
     test(`import: ${fileName}`, async () => {
+      expect.hasAssertions();
       const content = readFileSync(filePath, 'utf-8');
 
       const result = await mcpConnection.client.callTool({

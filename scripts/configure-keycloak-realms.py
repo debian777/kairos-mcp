@@ -2,6 +2,8 @@
 """
 Idempotent Keycloak realm setup: apply config from scripts/keycloak/import via Admin API.
 
+Configures sub-realms only (e.g. kairos-dev, kairos-prod). Uses master realm only to obtain
+an admin token; does not modify master.
 Single source of truth for realm config. Use when Keycloak is already running. Do not use
 Keycloak startup --import-realm (would conflict with existing realms). Reads realm JSONs
 from scripts/keycloak/import relative to repo root (works regardless of CWD).
@@ -143,6 +145,34 @@ def update_realm(base_url: str, realm_name: str, realm_json: dict, token: str) -
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"Update realm {realm_name} failed: {e.code} {body}")
+
+
+def list_realm_client_ids(base_url: str, realm_name: str, token: str) -> set[str]:
+    """GET realm clients and return set of clientId."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            clients = json.loads(resp.read().decode())
+            return {c.get("clientId") for c in clients if c.get("clientId")}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"List clients {realm_name} failed: {e.code} {body}")
+
+
+def create_realm_client(base_url: str, realm_name: str, client_payload: dict, token: str) -> None:
+    """POST a client into the realm (Keycloak realm PUT does not create new clients)."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients"
+    payload = json.dumps(client_payload).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Create client {client_payload.get('clientId', '?')} in {realm_name} failed: {e.code} {body}")
 
 
 def _merge_realm(current: dict, desired: dict) -> dict:
@@ -424,6 +454,15 @@ def main() -> int:
         merged = _merge_realm(current, desired)
         update_realm(base_url, realm_name, merged, token)
         print(f"Updated realm {realm_name}.")
+        # Keycloak realm PUT does not create new clients; create any missing via POST
+        existing_ids = list_realm_client_ids(base_url, realm_name, token)
+        for d_client in desired.get("clients") or []:
+            cid = d_client.get("clientId")
+            if not cid or cid in existing_ids:
+                continue
+            create_realm_client(base_url, realm_name, d_client, token)
+            print(f"  Created client {cid} in {realm_name}.")
+            existing_ids.add(cid)
 
     # 2. Set trusted hosts per realm (dev / prod)
     for realm_name, _ in REALM_FILES:

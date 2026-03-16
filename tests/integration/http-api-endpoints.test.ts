@@ -12,30 +12,31 @@ function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('HTTP REST API Endpoints', () => {
-  let serverAvailable = false;
-
   beforeAll(async () => {
-    try {
-      await waitForHealthCheck({
-        url: `${BASE_URL}/health`,
-        timeoutMs: 60000,
-        intervalMs: 500
-      });
-      serverAvailable = true;
-    } catch (_error) {
-      serverAvailable = false;
-      console.warn('Server not available, skipping HTTP API tests');
-    }
+    await waitForHealthCheck({
+      url: `${BASE_URL}/health`,
+      timeoutMs: 60000,
+      intervalMs: 500
+    });
   }, 60000);
 
   describe('POST /api/kairos_mint/raw', () => {
     test('accepts raw markdown and stores memories', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
+      const markdown = `# Test Document ${Date.now()}
 
-      const markdown = `# Test Document ${Date.now()}\n\nThis is a test document for HTTP API mint endpoint.`;
+## Natural Language Triggers
+When to run this test protocol.
+
+## Step 1
+Content for HTTP API mint endpoint.
+
+\`\`\`json
+{"challenge": {"type": "comment", "description": "Minimal step"}}
+\`\`\`
+
+## Completion Rule
+Protocol is complete when this step is done.`;
       const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
@@ -50,15 +51,10 @@ describe('HTTP REST API Endpoints', () => {
       expect(data.items.length).toBeGreaterThan(0);
       expect(data.items[0]).toHaveProperty('uri');
       expect(data.items[0].uri).toMatch(/^kairos:\/\/mem\//);
-      expect(data.metadata).toHaveProperty('count');
-      expect(data.metadata).toHaveProperty('duration_ms');
     }, 30000);
 
     test('rejects empty markdown', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_mint/raw`, {
         method: 'POST',
@@ -73,15 +69,25 @@ describe('HTTP REST API Endpoints', () => {
     });
 
     test('handles force update parameter', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
-      const markdown = `# Force Update Test ${Date.now()}\n\nTesting force update.`;
+      const markdown = `# Force Update Test ${Date.now()}
+
+## Natural Language Triggers
+When to run.
+
+## Step 1
+Testing force update.
+
+\`\`\`json
+{"challenge": {"type": "comment", "description": "Minimal"}}
+\`\`\`
+
+## Completion Rule
+Done.`;
       const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/markdown' },
+        headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
       });
 
@@ -93,10 +99,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/snapshot', () => {
     test('triggers Qdrant snapshot', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/snapshot`, { method: 'POST' });
 
@@ -111,10 +114,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/kairos_search', () => {
     test('searches for chain heads', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const query = `Test Query ${Date.now()}`;
       const response = await apiFetch(`${API_BASE}/kairos_search`, {
@@ -124,22 +124,23 @@ describe('HTTP REST API Endpoints', () => {
       });
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-      // V2 unified response shape
-      expect(data).toHaveProperty('must_obey');
+      const data = (await response.json()) as Record<string, unknown>;
+      // V2 unified response shape: exact top-level keys (canonical shape; no metadata in spec)
+      const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action'];
+      expect(Object.keys(data).sort()).toEqual([...canonicalSearchKeys].sort());
+      expect(data.must_obey).toBe(true);
       expect(Array.isArray(data.choices)).toBe(true);
       expect(typeof data.message).toBe('string');
       expect(typeof data.next_action).toBe('string');
-      expect(Array.isArray(data.choices)).toBe(true);
-      expect(data).toHaveProperty('metadata');
-      expect(data.metadata).toHaveProperty('duration_ms');
+      // Type checks
+      expect(typeof data.must_obey).toBe('boolean');
+      if (data.metadata && typeof data.metadata === 'object' && data.metadata !== null && 'duration_ms' in data.metadata) {
+        expect(typeof (data.metadata as { duration_ms?: number }).duration_ms).toBe('number');
+      }
     }, 30000);
 
     test('rejects empty query', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_search`, {
         method: 'POST',
@@ -155,10 +156,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/kairos_next', () => {
     test('requires uri parameter', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_next`, {
         method: 'POST',
@@ -172,10 +170,7 @@ describe('HTTP REST API Endpoints', () => {
     });
 
     test('handles valid uri with missing solution', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       // V2: missing solution returns 200 with error payload (execution-oriented)
       const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
@@ -197,10 +192,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/kairos_attest', () => {
     test('requires all mandatory parameters', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_attest`, {
         method: 'POST',
@@ -218,10 +210,7 @@ describe('HTTP REST API Endpoints', () => {
     });
 
     test('validates outcome enum', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_attest`, {
         method: 'POST',
@@ -241,10 +230,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/kairos_update', () => {
     test('requires uris array', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_update`, {
         method: 'POST',
@@ -258,10 +244,7 @@ describe('HTTP REST API Endpoints', () => {
     });
 
     test('validates markdown_doc array length matches uris', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_update`, {
         method: 'POST',
@@ -280,10 +263,7 @@ describe('HTTP REST API Endpoints', () => {
 
   describe('POST /api/kairos_delete', () => {
     test('requires uris array', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_delete`, {
         method: 'POST',
@@ -297,10 +277,7 @@ describe('HTTP REST API Endpoints', () => {
     });
 
     test('handles delete request with valid structure', async () => {
-      if (!serverAvailable) {
-        console.warn('Skipping test - server not available');
-        return;
-      }
+      expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/kairos_delete`, {
         method: 'POST',
@@ -313,14 +290,13 @@ describe('HTTP REST API Endpoints', () => {
       // API returns 200 with per-URI results; non-existent UUID is reported in results/total_failed, not 500.
       // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data).toHaveProperty('results');
-      expect(data).toHaveProperty('total_deleted');
-      expect(data).toHaveProperty('total_failed');
-      expect(data.metadata).toHaveProperty('duration_ms');
+      const data = (await response.json()) as Record<string, unknown>;
+      const canonicalDeleteKeys = ['results', 'total_deleted', 'total_failed'];
+      expect(Object.keys(data).sort()).toEqual([...canonicalDeleteKeys].sort());
+      expect(Array.isArray(data.results)).toBe(true);
       expect(data.total_deleted).toBe(0);
       expect(data.total_failed).toBe(1);
-      expect(data.results[0]).toMatchObject({ status: 'error', uri: 'kairos://mem/00000000-0000-0000-0000-000000000000' });
+      expect((data.results as Array<{ status: string; uri: string }>)[0]).toMatchObject({ status: 'error', uri: 'kairos://mem/00000000-0000-0000-0000-000000000000' });
     }, 30000);
   });
 });
