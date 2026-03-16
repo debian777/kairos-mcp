@@ -119,7 +119,7 @@
     "raw-body": "^3.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^15.1.0",
+    "react-i18next": "^16.5.8",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.4.0",
     "redis": "^5.11.0",
