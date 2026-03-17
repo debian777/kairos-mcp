@@ -36,10 +36,10 @@ flowchart LR
 ## End-to-end flow
 
 1. **Input:** MCP tool `kairos_search` or HTTP `POST /api/kairos_search` with `query` (and optional `space`).
-2. **Query normalization:** The raw query is normalized for search and cache key: built-in protocol URIs and UUIDs (refine and creation) are stripped so the query text is not literally “searching for” those protocols. Empty after strip is valid (returns no vector matches).
+2. **Query preparation:** The raw query is cleaned for search and cache key: built-in protocol URIs and UUIDs (refine and creation) are stripped so the query text is not literally “searching for” those protocols. Empty after strip is valid (returns no vector matches).
 3. **Space context:** If `space` is provided and allowed, the request runs in that space context; otherwise the default (e.g. personal) is used. Search sees **allowed spaces plus the KAIROS app space** (`getSearchSpaceIds()`).
-4. **Cache:** A Redis cache key is built from normalized query and group-collapse flag. On hit, the cached unified response is returned; no Qdrant call.
-5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses normalized query for cache write and passes the same search query to the vector layer.
+4. **Cache:** A Redis cache key is built from the search query and group-collapse flag. On hit, the cached unified response is returned; no Qdrant call.
+5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses the (trimmed) search query for cache write and passes the same query to the vector layer.
 6. **Vector search:** Embedding + BM25 hybrid in Qdrant (see below). Results are chain heads only (`chain.step_index === 1`), with exclusions applied in the Qdrant filter.
 7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
 8. **Response:** Unified `choices` with `uri`, `label`, `chain_label`, `score`, `role`, `tags`, `next_action`, and optional `protocol_version`.
@@ -78,11 +78,11 @@ Search uses the **Query API** (Qdrant 1.14+): prefetch with fusion, then an oute
 
 After RRF, the final score is:
 
-`score = $score + TITLE_BOOST * match(chain.label, text: normalizedQuery) + attest_boost`
+`score = $score + TITLE_BOOST * match(chain.label, text: query) + attest_boost`
 
 - `$score` is the RRF score from prefetch.
 - `TITLE_BOOST` is 0.5.
-- `match(chain.label, text: normalizedQuery)` is a Qdrant condition: it contributes when the chain's label contains all tokens of the normalized query (title match). So protocols whose chain title matches the query get an additive boost.
+- `match(chain.label, text: query)` is a Qdrant condition: it contributes when the chain's label contains all tokens of the (trimmed) search query (title match). So protocols whose chain title matches the query get an additive boost.
 - `attest_boost` is a numeric payload field on the point (precomputed when quality metrics are updated); protocols with more successful attestations get a higher value, so they rank slightly higher when relevance is similar.
 
 Per the principle above, all scoring is expressed in Qdrant (formula, filter, prefetch); the app does not modify scores after the query.
@@ -123,7 +123,7 @@ The store returns `{ memories, scores }`. The tool layer then:
 
 ## Cache
 
-- **Key:** `begin:v3:{normalizedQuery}:{enableGroupCollapse}` (e.g. Redis).
+- **Key:** `begin:v3:{searchQuery}:{enableGroupCollapse}:{limit}` (e.g. Redis).
 - **Value:** Full unified JSON response (stringified).
 - **TTL:** 300 seconds (configurable where the cache is set).
 - Cache is written after a successful search and read at the start of the request when the key exists.
