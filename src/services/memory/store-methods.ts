@@ -133,24 +133,10 @@ export class MemoryQdrantStoreMethods {
   }
 
   /**
-   * Normalize query for chain.label title match so variants (e.g. "Analyze & Plan" vs "Analyze and Plan")
-   * and punctuation (dashes, unicode) align with stored chain labels.
-   */
-  private normalizeQueryForTitleMatch(q: string): string {
-    return (q ?? '')
-      .toLowerCase()
-      .replace(/\s*&\s*/g, ' and ')
-      .replace(/[\u2013\u2014\u2015–—]\s*/g, ' ')
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  /**
    * Hybrid search: dense + BM25 via Query API with formula-based title boosting.
    * Inner prefetch: 1× dense + 3× BM25 fused via RRF.
-   * Outer query: formula = $score + CHAIN_TITLE_BOOST * match(chain.label) + STEP_TITLE_BOOST * match(label) + attest_boost.
-   * chain.label = protocol/chain title (H1); label = step title (H2). They are different; both are boosted.
+   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: normalizedQuery) + attest_boost.
+   * match.text requires ALL query tokens in chain.label, boosting only exact title matches.
    */
   private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
@@ -174,28 +160,25 @@ export class MemoryQdrantStoreMethods {
       filter
     };
 
-    const titleMatchQuery = this.normalizeQueryForTitleMatch(query);
     let points: Array<{ id: string | number; score?: number; payload?: Record<string, unknown> | null }>;
     try {
-      // Chain title = protocol name (H1); step title = step heading (H2). Boost both when query matches.
-      const CHAIN_TITLE_BOOST = 2.0;
-      const STEP_TITLE_BOOST = 0.5;
+      const TITLE_BOOST = 0.5;
       const queryResponse = await this.client.query(this.collection, {
         prefetch: {
           prefetch: [
             {
               query: queryVector,
               using: vectorName,
-              limit: 50,
+              limit: 40,
               filter,
               params: { quantization: { rescore: true } }
             },
-            { ...bm25Leg, limit: 50 },
             { ...bm25Leg, limit: 40 },
-            { ...bm25Leg, limit: 30 }
+            { ...bm25Leg, limit: 30 },
+            { ...bm25Leg, limit: 20 }
           ],
           query: { fusion: 'rrf' },
-          limit: 75,
+          limit: 50,
         },
         query: {
           formula: {
@@ -203,14 +186,8 @@ export class MemoryQdrantStoreMethods {
               '$score',
               {
                 mult: [
-                  CHAIN_TITLE_BOOST,
-                  { key: 'chain.label', match: { text: titleMatchQuery } }
-                ]
-              },
-              {
-                mult: [
-                  STEP_TITLE_BOOST,
-                  { key: 'label', match: { text: titleMatchQuery } }
+                  TITLE_BOOST,
+                  { key: 'chain.label', match: { text: normalizedQuery } }
                 ]
               },
               'attest_boost'

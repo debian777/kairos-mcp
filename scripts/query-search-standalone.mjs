@@ -10,13 +10,6 @@
  *   SEARCH_SPACE_IDS=id1,id2 npm run query-search -- "query"
  *
  * To see attest_boost in results, run once: npm run backfill:attest-boost
- *
- * New scoring (formula):
- *   score = $score + CHAIN_TITLE_BOOST * match(chain.label) + STEP_TITLE_BOOST * match(label) + attest_boost
- * - chain.label = protocol/chain title (H1); label = step title (H2).
- * - CHAIN_TITLE_BOOST = 2.0, STEP_TITLE_BOOST = 0.5.
- * - Title match uses normalized query: lowercase, & → " and ", unicode dashes/punctuation → space.
- * - Prefetch: dense 50, BM25 50/40/30, RRF fusion limit 75.
  */
 import 'dotenv/config';
 
@@ -29,18 +22,7 @@ const OPENAI_API_URL = (process.env.OPENAI_API_URL || 'https://api.openai.com').
 
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
-const CHAIN_TITLE_BOOST = 2.0;  // chain.label = protocol name (H1)
-const STEP_TITLE_BOOST = 0.5;   // label = step title (H2)
-
-function normalizeQueryForTitleMatch(q) {
-  return (q ?? '')
-    .toLowerCase()
-    .replace(/\s*&\s*/g, ' and ')
-    .replace(/[\u2013\u2014\u2015–—]\s*/g, ' ')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const TITLE_BOOST = 0.5;
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const denseOnly = process.argv.includes('--dense-only');
@@ -130,7 +112,7 @@ async function main() {
     process.exit(1);
   }
 
-  const titleMatchQuery = normalizeQueryForTitleMatch(query);
+  const normalizedQuery = query.trim().toLowerCase();
   console.log('Query:', query);
   console.log('Collection:', QDRANT_COLLECTION, `(limit ${limit})`);
   if (denseOnly) console.log('Mode: dense only (no BM25)');
@@ -143,7 +125,7 @@ async function main() {
     {
       query: vector,
       using: vectorName,
-      limit: 50,
+      limit: 40,
       filter,
       params: { quantization: { rescore: true } }
     }
@@ -156,21 +138,20 @@ async function main() {
       using: 'bm25',
       filter
     };
-    prefetches.push({ ...bm25Leg, limit: 50 }, { ...bm25Leg, limit: 40 }, { ...bm25Leg, limit: 30 });
+    prefetches.push({ ...bm25Leg, limit: 40 }, { ...bm25Leg, limit: 30 }, { ...bm25Leg, limit: 20 });
   }
 
   const body = {
     prefetch: {
       prefetch: prefetches,
       query: { fusion: 'rrf' },
-      limit: 75
+      limit: 50
     },
     query: {
       formula: {
         sum: [
           '$score',
-          { mult: [CHAIN_TITLE_BOOST, { key: 'chain.label', match: { text: titleMatchQuery } }] },
-          { mult: [STEP_TITLE_BOOST, { key: 'label', match: { text: titleMatchQuery } }] },
+          { mult: [TITLE_BOOST, { key: 'chain.label', match: { text: normalizedQuery } }] },
           'attest_boost'
         ]
       },
