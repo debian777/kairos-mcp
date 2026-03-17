@@ -121,24 +121,24 @@ export class MemoryQdrantStoreMethods {
   }
 
   async searchMemories(query: string, limit: number, collapse: boolean = true): Promise<{ memories: Memory[], scores: number[] }> {
-    const normalizedQuery = (query || '').trim().toLowerCase();
+    const queryKey = (query || '').trim();
 
-    if (!normalizedQuery) {
+    if (!queryKey) {
       return { memories: [], scores: [] };
     }
 
-    const vectorResult = await this.vectorSearch(normalizedQuery, query, limit);
-    await redisCacheService.setSearchResult(normalizedQuery, limit, vectorResult, { collapse });
+    const vectorResult = await this.vectorSearch(queryKey, limit);
+    await redisCacheService.setSearchResult(queryKey, limit, vectorResult, { collapse });
     return vectorResult;
   }
 
   /**
    * Hybrid search: dense + BM25 via Query API with formula-based title boosting.
    * Inner prefetch: 1× dense + 3× BM25 fused via RRF.
-   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: normalizedQuery) + attest_boost.
+   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: query) + attest_boost.
    * match.text requires ALL query tokens in chain.label, boosting only exact title matches.
    */
-  private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
+  private async vectorSearch(query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
     const queryVector = queryEmbeddingResult.embedding;
     const vectorName = `vs${queryVector.length}`;
@@ -187,7 +187,7 @@ export class MemoryQdrantStoreMethods {
               {
                 mult: [
                   TITLE_BOOST,
-                  { key: 'chain.label', match: { text: normalizedQuery } }
+                  { key: 'chain.label', match: { text: query } }
                 ]
               },
               'attest_boost'
