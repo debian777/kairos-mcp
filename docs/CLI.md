@@ -47,8 +47,10 @@ When the server has authentication enabled, requests must include a Bearer token
 
 **Shared config (CLI and MCP):** Both read the token from the same config file; if absent, perform auth and save to that file.
 
-1. **Token read:** The CLI reads the token **only** from `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json` on Windows). The CLI does **not** use the `KAIROS_BEARER_TOKEN` environment variable.
-2. **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`). The CLI writes the token (and API URL) to that config file so MCP hosts can use it too.
+**Token storage:** The CLI tries the OS keyring first; if the keyring is unavailable or a keyring operation fails, it falls back to the config file under `$XDG_CONFIG_HOME/kairos` (or `~/.config/kairos` / `%APPDATA%\\kairos` on Windows). This applies to all users, not only CI.
+
+1. **Token read:** The CLI reads the token from the keyring when available, otherwise from `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\\kairos\\config.json` on Windows). The CLI does **not** use the `KAIROS_BEARER_TOKEN` environment variable.
+2. **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`). The CLI writes the token (and API URL) to the keyring or, on fallback, to that config file so MCP hosts can use it too.
 
 The config file is created by `kairos login` and is user-only readable (`0o600`); do not commit it (it contains secrets). It supports **multiple environments** keyed by API URL: each URL (e.g. `http://localhost:3300`, `https://api.kairos.example.com`) can have its own token. Format: `{ "defaultUrl": "<url>", "environments": { "<url>": { "bearerToken": "..." }, ... } }`. The default environment is used when `--url` and `KAIROS_API_URL` are not set; `kairos logout` clears the token for the current URL.
 

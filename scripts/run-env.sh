@@ -391,6 +391,9 @@ test() {
 
     case "$ENV" in
         dev)
+            # Isolated CLI config for test run (CLI uses XDG_CONFIG_HOME; tests must not set it).
+            CLI_CONFIG_DIR="$(mktemp -d)"
+            export XDG_CONFIG_HOME="$CLI_CONFIG_DIR"
             # Forward env so globalSetup and tests see same vars as server (Jest may run globalSetup in a separate process).
             export ENV="${ENV:-dev}"
             export PORT="${PORT:-3300}"
@@ -402,7 +405,7 @@ test() {
             export KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
             export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
             # Prevent CLI from opening browser during tests (inherited by child processes)
-            export KAIROS_CLI_NO_AUTO_LOGIN=1
+            export BROWSER=true
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"

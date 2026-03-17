@@ -16,8 +16,7 @@ if (process.env.DEBUG_TEST_ENV === '1') {
 }
 
 // When AUTH_ENABLED=true, globalSetup writes .test-auth-env.dev.json. Refresh token so it stays valid.
-// CLI does not read KAIROS_BEARER_TOKEN from env; integration tests use setupCliConfigWithLogin() to run
-// "cli login --token" and pass XDG_CONFIG_HOME so the CLI uses that config file only.
+// CLI uses XDG_CONFIG_HOME (set by test runner); integration tests run "cli login --token" then run commands.
 import { refreshTestAuthToken } from './utils/auth-headers.js';
 
 beforeAll(async () => {

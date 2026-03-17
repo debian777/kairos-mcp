@@ -151,9 +151,7 @@ async function main() {
       formula: {
         sum: [
           '$score',
-          {
-            mult: [TITLE_BOOST, { key: 'chain.label', match: { text: normalizedQuery } }]
-          },
+          { mult: [TITLE_BOOST, { key: 'chain.label', match: { text: normalizedQuery } }] },
           'attest_boost'
         ]
       },

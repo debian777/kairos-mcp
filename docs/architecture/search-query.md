@@ -82,7 +82,7 @@ After RRF, the final score is:
 
 - `$score` is the RRF score from prefetch.
 - `TITLE_BOOST` is 0.5.
-- `match(chain.label, text: normalizedQuery)` is a Qdrant condition: it contributes when the chain’s label contains all tokens of the normalized query (title match). So protocols whose chain title matches the query get an additive boost.
+- `match(chain.label, text: normalizedQuery)` is a Qdrant condition: it contributes when the chain's label contains all tokens of the normalized query (title match). So protocols whose chain title matches the query get an additive boost.
 - `attest_boost` is a numeric payload field on the point (precomputed when quality metrics are updated); protocols with more successful attestations get a higher value, so they rank slightly higher when relevance is similar.
 
 Per the principle above, all scoring is expressed in Qdrant (formula, filter, prefetch); the app does not modify scores after the query.

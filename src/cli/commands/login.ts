@@ -20,7 +20,7 @@ function escapeHtml(s: string): string {
 
 import { openBrowser } from '../auth-error.js';
 import { getDefaultApiUrlFromFile, readConfig, writeConfig } from '../config-file.js';
-import { writeError, writeStdout } from '../output.js';
+import { writeError, writeStdout, writeStderr } from '../output.js';
 
 /** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
 export function getBaseUrl(): string {
@@ -108,13 +108,9 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
             if (errorParam) {
                 const desc = url.searchParams.get('error_description') || errorParam;
                 res.writeHead(200, { 'Content-Type': 'text/html' }).end(
-                    `<!DOCTYPE html><html><body><p>Login failed: ${escapeHtml(desc)}</p><p>If Keycloak reported "Client not found", run: <code>python3 scripts/configure-keycloak-realms.py</code> or <code>npm run infra:up</code> then try again.</p></body></html>`
+                    `<!DOCTYPE html><html><body><p>Login failed: ${escapeHtml(desc)}</p><p>Try again or run <code>kairos login</code> from the terminal.</p></body></html>`
                 );
-                if (errorParam === 'invalid_client' || desc.toLowerCase().includes('client') || desc.toLowerCase().includes('not found')) {
-                    writeError(`Keycloak error: ${desc}. Ensure the kairos-cli client exists: run python3 scripts/configure-keycloak-realms.py or npm run infra:up`);
-                } else {
-                    writeError(`Keycloak returned error: ${desc}`);
-                }
+                writeError(`Login failed: ${desc}`);
                 server.close();
                 resolve(false);
                 return;
@@ -186,14 +182,14 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
             authUrl.searchParams.set('code_challenge_method', 'S256');
             authUrl.searchParams.set('prompt', 'login');
             const authUrlStr = authUrl.toString();
-            writeStdout(authUrlStr);
-            writeStdout(`Security key (grep in docker logs to confirm): ${state}`);
             if (noBrowser) {
-                // E2E/automation: do not open browser
+                writeStdout(authUrlStr);
+                writeStderr(authUrlStr); // also stderr so tests see it when stdout is pipe-buffered
             } else {
                 openBrowser(authUrlStr);
-                writeStdout('Opening browser. Complete login in the browser.');
-                writeStdout('If Keycloak shows "Client not found", run: python3 scripts/configure-keycloak-realms.py or npm run infra:up');
+                writeStdout('[i] Log in to KAIROS in the browser.');
+                writeStdout(`[i] If the browser did not open, open this link:\n${authUrlStr}`);
+                writeStdout('[i] Awaiting authentication in the browser.');
             }
         });
     });
@@ -205,7 +201,7 @@ export function loginCommand(program: Command): void {
         .description('Store a Bearer token (use --token or browser). Other commands auto-login when needed; login kept for testing.')
         .option('-t, --token <token>', 'Use this token (validated with GET /api/me)')
         .option('--no-browser', 'Only print login URL to stdout; do not open a browser')
-        .action(async (opts: { token?: string; noBrowser?: boolean }) => {
+        .action(async (opts: { token?: string; browser?: boolean }) => {
             try {
                 const baseUrl = getBaseUrl();
                 if (opts.token) {
@@ -219,7 +215,9 @@ export function loginCommand(program: Command): void {
                     process.exit(0);
                     return;
                 }
-                const ok = await loginWithBrowser(baseUrl, opts.noBrowser ? { noBrowser: true } : undefined);
+                // --no-browser can be on program or login command; preAction sets KAIROS_NO_BROWSER when on program
+                const noBrowser = opts.browser === false || process.env['KAIROS_NO_BROWSER'] === '1';
+                const ok = await loginWithBrowser(baseUrl, noBrowser ? { noBrowser: true } : undefined);
                 process.exit(ok ? 0 : 1);
             } catch (error) {
                 writeError(error instanceof Error ? error.message : String(error));

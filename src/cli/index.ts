@@ -29,10 +29,13 @@ program
     .option('-u, --url <url>', 'KAIROS API base URL', getApiUrl())
     .option('--no-browser', 'do not open browser when auth is required (e.g. in tests or scripts)')
     .hook('preAction', (thisCommand) => {
-        // Store the URL option globally for use in commands
+        // Store the URL and no-browser options for use in commands (subcommands receive their own opts)
         const opts = thisCommand.opts();
         if (opts['url']) {
             process.env['KAIROS_API_URL'] = opts['url'];
+        }
+        if ((opts as { browser?: boolean }).browser === false) {
+            process.env['KAIROS_NO_BROWSER'] = '1';
         }
     });
 

@@ -3,7 +3,7 @@
  * Returns canonical response shapes (no metadata wrapper).
  */
 
-import { AuthRequiredError } from './auth-error.js';
+import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
@@ -24,8 +24,7 @@ export class ApiClient {
         const configUrl = getDefaultApiUrlFromFile();
         this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
-        const noAutoLogin = process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === '1' || process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === 'true';
-        this.openInBrowser = !noAutoLogin && (openInBrowser !== false);
+        this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
     }
 
     private async request<T>(
@@ -75,15 +74,18 @@ export class ApiClient {
         if (!response.ok) {
             const errorData = data as { message?: string; error?: string; login_url?: string };
             const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401 && errorData.login_url) {
+            if (response.status === 401) {
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.request(endpoint, options, true);
                 }
-                throw new AuthRequiredError(
-                    `${msg}\n\nLog in at:\n${errorData.login_url}`,
-                    errorData.login_url
-                );
+                if (errorData.login_url) {
+                    throw new AuthRequiredError(
+                        `${msg}\n\nLog in at:\n${errorData.login_url}`,
+                        errorData.login_url
+                    );
+                }
+                throw new Error(msg);
             }
             throw new Error(msg);
         }
@@ -145,15 +147,18 @@ export class ApiClient {
 
         if (!response.ok) {
             const msg = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401 && data.login_url) {
+            if (response.status === 401) {
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.mint(markdown, options, true);
                 }
-                throw new AuthRequiredError(
-                    `${msg}\n\nLog in at:\n${data.login_url}`,
-                    data.login_url
-                );
+                if (data.login_url) {
+                    throw new AuthRequiredError(
+                        `${msg}\n\nLog in at:\n${data.login_url}`,
+                        data.login_url
+                    );
+                }
+                throw new Error(msg);
             }
             throw new Error(msg);
         }

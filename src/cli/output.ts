@@ -4,7 +4,10 @@
  */
 
 export function writeStdout(message: string): void {
-    process.stdout.write(message + '\n');
+    const line = message + '\n';
+    if (!process.stdout.write(line)) {
+        process.stdout.once('drain', () => {});
+    }
 }
 
 export function writeStderr(message: string): void {
