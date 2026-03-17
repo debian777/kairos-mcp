@@ -33,6 +33,18 @@ async function getPackageVersion() {
   return j.version;
 }
 
+/** Compare semver strings; returns 1 if a > b, -1 if a < b, 0 if equal. */
+function compareSemver(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const va = pa[i] ?? 0;
+    const vb = pb[i] ?? 0;
+    if (va !== vb) return va > vb ? 1 : -1;
+  }
+  return 0;
+}
+
 /**
  * Resolve last stable release version: latest git tag vX.Y.Z (no prerelease suffix), or 1.0.0.
  */
@@ -97,8 +109,10 @@ function replaceKairosVersionLine(content, newVersion) {
 }
 
 async function main() {
-  const skillsTarget = getLastStableVersion();
+  const lastStable = getLastStableVersion();
   const memTarget = await getPackageVersion();
+  // When releasing (package ahead of last tag), skills target = package version so check passes before tagging.
+  const skillsTarget = compareSemver(memTarget, lastStable) >= 0 ? memTarget : lastStable;
   const skillDirs = await fs.readdir(SKILLS_DIR, { withFileTypes: true }).then((entries) =>
     entries.filter((e) => e.isDirectory()).map((e) => e.name)
   );
