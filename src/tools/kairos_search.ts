@@ -67,7 +67,6 @@ function addCandidate(
 async function searchAndBuildCandidates(
   memoryStore: MemoryQdrantStore,
   query: string,
-  normalizedQuery: string,
   enableGroupCollapse: boolean,
   maxChoices: number
 ): Promise<Map<string, { memory: Memory; score: number }>> {
@@ -92,11 +91,9 @@ async function doSearch(
   searchQuery: string,
   effectiveLimit: number
 ): Promise<SearchOutput> {
-  const normalizedQuery = searchQuery.toLowerCase();
   const candidateMap = await searchAndBuildCandidates(
     memoryStore,
     searchQuery,
-    normalizedQuery,
     KAIROS_ENABLE_GROUP_COLLAPSE,
     effectiveLimit
   );
@@ -129,8 +126,7 @@ export async function executeSearch(
     Math.min(KAIROS_SEARCH_LIMIT_CAP, max_choices ?? KAIROS_SEARCH_MAX_CHOICES)
   );
   const searchQuery = queryForSearch(query);
-  const normalizedQuery = searchQuery.toLowerCase();
-  const cacheKey = `begin:v3:${normalizedQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+  const cacheKey = `begin:v3:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
 
   const cachedResult = await redisCacheService.get(cacheKey);
   if (cachedResult) {
