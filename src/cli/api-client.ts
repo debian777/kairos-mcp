@@ -85,7 +85,7 @@ export class ApiClient {
                         errorData.login_url
                     );
                 }
-                throw new Error('Authentication required. Run `kairos login` to sign in.');
+                throw new Error(msg);
             }
             throw new Error(msg);
         }
@@ -158,7 +158,7 @@ export class ApiClient {
                         data.login_url
                     );
                 }
-                throw new Error('Authentication required. Run `kairos login` to sign in.');
+                throw new Error(msg);
             }
             throw new Error(msg);
         }
