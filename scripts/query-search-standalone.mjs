@@ -112,7 +112,7 @@ async function main() {
     process.exit(1);
   }
 
-  const normalizedQuery = query.trim().toLowerCase();
+  const queryTrimmed = query.trim();
   console.log('Query:', query);
   console.log('Collection:', QDRANT_COLLECTION, `(limit ${limit})`);
   if (denseOnly) console.log('Mode: dense only (no BM25)');
@@ -151,7 +151,7 @@ async function main() {
       formula: {
         sum: [
           '$score',
-          { mult: [TITLE_BOOST, { key: 'chain.label', match: { text: normalizedQuery } }] },
+          { mult: [TITLE_BOOST, { key: 'chain.label', match: { text: queryTrimmed } }] },
           'attest_boost'
         ]
       },
