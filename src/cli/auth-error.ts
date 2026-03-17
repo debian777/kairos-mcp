@@ -17,10 +17,17 @@ export class AuthRequiredError extends Error {
     }
 }
 
-/** When set, used instead of system default (open/xdg-open/start). URL is passed as first argument. */
+/** True when BROWSER=true (tests/automation) or none/no/false/0; use in scripts/tests to disable opening. */
+export function isBrowserDisabled(): boolean {
+    const b = process.env['BROWSER'];
+    return b != null && b !== '' && /^(true|none|no|false|0)$/i.test(b);
+}
+
+/** When set, used instead of system default (open/xdg-open/start). BROWSER=true or none skips opening. */
 export function openBrowser(url: string): void {
+    if (isBrowserDisabled()) return;
     const browserEnv = process.env['BROWSER'];
-    if (browserEnv) {
+    if (browserEnv != null && browserEnv !== '') {
         exec(`${browserEnv} "${url}"`, (err) => {
             if (err) writeStderr(`Could not run BROWSER: ${err.message}. Open this URL manually:\n${url}`);
         });

@@ -20,7 +20,7 @@ function escapeHtml(s: string): string {
 
 import { openBrowser } from '../auth-error.js';
 import { getDefaultApiUrlFromFile, readConfig, writeConfig } from '../config-file.js';
-import { writeError, writeStdout } from '../output.js';
+import { writeError, writeStdout, writeStderr } from '../output.js';
 
 /** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
 export function getBaseUrl(): string {
@@ -184,6 +184,7 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
             const authUrlStr = authUrl.toString();
             if (noBrowser) {
                 writeStdout(authUrlStr);
+                writeStderr(authUrlStr); // also stderr so tests see it when stdout is pipe-buffered
             } else {
                 openBrowser(authUrlStr);
                 writeStdout('[i] Log in to KAIROS in the browser.');
@@ -200,7 +201,7 @@ export function loginCommand(program: Command): void {
         .description('Store a Bearer token (use --token or browser). Other commands auto-login when needed; login kept for testing.')
         .option('-t, --token <token>', 'Use this token (validated with GET /api/me)')
         .option('--no-browser', 'Only print login URL to stdout; do not open a browser')
-        .action(async (opts: { token?: string; noBrowser?: boolean }) => {
+        .action(async (opts: { token?: string; browser?: boolean }) => {
             try {
                 const baseUrl = getBaseUrl();
                 if (opts.token) {
@@ -214,7 +215,9 @@ export function loginCommand(program: Command): void {
                     process.exit(0);
                     return;
                 }
-                const ok = await loginWithBrowser(baseUrl, opts.noBrowser ? { noBrowser: true } : undefined);
+                // --no-browser can be on program or login command; preAction sets KAIROS_NO_BROWSER when on program
+                const noBrowser = opts.browser === false || process.env['KAIROS_NO_BROWSER'] === '1';
+                const ok = await loginWithBrowser(baseUrl, noBrowser ? { noBrowser: true } : undefined);
                 process.exit(ok ? 0 : 1);
             } catch (error) {
                 writeError(error instanceof Error ? error.message : String(error));

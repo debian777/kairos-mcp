@@ -3,7 +3,7 @@
  * Returns canonical response shapes (no metadata wrapper).
  */
 
-import { AuthRequiredError } from './auth-error.js';
+import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
@@ -24,8 +24,7 @@ export class ApiClient {
         const configUrl = getDefaultApiUrlFromFile();
         this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
         this.baseUrl = this.baseUrl.replace(/\/$/, '');
-        const noAutoLogin = process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === '1' || process.env['KAIROS_CLI_NO_AUTO_LOGIN'] === 'true';
-        this.openInBrowser = !noAutoLogin && (openInBrowser !== false);
+        this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
     }
 
     private async request<T>(

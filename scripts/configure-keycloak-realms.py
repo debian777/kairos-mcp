@@ -441,6 +441,8 @@ _CLIENT_COMPARE_KEYS = (
     "clientId", "name", "enabled", "publicClient", "standardFlowEnabled", "directAccessGrantsEnabled",
     "redirectUris", "webOrigins", "attributes",
 )
+# Only verify these clients (kairos-cli is used by CLI login; kairos-mcp is server's client, often env-specific)
+_VERIFY_CLIENT_IDS = frozenset({"kairos-cli"})
 
 
 def get_realm_groups(base_url: str, realm_name: str, token: str) -> list[dict]:
@@ -520,12 +522,14 @@ def _compare_expected_actual(realm_name: str, expected: dict, actual_dump: dict)
     exp_clients = {c["clientId"]: c for c in expected.get("clients") or [] if c.get("clientId")}
     act_clients = {c["clientId"]: c for c in actual_dump.get("clients") or [] if c.get("clientId")}
 
-    for cid, exp_c in exp_clients.items():
+    for cid in _VERIFY_CLIENT_IDS:
+        exp_c = exp_clients.get(cid)
+        if not exp_c:
+            continue
         act_c = act_clients.get(cid)
         if not act_c:
             diffs.append(f"{realm_name} client {cid!r}: missing in Keycloak")
             continue
-        # Only compare keys present in expected client
         for k in exp_c:
             if k not in _CLIENT_COMPARE_KEYS:
                 continue

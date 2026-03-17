@@ -1,81 +1,88 @@
 /**
  * Shared utilities for CLI command tests.
- * CLI uses config.json only (no KAIROS_BEARER_TOKEN env). Tests run "cli login --token" to create config, then run commands with that config dir.
+ * CLI uses config under XDG_CONFIG_HOME (set by test runner). Tests run "cli login --token" then run commands; no env overrides.
  */
 
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { homedir, platform } from 'os';
 import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getTestBearerToken } from '../utils/auth-headers.js';
+
+const CONFIG_DIR_NAME = 'kairos';
+const CONFIG_FILE_NAME = 'config.json';
+
+/** Same logic as src/cli/config-file.ts so we don't pull in keyring under Jest. */
+function getConfigDir(): string {
+  if (platform() === 'win32') {
+    const appData = process.env['APPDATA'] || join(homedir(), 'AppData', 'Roaming');
+    return join(appData, CONFIG_DIR_NAME);
+  }
+  const base = process.env['XDG_CONFIG_HOME'] || join(homedir(), '.config');
+  return join(base, CONFIG_DIR_NAME);
+}
+
+function getConfigPath(): string {
+  return join(getConfigDir(), CONFIG_FILE_NAME);
+}
 
 export const BASE_URL = getTestAuthBaseUrl();
 export const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
 export const TEST_FILE = join(process.cwd(), 'tests/test-data/cli-minimal-test.md');
 
-/** Create a config dir and run "cli login --token" so config.json is written. Returns config dir or null if no token. */
-export async function setupCliConfigWithLogin(): Promise<string | null> {
+const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
+
+/** Run "cli login --token" so config is written to XDG_CONFIG_HOME (set by runner). Returns true if login ran, false if no token. */
+export async function setupCliConfigWithLogin(): Promise<boolean> {
   const token = process.env.AUTH_ENABLED === 'true' ? getTestBearerToken() : undefined;
-  if (!token) return null;
-  const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-config-'));
-  const env = { ...process.env, KAIROS_CLI_NO_AUTO_LOGIN: '1', KAIROS_CLI_NO_KEYRING: '1', XDG_CONFIG_HOME: configHome };
-  await new Promise<void>((resolve, reject) => {
-    execFile('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 15000 }, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-  return configHome;
+  if (!token) return false;
+  const env = { ...process.env, BROWSER: 'true' };
+  await execFilePromise('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 15000 });
+  return true;
 }
 
-const NO_AUTO_LOGIN_ENV = { KAIROS_CLI_NO_AUTO_LOGIN: '1', KAIROS_CLI_NO_KEYRING: '1' };
-
-function envWithConfigHome(configHome: string | null): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, ...NO_AUTO_LOGIN_ENV };
-  if (configHome) env['XDG_CONFIG_HOME'] = configHome;
-  return env;
-}
-
-/** Run a CLI command. Uses configHome from setupCliConfigWithLogin (config written by "cli login --token"). No token env. */
+/** Run a CLI command. Uses real env (XDG_CONFIG_HOME from runner). */
 export async function execAsync(
   command: string,
-  options?: { timeout?: number },
-  configHome?: string | null
+  options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  const env = envWithConfigHome(configHome ?? null);
-  return promisify(exec)(command, { env, ...options }) as Promise<{ stdout: string; stderr: string }>;
+  const env = { ...process.env, BROWSER: 'true' };
+  return execPromise(command, { env, ...options }) as Promise<{ stdout: string; stderr: string }>;
 }
 
-/** Create an empty config dir (no login). Use to assert auth is required. */
-function emptyConfigEnv(): NodeJS.ProcessEnv {
-  const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-noauth-'));
-  return { ...process.env, ...NO_AUTO_LOGIN_ENV, KAIROS_CLI_NO_KEYRING: '1', XDG_CONFIG_HOME: configHome };
-}
-
-/** Run a CLI command with empty config (no token). Rejects on non-zero exit. Use to test auth failure. */
+/** Run a CLI command with no token: logout, run command (expect auth failure), then login again to restore. */
 export async function execAsyncNoAuth(
   command: string,
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  return promisify(exec)(command, { env: emptyConfigEnv(), ...options }) as Promise<{ stdout: string; stderr: string }>;
+  const env = { ...process.env, BROWSER: 'true' };
+  await execFilePromise('node', [CLI_PATH, 'logout', '--url', BASE_URL], { env, timeout: 10000 }).catch(() => {});
+  try {
+    return await execPromise(command, { env, ...options });
+  } finally {
+    const token = getTestBearerToken();
+    if (token) {
+      await execFilePromise('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 10000 }).catch(() => {});
+    }
+  }
 }
 
-/** Write config.json into a temp dir (for invalid-token test). Then run command with that XDG_CONFIG_HOME. */
+/** Write config to the path CLI uses (XDG_CONFIG_HOME from runner), then run command. Clears token first (logout) so keyring does not override the written config. */
 export async function execAsyncWithConfig(
   command: string,
   config: { KAIROS_API_URL?: string; bearerToken?: string },
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  const configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-custom-'));
-  const dir = join(configHome, 'kairos');
+  const env = { ...process.env, BROWSER: 'true' };
+  const url = config.KAIROS_API_URL ?? BASE_URL;
+  await execFilePromise('node', [CLI_PATH, 'logout', '--url', url], { env, timeout: 10000 }).catch(() => {});
+  const dir = getConfigDir();
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'config.json'), JSON.stringify(config, null, 2), { mode: 0o600 });
-  return promisify(exec)(command, {
-    env: { ...process.env, ...NO_AUTO_LOGIN_ENV, KAIROS_CLI_NO_KEYRING: '1', XDG_CONFIG_HOME: configHome },
-    ...options
-  }) as Promise<{ stdout: string; stderr: string }>;
+  writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), { mode: 0o600 });
+  return execPromise(command, { env, ...options }) as Promise<{ stdout: string; stderr: string }>;
 }
 
 export async function setupServerCheck() {

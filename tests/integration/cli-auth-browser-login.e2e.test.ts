@@ -11,9 +11,8 @@
  */
 
 import { spawn, exec, execSync } from 'child_process';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'fs';
+import { existsSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { waitForHealthCheck } from '../utils/health-check.js';
 import {
   getTestAuthBaseUrl,
@@ -26,14 +25,11 @@ import { keycloakHasKairosCliClient, saveE2EDiagnostics } from '../utils/cli-aut
 const BASE_URL = getTestAuthBaseUrl();
 const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
 
-function runCli(
-  args: string,
-  env: NodeJS.ProcessEnv = {}
-): Promise<{ stdout: string; stderr: string; code?: number }> {
+function runCli(args: string): Promise<{ stdout: string; stderr: string; code?: number }> {
   return new Promise((resolve) => {
     exec(
       `node ${CLI_PATH} ${args}`,
-      { env: { ...process.env, KAIROS_CLI_NO_KEYRING: '1', ...env } },
+      { env: { ...process.env, BROWSER: 'true' } },
       (err, stdout, stderr) => {
         resolve({
           stdout: stdout ?? '',
@@ -43,27 +39,6 @@ function runCli(
       }
     );
   });
-}
-
-/** Read config and return legacy-style view: KAIROS_API_URL + bearerToken (for default env). */
-function readConfigFromDir(configHome: string): Record<string, unknown> {
-  const configPath = join(configHome, 'kairos', 'config.json');
-  if (!existsSync(configPath)) return {};
-  try {
-    const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
-    if (raw.environments != null && typeof raw.environments === 'object') {
-      const defaultUrl = typeof raw.defaultUrl === 'string' ? raw.defaultUrl : undefined;
-      const envs = raw.environments as Record<string, { bearerToken?: string }>;
-      const entry = defaultUrl ? envs[defaultUrl] : undefined;
-      return {
-        KAIROS_API_URL: defaultUrl,
-        bearerToken: entry?.bearerToken
-      };
-    }
-    return raw;
-  } catch {
-    return {};
-  }
 }
 
 /** Parse callback port from redirect_uri in the auth URL. */
@@ -79,12 +54,14 @@ function callbackPortFromAuthUrl(authUrl: string): number | null {
   }
 }
 
+/** Timeout (ms) to receive auth URL from CLI; fail fast if CLI hangs. */
+const AUTH_URL_TIMEOUT_MS = 15000;
+
 /**
  * Spawn `kairos --url <base> login --no-browser` so the CLI only prints the auth URL to
  * stdout (no browser opened). Captures URL from stdout and returns it.
  */
 async function spawnLoginAndCaptureAuthUrl(
-  configHome: string,
   processTracker: Array<{ proc: ReturnType<typeof spawn> }>
 ): Promise<{
   authUrl: string;
@@ -92,54 +69,72 @@ async function spawnLoginAndCaptureAuthUrl(
   callbackPort: number;
 }> {
   return new Promise((resolve, reject) => {
-    const env = { XDG_CONFIG_HOME: configHome, KAIROS_CLI_NO_KEYRING: '1' };
+    const env = { ...process.env, BROWSER: 'true' };
     const proc = spawn('node', [CLI_PATH, '--url', BASE_URL, 'login', '--no-browser'], {
-      env: { ...process.env, ...env }
+      env
     });
     processTracker.push({ proc });
 
     let settled = false;
     const stderrChunks: Buffer[] = [];
     let stdoutBuf = '';
+    let stderrBuf = '';
+
+    function tryResolveWithUrl(text: string): boolean {
+      const line = text.split(/\r?\n/)[0]?.trim() ?? '';
+      if (!/^https?:\/\//.test(line) || !line.includes('redirect_uri=')) return false;
+      const callbackPort = callbackPortFromAuthUrl(line);
+      if (callbackPort == null) return false;
+      settled = true;
+      clearTimeout(urlTimeout);
+      const exitPromise = new Promise<number | null>((r) => {
+        const t = setTimeout(() => {
+          proc.kill('SIGKILL');
+          r(1);
+        }, 30000);
+        proc.once('close', (code) => {
+          clearTimeout(t);
+          r(code);
+        });
+      });
+      resolve({ authUrl: line, exitPromise, callbackPort });
+      return true;
+    }
+
+    const urlTimeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill('SIGKILL');
+      const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
+      reject(
+        new Error(
+          `CLI did not print auth URL within ${AUTH_URL_TIMEOUT_MS}ms. Start dev server and Keycloak first: npm run dev:deploy. stderr: ${stderr || '(none)'}`
+        )
+      );
+    }, AUTH_URL_TIMEOUT_MS);
+
     proc.stderr?.on('data', (d: Buffer) => {
       stderrChunks.push(d);
+      if (settled) return;
+      stderrBuf += d.toString('utf-8');
+      tryResolveWithUrl(stderrBuf);
     });
     proc.stdout?.on('data', (d: Buffer) => {
       if (settled) return;
       stdoutBuf += d.toString('utf-8');
-      const line = stdoutBuf.split(/\r?\n/)[0]?.trim() ?? '';
-      // Require full auth URL (CLI prints one line with redirect_uri=)
-      if (/^https?:\/\//.test(line) && line.includes('redirect_uri=')) {
-        settled = true;
-        const authUrl = line;
-        const callbackPort = callbackPortFromAuthUrl(authUrl);
-        if (callbackPort == null) {
-          proc.kill('SIGKILL');
-          reject(new Error('Could not parse callback port from auth URL'));
-          return;
-        }
-        const exitPromise = new Promise<number | null>((r) => {
-          const t = setTimeout(() => {
-            proc.kill('SIGKILL');
-            r(1);
-          }, 30000);
-          proc.once('close', (code) => {
-            clearTimeout(t);
-            r(code);
-          });
-        });
-        resolve({ authUrl, exitPromise, callbackPort });
-      }
+      tryResolveWithUrl(stdoutBuf);
     });
     proc.on('error', () => {
       if (!settled) {
         settled = true;
+        clearTimeout(urlTimeout);
         reject(new Error('CLI process failed to start'));
       }
     });
     proc.on('close', (code) => {
       if (!settled) {
         settled = true;
+        clearTimeout(urlTimeout);
         const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
         reject(new Error(`CLI login exited with code ${code} before URL was printed. stderr: ${stderr}`));
       }
@@ -150,12 +145,9 @@ async function spawnLoginAndCaptureAuthUrl(
 const describeWhenAuth = serverRequiresAuth() ? describe : describe.skip;
 
 describeWhenAuth('CLI auth (browser login only, no --token)', () => {
-  let configHome: string;
   const spawnedProcesses: Array<{ proc: ReturnType<typeof spawn> }> = [];
 
   beforeAll(async () => {
-    configHome = mkdtempSync(join(tmpdir(), 'kairos-cli-browser-e2e-'));
-
     await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
 
     const script = join(process.cwd(), 'scripts', 'configure-keycloak-realms.py');
@@ -200,15 +192,13 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
       }
     }
     spawnedProcesses.length = 0;
-    if (configHome && existsSync(configHome)) {
-      rmSync(configHome, { recursive: true });
-    }
   });
 
   test('browser login: Keycloak form -> callback -> token stored, search works', async () => {
+    // Clear any token from other CLI tests so this test does real browser login (not "Already authenticated")
+    await runCli(`--url ${BASE_URL} logout`);
 
     const { authUrl, exitPromise, callbackPort } = await spawnLoginAndCaptureAuthUrl(
-      configHome,
       spawnedProcesses
     );
 
@@ -274,40 +264,40 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
       }
     }
 
-    const config = readConfigFromDir(configHome);
-    expect(config.bearerToken).toBeDefined();
-    expect(config.KAIROS_API_URL).toBe(BASE_URL);
+    // Assert token stored (CLI may use keyring; verify via `kairos token` like a real user)
+    const tokenResult = await runCli(`--url ${BASE_URL} token`);
+    expect(tokenResult.code).toBe(0);
+    const storedToken = tokenResult.stdout.trim();
+    expect(storedToken).toMatch(/^eyJ/);
 
-    const searchResult = await runCli(`--url ${BASE_URL} search "test"`, { XDG_CONFIG_HOME: configHome });
+    const searchResult = await runCli(`--url ${BASE_URL} search "test"`);
     expect(searchResult.code).toBe(0);
     const data = JSON.parse(searchResult.stdout);
     expect(data).toHaveProperty('choices');
   }, 120000);
 
   test('logout clears token from config', async () => {
-    const configBefore = readConfigFromDir(configHome);
-    expect(configBefore.bearerToken).toBeDefined();
+    const tokenBefore = await runCli(`--url ${BASE_URL} token`);
+    expect(tokenBefore.code).toBe(0);
+    expect(tokenBefore.stdout.trim()).toMatch(/^eyJ/);
 
-    const logoutResult = await runCli(`--url ${BASE_URL} logout`, { XDG_CONFIG_HOME: configHome });
+    const logoutResult = await runCli(`--url ${BASE_URL} logout`);
     expect(logoutResult.code).toBe(0);
     expect(logoutResult.stdout).toMatch(/Token cleared/i);
 
-    const configAfter = readConfigFromDir(configHome);
-    expect(configAfter.bearerToken).toBeUndefined();
-    expect(configAfter.KAIROS_API_URL).toBe(BASE_URL);
+    const tokenAfter = await runCli(`--url ${BASE_URL} token`);
+    expect(tokenAfter.code).not.toBe(0);
   }, 15000);
 
   test('search without token after logout fails with auth message', async () => {
-    // KAIROS_CLI_NO_AUTO_LOGIN=1 so CLI does not open browser; fails fast with auth error
+    // Token was cleared by previous test
+    // BROWSER=true so CLI does not open browser; fails fast with auth error
     let timeoutId: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<{ stdout: string; stderr: string; code?: number }>((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error('CLI timed out after 12s (expected auth error)')), 12000);
     });
     const searchResult = await Promise.race([
-      runCli(`--url ${BASE_URL} search "test"`, {
-        XDG_CONFIG_HOME: configHome,
-        KAIROS_CLI_NO_AUTO_LOGIN: '1'
-      }),
+      runCli(`--url ${BASE_URL} search "test"`),
       timeoutPromise
     ]).finally(() => clearTimeout(timeoutId!));
     expect(searchResult.code).not.toBe(0);

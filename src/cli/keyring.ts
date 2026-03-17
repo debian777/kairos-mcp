@@ -1,7 +1,8 @@
 /**
  * CLI keyring: OS-native credential storage for bearer tokens.
- * Uses @napi-rs/keyring (keytar-compatible API). Falls back to file-based storage
- * when keyring is unavailable (KAIROS_CLI_NO_KEYRING=1, headless Linux, CI).
+ * Uses @napi-rs/keyring (keytar-compatible API). When keyring is unavailable or
+ * fails at runtime, the CLI falls back to the config file at XDG_CONFIG_HOME/kairos
+ * (or ~/.config/kairos on Unix, %APPDATA%\\kairos on Windows) for all users.
  */
 
 import { createRequire } from 'module';
@@ -19,10 +20,6 @@ let keytar: KeytarModule | null | undefined = undefined;
 
 function loadKeyring(): KeytarModule | null {
     if (keytar !== undefined) return keytar;
-    if (process.env['KAIROS_CLI_NO_KEYRING'] === '1' || process.env['KAIROS_CLI_NO_KEYRING'] === 'true') {
-        keytar = null;
-        return null;
-    }
     try {
         const mod = requireMod('@napi-rs/keyring/keytar') as KeytarModule;
         keytar = mod;
@@ -55,27 +52,29 @@ export async function getToken(account: string): Promise<string | null> {
 }
 
 /**
- * Store the bearer token for the given account. No-op if keyring unavailable.
+ * Store the bearer token for the given account. Returns true if stored in keyring, false if keyring unavailable or setPassword threw (config-file will fall back to file).
  */
-export async function setToken(account: string, token: string): Promise<void> {
+export async function setToken(account: string, token: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return;
+    if (!mod) return false;
     try {
         await mod.setPassword(SERVICE, account, token);
+        return true;
     } catch {
-        // Headless / no libsecret: ignore; config-file will fall back to file
+        return false;
     }
 }
 
 /**
- * Delete the stored bearer token for the given account. No-op if keyring unavailable.
+ * Delete the stored bearer token for the given account. Returns true if deleted (or not present), false if keyring unavailable or deletePassword threw.
  */
-export async function deleteToken(account: string): Promise<void> {
+export async function deleteToken(account: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return;
+    if (!mod) return false;
     try {
         await mod.deletePassword(SERVICE, account);
+        return true;
     } catch {
-        // Ignore
+        return false;
     }
 }
