@@ -149,13 +149,18 @@ def update_realm(base_url: str, realm_name: str, realm_json: dict, token: str) -
 
 def list_realm_client_ids(base_url: str, realm_name: str, token: str) -> set[str]:
     """GET realm clients and return set of clientId."""
+    clients = get_realm_clients(base_url, realm_name, token)
+    return {c.get("clientId") for c in clients if c.get("clientId")}
+
+
+def get_realm_clients(base_url: str, realm_name: str, token: str) -> list[dict]:
+    """GET full list of client representations (for dump/compare)."""
     url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients"
     req = urllib.request.Request(url, method="GET")
     req.add_header("Authorization", f"Bearer {token}")
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            clients = json.loads(resp.read().decode())
-            return {c.get("clientId") for c in clients if c.get("clientId")}
+            return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"List clients {realm_name} failed: {e.code} {body}")
@@ -186,8 +191,8 @@ def _merge_realm(current: dict, desired: dict) -> dict:
     merged["id"] = current.get("id") or desired.get("id") or current.get("realm")
     for key in (
         "realm", "enabled", "registrationAllowed", "loginWithEmailAllowed", "duplicateEmailsAllowed",
-        "ssoSessionIdleTimeout", "ssoSessionMaxLifespan", "accessCodeLifespan",
-        "accessCodeLifespanUserAction", "accessCodeLifespanLogin", "groups",
+        "ssoSessionIdleTimeout", "ssoSessionMaxLifespan", "accessTokenLifespan",
+        "accessCodeLifespan", "accessCodeLifespanUserAction", "accessCodeLifespanLogin", "groups",
     ):
         if key in desired:
             merged[key] = desired[key]
@@ -425,6 +430,128 @@ def ensure_test_user(
     print(f"  Test user {realm}: {username}")
 
 
+# Realm keys we set from import (must match _merge_realm and import JSON)
+_REALM_COMPARE_KEYS = (
+    "realm", "enabled", "registrationAllowed", "loginWithEmailAllowed", "duplicateEmailsAllowed",
+    "ssoSessionIdleTimeout", "ssoSessionMaxLifespan", "accessTokenLifespan",
+    "accessCodeLifespan", "accessCodeLifespanUserAction", "accessCodeLifespanLogin", "groups",
+)
+# Client keys we set from import (subset of ClientRepresentation)
+_CLIENT_COMPARE_KEYS = (
+    "clientId", "name", "enabled", "publicClient", "standardFlowEnabled", "directAccessGrantsEnabled",
+    "redirectUris", "webOrigins", "attributes",
+)
+
+
+def get_realm_groups(base_url: str, realm_name: str, token: str) -> list[dict]:
+    """GET realm groups (names only for compare). Keycloak realm GET may not include groups."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/groups?briefRepresentation=true"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            groups = json.loads(resp.read().decode())
+            return [{"name": g.get("name", "")} for g in groups]
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET groups {realm_name} failed: {e.code} {body}")
+
+
+def _dump_realm_for_compare(base_url: str, realm_name: str, token: str) -> dict:
+    """Dump current Keycloak realm state into same shape as import JSON (for compare)."""
+    realm = get_realm_full(base_url, realm_name, token)
+    clients_raw = get_realm_clients(base_url, realm_name, token)
+    out = {"id": realm.get("id"), "realm": realm.get("realm")}
+    for k in _REALM_COMPARE_KEYS:
+        if k in realm:
+            out[k] = realm[k]
+    if out.get("groups") is None:
+        out["groups"] = get_realm_groups(base_url, realm_name, token)
+    out["clients"] = []
+    for c in clients_raw:
+        cid = c.get("clientId")
+        if not cid:
+            continue
+        client_subset = {}
+        for k in _CLIENT_COMPARE_KEYS:
+            if k not in c:
+                continue
+            v = c[k]
+            if k == "attributes" and isinstance(v, dict):
+                # only compare attributes we set in import (e.g. pkce)
+                v = {kk: vv for kk, vv in v.items() if kk.startswith("pkce.")}
+            if v is not None:
+                client_subset[k] = v
+        out["clients"].append(client_subset)
+    return out
+
+
+def _normalize_for_compare(obj: dict | list) -> dict | list:
+    """Sort list values that are unordered (redirectUris, webOrigins) for stable diff."""
+    if isinstance(obj, dict):
+        return {k: _normalize_for_compare(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        if not obj:
+            return obj
+        if isinstance(obj[0], str):
+            return sorted(obj)
+        if isinstance(obj[0], dict) and "name" in obj[0]:
+            # groups: compare by sorted names only
+            return sorted(d.get("name", "") for d in obj)
+    return obj
+
+
+def _compare_expected_actual(realm_name: str, expected: dict, actual_dump: dict) -> list[str]:
+    """Compare expected (from import JSON) with actual (dump). Return list of diff messages.
+    Only compares keys present in expected. Ignores realm id (Keycloak-assigned).
+    """
+    diffs: list[str] = []
+    # Realm: only keys that exist in expected (exclude id)
+    realm_keys_to_compare = [k for k in _REALM_COMPARE_KEYS if k in expected]
+    for k in realm_keys_to_compare:
+        exp_v = _normalize_for_compare(expected[k])
+        act_v = _normalize_for_compare(actual_dump.get(k))
+        if exp_v != act_v:
+            diffs.append(f"{realm_name} realm.{k}: expected {exp_v!r}, got {act_v!r}")
+
+    exp_clients = {c["clientId"]: c for c in expected.get("clients") or [] if c.get("clientId")}
+    act_clients = {c["clientId"]: c for c in actual_dump.get("clients") or [] if c.get("clientId")}
+
+    for cid, exp_c in exp_clients.items():
+        act_c = act_clients.get(cid)
+        if not act_c:
+            diffs.append(f"{realm_name} client {cid!r}: missing in Keycloak")
+            continue
+        # Only compare keys present in expected client
+        for k in exp_c:
+            if k not in _CLIENT_COMPARE_KEYS:
+                continue
+            ev = _normalize_for_compare(exp_c[k])
+            av = _normalize_for_compare(act_c.get(k))
+            if k == "attributes" and ev in (None, {}) and av in (None, {}):
+                continue
+            if ev != av:
+                diffs.append(f"{realm_name} client {cid!r}.{k}: expected {ev!r}, got {av!r}")
+
+    return diffs
+
+
+def verify_realms_after_update(base_url: str, token: str, import_dir: Path) -> list[str]:
+    """
+    Dump each realm from Keycloak after update and compare with import JSON.
+    Returns list of diff messages; empty means dump matches expected.
+    """
+    all_diffs: list[str] = []
+    for realm_name, filename in REALM_FILES:
+        path = import_dir / filename
+        if not path.is_file():
+            continue
+        expected = json.loads(path.read_text())
+        actual_dump = _dump_realm_for_compare(base_url, realm_name, token)
+        all_diffs.extend(_compare_expected_actual(realm_name, expected, actual_dump))
+    return all_diffs
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     env = get_env(root)
@@ -472,6 +599,15 @@ def main() -> int:
     # 3. Test user in dev only
     for realm_name in ("kairos-dev",):
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
+
+    # 4. Verify: dump from Keycloak and compare with import
+    verify_errors = verify_realms_after_update(base_url, token, import_dir)
+    if verify_errors:
+        print("Verification failed (dump vs import):", file=sys.stderr)
+        for msg in verify_errors:
+            print(f"  - {msg}", file=sys.stderr)
+        sys.exit(1)
+    print("Verified: dump matches import.")
 
     print("Keycloak realms configured.")
     return 0

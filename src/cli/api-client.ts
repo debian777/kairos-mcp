@@ -75,15 +75,18 @@ export class ApiClient {
         if (!response.ok) {
             const errorData = data as { message?: string; error?: string; login_url?: string };
             const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401 && errorData.login_url) {
+            if (response.status === 401) {
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.request(endpoint, options, true);
                 }
-                throw new AuthRequiredError(
-                    `${msg}\n\nLog in at:\n${errorData.login_url}`,
-                    errorData.login_url
-                );
+                if (errorData.login_url) {
+                    throw new AuthRequiredError(
+                        `${msg}\n\nLog in at:\n${errorData.login_url}`,
+                        errorData.login_url
+                    );
+                }
+                throw new Error('Authentication required. Run `kairos login` to sign in.');
             }
             throw new Error(msg);
         }
@@ -145,15 +148,18 @@ export class ApiClient {
 
         if (!response.ok) {
             const msg = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401 && data.login_url) {
+            if (response.status === 401) {
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
                     if (ok) return this.mint(markdown, options, true);
                 }
-                throw new AuthRequiredError(
-                    `${msg}\n\nLog in at:\n${data.login_url}`,
-                    data.login_url
-                );
+                if (data.login_url) {
+                    throw new AuthRequiredError(
+                        `${msg}\n\nLog in at:\n${data.login_url}`,
+                        data.login_url
+                    );
+                }
+                throw new Error('Authentication required. Run `kairos login` to sign in.');
             }
             throw new Error(msg);
         }

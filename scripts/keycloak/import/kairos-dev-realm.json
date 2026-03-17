@@ -7,6 +7,7 @@
   "duplicateEmailsAllowed": false,
   "ssoSessionIdleTimeout": 604800,
   "ssoSessionMaxLifespan": 604800,
+  "accessTokenLifespan": 3600,
   "accessCodeLifespan": 120,
   "accessCodeLifespanUserAction": 300,
   "accessCodeLifespanLogin": 1800,

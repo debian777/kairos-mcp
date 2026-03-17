@@ -70,19 +70,21 @@ Search uses the **Query API** (Qdrant 1.14+): prefetch with fusion, then an oute
 
 ### Prefetch (hybrid)
 
-- **Dense:** One leg with the query embedding, vector name `vs{dim}`, limit 40, same filter, quantization rescore.
-- **BM25:** Three legs with the same sparse query (from `bm25Tokenizer.tokenize(query)`), limits 40, 30, 20, same filter.
-- **Fusion:** `query: { fusion: 'rrf' }`, limit 50. So 1× dense + 3× BM25 are combined with RRF (Reciprocal Rank Fusion).
+- **Dense:** One leg with the query embedding, vector name `vs{dim}`, limit 50, same filter, quantization rescore.
+- **BM25:** Three legs with the same sparse query (from `bm25Tokenizer.tokenize(query)`), limits 50, 40, 30, same filter.
+- **Fusion:** `query: { fusion: 'rrf' }`, limit 75. So 1× dense + 3× BM25 are combined with RRF (Reciprocal Rank Fusion). Prefetch limits are sized so more candidates get the outer formula (including chain-label boost) applied.
 
 ### Outer formula
 
 After RRF, the final score is:
 
-`score = $score + TITLE_BOOST * match(chain.label, text: normalizedQuery) + attest_boost`
+`score = $score + CHAIN_TITLE_BOOST * match(chain.label) + STEP_TITLE_BOOST * match(label) + attest_boost`
 
 - `$score` is the RRF score from prefetch.
-- `TITLE_BOOST` is 0.5.
-- `match(chain.label, text: normalizedQuery)` is a Qdrant condition: it contributes when the chain’s label contains all tokens of the normalized query (title match). So protocols whose chain title matches the query get an additive boost.
+- **Chain title vs step title:** `chain.label` is the protocol/chain title (H1); `label` is the step title (H2). Both are boosted when they match the query.
+- `CHAIN_TITLE_BOOST` is 2.0 so that protocol-name matches rank decisively above semantic-only matches (see [mcp-bug-kairos-search-missing-chain](../../reports/mcp-bug-kairos-search-missing-chain-2026-03-16.md)).
+- `STEP_TITLE_BOOST` is 0.5 so that step-heading matches (e.g. first step's H2) get a modest boost.
+- `titleMatchQuery` is a normalized form of the query: lowercase, `&` → ` and `, unicode dashes and punctuation replaced by spaces, spaces collapsed. Used for both chain and step title match.
 - `attest_boost` is a numeric payload field on the point (precomputed when quality metrics are updated); protocols with more successful attestations get a higher value, so they rank slightly higher when relevance is similar.
 
 Per the principle above, all scoring is expressed in Qdrant (formula, filter, prefetch); the app does not modify scores after the query.

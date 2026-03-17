@@ -108,13 +108,9 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
             if (errorParam) {
                 const desc = url.searchParams.get('error_description') || errorParam;
                 res.writeHead(200, { 'Content-Type': 'text/html' }).end(
-                    `<!DOCTYPE html><html><body><p>Login failed: ${escapeHtml(desc)}</p><p>If Keycloak reported "Client not found", run: <code>python3 scripts/configure-keycloak-realms.py</code> or <code>npm run infra:up</code> then try again.</p></body></html>`
+                    `<!DOCTYPE html><html><body><p>Login failed: ${escapeHtml(desc)}</p><p>Try again or run <code>kairos login</code> from the terminal.</p></body></html>`
                 );
-                if (errorParam === 'invalid_client' || desc.toLowerCase().includes('client') || desc.toLowerCase().includes('not found')) {
-                    writeError(`Keycloak error: ${desc}. Ensure the kairos-cli client exists: run python3 scripts/configure-keycloak-realms.py or npm run infra:up`);
-                } else {
-                    writeError(`Keycloak returned error: ${desc}`);
-                }
+                writeError(`Login failed: ${desc}`);
                 server.close();
                 resolve(false);
                 return;
@@ -186,14 +182,13 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
             authUrl.searchParams.set('code_challenge_method', 'S256');
             authUrl.searchParams.set('prompt', 'login');
             const authUrlStr = authUrl.toString();
-            writeStdout(authUrlStr);
-            writeStdout(`Security key (grep in docker logs to confirm): ${state}`);
             if (noBrowser) {
-                // E2E/automation: do not open browser
+                writeStdout(authUrlStr);
             } else {
                 openBrowser(authUrlStr);
-                writeStdout('Opening browser. Complete login in the browser.');
-                writeStdout('If Keycloak shows "Client not found", run: python3 scripts/configure-keycloak-realms.py or npm run infra:up');
+                writeStdout('[i] Log in to KAIROS in the browser.');
+                writeStdout(`[i] If the browser did not open, open this link:\n${authUrlStr}`);
+                writeStdout('[i] Awaiting authentication in the browser.');
             }
         });
     });

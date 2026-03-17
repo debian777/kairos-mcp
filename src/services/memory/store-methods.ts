@@ -35,7 +35,6 @@ export class MemoryQdrantStoreMethods {
     this.cacheLoaded = false;
   }
 
-
   private parseMarkdownSections(content: string): Array<{ title: string, content: string }> {
     const lines = content.split(/\r?\n/);
     const sections: Array<{ title: string, content: string }> = [];
@@ -58,8 +57,6 @@ export class MemoryQdrantStoreMethods {
         currentSection.content.push(line);
       }
     }
-
-    // Add the last section
     if (currentSection) {
       sections.push({
         title: currentSection.title,
@@ -136,10 +133,24 @@ export class MemoryQdrantStoreMethods {
   }
 
   /**
+   * Normalize query for chain.label title match so variants (e.g. "Analyze & Plan" vs "Analyze and Plan")
+   * and punctuation (dashes, unicode) align with stored chain labels.
+   */
+  private normalizeQueryForTitleMatch(q: string): string {
+    return (q ?? '')
+      .toLowerCase()
+      .replace(/\s*&\s*/g, ' and ')
+      .replace(/[\u2013\u2014\u2015–—]\s*/g, ' ')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
    * Hybrid search: dense + BM25 via Query API with formula-based title boosting.
    * Inner prefetch: 1× dense + 3× BM25 fused via RRF.
-   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: query).
-   * match.text requires ALL query tokens in chain.label, boosting only exact title matches.
+   * Outer query: formula = $score + CHAIN_TITLE_BOOST * match(chain.label) + STEP_TITLE_BOOST * match(label) + attest_boost.
+   * chain.label = protocol/chain title (H1); label = step title (H2). They are different; both are boosted.
    */
   private async vectorSearch(normalizedQuery: string, query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
@@ -163,25 +174,28 @@ export class MemoryQdrantStoreMethods {
       filter
     };
 
+    const titleMatchQuery = this.normalizeQueryForTitleMatch(query);
     let points: Array<{ id: string | number; score?: number; payload?: Record<string, unknown> | null }>;
     try {
-      const TITLE_BOOST = 0.5;
+      // Chain title = protocol name (H1); step title = step heading (H2). Boost both when query matches.
+      const CHAIN_TITLE_BOOST = 2.0;
+      const STEP_TITLE_BOOST = 0.5;
       const queryResponse = await this.client.query(this.collection, {
         prefetch: {
           prefetch: [
             {
               query: queryVector,
               using: vectorName,
-              limit: 40,
+              limit: 50,
               filter,
               params: { quantization: { rescore: true } }
             },
+            { ...bm25Leg, limit: 50 },
             { ...bm25Leg, limit: 40 },
-            { ...bm25Leg, limit: 30 },
-            { ...bm25Leg, limit: 20 }
+            { ...bm25Leg, limit: 30 }
           ],
           query: { fusion: 'rrf' },
-          limit: 50,
+          limit: 75,
         },
         query: {
           formula: {
@@ -189,8 +203,14 @@ export class MemoryQdrantStoreMethods {
               '$score',
               {
                 mult: [
-                  TITLE_BOOST,
-                  { key: 'chain.label', match: { text: normalizedQuery } }
+                  CHAIN_TITLE_BOOST,
+                  { key: 'chain.label', match: { text: titleMatchQuery } }
+                ]
+              },
+              {
+                mult: [
+                  STEP_TITLE_BOOST,
+                  { key: 'label', match: { text: titleMatchQuery } }
                 ]
               },
               'attest_boost'
@@ -298,14 +318,7 @@ export class MemoryQdrantStoreMethods {
     if (this.cacheLoaded) return;
     let pageOffset: any = undefined;
     do {
-      const scrollReq = {
-        with_payload: true,
-        with_vector: false,
-        limit: 128,
-        offset: pageOffset
-      } as any;
       const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
-      logger.debug(`[Qdrant][scroll] collection=${this.collection} req=${JSON.stringify(scrollReq)}`);
       const page = await this.client.scroll(this.collection, {
         filter,
         with_payload: true,
@@ -313,8 +326,6 @@ export class MemoryQdrantStoreMethods {
         limit: 128,
         offset: pageOffset
       } as any);
-      logger.debug(`[Qdrant][scroll] page_count=${page?.points?.length || 0} next=${JSON.stringify(page?.next_page_offset)}`);
-
       (page.points || []).forEach((point: any) => {
         const memory = this.pointToMemory(point);
         this.cache.set(memory.memory_uuid, memory);
@@ -326,10 +337,6 @@ export class MemoryQdrantStoreMethods {
     this.cacheLoaded = true;
   }
 
-  /**
-   * Build a linked memory chain from a single markdown document using H1/H2 headers.
-   * H1 becomes the base label; each H2 section becomes one Memory with prev/next links.
-   */
   buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, now: Date): Memory[] {
     return buildChain(markdownDoc, llmModelId, now, this.codeBlockProcessor);
   }
