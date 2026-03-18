@@ -13,7 +13,8 @@ permissions:
 jobs:
   enable-automerge:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Disabled: workflow was failing (e.g. branch protection / permissions). Re-enable by removing the condition below.
+    if: false && github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Enable auto-merge for Dependabot PR
         run: gh pr merge --auto --merge "$PR_URL"
