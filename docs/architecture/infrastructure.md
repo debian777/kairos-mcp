@@ -362,7 +362,7 @@ flowchart TD
 - [Full execution workflow](workflow-full-execution.md) — protocol run
   end-to-end
 - [Quality metadata](quality-metadata.md) — scoring and bonus structure
-- [Auth URLs: QA and Docker topology](auth-urls-qa.md) — Keycloak URL
+- [Authentication overview](auth-overview.md) — Keycloak URL
   routing
 - [`compose.yaml`](../../compose.yaml) — default (Docker named volumes)
 - `VOLUME_LOCAL_PATH` — host path for bind mounts (set in `.env`)

@@ -5,13 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org/)
 
-KAIROS MCP™ gives AI agents persistent memory and deterministic protocol
-execution. Agents store, retrieve, and run reusable protocol chains across
-sessions — without losing context between runs.
+KAIROS MCP™ **automates AI agents and chats** with persistent memory and
+deterministic protocol execution. Agents store, retrieve, and run reusable
+workflows across sessions—so you get repeatable procedures, not one-off chat.
 
 ## Why KAIROS
 
-Without persistent memory, agents repeat work, lose context, and cannot
+Without persistent workflows, agents repeat work, lose context, and cannot
 follow multi-step procedures reliably. KAIROS fixes this with three
 primitives:
 
@@ -20,6 +20,23 @@ primitives:
 drives `next_action` at every step
 - **Agent-facing design** — tool descriptions and error messages built for  
 programmatic consumption and recovery
+
+Protocol execution runs in a fixed order: search for a match, begin the run,
+solve each step’s challenge, then attest completion.
+
+```mermaid
+flowchart LR
+  A([search]) --> B([begin]) --> C([next]) --> D([attest])
+  C -.-> C
+  style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style B fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style C fill:#ffb74d,stroke:#f57c00,color:#333
+  style D fill:#81c784,stroke:#388e3c,color:#333
+```
+
+**Use cases:** Run the same release or deploy checklist every time; onboard
+repos or triage support with a searchable playbook; let agents follow
+minted procedures across sessions instead of ad-hoc chat.
 
 ## Quick start
 

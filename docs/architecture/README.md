@@ -70,10 +70,11 @@ step-skipping: challenge-type-specific error messages and `next_action`
 when proof is missing (for example, telling the agent to ask the user for
 `user_input` instead of inferring the answer).
 
-## Auth URL topology (QA / Docker)
+## Auth and URL topology
 
-[Auth URLs: QA and Docker topology](auth-urls-qa.md) explains which
-Keycloak URL each party uses and how `KEYCLOAK_URL` vs
+[Authentication overview](auth-overview.md) covers server auth (Bearer/session),
+shared CLI and MCP config, Keycloak clients, and login flow. It also explains
+which Keycloak URL each party uses and how `KEYCLOAK_URL` vs
 `KEYCLOAK_INTERNAL_URL` are set in `.env` and `compose.yaml`.
 
 ## Authentication and logging

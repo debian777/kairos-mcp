@@ -1,7 +1,8 @@
 # KAIROS MCP documentation
 
-This folder contains documentation for KAIROS MCP: setup guides, CLI
-reference, and protocol workflow details.
+KAIROS MCP automates AI agents and chats with persistent, deterministic
+workflows. This folder contains setup guides, CLI reference, and protocol
+workflow details.
 
 ## Start here
 
@@ -28,6 +29,12 @@ execute end-to-end.
   per-tool workflow reference, response shapes, and scenarios.
 - [Authentication overview](architecture/auth-overview.md) — server auth (Bearer/session), shared CLI and MCP config, Keycloak, login flow.
 - [Logging](architecture/logging.md) — log levels, standard fields, env vars, error codes.
+
+## Business applications
+
+- [Business application cases](business/README.md) — manager-focused examples:
+  standardizing commits and MRs, compliance review from a new document (e.g. NIST),
+  Terraform module standardization.
 
 ## Concepts
 

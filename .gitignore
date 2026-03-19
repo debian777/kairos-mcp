@@ -191,6 +191,9 @@ helm/kairos-fullstack/charts/*.tgz
 .local/
 local/
 
+# Non-public repo content (not published)
+non-public/
+
 # Package managers
 .yarn/
 .pnp.*

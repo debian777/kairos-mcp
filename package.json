@@ -1,7 +1,7 @@
 {
   "name": "@debian777/kairos-mcp",
   "version": "3.3.0-rc.0",
-  "description": "kairos MCP Server - AI Knowledge Memory System for AI Agent Consciousness Infrastructure",
+  "description": "MCP server for agent automation: persistent memory and deterministic workflow execution for AI agents and chats",
   "type": "module",
   "main": "dist/index.js",
   "author": "Jakub Plichcinski <kuba@xpl.pl>",
@@ -17,17 +17,15 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "knowledge-bank",
-    "ai-knowledge",
+    "agent-automation",
+    "workflow-orchestration",
+    "ai-agents",
     "ai-memory",
     "knowledge-management",
-    "ai-consciousness",
-    "ai-infrastructure",
     "vector-database",
     "qdrant",
-    "ai-agents",
-    "knowledge-retrieval",
-    "semantic-search"
+    "semantic-search",
+    "ai-infrastructure"
   ],
   "bin": {
     "kairos": "dist/cli/index.js"
