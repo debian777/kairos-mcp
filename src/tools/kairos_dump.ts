@@ -79,7 +79,13 @@ export async function executeDump(
   const { uri, protocol = false } = params;
   const { uuid, uri: normalizedUri } = normalizeUri(uri);
 
-  const memory = await loadMemory(memoryStore, uuid);
+  let memory = await loadMemory(memoryStore, uuid);
+  // Browse UI uses chain_id as protocol URI; dump expects memory UUID. Resolve chain_id -> first-step memory.
+  if (!memory && qdrantService && typeof qdrantService.getChainMemories === 'function') {
+    const chainPoints = await qdrantService.getChainMemories(uuid);
+    const firstUuid = chainPoints[0]?.uuid;
+    if (firstUuid) memory = await loadMemory(memoryStore, firstUuid);
+  }
   if (!memory) {
     const err = new Error('Memory not found');
     (err as any).statusCode = 404;

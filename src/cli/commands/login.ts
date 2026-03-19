@@ -19,8 +19,19 @@ function escapeHtml(s: string): string {
 }
 
 import { openBrowser } from '../auth-error.js';
-import { getDefaultApiUrlFromFile, readConfig, writeConfig } from '../config-file.js';
+import { getDefaultApiUrlFromFile, readConfig, writeConfig, normalizeApiUrl } from '../config-file.js';
+import { getToken, isKeyringAvailable } from '../keyring.js';
 import { writeError, writeStdout, writeStderr } from '../output.js';
+
+/** Describe where the current token is stored (no path). Used for "Already authenticated. Token …" message. */
+async function getTokenStorageHint(baseUrl: string, token: string): Promise<string> {
+    const normalized = normalizeApiUrl(baseUrl);
+    if (isKeyringAvailable()) {
+        const fromKeyring = await getToken(normalized);
+        if (fromKeyring === token) return 'Token stored in keychain.';
+    }
+    return 'Token in config file.';
+}
 
 /** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
 export function getBaseUrl(): string {
@@ -211,7 +222,8 @@ export function loginCommand(program: Command): void {
                 }
                 const config = await readConfig(baseUrl);
                 if (config.bearerToken && (await isTokenValid(baseUrl, config.bearerToken))) {
-                    writeStdout('Already authenticated.');
+                    const storage = await getTokenStorageHint(baseUrl, config.bearerToken);
+                    writeStdout(`Already authenticated. ${storage}`);
                     process.exit(0);
                     return;
                 }
