@@ -102,4 +102,58 @@ Done.`;
     expect(data).toHaveProperty('uri', uri);
     expect(data).toHaveProperty('label');
   }, 30000);
+
+  test('returns full protocol when URI is chain_id (browse case)', async () => {
+    if (!serverAvailable) {
+      console.warn('Skipping test - server not available');
+      return;
+    }
+
+    const title = `Dump By Chain ${Date.now()}`;
+    const markdown = `# ${title}
+
+## Natural Language Triggers
+Browse chain dump.
+
+## Step One
+First step body.
+
+\`\`\`json
+{"challenge": {"type": "comment", "description": "Step one"}}
+\`\`\`
+
+## Completion Rule
+Done.`;
+    const mintRes = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
+      body: markdown
+    });
+    expect(mintRes.status).toBe(200);
+
+    const spacesRes = await fetch(`${API_BASE}/kairos_spaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ include_chain_titles: true })
+    });
+    expect(spacesRes.status).toBe(200);
+    const spacesData = await spacesRes.json();
+    const chains = spacesData.spaces?.flatMap((s: { chains?: Array<{ chain_id: string; title: string }> }) => s.chains ?? []) ?? [];
+    const chain = chains.find((c: { title: string }) => c.title === title);
+    expect(chain).toBeDefined();
+
+    const dumpByChainUri = `kairos://mem/${chain!.chain_id}`;
+    const response = await fetch(`${API_BASE}/kairos_dump`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ uri: dumpByChainUri, protocol: true })
+    });
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toHaveProperty('markdown_doc');
+    expect(typeof data.markdown_doc).toBe('string');
+    expect(data.markdown_doc).toContain('First step body');
+    expect(data).toHaveProperty('step_count');
+    expect(Number(data.step_count)).toBeGreaterThanOrEqual(1);
+  }, 30000);
 });
