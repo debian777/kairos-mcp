@@ -6,7 +6,7 @@ description: >-
   /kairos. Do not require the user to mention tools or protocols. For
   first-time install and server setup, use the kairos-install skill instead.
 metadata:
-  version: "3.3.0-rc.2"
+  version: "3.3.0"
   author: kairos-mcp
 allowed-tools: kairos_search kairos_begin kairos_next kairos_mint kairos_attest kairos_dump kairos_update kairos_delete kairos_spaces
 ---
