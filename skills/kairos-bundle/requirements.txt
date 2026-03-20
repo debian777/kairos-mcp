@@ -1,0 +1,1 @@
+# kairos-bundle: stdlib-only; add deps here if needed
