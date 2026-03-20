@@ -6,6 +6,11 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      # Bundle all npm version updates into a single PR (branch/title: npm-dependencies)
+      npm-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
