@@ -39,8 +39,8 @@ See commented lines in `env.example.minimal.txt`.
 | **env.example.minimal.txt** | App + Qdrant only (minimal; no Redis, no auth, no Keycloak). |
 | **env.example.fullstack.txt** | Full Docker stack: Redis, Qdrant, Postgres, Keycloak, auth enabled. Use for local full stack and CI. |
 
-- **Quick start (minimal, default):** `cp env.example.minimal.txt .env`, set `OPENAI_API_KEY` (or TEI), then `docker compose -p kairos-mcp up -d`.
-- **Full stack (Redis, Keycloak):** `cp env.example.fullstack.txt .env`, set secrets and `REDIS_URL=redis://redis:6379`, then `docker compose -p kairos-mcp --profile fullstack up -d`.
+- **Quick start (minimal, default):** `cp env.example.minimal.txt .env`, set `OPENAI_API_KEY` (or TEI) and `QDRANT_API_KEY`, then `docker compose -p kairos-mcp up -d`. The minimal example sets `AUTH_ENABLED=false` explicitly so it keeps working with the secure auth default.
+- **Full stack (Redis, Keycloak):** `cp env.example.fullstack.txt .env`, set `OPENAI_API_KEY`, `QDRANT_API_KEY`, `REDIS_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, and `SESSION_SECRET`, then `docker compose -p kairos-mcp --profile fullstack up -d`. If the app runs inside Docker, set `REDIS_URL=redis://:your-password@redis:6379`. If the app runs on the host, keep `REDIS_URL=redis://:your-password@127.0.0.1:6379`.
 - **CI / generate script:** Uses `scripts/env/.env.template` (fullstack). Run `python3 scripts/generate_dev_secrets.py` to produce `.env`.
 
 For **Google sign-in in dev**, see [Google auth (dev)](google-auth-dev.md).

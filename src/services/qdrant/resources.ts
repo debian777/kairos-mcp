@@ -9,6 +9,8 @@ import { logger } from '../../utils/logger.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { retrievePointAccessById } from './memory-retrieval.js';
+import { KairosError } from '../../types/index.js';
 
 /**
  * upsertResources - bulk upsert of knowledge resources
@@ -57,9 +59,18 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         embedding = Array(vectorSize).fill(0);
       }
 
-      const existingPoint = await conn.client.retrieve(conn.collectionName, { ids: [uuid], with_payload: true, with_vector: false });
-      const isUpdate = Array.isArray(existingPoint) && existingPoint.length > 0;
-      const version = isUpdate ? ((existingPoint[0]!.payload?.['version'] as number) || 1) + 1 : 1;
+      const existingPointAccess = await retrievePointAccessById(conn, qdrantId);
+      if (existingPointAccess.status === 'forbidden') {
+        throw new KairosError(`Memory with ID ${qdrantId} not found`, 'MEMORY_NOT_FOUND', 404);
+      }
+      const existingPoint = existingPointAccess.status === 'allowed' ? existingPointAccess.point : null;
+      const existingPayload = existingPoint?.payload as Record<string, unknown> | undefined;
+      const isUpdate = existingPoint !== null;
+      const version = isUpdate ? ((existingPayload?.['version'] as number) || 1) + 1 : 1;
+      const payloadUuid =
+        typeof existingPayload?.['uuid'] === 'string'
+          ? (existingPayload['uuid'] as string)
+          : uuid;
 
       let protocolWithContext = item.protocol;
       let aiWithContext = item.ai;
@@ -72,7 +83,7 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
       const spaceId = getSpaceContext().defaultWriteSpaceId;
       const payload = {
         space_id: spaceId,
-        uuid,
+        uuid: payloadUuid,
         description_short: item.description_short,
         description_full: item.description_full,
         domain: item.domain,
@@ -83,13 +94,13 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         ai: aiWithContext,
         uri: kbUri,
         version,
-        created_at: isUpdate ? existingPoint[0]!.payload?.['created_at'] : new Date().toISOString(),
+        created_at: isUpdate ? existingPayload?.['created_at'] : new Date().toISOString(),
         updated_at: new Date().toISOString(),
         quality_metadata: item.quality_metadata || {
           step_quality_score: 1,
           step_quality: 'standard'
         },
-        quality_metrics: isUpdate ? existingPoint[0]!.payload?.['quality_metrics'] : {
+        quality_metrics: isUpdate ? existingPayload?.['quality_metrics'] : {
           retrievalCount: 0, successCount: 0, partialCount: 0, failureCount: 0, lastRated: null, lastRater: null, qualityBonus: 0,
           usageContext: null, implementation_stats: { total_attempts: 0, success_attempts: 0, model_success_rates: {}, confidence_level: 0, last_implementation_attempt: null },
           healer_contributions: { total_healers: 0, total_improvements: 0, healer_bonus_distributed: 0, last_healed: null, healer_models: {} },

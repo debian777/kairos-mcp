@@ -17,6 +17,13 @@ export function setupErrorHandlers(app: express.Express) {
         } catch { }
 
         if (!res.headersSent) {
+            if (err?.status === 413 || err?.statusCode === 413 || err?.type === 'entity.too.large') {
+                res.status(413).json({
+                    error: 'PAYLOAD_TOO_LARGE',
+                    message: 'Request body exceeds the configured size limit'
+                });
+                return;
+            }
             res.status(500).json({ error: 'Internal server error' });
         } else {
             res.end();

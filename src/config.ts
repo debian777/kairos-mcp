@@ -71,10 +71,19 @@ export const KAIROS_SEARCH_LIMIT_CAP = getEnvInt('KAIROS_SEARCH_LIMIT_CAP', 50);
 /** Minimum match choices when agent passes max_choices. */
 export const KAIROS_SEARCH_LIMIT_MIN = getEnvInt('KAIROS_SEARCH_LIMIT_MIN', 5);
 export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_COLLAPSE', true);
+export const HTTP_JSON_BODY_LIMIT = getEnvString('HTTP_JSON_BODY_LIMIT', '1mb');
+export const HTTP_MINT_RAW_BODY_LIMIT = getEnvString('HTTP_MINT_RAW_BODY_LIMIT', '2mb');
+export const HTTP_RATE_LIMIT_WINDOW_MS = getEnvInt('HTTP_RATE_LIMIT_WINDOW_MS', 60_000);
+export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 100);
+export const AUTH_RATE_LIMIT_WINDOW_MS = getEnvInt('AUTH_RATE_LIMIT_WINDOW_MS', 60_000);
+export const AUTH_RATE_LIMIT_MAX = getEnvInt('AUTH_RATE_LIMIT_MAX', 10);
+export const MCP_RATE_LIMIT_WINDOW_MS = getEnvInt('MCP_RATE_LIMIT_WINDOW_MS', 60_000);
+export const MCP_RATE_LIMIT_MAX = getEnvInt('MCP_RATE_LIMIT_MAX', 1000);
 
 // Auth (Keycloak OIDC). One Keycloak per env: each env file sets KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID.
-// When AUTH_ENABLED=true these must be set (no empty string); startup will throw otherwise.
-export const AUTH_ENABLED = getEnvBoolean('AUTH_ENABLED', false);
+// AUTH_ENABLED defaults to true. If it is explicitly set to true, missing auth env is a startup error.
+// If it is left unset and auth env is incomplete, the server stays fail-closed at request time.
+export const AUTH_ENABLED = getEnvBoolean('AUTH_ENABLED', true);
 export const KEYCLOAK_URL = getEnvString('KEYCLOAK_URL', '');
 /** When set, used for server-side calls (e.g. token exchange). When unset, KEYCLOAK_URL is used. Use keycloak:8080 in Docker. */
 export const KEYCLOAK_INTERNAL_URL = getEnvString('KEYCLOAK_INTERNAL_URL', '');
@@ -98,7 +107,9 @@ export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCE
 // Int configurations
 export const PORT = getEnvInt('PORT', 3000);
 
-if (AUTH_ENABLED) {
+const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
+
+if (AUTH_ENABLED && AUTH_ENABLED_EXPLICIT) {
   const missing: string[] = [];
   if (!KEYCLOAK_URL.trim()) missing.push('KEYCLOAK_URL');
   if (!KEYCLOAK_REALM.trim()) missing.push('KEYCLOAK_REALM');

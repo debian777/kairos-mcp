@@ -35,8 +35,9 @@ If you use Claude Code and see git errors about `.claude/hooks/session-start.sh`
 4. Copy the example env file and configure required variables:
    ```bash
    cp docs/install/env.example.fullstack.txt .env
-   # Edit .env — set QDRANT_URL, OPENAI_API_KEY or TEI_BASE_URL,
-   # and any auth vars if AUTH_ENABLED=true.
+   # Edit .env — set OPENAI_API_KEY (or TEI), QDRANT_API_KEY,
+   # REDIS_PASSWORD, SESSION_SECRET, KEYCLOAK_ADMIN_PASSWORD,
+   # and KEYCLOAK_DB_PASSWORD.
    ```
 5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
    ```bash
@@ -120,7 +121,8 @@ npm run dev:qdrant-curl # Qdrant via curl (dev)
 
 ```bash
 # Starts Redis, Qdrant, Postgres, Keycloak.
-# Requires KEYCLOAK_ADMIN_PASSWORD and KEYCLOAK_DB_PASSWORD in .env.
+# Requires QDRANT_API_KEY, REDIS_PASSWORD, KEYCLOAK_ADMIN_PASSWORD,
+# and KEYCLOAK_DB_PASSWORD in .env.
 npm run infra:up
 ```
 

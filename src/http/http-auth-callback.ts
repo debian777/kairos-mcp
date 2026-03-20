@@ -84,8 +84,10 @@ const AUTH_LOGGED_OUT_HTML = `<!DOCTYPE html>
 </html>
 `;
 
+const useSecureCookie = AUTH_CALLBACK_BASE_URL.trim().toLowerCase().startsWith('https://');
+
 /** Cookie options must match those used when setting the session (Path=/) so the browser clears it. */
-const COOKIE_CLEAR_OPTIONS = { path: '/', httpOnly: true, sameSite: 'lax' as const };
+const COOKIE_CLEAR_OPTIONS = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: useSecureCookie };
 
 export function setupAuthCallback(app: express.Express): void {
   // Base /auth: redirect to UI (browser) or 404 for API
@@ -214,7 +216,7 @@ export function setupAuthCallback(app: express.Express): void {
     if (group_ids && group_ids.length > 0) sessionPayload.group_ids = group_ids;
     const cookieValue = signSession(sessionPayload);
     res.setHeader('Set-Cookie', [
-      `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}`
+      `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}${useSecureCookie ? '; Secure' : ''}`
     ]);
     res.redirect(302, '/auth/success');
   });

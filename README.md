@@ -50,7 +50,7 @@ KAIROS runs as a Docker stack. Docker and Docker Compose are required.
    curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/docs/install/env.example.minimal.txt
    cp env.example.minimal.txt .env
   ```
-2. Set your embedding provider in `.env`: `OPENAI_API_KEY=sk-proj-...` (OpenAI), or [Ollama](docs/install/README.md#optional--ollama-local-embeddings) (local), or TEI — see [docs/install/README.md](docs/install/README.md).
+2. Set your embedding provider in `.env`: `OPENAI_API_KEY=sk-proj-...` (OpenAI), or [Ollama](docs/install/README.md#optional--ollama-local-embeddings) (local), or TEI. Also set `QDRANT_API_KEY`. The minimal example already pins `AUTH_ENABLED=false` so it remains a no-auth setup.
 3. Start the stack (from the directory that has `compose.yaml` and `.env`):
   ```bash
    docker compose -p kairos-mcp up -d
@@ -61,7 +61,7 @@ KAIROS runs as a Docker stack. Docker and Docker Compose are required.
    curl http://localhost:3000/health
   ```
 
-**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `REDIS_URL=redis://redis:6379` and your secrets. See [docs/install/README.md](docs/install/README.md) for env variants and full stack setup. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `QDRANT_API_KEY`, `REDIS_PASSWORD`, and the Keycloak/session secrets, then choose the right `REDIS_URL` for where the app runs (`redis://:password@redis:6379` inside Docker, `redis://:password@127.0.0.1:6379` on the host). See [docs/install/README.md](docs/install/README.md) for env variants and full stack setup. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 

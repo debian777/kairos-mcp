@@ -45,6 +45,14 @@ print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+mask_url() {
+    local url="${1:-}"
+    if [[ -z "$url" ]]; then
+        echo ""
+        return
+    fi
+    printf '%s' "$url" | sed -E 's#(://)[^@/]+@#\1***@#'
+}
 
 # Environment setup (single .env for all)
 ENV="${ENV:-dev}"
@@ -96,7 +104,10 @@ check_qdrant() {
             || print_warning "Qdrant DOWN (set QDRANT_API_KEY if required)"
     fi
 }
-check_redis() { redis-cli ping >/dev/null 2>&1 && print_success "Redis OK" || print_warning "Redis DOWN"; }
+check_redis() {
+    local redis_url="${REDIS_URL:-redis://localhost:6379}"
+    redis-cli -u "$redis_url" ping >/dev/null 2>&1 && print_success "Redis OK" || print_warning "Redis DOWN"
+}
 check_tei() { 
     # Skip TEI check if using OpenAI embeddings
     if [[ "${EMBEDDING_PROVIDER:-}" == "openai" ]] || [[ -n "${OPENAI_API_KEY:-}" && -z "${TEI_BASE_URL:-}" ]]; then
@@ -145,7 +156,7 @@ show_urls() {
 
     # Redis
     echo "- Redis:   via redis-cli (no HTTP)"
-    echo "  · URL:        ${REDIS_URL:-redis://localhost:6379}"
+    echo "  · URL:        $(mask_url "${REDIS_URL:-redis://localhost:6379}")"
     echo "  · Key prefix: ${KAIROS_REDIS_PREFIX:-kb:}"
 
     # Metrics
@@ -613,7 +624,7 @@ case "$cmd" in
         # Remaining args (if any) are forwarded as Redis CLI commands
         if [[ -z "$@" ]]; then
             print_info "Example: ./scripts/run-env.sh redis-cli PING"
-            print_info "Actual Command: redis-cli -u ${REDIS_URL:-redis://localhost:6379} PING"
+            print_info "Actual Command: redis-cli -u $(mask_url "${REDIS_URL:-redis://localhost:6379}") PING"
         else
             redis-cli -u "${REDIS_URL:-redis://localhost:6379}" "$@"
         fi

@@ -12,19 +12,32 @@ import { REDIS_URL, KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../conf
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';
 
+function maskRedisUrl(url: string): string {
+    if (!url) return url;
+    try {
+        const parsed = new URL(url);
+        const authPrefix = parsed.username || parsed.password ? '***@' : '';
+        return `${parsed.protocol}//${authPrefix}${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+        return url.replace(/\/\/([^@/]+)@/, '//***@');
+    }
+}
+
 export class RedisService implements IKeyValueStore {
     private client: RedisClientType;
     private readonly prefix: string;
     private connected = false;
     private readonly redisUrl: string;
+    private readonly maskedRedisUrl: string;
 
     constructor() {
         const redisUrl = REDIS_URL;
         this.redisUrl = redisUrl;
+        this.maskedRedisUrl = maskRedisUrl(redisUrl);
         this.prefix = KAIROS_REDIS_PREFIX;
 
         logger.debug(
-            `[RedisService] Initializing with REDIS_URL="${redisUrl}" and KAIROS_REDIS_PREFIX="${this.prefix}"`
+            `[RedisService] Initializing with REDIS_URL="${this.maskedRedisUrl}" and KAIROS_REDIS_PREFIX="${this.prefix}"`
         );
 
         this.client = createClient({
@@ -36,7 +49,7 @@ export class RedisService implements IKeyValueStore {
             logger.debug(
                 `[RedisService] Error details: ${err?.message || err} | code=${(err && err.code) || 'n/a'} ` +
                 `errno=${(err && err.errno) || 'n/a'} address=${(err && err.address) || 'n/a'} ` +
-                `port=${(err && err.port) || 'n/a'} target="${this.redisUrl}"`
+                `port=${(err && err.port) || 'n/a'} target="${this.maskedRedisUrl}"`
             );
 
             // If this is an AggregateError, log each inner error for deep diagnostics
@@ -55,7 +68,7 @@ export class RedisService implements IKeyValueStore {
 
         this.client.on('connect', () => {
             logger.info('Connecting to Redis...');
-            logger.debug(`[RedisService] Attempting connection to ${redisUrl}`);
+            logger.debug(`[RedisService] Attempting connection to ${this.maskedRedisUrl}`);
         });
 
         this.client.on('ready', () => {
@@ -74,13 +87,13 @@ export class RedisService implements IKeyValueStore {
     async connect(): Promise<void> {
         if (!this.connected) {
             logger.info(
-                `[RedisService] connect() called, attempting connection to "${this.redisUrl}"`
+                `[RedisService] connect() called, attempting connection to "${this.maskedRedisUrl}"`
             );
             try {
                 await this.client.connect();
             } catch (error) {
                 logger.error(
-                    `[RedisService] connect() failed for "${this.redisUrl}"`,
+                    `[RedisService] connect() failed for "${this.maskedRedisUrl}"`,
                     error
                 );
                 throw error;

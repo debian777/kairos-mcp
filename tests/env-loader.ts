@@ -14,6 +14,11 @@ const root = process.cwd();
 if (env) {
   const envFile = join(root, `.env.${env}`);
   if (existsSync(envFile)) {
-    config({ path: envFile, override: true });
+    config({ path: envFile, override: false });
   }
+}
+
+const baseEnvFile = join(root, '.env');
+if (existsSync(baseEnvFile)) {
+  config({ path: baseEnvFile, override: false });
 }

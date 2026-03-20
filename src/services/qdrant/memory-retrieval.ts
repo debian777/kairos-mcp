@@ -9,27 +9,72 @@ import { KAIROS_APP_SPACE_ID } from '../../config.js';
  * Retrieval helpers
  */
 
+export interface AccessiblePoint {
+  id: string;
+  payload: any;
+  vector?: any;
+}
+
+export type PointAccessResult =
+  | { status: 'not_found' }
+  | { status: 'forbidden'; pointId: string; spaceId: string }
+  | { status: 'allowed'; point: AccessiblePoint };
+
+export async function retrievePointAccessById(
+  conn: QdrantConnection,
+  uuid: string,
+  options?: { withVector?: boolean }
+): Promise<PointAccessResult> {
+  const validatedId = validateAndConvertId(uuid);
+  const withVector = options?.withVector ?? false;
+  const points = await conn.client.retrieve(conn.collectionName, {
+    ids: [validatedId],
+    with_payload: true,
+    with_vector: withVector
+  });
+  if (!points || points.length === 0) {
+    return { status: 'not_found' };
+  }
+
+  const point = points[0];
+  if (!point) {
+    return { status: 'not_found' };
+  }
+
+  const pointSpaceId = String((point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID);
+  const allowed = getSpaceContext().allowedSpaceIds;
+  const canRead = allowed.includes(pointSpaceId) || pointSpaceId === KAIROS_APP_SPACE_ID;
+  if (!canRead) {
+    return { status: 'forbidden', pointId: String(point.id), spaceId: pointSpaceId };
+  }
+
+  return {
+    status: 'allowed',
+    point: {
+      id: String(point.id),
+      payload: point.payload,
+      ...(withVector ? { vector: point.vector } : {})
+    }
+  };
+}
+
+export async function retrieveAccessiblePointById(
+  conn: QdrantConnection,
+  uuid: string,
+  options?: { withVector?: boolean }
+): Promise<AccessiblePoint | null> {
+  const result = await retrievePointAccessById(conn, uuid, options);
+  return result.status === 'allowed' ? result.point : null;
+}
+
 export async function retrieveById(conn: QdrantConnection, uuid: string): Promise<{ uuid: string; payload: any } | null> {
   return conn.executeWithReconnect(async () => {
     const tenantId = getTenantId();
     const timer = qdrantOperationDuration.startTimer({ operation: 'retrieve', tenant_id: tenantId });
     
     try {
-      const validatedId = validateAndConvertId(uuid);
-      const points = await conn.client.retrieve(conn.collectionName, { ids: [validatedId], with_payload: true, with_vector: false });
-      if (!points || points.length === 0) {
-        timer({ operation: 'retrieve', tenant_id: tenantId });
-        return null;
-      }
-      const point = points[0];
+      const point = await retrieveAccessiblePointById(conn, uuid);
       if (!point) {
-        timer({ operation: 'retrieve', tenant_id: tenantId });
-        return null;
-      }
-      const pointSpaceId = (point.payload as any)?.space_id ?? KAIROS_APP_SPACE_ID;
-      const allowed = getSpaceContext().allowedSpaceIds;
-      const canRead = allowed.includes(pointSpaceId) || pointSpaceId === KAIROS_APP_SPACE_ID;
-      if (!canRead) {
         timer({ operation: 'retrieve', tenant_id: tenantId });
         return null;
       }
@@ -41,7 +86,7 @@ export async function retrieveById(conn: QdrantConnection, uuid: string): Promis
       });
       
       timer({ operation: 'retrieve', tenant_id: tenantId });
-      return { uuid: point.id.toString(), payload: point.payload };
+      return { uuid: point.id, payload: point.payload };
     } catch (error) {
       qdrantOperations.inc({ 
         operation: 'retrieve', 

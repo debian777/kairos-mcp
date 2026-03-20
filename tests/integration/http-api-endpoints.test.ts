@@ -68,6 +68,21 @@ Protocol is complete when this step is done.`;
       expect(data).toHaveProperty('message');
     });
 
+    test('rejects oversized markdown payloads', async () => {
+      expect.hasAssertions();
+
+      const oversizedMarkdown = `# Oversized Document\n\n${'A'.repeat(2_100_000)}`;
+      const response = await apiFetch(`${API_BASE}/kairos_mint/raw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/markdown' },
+        body: oversizedMarkdown
+      });
+
+      expect(response.status).toBe(413);
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'PAYLOAD_TOO_LARGE');
+    }, 30000);
+
     test('handles force update parameter', async () => {
       expect.hasAssertions();
 
@@ -152,6 +167,20 @@ Done.`;
       const data = await response.json();
       expect(data).toHaveProperty('error', 'INVALID_INPUT');
     });
+
+    test('rejects oversized JSON bodies', async () => {
+      expect.hasAssertions();
+
+      const response = await apiFetch(`${API_BASE}/kairos_search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'x'.repeat(1_100_000) })
+      });
+
+      expect(response.status).toBe(413);
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'PAYLOAD_TOO_LARGE');
+    }, 30000);
   });
 
   describe('POST /api/kairos_next', () => {

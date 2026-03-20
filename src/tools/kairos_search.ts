@@ -4,7 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage } from '../utils/tenant-context.js';
+import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage, getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import {
   SCORE_THRESHOLD,
@@ -121,27 +121,30 @@ export async function executeSearch(
   options?: { runInSpace?: (fn: () => Promise<SearchOutput>) => Promise<SearchOutput> }
 ): Promise<SearchOutput> {
   const { query, space, space_id, max_choices } = input;
+  const spaceParam = space ?? space_id;
   const effectiveLimit = Math.max(
     KAIROS_SEARCH_LIMIT_MIN,
     Math.min(KAIROS_SEARCH_LIMIT_CAP, max_choices ?? KAIROS_SEARCH_MAX_CHOICES)
   );
   const searchQuery = queryForSearch(query);
-  const cacheKey = `begin:v3:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
 
-  const cachedResult = await redisCacheService.get(cacheKey);
-  if (cachedResult) {
-    return searchOutputSchema.parse(JSON.parse(cachedResult)) as SearchOutput;
-  }
+  const runWithCache = async (): Promise<SearchOutput> => {
+    const effectiveSpaceId = spaceParam ?? getSpaceIdFromStorage();
+    const cacheKey = `begin:v3:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
 
-  const run = () => doSearch(memoryStore, qdrantService, searchQuery, effectiveLimit);
-  const spaceParam = space ?? space_id;
-  const result =
-    options?.runInSpace && spaceParam != null
-      ? await options.runInSpace(run)
-      : await run();
+    const cachedResult = await redisCacheService.get(cacheKey);
+    if (cachedResult) {
+      return searchOutputSchema.parse(JSON.parse(cachedResult)) as SearchOutput;
+    }
 
-  await redisCacheService.set(cacheKey, JSON.stringify(result), 300);
-  return result;
+    const result = await doSearch(memoryStore, qdrantService, searchQuery, effectiveLimit);
+    await redisCacheService.set(cacheKey, JSON.stringify(result), 300);
+    return result;
+  };
+
+  return options?.runInSpace && spaceParam != null
+    ? await options.runInSpace(runWithCache)
+    : await runWithCache();
 }
 
 /**

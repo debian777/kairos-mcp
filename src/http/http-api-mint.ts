@@ -5,6 +5,7 @@ import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { executeMint, MintError } from '../tools/kairos_mint.js';
 import { mintInputSchema } from '../tools/kairos_mint_schema.js';
+import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
 
 /**
  * Set up API route for raw markdown ingestion.
@@ -15,7 +16,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
     try {
       const contentLength = req.headers['content-length'] ? parseInt(req.headers['content-length'], 10) : null;
       const rawBody = await getRawBody(req, {
-        limit: '10mb',
+        limit: HTTP_MINT_RAW_BODY_LIMIT,
         encoding: 'utf8',
         ...(contentLength !== null && { length: contentLength })
       });
@@ -51,7 +52,14 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       const result = await executeMint(memoryStore, parsed.data, (fn) => fn());
       res.status(200).json(result);
     } catch (error) {
-      const err = error as { code?: string; details?: Record<string, unknown>; message?: string };
+      const err = error as { code?: string; details?: Record<string, unknown>; message?: string; status?: number; statusCode?: number; type?: string };
+      if (err?.status === 413 || err?.statusCode === 413 || err?.type === 'entity.too.large') {
+        res.status(413).json({
+          error: 'PAYLOAD_TOO_LARGE',
+          message: 'Request body exceeds the configured size limit'
+        });
+        return;
+      }
       if (error instanceof MintError) {
         res.status(400).json({
           error: error.code,
