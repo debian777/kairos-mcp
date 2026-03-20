@@ -14,10 +14,10 @@ Releases work **with or without this skill**.
 
 ## 1. Choose next version type
 
-Inspect commits since the latest tag:
+Inspect commits since the latest tag (or all commits when no tag exists yet):
 
 ```bash
-git log $(git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "")..HEAD --oneline
+TAG=$(git describe --tags --abbrev=0 2>/dev/null); [ -n "$TAG" ] && git log "${TAG}..HEAD" --oneline || git log --oneline
 ```
 
 Recommend a type from conventional commits:
