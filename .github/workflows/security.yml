@@ -70,6 +70,7 @@ jobs:
         with:
           languages: javascript
           queries: security-extended
+          config-file: .github/codeql/codeql-config.yml
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
       - name: Perform CodeQL analysis

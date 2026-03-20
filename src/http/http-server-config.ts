@@ -13,7 +13,21 @@ import {
 import { httpLogger } from '../utils/structured-logger.js';
 import { httpMetricsMiddleware } from './http-metrics-middleware.js';
 
-type HelmetFactory = (options?: { contentSecurityPolicy?: false }) => express.RequestHandler;
+/** Minimal CSP for API server (no HTML UI); satisfies security scanners while avoiding breakage. */
+const HELMET_CSP = {
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    imgSrc: ["'self'"],
+    connectSrc: ["'self'"],
+    fontSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'"],
+    frameSrc: ["'none'"],
+    frameAncestors: ["'self'"]
+  }
+} as const;
 
 function createRateLimiter(options: {
     identifier: string;
@@ -43,8 +57,7 @@ export function configureMiddleware(app: express.Express) {
     app.use(httpLogger);
     // HTTP metrics middleware for Prometheus
     app.use(httpMetricsMiddleware);
-    const applyHelmet = helmet as unknown as HelmetFactory;
-    app.use(applyHelmet({ contentSecurityPolicy: false }));
+    app.use(helmet({ contentSecurityPolicy: HELMET_CSP }));
     app.use('/auth', createRateLimiter({
         identifier: 'auth',
         windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
