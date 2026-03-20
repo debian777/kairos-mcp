@@ -86,6 +86,7 @@ flowchart TB
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
 | Integration | `integration` | — |
+| Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
 | Publish npm | `publish` | — |

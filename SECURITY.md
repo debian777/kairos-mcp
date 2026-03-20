@@ -59,5 +59,17 @@ deliverables.
 
 - Generate a CycloneDX SBOM for the release container image.
 - Sign published container images with Cosign keyless signing.
+- Trivy container scan (CRITICAL/HIGH) before creating the GitHub Release.
 - Keep Renovate vulnerability alerts enabled and prioritize security updates.
+
+## CI security scans
+
+The **Security** workflow (`.github/workflows/security.yml`) runs on PRs, push to
+main, and weekly:
+
+- **Dependency review** (PRs only): blocks merging if new dependencies introduce
+  high/critical vulnerabilities or policy violations.
+- **npm audit**: fails on high/critical vulnerabilities in the dependency tree.
+- **CodeQL**: static analysis (SAST) for JavaScript/TypeScript (security-extended
+  queries). Results appear under the repo’s Security → Code scanning tab.
 

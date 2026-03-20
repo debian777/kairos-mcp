@@ -187,6 +187,14 @@ jobs:
           path: kairos-mcp-${{ steps.version.outputs.version }}-sbom.cdx.json
           if-no-files-found: error
 
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: debian777/kairos-mcp:${{ steps.version.outputs.version }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+
   create-release:
     name: Create GitHub Release
     needs: [publish-npm, publish-docker]
