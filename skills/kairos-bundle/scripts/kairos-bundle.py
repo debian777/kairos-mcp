@@ -11,9 +11,9 @@ Usage:
   export  - save all protocols from spaces into --dir
   import  - mint all .md files from --dir into KAIROS (personal space)
 
-Run from repo root:
-  KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py export [--dir DIR]
-  KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py import [--dir DIR] [--force]
+Run from the skill directory (directory containing SKILL.md):
+  KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py export [--dir DIR]
+  KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py import [--dir DIR] [--force]
 """
 from __future__ import annotations
 
@@ -28,11 +28,10 @@ import urllib.request
 import venv
 from pathlib import Path
 
-# Skill dir (skills/kairos-bundle); repo root for cwd when re-exec
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
-VENV_DIR = SCRIPT_DIR / ".venv"
-REQUIREMENTS = SCRIPT_DIR / "requirements.txt"
+# Skill root (directory containing SKILL.md); works in-repo or when skill is installed elsewhere
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+VENV_DIR = SKILL_ROOT / ".venv"
+REQUIREMENTS = SKILL_ROOT / "requirements.txt"
 
 
 def _venv_python() -> Path:
@@ -58,7 +57,7 @@ def _ensure_venv_and_install() -> bool:
     if REQUIREMENTS.exists():
         rc = subprocess.run(
             [str(py), "-m", "pip", "install", "--quiet", "-r", str(REQUIREMENTS)],
-            cwd=REPO_ROOT,
+            cwd=SKILL_ROOT,
             capture_output=True,
             timeout=120,
         )
@@ -312,6 +311,6 @@ if __name__ == "__main__":
             sys.exit(1)
         py = _venv_python()
         script_abs = Path(__file__).resolve()
-        rc = subprocess.run([str(py), str(script_abs)] + sys.argv[1:], cwd=REPO_ROOT)
+        rc = subprocess.run([str(py), str(script_abs)] + sys.argv[1:], cwd=SKILL_ROOT)
         sys.exit(rc.returncode)
     sys.exit(main())
