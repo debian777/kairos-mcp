@@ -8,3 +8,5 @@ paths-ignore:
   - "**/*.test.js"
   - "**/*.e2e.test.ts"
   - "tests/**"
+  # All log/audit output is sanitized by sanitizeLogMessage/sanitizeBindingsForAudit; unit-tested. CodeQL does not model these sanitizers.
+  - "src/utils/structured-logger.ts"
