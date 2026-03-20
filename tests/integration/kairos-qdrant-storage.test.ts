@@ -7,19 +7,20 @@ import { request as httpsRequest } from 'node:https';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
 
 function postJson<T>(urlString: string, payload: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
     const url = new URL(urlString);
     const requestImpl = url.protocol === 'https:' ? httpsRequest : httpRequest;
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (QDRANT_API_KEY) headers['api-key'] = QDRANT_API_KEY;
 
     const req = requestImpl(
       url,
       {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        }
+        headers
       },
       (res) => {
         let data = '';
