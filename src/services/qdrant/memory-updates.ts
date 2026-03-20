@@ -24,6 +24,7 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
       }
 
       const existingPayload = existingPoint.payload as any;
+      const actorId = getSpaceContext().userId || 'system';
       const updatedAi = {
         ...(existingPayload.ai || {}),
         ...((updates.ai || {}) as any),
@@ -41,7 +42,10 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
         ...(updates.type && { type: updates.type }),
         ...(updates.tags && { tags: updates.tags }),
         ai: updatedAi,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        modified_at: new Date().toISOString(),
+        modified_by: actorId,
+        created_by: existingPayload.created_by ?? actorId
       };
 
       let vector: number[] = [];
@@ -103,6 +107,7 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
         throw new KairosError(`Memory with ID ${id} not found`, 'MEMORY_NOT_FOUND', 404);
       }
       const existingPayload = existingPoint.payload as any;
+      const actorId = getSpaceContext().userId || 'system';
 
       let newQualityMetadata = existingPayload.quality_metadata;
       const shouldRecalculateQuality = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
@@ -127,6 +132,9 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
         space_id: existingPayload.space_id ?? defaultSpaceId,
         ...updates,
         updated_at: new Date().toISOString(),
+        modified_at: new Date().toISOString(),
+        modified_by: actorId,
+        created_by: existingPayload.created_by ?? actorId,
         quality_metadata: newQualityMetadata
       };
 

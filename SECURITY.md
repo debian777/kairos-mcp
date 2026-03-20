@@ -42,3 +42,22 @@ localhost.
 - Keep dependencies up to date to receive security patches.
 - Ensure the `data/` directory is not publicly accessible.
 
+## Threat model and incident response
+
+Security operations depend on an up-to-date threat model and repeatable
+incident handling procedure.
+
+- Review the [Threat model](docs/security/threat-model.md) before major auth,
+  storage, or pipeline changes.
+- Use the [Incident response runbook](docs/security/incident-runbook.md) for
+  request-level triage, containment, and post-incident actions.
+
+## Release supply-chain controls
+
+The release workflow includes artifact provenance controls for container
+deliverables.
+
+- Generate a CycloneDX SBOM for the release container image.
+- Sign published container images with Cosign keyless signing.
+- Keep Renovate vulnerability alerts enabled and prioritize security updates.
+

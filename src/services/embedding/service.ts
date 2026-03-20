@@ -13,9 +13,9 @@
  */
 
 import { logger } from '../../utils/logger.js';
-import { EMBEDDING_PROVIDER, OPENAI_API_KEY, TEI_BASE_URL, TEI_MODEL, TEI_API_KEY } from '../../config.js';
-import { OPENAI_EMBEDDING_MODEL, TEI_EMBEDDING_ENDPOINT, getResolvedEmbeddingDimension, setResolvedEmbeddingDimension } from './config.js';
-import { postEmbeddings, postEmbeddingsOpenAI, postEmbeddingsTEI } from './providers.js';
+import { EMBEDDING_PROVIDER, OPENAI_API_KEY, TEI_BASE_URL, TEI_MODEL } from '../../config.js';
+import { OPENAI_EMBEDDING_MODEL, getResolvedEmbeddingDimension } from './config.js';
+import { postEmbeddings } from './providers.js';
 import type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
 import {
   embeddingRequests,
@@ -24,7 +24,13 @@ import {
   embeddingVectorSize,
   embeddingBatchSize
 } from '../metrics/embedding-metrics.js';
-import { getTenantId } from '../../utils/tenant-context.js';
+import { getRequestIdFromStorage, getTenantId } from '../../utils/tenant-context.js';
+import {
+  detectEmbeddingAnomalies,
+  logEmbeddingAuditError,
+  logEmbeddingAuditSuccess
+} from './audit.js';
+import { runEmbeddingHealthCheck } from './health.js';
 
 // Re-export types
 export type { EmbeddingResult, BatchEmbeddingResult } from './types.js';
@@ -34,17 +40,37 @@ export class EmbeddingService {
         return getResolvedEmbeddingDimension();
     }
 
+    private getModelName(provider: 'openai' | 'tei' | 'local'): string {
+        return provider === 'tei' ? TEI_MODEL : OPENAI_EMBEDDING_MODEL;
+    }
+
     async generateEmbedding(text: string): Promise<EmbeddingResult> {
         const tenantId = getTenantId();
+        const requestId = getRequestIdFromStorage();
         const provider = this.getProvider();
+        const model = this.getModelName(provider);
         const timer = embeddingDuration.startTimer({ provider, tenant_id: tenantId });
+        const startedAt = Date.now();
+        const normalizedText = text?.trim() || '';
+        const inputCharLength = normalizedText.length;
         
         try {
-            if (!text || text.trim().length === 0) throw new Error('Text cannot be empty for embedding generation');
-            const vectors = await postEmbeddings(text.trim());
+            if (!normalizedText) throw new Error('Text cannot be empty for embedding generation');
+            const vectors = await postEmbeddings(normalizedText);
             const embedding = vectors?.[0];
             if (!Array.isArray(embedding)) throw new Error('OpenAI returned no embedding');
-            if (embedding.length !== this.embeddingDimension) throw new Error(`Embedding dimension mismatch: got ${embedding.length}, expected ${this.embeddingDimension}`);
+            const latencyMs = Date.now() - startedAt;
+            const anomaly = detectEmbeddingAnomalies({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                latencyMs,
+                expectedDimension: this.embeddingDimension,
+                actualDimension: embedding.length,
+                sampleEmbedding: embedding
+            });
+            if (anomaly.hasCritical) throw new Error(`Embedding dimension mismatch: got ${embedding.length}, expected ${this.embeddingDimension}`);
             
             embeddingRequests.inc({ 
                 provider, 
@@ -55,6 +81,16 @@ export class EmbeddingService {
             // Track vector size (assuming float32, 4 bytes per float)
             const vectorSize = embedding.length * 4;
             embeddingVectorSize.observe({ provider, tenant_id: tenantId }, vectorSize);
+            logEmbeddingAuditSuccess({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                inputCount: 1,
+                inputCharLength,
+                outputDimension: embedding.length,
+                latencyMs
+            });
             
             timer({ provider, tenant_id: tenantId });
             
@@ -74,6 +110,17 @@ export class EmbeddingService {
                 status: 'error',
                 tenant_id: tenantId 
             });
+            logEmbeddingAuditError({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                inputCount: 1,
+                inputCharLength,
+                outputDimension: 0,
+                latencyMs: Date.now() - startedAt,
+                errorMessage: error instanceof Error ? error.message : String(error)
+            });
             timer({ provider, tenant_id: tenantId });
             throw error;
         }
@@ -81,23 +128,39 @@ export class EmbeddingService {
 
     async generateBatchEmbeddings(texts: string[]): Promise<BatchEmbeddingResult> {
         const tenantId = getTenantId();
+        const requestId = getRequestIdFromStorage();
         const provider = this.getProvider();
+        const model = this.getModelName(provider);
         const timer = embeddingDuration.startTimer({ provider, tenant_id: tenantId });
+        const startedAt = Date.now();
+        let inputCount = 0;
+        let inputCharLength = 0;
         
         try {
             const valid = texts.filter(t => t && t.trim().length > 0);
             if (valid.length === 0) throw new Error('No valid texts provided for batch embedding');
+            inputCount = valid.length;
+            inputCharLength = valid.reduce((sum, value) => sum + value.trim().length, 0);
             
             // Track batch size
             embeddingBatchSize.observe({ tenant_id: tenantId }, valid.length);
             
             const vectors = await postEmbeddings(valid);
-            // Validate each vector length
+            const outputDimension = Array.isArray(vectors[0]) ? vectors[0].length : 0;
+            const latencyMs = Date.now() - startedAt;
             const wrongDim = vectors.some(v => !Array.isArray(v) || v.length !== this.embeddingDimension);
-            if (wrongDim) {
-                logger.error('[EmbeddingService] One or more embeddings returned with unexpected dimension');
-                throw new Error('One or more embeddings have unexpected dimension from OpenAI');
-            }
+            if (wrongDim) logger.error('[EmbeddingService] One or more embeddings returned with unexpected dimension');
+            const anomaly = detectEmbeddingAnomalies({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                latencyMs,
+                expectedDimension: this.embeddingDimension,
+                actualDimension: wrongDim ? -1 : outputDimension,
+                sampleEmbedding: Array.isArray(vectors[0]) ? vectors[0] : []
+            });
+            if (wrongDim || anomaly.hasCritical) throw new Error('One or more embeddings have unexpected dimension from provider');
             
             embeddingRequests.inc({ 
                 provider, 
@@ -112,6 +175,16 @@ export class EmbeddingService {
                     embeddingVectorSize.observe({ provider, tenant_id: tenantId }, vectorSize);
                 }
             }
+            logEmbeddingAuditSuccess({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                inputCount,
+                inputCharLength,
+                outputDimension,
+                latencyMs
+            });
             
             timer({ provider, tenant_id: tenantId });
             
@@ -130,6 +203,17 @@ export class EmbeddingService {
                 provider, 
                 status: 'error',
                 tenant_id: tenantId 
+            });
+            logEmbeddingAuditError({
+                tenantId,
+                requestId,
+                provider,
+                model,
+                inputCount,
+                inputCharLength,
+                outputDimension: 0,
+                latencyMs: Date.now() - startedAt,
+                errorMessage: error instanceof Error ? error.message : String(error)
             });
             timer({ provider, tenant_id: tenantId });
             throw error;
@@ -168,115 +252,7 @@ export class EmbeddingService {
     }
 
     async healthCheck(): Promise<{ healthy: boolean; message: string }> {
-        try {
-            const providerPref = EMBEDDING_PROVIDER;
-
-            if (providerPref === 'openai') {
-                // Explicit OpenAI only - enforce duo
-                if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) {
-                    return { healthy: false, message: 'OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL' };
-                }
-                try {
-                    const res = await postEmbeddingsOpenAI('health check');
-                    return { healthy: Array.isArray(res) && res.length > 0, message: 'openai embeddings operational' };
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (msg.includes('429')) return { healthy: true, message: 'openai is rate-limited (429) - reachable but throttled' };
-                    if (msg.includes('401') || msg.toLowerCase().includes('authentication')) return { healthy: false, message: 'openai authentication failed - check OPENAI_API_KEY' };
-                    return { healthy: false, message: `openai health check failed: ${msg}` };
-                }
-            }
-
-            if (providerPref === 'tei') {
-                // Explicit TEI only - enforce duo
-                if (!TEI_BASE_URL || !TEI_MODEL) {
-                    return { healthy: false, message: 'TEI requires TEI_BASE_URL and TEI_MODEL' };
-                }
-                try {
-                    const res = await postEmbeddingsTEI('health check');
-                    return { healthy: Array.isArray(res) && res.length > 0, message: 'TEI embeddings operational' };
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (msg.includes('401')) return { healthy: false, message: 'TEI authentication failed (401)' };
-                    if (msg.includes('429')) return { healthy: true, message: 'TEI is rate-limited (429) - reachable but throttled' };
-                    return { healthy: false, message: `TEI health check failed: ${msg}` };
-                }
-            }
-
-            // Auto mode: prefer OpenAI if both OPENAI vars are present, otherwise TEI
-            if (OPENAI_API_KEY && OPENAI_EMBEDDING_MODEL) {
-                try {
-                    const res = await postEmbeddingsOpenAI('health check');
-                    return { healthy: Array.isArray(res) && res.length > 0, message: 'openai embeddings operational' };
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    logger.warn(`[EmbeddingService] OpenAI health check failed, trying TEI fallback: ${msg}`);
-                }
-            }
-
-            if (TEI_BASE_URL && TEI_MODEL) {
-                try {
-                    const url = TEI_EMBEDDING_ENDPOINT || TEI_BASE_URL;
-                    const payload = { model: TEI_MODEL, input: ['health check'] };
-                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                    if (TEI_API_KEY) headers['x-api-key'] = TEI_API_KEY;
-
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify(payload)
-                    });
-
-                    let data: any = null;
-                    try {
-                        data = await resp.json();
-                    } catch (parseErr) {
-                        logger.warn(`[EmbeddingService] TEI returned non-JSON response: ${String(parseErr)}`);
-                    }
-
-                    if (!resp.ok) {
-                        if (resp.status === 401) {
-                            return { healthy: false, message: 'TEI authentication failed (401)' };
-                        }
-                        if (resp.status === 429) {
-                            return { healthy: true, message: 'TEI is rate-limited (429) - reachable but throttled' };
-                        }
-                        return { healthy: false, message: `TEI returned HTTP ${resp.status}` };
-                    }
-
-                    // Accept several TEI response shapes:
-                    // - { embeddings: [ [..], ... ] }
-                    // - { data: [ { embedding: [...] }, ... ] }
-                    // - { result: [ ... ] } (some servers)
-                    let embeddings: any = null;
-                    if (Array.isArray(data?.embeddings)) {
-                        embeddings = data.embeddings;
-                    } else if (Array.isArray(data?.data)) {
-                        embeddings = data.data.map((d: any) => d?.embedding ?? d);
-                    } else if (Array.isArray(data?.result)) {
-                        embeddings = data.result;
-                    } else if (Array.isArray(data)) {
-                        embeddings = data;
-                    }
-
-                    if (Array.isArray(embeddings) && embeddings.length > 0 && Array.isArray(embeddings[0])) {
-                        const dim = embeddings[0].length;
-                        setResolvedEmbeddingDimension(dim);
-                        return { healthy: true, message: 'TEI embeddings operational' };
-                    }
-
-                    return { healthy: false, message: 'TEI returned unexpected embedding shape or no embeddings' };
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    return { healthy: false, message: `TEI health check error: ${msg}` };
-                }
-            }
-
-            return { healthy: false, message: 'No embedding provider configured (set OPENAI_API_KEY+OPENAI_EMBEDDING_MODEL or TEI_BASE_URL+TEI_MODEL)' };
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            return { healthy: false, message: `Embedding health check error: ${msg}` };
-        }
+        return runEmbeddingHealthCheck();
     }
 
     getProvider(): 'openai' | 'tei' | 'local' {

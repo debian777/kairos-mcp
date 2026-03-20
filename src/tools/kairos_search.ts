@@ -4,7 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage, getSpaceIdFromStorage } from '../utils/tenant-context.js';
+import { getRequestIdFromStorage, getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage, getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import {
   SCORE_THRESHOLD,
@@ -15,6 +15,7 @@ import {
 } from '../config.js';
 import { createResults, generateUnifiedOutput } from './kairos_search_output.js';
 import { searchInputSchema, searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
+import { logSearchAnomaly } from '../services/embedding/audit.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
@@ -91,6 +92,8 @@ async function doSearch(
   searchQuery: string,
   effectiveLimit: number
 ): Promise<SearchOutput> {
+  const tenantId = getTenantId();
+  const requestId = getRequestIdFromStorage();
   const candidateMap = await searchAndBuildCandidates(
     memoryStore,
     searchQuery,
@@ -102,6 +105,13 @@ async function doSearch(
     headCandidates = headCandidates.slice(0, effectiveLimit);
   }
   const results = headCandidates.length > 0 ? createResults(headCandidates, SCORE_THRESHOLD) : [];
+  logSearchAnomaly({
+    tenantId,
+    requestId,
+    resultCount: results.length,
+    queryLength: searchQuery.length,
+    topScore: results[0]?.score ?? null
+  });
   return generateUnifiedOutput(results, qdrantService, {
     refiningUri: REFINING_PROTOCOL_URI,
     refiningNextAction: REFINING_NEXT_ACTION,

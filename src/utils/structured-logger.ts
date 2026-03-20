@@ -12,8 +12,9 @@
 
 import pino from 'pino';
 import type { Request, Response } from 'express';
+import { createWriteStream, type WriteStream } from 'node:fs';
 import { getBaseLogger } from './log-core.js';
-import { LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
+import { AUDIT_LOG_FILE, LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
 
 const TRUSTED_PROXY_CIDRS = (process.env['TRUSTED_PROXY_CIDRS'] || '')
   .split(',')
@@ -36,6 +37,31 @@ function getClientIp(req: Request): string {
 }
 
 const baseLogger = getBaseLogger();
+let auditLogStream: WriteStream | null = null;
+
+if (AUDIT_LOG_FILE) {
+  try {
+    auditLogStream = createWriteStream(AUDIT_LOG_FILE, { flags: 'a' });
+  } catch {
+    auditLogStream = null;
+  }
+}
+
+function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', message: string, bindings: Record<string, unknown>): void {
+  if (!auditLogStream) return;
+  const category = typeof bindings['category'] === 'string' ? bindings['category'] : '';
+  if (!category.startsWith('audit.')) return;
+  try {
+    auditLogStream.write(`${JSON.stringify({
+      time: new Date().toISOString(),
+      level,
+      msg: message,
+      ...bindings
+    })}\n`);
+  } catch {
+    // Never fail request path because audit side-stream write fails.
+  }
+}
 
 // HTTP logging middleware
 const httpLogger = (req: Request, res: Response, next: Function): void => {
@@ -84,6 +110,7 @@ export interface StructuredLoggerApi {
   info(message: string): void;
   info(bindings: Record<string, unknown>, message: string): void;
   warn(message: string): void;
+  warn(bindings: Record<string, unknown>, message: string): void;
   error(message: string, error?: Error | unknown): void;
   error(message: string, error: Error | unknown, options: ErrorLogOptions): void;
   tool(toolName: string, operation: ToolOperation, details: string): void;
@@ -105,14 +132,38 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
-        pinoInstance.info({ category: 'info' }, msgOrBindings);
+        const bindings = { category: 'info' };
+        pinoInstance.info(bindings, msgOrBindings);
+        maybeWriteAuditLine('info', msgOrBindings, bindings);
       } else {
-        pinoInstance.info({ ...msgOrBindings, category: 'info' }, (message ?? ''));
+        const existingCategory = typeof msgOrBindings['category'] === 'string'
+          ? msgOrBindings['category']
+          : undefined;
+        const bindings = existingCategory
+          ? { ...msgOrBindings }
+          : { ...msgOrBindings, category: 'info' };
+        const finalMessage = message ?? '';
+        pinoInstance.info(bindings, finalMessage);
+        maybeWriteAuditLine('info', finalMessage, bindings);
       }
     },
 
-    warn(message: string): void {
-      pinoInstance.warn({ category: 'warning' }, message);
+    warn(msgOrBindings: string | Record<string, unknown>, message?: string): void {
+      if (typeof msgOrBindings === 'string') {
+        const bindings = { category: 'warning' };
+        pinoInstance.warn(bindings, msgOrBindings);
+        maybeWriteAuditLine('warn', msgOrBindings, bindings);
+        return;
+      }
+      const existingCategory = typeof msgOrBindings['category'] === 'string'
+        ? msgOrBindings['category']
+        : undefined;
+      const bindings = existingCategory
+        ? { ...msgOrBindings }
+        : { ...msgOrBindings, category: 'warning' };
+      const finalMessage = message ?? '';
+      pinoInstance.warn(bindings, finalMessage);
+      maybeWriteAuditLine('warn', finalMessage, bindings);
     },
 
     error(message: string, error?: Error | unknown, options?: ErrorLogOptions): void {
@@ -130,6 +181,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           : error;
       }
       pinoInstance.error(bindings, message);
+      maybeWriteAuditLine('error', message, bindings);
     },
 
     tool(toolName: string, operation: ToolOperation, details: string): void {

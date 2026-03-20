@@ -7,6 +7,25 @@ import { executeMint, MintError } from '../tools/kairos_mint.js';
 import { mintInputSchema } from '../tools/kairos_mint_schema.js';
 import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
 
+const SAFE_MINT_DETAIL_KEYS = new Set([
+  'missing',
+  'must_obey',
+  'next_action',
+  'existing_memory',
+  'similarity_score',
+  'content_preview'
+]);
+
+function sanitizeMintDetails(details?: Record<string, unknown>): Record<string, unknown> {
+  if (!details) return {};
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (!SAFE_MINT_DETAIL_KEYS.has(key)) continue;
+    output[key] = value;
+  }
+  return output;
+}
+
 /**
  * Set up API route for raw markdown ingestion.
  * Builds MintInput from raw body + query/headers and returns executeMint result only (no metadata).
@@ -64,7 +83,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         res.status(400).json({
           error: error.code,
           message: error.message,
-          ...error.details
+          ...sanitizeMintDetails(error.details)
         });
         return;
       }
@@ -73,7 +92,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         res.status(409).json({
           error: 'DUPLICATE_CHAIN',
           message: 'Memory chain with this label already exists. Use --force flag to overwrite.',
-          ...(err.details || {})
+          ...sanitizeMintDetails(err.details)
         });
         return;
       }
@@ -95,7 +114,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       structuredLogger.error('✗ Store failed', error);
       res.status(500).json({
         error: 'STORE_FAILED',
-        message: err?.message ?? 'Failed to store markdown'
+        message: 'Failed to store markdown'
       });
     }
   });

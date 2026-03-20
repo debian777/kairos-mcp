@@ -60,7 +60,9 @@ export async function storeHeaderBasedChain(
   }
 
   const chainStepCount = headerChainMemories.length;
-  const spaceId = getSpaceContext().defaultWriteSpaceId;
+  const context = getSpaceContext();
+  const spaceId = context.defaultWriteSpaceId;
+  const actorId = context.userId || 'system';
 
   const points = headerChainMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
@@ -86,6 +88,9 @@ export async function storeHeaderBasedChain(
         text: memory.text,
         llm_model_id: memory.llm_model_id,
         created_at: memory.created_at,
+        created_by: actorId,
+        modified_at: memory.created_at,
+        modified_by: actorId,
         proof_of_work: memory.proof_of_work,
         task: dtt.task,
         type: dtt.type,

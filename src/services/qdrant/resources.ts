@@ -81,6 +81,8 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
       }
 
       const spaceId = getSpaceContext().defaultWriteSpaceId;
+      const actorId = getSpaceContext().userId || 'system';
+      const nowIso = new Date().toISOString();
       const payload = {
         space_id: spaceId,
         uuid: payloadUuid,
@@ -94,8 +96,11 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
         ai: aiWithContext,
         uri: kbUri,
         version,
-        created_at: isUpdate ? existingPayload?.['created_at'] : new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: isUpdate ? existingPayload?.['created_at'] : nowIso,
+        created_by: isUpdate ? existingPayload?.['created_by'] ?? actorId : actorId,
+        updated_at: nowIso,
+        modified_at: nowIso,
+        modified_by: actorId,
         quality_metadata: item.quality_metadata || {
           step_quality_score: 1,
           step_quality: 'standard'

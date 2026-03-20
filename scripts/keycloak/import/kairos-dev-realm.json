@@ -12,6 +12,9 @@
   "accessCodeLifespanUserAction": 300,
   "accessCodeLifespanLogin": 1800,
   "groups": [
+    { "name": "kairos-admin" },
+    { "name": "kairos-auditor" },
+    { "name": "kairos-operator" },
     { "name": "kairos-team-platform" },
     { "name": "kairos-team-sre" }
   ],

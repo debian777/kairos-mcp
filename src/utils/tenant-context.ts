@@ -17,6 +17,7 @@ export interface SpaceContext {
   groupIds: string[];
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
+  requestId?: string;
 }
 
 /** Sentinel for "no context" when restoring after runWithSpaceContextAsync (enterWith does not accept undefined). */
@@ -24,7 +25,8 @@ const NO_CONTEXT_SENTINEL: SpaceContext = {
   userId: '',
   groupIds: [],
   allowedSpaceIds: [],
-  defaultWriteSpaceId: ''
+  defaultWriteSpaceId: '',
+  requestId: ''
 };
 
 const spaceStorage = new AsyncLocalStorage<SpaceContext>();
@@ -35,7 +37,8 @@ function defaultSpaceContext(): SpaceContext {
     userId: '',
     groupIds: [],
     allowedSpaceIds: [spaceId],
-    defaultWriteSpaceId: spaceId
+    defaultWriteSpaceId: spaceId,
+    requestId: ''
   };
 }
 
@@ -45,7 +48,8 @@ function noDefaultSpaceContext(): SpaceContext {
     userId: '',
     groupIds: [],
     allowedSpaceIds: [],
-    defaultWriteSpaceId: NO_AUTH_SPACE_ID
+    defaultWriteSpaceId: NO_AUTH_SPACE_ID,
+    requestId: ''
   };
 }
 
@@ -89,6 +93,12 @@ export function getSpaceContextFromStorage(): SpaceContext {
 /** Current space id for Redis key prefix and similar; uses storage or KAIROS_APP_SPACE_ID when auth off. */
 export function getSpaceIdFromStorage(): string {
   return getSpaceContextFromStorage().defaultWriteSpaceId;
+}
+
+/** Correlation id propagated through AsyncLocalStorage for forensic tracing. */
+export function getRequestIdFromStorage(): string {
+  const requestId = getSpaceContextFromStorage().requestId;
+  return requestId && requestId.trim().length > 0 ? requestId : 'no-request-id';
 }
 
 /**
@@ -149,13 +159,21 @@ function fromAuthPayload(
 export function getSpaceContext(request?: {
   auth?: { sub: string; groups: string[]; realm?: string; group_ids?: string[] };
   spaceContext?: SpaceContext;
+  requestId?: string;
+  headers?: { [key: string]: unknown };
 }): SpaceContext {
   if (request?.spaceContext) return request.spaceContext;
   const stored = spaceStorage.getStore();
   if (stored) return stored;
-  if (!AUTH_ENABLED) return defaultSpaceContext();
+  const requestId =
+    typeof request?.requestId === 'string'
+      ? request.requestId
+      : typeof request?.headers?.['x-request-id'] === 'string'
+        ? request.headers['x-request-id']
+        : '';
+  if (!AUTH_ENABLED) return { ...defaultSpaceContext(), requestId };
   const auth = request?.auth;
-  if (!auth?.sub) return noDefaultSpaceContext();
+  if (!auth?.sub) return { ...noDefaultSpaceContext(), requestId };
   const realm = auth.realm ?? 'default';
   const { allowedSpaceIds, defaultWriteSpaceId } = fromAuthPayload(
     auth.sub,
@@ -167,7 +185,8 @@ export function getSpaceContext(request?: {
     userId: auth.sub,
     groupIds: auth.groups ?? [],
     allowedSpaceIds,
-    defaultWriteSpaceId
+    defaultWriteSpaceId,
+    requestId
   };
 }
 

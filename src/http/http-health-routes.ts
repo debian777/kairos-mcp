@@ -65,6 +65,15 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             dependencies['cache'] = 'healthy (memory)';
         }
 
+        const details: Record<string, string> = {
+            cacheBackend: USE_REDIS ? 'redis' : 'memory'
+        };
+        if (req.auth?.sub) {
+            details['embedding'] = teiHealth.message;
+            details['provider'] = embeddingCfg.provider || 'auto';
+            details['providerPref'] = (embeddingCfg as any).providerPref || 'auto';
+        }
+
         res.status(statusCode).json({
             status: healthStatus,
             service: 'KAIROS',
@@ -72,12 +81,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             transport: 'http',
             uptime: uptime,
             dependencies,
-            details: {
-                embedding: teiHealth.message,
-                provider: embeddingCfg.provider || 'auto',
-                providerPref: (embeddingCfg as any).providerPref || 'auto',
-                cacheBackend: USE_REDIS ? 'redis' : 'memory'
-            }
+            details
         });
     });
 

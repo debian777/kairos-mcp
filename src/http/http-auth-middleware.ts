@@ -147,6 +147,7 @@ declare global {
     interface Request {
       auth?: AuthPayload;
       spaceContext?: SpaceContext;
+      requestId?: string;
     }
   }
 }
@@ -172,6 +173,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   );
 
   function runNext(ctx: SpaceContext): void {
+    const requestId = req.requestId || req.get('x-request-id') || '';
+    ctx = { ...ctx, requestId };
     const spaceParam = (req.query?.['space'] ?? req.query?.['space_id']) as string | undefined;
     if (spaceParam && typeof spaceParam === 'string') {
       if (!ctx.allowedSpaceIds.includes(spaceParam)) {

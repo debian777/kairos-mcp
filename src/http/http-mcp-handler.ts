@@ -182,7 +182,11 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             await server.connect(transport as Parameters<typeof server.connect>[0]);
             (transport as any)._requestContext = req;
 
-            const spaceCtx = req.spaceContext ?? getSpaceContext(req);
+            const requestIdFromHttp = (req as express.Request & { requestId?: string }).requestId;
+            const spaceCtx = {
+              ...(req.spaceContext ?? getSpaceContext(req)),
+              requestId: requestIdFromHttp || requestId || ''
+            };
             await runWithSpaceContextAsync(spaceCtx, async () => {
               await mcpRequestStore.run({ req, transport }, async () => {
                 await transport.handleRequest(
