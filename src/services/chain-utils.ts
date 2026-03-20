@@ -100,10 +100,3 @@ export async function resolveChainPreviousStep(
     if (prev && prev.uuid) return { uuid: prev.uuid, label: prev.label, step: prev.step, count };
     return undefined;
 }
-
-export default {
-    resolveFirstStep,
-    resolveChainFirstStep,
-    resolveChainNextStep,
-    resolveChainPreviousStep
-};
