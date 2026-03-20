@@ -1,6 +1,6 @@
 import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 import { getPrompts, getPrompt } from './embedded-mcp-resources.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 
 type PromptOverride = {
   title?: string;

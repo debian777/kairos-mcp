@@ -1,5 +1,5 @@
 import { getResource, getResources } from './embedded-mcp-resources.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 
 function mdOrFallback(uri: any, text?: string, notFound: string = 'Document not found') {
   return {

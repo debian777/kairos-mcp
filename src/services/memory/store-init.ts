@@ -1,5 +1,5 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import type { VectorDescriptorMap } from '../../utils/qdrant-vector-types.js';
 import { getVectorDescriptors, createQdrantCollection, getCollectionVectorConfig, addVectorsToCollection, migrateVectorSpace, removeVectorFromCollection, countPointsWithVector, getVectorSize } from '../../utils/qdrant-utils.js';
 import { embeddingService } from '../embedding/service.js';

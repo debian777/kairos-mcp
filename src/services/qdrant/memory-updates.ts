@@ -3,7 +3,7 @@ import { retrieveById, retrieveAccessiblePointById } from './memory-retrieval.js
 import { embeddingService } from '../embedding/service.js';
 import { sanitizeAndUpsert, validateAndConvertId } from './utils.js';
 import { redisCacheService } from '../redis-cache.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { KairosError } from '../../types/index.js';
 import { qdrantOperations, qdrantOperationDuration, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';

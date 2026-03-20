@@ -19,7 +19,10 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
       }
 
       if (req.body?.solution == null) {
-        structuredLogger.info(`-> POST /api/kairos_next (uri: ${uri}, no solution)`);
+        structuredLogger.info(
+          { uri, event: 'kairos_next_request' },
+          '-> POST /api/kairos_next (no solution)'
+        );
         const result = await buildMissingSolutionPayload(memoryStore, uri);
         res.status(200).json(result);
         return;
@@ -37,7 +40,10 @@ export function setupNextRoute(app: express.Express, memoryStore: MemoryQdrantSt
         return;
       }
 
-      structuredLogger.info(`-> POST /api/kairos_next (uri: ${parsed.data.uri})`);
+      structuredLogger.info(
+        { uri: parsed.data.uri, event: 'kairos_next_request' },
+        '-> POST /api/kairos_next'
+      );
       const result = await executeNext(memoryStore, qdrantService, parsed.data, 'http');
       res.status(200).json(result);
       return;

@@ -2,7 +2,7 @@ import type { QdrantConnection } from './connection.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { updateQualityMetrics } from './quality.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { redisCacheService } from '../redis-cache.js';
 import { retrieveAccessiblePointById } from './memory-retrieval.js';
 

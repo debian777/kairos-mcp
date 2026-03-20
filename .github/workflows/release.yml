@@ -97,6 +97,16 @@ jobs:
           fi
           exit 1
 
+      - name: Generate npm CycloneDX SBOM
+        run: npx @cyclonedx/cyclonedx-npm@latest --output-file kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json --output-format json
+
+      - name: Upload npm SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-sbom
+          path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json
+          if-no-files-found: error
+
   publish-docker:
     name: Publish Docker image
     needs: publish-npm
@@ -221,6 +231,11 @@ jobs:
             *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
+      - name: Download npm SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-sbom
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -230,3 +245,4 @@ jobs:
           draft: false
           # Hyphenated tags (v*.*.*-*) must be pre-releases so "Latest" stays on last stable
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
+          files: npm-sbom/*.cdx.json

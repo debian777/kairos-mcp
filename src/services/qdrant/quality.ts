@@ -1,7 +1,7 @@
 import { QdrantConnection } from './connection.js';
 import { KairosError } from '../../types/index.js';
 import { sanitizeAndUpsert } from './utils.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX } from '../../config.js';
 import { retrieveAccessiblePointById } from './memory-retrieval.js';

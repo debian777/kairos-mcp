@@ -22,7 +22,10 @@ export function setupDumpRoute(
         });
         return;
       }
-      structuredLogger.info(`-> POST /api/kairos_dump (uri: ${uri}, protocol: ${protocol})`);
+      structuredLogger.info(
+        { uri, protocol, event: 'kairos_dump_request' },
+        '-> POST /api/kairos_dump'
+      );
       const payload = await executeDump(memoryStore, qdrantService, {
         uri: uri.trim(),
         protocol: Boolean(protocol)

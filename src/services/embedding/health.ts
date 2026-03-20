@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import {
   EMBEDDING_PROVIDER,
   OPENAI_API_KEY,

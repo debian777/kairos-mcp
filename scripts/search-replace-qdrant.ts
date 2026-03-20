@@ -9,7 +9,7 @@
 import { QdrantConnection } from '../dist/services/qdrant/connection.js';
 import { embeddingService } from '../dist/services/embedding/service.js';
 import { sanitizeAndUpsert } from '../dist/services/qdrant/utils.js';
-import { logger } from '../dist/utils/logger.js';
+import { logger } from '../dist/utils/structured-logger.js';
 
 async function searchAndReplace(
   collectionName: string,

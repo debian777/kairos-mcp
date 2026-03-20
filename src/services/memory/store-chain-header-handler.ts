@@ -1,6 +1,6 @@
 import type { Memory } from '../../types/memory.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { embeddingService } from '../embedding/service.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';

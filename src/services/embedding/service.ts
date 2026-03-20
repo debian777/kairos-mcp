@@ -12,7 +12,7 @@
  *  - Otherwise, TEI_BASE_URL + TEI_MODEL will be used if configured.
  */
 
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { EMBEDDING_PROVIDER, OPENAI_API_KEY, TEI_BASE_URL, TEI_MODEL } from '../../config.js';
 import { OPENAI_EMBEDDING_MODEL, getResolvedEmbeddingDimension } from './config.js';
 import { postEmbeddings } from './providers.js';

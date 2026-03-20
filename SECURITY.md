@@ -57,7 +57,7 @@ incident handling procedure.
 The release workflow includes artifact provenance controls for container
 deliverables.
 
-- Generate a CycloneDX SBOM for the release container image.
+- Generate a CycloneDX SBOM for the release container image and attach it (and the npm package SBOM) to the GitHub Release.
 - Sign published container images with Cosign keyless signing.
 - Trivy container scan (CRITICAL/HIGH) before creating the GitHub Release.
 - Keep Renovate vulnerability alerts enabled and prioritize security updates.
@@ -72,4 +72,7 @@ main, and weekly:
 - **npm audit**: fails on high/critical vulnerabilities in the dependency tree.
 - **CodeQL**: static analysis (SAST) for JavaScript/TypeScript (security-extended
   queries). Results appear under the repo’s Security → Code scanning tab.
+
+To **require** these checks before merging and to enable **secret scanning**
+(and push protection), see [Code security setup](docs/security/code-security-setup.md).
 

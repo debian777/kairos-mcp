@@ -1,5 +1,5 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { logger } from './logger.js';
+import { logger } from './structured-logger.js';
 import { VectorDescriptorMap } from './qdrant-vector-types.js';
 import { createQdrantCollection } from './qdrant-collection-utils.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';

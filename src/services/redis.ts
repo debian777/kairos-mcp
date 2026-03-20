@@ -7,7 +7,7 @@
  */
 
 import { createClient, RedisClientType } from 'redis';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 import { REDIS_URL, KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';

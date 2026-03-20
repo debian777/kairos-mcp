@@ -4,7 +4,7 @@
  * publish() is a no-op (returns 0); no cross-process invalidation.
  */
 
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';

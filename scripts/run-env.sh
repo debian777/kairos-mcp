@@ -205,15 +205,21 @@ start() {
             fi
             dev_port="${PORT:-3300}"
             mcpr="${MAX_CONCURRENT_MCP_REQUESTS:-}"
+            # Use compiled dist/bootstrap.js when available (avoids ts-node loader crash on Node 25)
+            if [ -f "$PROJECT_DIR/dist/bootstrap.js" ]; then
+                dev_cmd="PORT=$dev_port LOG_LEVEL=debug npx -y dotenv -e $ENV_FILE -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS=\"$mcpr\"} node dist/bootstrap.js"
+            else
+                dev_cmd="PORT=$dev_port LOG_LEVEL=debug npx -y dotenv -e $ENV_FILE -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS=\"$mcpr\"} node --loader ts-node/esm src/bootstrap.ts"
+            fi
             case "$LOG_TARGET" in
                 file)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > "$LOG_FILE" 2>&1 &
+                    eval "$dev_cmd" > "$LOG_FILE" 2>&1 &
                     ;;
                 stdout)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts &
+                    eval "$dev_cmd" &
                     ;;
                 both)
-                    PORT="$dev_port" LOG_LEVEL=debug npx -y dotenv -e "$ENV_FILE" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS="$mcpr"} node --loader ts-node/esm src/index.ts > >(tee "$LOG_FILE") 2>&1 &
+                    eval "$dev_cmd" > >(tee "$LOG_FILE") 2>&1 &
                     ;;
             esac
 

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { KairosError } from '../../types/index.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 
 /**
  * Utility helpers extracted from original qdrant.ts

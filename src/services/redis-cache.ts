@@ -1,5 +1,5 @@
 import type { Memory } from '../types/memory.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 import { keyValueStore } from './key-value-store-factory.js';
 import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';

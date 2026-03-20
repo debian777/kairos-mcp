@@ -5,7 +5,7 @@ import { IDGenerator } from '../id-generator.js';
 import { buildDomainTypeTaskURI, buildProtocolStepURI } from '../../utils/uri-builder.js';
 import { sanitizeAndUpsert, validatePayload, validateAndConvertId } from './utils.js';
 import { redisCacheService } from '../redis-cache.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';

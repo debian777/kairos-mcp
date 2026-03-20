@@ -2,7 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { buildDomainTypeTaskURI, buildProtocolStepURI } from '../../utils/uri-builder.js';
 import { IDGenerator } from '../id-generator.js';
 import { sanitizeAndUpsert } from './utils.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { redisCacheService } from '../redis-cache.js';
 import { qdrantOperations, qdrantUpsertDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
