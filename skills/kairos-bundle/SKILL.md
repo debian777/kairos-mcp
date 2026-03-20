@@ -9,20 +9,29 @@ Export all KAIROS protocols to a directory of `.md` files, or import all `.md` f
 
 ## Prerequisites
 
+- **Python 3** — Interpreter to run the script.
+- **KAIROS CLI** — For obtaining a token (`kairos token`); must be on `PATH`.
+- **KAIROS MCP** — Server running and reachable (e.g. `KAIROS_API_URL` or default `http://localhost:3000`).
 - **KAIROS_TOKEN** — Bearer token (e.g. `KAIROS_TOKEN=$(kairos token)`).
 - **KAIROS_API_URL** — Optional; default `http://localhost:3000`.
 
 ## Run the script
 
-From the **repo root**:
+From the **skill directory** (the directory that contains this `SKILL.md` — e.g. `skills/kairos-bundle` in the repo or `~/.agents/skills/kairos-bundle` when installed):
 
 ```bash
 # Export: save all protocols from spaces into --dir
-KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py export [--dir DIR]
+KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py export [--dir DIR]
 
 # Import: mint all .md files from --dir into KAIROS (personal space)
-KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py import [--dir DIR]
+KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py import [--dir DIR]
 ```
+
+So the script path is always `scripts/kairos-bundle.py` relative to the skill directory; the agent should run these commands with the current working directory set to the skill directory.
+
+**Do not confuse:** the **skill directory** (cwd when running) is where the skill and script live. The **`--dir`** option is the **bundle directory** — where `.md` files are written (export) or read from (import); it is independent of the skill directory.
+
+**Critical — always use an absolute path for `--dir` when the user means a project path.** The script is run with cwd = skill directory (so `scripts/kairos-bundle.py` is found). Any relative path passed to `--dir` is then resolved relative to that cwd (e.g. `~/.agents/skills/kairos-bundle` when the skill is installed there). So if the user says e.g. "export to kairos/bundles/trunk", they mean relative to the **workspace/project root**, not the skill directory. The agent must resolve that path against the workspace root and pass the **absolute path** to `--dir` (e.g. `--dir /path/to/project/kairos/bundles/trunk` or `--dir "$(pwd)/kairos/bundles/trunk"` when the shell is already in the project root). Otherwise files will be written under the skill directory or `~/.agents`, which is wrong.
 
 ## Options
 
@@ -37,7 +46,18 @@ KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.
 
 ## Examples
 
+When the bundle directory is inside the user's project, use an absolute path (resolve from workspace root):
+
 ```bash
-KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py export --dir ./protocols --space "Personal"
-KAIROS_TOKEN=$(kairos token) python3 skills/kairos-bundle/scripts/kairos-bundle.py import --dir ./protocols --force
+# From project root; BUNDLE_DIR is absolute so it doesn't depend on skill cwd
+cd /path/to/project
+KAIROS_TOKEN=$(kairos token) python3 /path/to/skill/scripts/kairos-bundle.py export --dir "$(pwd)/kairos/bundles/trunk" --space "Personal"
+KAIROS_TOKEN=$(kairos token) python3 /path/to/skill/scripts/kairos-bundle.py import --dir "$(pwd)/kairos/bundles/trunk" --force
+```
+
+Or call from the skill directory and pass an absolute bundle path:
+
+```bash
+cd ~/.agents/skills/kairos-bundle   # or skills/kairos-bundle in repo
+KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py export --dir /path/to/project/kairos/bundles/trunk
 ```
