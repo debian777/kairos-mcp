@@ -97,6 +97,16 @@ jobs:
           fi
           exit 1
 
+      - name: Generate npm CycloneDX SBOM
+        run: npx @cyclonedx/cyclonedx-npm@latest --output-file kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json --output-format json
+
+      - name: Upload npm SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-sbom
+          path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json
+          if-no-files-found: error
+
   publish-docker:
     name: Publish Docker image
     needs: publish-npm
@@ -105,6 +115,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -142,6 +153,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push
+        id: build_push
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -157,6 +169,41 @@ jobs:
             quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign images (keyless)
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cosign sign "debian777/kairos-mcp:${{ steps.version.outputs.version }}"
+          cosign sign "debian777/kairos-mcp:latest"
+          cosign sign "quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}"
+          cosign sign "quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest"
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: debian777/kairos-mcp:${{ steps.version.outputs.version }}
+          format: cyclonedx-json
+          output-file: kairos-mcp-${{ steps.version.outputs.version }}-sbom.cdx.json
+          upload-artifact: false
+
+      - name: Upload CycloneDX SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom-${{ steps.version.outputs.version }}
+          path: kairos-mcp-${{ steps.version.outputs.version }}-sbom.cdx.json
+          if-no-files-found: error
+
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: debian777/kairos-mcp:${{ steps.version.outputs.version }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
   create-release:
     name: Create GitHub Release
@@ -184,6 +231,11 @@ jobs:
             *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
+      - name: Download npm SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-sbom
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -193,3 +245,4 @@ jobs:
           draft: false
           # Hyphenated tags (v*.*.*-*) must be pre-releases so "Latest" stays on last stable
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
+          files: npm-sbom/*.cdx.json

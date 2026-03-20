@@ -40,16 +40,15 @@ redacted by the logger. Avoid PII in free-form messages.
 
 ## Which logger to use
 
-- **`structuredLogger`** (from `src/utils/structured-logger.ts`): Use for
-  HTTP/MCP request flow, HTTP middleware, and any code that already uses
-  it. Supports `child()` for component context and
-  `error(..., { error_code, request_id })`.
-- **`logger`** (from `src/utils/logger.ts`): Use for services (Qdrant,
-  Redis, proof-of-work, memory). Same underlying Pino backend.
+There is a single logger surface: **`structuredLogger`** from
+`src/utils/structured-logger.ts`. **`logger`** is an alias for it (same
+module). Use `structuredLogger` for HTTP/MCP request flow and when you need
+`child()` for component context or `error(..., { error_code, request_id })`.
+Using `logger` is valid everywhere (e.g. services, Qdrant, Redis,
+proof-of-work, memory). Both names refer to the same Pino backend.
 
-Both loggers emit the same structured shape when `LOG_FORMAT=json`. Prefer
-one per file for consistency; use child loggers to add `component` or
-`module`.
+Prefer one name per file for consistency; use child loggers to add
+`component` or `module`.
 
 ## Using the logger in code
 
@@ -79,7 +78,7 @@ log.info({ duration_ms, result_count }, 'Search completed');
 ```
 
 ```ts
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 
 logger.info('Redis connected');
 logger.debug('Cache key hit');  // emitted only when LOG_LEVEL=debug

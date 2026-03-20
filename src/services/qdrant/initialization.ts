@@ -1,6 +1,6 @@
 import { QdrantConnection } from './connection.js';
 import { createQdrantCollection, getVectorDescriptors, getCollectionVectorConfig } from '../../utils/qdrant-utils.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { parseBooleanEnv } from './utils.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 

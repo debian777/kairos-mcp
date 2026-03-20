@@ -1,6 +1,6 @@
 import { QdrantConnection } from './connection.js';
 import { embeddingService } from '../embedding/service.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { qdrantOperations, qdrantQueryDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';

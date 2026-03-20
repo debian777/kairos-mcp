@@ -1,6 +1,6 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { readFileSync } from 'fs';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { parseBooleanEnv } from './utils.js';
 import { KairosError } from '../../types/index.js';
 

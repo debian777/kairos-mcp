@@ -80,7 +80,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         // Log incoming request with level control
         const logLevel = LOG_LEVEL;
         if (logLevel === 'debug' || method !== 'notifications/cancelled') {
-            structuredLogger.info(`→ MCP ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} [id: ${requestId}]`);
+            structuredLogger.info(
+                { event: 'mcp_request', mcp_method: method, mcp_tool_name: toolName, request_id: requestId },
+                'Incoming MCP request'
+            );
         }
 
         // listOfferingsForUI (MCP Apps / UI discovery): not implemented by SDK. Handle here so the client
@@ -114,7 +117,13 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         if (concurrentMcpRequests > MAX_CONCURRENT) {
             concurrentMcpRequests--;
             structuredLogger.warn(
-                `MCP request rejected: concurrent limit exceeded (${concurrentMcpRequests + 1} > ${MAX_CONCURRENT}) [request_id: ${requestId}]`
+                {
+                    event: 'mcp_request_rejected_concurrent_limit',
+                    current_concurrent: concurrentMcpRequests + 1,
+                    max_concurrent: MAX_CONCURRENT,
+                    request_id: requestId
+                },
+                'MCP request rejected: concurrent limit exceeded'
             );
             if (!res.headersSent) {
                 res.status(503).set('Retry-After', '5').json({
@@ -141,7 +150,16 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             const timeoutHandler = setTimeout(() => {
                 if (!requestCompleted) {
                     const duration = Date.now() - requestStart;
-                    structuredLogger.requestTimeout(`${method} ${toolName ? `(${toolName})` : ''} [id: ${requestId}]`, duration);
+                    structuredLogger.warn(
+                        {
+                            event: 'mcp_request_timeout',
+                            mcp_method: method,
+                            mcp_tool_name: toolName,
+                            request_id: requestId,
+                            duration_ms: duration
+                        },
+                        'MCP request timeout'
+                    );
                 }
             }, 25000); // Log at 25s (before typical 30s client timeout)
 
@@ -156,11 +174,26 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 if (method === 'notifications/cancelled') {
                     const originalStart = requestTimestamps.get(requestId);
                     const actualDuration = originalStart ? Date.now() - originalStart : duration;
-                    structuredLogger.warn(`⚡ Client cancelled request after ${actualDuration}ms [id: ${requestId}] - operation may continue in background`);
+                    structuredLogger.warn(
+                        { event: 'mcp_client_cancelled', duration_ms: actualDuration, request_id: requestId },
+                        'Client cancelled request - operation may continue in background'
+                    );
                 } else if (duration > 20000) {
-                    structuredLogger.warn(`← Request closed after ${duration}ms: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} [id: ${requestId}]`);
+                    structuredLogger.warn(
+                        {
+                            event: 'mcp_request_closed',
+                            duration_ms: duration,
+                            mcp_method: method,
+                            mcp_tool_name: toolName,
+                            request_id: requestId
+                        },
+                        'Request closed after threshold'
+                    );
                 } else if (logLevel === 'debug') {
-                    structuredLogger.info(`← Request closed ${duration}ms [id: ${requestId}]`);
+                    structuredLogger.info(
+                        { event: 'mcp_request_closed', duration_ms: duration, request_id: requestId },
+                        'Request closed'
+                    );
                 }
                 deleteTimestamp();
                 transport.close();
@@ -173,16 +206,32 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 const duration = Date.now() - requestStart;
 
                 if (duration > 10000 && method !== 'notifications/cancelled') {
-                    structuredLogger.info(`✓ Request completed in ${duration}ms: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} [id: ${requestId}]`);
+                    structuredLogger.info(
+                        {
+                            event: 'mcp_request_completed',
+                            duration_ms: duration,
+                            mcp_method: method,
+                            mcp_tool_name: toolName,
+                            request_id: requestId
+                        },
+                        'Request completed'
+                    );
                 } else if (logLevel === 'debug') {
-                    structuredLogger.info(`✓ Completed ${duration}ms [id: ${requestId}]`);
+                    structuredLogger.info(
+                        { event: 'mcp_request_completed', duration_ms: duration, request_id: requestId },
+                        'Completed'
+                    );
                 }
             });
 
             await server.connect(transport as Parameters<typeof server.connect>[0]);
             (transport as any)._requestContext = req;
 
-            const spaceCtx = req.spaceContext ?? getSpaceContext(req);
+            const requestIdFromHttp = (req as express.Request & { requestId?: string }).requestId;
+            const spaceCtx = {
+              ...(req.spaceContext ?? getSpaceContext(req)),
+              requestId: requestIdFromHttp || requestId || ''
+            };
             await runWithSpaceContextAsync(spaceCtx, async () => {
               await mcpRequestStore.run({ req, transport }, async () => {
                 await transport.handleRequest(
@@ -197,13 +246,19 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             clearTimeout(timeoutHandler);
         } catch (error) {
             const duration = Date.now() - requestStart;
-            const errMsg = error instanceof Error ? error.message : String(error);
             const errName = error instanceof Error ? error.constructor?.name ?? 'Error' : typeof error;
             const errStack = error instanceof Error ? error.stack : undefined;
             structuredLogger.error(
-              `✗ MCP error: ${method}${toolName !== 'unknown' ? ` (${toolName})` : ''} after ${duration}ms: ${errMsg}`,
+              'MCP request failed',
               error,
-              { request_id: requestId, stack: errStack, error_name: errName }
+              {
+                request_id: requestId,
+                mcp_method: method,
+                mcp_tool_name: toolName,
+                duration_ms: duration,
+                stack: errStack,
+                error_name: errName
+              }
             );
             if (!res.headersSent) {
                 const help = mcpErrorToHelp(error);

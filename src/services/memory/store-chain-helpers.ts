@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { KairosError } from '../../types/index.js';
 import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';

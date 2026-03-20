@@ -10,7 +10,7 @@ import * as protocol from './protocol.js';
 import * as listing from './listing.js';
 import * as attestPropagation from './attest-propagation.js';
 import { UpsertResourceItem, UpsertResourceResult } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { getQdrantUrl, QDRANT_API_KEY, getQdrantCollection } from '../../config.js';
 
 export class QdrantService {

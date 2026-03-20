@@ -2,7 +2,10 @@
 // Set required env vars before any test file imports config (config throws if missing).
 // REDIS_URL set (non-empty) → Redis; unset or empty → in-memory. Default test env uses Redis (only set when key missing).
 if (process.env.REDIS_URL === undefined || process.env.REDIS_URL === null) {
-  process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+  const redisPassword = process.env.REDIS_PASSWORD?.trim();
+  process.env.REDIS_URL = redisPassword
+    ? `redis://:${encodeURIComponent(redisPassword)}@127.0.0.1:6379`
+    : 'redis://127.0.0.1:6379';
 }
 if (!process.env.QDRANT_URL) process.env.QDRANT_URL = 'http://localhost:6333';
 

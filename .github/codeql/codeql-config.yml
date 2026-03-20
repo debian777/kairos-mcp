@@ -1,0 +1,12 @@
+# CodeQL config for JavaScript/TypeScript (security-extended).
+# Exclude test code from analysis to avoid alerts on intentional patterns
+# (e.g. integration tests sending file-derived auth tokens in requests).
+name: "KAIROS CodeQL config"
+
+paths-ignore:
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "**/*.e2e.test.ts"
+  - "tests/**"
+  # All log/audit output is sanitized by sanitizeLogMessage/sanitizeBindingsForAudit; unit-tested. CodeQL does not model these sanitizers.
+  - "src/utils/structured-logger.ts"

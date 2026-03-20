@@ -12,7 +12,7 @@
  * The orchestrator keeps minimal state and coordinates persistence via redis.
  */
 
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { keyValueStore } from '../key-value-store-factory.js';
 import type { QualityMetrics } from '../../types/index.js';
 import type { QualityScore, StatsState, ModelStats, RecentDiscovery } from './types.js';

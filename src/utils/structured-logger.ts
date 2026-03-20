@@ -12,8 +12,9 @@
 
 import pino from 'pino';
 import type { Request, Response } from 'express';
+import { createWriteStream, type WriteStream } from 'node:fs';
 import { getBaseLogger } from './log-core.js';
-import { LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
+import { AUDIT_LOG_FILE, LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
 
 const TRUSTED_PROXY_CIDRS = (process.env['TRUSTED_PROXY_CIDRS'] || '')
   .split(',')
@@ -36,6 +37,60 @@ function getClientIp(req: Request): string {
 }
 
 const baseLogger = getBaseLogger();
+let auditLogStream: WriteStream | null = null;
+
+if (AUDIT_LOG_FILE) {
+  try {
+    auditLogStream = createWriteStream(AUDIT_LOG_FILE, { flags: 'a' });
+  } catch {
+    auditLogStream = null;
+  }
+}
+
+/** Sanitize string for safe logging and audit write: no control chars, newlines become space. Limits log injection. */
+function sanitizeLogMessage(s: string, maxLen = 32_768): string {
+  if (typeof s !== 'string') return '';
+  const trimmed = s.slice(0, maxLen).replace(/[\r\n\t\x00-\x1f]/g, ' ');
+  return trimmed.replace(/\s+/g, ' ').trim() || '(empty)';
+}
+
+/** Sanitize bindings for audit file write: string values sanitized, total line size capped. */
+function sanitizeBindingsForAudit(bindings: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(bindings)) {
+    if (typeof v === 'string') out[k] = sanitizeLogMessage(v, 2048);
+    else if (v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Error)) {
+      out[k] = sanitizeBindingsForAudit(v as Record<string, unknown>);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** Build audit line only from sanitized message and bindings + server-controlled fields (for CodeQL: no raw untrusted input). */
+function buildAuditLine(
+  level: 'info' | 'warn' | 'error',
+  safeMsg: string,
+  safeBindings: Record<string, unknown>
+): string {
+  const time = new Date().toISOString();
+  return `${JSON.stringify({ time, level, msg: safeMsg, ...safeBindings })}\n`;
+}
+
+function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', message: string, bindings: Record<string, unknown>): void {
+  if (!auditLogStream) return;
+  const category = typeof bindings['category'] === 'string' ? bindings['category'] : '';
+  if (!category.startsWith('audit.')) return;
+  try {
+    const safeMsg = sanitizeLogMessage(message);
+    const safeBindings = sanitizeBindingsForAudit(bindings);
+    const line = buildAuditLine(level, safeMsg, safeBindings);
+    if (line.length <= 65_536) auditLogStream.write(line);
+  } catch {
+    // Never fail request path because audit side-stream write fails.
+  }
+}
 
 // HTTP logging middleware
 const httpLogger = (req: Request, res: Response, next: Function): void => {
@@ -44,20 +99,24 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
   const requestId = (req.headers['x-request-id'] as string) || `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   (req as Request & { requestId?: string }).requestId = requestId;
 
-  baseLogger.info({
+  const startBindings = sanitizeBindingsForAudit({
     time: startTime,
     http: { method: req.method, path: req.url, protocol: `HTTP/${req.httpVersion}` },
     client: { ip: getClientIp(req) },
     user_agent: req.headers['user-agent'],
     request_id: requestId
-  }, `${req.method} ${req.url}`);
+  });
+  baseLogger.info(
+    startBindings as Record<string, unknown>,
+    sanitizeLogMessage(`${req.method} ${req.url}`)
+  );
 
   res.on('finish', () => {
     const duration = Date.now() - start;
     const statusCode = (res as Response & { statusCode?: number }).statusCode ?? 500;
     const methodName = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
     const rid = (req as Request & { requestId?: string }).requestId ?? req.headers['x-request-id'];
-    (baseLogger as pino.Logger)[methodName]({
+    const finishBindings = sanitizeBindingsForAudit({
       time: new Date().toISOString(),
       http: { method: req.method, path: req.url, protocol: `HTTP/${req.httpVersion}` },
       status: statusCode,
@@ -65,7 +124,11 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
       client: { ip: getClientIp(req) },
       user_agent: req.headers['user-agent'],
       request_id: rid
-    }, `${req.method} ${req.url} -> ${statusCode}`);
+    });
+    (baseLogger as pino.Logger)[methodName](
+      finishBindings as Record<string, unknown>,
+      sanitizeLogMessage(`${req.method} ${req.url} -> ${statusCode}`)
+    );
   });
 
   next();
@@ -84,6 +147,7 @@ export interface StructuredLoggerApi {
   info(message: string): void;
   info(bindings: Record<string, unknown>, message: string): void;
   warn(message: string): void;
+  warn(bindings: Record<string, unknown>, message: string): void;
   error(message: string, error?: Error | unknown): void;
   error(message: string, error: Error | unknown, options: ErrorLogOptions): void;
   tool(toolName: string, operation: ToolOperation, details: string): void;
@@ -105,31 +169,62 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
-        pinoInstance.info({ category: 'info' }, msgOrBindings);
+        const bindings = { category: 'info' };
+        const safeMsg = sanitizeLogMessage(msgOrBindings);
+        pinoInstance.info(bindings, safeMsg);
+        maybeWriteAuditLine('info', safeMsg, bindings);
       } else {
-        pinoInstance.info({ ...msgOrBindings, category: 'info' }, (message ?? ''));
+        const existingCategory = typeof msgOrBindings['category'] === 'string'
+          ? msgOrBindings['category']
+          : undefined;
+        const rawBindings = existingCategory
+          ? { ...msgOrBindings }
+          : { ...msgOrBindings, category: 'info' };
+        const bindings = sanitizeBindingsForAudit(rawBindings);
+        const finalMessage = sanitizeLogMessage(message ?? '');
+        pinoInstance.info(bindings, finalMessage);
+        maybeWriteAuditLine('info', finalMessage, bindings);
       }
     },
 
-    warn(message: string): void {
-      pinoInstance.warn({ category: 'warning' }, message);
+    warn(msgOrBindings: string | Record<string, unknown>, message?: string): void {
+      if (typeof msgOrBindings === 'string') {
+        const bindings = { category: 'warning' };
+        const safeMsg = sanitizeLogMessage(msgOrBindings);
+        pinoInstance.warn(bindings, safeMsg);
+        maybeWriteAuditLine('warn', safeMsg, bindings);
+        return;
+      }
+      const existingCategory = typeof msgOrBindings['category'] === 'string'
+        ? msgOrBindings['category']
+        : undefined;
+      const rawBindings = existingCategory
+        ? { ...msgOrBindings }
+        : { ...msgOrBindings, category: 'warning' };
+      const bindings = sanitizeBindingsForAudit(rawBindings);
+      const finalMessage = sanitizeLogMessage(message ?? '');
+      pinoInstance.warn(bindings, finalMessage);
+      maybeWriteAuditLine('warn', finalMessage, bindings);
     },
 
     error(message: string, error?: Error | unknown, options?: ErrorLogOptions): void {
-      const bindings: Record<string, unknown> = { category: 'error' };
-      if (options && options['error_code']) bindings['error_code'] = options['error_code'];
-      if (options && options['request_id']) bindings['request_id'] = options['request_id'];
+      const rawBindings: Record<string, unknown> = { category: 'error' };
+      if (options && options['error_code']) rawBindings['error_code'] = options['error_code'];
+      if (options && options['request_id']) rawBindings['request_id'] = options['request_id'];
       if (options) {
         Object.keys(options).forEach(k => {
-          if (k !== 'error_code' && k !== 'request_id') bindings[k] = (options as Record<string, unknown>)[k];
+          if (k !== 'error_code' && k !== 'request_id') rawBindings[k] = (options as Record<string, unknown>)[k];
         });
       }
       if (error) {
-        bindings['error'] = error instanceof Error
+        rawBindings['error'] = error instanceof Error
           ? { message: error.message, stack: includeStack ? error.stack : undefined }
           : error;
       }
-      pinoInstance.error(bindings, message);
+      const bindings = sanitizeBindingsForAudit(rawBindings);
+      const safeMessage = sanitizeLogMessage(message);
+      pinoInstance.error(bindings, safeMessage);
+      maybeWriteAuditLine('error', safeMessage, bindings);
     },
 
     tool(toolName: string, operation: ToolOperation, details: string): void {
@@ -178,6 +273,6 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
 const structuredLogger = wrapPino(baseLogger);
 
-export { structuredLogger, httpLogger, getClientIp };
+export { structuredLogger, structuredLogger as logger, httpLogger, getClientIp, sanitizeLogMessage, sanitizeBindingsForAudit };
 export type { Request, Response };
 export type { Logger } from 'pino';

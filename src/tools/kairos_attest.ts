@@ -1,7 +1,7 @@
 import type { QdrantService } from '../services/qdrant/service.js';
 import { IDGenerator } from '../services/id-generator.js';
 import { modelStats } from '../services/stats/model-stats.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/structured-logger.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';

@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { OPENAI_EMBEDDING_MODEL, OPENAI_API_KEY, OPENAI_API_URL, TEI_BASE_URL } from '../../config.js';
 
 export { OPENAI_EMBEDDING_MODEL };

@@ -42,3 +42,37 @@ localhost.
 - Keep dependencies up to date to receive security patches.
 - Ensure the `data/` directory is not publicly accessible.
 
+## Threat model and incident response
+
+Security operations depend on an up-to-date threat model and repeatable
+incident handling procedure.
+
+- Review the [Threat model](docs/security/threat-model.md) before major auth,
+  storage, or pipeline changes.
+- Use the [Incident response runbook](docs/security/incident-runbook.md) for
+  request-level triage, containment, and post-incident actions.
+
+## Release supply-chain controls
+
+The release workflow includes artifact provenance controls for container
+deliverables.
+
+- Generate a CycloneDX SBOM for the release container image and attach it (and the npm package SBOM) to the GitHub Release.
+- Sign published container images with Cosign keyless signing.
+- Trivy container scan (CRITICAL/HIGH) before creating the GitHub Release.
+- Keep Renovate vulnerability alerts enabled and prioritize security updates.
+
+## CI security scans
+
+The **Security** workflow (`.github/workflows/security.yml`) runs on PRs, push to
+main, and weekly:
+
+- **Dependency review** (PRs only): blocks merging if new dependencies introduce
+  high/critical vulnerabilities or policy violations.
+- **npm audit**: fails on high/critical vulnerabilities in the dependency tree.
+- **CodeQL**: static analysis (SAST) for JavaScript/TypeScript (security-extended
+  queries). Results appear under the repo’s Security → Code scanning tab.
+
+To **require** these checks before merging and to enable **secret scanning**
+(and push protection), see [Code security setup](docs/security/code-security-setup.md).
+

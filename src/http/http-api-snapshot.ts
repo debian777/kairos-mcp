@@ -32,7 +32,6 @@ export function setupSnapshotRoute(app: express.Express, qdrantService: QdrantSe
             status: result.success ? 'completed' : result.skipped ? 'skipped' : 'failed',
             target: 'qdrant',
             snapshotName: result.snapshotName,
-            filePath: result.filePath,
             bytesWritten: result.bytesWritten,
             durationMs: result.durationMs,
             message: result.message

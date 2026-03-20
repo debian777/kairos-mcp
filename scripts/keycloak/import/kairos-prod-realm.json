@@ -8,7 +8,13 @@
   "ssoSessionIdleTimeout": 604800,
   "ssoSessionMaxLifespan": 604800,
   "accessTokenLifespan": 3600,
-  "groups": [{ "name": "kairos-team-platform" }, { "name": "kairos-team-sre" }],
+  "groups": [
+    { "name": "kairos-admin" },
+    { "name": "kairos-auditor" },
+    { "name": "kairos-operator" },
+    { "name": "kairos-team-platform" },
+    { "name": "kairos-team-sre" }
+  ],
   "clients": [
     {
       "clientId": "kairos-mcp",

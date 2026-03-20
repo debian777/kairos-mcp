@@ -1,10 +1,42 @@
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { OPENAI_API_KEY, EMBEDDING_PROVIDER, TEI_BASE_URL, TEI_MODEL, TEI_API_KEY } from '../../config.js';
 import { OPENAI_EMBEDDING_MODEL, OPENAI_ENDPOINT, TEI_EMBEDDING_ENDPOINT, setResolvedEmbeddingDimension } from './config.js';
+import { getRequestIdFromStorage, getTenantId } from '../../utils/tenant-context.js';
+import { structuredLogger } from '../../utils/structured-logger.js';
+
+function auditProviderCall(payload: {
+    provider: 'openai' | 'tei';
+    model: string;
+    status: 'success' | 'error';
+    inputCount: number;
+    inputCharLength: number;
+    outputDimension: number;
+    latencyMs: number;
+    httpStatus?: number;
+    errorMessage?: string;
+}): void {
+    structuredLogger.info({
+        category: 'audit.embedding',
+        stage: 'provider',
+        provider: payload.provider,
+        model: payload.model,
+        tenant_id: getTenantId(),
+        request_id: getRequestIdFromStorage(),
+        status: payload.status,
+        input_count: payload.inputCount,
+        input_char_length: payload.inputCharLength,
+        output_dimension: payload.outputDimension,
+        latency_ms: payload.latencyMs,
+        ...(payload.httpStatus !== undefined && { http_status: payload.httpStatus }),
+        ...(payload.errorMessage && { error_message: payload.errorMessage })
+    }, `Embedding provider ${payload.provider} ${payload.status}`);
+}
 
 async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][]> {
     if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
     const inputArray = Array.isArray(input) ? input : [input];
+    const startedAt = Date.now();
+    const inputCharLength = inputArray.reduce((sum, value) => sum + value.length, 0);
     const body = {
         model: OPENAI_EMBEDDING_MODEL,
         input: inputArray,
@@ -27,6 +59,17 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
 
     if (!res.ok) {
         const errMsg = (data as any)?.error?.message || (data as any)?.message || `OpenAI embeddings HTTP ${res.status}`;
+        auditProviderCall({
+            provider: 'openai',
+            model: OPENAI_EMBEDDING_MODEL,
+            status: 'error',
+            inputCount: inputArray.length,
+            inputCharLength,
+            outputDimension: 0,
+            latencyMs: Date.now() - startedAt,
+            httpStatus: res.status,
+            errorMessage: errMsg
+        });
         if (res.status === 401) {
             throw new Error(`OpenAI authentication failed (401). Check OPENAI_API_KEY: ${errMsg}`);
         }
@@ -51,6 +94,16 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
         setResolvedEmbeddingDimension(dim);
     }
     const dim = embeddings.length > 0 && embeddings[0] ? embeddings[0].length : 0;
+    auditProviderCall({
+        provider: 'openai',
+        model: OPENAI_EMBEDDING_MODEL,
+        status: 'success',
+        inputCount: inputArray.length,
+        inputCharLength,
+        outputDimension: dim,
+        latencyMs: Date.now() - startedAt,
+        httpStatus: res.status
+    });
     logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
     return embeddings;
 }
@@ -58,6 +111,8 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
 async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> {
     if (!TEI_BASE_URL || !TEI_MODEL) throw new Error('TEI requires TEI_BASE_URL and TEI_MODEL to be configured');
     const inputArray = Array.isArray(input) ? input : [input];
+    const startedAt = Date.now();
+    const inputCharLength = inputArray.reduce((sum, value) => sum + value.length, 0);
     const body: any = { input: inputArray, model: TEI_MODEL };
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (TEI_API_KEY) headers['x-api-key'] = TEI_API_KEY;
@@ -75,6 +130,16 @@ async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> 
     });
 
     if (!res.ok) {
+        auditProviderCall({
+            provider: 'tei',
+            model: TEI_MODEL,
+            status: 'error',
+            inputCount: inputArray.length,
+            inputCharLength,
+            outputDimension: 0,
+            latencyMs: Date.now() - startedAt,
+            httpStatus: res.status
+        });
         if (res.status === 401) {
             throw new Error('TEI authentication failed (401)');
         }
@@ -103,6 +168,16 @@ async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> 
 
     const dim = embeddings[0].length;
     setResolvedEmbeddingDimension(dim);
+    auditProviderCall({
+        provider: 'tei',
+        model: TEI_MODEL,
+        status: 'success',
+        inputCount: inputArray.length,
+        inputCharLength,
+        outputDimension: dim,
+        latencyMs: Date.now() - startedAt,
+        httpStatus: res.status
+    });
     logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=tei]`);
     return embeddings as number[][];
 }

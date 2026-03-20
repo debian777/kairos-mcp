@@ -2,6 +2,7 @@ import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
     entry: [
+        'src/bootstrap.ts',       // Dev/server bootstrap (imports index)
         'src/index.ts',           // MCP server entry
         'src/cli/index.ts',       // CLI bin entry
         'src/metrics-server.ts',  // Standalone metrics server

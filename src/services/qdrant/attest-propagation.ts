@@ -2,8 +2,9 @@ import type { QdrantConnection } from './connection.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { updateQualityMetrics } from './quality.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { redisCacheService } from '../redis-cache.js';
+import { retrieveAccessiblePointById } from './memory-retrieval.js';
 
 /**
  * Resolve chain head from a completion step and propagate attest quality_metrics to it.
@@ -20,17 +21,13 @@ export async function propagateAttestToChainHead(
   metricsUpdate: Record<string, unknown>
 ): Promise<string | null> {
   return conn.executeWithReconnect(async () => {
-    const retrieveResult = await conn.client.retrieve(conn.collectionName, {
-      ids: [stepPointId],
-      with_payload: true,
-      with_vector: false
-    });
-    if (!retrieveResult || retrieveResult.length === 0) {
+    const stepPoint = await retrieveAccessiblePointById(conn, stepPointId);
+    if (!stepPoint) {
       logger.debug(`[attest-propagation] Step ${stepPointId} not found, skip propagation`);
       return null;
     }
 
-    const payload = (retrieveResult[0] as { payload?: Record<string, unknown> }).payload as Record<string, unknown> | undefined;
+    const payload = stepPoint.payload as Record<string, unknown> | undefined;
     if (!payload) {
       logger.debug(`[attest-propagation] Step ${stepPointId} has no payload, skip propagation`);
       return null;

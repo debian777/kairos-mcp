@@ -5,7 +5,7 @@
  * step quality_metadata from Qdrant.
  */
 
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 
 export async function calculateProtocolQualityMetadata(protocolId: string): Promise<{
     workflow_total_potential: number;

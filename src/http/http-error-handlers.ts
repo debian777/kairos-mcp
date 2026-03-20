@@ -13,10 +13,21 @@ export function setupErrorHandlers(app: express.Express) {
             const rid = req?.headers?.['x-request-id'] || 'unknown';
             const method = req?.method || 'UNKNOWN';
             const url = req?.url || 'UNKNOWN';
-            structuredLogger.error(`HTTP error on ${method} ${url} [id: ${rid}]`, err);
+            structuredLogger.error('HTTP error handled by global Express handler', err, {
+                request_id: rid,
+                http_method: method,
+                http_url: url
+            });
         } catch { }
 
         if (!res.headersSent) {
+            if (err?.status === 413 || err?.statusCode === 413 || err?.type === 'entity.too.large') {
+                res.status(413).json({
+                    error: 'PAYLOAD_TOO_LARGE',
+                    message: 'Request body exceeds the configured size limit'
+                });
+                return;
+            }
             res.status(500).json({ error: 'Internal server error' });
         } else {
             res.end();

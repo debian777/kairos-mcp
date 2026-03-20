@@ -1,9 +1,10 @@
 import { QdrantConnection } from './connection.js';
 import { KairosError } from '../../types/index.js';
 import { sanitizeAndUpsert } from './utils.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
-import { KAIROS_APP_SPACE_ID, MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX } from '../../config.js';
+import { MIN_ATTEST_RUNS, RUNS_FULL_CONFIDENCE, ATTEST_BOOST_MAX } from '../../config.js';
+import { retrieveAccessiblePointById } from './memory-retrieval.js';
 
 /** Compute attest_boost for search formula (same logic as former app-side boost). */
 function computeAttestBoost(successCount: number, failureCount: number): number {
@@ -23,16 +24,11 @@ function computeAttestBoost(successCount: number, failureCount: number): number 
 
 export async function updateQualityMetrics(conn: QdrantConnection, id: string, metrics: any): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const retrieveResult = await conn.client.retrieve(conn.collectionName, { ids: [id], with_payload: true, with_vector: true });
-    if (!retrieveResult || retrieveResult.length === 0) {
+    const existingPoint = await retrieveAccessiblePointById(conn, id, { withVector: true });
+    if (!existingPoint) {
       throw new KairosError(`Memory with ID ${id} not found for quality update`, 'MEMORY_NOT_FOUND', 404);
     }
-    const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
-    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
-      throw new KairosError(`Memory with ID ${id} not found for quality update`, 'MEMORY_NOT_FOUND', 404);
-    }
 
     const currentMetrics = existingPayload.quality_metrics || {
       retrievalCount: 0, successCount: 0, partialCount: 0, failureCount: 0,
@@ -58,41 +54,31 @@ export async function updateQualityMetrics(conn: QdrantConnection, id: string, m
 
     const spaceId = existingPayload.space_id ?? getSpaceContext().defaultWriteSpaceId;
     const updatedPayload = { ...existingPayload, space_id: spaceId, quality_metrics: updatedMetrics, attest_boost, updated_at: new Date().toISOString() };
-    await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id, vector: existingPoint.vector as any, payload: updatedPayload }]);
+    await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id: existingPoint.id, vector: existingPoint.vector as any, payload: updatedPayload }]);
   });
 }
 
 export async function updateQualityMetadata(conn: QdrantConnection, id: string, qualityMetadata: { step_quality_score: number; step_quality: 'excellent' | 'high' | 'standard' | 'basic'; }): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const retrieveResult = await conn.client.retrieve(conn.collectionName, { ids: [id], with_payload: true, with_vector: true });
-    if (!retrieveResult || retrieveResult.length === 0) {
+    const existingPoint = await retrieveAccessiblePointById(conn, id, { withVector: true });
+    if (!existingPoint) {
       throw new KairosError(`Memory with ID ${id} not found for quality metadata update`, 'MEMORY_NOT_FOUND', 404);
     }
-    const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
-    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
-      throw new KairosError(`Memory with ID ${id} not found for quality metadata update`, 'MEMORY_NOT_FOUND', 404);
-    }
     const updatedQualityMetadata = { ...(existingPayload.quality_metadata || {}), ...qualityMetadata };
     const spaceId = existingPayload.space_id ?? getSpaceContext().defaultWriteSpaceId;
     const updatedPayload = { ...existingPayload, space_id: spaceId, quality_metadata: updatedQualityMetadata, updated_at: new Date().toISOString() };
-    await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id, vector: existingPoint.vector as any, payload: updatedPayload }]);
+    await sanitizeAndUpsert(conn.client, conn.collectionName, [{ id: existingPoint.id, vector: existingPoint.vector as any, payload: updatedPayload }]);
   });
 }
 
 export async function trackPendingValidation(conn: QdrantConnection, id: string, modelId: string, protocolStep?: number): Promise<void> {
   return conn.executeWithReconnect(async () => {
-    const retrieveResult = await conn.client.retrieve(conn.collectionName, { ids: [id], with_payload: true, with_vector: true });
-    if (!retrieveResult || retrieveResult.length === 0) {
+    const existingPoint = await retrieveAccessiblePointById(conn, id, { withVector: true });
+    if (!existingPoint) {
       throw new KairosError(`Memory with ID ${id} not found for validation tracking`, 'MEMORY_NOT_FOUND', 404);
     }
-    const existingPoint = retrieveResult[0]!;
     const existingPayload = existingPoint.payload as any;
-    const pointSpaceId = existingPayload?.space_id ?? KAIROS_APP_SPACE_ID;
-    if (!getSpaceContext().allowedSpaceIds.includes(pointSpaceId)) {
-      throw new KairosError(`Memory with ID ${id} not found for validation tracking`, 'MEMORY_NOT_FOUND', 404);
-    }
     const currentMetrics = existingPayload.quality_metrics || {};
     const implementationStats = currentMetrics.implementation_stats || {
       total_attempts: 0, success_attempts: 0, model_success_rates: {}, confidence_level: 0, last_implementation_attempt: null
@@ -117,7 +103,7 @@ export async function trackPendingValidation(conn: QdrantConnection, id: string,
 
     const spaceId = existingPayload.space_id ?? getSpaceContext().defaultWriteSpaceId;
     const updatedPayload = { ...existingPayload, space_id: spaceId, quality_metrics: { ...currentMetrics, implementation_stats: implementationStats }, updated_at: new Date().toISOString() };
-    await conn.client.upsert(conn.collectionName, { points: [{ id, vector: existingPoint.vector as any, payload: updatedPayload }] });
-    logger.debug(`trackPendingValidation: updated implementation stats for ${id} model=${modelId}`);
+    await conn.client.upsert(conn.collectionName, { points: [{ id: existingPoint.id, vector: existingPoint.vector as any, payload: updatedPayload }] });
+    logger.debug(`trackPendingValidation: updated implementation stats for ${existingPoint.id} model=${modelId}`);
   });
 }

@@ -1,6 +1,6 @@
 import type { Memory } from '../../types/memory.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../../utils/structured-logger.js';
 import { embeddingService } from '../embedding/service.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
@@ -60,7 +60,9 @@ export async function storeHeaderBasedChain(
   }
 
   const chainStepCount = headerChainMemories.length;
-  const spaceId = getSpaceContext().defaultWriteSpaceId;
+  const context = getSpaceContext();
+  const spaceId = context.defaultWriteSpaceId;
+  const actorId = context.userId || 'system';
 
   const points = headerChainMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
@@ -86,6 +88,9 @@ export async function storeHeaderBasedChain(
         text: memory.text,
         llm_model_id: memory.llm_model_id,
         created_at: memory.created_at,
+        created_by: actorId,
+        modified_at: memory.created_at,
+        modified_by: actorId,
         proof_of_work: memory.proof_of_work,
         task: dtt.task,
         type: dtt.type,

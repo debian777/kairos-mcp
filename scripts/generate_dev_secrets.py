@@ -27,6 +27,7 @@ def root_dir() -> Path:
 SECRET_KEYS = [
     "KEYCLOAK_ADMIN_PASSWORD",
     "KEYCLOAK_DB_PASSWORD",
+    "REDIS_PASSWORD",
     "QDRANT_API_KEY",
     "SESSION_SECRET",
     "OPENAI_API_KEY",
@@ -38,6 +39,7 @@ DEV_DEFAULTS = {
 }
 
 PLACEHOLDER_RE = re.compile(r"^__([A-Za-z_][A-Za-z0-9_]*)__$")
+PLACEHOLDER_INLINE_RE = re.compile(r"__([A-Za-z_][A-Za-z0-9_]*)__")
 
 
 def is_placeholder(value: str) -> bool:
@@ -88,7 +90,9 @@ def resolve_secrets(keys: list[str], existing: dict[str, str], force: bool) -> d
         if val and not force:
             resolved[key] = val
         else:
-            if key in ("KEYCLOAK_ADMIN_PASSWORD", "KEYCLOAK_DB_PASSWORD"):
+            if key == "REDIS_PASSWORD":
+                resolved[key] = secrets.token_urlsafe(24)
+            elif key in ("KEYCLOAK_ADMIN_PASSWORD", "KEYCLOAK_DB_PASSWORD"):
                 resolved[key] = secrets.token_urlsafe(24)
             elif key == "QDRANT_API_KEY":
                 resolved[key] = secrets.token_urlsafe(24)
@@ -110,7 +114,10 @@ def replace_placeholders(data: dict[str, str], secrets_map: dict[str, str]) -> d
             var_name = PLACEHOLDER_RE.match(v).group(1)
             out[k] = secrets_map.get(var_name) or os.environ.get(var_name) or ""
         else:
-            out[k] = v
+            out[k] = PLACEHOLDER_INLINE_RE.sub(
+                lambda match: secrets_map.get(match.group(1)) or os.environ.get(match.group(1)) or "",
+                v
+            )
     return out
 
 

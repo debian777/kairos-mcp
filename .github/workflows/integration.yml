@@ -80,7 +80,7 @@ jobs:
       - name: Wait for Redis
         run: |
           for i in $(seq 1 30); do
-            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && break
+            docker compose -p kairos-mcp --env-file .env --profile fullstack exec -T redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping' 2>/dev/null | grep -q PONG && break
             [ $i -eq 30 ] && exit 1
             sleep 2
           done
