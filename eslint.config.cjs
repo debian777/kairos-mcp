@@ -81,6 +81,7 @@ module.exports = [
     ignores: [
       'node_modules/**',
       '.venv/**',
+      '**/.venv/**',
       'dist/**',
       '**/dist/**',
       'build/**',
@@ -142,6 +143,7 @@ module.exports = [
       '**/.cursorrules',
       '**/.cursor/**',
       'docs/install/env.example.*.txt',
+      '**/requirements.txt',
       '**/snapshots/**',
       '**/*.snapshot',
       'storybook-static/**',

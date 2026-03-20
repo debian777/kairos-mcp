@@ -85,20 +85,26 @@ def main() -> int:
         return 0
 
     failed = False
-    for skill_path in sorted(SKILLS_DIR.iterdir()):
-        if not skill_path.is_dir():
-            continue
-        skill_md = skill_path / "SKILL.md"
-        if not skill_md.exists():
-            continue
-        rel = skill_path.relative_to(REPO_ROOT)
-        problems = validate(skill_path)
-        if problems:
-            failed = True
-            print(f"{rel} .... FAIL")
-            print(f"  {'; '.join(problems)}")
-        else:
-            print(f"{rel} .... OK")
+    # skills/ (top-level) and skills/.system/ (one-time / system skills per vercel-labs/skills discovery)
+    dirs_to_scan = [SKILLS_DIR]
+    system_dir = SKILLS_DIR / ".system"
+    if system_dir.is_dir():
+        dirs_to_scan.append(system_dir)
+    for base in dirs_to_scan:
+        for skill_path in sorted(base.iterdir()):
+            if not skill_path.is_dir() or skill_path.name.startswith("."):
+                continue
+            skill_md = skill_path / "SKILL.md"
+            if not skill_md.exists():
+                continue
+            rel = skill_path.relative_to(REPO_ROOT)
+            problems = validate(skill_path)
+            if problems:
+                failed = True
+                print(f"{rel} .... FAIL")
+                print(f"  {'; '.join(problems)}")
+            else:
+                print(f"{rel} .... OK")
 
     return 1 if failed else 0
 
