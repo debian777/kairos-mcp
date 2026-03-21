@@ -5,6 +5,7 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
+import { stripRedundantStepH2 } from '../utils/dump-markdown.js';
 import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
@@ -37,17 +38,6 @@ function challengeBlock(pow: ProofOfWorkDefinition | undefined): string {
   return '\n\n```json\n' + JSON.stringify({ challenge: pow }) + '\n```';
 }
 
-/**
- * If body starts with a single line that is exactly the step's H2 (## label), strip it
- * so the protocol builder does not emit the same heading twice.
- */
-function stripLeadingH2IfMatches(body: string, label: string): string {
-  if (!body || !label) return body;
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^##\\s*${escaped}\\s*\\n+`);
-  return body.replace(re, '').trimStart();
-}
-
 function buildMarkdownDocSingle(memory: Memory): string {
   const body = extractMemoryBody(memory.text);
   return body + challengeBlock(memory.proof_of_work);
@@ -59,7 +49,7 @@ function buildMarkdownDocProtocol(memories: Memory[]): string {
   const parts: string[] = ['# ' + chainLabel];
   for (const m of memories) {
     const body = extractMemoryBody(m.text);
-    const bodyStripped = stripLeadingH2IfMatches(body, m.label);
+    const bodyStripped = stripRedundantStepH2(body, m.label);
     parts.push('## ' + m.label + '\n\n' + bodyStripped + challengeBlock(m.proof_of_work));
   }
   return parts.join('\n\n');
