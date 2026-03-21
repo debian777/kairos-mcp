@@ -4,6 +4,7 @@ import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-met
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
+import { KairosError } from '../../types/index.js';
 
 /**
  * Retrieval helpers
@@ -163,6 +164,8 @@ export async function getChainMemories(conn: QdrantConnection, chainId: string):
 
 /**
  * Find step-1 memory UUID for a protocol slug (exact match), scoped to searchable spaces.
+ * Paginates scroll so matches are not truncated at a small limit.
+ * If the slug maps to more than one chain, prefers the default write space; otherwise throws.
  */
 export async function findFirstStepMemoryUuidBySlug(
   conn: QdrantConnection,
@@ -177,17 +180,67 @@ export async function findFirstStepMemoryUuidBySlug(
         { key: 'chain.step_index', match: { value: 1 } }
       ]
     });
-    const page = await conn.client.scroll(conn.collectionName, {
-      filter,
-      limit: 4,
-      with_payload: true,
-      with_vector: false
-    } as any);
-    const pts = page.points || [];
-    if (pts.length === 0) return null;
-    if (pts.length > 1) {
-      pts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+
+    const allPts: any[] = [];
+    let offset: any = undefined;
+    do {
+      const page = await conn.client.scroll(conn.collectionName, {
+        filter,
+        limit: 64,
+        offset,
+        with_payload: true,
+        with_vector: false
+      } as any);
+      const pts = page.points || [];
+      allPts.push(...pts);
+      offset = page.next_page_offset;
+    } while (offset);
+
+    if (allPts.length === 0) return null;
+
+    allPts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+
+    const byChainId = new Map<string, any>();
+    for (const p of allPts) {
+      const chainObj = p.payload?.chain as { id?: string } | undefined;
+      const chainId =
+        chainObj?.id && typeof chainObj.id === 'string' ? chainObj.id : `__orphan_${String(p.id)}`;
+      if (!byChainId.has(chainId)) byChainId.set(chainId, p);
     }
-    return String(pts[0]!.id);
+
+    const unique = [...byChainId.values()];
+    if (unique.length === 1) {
+      return String(unique[0]!.id);
+    }
+
+    const defaultWrite = getSpaceContext().defaultWriteSpaceId;
+    const spaceOf = (p: any) => String(p.payload?.space_id ?? KAIROS_APP_SPACE_ID);
+    const inDefault = unique.filter((p) => spaceOf(p) === defaultWrite);
+
+    if (inDefault.length === 1) {
+      return String(inDefault[0]!.id);
+    }
+
+    if (inDefault.length > 1) {
+      throw new KairosError(
+        `Protocol slug "${normalized}" matches more than one protocol in your default space.`,
+        'PROTOCOL_KEY_AMBIGUOUS',
+        409,
+        { key: normalized, chain_count: inDefault.length }
+      );
+    }
+
+    throw new KairosError(
+      `Protocol slug "${normalized}" matches protocols in multiple spaces; use a URI or narrow the active space.`,
+      'PROTOCOL_KEY_AMBIGUOUS',
+      409,
+      {
+        key: normalized,
+        must_obey: true,
+        next_action:
+          'Use kairos_begin with uri for the specific protocol, or work in a single target space.',
+        spaces: [...new Set(unique.map((p) => spaceOf(p)))]
+      }
+    );
   });
 }

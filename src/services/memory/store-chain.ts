@@ -77,7 +77,10 @@ export class MemoryQdrantStoreChain {
               : firstLabel.includes(':')
                 ? firstLabel.split(':')[0]!.trim()
                 : firstLabel.trim();
-          const slugCand = resolveProtocolSlugCandidate(parsedSingleDoc ?? { body: '' }, chainLabel);
+          const slugCand = resolveProtocolSlugCandidate(
+          parsedSingleDoc?.slugRaw !== undefined ? { slugRaw: parsedSingleDoc.slugRaw } : {},
+          chainLabel
+        );
           if ('error' in slugCand) {
             throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
           }

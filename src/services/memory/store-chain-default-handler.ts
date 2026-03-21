@@ -57,7 +57,10 @@ export async function storeDefaultChain(
   // Handle duplicate chain
   await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
 
-  const slugCand = resolveProtocolSlugCandidate(parsedFrontmatter ?? { body: '' }, firstGeneratedLabel);
+  const slugCand = resolveProtocolSlugCandidate(
+    parsedFrontmatter?.slugRaw !== undefined ? { slugRaw: parsedFrontmatter.slugRaw } : {},
+    firstGeneratedLabel
+  );
   if ('error' in slugCand) {
     throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
   }

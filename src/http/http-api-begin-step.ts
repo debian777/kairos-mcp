@@ -31,7 +31,9 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
     } catch (error) {
       if (error instanceof KairosError) {
         structuredLogger.warn(`kairos_begin ${error.code}: ${error.message}`);
-        res.status(error.statusCode).json({
+        const status =
+          error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+        res.status(status).json({
           error: error.code,
           message: error.message,
           ...(error.details && typeof error.details === 'object' ? error.details : {})
