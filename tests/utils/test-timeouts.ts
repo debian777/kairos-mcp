@@ -1,7 +1,14 @@
 /**
  * Test timeouts aligned with real client behaviour and slowdown detection.
  * Most clients timeout after 30s. Per-request timeout = roundUp(measuredResponseMs * 1.2).
+ *
+ * Baseline: kairos_mint is observed ≤ ~5s end-to-end on the v3 stack (embedding + store).
+ * An MCP call sitting near CLIENT_TIMEOUT_MS is therefore almost never “slow mint”—it is
+ * usually a stalled /mcp session or server-side deadlock, not normal tool latency.
  */
+
+/** Observed ceiling for successful kairos_mint (v3); use when interpreting integration stalls. */
+export const KAIROS_MINT_TYPICAL_MAX_MS = 5_000;
 
 /** Typical client timeout (seconds). Tests should not exceed this. */
 export const CLIENT_TIMEOUT_SEC = 30;

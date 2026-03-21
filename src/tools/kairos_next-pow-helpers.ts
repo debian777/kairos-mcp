@@ -3,6 +3,7 @@ import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/me
 import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
+import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
 
 /** Minimum cosine similarity for comment proof to pass semantic validation. Reject if below. */
 const COMMENT_SEMANTIC_THRESHOLD = 0.25;
@@ -144,11 +145,6 @@ export async function tryUserInputElicitation(
   }
 }
 
-/**
- * Build an error response payload with two-phase retry escalation.
- * Retries 1-3: must_obey true with recovery next_action.
- * After 3: must_obey false with autonomous options.
- */
 function buildErrorPayload(
   memory: Memory | null,
   current_step: any,
@@ -303,14 +299,18 @@ export async function handleProofSubmission(
     if (comment.text.length < minLength) {
       return blocked(`Comment must be at least ${minLength} characters`, 'COMMENT_TOO_SHORT');
     }
-    // Semantic validation
     const stepContent = extractMemoryBody(memory.text) || String(memory.label || '').trim();
-    if (stepContent.length >= 20) {
+    const semanticMs = COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS;
+    if (semanticMs > 0 && stepContent.length >= 20) {
       try {
-        const [commentEmb, stepEmb] = await Promise.all([
+        const embedBoth = Promise.all([
           embeddingService.generateEmbedding(comment.text.trim()),
           embeddingService.generateEmbedding(stepContent.slice(0, 8000))
         ]);
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('COMMENT_SEMANTIC_TIMEOUT')), semanticMs);
+        });
+        const [commentEmb, stepEmb] = await Promise.race([embedBoth, timeout]);
         const similarity = embeddingService.calculateCosineSimilarity(commentEmb.embedding, stepEmb.embedding);
         if (similarity < COMMENT_SEMANTIC_THRESHOLD) {
           return blocked(
@@ -319,7 +319,7 @@ export async function handleProofSubmission(
           );
         }
       } catch (_err) {
-        // Fail open: if embedding unavailable, allow length-valid comments
+        // Fail open: embedding error, timeout, or provider slow — allow length-valid comments
       }
     }
     record.status = 'success';
