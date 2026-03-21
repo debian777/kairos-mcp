@@ -1,6 +1,6 @@
 # KAIROS protocol examples
 
-This folder contains **markdown protocols ready for minting** and a short reference for challenge types and solution shapes. These examples are the canonical source for **dev/qa workflow tests**: imports, search + workflows, update step, and update chain.
+This folder contains **markdown protocols ready for minting** and a short reference for challenge types and solution shapes. These examples are the canonical source for **dev/qa workflow tests**: imports, activate + run, update layer, and update adapter.
 
 ## Mintable protocols
 
@@ -20,20 +20,20 @@ Each file below is a complete protocol (H1 + H2 steps with ````json` challenge b
 
 ## Use in dev/qa workflow tests
 
-- **Imports:** Mint each mintable example via `kairos_mint` (e.g. from integration tests or an agent). See [Workflow test README](../../tests/workflow-test/README.md).
-- **Search + workflows:** After minting, use `kairos_search` → choose chain → `kairos_begin` → `kairos_next` until the response directs you to `kairos_attest`.
-- **Update step / update chain:** Use `kairos_search` or existing URI, `kairos_dump` for content, then `kairos_update` with edited `markdown_doc` (one step or multiple URIs).
+- **Imports:** Train each mintable example via **`train`** (e.g. from integration tests or an agent). See [Workflow test README](../../tests/workflow-test/README.md).
+- **Activate + run:** After training, use **`activate`** → pick a choice → **`forward`** (loop with `solution` per layer) until **`reward`** completes the run.
+- **Update layer / update adapter:** Use **`activate`** or an existing URI, **`export`** for content, then **`tune`** with edited `markdown_doc` (one layer or multiple URIs).
 
 When running **MCP-only** workflow tests (no shell, no filesystem except `reports/`), use only the MCP-only protocols above or protocols you mint that contain no shell step.
 
 ## Reference
 
-- **[Challenge types](challenge-types.md)** — Table of mintable docs, how to mint, and solution shapes for `kairos_next`.
+- **[Challenge types](challenge-types.md)** — Table of mintable docs, how to mint, and solution shapes for `forward`.
 
 ## Related docs
 
-- [Architecture and protocol workflows](../architecture/README.md) — End-to-end flow (search → begin → next → attest) and per-tool workflows.
+- [Architecture and protocol workflows](../architecture/README.md) — End-to-end flow (**activate** → **forward** → **reward**) and per-tool workflows.
 - [Workflow test README](../../tests/workflow-test/README.md) — Test harness and how to run.
-- Minting rules are described in the tool description for `kairos_mint`.
+- Building KAIROS workflows is described in the MCP resource **building-kairos-workflows** and in the tool description for **`train`**.
 - [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles) — For contributors designing or reviewing MCP tools and APIs.
 

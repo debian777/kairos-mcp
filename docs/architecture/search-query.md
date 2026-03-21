@@ -6,7 +6,7 @@ It uses the same hybrid search pipeline described here. Agents call
 **`forward`** with an adapter URI). This document describes how the query
 is processed end-to-end and how scoring and filtering work. For response
 shape and scenarios, see [activate](../../src/embed-docs/tools/activate.md)
-and the legacy [kairos_search workflow](workflow-kairos-search.md) page.
+and the older [activate workflow](workflow-kairos-search.md) page.
 
 ## Principle: scoring in Qdrant, not in the app
 
@@ -54,7 +54,7 @@ flowchart LR
 7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
 8. **Response:** Unified `choices` with `uri`, `label`, `chain_label`, `score`, `role`, `tags`, `next_action`, and optional `protocol_version`.
 
-Implementations: [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**; HTTP **`POST /api/activate`** in [http-api-begin.ts](../../src/http/http-api-begin.ts)), shared search helpers in [kairos_search.ts](../../src/tools/kairos_search.ts), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
+Implementations: [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**; HTTP **`POST /api/activate`** in [http-api-begin.ts](../../src/http/http-api-begin.ts)), shared search helpers in [activate.ts](../../src/tools/activate.ts), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
 
 ## Query normalization
 
@@ -109,7 +109,7 @@ Fallback if the Query API fails: plain dense search with the same filter and res
 
 ## Attest-based score in Qdrant
 
-Chain heads store `quality_metrics` (e.g. `successCount`, `failureCount`) updated on `kairos_attest`. When quality metrics are updated (e.g. in [quality.ts](../../src/services/qdrant/quality.ts) `updateQualityMetrics`), the app computes a precomputed **attest_boost** and writes it to the point payload:
+Chain heads store `quality_metrics` (e.g. `successCount`, `failureCount`) updated on `reward`. When quality metrics are updated (e.g. in [quality.ts](../../src/services/qdrant/quality.ts) `updateQualityMetrics`), the app computes a precomputed **attest_boost** and writes it to the point payload:
 
 `attest_boost = min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX)` when `runs >= MIN_ATTEST_RUNS`, else `0`, with `confidence = min(runs / RUNS_FULL_CONFIDENCE, 1)`.
 
@@ -159,6 +159,6 @@ To see `attest_boost` in the printed results, run once on the target collection:
 
 ## See also
 
-- [kairos_search workflow](workflow-kairos-search.md) — response schema, scenarios, validation rules.
+- [activate workflow](workflow-kairos-search.md) — response schema, scenarios, validation rules.
 - [Full execution workflow](workflow-full-execution.md) — search → begin → next → attest.
 - [Infrastructure](infrastructure.md) — Qdrant and Redis in the deployment.

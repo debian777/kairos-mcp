@@ -9,6 +9,7 @@ import { trainInputSchema } from '../tools/train_schema.js';
 import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import { KairosError } from '../types/index.js';
 
 const SAFE_MINT_DETAIL_KEYS = new Set([
   'missing',

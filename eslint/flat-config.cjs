@@ -36,10 +36,9 @@ function createFlatConfig(rootDir) {
         '.turbo/**',
         '.next/**',
         'eslint.config.cjs',
-        // Non-code files (embed-docs are re-included below for forbidden-string lint)
-        '**/*.md',
-        '!src/embed-docs/**/*.md',
+        // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.
         '**/*.json',
+        '!context7.json',
         '**/*.yaml',
         '**/*.yml',
         '**/*.tgz',
@@ -208,7 +207,7 @@ function createFlatConfig(rootDir) {
     },
 
     // -------------------------------------------------------------------------
-    // 3c. Forbidden KAIROS strings
+    // 3c. Forbidden KAIROS strings (src + scripts + tests JS/TS; Markdown → 3d)
     // -------------------------------------------------------------------------
     {
       files: [
@@ -226,10 +225,10 @@ function createFlatConfig(rootDir) {
     },
 
     // -------------------------------------------------------------------------
-    // 3d. MCP embed-docs Markdown
+    // 3d. All **/*.md (forbidden strings; stub parser; max-lines off)
     // -------------------------------------------------------------------------
     {
-      files: ['src/embed-docs/**/*.md'],
+      files: ['**/*.md'],
       ignores: ['src/embed-docs/tools/export.md'],
       languageOptions: {
         parser: markdownPlainTextParser,
@@ -260,6 +259,26 @@ function createFlatConfig(rootDir) {
       rules: {
         'max-lines': 'off',
         'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // 3e. Root context7.json (stub parser = full-text scan for forbidden strings)
+    // -------------------------------------------------------------------------
+    {
+      files: ['context7.json'],
+      languageOptions: {
+        parser: markdownPlainTextParser,
+        parserOptions: {
+          project: null,
+        },
+      },
+      plugins: {
+        'kairos-forbidden-text': kairosForbiddenTextPlugin,
+      },
+      rules: {
+        'max-lines': 'off',
+        'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
       },
     },
 

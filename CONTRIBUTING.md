@@ -414,8 +414,7 @@ structured, actionable instructions.
 ## Constraints
 
 KAIROS MCP must remain safe to run in production with clear environment
-separation (dev/live). Agent-facing changes must preserve backward
-compatibility or provide explicit upgrade paths. Operational dependencies
+separation (dev/live). Agent-facing changes must preserve older-release compatibility or provide explicit upgrade paths. Operational dependencies
 (Redis + Qdrant) must be predictable; avoid hidden state.
 
 ## Decision rules

@@ -111,8 +111,8 @@ When `kairos-forbidden-text/no-forbidden-kairos-text` fails in `src/`, `scripts/
 ### Must never
 
 - Strip whole comments or docstrings **only** to silence the rule.
-- Re-add env key **`KAIROS_BEARER_TOKEN`** or removed **`kairos_*`** tool names listed in `eslint/plugins/kairos-forbidden-text.cjs`.
-- Use wording or phrases banned there (including the substring `legacy`, removed `kairos_*` MCP names, and compatibility phrases).
+- Re-add identifiers enumerated in `eslint/plugins/kairos-forbidden-text.cjs` (disallowed bearer-token env vars and retired MCP tool names).
+- Use other wording or phrases flagged in that plugin (see its in-source list and messages).
 
 ### Override
 

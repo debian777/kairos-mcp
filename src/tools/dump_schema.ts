@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-export const dumpInputSchema = z.object({
-  uri: z.string().min(1).describe('kairos://mem/{uuid}'),
-  protocol: z.boolean().optional().default(false).describe('If true, return full chain as one markdown document')
-});
-
 const positionSchema = z.object({
   step_index: z.number(),
   step_count: z.number()
@@ -23,5 +18,4 @@ export const dumpOutputSchema = z.object({
   challenge: z.record(z.string(), z.unknown()).optional()
 }).strict();
 
-export type DumpInput = z.infer<typeof dumpInputSchema>;
 export type DumpOutput = z.infer<typeof dumpOutputSchema>;

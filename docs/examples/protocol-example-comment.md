@@ -1,6 +1,6 @@
 # Example: Comment challenge
 
-Short protocol: one real step plus a final verification step. Requires a verification comment or summary of at least 50 characters. Ready to mint with `kairos_mint`.
+Short protocol: one real step plus a final verification step. Requires a verification comment or summary of at least 50 characters. Ready to mint with `train`.
 
 ## Natural Language Triggers
 

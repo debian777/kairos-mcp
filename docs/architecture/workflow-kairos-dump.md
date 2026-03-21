@@ -1,11 +1,11 @@
-# kairos_dump workflow
+# export workflow
 
 > **Current surface:** use **`export`** and embedded docs for dumping markdown or datasets. See [`export.md`](../../src/embed-docs/tools/export.md).
 
-`kairos_dump` is a read-only inspection tool. It returns a `markdown_doc`
-string ready to pass to `kairos_update` (single step) or `kairos_mint`
+`export` is a read-only inspection tool. It returns a `markdown_doc`
+string ready to pass to `kairos_update` (single step) or `train`
 (full protocol). It creates no run state, issues no nonces, and returns no
-`next_action` or `must_obey`. Use it after `kairos_search` when you need
+`next_action` or `must_obey`. Use it after `activate` when you need
 to read content before updating or re-minting.
 
 ## Input schema
@@ -58,7 +58,7 @@ context fields vary by mode.
   memory is part of a chain. Omitted for chain heads or single memories.
 - **`challenge`** — optional; structured challenge from
   `payload.proof_of_work`, for UI or agent reasoning. Same shape as the
-  `kairos_begin` / `kairos_next` challenge (without `nonce` or
+  `kairos_begin` / `forward` challenge (without `nonce` or
   `proof_hash`).
 
 ### Protocol mode (`protocol: true`)
@@ -75,15 +75,15 @@ context fields vary by mode.
 
 - **`markdown_doc`** — full protocol: `# {chain.label}\n\n` followed by
   each step as `## {label}\n\n{text}\n\n` with a fenced ` ```json ` block
-  at the end of each step. This is the same format `kairos_mint` accepts.
+  at the end of each step. This is the same format `train` accepts.
   Pass it to
-  `kairos_mint({ markdown_doc, llm_model_id, force_update: true })`
+  `train({ markdown_doc, llm_model_id, force_update: true })`
   after comparing or editing.
 - **`uri`** — chain head URI (first step), even when the input URI was a
   later step.
 - **`label`** — chain label (protocol title); same as `chain_label` in
   this mode.
-- **`chain_label`** — protocol title. Matches `kairos_search` choices.
+- **`chain_label`** — protocol title. Matches `activate` choices.
 - **`step_count`** — number of steps in the protocol.
 
 ## Scenario 1: dump single step (for update)
@@ -133,7 +133,7 @@ Edit `markdown_doc` as needed, then call
 
 ## Scenario 2: dump full protocol (for mint dedup)
 
-The agent found a similar protocol (for example, from `kairos_mint`
+The agent found a similar protocol (for example, from `train`
 `SIMILAR_MEMORY_FOUND` or from search) and wants to compare or replace it.
 
 ### Input
@@ -182,7 +182,7 @@ Deploy to staging.
 ### AI behavior
 
 Compare `markdown_doc` with the intended new protocol. Then either call
-`kairos_mint({ markdown_doc: edited, llm_model_id, force_update: true })`
+`train({ markdown_doc: edited, llm_model_id, force_update: true })`
 to replace, or change the title or content and mint as a distinct protocol.
 
 ## Scenario 3: invalid or missing URI
@@ -196,8 +196,8 @@ message. No `markdown_doc` in the response.
 
 ### AI behavior
 
-Do not call `kairos_update` or `kairos_mint` with the result. Inform the
-user or resolve the URI via `kairos_search` and retry.
+Do not call `kairos_update` or `train` with the result. Inform the
+user or resolve the URI via `activate` and retry.
 
 ## Validation rules
 
@@ -211,10 +211,10 @@ user or resolve the URI via `kairos_search` and retry.
 
 ## Relationship to other tools
 
-- **kairos_search** — use to obtain URIs; then use dump to read content.
+- **activate** — use to obtain URIs; then use dump to read content.
 - **kairos_begin** — starts execution and issues a challenge. Use dump when
   you need to inspect or edit without starting a run.
 - **kairos_update** — accepts `markdown_doc` array; single-step dump
   returns the string for one URI.
-- **kairos_mint** — accepts `markdown_doc` string; protocol-mode dump
+- **train** — accepts `markdown_doc` string; protocol-mode dump
   returns the full document for re-mint or comparison.

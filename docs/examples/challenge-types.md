@@ -1,6 +1,6 @@
 # KAIROS challenge types — mintable examples
 
-The documents in this folder are **real markdown protocols ready for minting**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"challenge": { ... }}`. Copy the contents of any example into a file and pass it to `kairos_mint` (with `llm_model_id` and optional `force_update`).
+The documents in this folder are **real markdown protocols ready for minting**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"challenge": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
 
 ## Mintable protocol documents
 
@@ -16,11 +16,11 @@ The documents in this folder are **real markdown protocols ready for minting**. 
 
 1. Copy the full content of one of the protocol files above (or combine steps into your own document).
 2. Ensure each step ends with a single ` ```json ` block containing an object with a `challenge` key (see the examples).
-3. Call `kairos_mint` with `markdown_doc`, `llm_model_id`, and optionally `force_update: true`.
+3. Call `train` with `markdown_doc`, `llm_model_id`, and optionally `force_update: true`.
 
-## Solution shapes (for kairos_next)
+## Solution shapes (for forward)
 
-When the server returns a challenge, the agent submits a solution in `kairos_next`. The solution must match the challenge type.
+When the server returns a challenge, the agent submits a solution in `forward`. The solution must match the challenge type.
 
 | Type | Solution shape | Pass condition |
 |------|----------------|----------------|
@@ -31,7 +31,9 @@ When the server returns a challenge, the agent submits a solution in `kairos_nex
 
 Always echo `nonce` and `proof_hash` from the challenge (or previous response) when present; the server generates them.
 
-After the final `kairos_next`, the server directs the client to call
-`kairos_attest` to finish the run.
+After the final **`forward`** for the run, the server directs the client to
+call **`reward`** to finish the run.
 
-For execution semantics (how to perform each challenge type, not infer or fabricate), see the kairos_begin / kairos_next tool descriptions.
+For execution semantics (how to perform each challenge type, not infer or
+fabricate), see the **`forward`** and **`reward`** tool descriptions (and legacy
+workflow pages under `docs/architecture/workflow-kairos-*.md` where noted).
