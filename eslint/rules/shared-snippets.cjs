@@ -19,6 +19,18 @@ const NO_TEST_MOCKS_RULE = {
   ],
 };
 
+/** Jest only (Vitest `tests/ui` uses `vi.mock` and must not be restricted). */
+const NO_JEST_MOCK_OUTSIDE_UNIT_RULE = {
+  'no-restricted-properties': [
+    'error',
+    {
+      object: 'jest',
+      property: 'mock',
+      message: 'Do not use jest.mock() outside unit tests',
+    },
+  ],
+};
+
 /**
  * AUTH_ENABLED may only be set in .env* files (loaded by dotenv). Disallow
  * overriding it in code (process.env.AUTH_ENABLED = ...).
@@ -41,5 +53,6 @@ const NO_AUTH_ENABLED_OVERRIDE_RULE = {
 
 module.exports = {
   NO_TEST_MOCKS_RULE,
+  NO_JEST_MOCK_OUTSIDE_UNIT_RULE,
   NO_AUTH_ENABLED_OVERRIDE_RULE,
 };

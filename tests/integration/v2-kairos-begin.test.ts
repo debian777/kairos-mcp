@@ -1,5 +1,5 @@
 /**
- * V10 forward response shape tests (entry pass without solution; formerly kairos_begin).
+ * Forward tool response shape tests (entry pass without solution).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
@@ -10,7 +10,7 @@ function layerIdFromUri(uri: string): string {
   return base.split('/').pop() ?? '';
 }
 
-describe('V10 forward (open execution) response schema', () => {
+describe('v10-forward (open execution) response schema', () => {
   let mcpConnection;
 
   // createMcpConnection health poll can run up to 60s; Jest default hook timeout is too low

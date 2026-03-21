@@ -1,9 +1,12 @@
 'use strict';
 
-const { NO_TEST_MOCKS_RULE, NO_AUTH_ENABLED_OVERRIDE_RULE } = require('./rules/shared-snippets.cjs');
+const {
+  NO_TEST_MOCKS_RULE,
+  NO_JEST_MOCK_OUTSIDE_UNIT_RULE,
+  NO_AUTH_ENABLED_OVERRIDE_RULE,
+} = require('./rules/shared-snippets.cjs');
 const { markdownPlainTextParser } = require('./parsers/markdown-plain-text.cjs');
 const { kairosForbiddenTextPlugin } = require('./plugins/kairos-forbidden-text.cjs');
-const KAIROS_FORBIDDEN_TEXT_V10_GRANDFATHERED = require('./rules/forbidden-v10-grandfather.cjs');
 
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
@@ -99,6 +102,15 @@ function createFlatConfig(rootDir) {
     },
 
     // -------------------------------------------------------------------------
+    // 0b. No inline overrides (eslint-disable / eslint-env / file-level rule tweaks in comments)
+    // -------------------------------------------------------------------------
+    {
+      linterOptions: {
+        noInlineConfig: true,
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // 1. Global max-lines
     // -------------------------------------------------------------------------
     {
@@ -137,7 +149,11 @@ function createFlatConfig(rootDir) {
         ],
         '@typescript-eslint/no-unused-vars': [
           'error',
-          { caughtErrorsIgnorePattern: '^_' },
+          {
+            argsIgnorePattern: '^_',
+            varsIgnorePattern: '^_',
+            caughtErrorsIgnorePattern: '^_',
+          },
         ],
         'no-console': 'off',
       },
@@ -187,6 +203,8 @@ function createFlatConfig(rootDir) {
         '@typescript-eslint/no-unused-vars': [
           'error',
           {
+            argsIgnorePattern: '^_',
+            varsIgnorePattern: '^_',
             caughtErrorsIgnorePattern: '^_',
           },
         ],
@@ -215,7 +233,7 @@ function createFlatConfig(rootDir) {
         'scripts/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
         'tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
       ],
-      ignores: ['src/ui/**', ...KAIROS_FORBIDDEN_TEXT_V10_GRANDFATHERED],
+      ignores: ['src/ui/**'],
       plugins: {
         'kairos-forbidden-text': kairosForbiddenTextPlugin,
       },
@@ -229,7 +247,6 @@ function createFlatConfig(rootDir) {
     // -------------------------------------------------------------------------
     {
       files: ['**/*.md'],
-      ignores: ['src/embed-docs/tools/export.md'],
       languageOptions: {
         parser: markdownPlainTextParser,
         parserOptions: {
@@ -242,23 +259,6 @@ function createFlatConfig(rootDir) {
       rules: {
         'max-lines': 'off',
         'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
-      },
-    },
-
-    {
-      files: ['src/embed-docs/tools/export.md'],
-      languageOptions: {
-        parser: markdownPlainTextParser,
-        parserOptions: {
-          project: null,
-        },
-      },
-      plugins: {
-        'kairos-forbidden-text': kairosForbiddenTextPlugin,
-      },
-      rules: {
-        'max-lines': 'off',
-        'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
       },
     },
 
@@ -283,28 +283,30 @@ function createFlatConfig(rootDir) {
     },
 
     // -------------------------------------------------------------------------
-    // 4. Tests
+    // 4. Tests — unit may use jest.mock/vi.mock; other test trees may not
     // -------------------------------------------------------------------------
     {
-      files: ['tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
-      ignores: ['tests/utils/**', 'tests/_new/**', 'tests/unit/**'],
+      files: ['tests/unit/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
+    {
+      files: [
+        'tests/integration/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
+        'tests/utils/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
+        'tests/load/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
+      ],
       rules: {
         'no-console': 'off',
         ...NO_TEST_MOCKS_RULE,
       },
     },
-
     {
       files: ['tests/ui/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
       rules: {
-        'no-restricted-properties': [
-          'error',
-          {
-            object: 'jest',
-            property: 'mock',
-            message: 'Do not use jest.mock() outside unit tests',
-          },
-        ],
+        'no-console': 'off',
+        ...NO_JEST_MOCK_OUTSIDE_UNIT_RULE,
       },
     },
 

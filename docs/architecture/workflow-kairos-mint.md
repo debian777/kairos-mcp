@@ -2,12 +2,11 @@
 
 > **Current MCP tool:** **`train`**. See [`train.md`](../../src/embed-docs/tools/train.md).
 
-`train` stores a markdown document as a KAIROS memory or protocol
-chain. H1 headings define a chain; H2 headings define steps. Use it when
-the user wants to create, add, mint, store, or save a protocol or document.
-For executable protocols, add a challenge per step (a JSON code block with
-`{"challenge": ...}`) so the chain can be run via search → begin → next →
-attest.
+`train` stores adapter markdown (H1 = adapter title; H2 = layers). Use it when
+the user wants to create, register, or replace stored adapter text. For
+executable adapters, end each verifiable layer with a fenced JSON block using
+`{"contract": ...}` (see embedded **`train`** doc) so runs can be driven by
+**`activate` → forward → reward`**.
 
 ## Input schema
 
@@ -33,8 +32,9 @@ Fields:
 {
   "items": [
     {
-      "uri": "kairos://mem/<uuid>",
-      "memory_uuid": "<uuid>",
+      "uri": "kairos://layer/<uuid>",
+      "layer_uuid": "<uuid>",
+      "adapter_uri": "kairos://adapter/<uuid>",
       "label": "<string>",
       "tags": ["<string>"]
     }
@@ -45,15 +45,14 @@ Fields:
 
 Fields:
 
-- `items` — one entry per stored memory (one step, or multiple steps in a
-  chain).
+- `items` — one row per stored layer (see [`train_schema.ts`](../../src/tools/train_schema.ts)).
 - `status` — always `"stored"` on success.
 
 ## Challenge types and examples
 
-Add one challenge per step as a trailing JSON code block. Mix types as
-needed. Use a fenced ` ```json ` block at the end of a step containing a
-single JSON object with a `challenge` key.
+Add one **contract** per layer as a trailing JSON code block (authoring may
+still show `"challenge"` in older examples; the runtime surface uses
+**`contract`**). Use a fenced ` ```json ` block at the end of a layer.
 
 **Shell:**
 
@@ -106,7 +105,7 @@ single JSON object with a `challenge` key.
 }
 ```
 
-When both a older inline challenge and a JSON block are present in a step,
+When both an older inline challenge block and a JSON block are present in a layer,
 the JSON block takes precedence.
 
 ## Scenario 1: store new protocol chain
@@ -151,13 +150,13 @@ Deploy to staging.
 {
   "items": [
     {
-      "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
+      "uri": "kairos://layer/aaa11111-1111-1111-1111-111111111111",
       "memory_uuid": "aaa11111-1111-1111-1111-111111111111",
       "label": "Step 1: Build",
       "tags": ["deploy", "build", "test"]
     },
     {
-      "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
+      "uri": "kairos://layer/bbb22222-2222-2222-2222-222222222222",
       "memory_uuid": "bbb22222-2222-2222-2222-222222222222",
       "label": "Step 2: Deploy",
       "tags": ["deploy", "staging"]
@@ -216,8 +215,8 @@ The store detected an existing chain with the same identity and
 ### AI behavior
 
 Inform the user that a chain with this content already exists. Offer to
-open it via `kairos_begin` with the existing URI, or to replace it with
-`train` and `force_update: true` after the user confirms.
+run it via **`activate`** / **`forward`**, or replace it with **`train`** and
+**`force_update: true`** after the user confirms.
 
 ## Scenario 4: error — SIMILAR_MEMORY_FOUND
 
@@ -231,7 +230,7 @@ and decide.
 {
   "error": "SIMILAR_MEMORY_FOUND",
   "existing_memory": {
-    "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
+    "uri": "kairos://adapter/ccc33333-3333-3333-3333-333333333333",
     "memory_uuid": "ccc33333-3333-3333-3333-333333333333",
     "label": "Deploy Checklist",
     "chain_label": "Deploy Checklist",
@@ -241,16 +240,16 @@ and decide.
   "similarity_score": 0.92,
   "message": "A very similar memory already exists with title \"Deploy Checklist\" (similarity: 92%). Verify it before overwriting.",
   "must_obey": true,
-  "next_action": "call export with uri kairos://mem/ccc33333-3333-3333-3333-333333333333 and protocol: true to get markdown_doc; compare with your mint payload, then either call train with force_update: true to replace it or modify title/content to create a distinct memory",
+  "next_action": "call export with uri kairos://adapter/ccc33333-3333-3333-3333-333333333333 (format markdown) to get content; compare with your train payload, then either call train with force_update: true to replace it or modify title/content to create a distinct adapter",
   "content_preview": "<optional string, truncated label + text>"
 }
 ```
 
 ### AI behavior
 
-1. `must_obey: true` — follow `next_action`: call `export` with the
-   URI from `existing_memory.uri` and `protocol: true` to get the existing
-   protocol as `markdown_doc`.
+1. `must_obey: true` — follow `next_action`: call **`export`** with the
+   adapter or layer URI from `existing_memory.uri` and default **`format:
+   markdown`** to retrieve serialized markdown in **`content`**.
 2. Compare the existing content with the intended mint payload.
 3. Either call `train` with `force_update: true` to replace, or
    change the document (title or content) to make it distinct and call
@@ -287,7 +286,7 @@ and do not claim success.
 
 - [export workflow](workflow-kairos-dump.md) — inspect existing
   content before overwriting
-- [kairos_update workflow](workflow-kairos-update.md) — update individual
+- [tune workflow](workflow-kairos-update.md) — update individual
   steps
 - [activate workflow](workflow-kairos-search.md) — find existing
   protocols before minting a duplicate

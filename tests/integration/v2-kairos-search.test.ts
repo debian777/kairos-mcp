@@ -1,5 +1,5 @@
 /**
- * V10 activate response shape tests (formerly kairos_search).
+ * Activate tool response shape tests.
  * Tests use the actual space of kairos-tester (user:realm:sub from token); activate passes space_id
  * so train and activate run in the same scope and adapters minted are visible.
  *
@@ -9,7 +9,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
 
-describe('V10 activate unified response schema', () => {
+describe('v10-activate unified response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {

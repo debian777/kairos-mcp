@@ -6,7 +6,7 @@ It uses the same hybrid search pipeline described here. Agents call
 **`forward`** with an adapter URI). This document describes how the query
 is processed end-to-end and how scoring and filtering work. For response
 shape and scenarios, see [activate](../../src/embed-docs/tools/activate.md)
-and the older [activate workflow](workflow-kairos-search.md) page.
+and the companion [activate workflow](workflow-kairos-search.md) page.
 
 ## Principle: scoring in Qdrant, not in the app
 
@@ -52,16 +52,16 @@ flowchart LR
 5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses the (trimmed) search query for cache write and passes the same query to the vector layer.
 6. **Vector search:** Embedding + BM25 hybrid in Qdrant (see below). Results are chain heads only (`chain.step_index === 1`), with exclusions applied in the Qdrant filter.
 7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
-8. **Response:** Unified `choices` with `uri`, `label`, `chain_label`, `score`, `role`, `tags`, `next_action`, and optional `protocol_version`.
+8. **Response:** Search builds internal choice rows (chain metadata and scores). The MCP **`activate`** handler maps them to **`choices`** with **`kairos://adapter/{uuid}`**, **`adapter_name`**, **`activation_score`**, **`adapter_version`**, **`role`**, **`tags`**, and **`next_action`** (see [activate_schema.ts](../../src/tools/activate_schema.ts)).
 
-Implementations: [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**; HTTP **`POST /api/activate`** in [http-api-begin.ts](../../src/http/http-api-begin.ts)), shared search helpers in [activate.ts](../../src/tools/activate.ts), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
+Implementations: [src/tools/search.ts](../../src/tools/search.ts) and [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
 
 ## Query normalization
 
 Before the query is sent to the store or used in the cache key, the string is cleaned so that built-in protocol URIs and UUIDs do not affect search or cache:
 
-- **Refine protocol:** `kairos://mem/00000000-0000-0000-0000-000000002002`, `00000000-0000-0000-0000-000000002002`
-- **Creation protocol:** `kairos://mem/00000000-0000-0000-0000-000000002001`, `00000000-0000-0000-0000-000000002001`
+- **Refine adapter:** `kairos://adapter/00000000-0000-0000-0000-000000002002`, UUID `00000000-0000-0000-0000-000000002002`
+- **Creation flow:** `kairos://adapter/00000000-0000-0000-0000-000000002001`, UUID `00000000-0000-0000-0000-000000002001`
 
 Each token is removed (case-insensitive), then runs of whitespace are collapsed and the string is trimmed. If the result is empty, search runs with an empty query (no vector matches; refine and create are still offered).
 
