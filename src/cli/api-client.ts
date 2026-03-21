@@ -136,7 +136,6 @@ export class ApiClient {
             headers['x-force-update'] = 'true';
         }
 
-        // codeql[js/file-access-to-http]: kairos_mint contract — POST body is the markdown document supplied by the authenticated caller (CLI reads local protocol files). Not an exfiltration channel; URL is this client's configured API base.
         const response = await fetch(url, {
             method: 'POST',
             headers,
