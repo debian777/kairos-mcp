@@ -2,6 +2,8 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const vitestReporters = process.env.CI ? ["default", "github-actions"] : ["default"];
+
 export default defineConfig({
   root: ".",
   plugins: [react()],
@@ -15,5 +17,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/ui/setup.ts"],
     include: ["tests/ui/**/*.test.{ts,tsx}"],
+    reporters: vitestReporters,
   },
 });

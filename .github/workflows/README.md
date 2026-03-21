@@ -105,6 +105,10 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
+**Caching:** The job restores/saves **Docker infra** images (`compose.yaml` hash) and **`~/.cache/ms-playwright`** keyed by `package-lock.json` so Playwright’s Chromium install is usually a no-op after the first run per lockfile revision.
+
+**Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/run-with-github-summary.mjs`. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/run-env.sh`).
+
 ## Release: only acceptable final output
 
 After a version-bump PR is merged to main, the **only** path that publishes is: **Release tag on version bump** (creates tag if needed) → **Release** workflow (publish-npm → publish-docker → create GitHub Release).

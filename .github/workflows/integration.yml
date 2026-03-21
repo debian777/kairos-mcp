@@ -35,15 +35,15 @@ jobs:
           cache: "npm"
 
       - name: Check versions (mem = package.json, skills = last stable)
-        run: npm run version:check-skills
+        run: node scripts/run-with-github-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
 
       - name: Lint skills (skills-ref)
-        run: python3 scripts/lint_skills.py
+        run: node scripts/run-with-github-summary.mjs "Lint skills (skills-ref)" -- python3 scripts/lint_skills.py
 
       - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python3 scripts/generate_dev_secrets.py
+        run: node scripts/run-with-github-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/generate_dev_secrets.py
 
       - name: Verify .env exists
         run: ls -la .env
@@ -110,29 +110,46 @@ jobs:
           done
 
       - name: Configure Keycloak realms and test user
-        run: python3 scripts/configure-keycloak-realms.py
+        run: node scripts/run-with-github-summary.mjs "Configure Keycloak realms" -- python3 scripts/configure-keycloak-realms.py
 
       - name: Install dependencies
-        run: npm ci
+        run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
+
+      # Avoid re-downloading ~280MB Chromium/headless-shell/ffmpeg when lockfile unchanged
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium
+        id: playwright-install
+        run: node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: node scripts/run-with-github-summary.mjs "TypeScript check" -- npx tsc --noEmit
         # Fail fast on TS errors (e.g. duplicate function); full build runs later.
 
       - name: Knip (compliance)
-        run: npm run knip
+        run: node scripts/run-with-github-summary.mjs "Knip (compliance)" -- npm run knip
 
       - name: Run UI tests
+        # Vitest appends its own "Vitest Test Report" to GITHUB_STEP_SUMMARY when CI=true (vitest.config.ts)
         run: npm run test:ui
 
       - name: Build package (tgz)
-        run: npm run build:tgz
+        run: node scripts/run-with-github-summary.mjs "Build package (tgz)" -- npm run build:tgz
 
       - name: Install package from tgz
-        run: npm install ./dist/debian777-kairos-mcp-$(node -p "require('./package.json').version").tgz
+        run: node scripts/run-with-github-summary.mjs "Install package from tgz" -- npm install ./dist/debian777-kairos-mcp-$(node -p "require('./package.json').version").tgz
 
       - name: Start app (from installed package)
         env:
