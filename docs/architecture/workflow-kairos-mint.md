@@ -1,8 +1,8 @@
-# kairos_mint workflow
+# train workflow
 
 > **Current MCP tool:** **`train`**. See [`train.md`](../../src/embed-docs/tools/train.md).
 
-`kairos_mint` stores a markdown document as a KAIROS memory or protocol
+`train` stores a markdown document as a KAIROS memory or protocol
 chain. H1 headings define a chain; H2 headings define steps. Use it when
 the user wants to create, add, mint, store, or save a protocol or document.
 For executable protocols, add a challenge per step (a JSON code block with
@@ -100,13 +100,13 @@ single JSON object with a `challenge` key.
 {
   "challenge": {
     "type": "mcp",
-    "mcp": { "tool_name": "kairos_mint" },
+    "mcp": { "tool_name": "train" },
     "required": true
   }
 }
 ```
 
-When both a legacy inline challenge and a JSON block are present in a step,
+When both a older inline challenge and a JSON block are present in a step,
 the JSON block takes precedence.
 
 ## Scenario 1: store new protocol chain
@@ -170,7 +170,7 @@ Deploy to staging.
 ### AI behavior
 
 Use the returned URIs for search/begin or to inform the user. To run the
-protocol, call `kairos_search` with a query matching the chain label, then
+protocol, call `activate` with a query matching the chain label, then
 follow `next_action`.
 
 ## Scenario 2: force_update overwrites existing chain
@@ -196,7 +196,7 @@ replace), `status: "stored"`.
 
 Only use `force_update: true` after the user or agent has confirmed that
 the existing protocol must be replaced (for example, after using
-`kairos_dump` to compare content).
+`export` to compare content).
 
 ## Scenario 3: error — DUPLICATE_CHAIN
 
@@ -217,7 +217,7 @@ The store detected an existing chain with the same identity and
 
 Inform the user that a chain with this content already exists. Offer to
 open it via `kairos_begin` with the existing URI, or to replace it with
-`kairos_mint` and `force_update: true` after the user confirms.
+`train` and `force_update: true` after the user confirms.
 
 ## Scenario 4: error — SIMILAR_MEMORY_FOUND
 
@@ -241,20 +241,20 @@ and decide.
   "similarity_score": 0.92,
   "message": "A very similar memory already exists with title \"Deploy Checklist\" (similarity: 92%). Verify it before overwriting.",
   "must_obey": true,
-  "next_action": "call kairos_dump with uri kairos://mem/ccc33333-3333-3333-3333-333333333333 and protocol: true to get markdown_doc; compare with your mint payload, then either call kairos_mint with force_update: true to replace it or modify title/content to create a distinct memory",
+  "next_action": "call export with uri kairos://mem/ccc33333-3333-3333-3333-333333333333 and protocol: true to get markdown_doc; compare with your mint payload, then either call train with force_update: true to replace it or modify title/content to create a distinct memory",
   "content_preview": "<optional string, truncated label + text>"
 }
 ```
 
 ### AI behavior
 
-1. `must_obey: true` — follow `next_action`: call `kairos_dump` with the
+1. `must_obey: true` — follow `next_action`: call `export` with the
    URI from `existing_memory.uri` and `protocol: true` to get the existing
    protocol as `markdown_doc`.
 2. Compare the existing content with the intended mint payload.
-3. Either call `kairos_mint` with `force_update: true` to replace, or
+3. Either call `train` with `force_update: true` to replace, or
    change the document (title or content) to make it distinct and call
-   `kairos_mint` again.
+   `train` again.
 
 ## Scenario 5: error — STORE_FAILED
 
@@ -285,9 +285,9 @@ and do not claim success.
 
 ## See also
 
-- [kairos_dump workflow](workflow-kairos-dump.md) — inspect existing
+- [export workflow](workflow-kairos-dump.md) — inspect existing
   content before overwriting
 - [kairos_update workflow](workflow-kairos-update.md) — update individual
   steps
-- [kairos_search workflow](workflow-kairos-search.md) — find existing
+- [activate workflow](workflow-kairos-search.md) — find existing
   protocols before minting a duplicate

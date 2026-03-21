@@ -46,12 +46,18 @@ The CLI and MCP hosts share the same local config path:
 - fallback Unix: `~/.config/kairos/config.json`
 - Windows: `%APPDATA%\kairos\config.json`
 
+**Token read:** The CLI reads the token from the keyring when available,
+otherwise from the paths above. Bearer tokens are **not** read from process
+environment variables; use `kairos login` and the shared config file.
+
+**If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`).
+The CLI writes the token (and API URL) to the keyring or, on fallback, to that
+config file so MCP hosts can use it too.
+
 Token storage behavior is:
 
 1. **OS keyring first** when available
 2. **config-file fallback** when keyring access is unavailable or fails
-
-The CLI does **not** read a `KAIROS_BEARER_TOKEN` environment variable.
 
 ### Login methods
 

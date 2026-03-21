@@ -165,7 +165,7 @@ export async function executeSearch(
 
   const runWithCache = async (): Promise<SearchOutput> => {
     const effectiveSpaceId = spaceParam ?? getSpaceIdFromStorage();
-    const cacheKey = `begin:v3:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+    const cacheKey = `activate:v4:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
 
     const cachedResult = await redisCacheService.get(cacheKey);
     if (cachedResult) {

@@ -1,8 +1,8 @@
-# kairos_search workflow
+# activate workflow
 
-> **Current MCP tool:** **`activate`**. See [`activate.md`](../../src/embed-docs/tools/activate.md). This page keeps the legacy **`kairos_search`** name for reference.
+> **Current MCP tool:** **`activate`**. See [`activate.md`](../../src/embed-docs/tools/activate.md). This page keeps the older **`activate`** name for reference.
 
-`kairos_search` returns a unified `choices` array for all scenarios. Every
+`activate` returns a unified `choices` array for all scenarios. Every
 response has `must_obey: true`. Each choice has its own `next_action`.
 The `refine` choice (role `refine`) points to a built-in protocol the
 agent runs via `kairos_begin` to get step-by-step help improving the
@@ -155,7 +155,7 @@ create choices are appended.
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
       "label": "Get help refining your search",
-      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
+      "chain_label": "Run protocol to turn vague user request into a better activate query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],
@@ -228,7 +228,7 @@ and create remain available.
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
       "label": "Get help refining your search",
-      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
+      "chain_label": "Run protocol to turn vague user request into a better activate query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],
@@ -277,7 +277,7 @@ No choices above threshold. Only refine and create are available.
     {
       "uri": "kairos://mem/00000000-0000-0000-0000-000000002002",
       "label": "Get help refining your search",
-      "chain_label": "Run protocol to turn vague user request into a better kairos_search query",
+      "chain_label": "Run protocol to turn vague user request into a better activate query",
       "score": null,
       "role": "refine",
       "tags": ["meta", "refine"],

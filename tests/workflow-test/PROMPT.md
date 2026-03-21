@@ -4,7 +4,7 @@ Use this prompt when running dev/qa workflow tests so the agent is constrained t
 
 ## Constraints (non-negotiable)
 
-- **MCP tools only.** Use only KAIROS MCP tools exposed by the server. The v10 public surface is: **`activate`**, **`forward`**, **`train`**, **`reward`**, **`tune`**, **`export`**, **`delete`**, **`spaces`**. Do not call any other tools (e.g. filesystem, shell, run terminal commands, read/write arbitrary files).
+- **MCP tools only.** Use only KAIROS MCP tools exposed by the server. The current public surface is: **`activate`**, **`forward`**, **`train`**, **`reward`**, **`tune`**, **`export`**, **`delete`**, **`spaces`**. Do not call any other tools (e.g. filesystem, shell, run terminal commands, read/write arbitrary files).
 - **No local filesystem access.** Do not read or write files outside the one exception below.
 - **No shell or terminal.** Do not execute shell commands, scripts, or CLI invocations.
 - **Exception: `reports/` folder.** You may (and must) write **only** under the workspace `reports/` directory. All run output must go there: a main report plus one file per MCP call/request in a subfolder (see Report format below).

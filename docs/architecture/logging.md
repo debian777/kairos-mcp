@@ -30,7 +30,7 @@ aggregation.
 | `duration_ms` | Elapsed time in milliseconds. |
 | `status` / `code` | HTTP status or application code. |
 | `component` / `module` | Logger component name (for example, `qdrant`, `proof-of-work-store`). Use child loggers. |
-| `operation` | Operation or tool name (for example, `kairos_next`, `search`). |
+| `operation` | Operation or tool name (for example, `forward`, `search`). |
 | `error_code` | Machine-readable error code (for example, `NONCE_MISMATCH`). Preserved for agent retry and monitoring. |
 | `client_ip` | Client IP (HTTP). Set by middleware; proxy-safe when `TRUSTED_PROXY_CIDRS` is configured. |
 | `user_agent` | Client user-agent (redacted if sensitive). |
@@ -60,7 +60,7 @@ structuredLogger.info('Server started');
 
 // With structured fields
 structuredLogger.info(
-  { operation: 'kairos_next', duration_ms: 42, request_id },
+  { operation: 'forward', duration_ms: 42, request_id },
   'Step advanced'
 );
 
@@ -83,7 +83,7 @@ import { logger } from '../utils/structured-logger.js';
 logger.info('Redis connected');
 logger.debug('Cache key hit');  // emitted only when LOG_LEVEL=debug
 logger.error('Proof store failed', err);
-logger.tool('kairos_attest', 'rate', `rated ${uri}`);
+logger.tool('reward', 'rate', `rated ${uri}`);
 ```
 
 ## Environment variables

@@ -134,6 +134,11 @@ export function hasAuthToken(): boolean {
   return readAuthEnv()?.bearerToken != null;
 }
 
+/** Raw bearer token from the test auth file (MCP transport, CLI subprocess env). */
+export function getMcpTestBearerToken(): string | undefined {
+  return readAuthEnv()?.bearerToken ?? undefined;
+}
+
 /** Space ID of kairos-tester (user:realm:sub) when AUTH_ENABLED and token present. Pass as space_id to activate so tests use actual test user scope. */
 export function getTestSpaceId(): string | undefined {
   return readAuthEnv()?.spaceId ?? undefined;

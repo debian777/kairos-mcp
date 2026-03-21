@@ -6,6 +6,7 @@
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
+import { buildAdapterUri } from './kairos-uri.js';
 
 export interface Candidate {
   memory: Memory;
@@ -35,7 +36,7 @@ export function createResults(
     .map(({ memory, score }) => ({
       memory,
       score,
-      uri: `kairos://mem/${memory.memory_uuid}`,
+      uri: buildAdapterUri(memory.chain?.id ?? memory.memory_uuid),
       label: memory.label,
       tags: memory.tags || [],
       total_steps: memory.chain?.step_count || 1
@@ -48,7 +49,7 @@ export async function resolveHead(
   qdrantService?: QdrantService
 ): Promise<{ uri: string; label: string }> {
   const head = (await resolveFirstStep(memory, qdrantService)) ?? {
-    uri: `kairos://mem/${memory.memory_uuid}`,
+    uri: buildAdapterUri(memory.chain?.id ?? memory.memory_uuid),
     label: memory.label
   };
   return head;

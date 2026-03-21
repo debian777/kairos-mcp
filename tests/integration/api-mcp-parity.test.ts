@@ -7,10 +7,10 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
-import { spacesOutputSchema } from '../../src/tools/kairos_spaces_schema.js';
+import { spacesOutputSchema } from '../../src/tools/spaces_schema.js';
 import { activateOutputSchema } from '../../src/tools/activate_schema.js';
 import { exportOutputSchema } from '../../src/tools/export_schema.js';
-import { deleteOutputSchema } from '../../src/tools/kairos_delete_schema.js';
+import { deleteOutputSchema } from '../../src/tools/delete_schema.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;

@@ -1,4 +1,5 @@
 import type { QdrantService } from '../services/qdrant/service.js';
+import { redisCacheService } from '../services/redis-cache.js';
 import { IDGenerator } from '../services/id-generator.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { logger } from '../utils/structured-logger.js';
@@ -47,6 +48,7 @@ export async function executeAttest(
       }
       await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
       await qdrantService.propagateAttestToChainHead(qdrantUuid, metricsUpdate);
+      await redisCacheService.invalidateBeginCache();
 
       if (currentPoint?.payload) {
         const { description_short, domain, task, type, tags } = currentPoint.payload;

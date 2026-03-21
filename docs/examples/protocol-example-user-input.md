@@ -1,6 +1,6 @@
 # Example: User input challenge
 
-Short protocol: one real step plus a final verification step. Requires human confirmation before advancing. Ready to mint with `kairos_mint`.
+Short protocol: one real step plus a final verification step. Requires human confirmation before advancing. Ready to mint with `train`.
 
 ## Natural Language Triggers
 

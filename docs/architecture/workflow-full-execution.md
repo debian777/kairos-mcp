@@ -81,8 +81,8 @@ activate(query)
 
 ## Historical note
 
-Older docs referred to `kairos_search` → `kairos_begin` → `kairos_next` →
-`kairos_attest`. The **logical** flow (match → run layers → finalize) is the
+Older docs referred to `activate` → `kairos_begin` → `forward` →
+`reward`. The **logical** flow (match → run layers → finalize) is the
 same; **tool names and URI schemes** changed in the adapter model. The
-`workflow-kairos-*.md` files in this folder retain legacy naming for archive
+`workflow-kairos-*.md` files in this folder retain older naming for archive
 reference and point here for the current surface.

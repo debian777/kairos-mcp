@@ -184,15 +184,14 @@ flowchart LR
         end
 
         subgraph REGISTRY["Per-request MCP server"]
-            T_SEARCH["kairos_search"]
-            T_BEGIN["kairos_begin"]
-            T_NEXT["kairos_next"]
-            T_MINT["kairos_mint"]
-            T_ATTEST["kairos_attest"]
-            T_UPD["kairos_update"]
-            T_DEL["kairos_delete"]
-            T_DUMP["kairos_dump"]
-            T_SPACES["kairos_spaces"]
+            T_ACTIVATE["activate"]
+            T_FORWARD["forward"]
+            T_TRAIN["train"]
+            T_REWARD["reward"]
+            T_TUNE["tune"]
+            T_DEL["delete"]
+            T_EXPORT["export"]
+            T_SPACES["spaces"]
         end
 
         subgraph SERVICES["Service Layer"]
@@ -226,17 +225,16 @@ flowchart LR
     AGT   -->|"HTTP /api/*"| EXP
     EXP   --> MCPH
     EXP   --> API
-    MCPH  --> T_SEARCH & T_BEGIN & T_NEXT & T_MINT & T_ATTEST & T_UPD & T_DEL & T_DUMP & T_SPACES
+    MCPH  --> T_ACTIVATE & T_FORWARD & T_TRAIN & T_REWARD & T_TUNE & T_DEL & T_EXPORT & T_SPACES
 
-    T_SEARCH --> MEM_SVC
-    T_BEGIN  --> MEM_SVC & POW_SVC
-    T_NEXT   --> MEM_SVC & POW_SVC & QDRANT_SVC
-    T_MINT   --> MEM_SVC
-    T_ATTEST --> QDRANT_SVC
-    T_UPD    --> QDRANT_SVC
-    T_DEL    --> QDRANT_SVC
-    T_DUMP   --> MEM_SVC
-    T_SPACES --> MEM_SVC
+    T_ACTIVATE --> MEM_SVC
+    T_FORWARD  --> MEM_SVC & POW_SVC & QDRANT_SVC
+    T_TRAIN    --> MEM_SVC
+    T_REWARD   --> QDRANT_SVC
+    T_TUNE     --> QDRANT_SVC
+    T_DEL      --> QDRANT_SVC
+    T_EXPORT   --> MEM_SVC
+    T_SPACES   --> MEM_SVC
     API      --> MEM_SVC & QDRANT_SVC
 
     MEM_SVC  --> EMB_SVC
@@ -252,7 +250,7 @@ flowchart LR
     classDef infra fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
     classDef ext   fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
-    class T_SEARCH,T_BEGIN,T_NEXT,T_MINT,T_ATTEST,T_UPD,T_DEL,T_DUMP,T_SPACES tool
+    class T_ACTIVATE,T_FORWARD,T_TRAIN,T_REWARD,T_TUNE,T_DEL,T_EXPORT,T_SPACES tool
     class MEM_SVC,EMB_SVC,POW_SVC,QDRANT_SVC svc
     class QDRANT_DB,REDIS_DB infra
     class OPENAI,TEI ext

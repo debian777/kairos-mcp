@@ -45,14 +45,14 @@ Fields that no longer exist:
 - `next_step` — removed; the URI for the next call is in `next_action`
 - `protocol_status` — removed; `next_action` tells the AI what to do next
 - `attest_required` — removed; for single-step protocols `next_action`
-  says to call `kairos_attest`
+  says to call `reward`
 - `genesis_hash` — renamed to `proof_hash`
 - `final_challenge` — removed; the last step is a normal verification step
 
 ## Scenario 1: multi-step protocol (continue)
 
 The protocol has more than 1 step. The AI executes the challenge and calls
-`kairos_next` with the URI from `next_action`.
+`forward` with the URI from `next_action`.
 
 ### Input
 
@@ -82,7 +82,7 @@ The protocol has more than 1 step. The AI executes the challenge and calls
       "timeout_seconds": 30
     }
   },
-  "next_action": "call kairos_next with kairos://mem/bbb22222-2222-2222-2222-222222222222 and solution matching challenge"
+  "next_action": "call forward with kairos://mem/bbb22222-2222-2222-2222-222222222222 and solution matching challenge"
 }
 ```
 
@@ -93,7 +93,7 @@ The protocol has more than 1 step. The AI executes the challenge and calls
 3. Read `challenge` to know the required proof.
 4. Execute the shell command `mkdir -p src`.
 5. Read `next_action` to get the next URI.
-6. Call `kairos_next` with the URI and solution:
+6. Call `forward` with the URI and solution:
 
 ```json
 {
@@ -114,7 +114,7 @@ The protocol has more than 1 step. The AI executes the challenge and calls
 
 ## Scenario 2: single-step protocol (completed)
 
-The protocol has only 1 step. The AI must call `kairos_attest` as
+The protocol has only 1 step. The AI must call `reward` as
 instructed by `next_action`.
 
 ### Input
@@ -144,8 +144,8 @@ instructed by `next_action`.
       "min_length": 20
     }
   },
-  "message": "Single-step protocol. Call kairos_attest to finalize.",
-  "next_action": "call kairos_attest with kairos://mem/ccc33333-3333-3333-3333-333333333333, outcome, and message"
+  "message": "Single-step protocol. Call reward to finalize.",
+  "next_action": "call reward with kairos://mem/ccc33333-3333-3333-3333-333333333333, outcome, and message"
 }
 ```
 
@@ -153,7 +153,7 @@ instructed by `next_action`.
 
 1. `must_obey: true` — follow `next_action`.
 2. Read `current_step.content` and execute the challenge.
-3. `next_action` says "call kairos_attest" — call it:
+3. `next_action` says "call reward" — call it:
 
 ```json
 {
@@ -198,7 +198,7 @@ resolves the chain, finds step 1, and returns it:
     }
   },
   "message": "Redirected to step 1 of this protocol chain.",
-  "next_action": "call kairos_next with kairos://mem/bbb22222-2222-2222-2222-222222222222 and solution matching challenge"
+  "next_action": "call forward with kairos://mem/bbb22222-2222-2222-2222-222222222222 and solution matching challenge"
 }
 ```
 
@@ -237,7 +237,7 @@ response shape as a URI-based `kairos_begin` call.
 
 ## See also
 
-- [kairos_search workflow](workflow-kairos-search.md)
-- [kairos_next workflow](workflow-kairos-next.md)
-- [kairos_attest workflow](workflow-kairos-attest.md)
+- [activate workflow](workflow-kairos-search.md)
+- [forward workflow](workflow-kairos-next.md)
+- [reward workflow](workflow-kairos-attest.md)
 - [Full execution workflow](workflow-full-execution.md)

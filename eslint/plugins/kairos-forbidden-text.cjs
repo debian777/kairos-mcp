@@ -76,7 +76,7 @@ function kairosForbiddenStandaloneV10Message(matched) {
   return `Disallowed standalone version tag (matched "${matched}", case-insensitive). Use neutral wording (current protocol surface, adapter API). \`v10-*\` prefixes (e.g. module paths, test labels) are allowed; bare "v10" is not.`;
 }
 
-/** Full-source scan; keep this module outside src/scripts lint globs or it would self-match list entries. */
+/** Full-source scan; keep this module outside matched lint globs or it would self-match list entries. */
 const kairosForbiddenTextPlugin = {
   rules: {
     'no-forbidden-kairos-text': {
@@ -84,7 +84,7 @@ const kairosForbiddenTextPlugin = {
         type: 'problem',
         docs: {
           description:
-            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases (case-insensitive), and KAIROS:BODY-* markers (case-sensitive). Fix by removing obsolete code/shims and rewording docs—do not strip useful comments only to pass lint.',
+            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases (case-insensitive), and KAIROS:BODY-* markers (case-sensitive). Applied to src/, scripts/, tests/ (code), all **/*.md, and root context7.json. Fix by removing obsolete code/shims and rewording—do not strip useful comments only to pass lint.',
         },
         schema: [],
       },

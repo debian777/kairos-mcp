@@ -1,5 +1,6 @@
 // eslint.config.cjs — thin entry; full flat config lives under eslint/
 // Forbidden tokens (incl. standalone v10): eslint/plugins/kairos-forbidden-text.cjs
+// Scope: src/, scripts/, tests/ code + **/*.md + context7.json (see eslint/flat-config.cjs)
 // Grandfathered v10 copy: eslint/rules/forbidden-v10-grandfather.cjs
 // Storybook: eslint-plugin-storybook can be added via require() if needed.
 

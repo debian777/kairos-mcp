@@ -6,6 +6,7 @@ import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 import { buildAdapterUri, buildLayerUri } from '../../tools/kairos-uri.js';
+import { MAX_AUTO_SUFFIX_ATTEMPTS, nextAutoSlugCandidate } from '../../utils/protocol-slug.js';
 
 /**
  * Derives domain task type from label, text, and tags
