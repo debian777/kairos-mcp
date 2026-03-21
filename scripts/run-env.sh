@@ -426,11 +426,16 @@ test() {
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
+            # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
+            summary_reporter=()
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+                summary_reporter=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
+            fi
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)
