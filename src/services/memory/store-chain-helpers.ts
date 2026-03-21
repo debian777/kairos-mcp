@@ -5,7 +5,7 @@ import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
-import { MAX_AUTO_SUFFIX_ATTEMPTS, nextAutoSlugCandidate } from '../../utils/protocol-slug.js';
+import { buildAdapterUri, buildLayerUri } from '../../tools/v10-uri.js';
 
 /**
  * Derives domain task type from label, text, and tags
@@ -104,16 +104,17 @@ export async function checkSimilarMemoryByTitle(
 
   // If match is very high (>= threshold), inform about existing memory
   if (bestScore >= SIMILAR_MEMORY_THRESHOLD) {
-    const uri = `kairos://mem/${bestMatch.memory_uuid}`;
+    const adapterUri = bestMatch.adapter?.id ? buildAdapterUri(bestMatch.adapter.id) : buildLayerUri(bestMatch.memory_uuid);
+    const layerUri = buildLayerUri(bestMatch.memory_uuid);
     const existingMemory = {
-      uri,
+      uri: layerUri,
       memory_uuid: bestMatch.memory_uuid,
       label: bestMatch.label,
-      chain_label: bestMatch.chain?.label || null,
+      chain_label: bestMatch.adapter?.name ?? bestMatch.chain?.label ?? null,
       score: bestScore,
-      total_steps: bestMatch.chain?.step_count || 1
+      total_steps: bestMatch.adapter?.layer_count ?? bestMatch.chain?.step_count ?? 1
     };
-    const next_action = `call kairos_dump with uri ${uri} and protocol: true to get markdown_doc; compare with your mint payload, then either kairos_mint(..., force_update: true) to replace or change document to mint distinct`;
+    const next_action = `call export with ${adapterUri} and format "markdown" to inspect the existing adapter, then either call train with force_update: true to replace it or revise the markdown and train a distinct adapter`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
 
     logger.warn(

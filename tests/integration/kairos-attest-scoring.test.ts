@@ -1,8 +1,6 @@
 /**
- * Integration tests: attest propagation to chain head and attest-based score boost.
- * - Propagation: attest on completion step updates chain head quality_metrics (verified via score boost).
- * - Score boost: after MIN_ATTEST_RUNS successes, search score for that protocol increases.
- * - No boost when runs < MIN_ATTEST_RUNS: one attest does not change score.
+ * Integration tests: reward propagation to chain head and attest-based score boost.
+ * Uses v10 tools: train, forward, reward, activate.
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
@@ -11,7 +9,7 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
 const MIN_ATTEST_RUNS = 3;
 
-describe('kairos_attest scoring: propagation and score boost', () => {
+describe('reward scoring: propagation and score boost', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
@@ -22,29 +20,55 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  async function search(query: string): Promise<{ choices: Array<{ uri: string; label: string; chain_label: string; score: number | null; role: string }> }> {
+  async function activateQuery(query: string): Promise<{
+    choices: Array<{
+      uri: string;
+      label: string;
+      adapter_name?: string | null;
+      chain_label?: string | null;
+      activation_score?: number | null;
+      score?: number | null;
+      role: string;
+    }>;
+  }> {
     const args: { query: string; space_id?: string } = { query };
     const spaceId = getTestSpaceId();
     if (spaceId) args.space_id = spaceId;
-    const result = await mcpConnection!.client.callTool({ name: 'kairos_search', arguments: args });
-    return parseMcpJson(result, 'kairos_search');
+    const result = await mcpConnection!.client.callTool({ name: 'activate', arguments: args });
+    return parseMcpJson(result, 'activate');
   }
 
-  async function searchAllSpaces(query: string): Promise<{ choices: Array<{ uri: string; label: string; chain_label: string; score: number | null; role: string }> }> {
-    const result = await mcpConnection!.client.callTool({ name: 'kairos_search', arguments: { query } });
-    return parseMcpJson(result, 'kairos_search');
+  async function activateAllSpaces(query: string) {
+    const result = await mcpConnection!.client.callTool({ name: 'activate', arguments: { query } });
+    return parseMcpJson(result, 'activate');
   }
 
-  function getScoreForChain(parsed: { choices: Array<{ chain_label: string | null; label?: string; score: unknown; role: string }> }, chainLabel: string): number | null {
+  function getScoreForChain(
+    parsed: {
+      choices: Array<{
+        chain_label?: string | null;
+        label?: string;
+        adapter_name?: string | null;
+        activation_score?: number | null;
+        score?: number | null;
+        role: string;
+      }>;
+    },
+    chainLabel: string
+  ): number | null {
     const matches = parsed.choices.filter((c) => c.role === 'match');
-    const effective = (c: (typeof matches)[0]) => (c.chain_label ?? (c as { label?: string }).label ?? '');
+    const effective = (c: (typeof matches)[0]) => c.chain_label ?? c.label ?? c.adapter_name ?? '';
     const exact = matches.find((c) => effective(c) === chainLabel);
-    const byInclude = exact ?? matches.find((c) => effective(c).includes(chainLabel) || chainLabel.includes(effective(c)));
+    const byInclude =
+      exact ?? matches.find((c) => effective(c).includes(chainLabel) || chainLabel.includes(effective(c)));
     const match = byInclude ?? (matches.length === 1 ? matches[0]! : null);
-    const raw = match?.score ?? null;
+    const raw = match?.activation_score ?? match?.score ?? null;
     if (raw == null) return null;
     if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;
-    if (typeof raw === 'string') { const n = Number(raw); return Number.isNaN(n) ? null : n; }
+    if (typeof raw === 'string') {
+      const n = Number(raw);
+      return Number.isNaN(n) ? null : n;
+    }
     if (typeof raw === 'object') {
       const o = raw as Record<string, unknown>;
       if (typeof o.value === 'number' && !Number.isNaN(o.value)) return o.value;
@@ -53,8 +77,8 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     return null;
   }
 
-  /** Mint a 2-step protocol, complete it, return chain label, completion step URI, and chain head URI. */
-  async function mintAndComplete(uniqueLabel: string): Promise<{ chainLabel: string; completionStepUri: string; chainHeadUri: string }> {
+  /** Mint a 2-step protocol, walk forward twice, return label and last layer URI for reward. */
+  async function mintAndComplete(uniqueLabel: string): Promise<{ chainLabel: string; completionLayerUri: string }> {
     const doc = buildProofMarkdown(uniqueLabel, [
       { heading: 'Step One', body: `First for ${uniqueLabel}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second for ${uniqueLabel}.`, proofCmd: 'echo step2' }
@@ -67,59 +91,74 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     const spaceId = getTestSpaceId();
     if (spaceId) mintArgs.space = spaceId;
     const storeResult = await mcpConnection!.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: mintArgs
     });
-    const stored = parseMcpJson(storeResult, 'attest-scoring mint');
+    const stored = parseMcpJson(storeResult, 'attest-scoring train');
     expect(stored.status).toBe('stored');
-    const items = stored.items as Array<{ uri: string }>;
-    const chainHeadUri = items[0]!.uri;
-    const completionStepUri = items[1]!.uri;
+    const items = stored.items as Array<{ uri: string; adapter_uri: string }>;
 
-    const beginResult = await mcpConnection!.client.callTool({
-      name: 'kairos_begin',
-      arguments: { uri: chainHeadUri }
+    const open = await mcpConnection!.client.callTool({
+      name: 'forward',
+      arguments: { uri: items[0].adapter_uri }
     });
-    const beginPayload = parseMcpJson(beginResult, 'attest-scoring begin');
-    const nonce = beginPayload.challenge?.nonce;
-    const proofHash = beginPayload.challenge?.proof_hash ?? beginPayload.challenge?.genesis_hash;
+    let p = parseMcpJson(open, 'attest-scoring forward open');
+    let layerUri = p.current_layer.uri as string;
+    let nonce = p.contract?.nonce;
+    let proofHash = p.contract?.proof_hash ?? p.contract?.genesis_hash;
 
-    await mcpConnection!.client.callTool({
-      name: 'kairos_next',
-      arguments: {
-        uri: completionStepUri,
-        solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step1' } }
+    for (let i = 0; i < 2; i++) {
+      const r = await mcpConnection!.client.callTool({
+        name: 'forward',
+        arguments: {
+          uri: layerUri,
+          solution: {
+            type: 'shell',
+            nonce,
+            proof_hash: proofHash,
+            shell: { exit_code: 0, stdout: i === 0 ? 'step1' : 'step2' }
+          }
+        }
+      });
+      p = parseMcpJson(r, `attest-scoring forward ${i}`);
+      if (i === 0) {
+        layerUri = p.current_layer.uri as string;
+        nonce = p.contract?.nonce;
+        proofHash = p.proof_hash || p.contract?.proof_hash || proofHash;
       }
-    });
+    }
 
-    return { chainLabel: uniqueLabel, completionStepUri, chainHeadUri };
+    const completionLayerUri = p.current_layer?.uri as string;
+    return { chainLabel: uniqueLabel, completionLayerUri };
   }
 
-  async function attest(uri: string, outcome: 'success' | 'failure', message: string): Promise<void> {
+  async function reward(uri: string, outcome: 'success' | 'failure', feedback: string): Promise<void> {
     const result = await mcpConnection!.client.callTool({
-      name: 'kairos_attest',
-      arguments: { uri, outcome, message }
+      name: 'reward',
+      arguments: { uri, outcome, feedback }
     });
-    parseMcpJson(result, 'kairos_attest');
+    parseMcpJson(result, 'reward');
   }
 
-  test('positive attest: search score increases after MIN_ATTEST_RUNS successes', async () => {
+  test('positive reward: search score increases after MIN_ATTEST_RUNS successes', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringPositive ${ts}`;
-    const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? searchAllSpaces : search;
+    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
     const parsedBefore = await searchFn(uniqueLabel);
     const scoreBefore = getScoreForChain(parsedBefore, chainLabel);
     const matchChoicesBefore = parsedBefore.choices?.filter((c: { role: string }) => c.role === 'match') ?? [];
     if (matchChoicesBefore.length === 0) {
-      const msg = `Minted protocol "${chainLabel}" not in search results (0 matches). Ensure dev server is running and mint/search use the same space (e.g. pass space when getTestSpaceId() is set).`;
+      const msg = `Minted protocol "${chainLabel}" not in activate results (0 matches). Ensure dev server is running and train/activate use the same space.`;
       throw new Error(msg);
     }
-    const matchSummary = matchChoicesBefore.slice(0, 5).map((c: { label?: string; chain_label?: string }) => `${c.chain_label ?? c.label ?? '?'}`);
+    const matchSummary = matchChoicesBefore.slice(0, 5).map((c: { label?: string; chain_label?: string; adapter_name?: string | null }) =>
+      String(c.adapter_name ?? c.chain_label ?? c.label ?? '?')
+    );
 
     for (let i = 0; i < MIN_ATTEST_RUNS; i++) {
-      await attest(completionStepUri, 'success', `Run ${i + 1} completed.`);
+      await reward(completionLayerUri, 'success', `Run ${i + 1} completed.`);
     }
 
     const parsedAfter = await searchFn(uniqueLabel);
@@ -128,23 +167,23 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     withRawOnFail({ parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter, matchCount: matchChoicesBefore.length, matchSummary }, () => {
       expect(scoreBefore).not.toBeNull();
       expect(scoreAfter).not.toBeNull();
-      expect((scoreAfter as number)).toBeGreaterThan(scoreBefore as number);
+      expect(scoreAfter as number).toBeGreaterThan(scoreBefore as number);
     });
   }, 45000);
 
-  test('negative attest: search score decreases or stays same after failure', async () => {
+  test('negative reward: search score decreases or stays same after failure', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNegative ${ts}`;
-    const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? searchAllSpaces : search;
+    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
     for (let i = 0; i < MIN_ATTEST_RUNS; i++) {
-      await attest(completionStepUri, 'success', `Warmup ${i + 1}.`);
+      await reward(completionLayerUri, 'success', `Warmup ${i + 1}.`);
     }
     const parsedAfterSuccesses = await searchFn(uniqueLabel);
     const scoreAfterSuccesses = getScoreForChain(parsedAfterSuccesses, chainLabel);
 
-    await attest(completionStepUri, 'failure', 'One run failed.');
+    await reward(completionLayerUri, 'failure', 'One run failed.');
     const parsedAfterFailure = await searchFn(uniqueLabel);
     const scoreAfterFailure = getScoreForChain(parsedAfterFailure, chainLabel);
 
@@ -153,7 +192,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
       () => {
         expect(scoreAfterSuccesses).not.toBeNull();
         expect(scoreAfterFailure).not.toBeNull();
-        expect((scoreAfterFailure as number)).toBeLessThanOrEqual((scoreAfterSuccesses as number) + 0.001);
+        expect(scoreAfterFailure as number).toBeLessThanOrEqual((scoreAfterSuccesses as number) + 0.001);
       }
     );
   }, 70000);
@@ -161,13 +200,13 @@ describe('kairos_attest scoring: propagation and score boost', () => {
   test('no boost when runs < MIN_ATTEST_RUNS: one success does not change score', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNoBoost ${ts}`;
-    const { chainLabel, completionStepUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? searchAllSpaces : search;
+    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
     const parsedBefore = await searchFn(uniqueLabel);
     const scoreBefore = getScoreForChain(parsedBefore, chainLabel);
 
-    await attest(completionStepUri, 'success', 'Single run.');
+    await reward(completionLayerUri, 'success', 'Single run.');
 
     const parsedAfter = await searchFn(uniqueLabel);
     const scoreAfter = getScoreForChain(parsedAfter, chainLabel);
@@ -175,7 +214,7 @@ describe('kairos_attest scoring: propagation and score boost', () => {
     withRawOnFail({ parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter }, () => {
       expect(scoreBefore).not.toBeNull();
       expect(scoreAfter).not.toBeNull();
-      expect((scoreAfter as number)).toBeCloseTo(scoreBefore as number, 5);
+      expect(scoreAfter as number).toBeCloseTo(scoreBefore as number, 5);
     });
   }, 30000);
 });

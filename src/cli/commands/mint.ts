@@ -1,5 +1,5 @@
 /**
- * kairos mint command
+ * train command
  */
 
 import { Command } from 'commander';
@@ -68,30 +68,33 @@ function jsonPathForResult(absRoot: string, filePath: string): string {
 
 export function mintCommand(program: Command): void {
     program
-        .command('mint')
-        .description('Store a new markdown document in KAIROS (file, or directory of .md files)')
-        .argument('<path>', 'Path to a markdown file or a directory of .md files')
+        .command('train')
+        .description('Register a new KAIROS adapter from markdown')
+        .argument('<file>', 'Path to markdown file')
         .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
         .option('--force', 'Force update if a memory chain with the same label already exists')
-        .option('-r, --recursive', 'When path is a directory, include .md files in subdirectories')
-        .option('--fail-fast', 'Stop on first mint error (default: mint all files, exit 1 if any failed)')
-        .action(
-            async (
-                inputPath: string,
-                options: { model?: string; force?: boolean; recursive?: boolean; failFast?: boolean }
-            ) => {
-                const openBrowser = !program.opts()['noBrowser'];
-                try {
-                    let fd: number;
-                    try {
-                        fd = openSync(inputPath, 'r');
-                    } catch (e) {
-                        if (e instanceof Error && 'code' in e && (e as NodeJS.ErrnoException).code === 'ENOENT') {
-                            writeError(`Path not found: ${inputPath}`);
-                            process.exit(1);
-                        }
-                        throw e;
-                    }
+        .action(async (file: string, options: { model?: string; force?: boolean }) => {
+            try {
+                const markdown = readFileSync(file, 'utf-8');
+                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+                const mintOptions: { llmModelId?: string; force?: boolean } = {};
+                if (options.model) {
+                    mintOptions.llmModelId = options.model;
+                }
+                if (options.force) {
+                    mintOptions.force = options.force;
+                }
+                const response = await client.train(markdown, mintOptions);
+                writeJson(response);
+            } catch (error) {
+                if (error instanceof Error && error.message.includes('ENOENT')) {
+                    writeError(`File not found: ${file}`);
+                    process.exit(1);
+                }
+                handleApiError(error, !program.opts()['noBrowser']);
+            }
+        });
+}
 
                     let fdClosed = false;
                     const closeFd = (): void => {

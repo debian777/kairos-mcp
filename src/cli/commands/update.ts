@@ -1,5 +1,5 @@
 /**
- * kairos update command
+ * tune command
  */
 
 import { Command } from 'commander';
@@ -10,9 +10,9 @@ import { writeError, writeJson } from '../output.js';
 
 export function updateCommand(program: Command): void {
     program
-        .command('update')
-        .description('Update one or more KAIROS memories')
-        .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
+        .command('tune')
+        .description('Update one or more KAIROS adapter layers')
+        .argument('<uris...>', 'KAIROS adapter or layer URIs')
         .option('--file <file>', 'Path to markdown file to apply to all specified URIs')
         .option('--files <files...>', 'Paths to markdown files, one per URI (must match number of URIs)')
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
@@ -48,7 +48,7 @@ export function updateCommand(program: Command): void {
                     return;
                 }
 
-                const response = await client.update(uris, markdownDoc, updates);
+                const response = await client.tune(uris, markdownDoc, updates);
                 writeJson(response);
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {

@@ -4,6 +4,7 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './kairos_delete_schema.js';
+import { parseKairosUri } from './v10-uri.js';
 
 /** Shared execute: delete memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeDelete(
@@ -17,15 +18,25 @@ export async function executeDelete(
 
   for (const uri of uris) {
     try {
-      const uuid = typeof uri === 'string' ? uri.split('/').pop() : undefined;
-      if (!uuid) {
-        throw new Error('Invalid URI format');
+      const parsed = parseKairosUri(uri);
+      if (parsed.kind === 'adapter') {
+        const layers = await qdrantService.getChainMemories(parsed.id);
+        for (const layer of layers) {
+          await qdrantService.deleteMemory(layer.uuid);
+          totalDeleted++;
+        }
+        results.push({
+          uri,
+          status: 'deleted',
+          message: `Adapter ${uri} deleted successfully`
+        });
+        continue;
       }
-      await qdrantService.deleteMemory(uuid);
+      await qdrantService.deleteMemory(parsed.id);
       results.push({
         uri,
         status: 'deleted',
-        message: `Memory ${uri} deleted successfully`
+        message: `Adapter layer ${uri} deleted successfully`
       });
       totalDeleted++;
     } catch (error) {
@@ -33,7 +44,7 @@ export async function executeDelete(
       results.push({
         uri,
         status: 'error',
-        message: `Failed to delete memory: ${errorMessage}`
+        message: `Failed to delete adapter resource: ${errorMessage}`
       });
       totalFailed++;
     }
@@ -51,8 +62,8 @@ export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete'
   server.registerTool(
     toolName,
     {
-      title: 'Delete KAIROS Memory',
-      description: getToolDoc('kairos_delete'),
+      title: 'Delete KAIROS adapter resource',
+      description: getToolDoc('delete'),
       inputSchema: deleteInputSchema,
       outputSchema: deleteOutputSchema
     },

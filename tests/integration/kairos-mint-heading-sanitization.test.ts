@@ -24,7 +24,7 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, '[kairos_mint heading sanitization] raw MCP result');
+    return parseMcpJson(result, '[train heading sanitization] raw MCP result');
   }
   const shellBlock = (cmd: string, timeout = 20) =>
     `\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"${cmd}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
@@ -57,7 +57,7 @@ Only after all steps.
 `;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdown,
         llm_model_id: 'test-model',
@@ -138,7 +138,7 @@ Only after all steps.
 `;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdown,
         llm_model_id: 'test-model',
@@ -213,7 +213,7 @@ Only after all steps.
 `;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdown,
         llm_model_id: 'test-model',
@@ -274,7 +274,7 @@ Only after all steps.
 `;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdown,
         llm_model_id: 'test-model',

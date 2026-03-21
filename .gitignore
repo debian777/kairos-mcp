@@ -10,6 +10,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+# Root-level scratch dump (do not commit; often huge / sensitive)
+/log
 
 # Build outputs
 dist/
@@ -36,7 +38,7 @@ storybook-static/
 # IDE and editor files
 .vscode/
 .idea/
-# Claude Code (session-start.sh etc.); project hooks disabled via .claude/settings.json
+ 
 .claude/*
 !.claude/settings.json
 .cursor/plans

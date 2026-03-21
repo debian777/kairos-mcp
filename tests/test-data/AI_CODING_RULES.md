@@ -206,7 +206,7 @@ Optional body explaining what and why (not how).
   - `feat(memory): add chain reconstruction from fragments`
   - `fix(mcp-handler): resolve race condition in concurrent updates`
   - `docs(coding-rules): update git branch naming conventions`
-  - `test(tools): add integration tests for kairos_mint`
+  - `test(tools): add integration tests for train`
 
 **Proof of work logging:**
 

@@ -48,7 +48,7 @@ function postJson<T>(urlString: string, payload: unknown): Promise<T> {
 }
 
 async function purgeExistingProtocols(label: string) {
-  // Delete all points in Qdrant that match the provided label without relying on kairos_begin
+  // Delete all points in Qdrant that match the provided label without relying on forward
   await postJson(`${QDRANT_URL}/collections/${QDRANT_COLLECTION}/points/delete`, {
     filter: {
       must: [
@@ -112,7 +112,7 @@ describe('Qdrant storage verification', () => {
     const markdownDoc = readFileSync(docPath, 'utf-8');
 
     const mintCall = {
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdownDoc,
         llm_model_id: 'test-ai-coding-rules',
@@ -120,13 +120,13 @@ describe('Qdrant storage verification', () => {
       }
     };
     const mintResult = await mcpConnection.client.callTool(mintCall);
-    const mintPayload = parseMcpJson(mintResult, '[kairos_mint] AI CODING RULES');
+    const mintPayload = parseMcpJson(mintResult, '[train] AI CODING RULES');
 
     withRawOnFail({ call: mintCall, result: mintResult }, () => {
       expect(mintPayload.status).toBe('stored');
       expect(Array.isArray(mintPayload.items)).toBe(true);
       expect(mintPayload.items.length).toBeGreaterThanOrEqual(1);
-    }, '[kairos_mint] AI CODING RULES raw');
+    }, '[train] AI CODING RULES raw');
 
     const firstItem = (mintPayload.items || [])[0];
     expect(firstItem).toBeDefined();

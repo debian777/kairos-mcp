@@ -5,7 +5,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
  * Kairos Mint integration tests (integration with other tools).
  *
  * Goals:
- * - Verify integration with kairos_begin and resource reading.
+ * - Verify integration with forward and resource reading.
  * - When something goes wrong, surface the raw MCP result
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
@@ -24,10 +24,10 @@ describe('Kairos Mint Integration', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_mint raw MCP result');
+    return parseMcpJson(result, 'train raw MCP result');
   }
 
-  test('kairos_begin returns valid chain initiation response', async () => {
+  test('activate returns valid response after train', async () => {
     // Use one timestamp for store + query; include required Natural Language Triggers and Completion Rule
     const ts = Date.now();
     const testQuery = `CacheCheckDoc ${ts}`;
@@ -36,7 +36,7 @@ describe('Kairos Mint Integration', () => {
 ## Natural Language Triggers
 Run when user says "cache check".
 
-This document exists to test kairos_begin response.
+This document exists to test activate after train.
 
 ## Step 1
 Body.
@@ -48,7 +48,7 @@ Body.
 ## Completion Rule
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -59,7 +59,7 @@ Only after all steps.`;
     expect(storeResponse.status).toBe('stored');
 
     // Search — expect valid V2 response
-    const call = { name: 'kairos_search', arguments: { query: testQuery } };
+    const call = { name: 'activate', arguments: { query: testQuery } };
     const result = await mcpConnection.client.callTool(call);
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
@@ -70,7 +70,9 @@ Only after all steps.`;
       expect(typeof parsed.next_action).toBe('string');
       // New format: global directive "choice's next_action"; old format: next_action contains kairos://mem/
       expect(
-        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos://mem/')
+        parsed.next_action.includes("choice's next_action") ||
+          parsed.next_action.includes('kairos://') ||
+          parsed.next_action.toLowerCase().includes('forward')
       ).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
@@ -92,7 +94,7 @@ Only after all steps.`;
       expect(parsed.protocol_status).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();
       expect(parsed.hint).toBeUndefined();
-    }, 'kairos_search call + raw result');
+    }, 'activate call + raw result');
   }, 20000);
 
 });

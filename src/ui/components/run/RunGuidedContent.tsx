@@ -113,41 +113,36 @@ export function RunGuidedContent({
             <p className="text-sm text-[var(--color-text-muted)] mt-3">{run.challenge.description}</p>
           )}
 
-          {run.challenge.type === "shell" && run.challenge.shell && (run.challenge.shell.invocation_display || run.challenge.shell.cmd) && (
-            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-3">
-              {run.challenge.shell.invocation_display && (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm text-[var(--color-text-muted)]">{t("run.shell.invocation")}</div>
-                    <div className="font-mono text-sm text-[var(--color-text)] break-all">{run.challenge.shell.invocation_display}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onCopy(run.challenge.shell!.invocation_display!)}
-                    className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium border border-[var(--color-border)] text-[var(--color-text)] bg-transparent flex-shrink-0 hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                  >
-                    {t("run.copy")}
-                  </button>
+          {run.challenge.type === "tensor" && (
+            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <div className="text-sm text-[var(--color-text-muted)]">Tensor output</div>
+              <div className="font-medium text-[var(--color-text-heading)]">
+                {run.challenge.tensor?.output.name ?? "tensor"} ({run.challenge.tensor?.output.type ?? "unknown"})
+              </div>
+              {run.challenge.tensor?.required_inputs?.length ? (
+                <div className="text-sm text-[var(--color-text-muted)] mt-2">
+                  Required inputs: {run.challenge.tensor.required_inputs.join(", ")}
                 </div>
-              )}
-              {run.challenge.shell.cmd && (
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm text-[var(--color-text-muted)]">{t("run.shell.command")}</div>
-                    <div className="font-mono text-sm text-[var(--color-text)] break-all">{run.challenge.shell.cmd}</div>
-                  </div>
-                  {!run.challenge.shell.invocation_display && (
-                    <button
-                      type="button"
-                      onClick={() => onCopy(run.challenge.shell!.cmd!)}
-                      className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium border border-[var(--color-border)] text-[var(--color-text)] bg-transparent flex-shrink-0 hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                    >
-                      {t("run.copy")}
-                    </button>
-                  )}
+              ) : null}
+            </div>
+          )}
+
+          {run.challenge.type === "shell" && run.challenge.shell?.cmd && (
+            <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm text-[var(--color-text-muted)]">{t("run.shell.command")}</div>
+                  <div className="font-mono text-sm text-[var(--color-text)] break-all">{run.challenge.shell.cmd}</div>
                 </div>
-              )}
-              {copyStatus && <div className="text-xs text-[var(--color-text-muted)]">{copyStatus}</div>}
+                <button
+                  type="button"
+                  onClick={() => onCopy(run.challenge.shell!.cmd!)}
+                  className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium border border-[var(--color-border)] text-[var(--color-text)] bg-transparent flex-shrink-0 hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                >
+                  {t("run.copy")}
+                </button>
+              </div>
+              {copyStatus && <div className="text-xs text-[var(--color-text-muted)] mt-2">{copyStatus}</div>}
             </div>
           )}
         </div>

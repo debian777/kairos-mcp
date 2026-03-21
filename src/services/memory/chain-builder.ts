@@ -5,7 +5,7 @@ import {
   parseMarkdownStructure,
   generateTags,
 } from '../../utils/memory-store-utils.js';
-import { extractProofOfWork, findAllChallengeBlocks } from './chain-builder-proof.js';
+import { extractInferenceContract, findAllContractBlocks } from './chain-builder-proof.js';
 
 /**
  * Sanitize H2 headings to remove STEP patterns and numbering that break chain order.
@@ -23,19 +23,43 @@ function sanitizeHeading(line: string): string {
 }
 
 /**
- * Derive step label from segment text: first H2 (## Title) in the segment, or fallback.
+ * Derive layer label from segment text: first H2 (## Title) in the segment, or fallback.
  */
 function stepLabelFromSegment(segmentText: string, chainLabel: string, stepIndex: number): string {
   const h2Match = segmentText.match(/^##\s+(.+)$/m);
   const title = h2Match?.[1];
   if (title) return title.trim();
-  return chainLabel || `Step ${stepIndex + 1}`;
+  return chainLabel || `Layer ${stepIndex + 1}`;
+}
+
+function extractActivationPatterns(sectionText: string): string[] {
+  const lines = sectionText.split(/\r?\n/);
+  let collecting = false;
+  const collected: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^##\s+(Activation Patterns|Natural Language Triggers)\s*$/i.test(trimmed)) {
+      collecting = true;
+      continue;
+    }
+    if (collecting && /^##\s+/.test(trimmed)) {
+      break;
+    }
+    if (collecting) {
+      collected.push(line);
+    }
+  }
+
+  return collected
+    .map((line) => line.replace(/^\s*[-*]\s*/, '').trim())
+    .filter(Boolean);
 }
 
 /**
- * Process a single H1 section into a chain of memories. Step boundaries are defined by
- * PoW (proof-of-work) only: each ```json block with {"challenge": ...} ends one step.
- * H2 headings are used only for step labels when present in a segment.
+ * Process a single H1 section into an adapter of layer memories. Layer
+ * boundaries are defined by fenced contract blocks. H2 headings are used only
+ * for layer labels when present in a segment.
  */
 function processH1Section(
   h1Title: string,
@@ -44,18 +68,26 @@ function processH1Section(
   now: Date,
   codeBlockProcessor: CodeBlockProcessor
 ): Memory[] {
-  const blocks = findAllChallengeBlocks(h1Content);
+  const blocks = findAllContractBlocks(h1Content);
+  const activationPatterns = extractActivationPatterns(h1Content);
 
-  // No PoW blocks: single memory (entire content, optional trailing challenge parsed by extractProofOfWork)
+  // No contract blocks: single layer (entire content, optional trailing contract parsed by extractInferenceContract)
   if (blocks.length === 0) {
-    const { cleaned, proof } = extractProofOfWork(h1Content);
+    const { cleaned, contract } = extractInferenceContract(h1Content);
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
     const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-    const proofMetadata = proof
-      ? { ...proof, required: proof.required ?? true }
+    const inferenceContract = contract
+      ? { ...contract, required: contract.required ?? true }
       : undefined;
+    const adapter: NonNullable<Memory['adapter']> = {
+      id: '',
+      name: h1Title,
+      layer_index: 1,
+      layer_count: 1,
+      ...(activationPatterns.length > 0 && { activation_patterns: activationPatterns })
+    };
     const singleMemory: any = {
       memory_uuid: crypto.randomUUID(),
       label: stepLabelFromSegment(cleaned, h1Title, 0),
@@ -63,35 +95,58 @@ function processH1Section(
       text: cleaned,
       llm_model_id: llmModelId,
       created_at: now.toISOString(),
+      activation_patterns: activationPatterns,
+      adapter,
       chain: {
-        id: '',
-        label: h1Title,
-        step_index: 1,
-        step_count: 1
+        id: adapter.id,
+        label: adapter.name,
+        step_index: adapter.layer_index,
+        step_count: adapter.layer_count,
+        ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
       } as any
     };
-    if (proofMetadata) singleMemory.proof_of_work = proofMetadata;
+    if (inferenceContract) {
+      singleMemory.inference_contract = inferenceContract;
+      singleMemory.proof_of_work = inferenceContract;
+    }
     return [singleMemory as Memory];
   }
 
-  // One or more PoW blocks: steps are defined by each block; optional trailing segment after last block = final step (no proof)
+  // One or more contract blocks: layers are defined by each block; optional trailing
+  // segment after last block = final layer (no explicit contract).
   const nowIso = now.toISOString();
   const memories: Memory[] = [];
   let prevEnd = 0;
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i]!;
-    // Segment text = content from prevEnd up to (but not including) this block; block defines this step's proof
+    // Segment text = content from prevEnd up to (but not including) this block;
+    // block defines this layer's contract.
     const segmentText = h1Content.slice(prevEnd, block.start).trim();
     const cleaned = segmentText;
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
     const baseTags = generateTags(cleaned);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
-    const proofMetadata = {
-      ...block.proof,
-      required: block.proof.required ?? true
+    const inferenceContract = {
+      ...block.contract,
+      required: block.contract.required ?? true
     };
+    const adapter: NonNullable<Memory['adapter']> = h1Title
+      ? {
+          id: '',
+          name: h1Title,
+          layer_index: i + 1,
+          layer_count: blocks.length,
+          ...(activationPatterns.length > 0 && { activation_patterns: activationPatterns })
+        }
+      : {
+          id: '',
+          name: `Adapter ${i + 1}`,
+          layer_index: i + 1,
+          layer_count: blocks.length,
+          ...(activationPatterns.length > 0 && { activation_patterns: activationPatterns })
+        };
     memories.push({
       memory_uuid: crypto.randomUUID(),
       label: stepLabelFromSegment(cleaned, h1Title, i),
@@ -99,20 +154,24 @@ function processH1Section(
       text: cleaned,
       llm_model_id: llmModelId,
       created_at: nowIso,
+      activation_patterns: activationPatterns,
+      adapter,
       chain: h1Title
         ? {
-            id: '',
-            label: h1Title,
-            step_index: i + 1,
-            step_count: blocks.length // may add +1 if there's trailing content
+            id: adapter.id,
+            label: adapter.name,
+            step_index: adapter.layer_index,
+            step_count: adapter.layer_count,
+            ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
           }
         : undefined,
-      proof_of_work: proofMetadata
+      inference_contract: inferenceContract,
+      proof_of_work: inferenceContract
     } as Memory);
     prevEnd = block.end;
   }
 
-  // Trailing content after last block = final step (no proof required)
+  // Trailing content after last block = final layer (no contract required).
   const trailing = h1Content.slice(prevEnd).trim();
   if (trailing.length > 0) {
     const codeResult = codeBlockProcessor.processMarkdown(trailing);
@@ -121,8 +180,24 @@ function processH1Section(
     const allTags = [...baseTags, ...codeTags];
     const stepCount = memories.length + 1;
     memories.forEach(m => {
+      if (m.adapter) m.adapter.layer_count = stepCount;
       if (m.chain) m.chain.step_count = stepCount;
     });
+    const adapter: NonNullable<Memory['adapter']> = h1Title
+      ? {
+          id: '',
+          name: h1Title,
+          layer_index: stepCount,
+          layer_count: stepCount,
+          ...(activationPatterns.length > 0 && { activation_patterns: activationPatterns })
+        }
+      : {
+          id: '',
+          name: `Adapter ${stepCount}`,
+          layer_index: stepCount,
+          layer_count: stepCount,
+          ...(activationPatterns.length > 0 && { activation_patterns: activationPatterns })
+        };
     memories.push({
       memory_uuid: crypto.randomUUID(),
       label: stepLabelFromSegment(trailing, h1Title, memories.length),
@@ -130,17 +205,21 @@ function processH1Section(
       text: trailing,
       llm_model_id: llmModelId,
       created_at: nowIso,
+      activation_patterns: activationPatterns,
+      adapter,
       chain: h1Title
         ? {
-            id: '',
-            label: h1Title,
-            step_index: stepCount,
-            step_count: stepCount
+            id: adapter.id,
+            label: adapter.name,
+            step_index: adapter.layer_index,
+            step_count: adapter.layer_count,
+            ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
           }
         : undefined
     } as Memory);
   } else {
     memories.forEach(m => {
+      if (m.adapter) m.adapter.layer_count = memories.length;
       if (m.chain) m.chain.step_count = memories.length;
     });
   }

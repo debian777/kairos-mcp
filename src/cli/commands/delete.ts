@@ -1,5 +1,5 @@
 /**
- * kairos delete command
+ * delete command
  */
 
 import { Command } from 'commander';
@@ -10,8 +10,8 @@ import { writeJson } from '../output.js';
 export function deleteCommand(program: Command): void {
     program
         .command('delete')
-        .description('Delete one or more KAIROS memories')
-        .argument('<uris...>', 'KAIROS memory URIs (kairos://mem/...)')
+        .description('Delete one or more KAIROS adapter layers')
+        .argument('<uris...>', 'KAIROS layer URIs (kairos://layer/...)')
         .action(async (uris: string[]) => {
             try {
                 const client = new ApiClient(undefined, !program.opts()['noBrowser']);

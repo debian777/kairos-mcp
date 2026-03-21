@@ -1,20 +1,14 @@
 /**
- * V2 kairos_attest response shape tests.
- * Validates the schema from docs/workflow-kairos-attest.md.
- * Key change: no final_solution required.
- * These tests are expected to FAIL against v1 code.
- *
- * Also asserts no additional properties on results[] (MCP outputSchema has additionalProperties: false).
- * See reports/new/mcp-bug-user-KAIROS-kairos-attest-schema-mismatch-2026-03-13.md.
+ * V10 reward response shape tests (formerly kairos_attest).
+ * Allowed keys for each result item; must match tool outputSchema (additionalProperties: false).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
-
-/** Allowed keys for each result item; must match tool outputSchema (additionalProperties: false). */
-const ATTEST_RESULT_KEYS = ['uri', 'outcome', 'quality_bonus', 'message', 'rated_at'] as const;
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
-describe('V2 kairos_attest response schema', () => {
+const REWARD_RESULT_KEYS = ['uri', 'outcome', 'score', 'feedback', 'rater', 'rubric_version', 'rated_at'] as const;
+
+describe('V10 reward response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -25,55 +19,69 @@ describe('V2 kairos_attest response schema', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  async function mintAndWalkToEnd(label: string) {
+  /** Two-step shell adapter: walk forward until next_action mentions reward; return last layer URI. */
+  async function trainAndWalkToLastLayer(label: string): Promise<{ lastUri: string }> {
     const doc = buildProofMarkdown(label, [
       { heading: 'Step One', body: `First body for ${label}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second body for ${label}.`, proofCmd: 'echo step2' }
     ]);
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v2-attest', force_update: true }
     });
-    const stored = parseMcpJson(storeResult, 'v2-attest mint');
+    const stored = parseMcpJson(storeResult, 'v10-reward train');
     expect(stored.status).toBe('stored');
-    const items = stored.items;
+    const items = stored.items as Array<{ adapter_uri: string }>;
 
-    // Begin step 1
-    const beginResult = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
-      arguments: { uri: items[0].uri }
+    const open = await mcpConnection.client.callTool({
+      name: 'forward',
+      arguments: { uri: items[0].adapter_uri }
     });
-    const beginPayload = parseMcpJson(beginResult, 'v2-attest begin');
-    const nonce = beginPayload.challenge?.nonce;
-    const proofHash = beginPayload.challenge?.proof_hash || beginPayload.challenge?.genesis_hash;
+    let payload = parseMcpJson(open, 'v10-reward open');
+    let layerUri = payload.current_layer.uri as string;
+    let nonce = payload.contract?.nonce;
+    let proofHash = payload.contract?.proof_hash || payload.contract?.genesis_hash;
 
-    // Step 1 -> 2
-    const nextResult = await mcpConnection.client.callTool({
-      name: 'kairos_next',
-      arguments: {
-        uri: items[1].uri,
-        solution: { type: 'shell', nonce, proof_hash: proofHash, shell: { exit_code: 0, stdout: 'step1' } }
+    for (let i = 0; i < 2; i++) {
+      const result = await mcpConnection.client.callTool({
+        name: 'forward',
+        arguments: {
+          uri: layerUri,
+          solution: {
+            type: 'shell',
+            nonce,
+            proof_hash: proofHash,
+            shell: { exit_code: 0, stdout: i === 0 ? 'step1' : 'step2' }
+          }
+        }
+      });
+      payload = parseMcpJson(result, `v10-reward step${i + 1}`);
+      if (i === 0) {
+        layerUri = payload.current_layer.uri as string;
+        nonce = payload.contract?.nonce;
+        proofHash = payload.proof_hash || payload.contract?.proof_hash || proofHash;
       }
-    });
-    const nextPayload = parseMcpJson(nextResult, 'v2-attest next');
-    return { lastUri: items[1].uri, nextPayload };
+    }
+
+    const lastUri = payload.current_layer?.uri as string;
+    expect(typeof lastUri).toBe('string');
+    return { lastUri };
   }
 
-  test('success attestation: no final_solution required, returns results array', async () => {
+  test('success reward: returns results array', async () => {
     const ts = Date.now();
-    const { lastUri } = await mintAndWalkToEnd(`V2Attest Success ${ts}`);
+    const { lastUri } = await trainAndWalkToLastLayer(`V2Reward Success ${ts}`);
 
-    // V2: attest with just uri, outcome, message (no final_solution)
     const call = {
-      name: 'kairos_attest',
+      name: 'reward',
       arguments: {
         uri: lastUri,
         outcome: 'success',
-        message: 'All steps completed successfully.'
+        feedback: 'All steps completed successfully.'
       }
     };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-attest success');
+    const parsed = parseMcpJson(result, 'v10-reward success');
 
     withRawOnFail({ call, result }, () => {
       expect(Array.isArray(parsed.results)).toBe(true);
@@ -82,40 +90,38 @@ describe('V2 kairos_attest response schema', () => {
       const r = parsed.results[0];
       expect(r.uri).toBe(lastUri);
       expect(r.outcome).toBe('success');
-      expect(typeof r.quality_bonus).toBe('number');
-      expect(typeof r.message).toBe('string');
+      expect(r.score === null || typeof r.score === 'number').toBe(true);
+      expect(r.feedback === null || typeof r.feedback === 'string').toBe(true);
       expect(typeof r.rated_at).toBe('string');
 
-      // MCP schema has additionalProperties: false; extra keys cause -32602 (schema mismatch).
       const resultKeys = Object.keys(r).sort();
-      expect(resultKeys).toEqual([...ATTEST_RESULT_KEYS].sort());
+      expect(resultKeys).toEqual([...REWARD_RESULT_KEYS].sort());
 
       expect(typeof parsed.total_rated).toBe('number');
       expect(typeof parsed.total_failed).toBe('number');
     });
   });
 
-  test('failure attestation: no final_solution required', async () => {
+  test('failure reward', async () => {
     const ts = Date.now();
-    const { lastUri } = await mintAndWalkToEnd(`V2Attest Failure ${ts}`);
+    const { lastUri } = await trainAndWalkToLastLayer(`V2Reward Failure ${ts}`);
 
     const call = {
-      name: 'kairos_attest',
+      name: 'reward',
       arguments: {
         uri: lastUri,
         outcome: 'failure',
-        message: 'Step failed: permission denied.'
+        feedback: 'Step failed: permission denied.'
       }
     };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-attest failure');
+    const parsed = parseMcpJson(result, 'v10-reward failure');
 
     withRawOnFail({ call, result }, () => {
       expect(Array.isArray(parsed.results)).toBe(true);
       const r = parsed.results[0];
       expect(r.outcome).toBe('failure');
-      expect(typeof r.quality_bonus).toBe('number');
-      expect(Object.keys(r).sort()).toEqual([...ATTEST_RESULT_KEYS].sort());
+      expect(Object.keys(r).sort()).toEqual([...REWARD_RESULT_KEYS].sort());
     });
   });
 });

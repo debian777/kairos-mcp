@@ -18,7 +18,7 @@ export interface UseSpacesOptions {
 }
 
 async function fetchSpaces(options: UseSpacesOptions = {}): Promise<{ spaces: SpaceInfo[] }> {
-  const res = await apiFetch("/api/kairos_spaces", {
+  const res = await apiFetch("/api/spaces", {
     method: "POST",
     body: JSON.stringify({
       include_chain_titles: options.includeChainTitles ?? false,

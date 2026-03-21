@@ -71,7 +71,7 @@ Run the command.
 Call the tool.
 
 \`\`\`json
-{"challenge": {"type": "mcp", "mcp": {"tool_name": "kairos_search"}}}
+{"challenge": {"type": "mcp", "mcp": {"tool_name": "activate"}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -79,7 +79,7 @@ Call the tool.
     expect(result.steps[0]).toMatchObject({
       label: "Step 2",
       type: "mcp",
-      summary: "MCP: kairos_search",
+      summary: "MCP: activate",
     });
   });
 
@@ -220,10 +220,10 @@ When each step is verified and attestation is done.
 
     const rebuilt = buildMarkdownFromForm(form);
     expect(rebuilt).toContain("# Deploy and test");
-    expect(rebuilt).toContain("## Natural language triggers");
+    expect(rebuilt).toContain("## Activation Patterns");
     expect(rebuilt).toContain("## Build");
     expect(rebuilt).toContain("npm run build");
-    expect(rebuilt).toContain("## Completion rule");
+    expect(rebuilt).toContain("## Reward Signal");
 
     const reparsed = parseProtocolMarkdown(rebuilt);
     expect(reparsed.title).toBe(form.protocolLabel);
