@@ -8,6 +8,6 @@ Export an **adapter** or a single **layer** for backup, inspection, or training 
 
 **Output:** `content` (string), `content_type`, `format`, optional `item_count`, adapter metadata.
 
-**Markdown format:** Serialized docs use v10 naming (e.g. `contract` in JSON, **Activation Patterns** / **Reward Signal** headings where applicable).
+**Markdown format:** Serialized docs use adapter-oriented naming (e.g. `contract` in JSON, **Activation Patterns** / **Reward Signal** headings where applicable).
 
 **Use with `tune`:** Edit exported markdown, then **`tune`** with matching `uris` / `markdown_doc` to apply changes.

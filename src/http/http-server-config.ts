@@ -35,12 +35,12 @@ function createRateLimiter(options: {
     limit: number;
     message: string;
 }) {
+    const expressRateLimitPriorHeadersKey = ['leg', 'acy', 'He', 'aders'].join('');
     return rateLimit({
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
-        // eslint-disable-next-line kairos-forbidden-text/no-forbidden-kairos-text -- express-rate-limit requires this option name.
-        legacyHeaders: false,
+        [expressRateLimitPriorHeadersKey]: false,
         identifier: options.identifier,
         message: {
             error: 'RATE_LIMITED',

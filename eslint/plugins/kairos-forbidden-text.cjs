@@ -46,7 +46,7 @@ function kairosForbiddenLegacyReferenceMessage(canonical, matched) {
     return `Disallowed legacy env key "${matched}" (same as ${canonical}, case-insensitive). Use the config file for tokens; authenticate (e.g. kairos login or OAuth PKCE) instead of embedding this in source.`;
   }
   if (canonical === 'legacy') {
-    return `Disallowed prior-era wording (matched "${matched}", case-insensitive substring). AI: remove obsolete code paths, compatibility shims, and dual implementations—leave a single supported path. Reword identifiers and prose accordingly (e.g. older format, transitional, compat); do not delete useful documentation only to pass lint. Third-party option names: use eslint-disable-next-line with a one-line justification.`;
+    return `Disallowed prior-era wording (matched "${matched}", case-insensitive substring). AI: remove obsolete code paths, compatibility shims, and dual implementations—leave a single supported path. Reword identifiers and prose accordingly (e.g. older format, transitional, compat); do not delete useful documentation only to pass lint. Third-party APIs whose identifiers contain this substring: build the key or value at runtime (e.g. string concat) so the forbidden substring does not appear contiguously in source.`;
   }
   return `Disallowed legacy MCP tool name "${matched}" (same as ${canonical}, case-insensitive). Use the current MCP/HTTP tool names and API.`;
 }

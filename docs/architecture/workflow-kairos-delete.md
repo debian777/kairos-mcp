@@ -2,22 +2,23 @@
 
 > **Current MCP tool:** **`delete`**. See [`delete.md`](../../src/embed-docs/tools/delete.md).
 
-`delete` deletes one or more KAIROS memories by URI. Use it when
-the user wants to delete, remove, purge, or clean KAIROS content. Resolve
-target URIs first (for example, via `activate` or chain navigation).
-Each URI is deleted independently; partial success is possible.
+`delete` removes one or more **adapter** or **layer** resources by URI (see
+[`delete_schema.ts`](../../src/tools/delete_schema.ts)). Resolve targets first
+(for example via **`activate`** or **`export`**). Each URI is processed
+independently; partial success is possible.
 
 ## Input schema
 
 ```json
 {
-  "uris": ["kairos://mem/<uuid>", "..."]
+  "uris": ["kairos://adapter/<uuid>", "..."]
 }
 ```
 
 Fields:
 
-- `uris` — non-empty array of `kairos://mem/{uuid}` URIs to delete.
+- `uris` — non-empty array of **`kairos://adapter/{uuid}`** or
+  **`kairos://layer/{uuid}`** (optional **`?execution_id=`**) URIs to delete.
 
 ## Response schema
 
@@ -25,7 +26,7 @@ Fields:
 {
   "results": [
     {
-      "uri": "kairos://mem/<uuid>",
+      "uri": "kairos://adapter/<uuid>",
       "status": "deleted | error",
       "message": "<string>"
     }
@@ -50,7 +51,7 @@ example, from search or from a step in a chain).
 
 ```json
 {
-  "uris": ["kairos://mem/aaa11111-1111-1111-1111-111111111111"]
+  "uris": ["kairos://adapter/aaa11111-1111-1111-1111-111111111111"]
 }
 ```
 
@@ -60,9 +61,9 @@ example, from search or from a step in a chain).
 {
   "results": [
     {
-      "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
+      "uri": "kairos://adapter/aaa11111-1111-1111-1111-111111111111",
       "status": "deleted",
-      "message": "Memory kairos://mem/aaa11111-1111-1111-1111-111111111111 deleted successfully"
+      "message": "Memory kairos://adapter/aaa11111-1111-1111-1111-111111111111 deleted successfully"
     }
   ],
   "total_deleted": 1,
@@ -86,9 +87,9 @@ plus chain navigation.
 ```json
 {
   "uris": [
-    "kairos://mem/aaa11111-1111-1111-1111-111111111111",
-    "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "kairos://mem/ccc33333-3333-3333-3333-333333333333"
+    "kairos://adapter/aaa11111-1111-1111-1111-111111111111",
+    "kairos://adapter/bbb22222-2222-2222-2222-222222222222",
+    "kairos://adapter/ccc33333-3333-3333-3333-333333333333"
   ]
 }
 ```
@@ -99,19 +100,19 @@ plus chain navigation.
 {
   "results": [
     {
-      "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
+      "uri": "kairos://adapter/aaa11111-1111-1111-1111-111111111111",
       "status": "deleted",
-      "message": "Memory kairos://mem/aaa11111-1111-1111-1111-111111111111 deleted successfully"
+      "message": "Memory kairos://adapter/aaa11111-1111-1111-1111-111111111111 deleted successfully"
     },
     {
-      "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
+      "uri": "kairos://adapter/bbb22222-2222-2222-2222-222222222222",
       "status": "deleted",
-      "message": "Memory kairos://mem/bbb22222-2222-2222-2222-222222222222 deleted successfully"
+      "message": "Memory kairos://adapter/bbb22222-2222-2222-2222-222222222222 deleted successfully"
     },
     {
-      "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
+      "uri": "kairos://adapter/ccc33333-3333-3333-3333-333333333333",
       "status": "deleted",
-      "message": "Memory kairos://mem/ccc33333-3333-3333-3333-333333333333 deleted successfully"
+      "message": "Memory kairos://adapter/ccc33333-3333-3333-3333-333333333333 deleted successfully"
     }
   ],
   "total_deleted": 3,
@@ -135,12 +136,12 @@ deleted). Each result has its own `status` and `message`.
 {
   "results": [
     {
-      "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
+      "uri": "kairos://adapter/aaa11111-1111-1111-1111-111111111111",
       "status": "deleted",
-      "message": "Memory kairos://mem/aaa11111-1111-1111-1111-111111111111 deleted successfully"
+      "message": "Memory kairos://adapter/aaa11111-1111-1111-1111-111111111111 deleted successfully"
     },
     {
-      "uri": "kairos://mem/nonexistent-0000-0000-0000-000000000000",
+      "uri": "kairos://adapter/nonexistent-0000-0000-0000-000000000000",
       "status": "error",
       "message": "Failed to delete memory: Point not found"
     }
@@ -157,7 +158,7 @@ when `total_failed` > 0.
 
 ## Validation rules
 
-1. `uris` must be a non-empty array of valid `kairos://mem/{uuid}` strings.
+1. `uris` must be a non-empty array of valid **`kairos://adapter/{uuid}`** or **`kairos://layer/{uuid}`** strings (see schema).
 2. `total_deleted` + `total_failed` equals `results.length`.
 3. Each result has `uri`, `status` (`"deleted"` or `"error"`), and
    `message`.

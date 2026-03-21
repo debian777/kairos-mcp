@@ -19,8 +19,8 @@ const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 const CREATION_PROTOCOL_URI = buildAdapterUri(CREATION_PROTOCOL_UUID);
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 const REFINING_PROTOCOL_URI = buildAdapterUri(REFINING_PROTOCOL_UUID);
-const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
-const CREATE_NEXT_ACTION = 'call train with adapter markdown to create a new adapter';
+const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to execute the refine adapter`;
+const CREATE_NEXT_ACTION = 'call train with adapter markdown to register a new adapter';
 
 /** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
 function queryForSearch(query: string): string {
