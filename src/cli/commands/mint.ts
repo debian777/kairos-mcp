@@ -3,7 +3,7 @@
  */
 
 import { Command } from 'commander';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { closeSync, fstatSync, openSync, readFileSync, readdirSync } from 'fs';
 import { join, relative, resolve } from 'path';
 import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
@@ -14,13 +14,29 @@ function isMdFileName(name: string): boolean {
     return name.endsWith('.md');
 }
 
-/** Absolute paths to `.md` regular files under root, sorted lexicographically. */
+/**
+ * Open path read-only, require regular file, read UTF-8 from the same fd
+ * (avoids path-based stat-then-read races; CodeQL js/file-system-race).
+ */
+function readRegularFileUtf8(absPath: string): string {
+    const fd = openSync(absPath, 'r');
+    try {
+        if (!fstatSync(fd).isFile()) {
+            throw Object.assign(new Error('Path is not a regular file'), { code: 'ENOTREG' });
+        }
+        return readFileSync(fd, 'utf-8') as string;
+    } finally {
+        closeSync(fd);
+    }
+}
+
+/** Absolute paths to `.md` names under root, sorted lexicographically (presence as file verified at read time). */
 function collectMdFiles(absRoot: string, recursive: boolean): string[] {
     if (!recursive) {
         const dirents = readdirSync(absRoot, { withFileTypes: true });
         const paths: string[] = [];
         for (const d of dirents) {
-            if (!d.isFile() || !isMdFileName(d.name)) continue;
+            if (!isMdFileName(d.name)) continue;
             paths.push(join(absRoot, d.name));
         }
         return paths.sort((a, b) => a.localeCompare(b));
@@ -30,15 +46,7 @@ function collectMdFiles(absRoot: string, recursive: boolean): string[] {
     const paths: string[] = [];
     for (const rel of relEntries) {
         if (!rel || !isMdFileName(rel)) continue;
-        const full = join(absRoot, rel);
-        let st;
-        try {
-            st = statSync(full);
-        } catch {
-            continue;
-        }
-        if (!st.isFile()) continue;
-        paths.push(full);
+        paths.push(join(absRoot, rel));
     }
     return paths.sort((a, b) => a.localeCompare(b));
 }
@@ -67,9 +75,9 @@ export function mintCommand(program: Command): void {
             ) => {
                 const openBrowser = !program.opts()['noBrowser'];
                 try {
-                    let st;
+                    let fd: number;
                     try {
-                        st = statSync(inputPath);
+                        fd = openSync(inputPath, 'r');
                     } catch (e) {
                         if (e instanceof Error && 'code' in e && (e as NodeJS.ErrnoException).code === 'ENOENT') {
                             writeError(`Path not found: ${inputPath}`);
@@ -77,6 +85,14 @@ export function mintCommand(program: Command): void {
                         }
                         throw e;
                     }
+
+                    let fdClosed = false;
+                    const closeFd = (): void => {
+                        if (!fdClosed) {
+                            closeSync(fd);
+                            fdClosed = true;
+                        }
+                    };
 
                     const mintOptions: { llmModelId?: string; force?: boolean } = {};
                     if (options.model) {
@@ -88,16 +104,24 @@ export function mintCommand(program: Command): void {
 
                     const client = new ApiClient(undefined, openBrowser);
 
-                    if (st.isFile()) {
-                        const markdown = readFileSync(inputPath, 'utf-8');
-                        const response = await client.mint(markdown, mintOptions);
-                        writeJson(response);
-                        return;
-                    }
-
-                    if (!st.isDirectory()) {
-                        writeError(`Not a file or directory: ${inputPath}`);
-                        process.exit(1);
+                    try {
+                        const fst = fstatSync(fd);
+                        if (fst.isFile()) {
+                            const markdown = readFileSync(fd, 'utf-8');
+                            closeFd();
+                            const response = await client.mint(markdown, mintOptions);
+                            writeJson(response);
+                            return;
+                        }
+                        if (!fst.isDirectory()) {
+                            closeFd();
+                            writeError(`Not a file or directory: ${inputPath}`);
+                            process.exit(1);
+                        }
+                        closeFd();
+                    } catch (err) {
+                        closeFd();
+                        throw err;
                     }
 
                     const absRoot = resolve(inputPath);
@@ -114,7 +138,7 @@ export function mintCommand(program: Command): void {
                     for (const filePath of mdFiles) {
                         const relPath = jsonPathForResult(absRoot, filePath);
                         try {
-                            const markdown = readFileSync(filePath, 'utf-8');
+                            const markdown = readRegularFileUtf8(filePath);
                             const response = await client.mint(markdown, mintOptions);
                             results.push({
                                 path: relPath,
