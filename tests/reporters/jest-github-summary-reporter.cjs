@@ -22,7 +22,20 @@ class JestGitHubSummaryReporter {
     const pendingTests = results.numPendingTests ?? 0;
     const totalTests = results.numTotalTests ?? passedTests + failedTests + pendingTests;
 
-    const ok = results.success !== false && failedSuites === 0 && failedTests === 0;
+    // Do not use results.success here: Jest sets it only *after* onRunComplete
+    // (@jest/core schedules onRunComplete before assigning aggregatedResults.success),
+    // so success is still false during this hook even when every test passed.
+    const runtimeErrorSuites = results.numRuntimeErrorTestSuites ?? 0;
+    const snapshotFailed = results.snapshot?.failure === true;
+    const runExecError = results.runExecError != null;
+    const interrupted = results.wasInterrupted === true;
+    const ok =
+      failedSuites === 0 &&
+      failedTests === 0 &&
+      runtimeErrorSuites === 0 &&
+      !snapshotFailed &&
+      !runExecError &&
+      !interrupted;
     const suiteIcon = ok ? '✅' : '❌';
     const testIcon = ok ? '✅' : '❌';
 
