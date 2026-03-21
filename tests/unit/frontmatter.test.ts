@@ -13,10 +13,11 @@ describe('parseFrontmatter', () => {
     expect(result.title).toBeUndefined();
   });
 
-  test('parses version and title from frontmatter', () => {
+  test('parses version, title, and slug from frontmatter', () => {
     const text = `---
 version: 1.0.0
 title: My Protocol
+slug: my-protocol
 ---
 
 # My Protocol
@@ -25,6 +26,7 @@ Content after.`;
     const result = parseFrontmatter(text);
     expect(result.version).toBe('1.0.0');
     expect(result.title).toBe('My Protocol');
+    expect(result.slugRaw).toBe('my-protocol');
     expect(result.body).toContain('# My Protocol');
     expect(result.body).toContain('Content after.');
     expect(result.body.trimStart()).toMatch(/^# My Protocol/);

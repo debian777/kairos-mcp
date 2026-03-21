@@ -1,4 +1,18 @@
 /**
+ * YAML frontmatter for protocol dumps (round-trip with kairos_mint).
+ * Slug and version values are constrained at mint time; kept single-line.
+ */
+export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: string): string {
+  const s = (slug || '').trim();
+  const lines = ['---', `slug: ${s || 'protocol'}`];
+  const v = protocolVersion?.trim();
+  if (v) lines.push(`version: ${v}`);
+  lines.push('---', '');
+  // Blank line after frontmatter before H1
+  return `${lines.join('\n')}\n`;
+}
+
+/**
  * Remove a redundant H2 that matches the step label from memory body before
  * protocol dump prepends `## {label}`.
  *

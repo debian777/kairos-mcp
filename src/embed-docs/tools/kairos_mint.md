@@ -9,6 +9,17 @@ H2 steps, and a trailing ` ```json ` challenge block per verifiable step.
 requires: `## Natural Language Triggers` (first H2), `## Completion Rule`
 (last H2), and at least one challenge block.
 
+**Optional YAML frontmatter** (before the H1) can set:
+
+- `slug:` — exact routing key for `kairos_begin` with `key` (lowercase,
+  letters, digits, hyphens only). Must be **unique per space**; mint
+  fails with `DUPLICATE_SLUG` if another protocol already uses it.
+- `version:` — same as `protocol_version` below.
+
+If `slug` is omitted, it is **auto-generated** from the H1 title
+(lowercase, hyphenated). If that collides with another protocol's slug,
+the server appends `-2`, `-3`, … until unique.
+
 **Input:**
 
 - `markdown_doc` (string) — the markdown protocol document.

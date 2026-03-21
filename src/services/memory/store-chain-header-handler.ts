@@ -9,7 +9,12 @@ import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
-import { deriveDomainTaskType, handleDuplicateChain } from './store-chain-helpers.js';
+import {
+  allocateProtocolSlugForMint,
+  deriveDomainTaskType,
+  handleDuplicateChain,
+  type ProtocolSlugMintInput
+} from './store-chain-helpers.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 
 /**
@@ -21,7 +26,8 @@ export async function storeHeaderBasedChain(
   methods: MemoryQdrantStoreMethods,
   headerChainMemories: Memory[],
   llmModelId: string,
-  forceUpdate: boolean
+  forceUpdate: boolean,
+  slugInput: ProtocolSlugMintInput
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
@@ -35,6 +41,8 @@ export async function storeHeaderBasedChain(
 
   // Handle duplicate chain
   await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
+
+  const protocolSlug = await allocateProtocolSlugForMint(client, collection, slugInput, chainUuid);
 
   // Generate embeddings: for chain head (step 1) include protocol title so search ranks by protocol name, not just step heading
   const sectionTexts = headerChainMemories.map((m, i) =>
@@ -104,7 +112,8 @@ export async function storeHeaderBasedChain(
           step_index: i + 1,
           step_count: chainStepCount,
           ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version })
-        }
+        },
+        slug: protocolSlug
       }
     });
   });

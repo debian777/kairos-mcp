@@ -17,6 +17,7 @@ export const dumpOutputSchema = z.object({
   label: z.string(),
   chain_label: z.string().nullable(),
   step_count: z.number().optional(),
+  slug: z.string().optional().describe('Protocol routing slug when protocol=true'),
   protocol_version: z.string().optional(),
   position: positionSchema.optional(),
   challenge: z.record(z.string(), z.unknown()).optional()

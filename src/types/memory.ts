@@ -40,4 +40,6 @@ export interface Memory {
   created_at: string;
   chain?: ChainInfo;               // Memory chain metadata (formerly protocol)
   proof_of_work?: ProofOfWorkDefinition;
+  /** Qdrant payload: exact routing key for kairos_begin(key). */
+  slug?: string;
 }

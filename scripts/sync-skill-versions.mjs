@@ -104,7 +104,8 @@ function replaceKairosVersionLine(content, newVersion) {
   if (second === -1) return content;
   const block = afterFirst.slice(0, second);
   const rest = afterFirst.slice(second);
-  const newBlock = block.replace(/^(version:\s*)["']?[^"'\n]*["']?\s*$/m, `$1"${newVersion}"\n`);
+  // Do not append \n here: the match ends before the line break, so adding \n would duplicate it (blank line after version:).
+  const newBlock = block.replace(/^(version:\s*)["']?[^"'\n]*["']?\s*$/m, `$1"${newVersion}"`);
   return leadingWhitespace + trimmed.slice(0, 3) + newBlock + rest;
 }
 

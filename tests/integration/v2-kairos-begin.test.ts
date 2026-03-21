@@ -10,9 +10,10 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
 describe('V2 kairos_begin response schema', () => {
   let mcpConnection;
 
+  // createMcpConnection health poll can run up to 60s; Jest default hook timeout is too low
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
-  }, 30000);
+  }, 120000);
 
   afterAll(async () => {
     if (mcpConnection) await mcpConnection.close();

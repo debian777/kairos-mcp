@@ -61,6 +61,11 @@ export const TEI_API_KEY = getEnvString('TEI_API_KEY', '');
 export const EMBEDDING_LATENCY_WARN_MS = getEnvInt('EMBEDDING_LATENCY_WARN_MS', 5000);
 export const EMBEDDING_NORM_MIN = getEnvFloat('EMBEDDING_NORM_MIN', 0.5);
 export const EMBEDDING_NORM_MAX = getEnvFloat('EMBEDDING_NORM_MAX', 2.0);
+/**
+ * Wall-clock cap for comment PoW semantic check (two embedding calls). On timeout, fail open (same as embedding errors)
+ * so MCP `kairos_next` stays within agent-usable latency (well under typical ~30s client limits). Set to 0 to skip semantic check.
+ */
+export const COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS = getEnvInt('COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS', 10_000);
 export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESHOLD', 0.1);
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
 export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');

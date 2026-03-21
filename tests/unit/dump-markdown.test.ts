@@ -1,4 +1,4 @@
-import { stripRedundantStepH2 } from '../../src/utils/dump-markdown.js';
+import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../../src/utils/dump-markdown.js';
 
 describe('stripRedundantStepH2', () => {
   test('strips leading H2 matching label', () => {
@@ -22,5 +22,17 @@ describe('stripRedundantStepH2', () => {
 
   test('handles CRLF in input', () => {
     expect(stripRedundantStepH2('## T\r\n\r\nx', 'T')).toBe('x');
+  });
+});
+
+describe('buildProtocolYamlFrontmatter', () => {
+  test('includes slug and optional version', () => {
+    expect(buildProtocolYamlFrontmatter('analyze-and-plan', '1.0.0')).toBe(
+      '---\nslug: analyze-and-plan\nversion: 1.0.0\n---\n\n'
+    );
+  });
+
+  test('omits version line when absent', () => {
+    expect(buildProtocolYamlFrontmatter('foo')).toBe('---\nslug: foo\n---\n\n');
   });
 });

@@ -5,7 +5,8 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
-import { stripRedundantStepH2 } from '../utils/dump-markdown.js';
+import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../utils/dump-markdown.js';
+import { slugifyFromTitle } from '../utils/protocol-slug.js';
 import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
@@ -108,12 +109,17 @@ export async function executeDump(
     }
     memories.sort((a, b) => (a.chain?.step_index ?? 0) - (b.chain?.step_index ?? 0));
     const headUri = `kairos://mem/${firstStep.uuid}`;
+    const headSlug = memories[0]?.slug?.trim();
+    const slugForExport = headSlug && headSlug.length > 0 ? headSlug : slugifyFromTitle(chainLabel);
+    const mdBody = buildMarkdownDocProtocol(memories);
+    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion) + mdBody;
     return {
-      markdown_doc: buildMarkdownDocProtocol(memories),
+      markdown_doc,
       uri: headUri,
       label: chainLabel,
       chain_label: chainLabel,
       step_count: stepCount,
+      slug: slugForExport,
       ...(protocolVersion && { protocol_version: protocolVersion })
     };
   }

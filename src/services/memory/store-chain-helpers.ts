@@ -5,6 +5,7 @@ import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
+import { MAX_AUTO_SUFFIX_ATTEMPTS, nextAutoSlugCandidate } from '../../utils/protocol-slug.js';
 
 /**
  * Derives domain task type from label, text, and tags
@@ -135,3 +136,83 @@ export async function checkSimilarMemoryByTitle(
   }
 }
 
+/** Input for resolving a unique slug before chain upsert (after handleDuplicateChain). */
+export interface ProtocolSlugMintInput {
+  slug: string;
+  authorSupplied: boolean;
+}
+
+async function scrollPointsWithSlug(
+  client: QdrantClient,
+  collection: string,
+  slug: string
+): Promise<Array<{ id: string | number; payload: Record<string, unknown> }>> {
+  const allowed = getSpaceContext().allowedSpaceIds;
+  const filter = buildSpaceFilter(allowed, { must: [{ key: 'slug', match: { value: slug } }] });
+  const dup = await client.scroll(collection, {
+    filter,
+    limit: 24,
+    with_payload: true,
+    with_vector: false
+  } as any);
+  return (dup.points ?? []).map((p: any) => ({ id: p.id, payload: p.payload || {} }));
+}
+
+/**
+ * Allocate a slug that does not collide with another chain in allowed spaces.
+ * Author slugs: exact collision with a different chain → DUPLICATE_SLUG.
+ * Auto slugs: append -2, -3, … until free.
+ */
+export async function allocateProtocolSlugForMint(
+  client: QdrantClient,
+  collection: string,
+  input: ProtocolSlugMintInput,
+  newChainUuid: string
+): Promise<string> {
+  const { slug: baseSlug, authorSupplied } = input;
+
+  async function usedByOtherChain(candidate: string): Promise<{ otherChainId: string; sample_uri?: string } | null> {
+    const hits = await scrollPointsWithSlug(client, collection, candidate);
+    for (const h of hits) {
+      const chainObj = h.payload['chain'] as { id?: string } | undefined;
+      const chainId = chainObj && typeof chainObj.id === 'string' ? chainObj.id : undefined;
+      if (chainId && chainId !== newChainUuid) {
+        return {
+          otherChainId: chainId,
+          sample_uri: `kairos://mem/${String(h.id)}`
+        };
+      }
+    }
+    return null;
+  }
+
+  if (authorSupplied) {
+    const clash = await usedByOtherChain(baseSlug);
+    if (clash) {
+      throw new KairosError(
+        `Slug "${baseSlug}" is already used by another protocol in this space.`,
+        'DUPLICATE_SLUG',
+        409,
+        {
+          slug: baseSlug,
+          chain_id: clash.otherChainId,
+          sample_uri: clash.sample_uri
+        }
+      );
+    }
+    return baseSlug;
+  }
+
+  for (let attempt = 1; attempt <= MAX_AUTO_SUFFIX_ATTEMPTS; attempt++) {
+    const candidate = nextAutoSlugCandidate(baseSlug, attempt);
+    const clash = await usedByOtherChain(candidate);
+    if (!clash) return candidate;
+  }
+
+  throw new KairosError(
+    `Could not allocate a unique slug from "${baseSlug}" after ${MAX_AUTO_SUFFIX_ATTEMPTS} attempts.`,
+    'SLUG_ALLOCATION_EXHAUSTED',
+    409,
+    { base_slug: baseSlug }
+  );
+}
