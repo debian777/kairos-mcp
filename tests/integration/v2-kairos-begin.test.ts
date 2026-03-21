@@ -116,36 +116,41 @@ describe('V2 kairos_begin response schema', () => {
     });
   });
 
-  test('refining protocol: submitting step 1 comment to step 1 URI advances to step 2 (no TYPE_MISMATCH)', async () => {
-    const beginResult = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
-      arguments: { uri: REFINING_PROTOCOL_URI }
-    });
-    const beginPayload = parseMcpJson(beginResult, 'v2-begin refine step1');
-    const nonce = beginPayload.challenge?.nonce;
-    const proofHash = beginPayload.challenge?.proof_hash;
+  // Comment proofs run semantic validation (2× embedding API); default 30s is tight in CI.
+  test(
+    'refining protocol: submitting step 1 comment to step 1 URI advances to step 2 (no TYPE_MISMATCH)',
+    async () => {
+      const beginResult = await mcpConnection.client.callTool({
+        name: 'kairos_begin',
+        arguments: { uri: REFINING_PROTOCOL_URI }
+      });
+      const beginPayload = parseMcpJson(beginResult, 'v2-begin refine step1');
+      const nonce = beginPayload.challenge?.nonce;
+      const proofHash = beginPayload.challenge?.proof_hash;
 
-    const nextResult = await mcpConnection.client.callTool({
-      name: 'kairos_next',
-      arguments: {
-        uri: REFINING_PROTOCOL_URI,
-        solution: {
-          type: 'comment',
-          comment: { text: 'Extracted goal: refine search; context: KAIROS; gaps: none. Genuine summary for step 1.' },
-          nonce,
-          proof_hash: proofHash
+      const nextResult = await mcpConnection.client.callTool({
+        name: 'kairos_next',
+        arguments: {
+          uri: REFINING_PROTOCOL_URI,
+          solution: {
+            type: 'comment',
+            comment: { text: 'Extracted goal: refine search; context: KAIROS; gaps: none. Genuine summary for step 1.' },
+            nonce,
+            proof_hash: proofHash
+          }
         }
-      }
-    });
-    const nextPayload = parseMcpJson(nextResult, 'v2-begin refine next');
+      });
+      const nextPayload = parseMcpJson(nextResult, 'v2-begin refine next');
 
-    withRawOnFail({ beginResult, nextResult }, () => {
-      expect(nextPayload.error_code).toBeUndefined();
-      expect(nextPayload.current_step?.uri).toBeDefined();
-      expect(nextPayload.challenge?.type).toBe('mcp');
-      expect(nextPayload.current_step.uri).not.toBe(REFINING_PROTOCOL_URI);
-    });
-  });
+      withRawOnFail({ beginResult, nextResult }, () => {
+        expect(nextPayload.error_code).toBeUndefined();
+        expect(nextPayload.current_step?.uri).toBeDefined();
+        expect(nextPayload.challenge?.type).toBe('mcp');
+        expect(nextPayload.current_step.uri).not.toBe(REFINING_PROTOCOL_URI);
+      });
+    },
+    120_000
+  );
 
   test('single-step: next_action directs to kairos_attest or kairos_next, no final_challenge', async () => {
     const ts = Date.now();
