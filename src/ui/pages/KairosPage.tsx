@@ -5,7 +5,6 @@ import { useSearch } from "@/hooks/useSearch";
 import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
-import { BROWSE_LETTERS, browseChainsFromSpaces } from "@/utils/browse-chains";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -14,8 +13,10 @@ const roleBadgeClass: Record<string, string> = {
   create: "bg-[#fef3c7] text-[#92400e]",
 };
 
-/** Protocol URI prefix for chain_id from kairos_spaces. */
-const PROTOCOL_URI_PREFIX = "kairos://mem/";
+const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+/** Adapter URI prefix for chain_id from spaces browse results. */
+const PROTOCOL_URI_PREFIX = "kairos://adapter/";
 
 export function KairosPage() {
   const { t } = useTranslation();
@@ -63,10 +64,21 @@ export function KairosPage() {
       ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
       : null;
 
-  const { browseChains, countsByLetter } = useMemo(
-    () => browseChainsFromSpaces(spacesData?.spaces),
-    [spacesData?.spaces]
-  );
+  const { browseChains, countsByLetter } = useMemo(() => {
+    const chains: Array<{ chain_id: string; title: string; step_count: number }> = [];
+    for (const space of spacesData?.spaces ?? []) {
+      for (const c of space.chains ?? []) {
+        chains.push({ chain_id: c.chain_id, title: c.title, step_count: c.step_count });
+      }
+    }
+    const byLetter: Record<string, number> = {};
+    for (const letter of A_Z) byLetter[letter] = 0;
+    for (const c of chains) {
+      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
+      if (A_Z.includes(first)) byLetter[first] = (byLetter[first] ?? 0) + 1;
+    }
+    return { browseChains: chains, countsByLetter: byLetter };
+  }, [spacesData?.spaces]);
 
   const letterChains = useMemo(() => {
     if (!expandedLetter) return [];
@@ -163,7 +175,7 @@ export function KairosPage() {
               </p>
               {!spacesLoading && (
               <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
-                {BROWSE_LETTERS.map((letter) => {
+                {A_Z.map((letter) => {
                   const count = countsByLetter[letter] ?? 0;
                   return (
                     <button
@@ -205,14 +217,11 @@ export function KairosPage() {
                       role="list"
                       aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
                     >
-                      {letterChains.map((chain, index) => {
+                      {letterChains.map((chain) => {
                         const uri = `${PROTOCOL_URI_PREFIX}${chain.chain_id}`;
-                        const rowKey = (chain.chain_id ?? "").trim()
-                          ? chain.chain_id
-                          : `browse-${expandedLetter}-${index}-${chain.title}`;
                         return (
                           <li
-                            key={rowKey}
+                            key={chain.chain_id}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                           >
                             <span className="font-medium text-[var(--color-text-heading)]">{chain.title}</span>

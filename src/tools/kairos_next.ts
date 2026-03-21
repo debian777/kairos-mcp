@@ -7,23 +7,15 @@ export type NextOutput = z.infer<typeof kairosNextOutputSchema>;
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, tryUserInputElicitation, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
+import { buildChallenge, handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
 import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
 import { buildMissingProofPayload } from './kairos_next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
-
-interface RegisterNextOptions {
-  toolName?: string;
-  qdrantService?: QdrantService;
-}
 
 async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
   const cached = await redisCacheService.getMemoryResource(uuid);
@@ -127,25 +119,6 @@ export async function updateStepQuality(
     kairosQualityUpdateErrors.inc({ tenant_id: tenantId });
     structuredLogger.warn(`kairos_next: Quality update failed for ${memory.memory_uuid}: ${err instanceof Error ? err.message : String(err)}`);
   }
-}
-
-/** Build payload when solution is missing (MISSING_FIELD). Shared by MCP and HTTP. */
-export async function buildMissingSolutionPayload(
-  memoryStore: MemoryQdrantStore,
-  uri: string
-): Promise<NextOutput> {
-  const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
-  const retryCount = await proofOfWorkStore.incrementRetry(uuid);
-  const noSolChallenge = await buildChallenge(null, undefined);
-  return {
-    must_obey: retryCount < 3,
-    current_step: buildCurrentStep(null, requestedUri),
-    challenge: noSolChallenge,
-    message: 'Solution is required for steps 2+. Use kairos_begin for step 1.',
-    next_action: `retry kairos_next with ${requestedUri} -- include solution matching challenge`,
-    error_code: 'MISSING_FIELD',
-    retry_count: retryCount
-  };
 }
 
 export type TryElicitResult = { payload: NextOutput } | { solution: ProofOfWorkSubmission };
@@ -284,50 +257,4 @@ export async function executeNext(
   const output = (await buildKairosNextPayload(displayMemory, displayUri, nextStepUri, challengeProof)) as NextOutput;
   if (submissionOutcome?.proofHash) output.proof_hash = submissionOutcome.proofHash;
   return output;
-}
-
-export function registerKairosNextTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterNextOptions = {}) {
-  const toolName = options.toolName || 'kairos_next';
-  structuredLogger.debug(`kairos_next registration inputSchema: ${JSON.stringify(kairosNextInputSchema)}`);
-  structuredLogger.debug(`kairos_next registration outputSchema: ${JSON.stringify(kairosNextOutputSchema)}`);
-  server.registerTool(
-    toolName,
-    {
-      title: 'Submit solution and get next step',
-      description: getToolDoc('kairos_next') || 'Submit proof that current challenge was solved. Returns next step + next challenge.',
-      inputSchema: kairosNextInputSchema,
-      outputSchema: kairosNextOutputSchema
-    },
-    async (params: unknown) => {
-      const tenantId = getTenantId();
-      const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
-      structuredLogger.debug(`kairos_next space_id=${spaceId}`);
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
-      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
-      const respond = (payload: NextOutput) => {
-        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(payload).length);
-        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(payload) }],
-          structuredContent: payload
-        };
-      };
-      try {
-        const input = kairosNextInputSchema.parse(params);
-        if (!input.solution) {
-          return respond(await buildMissingSolutionPayload(memoryStore, input.uri));
-        }
-        const tryElicit = (memory: Memory, solution: ProofOfWorkSubmission, requestedUri: string) =>
-          tryUserInputElicitation(server, memory, solution, requestedUri, buildCurrentStep);
-        const output = await executeNext(memoryStore, options.qdrantService, input, tenantId, { tryElicit });
-        return respond(output);
-      } catch (error) {
-        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        throw error;
-      }
-    }
-  );
 }

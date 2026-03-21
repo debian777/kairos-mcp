@@ -1,9 +1,5 @@
 import type { QdrantService } from '../services/qdrant/service.js';
-import { qdrantService as qdrantServiceSingleton } from '../services/qdrant/index.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId } from '../utils/tenant-context.js';
-import { updateInputSchema, updateOutputSchema, type UpdateInput, type UpdateOutput } from './kairos_update_schema.js';
+import type { UpdateInput, UpdateOutput } from './kairos_update_schema.js';
 
 /** Extract BODY from a full KAIROS render if present; otherwise return input as-is */
 function extractBody(text: string): string {
@@ -77,38 +73,4 @@ export async function executeUpdate(
     total_updated: totalUpdated,
     total_failed: totalFailed
   };
-}
-
-export function registerKairosUpdateTool(server: any, toolName = 'kairos_update') {
-  const qdrantService = qdrantServiceSingleton;
-  server.registerTool(
-    toolName,
-    {
-      title: 'Update KAIROS Memory(s)',
-      description: getToolDoc('kairos_update'),
-      inputSchema: updateInputSchema,
-      outputSchema: updateOutputSchema
-    },
-    async (params: unknown) => {
-      const tenantId = getTenantId();
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
-      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
-      try {
-        const input = updateInputSchema.parse(params);
-        const result = await executeUpdate(qdrantService, input);
-        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(result).length);
-        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result) }],
-          structuredContent: result
-        };
-      } catch (error) {
-        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        throw error;
-      }
-    }
-  );
 }

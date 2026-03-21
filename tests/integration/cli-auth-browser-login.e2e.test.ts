@@ -1,7 +1,7 @@
 /**
  * CLI auth E2E: browser login only (no --token). Runs `kairos login --url <base> --no-browser`;
  * CLI prints the auth URL to stdout, we drive Keycloak via Playwright, then assert token
- * storage, search, logout, search-fails.
+ * storage, activate, logout, activate-fails.
  *
  * Requires: dev server + Keycloak (npm run dev:deploy), kairos-cli client. User/pass: TEST_USERNAME,
  * TEST_PASSWORD from auth-headers (env TEST_USERNAME/TEST_PASSWORD or kairos-tester/kairos-tester-secret).
@@ -194,7 +194,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
     spawnedProcesses.length = 0;
   });
 
-  test('browser login: Keycloak form -> callback -> token stored, search works', async () => {
+  test('browser login: Keycloak form -> callback -> token stored, activate works', async () => {
     // Clear any token from other CLI tests so this test does real browser login (not "Already authenticated")
     await runCli(`--url ${BASE_URL} logout`);
 
@@ -270,7 +270,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
     const storedToken = tokenResult.stdout.trim();
     expect(storedToken).toMatch(/^eyJ/);
 
-    const searchResult = await runCli(`--url ${BASE_URL} search "test"`);
+    const searchResult = await runCli(`--url ${BASE_URL} activate "test"`);
     expect(searchResult.code).toBe(0);
     const data = JSON.parse(searchResult.stdout);
     expect(data).toHaveProperty('choices');
@@ -289,7 +289,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
     expect(tokenAfter.code).not.toBe(0);
   }, 15000);
 
-  test('search without token after logout fails with auth message', async () => {
+  test('activate without token after logout fails with auth message', async () => {
     // Token was cleared by previous test
     // BROWSER=true so CLI does not open browser; fails fast with auth error
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -297,7 +297,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
       timeoutId = setTimeout(() => reject(new Error('CLI timed out after 12s (expected auth error)')), 12000);
     });
     const searchResult = await Promise.race([
-      runCli(`--url ${BASE_URL} search "test"`),
+      runCli(`--url ${BASE_URL} activate "test"`),
       timeoutPromise
     ]).finally(() => clearTimeout(timeoutId!));
     expect(searchResult.code).not.toBe(0);

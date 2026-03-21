@@ -32,8 +32,8 @@ describe('Auth (Keycloak + kairos-tester)', () => {
     expect(typeof data.login_url).toBe('string');
   }, 60000);
 
-  test('unauthenticated POST /api/kairos_search returns 401 with login_url (or 200 when auth disabled)', async () => {
-    const res = await fetch(`${API_BASE}/kairos_search`, {
+  test('unauthenticated POST /api/activate returns 401 with login_url (or 200 when auth disabled)', async () => {
+    const res = await fetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: 'test' })
@@ -66,11 +66,11 @@ describe('Auth (Keycloak + kairos-tester)', () => {
     const data = await res.json();
     expect(data).toHaveProperty('service', 'KAIROS API');
     expect(data).toHaveProperty('endpoints');
-    expect(data.endpoints).toHaveProperty('kairos_search');
+    expect(data.endpoints).toHaveProperty('activate');
   }, 60000);
 
-  test('authenticated POST /api/kairos_search returns 200 or structured error', async () => {
-    const res = await fetch(`${API_BASE}/kairos_search`, {
+  test('authenticated POST /api/activate returns 200 or structured error', async () => {
+    const res = await fetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ query: 'auth test query' })

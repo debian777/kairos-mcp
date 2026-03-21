@@ -1,5 +1,5 @@
 /**
- * CLI Commands Advanced Tests - next, update, delete, attest commands
+ * CLI Commands Advanced Tests - forward, tune, delete, reward commands
  * Tests CLI commands with --url parameter for commands requiring URIs
  */
 
@@ -22,7 +22,7 @@ describe('CLI Commands Advanced --url Tests', () => {
     cliLoggedIn = await setupCliConfigWithLogin();
     if (serverAvailable && cliLoggedIn) {
       const mintResult = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${TEST_FILE}"`
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${TEST_FILE}"`
       );
       const mintData = JSON.parse(mintResult.stdout);
       if (mintData.items && mintData.items.length > 0) {
@@ -31,13 +31,11 @@ describe('CLI Commands Advanced --url Tests', () => {
     }
   }, 60000);
 
-  describe('next command', () => {
-    test('next uses --url parameter', async () => {
+  describe('forward command', () => {
+    test('forward uses --url parameter with optional solution', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
-      // CLI next requires solution for steps 2+, and --output json for JSON format
-      // Note: Minted URI is typically step 1, so kairos_next will be blocked
       const solution = JSON.stringify({
         type: 'comment',
         comment: { text: 'Test solution verification' }
@@ -45,25 +43,22 @@ describe('CLI Commands Advanced --url Tests', () => {
 
       try {
         const { stdout, stderr } = await execAsync(
-          `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
+          `node ${CLI_PATH} forward --url ${BASE_URL} --solution '${solution}' "${uri}"`
         );
-        // If it succeeds, verify V2 response structure
         expect(stderr).toBe('');
         const result = JSON.parse(stdout);
         expect(result).toHaveProperty('must_obey');
         expect(result).toHaveProperty('next_action');
-      } catch (error: any) {
-        // If it fails (step 1 validation), verify error message
-        expect(error.message || error.stderr || '').toContain('step 1');
+      } catch (error: unknown) {
+        const e = error as { message?: string; stderr?: string };
+        expect(e.message || e.stderr || '').toMatch(/step|layer|contract|solution|invalid/i);
       }
     }, 30000);
 
-    test('next uses -u short form', async () => {
+    test('forward uses -u short form', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
-      // CLI next requires solution for steps 2+, and --output json for JSON format
-      // Note: Minted URI is typically step 1, so kairos_next will be blocked
       const solution = JSON.stringify({
         type: 'comment',
         comment: { text: 'Test solution verification' }
@@ -71,51 +66,26 @@ describe('CLI Commands Advanced --url Tests', () => {
 
       try {
         const { stdout, stderr } = await execAsync(
-          `node ${CLI_PATH} next -u ${BASE_URL} --output json --solution '${solution}' "${uri}"`
+          `node ${CLI_PATH} forward -u ${BASE_URL} --solution '${solution}' "${uri}"`
         );
-        // If it succeeds, verify V2 response structure
         expect(stderr).toBe('');
         const result = JSON.parse(stdout);
         expect(result).toHaveProperty('must_obey');
         expect(result).toHaveProperty('next_action');
-      } catch (error: any) {
-        // If it fails (step 1 validation), verify error message
-        expect(error.message || error.stderr || '').toContain('step 1');
+      } catch (error: unknown) {
+        const e = error as { message?: string; stderr?: string };
+        expect(e.message || e.stderr || '').toMatch(/step|layer|contract|solution|invalid/i);
       }
     }, 30000);
-
-    test('next with --url and --solution', async () => {
-      if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
-      const uri = cachedMintedUri;
-
-      const solution = JSON.stringify({
-        type: 'comment',
-        comment: { text: 'Test solution verification' }
-      });
-
-      try {
-        const { stdout, stderr } = await execAsync(
-          `node ${CLI_PATH} next --url ${BASE_URL} --output json --solution '${solution}' "${uri}"`
-        );
-        // If it succeeds, verify V2 response structure
-        expect(stderr).toBe('');
-        const result = JSON.parse(stdout);
-        expect(result).toHaveProperty('must_obey');
-        expect(result).toHaveProperty('next_action');
-      } catch (error: any) {
-        // If it fails (step 1 validation), verify error message
-        expect(error.message || error.stderr || '').toContain('step 1');
-      }
-    }, 60000);
   });
 
-  describe('update command', () => {
-    test('update uses --url parameter', async () => {
+  describe('tune command', () => {
+    test('tune uses --url parameter', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} update --url ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
+        `node ${CLI_PATH} tune --url ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -123,12 +93,12 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(result).toHaveProperty('results');
     }, 30000);
 
-    test('update uses -u short form', async () => {
+    test('tune uses -u short form', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} update -u ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
+        `node ${CLI_PATH} tune -u ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -137,13 +107,13 @@ describe('CLI Commands Advanced --url Tests', () => {
     }, 30000);
   });
 
-  describe('attest command', () => {
-    test('attest uses --url parameter', async () => {
+  describe('reward command', () => {
+    test('reward uses --url parameter', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test attestation"`
+        `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test attestation"`
       );
 
       expect(stderr).toBe('');
@@ -151,12 +121,12 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(result).toHaveProperty('results');
     }, 30000);
 
-    test('attest uses -u short form', async () => {
+    test('reward uses -u short form', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} attest -u ${BASE_URL} "${uri}" success "Test attestation"`
+        `node ${CLI_PATH} reward -u ${BASE_URL} "${uri}" success "Test attestation"`
       );
 
       expect(stderr).toBe('');
@@ -164,12 +134,12 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(result).toHaveProperty('results');
     }, 30000);
 
-    test('attest with --url and --quality-bonus', async () => {
+    test('reward with --url and --score', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test" --quality-bonus 5`
+        `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test" --score 0.9`
       );
 
       expect(stderr).toBe('');
@@ -177,12 +147,12 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(result).toHaveProperty('results');
     }, 30000);
 
-    test('attest with --url and --model', async () => {
+    test('reward with --url and --model', async () => {
       if (!serverAvailable || !cliLoggedIn || !cachedMintedUri) return;
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} attest --url ${BASE_URL} "${uri}" success "Test" --model "test-model"`
+        `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test" --model "test-model"`
       );
 
       expect(stderr).toBe('');

@@ -1,5 +1,5 @@
 /**
- * kairos search command
+ * activate command
  */
 
 import { Command } from 'commander';
@@ -9,13 +9,13 @@ import { writeJson } from '../output.js';
 
 export function searchCommand(program: Command): void {
     program
-        .command('search')
-        .description('Search for KAIROS protocols by query')
+        .command('activate')
+        .description('Activate the best matching KAIROS adapter for a query')
         .argument('<query...>', 'Search query (multiple words allowed)')
         .action(async (query: string[]) => {
             try {
                 const client = new ApiClient(undefined, !program.opts()['noBrowser']);
-                const response = await client.search(query.join(' '));
+                const response = await client.activate(query.join(' '));
                 writeJson(response);
             } catch (error) {
                 handleApiError(error, !program.opts()['noBrowser']);

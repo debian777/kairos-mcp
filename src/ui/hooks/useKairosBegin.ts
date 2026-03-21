@@ -1,9 +1,18 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { BeginOutput } from "../../tools/kairos_begin.js";
+import type { ForwardOutput } from "../../tools/forward_schema.js";
+import type { BeginOutput } from "@/lib/kairosRunTypes";
+
+function normalizeForward(output: ForwardOutput): BeginOutput {
+  return {
+    ...output,
+    current_step: output.current_layer,
+    challenge: output.contract,
+  } as BeginOutput;
+}
 
 async function kairosBegin(uri: string): Promise<BeginOutput> {
-  const res = await apiFetch("/api/kairos_begin", {
+  const res = await apiFetch("/api/forward", {
     method: "POST",
     body: JSON.stringify({ uri }),
   });
@@ -11,7 +20,8 @@ async function kairosBegin(uri: string): Promise<BeginOutput> {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { message?: string }).message ?? res.statusText);
   }
-  return res.json();
+  const output = (await res.json()) as ForwardOutput;
+  return normalizeForward(output);
 }
 
 export function useKairosBegin() {

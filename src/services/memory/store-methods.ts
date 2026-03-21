@@ -10,6 +10,7 @@ import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
+import { scoreActivationRerank } from './activation-reranker.js';
 
 /** Built-in refine protocol (always offered at bottom of kairos_search). Excluded from vector results. */
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
@@ -33,38 +34,6 @@ export class MemoryQdrantStoreMethods {
   invalidateLocalCache(): void {
     this.cache.clear();
     this.cacheLoaded = false;
-  }
-
-  private parseMarkdownSections(content: string): Array<{ title: string, content: string }> {
-    const lines = content.split(/\r?\n/);
-    const sections: Array<{ title: string, content: string }> = [];
-    let currentSection: { title: string, content: string[] } | null = null;
-
-    for (const line of lines) {
-      if (line.trim().startsWith('## ')) {
-        // Start new section
-        if (currentSection) {
-          sections.push({
-            title: currentSection.title,
-            content: currentSection.content.join('\n')
-          });
-        }
-        currentSection = {
-          title: line.trim().substring(3).trim(),
-          content: []
-        };
-      } else if (currentSection) {
-        currentSection.content.push(line);
-      }
-    }
-    if (currentSection) {
-      sections.push({
-        title: currentSection.title,
-        content: currentSection.content.join('\n').trim()
-      });
-    }
-
-    return sections;
   }
 
   async getMemory(memory_uuid: string): Promise<Memory | null> {
@@ -133,10 +102,9 @@ export class MemoryQdrantStoreMethods {
   }
 
   /**
-   * Hybrid search: dense + BM25 via Query API with formula-based title boosting.
-   * Inner prefetch: 1× dense + 3× BM25 fused via RRF.
-   * Outer query: formula = $score + TITLE_BOOST * match(chain.label, text: query) + attest_boost.
-   * match.text requires ALL query tokens in chain.label, boosting only exact title matches.
+   * Hybrid search: dense + BM25 via Query API with formula-based adapter-title
+   * boosting. The storage layer currently persists both adapter.* and chain.*
+   * fields while the codebase moves to v10 naming.
    */
   private async vectorSearch(query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);
@@ -147,7 +115,7 @@ export class MemoryQdrantStoreMethods {
 
     const searchSpaceIds = getSearchSpaceIds();
     const baseFilter = buildSpaceFilter(searchSpaceIds, {
-      must: [{ key: 'chain.step_index', match: { value: 1 } }]
+      must: [{ key: 'adapter.layer_index', match: { value: 1 } }]
     });
     const filter = {
       ...baseFilter,
@@ -187,7 +155,7 @@ export class MemoryQdrantStoreMethods {
               {
                 mult: [
                   TITLE_BOOST,
-                  { key: 'chain.label', match: { text: query } }
+                  { key: 'adapter.name', match: { text: query } }
                 ]
               },
               'attest_boost'
@@ -218,14 +186,18 @@ export class MemoryQdrantStoreMethods {
       const payload = r.payload || {};
       const memory = this.pointToMemory({ id: String(r.id), payload });
       const score = typeof r.score === 'number' ? r.score : 0.5;
-      return { memory, score };
+      const rerankBoost = scoreActivationRerank(query, memory);
+      return { memory, score, rerankScore: score + rerankBoost };
     });
 
     const isRefineProtocol = (m: Memory) =>
-      m.memory_uuid === REFINING_PROTOCOL_UUID || m.chain?.id === REFINING_PROTOCOL_UUID;
+      m.memory_uuid === REFINING_PROTOCOL_UUID ||
+      m.adapter?.id === REFINING_PROTOCOL_UUID ||
+      m.chain?.id === REFINING_PROTOCOL_UUID;
     let filtered = scored
       .filter(entry => entry.score > 0 && !isRefineProtocol(entry.memory))
       .sort((a, b) => {
+        if (b.rerankScore !== a.rerankScore) return b.rerankScore - a.rerankScore;
         if (b.score !== a.score) return b.score - a.score;
         return (a.memory.memory_uuid ?? '').localeCompare(b.memory.memory_uuid ?? '');
       })
@@ -235,7 +207,7 @@ export class MemoryQdrantStoreMethods {
       filtered = scored
         .filter(entry => !isRefineProtocol(entry.memory))
         .slice(0, limit)
-        .map(entry => ({ memory: entry.memory, score: 0.5 }));
+        .map(entry => ({ memory: entry.memory, score: 0.5, rerankScore: 0.5 }));
     }
 
     return {
@@ -255,56 +227,91 @@ export class MemoryQdrantStoreMethods {
       llm_model_id: typeof payload.llm_model_id === 'string' ? payload.llm_model_id : 'unknown-model',
       created_at: typeof payload.created_at === 'string' ? payload.created_at : new Date().toISOString()
     };
-    // Build chain object from payload if chain fields exist (coerce id to string for Qdrant/JSON edge types)
-    if (payload.chain && typeof payload.chain === 'object') {
-      const rawChainId = (payload.chain as { id?: unknown }).id;
-      const chainId =
-        rawChainId !== undefined && rawChainId !== null && String(rawChainId).trim().length > 0
-          ? String(rawChainId).trim()
-          : undefined;
-      if (chainId) {
-        const ch = payload.chain as {
-          label?: unknown;
-          step_index?: unknown;
-          step_count?: unknown;
-          protocol_version?: unknown;
-        };
-        base.chain = {
-          id: chainId,
-          label: typeof ch.label === 'string' ? ch.label : 'Knowledge Chain',
-          step_index: typeof ch.step_index === 'number' ? ch.step_index : 1,
-          step_count: typeof ch.step_count === 'number' ? ch.step_count : 1,
-          ...(typeof ch.protocol_version === 'string' && { protocol_version: ch.protocol_version })
-        };
-      }
-    }
-    if (!base.chain && typeof payload.memory_chain_id === 'string') {
-      // Backward compatibility: read flat fields during transition
-      base.chain = {
-        id: payload.memory_chain_id,
-        label: typeof payload.chain_label === 'string' ? payload.chain_label : 'Knowledge Chain',
-        step_index: typeof payload.chain_step_index === 'number' ? payload.chain_step_index : 1,
-        step_count: typeof payload.chain_step_count === 'number' ? payload.chain_step_count : 1
+    const payloadAdapter =
+      payload.adapter && typeof payload.adapter.id === 'string'
+        ? payload.adapter
+        : payload.chain && typeof payload.chain.id === 'string'
+          ? {
+              id: payload.chain.id,
+              name: payload.chain.label,
+              layer_index: payload.chain.step_index,
+              layer_count: payload.chain.step_count,
+              protocol_version: (payload.chain as any).protocol_version,
+              activation_patterns: (payload.chain as any).activation_patterns
+            }
+          : typeof payload.memory_chain_id === 'string'
+            ? {
+                id: payload.memory_chain_id,
+                name: typeof payload.chain_label === 'string' ? payload.chain_label : 'Knowledge Adapter',
+                layer_index: typeof payload.chain_step_index === 'number' ? payload.chain_step_index : 1,
+                layer_count: typeof payload.chain_step_count === 'number' ? payload.chain_step_count : 1
+              }
+            : null;
+
+    if (payloadAdapter) {
+      base.adapter = {
+        id: payloadAdapter.id,
+        name: typeof payloadAdapter.name === 'string'
+          ? payloadAdapter.name
+          : typeof payloadAdapter.label === 'string'
+            ? payloadAdapter.label
+            : 'Knowledge Adapter',
+        layer_index: typeof payloadAdapter.layer_index === 'number'
+          ? payloadAdapter.layer_index
+          : typeof payloadAdapter.step_index === 'number'
+            ? payloadAdapter.step_index
+            : 1,
+        layer_count: typeof payloadAdapter.layer_count === 'number'
+          ? payloadAdapter.layer_count
+          : typeof payloadAdapter.step_count === 'number'
+            ? payloadAdapter.step_count
+            : 1,
+        ...(typeof payloadAdapter.protocol_version === 'string' && {
+          protocol_version: payloadAdapter.protocol_version
+        }),
+        ...(Array.isArray(payloadAdapter.activation_patterns) && {
+          activation_patterns: payloadAdapter.activation_patterns
+        })
       };
+      base.chain = {
+        id: base.adapter.id,
+        label: base.adapter.name,
+        step_index: base.adapter.layer_index,
+        step_count: base.adapter.layer_count,
+        ...(base.adapter.protocol_version && {
+          protocol_version: base.adapter.protocol_version
+        }),
+        ...(base.adapter.activation_patterns && {
+          activation_patterns: base.adapter.activation_patterns
+        })
+      };
+      base.activation_patterns = base.adapter.activation_patterns ?? [];
     }
-    if (typeof payload.slug === 'string' && payload.slug.length > 0) {
-      base.slug = payload.slug;
-    }
-    if (typeof payload.space_id === 'string' && payload.space_id.length > 0) {
-      base.space_id = payload.space_id;
-    }
-    if (payload.proof_of_work && typeof payload.proof_of_work === 'object') {
-      const pow = payload.proof_of_work as Record<string, unknown>;
-      if (typeof pow['cmd'] === 'string') {
-        base.proof_of_work = {
-          cmd: pow['cmd'],
-          timeout_seconds: typeof pow['timeout_seconds'] === 'number' ? pow['timeout_seconds'] : 60,
-          required: Boolean(pow['required'])
+
+    const payloadContract =
+      payload.inference_contract && typeof payload.inference_contract === 'object'
+        ? payload.inference_contract
+        : payload.proof_of_work && typeof payload.proof_of_work === 'object'
+          ? payload.proof_of_work
+          : null;
+
+    if (payloadContract) {
+      const contract = payloadContract as Record<string, unknown>;
+      if (typeof contract['cmd'] === 'string') {
+        base.inference_contract = {
+          cmd: contract['cmd'],
+          timeout_seconds: typeof contract['timeout_seconds'] === 'number'
+            ? contract['timeout_seconds']
+            : 60,
+          required: Boolean(contract['required'])
         };
       } else {
-        base.proof_of_work = pow as unknown as import('../../types/memory.js').ProofOfWorkDefinition;
+        base.inference_contract =
+          contract as unknown as import('../../types/memory.js').InferenceContractDefinition;
       }
+      base.proof_of_work = base.inference_contract;
     }
+
     return base as Memory;
   }
 

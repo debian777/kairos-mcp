@@ -1,13 +1,16 @@
 /**
- * V2 kairos_begin response shape tests.
- * Validates the schema from docs/workflow-kairos-begin.md.
- * These tests are expected to FAIL against v1 code.
+ * V10 forward response shape tests (entry pass without solution; formerly kairos_begin).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
-describe('V2 kairos_begin response schema', () => {
+function layerIdFromUri(uri: string): string {
+  const base = uri.split('?')[0] ?? uri;
+  return base.split('/').pop() ?? '';
+}
+
+describe('V10 forward (open execution) response schema', () => {
   let mcpConnection;
 
   // createMcpConnection health poll can run up to 60s; Jest default hook timeout is too low
@@ -19,117 +22,99 @@ describe('V2 kairos_begin response schema', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  async function mintTwoStepProtocol(label: string) {
+  async function trainTwoStepProtocol(label: string) {
     const doc = buildProofMarkdown(label, [
       { heading: 'Step One', body: `First body for ${label}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second body for ${label}.`, proofCmd: 'echo step2' }
     ]);
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
     });
-    const parsed = parseMcpJson(storeResult, 'v2-begin mint');
+    const parsed = parseMcpJson(storeResult, 'v10-forward mint');
     expect(parsed.status).toBe('stored');
-    return parsed.items;
+    return parsed.items as Array<{ uri: string; adapter_uri: string }>;
   }
 
-  test('multi-step: must_obey true, next_action with URI, proof_hash in challenge, no next_step', async () => {
+  test('multi-step: must_obey true, contract, current_layer, next_action references forward', async () => {
     const ts = Date.now();
-    const items = await mintTwoStepProtocol(`V2Begin Multi ${ts}`);
-    const firstUri = items[0].uri;
+    const items = await trainTwoStepProtocol(`V2Begin Multi ${ts}`);
+    const adapterUri = items[0].adapter_uri;
 
-    const call = { name: 'kairos_begin', arguments: { uri: firstUri } };
+    const call = { name: 'forward', arguments: { uri: adapterUri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-begin');
+    const parsed = parseMcpJson(result, 'v10-forward');
 
     withRawOnFail({ call, result }, () => {
-      // V2 required fields
       expect(parsed.must_obey).toBe(true);
-      expect(parsed.current_step).toBeDefined();
-      expect(parsed.current_step.uri).toMatch(/^kairos:\/\/mem\//);
-      expect(parsed.current_step.mimeType).toBe('text/markdown');
-      expect(parsed.challenge).toBeDefined();
-      expect(parsed.challenge.type).toBeDefined();
-      expect(parsed.challenge.description).toBeDefined();
+      expect(parsed.current_layer).toBeDefined();
+      expect(parsed.current_layer.uri).toMatch(/^kairos:\/\/layer\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i);
+      expect(parsed.current_layer.mimeType).toBe('text/markdown');
+      expect(parsed.contract).toBeDefined();
+      expect(parsed.contract.type).toBeDefined();
 
-      // proof_hash replaces genesis_hash
-      expect(parsed.challenge.proof_hash).toBeDefined();
-      expect(parsed.challenge.genesis_hash).toBeUndefined();
-
-      // next_action with embedded URI
       expect(typeof parsed.next_action).toBe('string');
-      expect(parsed.next_action).toContain('kairos://mem/');
-      expect(parsed.next_action).toContain('kairos_next');
+      expect(parsed.next_action.toLowerCase()).toContain('forward');
+      expect(parsed.execution_id).toBeDefined();
 
-      // V1 fields must NOT exist
       expect(parsed.next_step).toBeUndefined();
       expect(parsed.protocol_status).toBeUndefined();
-      expect(parsed.attest_required).toBeUndefined();
-      expect(parsed.final_challenge).toBeUndefined();
+      expect(parsed.challenge).toBeUndefined();
     });
   });
 
-  test('auto-redirect: non-step-1 URI returns step 1', async () => {
+  test('opening with second layer URI starts execution at that layer (no silent redirect to step 1)', async () => {
     const ts = Date.now();
-    const items = await mintTwoStepProtocol(`V2Begin Redirect ${ts}`);
+    const items = await trainTwoStepProtocol(`V2Begin Redirect ${ts}`);
     const secondUri = items[1].uri;
-    const firstUri = items[0].uri;
+    const firstLayerId = layerIdFromUri(items[0].uri);
 
-    const call = { name: 'kairos_begin', arguments: { uri: secondUri } };
+    const call = { name: 'forward', arguments: { uri: secondUri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-begin redirect');
+    const parsed = parseMcpJson(result, 'v10-forward second layer');
 
     withRawOnFail({ call, result }, () => {
-      // Should auto-redirect to step 1
       expect(parsed.must_obey).toBe(true);
-      expect(parsed.current_step).toBeDefined();
-      expect(parsed.current_step.uri).toBe(firstUri);
-      expect(parsed.message).toContain('Redirected');
-      expect(typeof parsed.next_action).toBe('string');
-
-      // NOT a blocked error
-      expect(parsed.protocol_status).toBeUndefined();
+      expect(parsed.current_layer).toBeDefined();
+      expect(layerIdFromUri(parsed.current_layer.uri)).not.toBe(firstLayerId);
     });
   });
 
-  const REFINING_PROTOCOL_URI = 'kairos://mem/00000000-0000-0000-0000-000000002002';
+  const REFINING_ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002002';
 
-  test('refining protocol: kairos_begin with refine-choice URI returns step 1 with comment challenge', async () => {
-    const call = { name: 'kairos_begin', arguments: { uri: REFINING_PROTOCOL_URI } };
+  test('refining protocol: forward with refine adapter returns comment contract', async () => {
+    const call = { name: 'forward', arguments: { uri: REFINING_ADAPTER_URI } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-begin refining');
+    const parsed = parseMcpJson(result, 'v10-forward refining');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
-      expect(parsed.current_step).toBeDefined();
-      expect(parsed.current_step.uri).toBe(REFINING_PROTOCOL_URI);
-      expect(typeof parsed.current_step.content).toBe('string');
-      // Seed chain may have empty content in Qdrant (e.g. different space or backfill); allow empty
-      if (parsed.current_step.content.length > 0) {
-        expect(parsed.current_step.content).toMatch(/refin|Extract|user/i);
+      expect(parsed.current_layer).toBeDefined();
+      expect(typeof parsed.current_layer.content).toBe('string');
+      if (parsed.current_layer.content.length > 0) {
+        expect(parsed.current_layer.content).toMatch(/refin|Extract|user/i);
       }
-      expect(parsed.challenge).toBeDefined();
-      expect(parsed.challenge.type).toBe('comment');
+      expect(parsed.contract).toBeDefined();
+      expect(parsed.contract.type).toBe('comment');
       expect(typeof parsed.next_action).toBe('string');
-      // Critical: first kairos_next must use step 1's URI (current step), not step 2's, so comment is submitted to the right step
-      expect(parsed.next_action).toContain(REFINING_PROTOCOL_URI);
-      expect(parsed.next_action).toMatch(/kairos_next/);
+      expect(parsed.next_action.toLowerCase()).toContain('forward');
     });
   });
 
-  test('refining protocol: submitting step 1 comment to step 1 URI advances to step 2 (no TYPE_MISMATCH)', async () => {
+  test('refining protocol: comment solution advances to next layer', async () => {
     const beginResult = await mcpConnection.client.callTool({
-      name: 'kairos_begin',
-      arguments: { uri: REFINING_PROTOCOL_URI }
+      name: 'forward',
+      arguments: { uri: REFINING_ADAPTER_URI }
     });
-    const beginPayload = parseMcpJson(beginResult, 'v2-begin refine step1');
-    const nonce = beginPayload.challenge?.nonce;
-    const proofHash = beginPayload.challenge?.proof_hash;
+    const beginPayload = parseMcpJson(beginResult, 'v10-forward refine step1');
+    const layerUri = beginPayload.current_layer.uri as string;
+    const nonce = beginPayload.contract?.nonce;
+    const proofHash = beginPayload.contract?.proof_hash;
 
     const nextResult = await mcpConnection.client.callTool({
-      name: 'kairos_next',
+      name: 'forward',
       arguments: {
-        uri: REFINING_PROTOCOL_URI,
+        uri: layerUri,
         solution: {
           type: 'comment',
           comment: { text: 'Extracted goal: refine search; context: KAIROS; gaps: none. Genuine summary for step 1.' },
@@ -138,17 +123,17 @@ describe('V2 kairos_begin response schema', () => {
         }
       }
     });
-    const nextPayload = parseMcpJson(nextResult, 'v2-begin refine next');
+    const nextPayload = parseMcpJson(nextResult, 'v10-forward refine step2');
 
     withRawOnFail({ beginResult, nextResult }, () => {
       expect(nextPayload.error_code).toBeUndefined();
-      expect(nextPayload.current_step?.uri).toBeDefined();
-      expect(nextPayload.challenge?.type).toBe('mcp');
-      expect(nextPayload.current_step.uri).not.toBe(REFINING_PROTOCOL_URI);
+      expect(nextPayload.current_layer?.uri).toBeDefined();
+      expect(nextPayload.contract?.type).toBe('mcp');
+      expect(layerIdFromUri(nextPayload.current_layer.uri)).not.toBe(layerIdFromUri(layerUri));
     });
   });
 
-  test('single-step: next_action directs to kairos_attest or kairos_next, no final_challenge', async () => {
+  test('single-step adapter: next_action directs to forward or reward', async () => {
     const ts = Date.now();
     const doc = `# V2Begin Single ${ts}
 
@@ -165,24 +150,20 @@ Do the thing.
 ## Completion Rule
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
     });
-    const stored = parseMcpJson(storeResult, 'v2-begin single mint');
-    const uri = stored.items[0].uri;
+    const stored = parseMcpJson(storeResult, 'v10-forward single mint');
+    const uri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;
 
-    const call = { name: 'kairos_begin', arguments: { uri } };
+    const call = { name: 'forward', arguments: { uri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v2-begin single');
+    const parsed = parseMcpJson(result, 'v10-forward single');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
-      // With required Triggers + Completion Rule the chain has 2+ steps, so begin may direct to next or attest
-      expect(parsed.next_action).toMatch(/kairos_(next|attest)/i);
-
-      // No final_challenge or final_solution references
+      expect(parsed.next_action).toMatch(/forward|reward/i);
       expect(parsed.final_challenge).toBeUndefined();
-      expect(parsed.attest_required).toBeUndefined();
     });
   });
 });

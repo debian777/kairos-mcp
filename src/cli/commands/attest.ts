@@ -1,5 +1,5 @@
 /**
- * kairos attest command (V2: no final_solution required)
+ * reward command
  */
 
 import { Command } from 'commander';
@@ -7,20 +7,22 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 
-export function attestCommand(program: Command): void {
+export function rewardCommand(program: Command): void {
     program
-        .command('attest')
-        .description('Attest completion or failure of a KAIROS protocol')
-        .argument('<uri>', 'KAIROS memory URI (kairos://mem/...)')
+        .command('reward')
+        .description('Record a reward signal for a KAIROS adapter execution')
+        .argument('<uri>', 'KAIROS layer URI (kairos://layer/...)')
         .argument('<outcome>', 'Outcome: success or failure')
-        .argument('<message>', 'Attestation message describing the completion or failure')
-        .option('--quality-bonus <number>', 'Additional quality bonus to apply (default: 0)', '0')
+        .argument('<feedback>', 'Reward feedback describing the completion or failure')
+        .option('--score <number>', 'Normalized reward score in the 0..1 range')
+        .option('--rater <rater>', 'Evaluator identifier used for export gating')
+        .option('--rubric-version <version>', 'Rubric or policy version used for evaluation')
         .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
         .action(async (
             uri: string,
             outcome: string,
-            message: string,
-            options: { qualityBonus?: string; model?: string }
+            feedback: string,
+            options: { score?: string; rater?: string; rubricVersion?: string; model?: string }
         ) => {
             try {
                 if (outcome !== 'success' && outcome !== 'failure') {
@@ -29,26 +31,33 @@ export function attestCommand(program: Command): void {
                     return;
                 }
 
-                const qualityBonus = options.qualityBonus ? parseFloat(options.qualityBonus) : 0;
-                if (isNaN(qualityBonus)) {
-                    writeError('--quality-bonus must be a number');
+                const score = options.score !== undefined ? parseFloat(options.score) : undefined;
+                if (score !== undefined && isNaN(score)) {
+                    writeError('--score must be a number');
                     process.exit(1);
                     return;
                 }
 
                 const client = new ApiClient(undefined, !program.opts()['noBrowser']);
                 
-                const attestOptions: { qualityBonus?: number; llmModelId?: string } = {
-                    qualityBonus,
-                };
-                if (options.model) {
-                    attestOptions.llmModelId = options.model;
+                const rewardOptions: { score?: number; rater?: string; rubricVersion?: string; llmModelId?: string } = {};
+                if (score !== undefined) {
+                    rewardOptions.score = score;
                 }
-                const response = await client.attest(
+                if (options.rater) {
+                    rewardOptions.rater = options.rater;
+                }
+                if (options.rubricVersion) {
+                    rewardOptions.rubricVersion = options.rubricVersion;
+                }
+                if (options.model) {
+                    rewardOptions.llmModelId = options.model;
+                }
+                const response = await client.reward(
                     uri,
                     outcome as 'success' | 'failure',
-                    message,
-                    attestOptions
+                    feedback,
+                    rewardOptions
                 );
                 writeJson(response);
             } catch (error) {

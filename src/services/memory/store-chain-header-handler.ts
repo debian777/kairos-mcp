@@ -33,7 +33,7 @@ export async function storeHeaderBasedChain(
 
   // Determine chain label and deterministic v5 chain UUID
   const firstLabel = headerChainMemories[0]?.label || 'Knowledge Chain';
-  const explicitChainLabel = headerChainMemories[0]?.chain?.label;
+  const explicitChainLabel = headerChainMemories[0]?.adapter?.name ?? headerChainMemories[0]?.chain?.label;
   const chainLabel = (explicitChainLabel && explicitChainLabel.trim().length > 0)
     ? explicitChainLabel.trim()
     : (firstLabel.includes(':') ? firstLabel.split(':')[0]!.trim() : firstLabel.trim());
@@ -83,6 +83,15 @@ export async function storeHeaderBasedChain(
     );
     const sparseInput = i === 0 ? `${chainLabel} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
     const sparse = bm25Tokenizer.tokenize(sparseInput);
+    const adapter = memory.adapter ?? {
+      id: chainUuid,
+      name: chainLabel,
+      layer_index: i + 1,
+      layer_count: chainStepCount,
+      ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version }),
+      ...(memory.activation_patterns && { activation_patterns: memory.activation_patterns })
+    };
+    const inferenceContract = memory.inference_contract ?? memory.proof_of_work;
     return ({
       id: memory.memory_uuid,
       vector: {
@@ -99,12 +108,22 @@ export async function storeHeaderBasedChain(
         created_by: actorId,
         modified_at: memory.created_at,
         modified_by: actorId,
-        proof_of_work: memory.proof_of_work,
+        activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
+        inference_contract: inferenceContract,
+        proof_of_work: inferenceContract,
         task: dtt.task,
         type: dtt.type,
         quality_metadata: {
           step_quality_score: qualityMetadata.step_quality_score,
           step_quality: qualityMetadata.step_quality
+        },
+        adapter: {
+          id: chainUuid,
+          name: chainLabel,
+          layer_index: i + 1,
+          layer_count: chainStepCount,
+          ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
+          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
         },
         chain: {
           id: chainUuid,
@@ -156,7 +175,9 @@ export async function storeHeaderBasedChain(
       const quality = score.quality;
       memoryStore.inc({ quality, tenant_id: tenantId });
       
-      if (memory.chain) {
+      if (memory.adapter) {
+        memoryChainSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
+      } else if (memory.chain) {
         memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
       }
     } catch { }

@@ -7,11 +7,11 @@ import { Command } from 'commander';
 import { createRequire } from 'module';
 import { searchCommand } from './commands/search.js';
 import { beginCommand } from './commands/begin.js';
-import { nextCommand } from './commands/next.js';
 import { mintCommand } from './commands/mint.js';
 import { updateCommand } from './commands/update.js';
 import { deleteCommand } from './commands/delete.js';
-import { attestCommand } from './commands/attest.js';
+import { rewardCommand } from './commands/attest.js';
+import { exportCommand } from './commands/export.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { tokenCommand } from './commands/token.js';
@@ -39,14 +39,14 @@ program
         }
     });
 
-// Register commands (matching MCP tool names 1:1)
-searchCommand(program);  // kairos_search
-beginCommand(program);   // kairos_begin (step 1)
-nextCommand(program);    // kairos_next (steps 2+)
-mintCommand(program);     // kairos_mint
-updateCommand(program);   // kairos_update
-deleteCommand(program);  // kairos_delete
-attestCommand(program);   // kairos_attest
+// Register commands (matching the v10 MCP tool surface)
+searchCommand(program);   // activate
+beginCommand(program);    // forward
+mintCommand(program);     // train
+updateCommand(program);   // tune
+deleteCommand(program);   // delete
+rewardCommand(program);   // reward
+exportCommand(program);   // export
 loginCommand(program);
 logoutCommand(program);
 tokenCommand(program);

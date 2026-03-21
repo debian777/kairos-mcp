@@ -5,11 +5,11 @@ import type { RunSession } from "@/hooks/useRunSession";
 
 const baseRun: RunSession = {
   id: "run-1",
-  protocol_uri: "kairos://protocol/foo",
+  protocol_uri: "kairos://adapter/foo",
   started_at: "2024-01-01T00:00:00.000Z",
   updated_at: "2024-01-01T00:00:00.000Z",
   status: "running",
-  current_step: { uri: "kairos://mem/step-1", content: "Step content", mimeType: "text/plain" },
+  current_step: { uri: "kairos://layer/11111111-1111-1111-1111-111111111111", content: "Step content", mimeType: "text/plain" },
   challenge: { type: "comment", comment: { min_length: 5 } },
   history: [],
 };
@@ -32,7 +32,7 @@ describe("RunGuidedContent", () => {
   it("running state shows step, challenge, and solution form", () => {
     render(<RunGuidedContent {...defaultProps} run={baseRun} />);
     expect(screen.getByRole("heading", { name: "run.currentStep" })).toBeInTheDocument();
-    expect(screen.getByText("kairos://mem/step-1")).toBeInTheDocument();
+    expect(screen.getByText("kairos://layer/11111111-1111-1111-1111-111111111111")).toBeInTheDocument();
     expect(screen.getByText("Step content")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "run.challenge" })).toBeInTheDocument();
     expect(screen.getByText("comment")).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("RunGuidedContent", () => {
       ...baseRun,
       history: [
         {
-          step: { uri: "kairos://mem/step-0", content: "", mimeType: "text/plain" },
+          step: { uri: "kairos://layer/00000000-0000-0000-0000-000000000000", content: "", mimeType: "text/plain" },
           challenge: { type: "comment" },
           solution: { type: "comment", comment: { text: "done" } },
           submitted_at: "2024-01-01T00:01:00.000Z",

@@ -2,7 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
-import { buildChainSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
+import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { KairosError } from '../../types/index.js';
 
@@ -117,12 +117,37 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
       quality_metrics: payload.quality_metrics,
       quality_metadata: payload.quality_metadata,
       memory_uuid: uuid,
+      adapter: payload.adapter ? {
+        id: payload.adapter.id,
+        name: payload.adapter.name,
+        layer_index: payload.adapter.layer_index,
+        layer_count: payload.adapter.layer_count,
+        ...(typeof payload.adapter.protocol_version === 'string' && {
+          protocol_version: payload.adapter.protocol_version
+        }),
+        ...(Array.isArray(payload.adapter.activation_patterns) && {
+          activation_patterns: payload.adapter.activation_patterns
+        })
+      } : payload.chain ? {
+        id: payload.chain.id,
+        name: payload.chain.label,
+        layer_index: payload.chain.step_index,
+        layer_count: payload.chain.step_count,
+        ...(typeof payload.chain.protocol_version === 'string' && {
+          protocol_version: payload.chain.protocol_version
+        }),
+        ...(Array.isArray(payload.chain.activation_patterns) && {
+          activation_patterns: payload.chain.activation_patterns
+        })
+      } : undefined,
       chain: payload.chain ? {
         id: payload.chain.id,
         label: payload.chain.label,
         step_index: payload.chain.step_index,
         step_count: payload.chain.step_count
       } : undefined,
+      inference_contract: payload.inference_contract ?? payload.proof_of_work,
+      proof_of_work: payload.inference_contract ?? payload.proof_of_work,
       embedding: [],
       access_count: payload.quality_metrics?.retrievalCount || 0,
       last_accessed: new Date(payload.updated_at || payload.created_at || Date.now()),
@@ -135,34 +160,11 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
   });
 }
 
-function mergeSpaceIdsForChainScroll(extraSpaceIds?: string[]): string[] {
-  const base = getSearchSpaceIds();
-  const seen = new Set(base);
-  const out = [...base];
-  for (const raw of extraSpaceIds ?? []) {
-    const id = typeof raw === 'string' ? raw.trim() : '';
-    if (id && !seen.has(id)) {
-      seen.add(id);
-      out.push(id);
-    }
-  }
-  return out;
-}
-
-/**
- * Scroll chain members by chain.id, scoped to search spaces plus optional anchor spaces.
- * `extraSpaceIds` should come only from a Memory.space_id the caller already loaded via authorized retrieve
- * (never from raw client input), so sibling resolution matches the same tenant rows as the anchor point.
- */
-export async function getChainMemories(
-  conn: QdrantConnection,
-  chainId: string,
-  extraSpaceIds?: string[]
-): Promise<Array<{ uuid: string; payload: any }>> {
+export async function getChainMemories(conn: QdrantConnection, chainId: string): Promise<Array<{ uuid: string; payload: any }>> {
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
-    const filter = buildChainSiblingScrollFilter(mergeSpaceIdsForChainScroll(extraSpaceIds), chainId);
+    const filter = buildSpaceFilter(getSearchSpaceIds(), { must: [{ key: 'adapter.id', match: { value: chainId } }] });
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,
@@ -176,8 +178,16 @@ export async function getChainMemories(
     } while (offset);
 
     results.sort((a, b) => {
-      const ai = typeof a.payload?.chain?.step_index === 'number' ? a.payload.chain.step_index : 0;
-      const bi = typeof b.payload?.chain?.step_index === 'number' ? b.payload.chain.step_index : 0;
+      const ai = typeof a.payload?.adapter?.layer_index === 'number'
+        ? a.payload.adapter.layer_index
+        : typeof a.payload?.chain?.step_index === 'number'
+          ? a.payload.chain.step_index
+          : 0;
+      const bi = typeof b.payload?.adapter?.layer_index === 'number'
+        ? b.payload.adapter.layer_index
+        : typeof b.payload?.chain?.step_index === 'number'
+          ? b.payload.chain.step_index
+          : 0;
       return ai - bi;
     });
 

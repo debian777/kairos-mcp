@@ -1,15 +1,23 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { NextOutput } from "../../tools/kairos_next.js";
-import type { SolutionSubmission } from "../../tools/kairos_next_schema.js";
+import type { ForwardOutput, ForwardSolution } from "../../tools/forward_schema.js";
+import type { NextOutput } from "@/lib/kairosRunTypes";
 
 export type KairosNextInput = {
   uri: string;
-  solution: SolutionSubmission;
+  solution: ForwardSolution;
 };
 
+function normalizeForward(output: ForwardOutput): NextOutput {
+  return {
+    ...output,
+    current_step: output.current_layer,
+    challenge: output.contract,
+  } as NextOutput;
+}
+
 async function kairosNext(input: KairosNextInput): Promise<NextOutput> {
-  const res = await apiFetch("/api/kairos_next", {
+  const res = await apiFetch("/api/forward", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -17,7 +25,8 @@ async function kairosNext(input: KairosNextInput): Promise<NextOutput> {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { message?: string }).message ?? res.statusText);
   }
-  return res.json();
+  const output = (await res.json()) as ForwardOutput;
+  return normalizeForward(output);
 }
 
 export function useKairosNext() {

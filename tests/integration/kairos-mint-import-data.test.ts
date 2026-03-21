@@ -19,7 +19,7 @@ describe('Kairos Mint Data Import (tests/test-data)', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, '[kairos_mint import] raw MCP result');
+    return parseMcpJson(result, '[train import] raw MCP result');
   }
 
   const testDataDir = join(process.cwd(), 'tests', 'test-data');
@@ -40,7 +40,7 @@ describe('Kairos Mint Data Import (tests/test-data)', () => {
       const content = readFileSync(filePath, 'utf-8');
 
       const result = await mcpConnection.client.callTool({
-        name: 'kairos_mint',
+        name: 'train',
         arguments: {
           markdown_doc: content,
           llm_model_id: 'minimax/minimax-m2:free',

@@ -236,7 +236,7 @@ export function getTemplate(key: string): string | undefined {
 }
 
 /**
- * Get a tool doc by key (e.g. 'kairos_begin')
+ * Get a tool doc by key (e.g. 'forward')
  */
 export function getToolDoc(key: string): string | undefined {
   const tools = (mcpResources.tools || {}) as Record<string, string>;

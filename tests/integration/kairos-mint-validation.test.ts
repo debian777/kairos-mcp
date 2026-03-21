@@ -22,21 +22,21 @@ describe('Kairos Mint Validation', () => {
     }
   });
 
-  test('kairos_mint returns PROTOCOL_STRUCTURE_INVALID for incomplete markdown', async () => {
+  test('train returns PROTOCOL_STRUCTURE_INVALID for incomplete markdown', async () => {
     const incompleteMd = `# My Protocol
 
 ## Step 1 First
-Content without Natural Language Triggers section.
+Content without Activation Patterns.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: incompleteMd,
         llm_model_id: 'minimax/minimax-m2:free'
@@ -48,14 +48,14 @@ Done.`;
     const body = JSON.parse(result.content[0].text);
     expect(body.error).toBe('PROTOCOL_STRUCTURE_INVALID');
     expect(body.must_obey).toBe(true);
-    expect(body.next_action).toContain('kairos_begin');
+    expect(body.next_action).toContain('forward');
     expect(body.next_action).toContain('00000000-0000-0000-0000-000000002001');
     expect(Array.isArray(body.missing)).toBe(true);
-    expect(body.missing).toContain('natural_language_triggers');
-    expect(body.message).toMatch(/Natural Language Triggers|required structure/i);
+    expect(body.missing).toContain('activation_patterns');
+    expect(body.message).toMatch(/Activation Patterns|required structure/i);
   });
 
-  test('kairos_mint returns PROTOCOL_STRUCTURE_INVALID for invalid challenge type placeholder', async () => {
+  test('train returns PROTOCOL_STRUCTURE_INVALID for invalid challenge type placeholder', async () => {
     const badTypeMd = `# Bad Type Protocol ${Date.now()}
 
 ## Natural Language Triggers
@@ -75,7 +75,7 @@ Bad illustrative type.
 Done.`;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: badTypeMd,
         llm_model_id: 'minimax/minimax-m2:free'
@@ -89,24 +89,24 @@ Done.`;
     expect(body.message).toMatch(/shell, mcp, user_input, or comment/i);
   });
 
-  test('kairos_mint stores valid markdown with required sections (no regression)', async () => {
+  test('train stores valid markdown with required sections (no regression)', async () => {
     const validMd = `# Valid Protocol ${Date.now()}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "run valid protocol".
 
 ## Step 1
 Do something.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: validMd,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -119,12 +119,13 @@ Only after all steps.`;
     expect(body.status).toBe('stored');
     expect(Array.isArray(body.items)).toBe(true);
     expect(body.items.length).toBeGreaterThanOrEqual(1);
-    expect(body.items[0].uri).toMatch(/^kairos:\/\/mem\//);
+    expect(body.items[0].uri).toMatch(/^kairos:\/\/layer\//);
+    expect(body.items[0].adapter_uri).toMatch(/^kairos:\/\/adapter\//);
   });
 
-  test('kairos_mint reports clear error for empty markdown_doc', async () => {
+  test('train reports clear error for empty markdown_doc', async () => {
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: '',
         llm_model_id: 'minimax/minimax-m2:free'
@@ -140,10 +141,10 @@ Only after all steps.`;
     expect(result.content[0].text).toContain('markdown_doc');
   });
 
-  test('kairos_mint validates required parameters', async () => {
+  test('train validates required parameters', async () => {
     // Test missing input
     const result1 = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         llm_model_id: 'minimax/minimax-m2:free'
       }
@@ -154,7 +155,7 @@ Only after all steps.`;
 
     // Test missing llm_model_id
     const result2 = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: 'test content'
       }
@@ -165,7 +166,7 @@ Only after all steps.`;
 
     // Test empty llm_model_id
     const result3 = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: 'test content',
         llm_model_id: ''

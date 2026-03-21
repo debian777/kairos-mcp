@@ -5,7 +5,7 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
 /**
  * Kairos Search Perfect Matches Integration Tests
  *
- * Tests edge cases and schema validation for kairos_search:
+ * Tests edge cases and schema validation for activate:
  * - No perfect match fallback behavior
  * - Output schema validation for optional fields
  * 
@@ -27,7 +27,7 @@ describe('Kairos Search Perfect Matches', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_search raw MCP result');
+    return parseMcpJson(result, 'activate raw MCP result');
   }
 
   test('no perfect match returns V2 unified schema with choices including candidates and create', async () => {
@@ -41,7 +41,7 @@ describe('Kairos Search Perfect Matches', () => {
 
     // Store the protocol (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -53,7 +53,7 @@ describe('Kairos Search Perfect Matches', () => {
 
     // Search with query that matches the title (should score above threshold)
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: `NoPerfectMatchTest ${ts} partial`
       }
@@ -84,12 +84,13 @@ describe('Kairos Search Perfect Matches', () => {
       for (const choice of matchChoices) {
         expect(choice.uri).toBeDefined();
         expect(typeof choice.uri).toBe('string');
-        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.uri.startsWith('kairos://adapter/')).toBe(true);
         expect(choice.label).toBeDefined();
         expect(typeof choice.label).toBe('string');
         expect(choice.role).toBe('match');
-        if (choice.score !== null && choice.score !== undefined) {
-          expect(typeof choice.score).toBe('number');
+        const act = (choice as { activation_score?: number | null }).activation_score ?? choice.score;
+        if (act !== null && act !== undefined) {
+          expect(typeof act).toBe('number');
         }
       }
 
@@ -114,7 +115,7 @@ describe('Kairos Search Perfect Matches', () => {
 
     // Store (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -125,7 +126,7 @@ describe('Kairos Search Perfect Matches', () => {
 
     // Search for the stored protocol
     const singleResult = await mcpConnection.client.callTool({
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: uniqueTitle.toLowerCase()
       }
@@ -139,12 +140,12 @@ describe('Kairos Search Perfect Matches', () => {
     expect(Array.isArray(singleParsed.choices)).toBe(true);
     expect(singleParsed.choices.length).toBeGreaterThanOrEqual(1);
 
-    // Each choice must have uri, label, role (all URIs are kairos://mem/<uuid>; next_action in new format)
+    // Each choice must have uri, label, role (match URIs are kairos://adapter/<uuid>)
     const isNewFormat = typeof singleParsed.next_action === 'string' && singleParsed.next_action.includes("choice's next_action");
     for (const choice of singleParsed.choices) {
       expect(choice.uri).toBeDefined();
       expect(typeof choice.uri).toBe('string');
-      expect(choice.uri).toMatch(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i);
+      expect(choice.uri).toMatch(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i);
       expect(choice.label).toBeDefined();
       expect(typeof choice.label).toBe('string');
       if (isNewFormat) expect(choice).toHaveProperty('next_action');
