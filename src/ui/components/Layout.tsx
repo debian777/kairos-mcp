@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+/** Emitted as `/ui/assets/*.svg` — `build.assetsInlineLimit: 0` so Helmet `img-src 'self'` allows it. */
 import logoSvg from "../../../logo/kaiiros-mcp.svg";
 
 const isWideContentRoute = (path: string) =>
