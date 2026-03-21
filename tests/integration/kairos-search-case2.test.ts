@@ -23,7 +23,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_search raw MCP result');
+    return parseMcpJson(result, 'activate raw MCP result');
   }
 
   test('returns V2 unified schema with multiple perfect matches in choices', async () => {
@@ -49,7 +49,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
     // Store all protocols (each with unique H1 = unique chain; force_update bypasses similarity in shared dev collection)
     for (const protocol of protocols) {
       const storeResult = await mcpConnection.client.callTool({
-        name: 'kairos_mint',
+        name: 'train',
         arguments: {
           markdown_doc: protocol,
           llm_model_id: 'minimax/minimax-m2:free',
@@ -65,7 +65,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
 
     // Search with the query string (should match all 3 protocols perfectly)
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: queryString
       }
@@ -82,7 +82,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       expect(parsed.next_action).toBeDefined();
       expect(typeof parsed.next_action).toBe('string');
       expect(
-        parsed.next_action.includes("choice's next_action") || parsed.next_action.includes('kairos_begin')
+        parsed.next_action.includes("choice's next_action") || parsed.next_action.toLowerCase().includes('forward')
       ).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
@@ -93,12 +93,12 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       for (const choice of matchChoices) {
         expect(choice.uri).toBeDefined();
         expect(typeof choice.uri).toBe('string');
-        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.uri.startsWith('kairos://adapter/')).toBe(true);
         expect(choice.label).toBeDefined();
         expect(typeof choice.label).toBe('string');
         expect(choice.role).toBe('match');
         if (choice.next_action !== undefined) {
-          expect(choice.next_action).toContain('kairos_begin');
+          expect(choice.next_action.toLowerCase()).toContain('forward');
         }
         if (choice.tags !== undefined) {
           expect(Array.isArray(choice.tags)).toBe(true);

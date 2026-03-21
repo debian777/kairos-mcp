@@ -22,12 +22,12 @@ describe('Kairos Mint Edge Cases', () => {
     }
   });
 
-  test('kairos_mint rejects documents without required structure (PROTOCOL_STRUCTURE_INVALID)', async () => {
+  test('train rejects documents without required structure (PROTOCOL_STRUCTURE_INVALID)', async () => {
     // Document without H1, H2, or challenge blocks is rejected by validation gate
     const simpleContent = `This is a simple document without any markdown headers. ${Date.now()}`;
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: simpleContent,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -39,7 +39,7 @@ describe('Kairos Mint Edge Cases', () => {
     const body = JSON.parse(result.content[0].text);
     expect(body.error).toBe('PROTOCOL_STRUCTURE_INVALID');
     expect(body.must_obey).toBe(true);
-    expect(body.next_action).toContain('kairos_begin');
+    expect(body.next_action).toContain('forward');
     expect(body.next_action).toContain('00000000-0000-0000-0000-000000002001');
     expect(Array.isArray(body.missing)).toBe(true);
   });

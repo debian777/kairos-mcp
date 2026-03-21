@@ -6,10 +6,10 @@ This directory defines **agent-driven workflow tests** for KAIROS: an AI agent r
 
 ## Purpose
 
-- **Imports:** Mint protocols from `docs/examples/` via `kairos_mint`.
-- **Search + workflows:** Execute search → begin → next (loop) until the flow directs you to `kairos_attest`, then attest.
-- **Update step:** Dump one step, edit, then `kairos_update` (single step).
-- **Update chain:** Dump full chain, edit, then `kairos_update` (multiple steps).
+- **Imports:** Train adapters from `docs/examples/` via **`train`** (same markdown as mint examples).
+- **Activate + run:** **`activate`** → **`forward`** (loop with `solution` per layer) until **`reward`** completes the run.
+- **Update layer:** **`export`** one layer → edit markdown → **`tune`** with that URI and `markdown_doc`.
+- **Update adapter:** **`export`** full adapter (`format: markdown` from adapter URI) → edit → **`tune`** with multiple URIs / docs as needed.
 
 All tool calls and outcomes must be recorded under `reports/` so runs are reproducible and auditable.
 
@@ -30,13 +30,13 @@ directly into the session or otherwise enforce the same constraints manually.
    ```bash
    npm run dev:deploy
    ```
-2. **Start a session** with the workflow-test prompt active (for example, paste [PROMPT.md](PROMPT.md) into the chat or inject it through your automation harness).
-3. **Ask the agent** to run the four scenarios (imports; search + workflows; update step; update chain). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.
+2. **Start a session** with the workflow-test prompt active (paste [PROMPT.md](PROMPT.md) or inject it through your automation harness).
+3. **Ask the agent** to run the four scenarios (imports; activate + run; update layer; update adapter). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.
 4. **Inspect results:** Check `reports/<run-id>/report.md` and `reports/<run-id>/calls/*.json` for pass/fail and raw calls.
 
 ## Automated import test
 
-The **imports** scenario is also covered by an integration test that mints each mintable file from `docs/examples/` via the MCP client (no agent). Run it after deploy:
+The **imports** scenario is also covered by an integration test that stores each mintable file from `docs/examples/` via the MCP client (no agent). Run it after deploy:
 
 ```bash
 npm run dev:deploy && npm run dev:test -- tests/integration/kairos-mint-docs-examples.test.ts
@@ -51,10 +51,10 @@ reports/
   <run-id>/
     report.md          # Summary: scenarios, pass/fail, brief notes
     calls/
-      001-kairos_mint.json
-      002-kairos_search.json
-      003-kairos_begin.json
-      004-kairos_next.json
+      001-train.json
+      002-activate.json
+      003-forward.json
+      004-reward.json
       ...
 ```
 

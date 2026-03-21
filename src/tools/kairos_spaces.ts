@@ -132,7 +132,7 @@ export function registerKairosSpacesTool(server: any, memoryStore: MemoryQdrantS
     toolName,
     {
       title: 'List spaces and chain counts',
-      description: getToolDoc('kairos_spaces') ?? 'List the agent\'s available spaces with human-readable names and chain counts. Optionally include chain titles and step counts per space.',
+      description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and chain counts. Optionally include chain titles and step counts per space.',
       inputSchema,
       outputSchema
     },

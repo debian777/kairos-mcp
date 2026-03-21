@@ -1,10 +1,11 @@
 /**
- * Lightweight structural validation for protocol markdown before minting.
- * Ensures required sections (Natural Language Triggers, Completion Rule) and at least one ```json challenge block.
- * Rejects mixed-fence docs (plain ``` blocks with challenge) and validates each H1 section when multiple protocols.
+ * Lightweight structural validation for adapter markdown before train/mint.
+ * Ensures required sections (Activation Patterns, Reward Signal) and at least
+ * one ```json contract block. Rejects mixed-fence docs (plain ``` blocks with
+ * contract) and validates each H1 section when multiple adapters are present.
  */
 
-import { findAllChallengeBlocks, hasPlainFenceChallengeBlock } from './chain-builder-proof.js';
+import { findAllContractBlocks, hasPlainFenceContractBlock } from './chain-builder-proof.js';
 
 export const CREATION_PROTOCOL_URI = 'kairos://mem/00000000-0000-0000-0000-000000002001';
 
@@ -14,11 +15,11 @@ export type ValidationResult = {
   message: string;
 };
 
-const MISSING_TRIGGERS = 'natural_language_triggers';
-const MISSING_COMPLETION_RULE = 'completion_rule';
+const MISSING_ACTIVATION_PATTERNS = 'activation_patterns';
+const MISSING_REWARD_SIGNAL = 'reward_signal';
 const MISSING_H1 = 'h1_title';
-const MISSING_CHALLENGE_BLOCK = 'challenge_block';
-const MIXED_CHALLENGE_FENCES = 'mixed_challenge_fences';
+const MISSING_CONTRACT_BLOCK = 'contract_block';
+const MIXED_CONTRACT_FENCES = 'mixed_contract_fences';
 const INVALID_CHALLENGE_TYPE = 'invalid_challenge_type';
 
 const ALLOWED_CHALLENGE_TYPES = new Set(['shell', 'mcp', 'user_input', 'comment']);
@@ -103,9 +104,11 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
 }
 
 /**
- * Validate protocol markdown structure before storeChain.
- * Returns { valid, missing, message } so kairos_mint can return a PROTOCOL_STRUCTURE_INVALID error with next_action.
- * When multiple H1 sections exist, each section must have first H2 = Natural Language Triggers and last H2 = Completion Rule.
+ * Validate adapter markdown structure before storeChain.
+ * Returns { valid, missing, message } so train/mint can return a PROTOCOL_STRUCTURE_INVALID error with next_action.
+ * When multiple H1 sections exist, each section must have first H2 =
+ * Activation Patterns (or legacy Natural Language Triggers) and last H2 =
+ * Reward Signal (or legacy Completion Rule).
  */
 export function validateProtocolStructure(markdownDoc: string): ValidationResult {
   const missing: string[] = [];
@@ -126,27 +129,27 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
   for (const h2TitlesOfSection of sections) {
     const firstH2 = h2TitlesOfSection[0] ?? '';
     const lastH2 = h2TitlesOfSection[h2TitlesOfSection.length - 1] ?? '';
-    if (!/Natural Language Triggers/i.test(firstH2)) {
-      missing.push(MISSING_TRIGGERS);
+    if (!/(Activation Patterns|Natural Language Triggers)/i.test(firstH2)) {
+      missing.push(MISSING_ACTIVATION_PATTERNS);
       break;
     }
-    if (!/Completion Rule/i.test(lastH2)) {
-      missing.push(MISSING_COMPLETION_RULE);
+    if (!/(Reward Signal|Completion Rule)/i.test(lastH2)) {
+      missing.push(MISSING_REWARD_SIGNAL);
       break;
     }
   }
 
-  if (hasPlainFenceChallengeBlock(markdownDoc)) {
-    missing.push(MIXED_CHALLENGE_FENCES);
+  if (hasPlainFenceContractBlock(markdownDoc)) {
+    missing.push(MIXED_CONTRACT_FENCES);
   }
 
-  const challengeBlocks = findAllChallengeBlocks(markdownDoc);
-  if (challengeBlocks.length === 0) {
-    missing.push(MISSING_CHALLENGE_BLOCK);
+  const contractBlocks = findAllContractBlocks(markdownDoc);
+  if (contractBlocks.length === 0) {
+    missing.push(MISSING_CONTRACT_BLOCK);
   }
 
-  for (const block of challengeBlocks) {
-    const t = block.proof.type;
+  for (const block of contractBlocks) {
+    const t = block.contract.type;
     if (t === undefined) continue;
     if (typeof t !== 'string' || !ALLOWED_CHALLENGE_TYPES.has(t)) {
       missing.push(INVALID_CHALLENGE_TYPE);
@@ -161,16 +164,20 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
   } else {
     const parts = missing.map(m => {
       if (m === MISSING_H1) return 'H1 title';
-      if (m === MISSING_TRIGGERS) return 'Natural Language Triggers (first H2)';
-      if (m === MISSING_COMPLETION_RULE) return 'Completion Rule (last H2)';
-      if (m === MISSING_CHALLENGE_BLOCK) return 'at least one ```json challenge block';
-      if (m === MIXED_CHALLENGE_FENCES) return 'use only ```json for challenge blocks (no plain ``` with challenge)';
+      if (m === MISSING_ACTIVATION_PATTERNS) {
+        return 'Activation Patterns or Natural Language Triggers (first H2)';
+      }
+      if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal or Completion Rule (last H2)';
+      if (m === MISSING_CONTRACT_BLOCK) return 'at least one ```json contract or challenge block';
+      if (m === MIXED_CONTRACT_FENCES) {
+        return 'use only ```json for contract blocks (no plain ``` with contract/challenge)';
+      }
       if (m === INVALID_CHALLENGE_TYPE) {
-        return 'each ```json challenge must set type to exactly shell, mcp, user_input, or comment (no placeholders or combined values)';
+        return 'each ```json block must set type to exactly shell, mcp, user_input, or comment (no placeholders or combined values)';
       }
       return m;
     });
-    message = `Protocol is missing required structure: ${parts.join(', ')}. Run the creation protocol for guided help.`;
+    message = `Adapter is missing required structure: ${parts.join(', ')}. Run the creation adapter flow for guided help.`;
   }
 
   return { valid, missing, message };

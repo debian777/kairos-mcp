@@ -2,7 +2,7 @@
 
 This is a minimal document for testing CLI parameters.
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "minimal CLI test".
 
@@ -11,9 +11,9 @@ Run when user says "minimal CLI test".
 Basic setup step for testing.
 
 ```json
-{"challenge":{"type":"shell","shell":{"cmd":"echo \"setup complete\"","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo \"setup complete\"","timeout_seconds":5},"required":true}}
 ```
 
-## Completion Rule
+## Reward Signal
 
 Only after all steps.

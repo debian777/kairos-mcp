@@ -1,17 +1,16 @@
 import express from 'express';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { attestInputSchema } from '../tools/kairos_attest_schema.js';
-import { executeAttest } from '../tools/kairos_attest.js';
+import { rewardInputSchema } from '../tools/reward_schema.js';
+import { executeReward } from '../tools/reward.js';
 
 /**
- * Set up API route for kairos_attest (V2: no final_solution required).
- * Validates with canonical schema and returns executeAttest result only (no metadata).
+ * Set up API route for reward.
  */
 export function setupAttestRoute(app: express.Express, qdrantService: QdrantService) {
-  app.post('/api/kairos_attest', async (req, res) => {
+  app.post('/api/reward', async (req, res) => {
     try {
-      const parsed = attestInputSchema.safeParse(req.body);
+      const parsed = rewardInputSchema.safeParse(req.body);
       if (!parsed.success) {
         const first = parsed.error.flatten().fieldErrors;
         const msg = Object.keys(first).length
@@ -23,14 +22,14 @@ export function setupAttestRoute(app: express.Express, qdrantService: QdrantServ
         return;
       }
 
-      structuredLogger.info(`-> POST /api/kairos_attest (uri: ${parsed.data.uri}, outcome: ${parsed.data.outcome})`);
-      const result = await executeAttest(qdrantService, parsed.data);
+      structuredLogger.info(`-> POST /api/reward (uri: ${parsed.data.uri}, outcome: ${parsed.data.outcome})`);
+      const result = await executeReward(qdrantService, parsed.data);
       res.status(200).json(result);
     } catch (error) {
-      structuredLogger.error('kairos_attest failed', error);
+      structuredLogger.error('reward failed', error);
       res.status(500).json({
-        error: 'ATTEST_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to attest step completion'
+        error: 'REWARD_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to record reward'
       });
     }
   });

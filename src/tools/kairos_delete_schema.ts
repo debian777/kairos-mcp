@@ -1,19 +1,19 @@
 import { z } from 'zod';
 
-const memoryUriSchema = z
+const deleteUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .regex(/^kairos:\/\/(adapter|layer)\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i, 'must match kairos://adapter/{uuid} or kairos://layer/{uuid}');
 
 export const deleteInputSchema = z.object({
   uris: z
-    .array(memoryUriSchema)
+    .array(deleteUriSchema)
     .nonempty()
-    .describe('Non-empty array of kairos://mem/{uuid} URIs to delete')
+    .describe('Non-empty array of adapter or layer URIs to delete')
 });
 
 export const deleteOutputSchema = z.object({
   results: z.array(z.object({
-    uri: memoryUriSchema,
+    uri: deleteUriSchema,
     status: z.enum(['deleted', 'error']),
     message: z.string()
   })),

@@ -1,12 +1,11 @@
 /**
- * Integration tests for kairos_dump (MCP tool).
- * Verifies dump returns markdown_doc for a memory URI and for full protocol.
+ * Integration tests for export (MCP tool; markdown aggregate via v10 export).
  */
 
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
-describe('Kairos Dump (MCP)', () => {
+describe('Kairos export (MCP)', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
@@ -20,18 +19,18 @@ describe('Kairos Dump (MCP)', () => {
   });
 
   function expectValidJsonResult(result: { content?: Array<{ text?: string }>; isError?: boolean }) {
-    return parseMcpJson(result, 'kairos_dump raw MCP result');
+    return parseMcpJson(result, 'export raw MCP result');
   }
 
-  test('kairos_dump returns single-step content for valid URI', async () => {
+  test('export returns markdown content for valid layer URI', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Single ${ts}
+    const md = `# Export Single ${ts}
 
 ## Natural Language Triggers
-Run when user says "dump single".
+Run when user says "export single".
 
 ## Step A
-Body for dump single.
+Body for export single.
 
 \`\`\`json
 {"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
@@ -39,47 +38,46 @@ Body for dump single.
 
 ## Completion Rule
 Only after all steps.`;
-    const mintResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+    const trainResult = await mcpConnection.client.callTool({
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'test',
         force_update: true
       }
     });
-    const mintParsed = parseMcpJson(mintResult, 'kairos_mint');
-    expect(mintParsed.status).toBe('stored');
-    expect(Array.isArray(mintParsed.items)).toBe(true);
-    expect(mintParsed.items!.length).toBeGreaterThanOrEqual(1);
-    const uri = mintParsed.items![0].uri as string;
-    expect(uri).toMatch(/^kairos:\/\/mem\//);
+    const trainParsed = parseMcpJson(trainResult, 'train');
+    expect(trainParsed.status).toBe('stored');
+    expect(Array.isArray(trainParsed.items)).toBe(true);
+    expect(trainParsed.items!.length).toBeGreaterThanOrEqual(1);
+    const uri = trainParsed.items![0].uri as string;
+    expect(uri).toMatch(/^kairos:\/\/layer\//);
 
-    const dumpResult = await mcpConnection.client.callTool({
-      name: 'kairos_dump',
-      arguments: { uri }
+    const exportResult = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri, format: 'markdown' }
     });
-    if (dumpResult.isError === true && dumpResult.content?.[0]) {
-      const errText = (dumpResult.content[0] as { text?: string }).text ?? String(dumpResult.content[0]);
-      throw new Error(`kairos_dump failed: ${errText}`);
+    if (exportResult.isError === true && exportResult.content?.[0]) {
+      const errText = (exportResult.content[0] as { text?: string }).text ?? String(exportResult.content[0]);
+      throw new Error(`export failed: ${errText}`);
     }
-    expect(dumpResult.isError).not.toBe(true);
-    const dump = expectValidJsonResult(dumpResult);
-    expect(dump).toHaveProperty('markdown_doc');
-    expect(typeof dump.markdown_doc).toBe('string');
-    expect(dump.markdown_doc.length).toBeGreaterThan(0);
-    expect(dump).toHaveProperty('uri', uri);
-    expect(dump).toHaveProperty('label');
-    expect(typeof dump.label).toBe('string');
-    expect(dump).toHaveProperty('chain_label');
-    expect(dump.markdown_doc).toContain('Body for dump single');
+    expect(exportResult.isError).not.toBe(true);
+    const out = expectValidJsonResult(exportResult);
+    expect(out).toHaveProperty('content');
+    expect(typeof out.content).toBe('string');
+    expect((out.content as string).length).toBeGreaterThan(0);
+    expect(out).toHaveProperty('uri', uri);
+    expect(out).toHaveProperty('format', 'markdown');
+    expect(out).toHaveProperty('content_type');
+    expect((out.content as string).toLowerCase()).toContain('body for export single');
   }, 25000);
 
-  test('kairos_dump with protocol: true returns full chain markdown', async () => {
+  test('export with adapter URI returns full adapter markdown', async () => {
     const ts = Date.now().toString();
-    const md = `# Dump Protocol ${ts}
+    const md = `# Export Protocol ${ts}
 
 ## Natural Language Triggers
-Run when user says "dump protocol".
+Run when user says "export protocol".
 
 ## First
 First step.
@@ -97,44 +95,40 @@ Second step.
 
 ## Completion Rule
 Only after all steps.`;
-    const mintResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+    const trainResult = await mcpConnection.client.callTool({
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'test',
         force_update: true
       }
     });
-    const mintParsed = parseMcpJson(mintResult, 'kairos_mint');
-    expect(mintParsed.status).toBe('stored');
-    const uri = mintParsed.items![0].uri as string;
+    const trainParsed = parseMcpJson(trainResult, 'train');
+    expect(trainParsed.status).toBe('stored');
+    const adapterUri = (trainParsed.items![0] as { adapter_uri: string }).adapter_uri;
 
-    const dumpResult = await mcpConnection.client.callTool({
-      name: 'kairos_dump',
-      arguments: { uri, protocol: true }
+    const exportResult = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri: adapterUri, format: 'markdown' }
     });
-    if (dumpResult.isError === true && dumpResult.content?.[0]) {
-      const errText = (dumpResult.content[0] as { text?: string }).text ?? String(dumpResult.content[0]);
-      throw new Error(`kairos_dump failed: ${errText}`);
+    if (exportResult.isError === true && exportResult.content?.[0]) {
+      const errText = (exportResult.content[0] as { text?: string }).text ?? String(exportResult.content[0]);
+      throw new Error(`export failed: ${errText}`);
     }
-    expect(dumpResult.isError).not.toBe(true);
-    const dump = expectValidJsonResult(dumpResult);
-    expect(dump).toHaveProperty('markdown_doc');
-    expect(typeof dump.markdown_doc).toBe('string');
-    expect(dump).toHaveProperty('step_count');
-    expect(typeof dump.step_count).toBe('number');
-    expect(dump.step_count).toBeGreaterThanOrEqual(2);
-    expect(dump.markdown_doc).toContain('Dump Protocol');
-    expect(dump.markdown_doc).toContain('First');
-    expect(dump.markdown_doc).toContain('Second');
-    expect(dump).toHaveProperty('uri');
-    expect((dump.uri as string).startsWith('kairos://mem/')).toBe(true);
+    expect(exportResult.isError).not.toBe(true);
+    const out = expectValidJsonResult(exportResult);
+    expect(out).toHaveProperty('content');
+    expect(typeof out.content).toBe('string');
+    const content = out.content as string;
+    expect(content).toContain('Export Protocol');
+    expect(content).toContain('First');
+    expect(content).toContain('Second');
   }, 25000);
 
-  test('kairos_dump with non-existent URI returns error', async () => {
+  test('export with non-existent URI returns error', async () => {
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_dump',
-      arguments: { uri: 'kairos://mem/00000000-0000-0000-0000-000000000099' }
+      name: 'export',
+      arguments: { uri: 'kairos://layer/00000000-0000-0000-0000-000000000099', format: 'markdown' }
     });
     expect(result.isError).toBe(true);
     expect(result.content).toBeDefined();

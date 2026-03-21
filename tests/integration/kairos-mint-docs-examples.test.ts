@@ -1,7 +1,7 @@
 /**
  * Kairos Mint integration tests for docs/examples (workflow test — imports scenario).
  *
- * Mints each mintable protocol from docs/examples/ via kairos_mint. Used in dev/qa
+ * Trains each mintable protocol from docs/examples/ via train. Used in dev/qa
  * to validate that canonical examples can be imported; complements agent-driven
  * workflow tests in tests/workflow-test/.
  */
@@ -25,7 +25,7 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
   });
 
   function expectValidJsonResult(result: unknown) {
-    return parseMcpJson(result, '[kairos_mint docs/examples] raw MCP result');
+    return parseMcpJson(result, '[train docs/examples] raw MCP result');
   }
 
   const examplesDir = join(process.cwd(), 'docs', 'examples');
@@ -46,7 +46,7 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
       const content = readFileSync(filePath, 'utf-8');
 
       const result = await mcpConnection.client.callTool({
-        name: 'kairos_mint',
+        name: 'train',
         arguments: {
           markdown_doc: content,
           llm_model_id: 'minimax/minimax-m2:free',

@@ -32,10 +32,10 @@ describe("SolutionForm", () => {
     const onSubmit = vi.fn();
     const challenge: Challenge = {
       type: "mcp",
-      mcp: { tool_name: "kairos_search" },
+      mcp: { tool_name: "activate" },
     };
     render(<SolutionForm challenge={challenge} onSubmit={onSubmit} />);
-    expect(screen.getByText("kairos_search")).toBeInTheDocument();
+    expect(screen.getByText("activate")).toBeInTheDocument();
     const resultArea = screen.getByLabelText("run.mcp.result");
     fireEvent.change(resultArea, { target: { value: '{"ok": true}' } });
     fireEvent.submit(screen.getByRole("form", { name: "run.solutionFormLabel" }));
@@ -43,7 +43,7 @@ describe("SolutionForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       type: "mcp",
       mcp: {
-        tool_name: "kairos_search",
+        tool_name: "activate",
         result: { ok: true },
         success: true,
       },

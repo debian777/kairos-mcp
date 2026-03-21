@@ -6,18 +6,17 @@ import { bootstrapEmptyResourceHandlers } from './resources/resource-bootstrap.j
 import { MemoryQdrantStore } from './services/memory/store.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { getBuildVersion } from './utils/build-version.js';
-import { registerKairosMintTool } from './tools/kairos_mint.js';
 import { LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE, getQdrantUrl, getQdrantCollection, QDRANT_API_KEY, QDRANT_RESCORE_STRING, TEI_BASE_URL, TEI_MODEL, KAIROS_SEARCH_OVERFETCH_FACTOR, KAIROS_SEARCH_MAX_FETCH, KAIROS_ENABLE_GROUP_COLLAPSE } from './config.js';
 import { getEmbeddingDimension } from './services/embedding/config.js';
 // removed: debug tools (kb_version, kb_cache_stats)
-import { registerKairosUpdateTool } from './tools/kairos_update.js';
 import { registerKairosDeleteTool } from './tools/kairos_delete.js';
-import { registerSearchTool } from './tools/kairos_search.js';
-import { registerBeginTool } from './tools/kairos_begin.js';
-import { registerKairosNextTool } from './tools/kairos_next.js';
-import { registerKairosAttestTool } from './tools/kairos_attest.js';
-import { registerKairosDumpTool } from './tools/kairos_dump.js';
 import { registerKairosSpacesTool } from './tools/kairos_spaces.js';
+import { registerActivateTool } from './tools/activate.js';
+import { registerForwardTool } from './tools/forward.js';
+import { registerTrainTool } from './tools/train.js';
+import { registerRewardTool } from './tools/reward.js';
+import { registerTuneTool } from './tools/tune.js';
+import { registerExportTool } from './tools/export.js';
 
 // Create and configure the MCP server
 export function createServer(memoryStore: MemoryQdrantStore): McpServer {
@@ -35,18 +34,15 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
         }
     );
 
-
-    // Register kairos tools
-    // New protocol workflow: search -> begin (step 1) -> next (steps 2+) -> attest
-    registerSearchTool(server, memoryStore, { qdrantService });
-    registerBeginTool(server, memoryStore, { qdrantService });
-    registerKairosNextTool(server, memoryStore, { qdrantService });
-    registerKairosMintTool(server, memoryStore);
-    registerKairosAttestTool(server, qdrantService);
-    registerKairosUpdateTool(server);
-    registerKairosDeleteTool(server);
-    registerKairosDumpTool(server, memoryStore, { qdrantService });
-    registerKairosSpacesTool(server, memoryStore);
+    // Register v10 tools
+    registerActivateTool(server, memoryStore, { qdrantService });
+    registerForwardTool(server, memoryStore, { qdrantService });
+    registerTrainTool(server, memoryStore);
+    registerRewardTool(server, qdrantService);
+    registerTuneTool(server);
+    registerKairosDeleteTool(server, 'delete');
+    registerExportTool(server, memoryStore, { qdrantService });
+    registerKairosSpacesTool(server, memoryStore, { toolName: 'spaces' });
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

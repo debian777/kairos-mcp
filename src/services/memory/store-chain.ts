@@ -66,6 +66,7 @@ export class MemoryQdrantStoreChain {
         if (headerChainMemories.length > 0) {
           if (effectiveProtocolVersion) {
             for (const m of headerChainMemories) {
+              if (m.adapter) m.adapter.protocol_version = effectiveProtocolVersion;
               if (m.chain) m.chain.protocol_version = effectiveProtocolVersion;
             }
           }

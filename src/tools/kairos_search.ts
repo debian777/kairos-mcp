@@ -1,10 +1,7 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { structuredLogger } from '../utils/structured-logger.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { redisCacheService } from '../services/redis-cache.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getRequestIdFromStorage, getTenantId, runWithOptionalSpaceAsync, getSpaceContextFromStorage, getSpaceIdFromStorage } from '../utils/tenant-context.js';
+import { getRequestIdFromStorage, getTenantId, getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import {
   SCORE_THRESHOLD,
@@ -14,8 +11,9 @@ import {
   KAIROS_ENABLE_GROUP_COLLAPSE
 } from '../config.js';
 import { createResults, generateUnifiedOutput } from './kairos_search_output.js';
-import { searchInputSchema, searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
+import { searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
 import { logSearchAnomaly } from '../services/embedding/audit.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import {
   KAIROS_CREATION_PROTOCOL_UUID,
   KAIROS_REFINING_PROTOCOL_UUID
@@ -42,11 +40,6 @@ function queryForSearch(query: string): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-interface RegisterSearchOptions {
-  toolName?: string;
-  qdrantService?: QdrantService;
 }
 
 function addCandidate(
@@ -186,83 +179,4 @@ export async function executeSearch(
   return options?.runInSpace && spaceParam != null
     ? await options.runInSpace(runWithCache)
     : await runWithCache();
-}
-
-/**
- * Register kairos_search tool
- * 
- * V2 unified response: always must_obey: true, choices array with score/role,
- * creation protocol always available as fallback.
- */
-export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterSearchOptions = {}) {
-  const toolName = options.toolName || 'kairos_search';
-  const qdrantService = options.qdrantService;
-
-  structuredLogger.debug(`kairos_search registration inputSchema: ${JSON.stringify(searchInputSchema)}`);
-  structuredLogger.debug(`kairos_search registration outputSchema: ${JSON.stringify(searchOutputSchema)}`);
-  server.registerTool(
-    toolName,
-    {
-      title: 'Search for protocol chains',
-      description: getToolDoc('kairos_search') || 'Search for protocol chains matching the query. Always returns must_obey: true with a choices array. Follow next_action.',
-      inputSchema: searchInputSchema,
-      outputSchema: searchOutputSchema
-    },
-    async (params: unknown) => {
-      const tenantId = getTenantId();
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
-      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
-
-      const respond = (payload: SearchOutput) => {
-        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(payload).length);
-        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(payload) }],
-          structuredContent: payload
-        };
-      };
-
-      try {
-        const input = searchInputSchema.parse(params);
-        const spaceParam = input.space ?? input.space_id;
-        const runInSpace =
-          spaceParam != null
-            ? (fn: () => Promise<SearchOutput>) => runWithOptionalSpaceAsync(spaceParam, fn)
-            : undefined;
-        const output = await executeSearch(
-          memoryStore,
-          qdrantService,
-          input,
-          runInSpace != null ? { runInSpace } : undefined
-        );
-        return respond(output);
-      } catch (error) {
-        if (error instanceof Error && error.message === 'Requested space is not in your allowed spaces') {
-          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-          return {
-            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'forbidden', message: error.message }) }],
-            isError: true
-          };
-        }
-        const ctxErr = getSpaceContextFromStorage();
-        structuredLogger.warn(`kairos_search error (returning empty results) space_id=${ctxErr?.defaultWriteSpaceId ?? 'default'}: ${error instanceof Error ? error.message : String(error)}`);
-        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        const footerVersions = await resolveFooterProtocolVersions(memoryStore);
-        const fallback = await generateUnifiedOutput([], qdrantService, {
-          refiningUri: REFINING_PROTOCOL_URI,
-          refiningNextAction: REFINING_NEXT_ACTION,
-          createUri: CREATION_PROTOCOL_URI,
-          createNextAction: CREATE_NEXT_ACTION,
-          refiningProtocolVersion: footerVersions.refine,
-          createProtocolVersion: footerVersions.create
-        });
-        return respond(fallback);
-      }
-    }
-  );
 }

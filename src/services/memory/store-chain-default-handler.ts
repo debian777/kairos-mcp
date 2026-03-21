@@ -90,13 +90,21 @@ export async function storeDefaultChain(
     const allTags = [...baseTags, ...codeTags];
 
     const stepLabel = generateLabel(processed.original);
-    const chain: Memory['chain'] = {
+    const adapter: NonNullable<Memory['adapter']> = {
       id: chainUuid,
-      label: firstGeneratedLabel,
-      step_index: index + 1,
-      step_count: normalizedDocs.length
+      name: firstGeneratedLabel,
+      layer_index: index + 1,
+      layer_count: normalizedDocs.length
     };
-    if (protocolVersion) chain.protocol_version = protocolVersion;
+    if (protocolVersion) adapter.protocol_version = protocolVersion;
+    const chain: Memory['chain'] = {
+      id: adapter.id,
+      label: adapter.name,
+      step_index: adapter.layer_index,
+      step_count: adapter.layer_count,
+      ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
+      ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
+    };
     return {
       memory_uuid,
       label: stepLabel,
@@ -104,6 +112,8 @@ export async function storeDefaultChain(
       text: processed.enhanced,
       llm_model_id: llmModelId,
       created_at: now.toISOString(),
+      ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns }),
+      adapter,
       chain
     };
   });
@@ -122,6 +132,14 @@ export async function storeDefaultChain(
     );
     const sparseInput = index === 0 ? `${memory.chain!.label} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
     const sparse = bm25Tokenizer.tokenize(sparseInput);
+    const adapter = memory.adapter ?? {
+      id: memory.chain!.id,
+      name: memory.chain!.label,
+      layer_index: memory.chain!.step_index,
+      layer_count: memory.chain!.step_count,
+      ...(memory.chain!.protocol_version && { protocol_version: memory.chain!.protocol_version })
+    };
+    const inferenceContract = memory.inference_contract ?? memory.proof_of_work;
     return ({
       id: memory.memory_uuid,
       vector: {
@@ -138,21 +156,31 @@ export async function storeDefaultChain(
         created_by: actorId,
         modified_at: memory.created_at,
         modified_by: actorId,
-        proof_of_work: memory.proof_of_work,
+        activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
+        inference_contract: inferenceContract,
+        proof_of_work: inferenceContract,
         task,
         type,
         quality_metadata: {
           step_quality_score: qualityMetadata.step_quality_score,
           step_quality: qualityMetadata.step_quality
         },
-        chain: {
-          id: memory.chain!.id,
-          label: memory.chain!.label,
-          step_index: memory.chain!.step_index,
-          step_count: memory.chain!.step_count,
-          ...(memory.chain!.protocol_version && { protocol_version: memory.chain!.protocol_version })
+        adapter: {
+          id: adapter.id,
+          name: adapter.name,
+          layer_index: adapter.layer_index,
+          layer_count: adapter.layer_count,
+          ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
+          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
         },
-        slug: protocolSlug
+        chain: {
+          id: adapter.id,
+          label: adapter.name,
+          step_index: adapter.layer_index,
+          step_count: adapter.layer_count,
+          ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
+          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
+        }
       }
     });
   });
@@ -197,7 +225,9 @@ export async function storeDefaultChain(
       const quality = score.quality;
       memoryStore.inc({ quality, tenant_id: tenantId });
       
-      if (memory.chain) {
+      if (memory.adapter) {
+        memoryChainSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
+      } else if (memory.chain) {
         memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
       }
     } catch { }

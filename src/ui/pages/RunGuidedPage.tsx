@@ -12,7 +12,7 @@ import type { ProofOfWorkSubmission } from "@/lib/kairosRunTypes";
 
 function extractFirstMemUri(text: string | undefined): string | undefined {
   if (!text) return undefined;
-  const m = text.match(/kairos:\/\/mem\/[0-9a-fA-F-]{36}/);
+  const m = text.match(/kairos:\/\/layer\/[0-9a-fA-F-]{36}(?:\?execution_id=[0-9a-fA-F-]{36})?/);
   return m?.[0];
 }
 
@@ -58,7 +58,7 @@ export function RunGuidedPage() {
       const res = await begin.mutateAsync(decodedUri);
       const startedAt = nowIso();
       const id = `${decodedUri}:${startedAt}`;
-      const status: RunSession["status"] = res.next_action?.includes("kairos_attest") ? "ready_to_attest" : "running";
+      const status: RunSession["status"] = res.next_action?.includes("reward") ? "ready_to_attest" : "running";
       const attestUri = extractFirstMemUri(res.next_action);
       persist({
         id,
@@ -103,7 +103,7 @@ export function RunGuidedPage() {
     try {
       const res = await next.mutateAsync({ uri: run.current_step!.uri, solution });
       const updatedAt = nowIso();
-      const readyToAttest = res.next_action?.includes("kairos_attest") || (res.message?.toLowerCase().includes("call kairos_attest") ?? false);
+      const readyToAttest = res.next_action?.includes("reward") || (res.message?.toLowerCase().includes("call reward") ?? false);
       const attestUri = extractFirstMemUri(res.next_action) ?? run.attest_uri;
       persist({
         ...run,

@@ -1,19 +1,12 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../utils/dump-markdown.js';
 import { slugifyFromTitle } from '../utils/protocol-slug.js';
 import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
-import { structuredLogger } from '../utils/structured-logger.js';
-import { dumpInputSchema, dumpOutputSchema } from './kairos_dump_schema.js';
-
-const DUMP_TOOL_NAME = 'kairos_dump';
 
 function normalizeUri(value: string): { uuid: string; uri: string } {
   const normalized = (value || '').trim();
@@ -144,54 +137,4 @@ export async function executeDump(
     out['challenge'] = challenge;
   }
   return out;
-}
-
-export interface RegisterDumpOptions {
-  toolName?: string;
-  qdrantService?: QdrantService;
-}
-
-export function registerKairosDumpTool(
-  server: any,
-  memoryStore: MemoryQdrantStore,
-  options: RegisterDumpOptions = {}
-) {
-  const toolName = options.toolName ?? DUMP_TOOL_NAME;
-  const qdrantService = options.qdrantService;
-
-  server.registerTool(
-    toolName,
-    {
-      title: 'Inspect memory or protocol (read-only)',
-      description: getToolDoc('kairos_dump') ?? 'Returns markdown_doc for use with kairos_update or kairos_mint.',
-      inputSchema: dumpInputSchema,
-      outputSchema: dumpOutputSchema
-    },
-    async (params: any) => {
-      const tenantId = getTenantId();
-      const spaceId = getSpaceContextFromStorage()?.defaultWriteSpaceId ?? 'default';
-      structuredLogger.debug(`kairos_dump space_id=${spaceId}`);
-      const inputSize = JSON.stringify(params).length;
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
-      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
-
-      const respond = (payload: any) => {
-        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(payload).length);
-        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(payload) }], structuredContent: payload };
-      };
-
-      try {
-        const payload = await executeDump(memoryStore, qdrantService, params as DumpParams);
-        return respond(payload);
-      } catch (error) {
-        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        structuredLogger.debug(`kairos_dump error space_id=${spaceId}: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-  );
 }

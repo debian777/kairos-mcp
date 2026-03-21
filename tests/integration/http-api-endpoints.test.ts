@@ -20,24 +20,24 @@ describe('HTTP REST API Endpoints', () => {
     });
   }, 60000);
 
-  describe('POST /api/kairos_mint/raw', () => {
+  describe('POST /api/train/raw', () => {
     test('accepts raw markdown and stores memories', async () => {
       expect.hasAssertions();
       const markdown = `# Test Document ${Date.now()}
 
-## Natural Language Triggers
+## Activation Patterns
 When to run this test protocol.
 
 ## Step 1
 Content for HTTP API mint endpoint.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Minimal step"}}
+{"contract": {"type": "comment", "description": "Minimal step"}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Protocol is complete when this step is done.`;
-      const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/train/raw?force=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
@@ -50,13 +50,12 @@ Protocol is complete when this step is done.`;
       expect(Array.isArray(data.items)).toBe(true);
       expect(data.items.length).toBeGreaterThan(0);
       expect(data.items[0]).toHaveProperty('uri');
-      expect(data.items[0].uri).toMatch(/^kairos:\/\/mem\//);
+      expect(data.items[0].uri).toMatch(/^kairos:\/\/layer\//);
     }, 30000);
 
     test('rejects empty markdown', async () => {
       expect.hasAssertions();
-
-      const response = await apiFetch(`${API_BASE}/kairos_mint/raw`, {
+      const response = await apiFetch(`${API_BASE}/train/raw`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown' },
         body: ''
@@ -70,9 +69,8 @@ Protocol is complete when this step is done.`;
 
     test('rejects oversized markdown payloads', async () => {
       expect.hasAssertions();
-
       const oversizedMarkdown = `# Oversized Document\n\n${'A'.repeat(2_100_000)}`;
-      const response = await apiFetch(`${API_BASE}/kairos_mint/raw`, {
+      const response = await apiFetch(`${API_BASE}/train/raw`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown' },
         body: oversizedMarkdown
@@ -85,22 +83,21 @@ Protocol is complete when this step is done.`;
 
     test('handles force update parameter', async () => {
       expect.hasAssertions();
-
       const markdown = `# Force Update Test ${Date.now()}
 
-## Natural Language Triggers
+## Activation Patterns
 When to run.
 
 ## Step 1
 Testing force update.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Minimal"}}
+{"contract": {"type": "comment", "description": "Minimal"}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
-      const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/train/raw?force=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
@@ -115,7 +112,6 @@ Done.`;
   describe('POST /api/snapshot', () => {
     test('triggers Qdrant snapshot', async () => {
       expect.hasAssertions();
-
       const response = await apiFetch(`${API_BASE}/snapshot`, { method: 'POST' });
 
       // When backup dir is configured (e.g. CI: QDRANT_SNAPSHOT_DIR=var/snapshots), we expect success only
@@ -127,12 +123,11 @@ Done.`;
     }, 30000);
   });
 
-  describe('POST /api/kairos_search', () => {
+  describe('POST /api/activate', () => {
     test('searches for chain heads', async () => {
       expect.hasAssertions();
-
       const query = `Test Query ${Date.now()}`;
-      const response = await apiFetch(`${API_BASE}/kairos_search`, {
+      const response = await apiFetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
@@ -140,7 +135,7 @@ Done.`;
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
-      // V2 unified response shape: exact top-level keys (canonical shape; no metadata in spec)
+      // V10 activate: exact top-level keys (canonical shape; no metadata in spec)
       const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action'];
       expect(Object.keys(data).sort()).toEqual([...canonicalSearchKeys].sort());
       expect(data.must_obey).toBe(true);
@@ -156,8 +151,7 @@ Done.`;
 
     test('rejects empty query', async () => {
       expect.hasAssertions();
-
-      const response = await apiFetch(`${API_BASE}/kairos_search`, {
+      const response = await apiFetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: '' })
@@ -171,7 +165,7 @@ Done.`;
     test('rejects oversized JSON bodies', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_search`, {
+      const response = await apiFetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: 'x'.repeat(1_100_000) })
@@ -183,11 +177,11 @@ Done.`;
     }, 30000);
   });
 
-  describe('POST /api/kairos_next', () => {
+  describe('POST /api/forward', () => {
     test('requires uri parameter', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_next`, {
+      const response = await apiFetch(`${API_BASE}/forward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -198,38 +192,57 @@ Done.`;
       expect(data).toHaveProperty('error', 'INVALID_INPUT');
     });
 
-    test('handles valid uri with missing solution', async () => {
+    test('starts execution for a trained adapter (omit solution)', async () => {
       expect.hasAssertions();
 
-      // V2: missing solution returns 200 with error payload (execution-oriented)
-      const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
-      const response = await apiFetch(`${API_BASE}/kairos_next`, {
+      const markdown = `# Forward HTTP ${Date.now()}
+
+## Activation Patterns
+When to run.
+
+## Step 1
+Forward smoke test.
+
+\`\`\`json
+{"contract": {"type": "comment", "description": "Minimal"}}
+\`\`\`
+
+## Reward Signal
+Done.`;
+      const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
+        body: markdown
+      });
+      expect(trainRes.status).toBe(200);
+      const trainData = await trainRes.json();
+      const adapterUri = trainData.items?.[0]?.adapter_uri as string | undefined;
+      expect(adapterUri).toMatch(/^kairos:\/\/adapter\//);
+
+      const response = await apiFetch(`${API_BASE}/forward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: testUri })
+        body: JSON.stringify({ uri: adapterUri })
       });
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveProperty('error_code', 'MISSING_FIELD');
-      expect(data).toHaveProperty('retry_count');
-      expect(typeof data.retry_count).toBe('number');
+      expect(data).toHaveProperty('must_obey', true);
+      expect(data).toHaveProperty('contract');
       expect(data).toHaveProperty('next_action');
-      expect(data.message).toContain('Solution');
+      expect(typeof data.next_action).toBe('string');
     }, 30000);
   });
 
-  describe('POST /api/kairos_attest', () => {
-    test('requires all mandatory parameters', async () => {
+  describe('POST /api/reward', () => {
+    test('rejects request without uri', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_attest`, {
+      const response = await apiFetch(`${API_BASE}/reward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uri: 'kairos://mem/test',
           outcome: 'success'
-          // missing message
         })
       });
 
@@ -241,13 +254,13 @@ Done.`;
     test('validates outcome enum', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_attest`, {
+      const response = await apiFetch(`${API_BASE}/reward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uri: 'kairos://mem/test',
+          uri: 'kairos://layer/00000000-0000-0000-0000-000000000000',
           outcome: 'invalid',
-          message: 'test'
+          feedback: 'test'
         })
       });
 
@@ -257,11 +270,11 @@ Done.`;
     });
   });
 
-  describe('POST /api/kairos_update', () => {
+  describe('POST /api/tune', () => {
     test('requires uris array', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_update`, {
+      const response = await apiFetch(`${API_BASE}/tune`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -275,11 +288,14 @@ Done.`;
     test('validates markdown_doc array length matches uris', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_update`, {
+      const response = await apiFetch(`${API_BASE}/tune`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uris: ['kairos://mem/test1', 'kairos://mem/test2'],
+          uris: [
+            'kairos://layer/00000000-0000-0000-0000-000000000001',
+            'kairos://layer/00000000-0000-0000-0000-000000000002'
+          ],
           markdown_doc: ['# Only one doc']
         })
       });
@@ -290,11 +306,11 @@ Done.`;
     });
   });
 
-  describe('POST /api/kairos_delete', () => {
+  describe('POST /api/delete', () => {
     test('requires uris array', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_delete`, {
+      const response = await apiFetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -308,11 +324,11 @@ Done.`;
     test('handles delete request with valid structure', async () => {
       expect.hasAssertions();
 
-      const response = await apiFetch(`${API_BASE}/kairos_delete`, {
+      const response = await apiFetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uris: ['kairos://mem/00000000-0000-0000-0000-000000000000']
+          uris: ['kairos://layer/00000000-0000-0000-0000-000000000000']
         })
       });
 
@@ -325,9 +341,10 @@ Done.`;
       expect(Array.isArray(data.results)).toBe(true);
       expect(data.total_deleted).toBe(0);
       expect(data.total_failed).toBe(1);
-      expect((data.results as Array<{ status: string; uri: string }>)[0]).toMatchObject({ status: 'error', uri: 'kairos://mem/00000000-0000-0000-0000-000000000000' });
+      expect((data.results as Array<{ status: string; uri: string }>)[0]).toMatchObject({
+        status: 'error',
+        uri: 'kairos://layer/00000000-0000-0000-0000-000000000000'
+      });
     }, 30000);
   });
 });
-
-

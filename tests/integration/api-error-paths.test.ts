@@ -28,10 +28,10 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  describe('kairos_search', () => {
+  describe('activate', () => {
     test('HTTP rejects empty query with 400 and INVALID_INPUT', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_search`, {
+      const res = await httpFetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: '' })
@@ -45,7 +45,7 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     test('MCP empty query returns error or fallback', async () => {
       expect.hasAssertions();
       const result = await mcpConnection.client.callTool({
-        name: 'kairos_search',
+        name: 'activate',
         arguments: { query: '' }
       });
       const r = result as { isError?: boolean; content?: Array<{ type: string; text?: string }> };
@@ -54,7 +54,7 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
         return;
       }
       try {
-        const parsed = parseMcpJson(result, 'kairos_search empty query');
+        const parsed = parseMcpJson(result, 'activate empty query');
         expect(parsed).toBeDefined();
       } catch {
         expect(r.content?.length).toBeGreaterThan(0);
@@ -62,10 +62,10 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     });
   });
 
-  describe('kairos_dump', () => {
+  describe('export', () => {
     test('HTTP rejects missing uri with 400', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_dump`, {
+      const res = await httpFetch(`${API_BASE}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -77,10 +77,10 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
 
     test('HTTP returns 404 for non-existent URI', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_dump`, {
+      const res = await httpFetch(`${API_BASE}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: 'kairos://mem/00000000-0000-0000-0000-000000000000' })
+        body: JSON.stringify({ uri: 'kairos://layer/00000000-0000-0000-0000-000000000000' })
       });
       expect(res.status).toBe(404);
       const data = (await res.json()) as Record<string, unknown>;
@@ -88,16 +88,16 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     });
   });
 
-  describe('kairos_attest', () => {
+  describe('reward', () => {
     test('HTTP rejects invalid outcome enum with 400', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_attest`, {
+      const res = await httpFetch(`${API_BASE}/reward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uri: 'kairos://mem/00000000-0000-0000-0000-000000000000',
+          uri: 'kairos://layer/00000000-0000-0000-0000-000000000000',
           outcome: 'invalid',
-          message: 'test'
+          feedback: 'test'
         })
       });
       expect(res.status).toBe(400);
@@ -106,10 +106,10 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     });
   });
 
-  describe('kairos_delete', () => {
+  describe('delete', () => {
     test('HTTP rejects empty uris array with 400', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_delete`, {
+      const res = await httpFetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uris: [] })
@@ -120,10 +120,10 @@ describe('API error paths: consistent handling across MCP and HTTP', () => {
     });
   });
 
-  describe('kairos_next', () => {
+  describe('forward', () => {
     test('HTTP rejects missing uri with 400', async () => {
       expect.hasAssertions();
-      const res = await httpFetch(`${API_BASE}/kairos_next`, {
+      const res = await httpFetch(`${API_BASE}/forward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})

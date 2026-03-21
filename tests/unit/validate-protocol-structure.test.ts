@@ -1,5 +1,6 @@
 /**
- * Unit tests for validate-protocol-structure.ts: protocol markdown validation before mint.
+ * Unit tests for `validate-protocol-structure.ts`: adapter markdown validation
+ * before `train`.
  */
 
 import { readFileSync } from 'node:fs';
@@ -9,28 +10,28 @@ import {
   CREATION_PROTOCOL_URI
 } from '../../src/services/memory/validate-protocol-structure.js';
 
-const validDoc = `# My Protocol
+const validDoc = `# My Adapter
 
 Short description.
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "do the thing".
 
-**Must Never:** Skip steps.
-**Must Always:** Complete all steps.
+**Must Never:** Skip layers.
+**Must Always:** Complete all layers.
 
 ## Step 1: Do something
 
 Do it.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 
-Only reachable after all prior steps are solved.`;
+Only reachable after all prior layers are solved.`;
 
 describe('validateProtocolStructure', () => {
   test('valid doc passes', () => {
@@ -41,15 +42,15 @@ describe('validateProtocolStructure', () => {
   });
 
   test('missing H1 fails', () => {
-    const doc = `## Natural Language Triggers
+    const doc = `## Activation Patterns
 Content.
 
 ## Step 1
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
@@ -57,99 +58,99 @@ Done.`;
     expect(result.message).toMatch(/H1 title/);
   });
 
-  test('missing Natural Language Triggers (first H2) fails', () => {
-    const doc = `# My Protocol
+  test('missing Activation Patterns (first H2) fails', () => {
+    const doc = `# My Adapter
 
 ## Step 1 First
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('natural_language_triggers');
-    expect(result.message).toMatch(/Natural Language Triggers/);
+    expect(result.missing).toContain('activation_patterns');
+    expect(result.message).toMatch(/Activation Patterns/);
   });
 
-  test('missing Completion Rule (last H2) fails', () => {
-    const doc = `# My Protocol
+  test('missing Reward Signal (last H2) fails', () => {
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Content.
 
 ## Step 1
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
 ## Final Step
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('completion_rule');
-    expect(result.message).toMatch(/Completion Rule/);
+    expect(result.missing).toContain('reward_signal');
+    expect(result.message).toMatch(/Reward Signal/);
   });
 
-  test('no challenge block fails', () => {
-    const doc = `# My Protocol
+  test('no contract block fails', () => {
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Content.
 
 ## Step 1
-Just text, no challenge.
+Just text, no contract.
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('challenge_block');
-    expect(result.message).toMatch(/challenge block/);
+    expect(result.missing).toContain('contract_block');
+    expect(result.message).toMatch(/contract block/);
   });
 
-  test('case-insensitive Natural Language Triggers matches', () => {
-    const doc = `# My Protocol
+  test('case-insensitive Activation Patterns matches', () => {
+    const doc = `# My Adapter
 
-## natural language triggers
+## activation patterns
 
 Content.
 
 ## Step 1
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(true);
-    expect(result.missing).not.toContain('natural_language_triggers');
+    expect(result.missing).not.toContain('activation_patterns');
   });
 
-  test('case-insensitive Completion Rule matches', () => {
-    const doc = `# My Protocol
+  test('case-insensitive Reward Signal matches', () => {
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Content.
 
 ## Step 1
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## completion rule
+## reward signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(true);
-    expect(result.missing).not.toContain('completion_rule');
+    expect(result.missing).not.toContain('reward_signal');
   });
 
   test('doc with multiple code blocks (typescript, json, javascript, json) passes', () => {
-    const doc = `# Code Example Documentation
+    const doc = `# Code example adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "code example docs".
 
 ## Function Implementation
@@ -162,7 +163,7 @@ function processData(input: string): string {
 \`\`\`
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
 \`\`\`
 
 ## Usage Example
@@ -172,108 +173,108 @@ const processor = new DataProcessor(['hello', 'world']);
 \`\`\`
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(true);
-    expect(result.missing).not.toContain('challenge_block');
+    expect(result.missing).not.toContain('contract_block');
   });
 
-  test('rejects doc with plain ``` block containing challenge (mixed fences)', () => {
-    const doc = `# My Protocol
+  test('rejects doc with plain fence containing contract (mixed fences)', () => {
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Content.
 
 ## Step 1
 \`\`\`
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('mixed_challenge_fences');
-    expect(result.message).toMatch(/only .*json.* challenge/);
+    expect(result.missing).toContain('mixed_contract_fences');
+    expect(result.message).toMatch(/only .*json.* contract/);
   });
 
-  test('multi-H1: each section must have Triggers and Completion Rule', () => {
-    const doc = `# First Protocol
+  test('multi-H1: each section must have Activation Patterns and Reward Signal', () => {
+    const doc = `# First Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 First.
 
 ## Step A
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 First done.
 
-# Second Protocol
+# Second Adapter
 
 ## Step X
-No Triggers here.
+No Activation Patterns here.
 
-## Completion Rule
+## Reward Signal
 Second done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('natural_language_triggers');
+    expect(result.missing).toContain('activation_patterns');
   });
 
-  test('multi-H1: second protocol missing Completion Rule fails', () => {
-    const doc = `# First Protocol
+  test('multi-H1: second adapter missing Reward Signal fails', () => {
+    const doc = `# First Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 First.
 
-## Completion Rule
+## Reward Signal
 First done.
 
-# Second Protocol
+# Second Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Second.
 
 ## Last Step
-No Completion Rule.`;
+No Reward Signal.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('completion_rule');
+    expect(result.missing).toContain('reward_signal');
   });
 
   test('multi-H1: first section empty (no H2s) fails validation', () => {
-    const doc = `# First Protocol
+    const doc = `# First Adapter
 
 No H2s here.
 
-# Second Protocol
+# Second Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Second.
 
 ## Step A
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Second done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('natural_language_triggers');
+    expect(result.missing).toContain('activation_patterns');
   });
 
   test('H2 inside code block is ignored', () => {
-    const doc = `# My Protocol
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 Content.
 
 ## Step 1
@@ -283,10 +284,10 @@ Example heading in block:
 \`\`\`
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(true);
@@ -328,7 +329,7 @@ Done.`;
 });
 
 describe('CREATION_PROTOCOL_URI', () => {
-  test('is the creation protocol mem UUID', () => {
+  test('is the creation flow seed UUID', () => {
     expect(CREATION_PROTOCOL_URI).toBe('kairos://mem/00000000-0000-0000-0000-000000002001');
   });
 });

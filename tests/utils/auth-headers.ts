@@ -18,7 +18,7 @@ interface TestAuthEnv {
   bearerToken?: string;
   baseUrl?: string;
   keycloakUrl?: string;
-  /** Space of kairos-tester (user:realm:sub from token); use for kairos_search space_id so tests use actual test user scope */
+  /** Space of kairos-tester (user:realm:sub from token); use for activate space_id so tests use actual test user scope */
   spaceId?: string;
 }
 
@@ -134,7 +134,7 @@ export function hasAuthToken(): boolean {
   return readAuthEnv()?.bearerToken != null;
 }
 
-/** Space ID of kairos-tester (user:realm:sub) when AUTH_ENABLED and token present. Pass as space_id to kairos_search so tests use actual test user scope. */
+/** Space ID of kairos-tester (user:realm:sub) when AUTH_ENABLED and token present. Pass as space_id to activate so tests use actual test user scope. */
 export function getTestSpaceId(): string | undefined {
   return readAuthEnv()?.spaceId ?? undefined;
 }

@@ -22,7 +22,7 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_search raw MCP result');
+    return parseMcpJson(result, 'activate raw MCP result');
   }
 
   test('returns V2 unified schema with non-perfect match candidates in choices', async () => {
@@ -45,7 +45,7 @@ Only after all steps.`;
 
     // Store the protocol
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -57,7 +57,7 @@ Only after all steps.`;
 
     // Search with non-exact query (may score above threshold)
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: `match case3 ${ts}`
       }
@@ -88,13 +88,14 @@ Only after all steps.`;
       for (const choice of matchChoices) {
         expect(choice.uri).toBeDefined();
         expect(typeof choice.uri).toBe('string');
-        expect(choice.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(choice.uri.startsWith('kairos://adapter/')).toBe(true);
         expect(choice.label).toBeDefined();
         expect(typeof choice.label).toBe('string');
         expect(choice.role).toBe('match');
         // score may be a number or null
-        if (choice.score !== null && choice.score !== undefined) {
-          expect(typeof choice.score).toBe('number');
+        const actScore = (choice as { activation_score?: number | null }).activation_score ?? choice.score;
+        if (actScore !== null && actScore !== undefined) {
+          expect(typeof actScore).toBe('number');
         }
         if (choice.tags !== undefined) {
           expect(Array.isArray(choice.tags)).toBe(true);

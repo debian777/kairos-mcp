@@ -2,15 +2,15 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 /**
- * Kairos Mint integration tests (basic functionality).
+ * Train (mint) integration tests (basic functionality).
  *
  * Goals:
- * - Verify the happy-path JSON contract of kairos_mint.
+ * - Verify the happy-path JSON contract of the train tool.
  * - When something goes wrong, surface the raw MCP result
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Kairos Mint Basic Functionality', () => {
+describe('Train (mint) basic functionality', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -23,36 +23,36 @@ describe('Kairos Mint Basic Functionality', () => {
     }
   });
 
-  // Helper to generate unique markdown with required structure (Natural Language Triggers first, Completion Rule last)
+  // Helper to generate unique markdown with required structure (Activation Patterns first, Reward Signal last)
   function uniqueMd(titlePrefix, sections) {
     const ts = Date.now();
     const h1 = `# ${titlePrefix} ${ts}`;
-    const triggers = '\n\n## Natural Language Triggers\n\nRun when user says "run this".';
+    const triggers = '\n\n## Activation Patterns\n\nRun when user says "run this".';
     const body = sections
       .map((s, index) => {
         const proofCmd = s.proof || `echo step-${index + 1}`;
         const timeout = s.timeout || 30;
         const cmdEsc = proofCmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const block = `\n\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"${cmdEsc}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
+        const block = `\n\n\`\`\`json\n{"contract":{"type":"shell","shell":{"cmd":"${cmdEsc}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
         return `\n\n## ${s.h2}\n${s.body}${block}`;
       })
       .join('');
-    const completionRule = '\n\n## Completion Rule\n\nOnly after all steps.';
+    const completionRule = '\n\n## Reward Signal\n\nOnly after all steps.';
     return `${h1}${triggers}${body}${completionRule}`;
   }
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_mint raw MCP result');
+    return parseMcpJson(result, 'train raw MCP result');
   }
 
-  test('kairos_mint stores single text content successfully', async () => {
+  test('train stores single text content successfully', async () => {
     const md = uniqueMd('Kairos Mint Smoke', [
       { h2: 'Intro', body: 'Alpha content' },
       { h2: 'Details', body: 'Beta content' }
     ]);
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -68,10 +68,12 @@ describe('Kairos Mint Basic Functionality', () => {
 
     const item = response.items[0];
     expect(item).toHaveProperty('uri');
-    expect(item.uri).toMatch(/^kairos:\/\/mem\//);
-    expect(item).toHaveProperty('memory_uuid');
-    expect(typeof item.memory_uuid).toBe('string');
-    expect(item.memory_uuid.length).toBeGreaterThan(0);
+    expect(item.uri).toMatch(/^kairos:\/\/layer\//);
+    expect(item).toHaveProperty('layer_uuid');
+    expect(typeof item.layer_uuid).toBe('string');
+    expect(item.layer_uuid.length).toBeGreaterThan(0);
+    expect(item).toHaveProperty('adapter_uri');
+    expect(item.adapter_uri).toMatch(/^kairos:\/\/adapter\//);
     expect(item).toHaveProperty('label');
     expect(typeof item.label).toBe('string');
     expect(item).toHaveProperty('tags');
@@ -81,34 +83,34 @@ describe('Kairos Mint Basic Functionality', () => {
     expect(response.status).toBe('stored');
   }, 20000); // Increase timeout for large document processing
 
-  test('kairos_mint duplicate policy with label-based chain UUID and force_update', async () => {
-    // 1) Create timestamp for unique chain label; include required Natural Language Triggers and Completion Rule
+  test('train duplicate policy with label-based chain UUID and force_update', async () => {
+    // 1) Create timestamp for unique chain label; include required Activation Patterns and Reward Signal
     const ts = Date.now().toString();
     const md = `# Unique Store ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "unique store".
 
 ## Step 1
 Alpha
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo alpha","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo alpha","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Step 2
 Beta
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo beta","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo beta","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     // 2) First store → stored (force_update bypasses similarity check in shared dev collection)
     const first = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -122,7 +124,7 @@ Only after all steps.`;
 
     // 3) Second store (same H1) → error DUPLICATE_CHAIN
     const second = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free'
@@ -142,7 +144,7 @@ Only after all steps.`;
       expect(dupBody.existing_memory).toBeDefined();
       expect(dupBody.must_obey).toBe(true);
       expect(typeof dupBody.next_action).toBe('string');
-      expect(dupBody.next_action).toContain('kairos_dump');
+      expect(dupBody.next_action).toContain('export');
       if (dupBody.content_preview !== undefined) {
         expect(typeof dupBody.content_preview).toBe('string');
       }
@@ -150,7 +152,7 @@ Only after all steps.`;
 
     // 4) Third store with force_update → stored (overwrites prior chain)
     const third = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -163,25 +165,25 @@ Only after all steps.`;
     expect(thirdParsed.items.length).toBeGreaterThanOrEqual(1);
   }, 30000);
 
-  test('kairos_mint SIMILAR_MEMORY_FOUND response shape (must_obey, next_action, content_preview)', async () => {
+  test('train SIMILAR_MEMORY_FOUND response shape (must_obey, next_action, content_preview)', async () => {
     const ts = Date.now().toString();
     const md = `# SIMILAR_MEMORY_FOUND Shape ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "similar shape".
 
 ## Step 1
 Content
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     const first = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -192,7 +194,7 @@ Only after all steps.`;
     expect(firstParsed.status).toBe('stored');
 
     const second = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: md,
         llm_model_id: 'minimax/minimax-m2:free'
@@ -208,7 +210,7 @@ Only after all steps.`;
       expect(body.must_obey).toBe(true);
       expect(typeof body.next_action).toBe('string');
       expect(body.next_action.length).toBeGreaterThan(0);
-      expect(body.next_action).toContain('kairos_dump');
+      expect(body.next_action).toContain('export');
       expect(body.next_action).toContain('force_update');
       expect(body.existing_memory).toBeDefined();
       if (body.content_preview !== undefined) {
@@ -217,12 +219,12 @@ Only after all steps.`;
     }
   }, 30000);
 
-  test('kairos_mint stores code block content', async () => {
+  test('train stores code block content', async () => {
     // Document with code blocks containing searchable identifiers
     const ts = Date.now();
     const codeContent = `# Code Example Documentation ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "code example docs".
 
 ## Function Implementation
@@ -243,7 +245,7 @@ class DataProcessor {
 \`\`\`
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
 \`\`\`
 
 ## Usage Example
@@ -257,15 +259,15 @@ console.log(result); // ['HELLO', 'WORLD']
 This demonstrates the data processing functionality.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     // Store the document (force_update bypasses similarity check in shared dev collection)
     const storeResult = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: codeContent,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -275,16 +277,16 @@ Only after all steps.`;
 
     const storeResponse = expectValidJsonResult(storeResult);
     if (storeResponse.error) {
-      throw new Error(`kairos_mint failed: ${storeResponse.error} - ${storeResponse.message ?? ''}`);
+      throw new Error(`train failed: ${storeResponse.error} - ${storeResponse.message ?? ''}`);
     }
     expect(storeResponse.status).toBe('stored');
     // PoW-based mint: each ```json challenge block defines a step; this doc has 2 blocks so expect >= 1 (chain stored)
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(1);
 
-    // Test that kairos_search can find the chain (use semantic query from content)
+    // Test that activate can find the chain (use semantic query from content)
     await new Promise((r) => setTimeout(r, 2000)); // Allow Qdrant indexing
     const searchResult = await mcpConnection.client.callTool({
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: 'Code Example Documentation DataProcessor'
       }
@@ -297,7 +299,9 @@ Only after all steps.`;
     expect(typeof searchResponse.message).toBe('string');
     expect(typeof searchResponse.next_action).toBe('string');
     expect(
-      searchResponse.next_action.includes("choice's next_action") || searchResponse.next_action.includes('kairos://mem/')
+      searchResponse.next_action.includes("choice's next_action") ||
+        searchResponse.next_action.includes('kairos://') ||
+        searchResponse.next_action.toLowerCase().includes('forward')
     ).toBe(true);
     expect(Array.isArray(searchResponse.choices)).toBe(true);
     expect(searchResponse.choices.length).toBeGreaterThanOrEqual(1);
@@ -310,12 +314,12 @@ Only after all steps.`;
       expect(matchChoices.length).toBeGreaterThanOrEqual(1);
     }
 
-    // Each choice has the V2 shape (uri, label, chain_label, role, tags; next_action in new format)
+    // Each choice has the activate shape (uri, label, adapter_name, role, tags; next_action in new format)
     const isNewFormat = searchResponse.next_action.includes("choice's next_action");
     for (const choice of searchResponse.choices) {
       expect(choice).toHaveProperty('uri');
       expect(choice).toHaveProperty('label');
-      expect(choice).toHaveProperty('chain_label');
+      expect(choice).toHaveProperty('adapter_name');
       expect(choice).toHaveProperty('role');
       expect(choice).toHaveProperty('tags');
       if (isNewFormat) expect(choice).toHaveProperty('next_action');
