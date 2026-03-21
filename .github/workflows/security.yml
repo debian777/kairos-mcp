@@ -1,5 +1,7 @@
-# Security scans: dependency review (PRs), npm audit, CodeQL (SAST).
-# Free for public repos. Keeps main and PRs checked for known vulns and code issues.
+# Security scans: dependency review (PRs), npm audit, CodeQL (SAST), base-image Trivy (OS only).
+# Trivy scans Alpine OS only (vuln-type=os). We use the same FROM ref as Dockerfile plus the single
+# apk zlib line from that file — scanning the raw digest alone would miss that layer (upstream image
+# can still trail Alpine security fixes). No npm / app install. Full image+library scan: release.yml.
 name: Security
 
 on:
@@ -55,6 +57,39 @@ jobs:
       - name: npm audit
         run: npm audit --audit-level=high
         # Use --production to ignore devDependencies, or omit to include them
+
+  container-base-os-trivy:
+    name: Base image OS (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Base image ref from Dockerfile
+        id: base
+        run: |
+          line=$(grep -m1 '^FROM ' Dockerfile)
+          ref="${line#FROM }"
+          ref="${ref%% AS *}"
+          echo "image_ref=$(echo "$ref" | xargs)" >> "$GITHUB_OUTPUT"
+
+      - name: One-layer image (FROM + zlib RUN from Dockerfile)
+        run: |
+          img="${{ steps.base.outputs.image_ref }}"
+          run_cmd=$(grep -E '^RUN apk update && apk upgrade --no-cache zlib$' Dockerfile | sed 's/^RUN //' | head -1)
+          if [ -z "$run_cmd" ]; then echo "::error::Expected RUN apk … zlib line in Dockerfile"; exit 1; fi
+          printf 'FROM %s\nRUN %s\n' "$img" "$run_cmd" | docker build -t kairos-os:ci -
+
+      - name: Trivy (Alpine/OS packages only)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: kairos-os:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          vuln-type: os
 
   codeql:
     name: CodeQL
