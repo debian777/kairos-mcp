@@ -1,42 +1,36 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate replaces Dependabot: npm, github-actions, Dockerfiles, docker-compose. Disable Dependabot version updates in Settings → Code security and analysis.",
-  "schedule": ["before 10am on monday"],
+  "description": "Renovate replaces Dependabot: npm, github-actions, Dockerfiles, docker-compose. Disable Dependabot version updates in Settings → Code security and analysis. GitHub Dependabot vulnerability PRs already ignore global schedule; OSV is enabled for npm so more CVEs get fixes, also without schedule gating via packageRules.",
+  "schedule": ["before 10am"],
+  "osvVulnerabilityAlerts": true,
   "openPullRequestsLimit": 10,
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"]
+    "labels": ["security"],
+    "prCreation": "immediate"
   },
   "packageRules": [
     {
-      "description": "Prioritize security updates and merge safe fixes quickly",
-      "matchCategories": ["security"],
-      "matchUpdateTypes": ["patch", "minor"],
-      "labels": ["security"],
-      "automerge": true,
-      "priorityScore": 100
-    },
-    {
       "description": "Group npm updates into one PR",
-      "managers": ["npm"],
+      "matchManagers": ["npm"],
       "groupName": "npm",
       "commitMessagePrefix": "deps(npm)"
     },
     {
       "description": "Group GitHub Actions updates into one PR",
-      "managers": ["github-actions"],
+      "matchManagers": ["github-actions"],
       "groupName": "github-actions",
       "commitMessagePrefix": "deps(actions)"
     },
     {
       "description": "Group Dockerfile image updates into one PR",
-      "managers": ["dockerfile"],
+      "matchManagers": ["dockerfile"],
       "groupName": "docker",
       "commitMessagePrefix": "deps(docker)"
     },
     {
       "description": "Group docker-compose image updates into one PR",
-      "managers": ["docker-compose"],
+      "matchManagers": ["docker-compose"],
       "groupName": "docker-compose",
       "commitMessagePrefix": "deps(compose)"
     },
@@ -44,6 +38,21 @@
       "description": "Pin Docker image digests for immutability and supply-chain compliance",
       "matchDatasources": ["docker"],
       "pinDigests": true
+    },
+    {
+      "description": "Security/vuln fixes: not gated by global schedule, own PR, immediate branch/PR creation (overrides bulk groups above)",
+      "matchCategories": ["security"],
+      "schedule": ["at any time"],
+      "groupName": null,
+      "prCreation": "immediate",
+      "labels": ["security"],
+      "priorityScore": 10000
+    },
+    {
+      "description": "Automerge patch/minor security fixes when CI is green (majors still open as PRs)",
+      "matchCategories": ["security"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
     }
   ]
 }

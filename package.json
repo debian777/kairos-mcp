@@ -64,7 +64,7 @@
     "prod:redis-cli": "ENV=prod ./scripts/run-env.sh redis-cli",
     "prod:logs": "ENV=prod ./scripts/run-env.sh logs",
     "build": "npm run prebuild && node -e \"if(!process.env.DOCKER_BUILD){const r=require('child_process').spawnSync('npm',['run','lint'],{stdio:'inherit'});if(r.status!==0)process.exit(r.status!=null?r.status:1)}\" && npm run ui:build && npx tsc && chmod +x dist/cli/index.js",
-    "docker:build": "docker build --build-arg PACKAGE_VERSION=$(node -p \"require('./package.json').version\") -t debian777/kairos-mcp:latest -t debian777/kairos-mcp:$(node -p \"require('./package.json').version\") .",
+    "docker:build": "docker build --target runtime --build-arg PACKAGE_VERSION=$(node -p \"require('./package.json').version\") -t debian777/kairos-mcp:latest -t debian777/kairos-mcp:$(node -p \"require('./package.json').version\") .",
     "docker:build:dev": "docker build -f Dockerfile.dev -t debian777/kairos-mcp:dev .",
     "docker:push": "docker push debian777/kairos-mcp:latest && docker push debian777/kairos-mcp:$(node -p \"require('./package.json').version\")",
     "docker:publish": "npm run docker:build && npm run docker:push",
@@ -182,6 +182,7 @@
       "vite": "$vite"
     },
     "glob": "^13.0.0",
-    "minimatch": "^10.2.1"
+    "minimatch": "^10.2.3",
+    "tar": "^7.5.11"
   }
 }

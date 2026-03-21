@@ -13,6 +13,8 @@ lerna-debug.log*
 
 # Build outputs
 dist/
+# Ephemeral path for Docker target runtime-ci (see Dockerfile, Integration workflow)
+.ci/
 build/
 out/
 storybook-static/

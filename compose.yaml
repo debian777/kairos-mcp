@@ -11,7 +11,7 @@ services:
   redis:
     profiles:
       - fullstack
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
     pull_policy: missing
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
@@ -34,7 +34,7 @@ services:
   redisinsight:
     profiles:
       - infra-ui
-    image: redis/redisinsight:latest
+    image: redis/redisinsight:latest@sha256:55542a762210bb1cd681410282642bac0970f780f39bc134565394a81b1f1fd9
     pull_policy: missing
     depends_on:
       - redis
@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
 
   qdrant:
-    image: qdrant/qdrant:v1.17.0
+    image: qdrant/qdrant:v1.17.0@sha256:f1c7272cdac52b38c1a0e89313922d940ba50afd90d593a1605dbbc214e66ffb
     pull_policy: missing
     ports:
       - "6333:6333"
@@ -84,7 +84,7 @@ services:
   postgres:
     profiles:
       - fullstack
-    image: postgres:16
+    image: postgres:16@sha256:2586e2a95d1c9b31cb2967feb562948f7d364854453d703039b6efa45fe48417
     env_file:
       - .env
     environment:
@@ -110,7 +110,7 @@ services:
       - fullstack
     env_file:
       - .env
-    image: quay.io/keycloak/keycloak:26.5.4
+    image: quay.io/keycloak/keycloak:26.5.4@sha256:ae8efb0d218d8921334b03a2dbee7069a0b868240691c50a3ffc9f42fabba8b4
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,7 +136,7 @@ services:
     restart: unless-stopped
 
   app-prod:
-    image: debian777/kairos-mcp:latest
+    image: debian777/kairos-mcp:latest@sha256:bb797f75319341a415d04fb5a5b9033ffeb38d319cfa00bbe7a7014f90b052cc
     #pull_policy: always
     labels:
       - "environment=prod"
