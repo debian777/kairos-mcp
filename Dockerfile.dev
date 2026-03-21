@@ -23,6 +23,11 @@ FROM node:25-alpine AS production
 
 VOLUME /snapshots
 
+# CVE-2026-22184 (zlib): align runtime stage with release image hardening.
+RUN apk update && apk upgrade --no-cache zlib
+
+RUN npm install -g npm@11.12.0
+
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S kairos -u 1001
 

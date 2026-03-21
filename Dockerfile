@@ -5,6 +5,13 @@ FROM node:25-alpine
 
 VOLUME /snapshots
 
+# CVE-2026-22184 (zlib): patch Alpine package only; keep base image otherwise unchanged.
+RUN apk update && apk upgrade --no-cache zlib
+
+# Node image ships npm with vendored minimatch/tar; Trivy flags HIGH on those until npm bumps them.
+# Pin npm so global CLI matches a release that bundles patched transitive versions.
+RUN npm install -g npm@11.12.0
+
 # Pin version at build time (required; set by release workflow).
 ARG PACKAGE_VERSION
 RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
@@ -15,8 +22,11 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Install the published package (and its deps) from registry
-RUN npm install @debian777/kairos-mcp@${PACKAGE_VERSION} && \
+# Install from registry. Root overrides apply here; overrides inside the published package.json do not
+# affect this install tree (npm only honors overrides at the project root). Keeps tar/minimatch on patched
+# releases for Trivy (CRITICAL/HIGH) in release.yml.
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+    npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
 
