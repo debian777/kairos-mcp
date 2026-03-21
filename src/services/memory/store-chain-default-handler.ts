@@ -11,7 +11,14 @@ import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
-import { deriveDomainTaskType, handleDuplicateChain } from './store-chain-helpers.js';
+import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
+import {
+  allocateProtocolSlugForMint,
+  deriveDomainTaskType,
+  handleDuplicateChain
+} from './store-chain-helpers.js';
+import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
+import { KairosError } from '../../types/index.js';
 import type { CodeBlockProcessor } from '../code-block-processor.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 
@@ -27,7 +34,8 @@ export async function storeDefaultChain(
   llmModelId: string,
   now: Date,
   forceUpdate: boolean,
-  protocolVersion?: string
+  protocolVersion?: string,
+  parsedFrontmatter?: ParsedFrontmatter
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
@@ -48,6 +56,17 @@ export async function storeDefaultChain(
 
   // Handle duplicate chain
   await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
+
+  const slugCand = resolveProtocolSlugCandidate(parsedFrontmatter ?? { body: '' }, firstGeneratedLabel);
+  if ('error' in slugCand) {
+    throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
+  }
+  const protocolSlug = await allocateProtocolSlugForMint(
+    client,
+    collection,
+    { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied },
+    chainUuid
+  );
 
   let embeddings: any;
   try {
@@ -129,7 +148,8 @@ export async function storeDefaultChain(
           step_index: memory.chain!.step_index,
           step_count: memory.chain!.step_count,
           ...(memory.chain!.protocol_version && { protocol_version: memory.chain!.protocol_version })
-        }
+        },
+        slug: protocolSlug
       }
     });
   });

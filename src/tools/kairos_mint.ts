@@ -7,6 +7,7 @@ import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } fro
 import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { mintInputSchema, mintOutputSchema, type MintInput, type MintOutput } from './kairos_mint_schema.js';
+import { KairosError } from '../types/index.js';
 
 /** Thrown by executeMint on validation or store errors. */
 export class MintError extends Error {
@@ -151,6 +152,24 @@ export function registerKairosMintTool(server: any, memoryStore: MemoryQdrantSto
           return {
             isError: true,
             content: [{ type: 'text' as const, text: JSON.stringify({ error: error.code, message: error.message, ...error.details }) }]
+          };
+        }
+        if (error instanceof KairosError) {
+          mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+          timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  error: error.code,
+                  message: error.message,
+                  ...(error.details && typeof error.details === 'object' ? error.details : {})
+                })
+              }
+            ]
           };
         }
         if (err?.code === 'DUPLICATE_CHAIN' || err?.code === 'DUPLICATE_KEY') {

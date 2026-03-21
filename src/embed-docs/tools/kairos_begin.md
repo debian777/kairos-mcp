@@ -1,11 +1,23 @@
 Start protocol execution. Loads step 1 and returns its challenge.
 Step 1 never requires a solution submission.
 
-**Precondition:** You have a URI from `kairos_search` (via a choice's
-`next_action`). Do not call with a URI you invented.
+**Precondition (uri path):** You have a URI from `kairos_search` (via a
+choice's `next_action`), or another trusted source. Do not invent URIs.
 
-**Input:** `uri` — the protocol URI from `next_action`. If you supply a
-non-step-1 URI, KAIROS auto-redirects to step 1.
+**Precondition (key path):** You know the protocol's exact **slug**
+(stored at mint; exported in `kairos_dump` frontmatter when
+`protocol: true`). Use this for deterministic protocol-to-protocol
+routing without semantic search.
+
+**Input:**
+
+- `uri` (optional) — `kairos://mem/{uuid}` from `kairos_search` or dump.
+  If you supply a non-step-1 URI, KAIROS auto-redirects to step 1.
+- `key` (optional) — protocol slug (lowercase, hyphens; exact Qdrant
+  match). Omit when using `uri`.
+
+Provide **one** of `uri` or `key`. If both are sent, **`uri` takes
+precedence** (key is ignored).
 
 **Response:** `current_step` (content + uri), `challenge` (type,
 description, nonce, proof_hash), `next_action` with the exact URI for

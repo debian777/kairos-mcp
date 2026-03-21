@@ -3,6 +3,7 @@ import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { beginInputSchema, executeBegin } from '../tools/kairos_begin.js';
+import { KairosError } from '../types/index.js';
 
 /**
  * Set up API route for kairos_begin (V2: auto-redirect, no next_step/protocol_status/attest_required).
@@ -23,10 +24,20 @@ export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdr
         return;
       }
 
-      structuredLogger.info(`-> POST /api/kairos_begin (uri: ${parsed.data.uri})`);
+      const logRef = parsed.data.uri?.trim() ? `uri: ${parsed.data.uri}` : `key: ${parsed.data.key}`;
+      structuredLogger.info(`-> POST /api/kairos_begin (${logRef})`);
       const result = await executeBegin(memoryStore, qdrantService, parsed.data);
       res.status(200).json(result);
     } catch (error) {
+      if (error instanceof KairosError) {
+        structuredLogger.warn(`kairos_begin ${error.code}: ${error.message}`);
+        res.status(error.statusCode).json({
+          error: error.code,
+          message: error.message,
+          ...(error.details && typeof error.details === 'object' ? error.details : {})
+        });
+        return;
+      }
       structuredLogger.error('kairos_begin failed', error);
       res.status(500).json({
         error: 'BEGIN_FAILED',

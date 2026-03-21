@@ -4,6 +4,7 @@ import { kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { executeMint, MintError } from '../tools/kairos_mint.js';
+import { KairosError } from '../types/index.js';
 import { mintInputSchema } from '../tools/kairos_mint_schema.js';
 import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
 
@@ -13,7 +14,12 @@ const SAFE_MINT_DETAIL_KEYS = new Set([
   'next_action',
   'existing_memory',
   'similarity_score',
-  'content_preview'
+  'content_preview',
+  'slug',
+  'chain_id',
+  'sample_uri',
+  'base_slug',
+  'message'
 ]);
 
 function sanitizeMintDetails(details?: Record<string, unknown>): Record<string, unknown> {
@@ -84,6 +90,17 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
           error: error.code,
           message: error.message,
           ...sanitizeMintDetails(error.details)
+        });
+        return;
+      }
+      if (error instanceof KairosError) {
+        const status =
+          error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+        structuredLogger.warn(`✗ Mint KairosError ${error.code}: ${error.message}`);
+        res.status(status).json({
+          error: error.code,
+          message: error.message,
+          ...sanitizeMintDetails(error.details as Record<string, unknown> | undefined)
         });
         return;
       }

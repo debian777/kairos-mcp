@@ -57,7 +57,8 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
       { field_name: 'quality_metadata.step_quality', field_schema: 'keyword' as const },
       { field_name: 'ai.memory_uuid', field_schema: 'keyword' as const },
       { field_name: 'chain.id', field_schema: 'keyword' as const },
-      { field_name: 'chain.step_index', field_schema: 'integer' as const }
+      { field_name: 'chain.step_index', field_schema: 'integer' as const },
+      { field_name: 'slug', field_schema: 'keyword' as const }
     ];
 
     for (const index of indexConfigs) {

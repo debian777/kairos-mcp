@@ -275,6 +275,9 @@ export class MemoryQdrantStoreMethods {
         step_count: typeof payload.chain_step_count === 'number' ? payload.chain_step_count : 1
       };
     }
+    if (typeof payload.slug === 'string' && payload.slug.length > 0) {
+      base.slug = payload.slug;
+    }
     if (payload.proof_of_work && typeof payload.proof_of_work === 'object') {
       const pow = payload.proof_of_work as Record<string, unknown>;
       if (typeof pow['cmd'] === 'string') {

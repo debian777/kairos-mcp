@@ -6,7 +6,10 @@ import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { memoryStoreDuration } from '../metrics/memory-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
 import { normalizeMarkdownBlob, generateLabel } from '../../utils/memory-store-utils.js';
+import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
 import { parseFrontmatter } from '../../utils/frontmatter.js';
+import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
+import { KairosError } from '../../types/index.js';
 import { storeHeaderBasedChain } from './store-chain-header-handler.js';
 import { storeDefaultChain } from './store-chain-default-handler.js';
 import { checkSimilarMemoryByTitle } from './store-chain-helpers.js';
@@ -47,11 +50,14 @@ export class MemoryQdrantStoreChain {
       // Effective protocol version: explicit option, or (for single doc) parsed from frontmatter when we fall back to default chain.
       let effectiveProtocolVersion: string | undefined = options.protocolVersion;
 
+      let parsedSingleDoc: ParsedFrontmatter | undefined;
+
       // Special case: if we have a single doc, try header-based slicing first.
       // Parse frontmatter for protocol_version; use body for chain building.
       if (normalizedDocs.length === 1) {
         const markdownDoc = normalizedDocs[0]!;
         const parsed = parseFrontmatter(markdownDoc);
+        parsedSingleDoc = parsed;
         const docForChain = parsed.body.length > 0 ? parsed.body : markdownDoc;
         effectiveProtocolVersion = options.protocolVersion ?? parsed.version;
 
@@ -63,6 +69,19 @@ export class MemoryQdrantStoreChain {
               if (m.chain) m.chain.protocol_version = effectiveProtocolVersion;
             }
           }
+          const firstLabel = headerChainMemories[0]?.label || 'Knowledge Chain';
+          const explicitChainLabel = headerChainMemories[0]?.chain?.label;
+          const chainLabel =
+            explicitChainLabel && explicitChainLabel.trim().length > 0
+              ? explicitChainLabel.trim()
+              : firstLabel.includes(':')
+                ? firstLabel.split(':')[0]!.trim()
+                : firstLabel.trim();
+          const slugCand = resolveProtocolSlugCandidate(parsedSingleDoc ?? { body: '' }, chainLabel);
+          if ('error' in slugCand) {
+            throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
+          }
+
           const firstDocLabel = generateLabel(docForChain);
           await checkSimilarMemoryByTitle(
             this.methods,
@@ -75,7 +94,8 @@ export class MemoryQdrantStoreChain {
             this.methods,
             headerChainMemories,
             llmModelId,
-            options.forceUpdate || false
+            options.forceUpdate || false,
+            { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied }
           );
         }
         // Fallback to single memory storage when header requirements aren't met; use body only (no frontmatter in stored text).
@@ -101,7 +121,8 @@ export class MemoryQdrantStoreChain {
         llmModelId,
         now,
         options.forceUpdate || false,
-        effectiveProtocolVersion
+        effectiveProtocolVersion,
+        parsedSingleDoc
       );
     } finally {
       // End duration timer

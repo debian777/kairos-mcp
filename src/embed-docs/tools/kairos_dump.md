@@ -15,8 +15,10 @@ state, no nonce.
 
 - Default mode: `markdown_doc` (string), and optionally `uri`, `label`,
   `position`, `challenge`.
-- Protocol mode: `markdown_doc` (string), and optionally `uri` (chain
-  head), `label`, `step_count`.
+- Protocol mode: `markdown_doc` (string) begins with YAML **frontmatter**
+  (`slug:` and `version:` when present), then `#` chain title and steps;
+  response also includes `slug`, `uri` (chain head), `label`,
+  `step_count`, and `protocol_version` when set.
 
 **Round-trip edit flow (single step):**
 

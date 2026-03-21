@@ -7,6 +7,8 @@
 export interface ParsedFrontmatter {
   version?: string;
   title?: string;
+  /** Present when the document had a `slug:` key in frontmatter (value may be empty). */
+  slugRaw?: string;
   body: string;
 }
 
@@ -39,6 +41,9 @@ export function parseFrontmatter(text: string): ParsedFrontmatter {
     const value = line.slice(colon + 1).trim().replace(/^['"]|['"]$/g, '');
     if (key === 'version' && value) result.version = value;
     if (key === 'title' && value) result.title = value;
+    if (key === 'slug') {
+      result.slugRaw = value;
+    }
   }
   return result;
 }

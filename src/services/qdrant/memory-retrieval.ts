@@ -160,3 +160,34 @@ export async function getChainMemories(conn: QdrantConnection, chainId: string):
     return results;
   });
 }
+
+/**
+ * Find step-1 memory UUID for a protocol slug (exact match), scoped to searchable spaces.
+ */
+export async function findFirstStepMemoryUuidBySlug(
+  conn: QdrantConnection,
+  slug: string
+): Promise<string | null> {
+  return conn.executeWithReconnect(async () => {
+    const normalized = (slug || '').trim().toLowerCase();
+    if (!normalized) return null;
+    const filter = buildSpaceFilter(getSearchSpaceIds(), {
+      must: [
+        { key: 'slug', match: { value: normalized } },
+        { key: 'chain.step_index', match: { value: 1 } }
+      ]
+    });
+    const page = await conn.client.scroll(conn.collectionName, {
+      filter,
+      limit: 4,
+      with_payload: true,
+      with_vector: false
+    } as any);
+    const pts = page.points || [];
+    if (pts.length === 0) return null;
+    if (pts.length > 1) {
+      pts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+    }
+    return String(pts[0]!.id);
+  });
+}

@@ -99,10 +99,11 @@ export class ApiClient {
         });
     }
 
-    async begin(uri: string): Promise<BeginOutput> {
+    async begin(params: { uri: string } | { key: string }): Promise<BeginOutput> {
+        const body = 'uri' in params ? { uri: params.uri } : { key: params.key };
         return this.request<BeginOutput>('/api/kairos_begin', {
             method: 'POST',
-            body: JSON.stringify({ uri }),
+            body: JSON.stringify(body),
         });
     }
 

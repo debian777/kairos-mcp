@@ -9,6 +9,8 @@ import type { Memory } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge } from './kairos_next-pow-helpers.js';
+import { KairosError } from '../types/index.js';
+import { normalizeAuthorSlug } from '../utils/protocol-slug.js';
 
 interface RegisterBeginOptions {
   toolName?: string;
@@ -96,7 +98,51 @@ export async function executeBegin(
   qdrantService: QdrantService | undefined,
   input: BeginInput
 ): Promise<BeginOutput> {
-  const { uuid, uri: requestedUri } = normalizeMemoryUri(input.uri);
+  let uuid: string;
+  let requestedUri: string;
+
+  const uriTrim = input.uri?.trim();
+  if (uriTrim) {
+    const norm = normalizeMemoryUri(uriTrim);
+    uuid = norm.uuid;
+    requestedUri = norm.uri;
+  } else {
+    const rawKey = input.key?.trim();
+    if (!rawKey) {
+      throw new KairosError('Provide uri or key', 'INVALID_BEGIN_INPUT', 400);
+    }
+    const k = normalizeAuthorSlug(rawKey);
+    if (!k) {
+      throw new KairosError(
+        'key must be a protocol slug: lowercase letters, digits, and single hyphens only (e.g. analyze-and-plan)',
+        'INVALID_PROTOCOL_KEY',
+        400
+      );
+    }
+    if (!qdrantService) {
+      throw new KairosError(
+        'kairos_begin with key requires the Qdrant-backed search service',
+        'BEGIN_KEY_UNAVAILABLE',
+        503
+      );
+    }
+    const found = await qdrantService.findFirstStepMemoryUuidBySlug(k);
+    if (!found) {
+      throw new KairosError(
+        `No protocol with slug "${k}" in accessible spaces. Use kairos_search to discover protocols, or check the slug.`,
+        'PROTOCOL_KEY_NOT_FOUND',
+        404,
+        {
+          key: k,
+          must_obey: true,
+          next_action: 'call kairos_search with a natural-language query to find the protocol, or mint with an explicit slug in frontmatter'
+        }
+      );
+    }
+    uuid = found;
+    requestedUri = `kairos://mem/${found}`;
+  }
+
   let memory = await loadMemoryWithCache(memoryStore, uuid);
   let redirectMessage: string | undefined;
 
@@ -154,6 +200,21 @@ export function registerBeginTool(server: any, memoryStore: MemoryQdrantStore, o
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        if (error instanceof KairosError) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  error: error.code,
+                  message: error.message,
+                  ...(error.details && typeof error.details === 'object' ? error.details : {})
+                })
+              }
+            ]
+          };
+        }
         throw error;
       }
     }

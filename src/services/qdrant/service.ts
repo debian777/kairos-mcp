@@ -78,6 +78,11 @@ export class QdrantService {
     return retrieval.getChainMemories(this.conn, chainId);
   }
 
+  /** Exact slug lookup: first step UUID of the protocol chain, or null. */
+  findFirstStepMemoryUuidBySlug(slug: string) {
+    return retrieval.findFirstStepMemoryUuidBySlug(this.conn, slug);
+  }
+
   updateMemoryByUUID(uuid: string, updatesPayload: any) {
     return updateMemoryByUUID(this.conn, uuid, updatesPayload);
   }

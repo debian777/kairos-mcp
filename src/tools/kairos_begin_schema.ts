@@ -11,9 +11,32 @@ const memoryUriSchema = z
 
 /** Build input and output schemas for kairos_begin. */
 export function buildBeginSchemas() {
-  const inputSchema = z.object({
-    uri: memoryUriSchema.describe('URI of step 1 (from kairos_search choices[].uri). Auto-redirects to step 1 if a non-step-1 URI is provided.')
-  });
+  const inputSchema = z
+    .object({
+      uri: memoryUriSchema
+        .optional()
+        .describe(
+          'URI of step 1 (from kairos_search choices[].uri). Auto-redirects to step 1 if a non-step-1 URI is provided. If both uri and key are provided, uri takes precedence.'
+        ),
+      key: z
+        .string()
+        .min(1)
+        .max(200)
+        .optional()
+        .describe(
+          'Protocol slug (exact match in Qdrant). Omit when using uri. Deterministic protocol-to-protocol routing without kairos_search.'
+        )
+    })
+    .superRefine((data, ctx) => {
+      const hasUri = Boolean(data.uri && String(data.uri).trim());
+      const hasKey = Boolean(data.key && String(data.key).trim());
+      if (!hasUri && !hasKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Provide uri or key (one required; if both are sent, uri wins)'
+        });
+      }
+    });
 
   const challengeSchema = z.object({
     type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
