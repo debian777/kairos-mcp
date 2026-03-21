@@ -39,7 +39,7 @@ program
         }
     });
 
-// Register commands (matching the v10 MCP tool surface)
+// Register commands for the current MCP tool surface.
 searchCommand(program);   // activate
 beginCommand(program);    // forward
 mintCommand(program);     // train

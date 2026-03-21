@@ -64,7 +64,7 @@ export class IDGenerator {
      * This enables URI-based retrieval: given a URI, we can always regenerate
      * the exact same Qdrant ID for direct lookup.
      *
-     * @param humanUri - Full human-readable URI (e.g., "kairos://uuid" or legacy "kairos://ai/rule/coding-rules@lF5kZa9D/step/1")
+     * @param humanUri - Full human-readable URI (e.g., "kairos://uuid" or older "kairos://ai/rule/coding-rules@lF5kZa9D/step/1")
      * @returns Deterministic UUIDv5 string
      *
      * @example
@@ -77,7 +77,7 @@ export class IDGenerator {
 
     /**
      * Convert URI to Qdrant ID
-     * Supports both new kairos://UUID and legacy URI formats
+     * Supports both new kairos://UUID and older URI formats
      *
      * @param uri - Full URI string
      * @returns UUID string for Qdrant operations

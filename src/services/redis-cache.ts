@@ -182,7 +182,7 @@ export class RedisCacheService {
     }
   }
 
-  // Invalidate begin cache (kairos_begin tool results)
+  // Invalidate the cached activation/search result set
   async invalidateBeginCache(): Promise<void> {
     try {
       logger.debug(`[RedisCacheService] Begin cache invalidation requested`);

@@ -8,7 +8,7 @@ import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
-import { buildAdapterUri, buildLayerUri } from './v10-uri.js';
+import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { buildForwardView, normalizeContract } from './forward-view.js';
 
 function tensorProofHash(executionId: string, layerId: string, tensor: TensorValue): string {

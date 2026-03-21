@@ -9,8 +9,8 @@ import { getBuildVersion } from './utils/build-version.js';
 import { LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE, getQdrantUrl, getQdrantCollection, QDRANT_API_KEY, QDRANT_RESCORE_STRING, TEI_BASE_URL, TEI_MODEL, KAIROS_SEARCH_OVERFETCH_FACTOR, KAIROS_SEARCH_MAX_FETCH, KAIROS_ENABLE_GROUP_COLLAPSE } from './config.js';
 import { getEmbeddingDimension } from './services/embedding/config.js';
 // removed: debug tools (kb_version, kb_cache_stats)
-import { registerKairosDeleteTool } from './tools/kairos_delete.js';
-import { registerKairosSpacesTool } from './tools/kairos_spaces.js';
+import { registerDeleteTool } from './tools/delete.js';
+import { registerSpacesTool } from './tools/spaces.js';
 import { registerActivateTool } from './tools/activate.js';
 import { registerForwardTool } from './tools/forward.js';
 import { registerTrainTool } from './tools/train.js';
@@ -34,15 +34,15 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
         }
     );
 
-    // Register v10 tools
+    // Register the current MCP tools.
     registerActivateTool(server, memoryStore, { qdrantService });
     registerForwardTool(server, memoryStore, { qdrantService });
     registerTrainTool(server, memoryStore);
     registerRewardTool(server, qdrantService);
     registerTuneTool(server);
-    registerKairosDeleteTool(server, 'delete');
+    registerDeleteTool(server, 'delete');
     registerExportTool(server, memoryStore, { qdrantService });
-    registerKairosSpacesTool(server, memoryStore, { toolName: 'spaces' });
+    registerSpacesTool(server, memoryStore, { toolName: 'spaces' });
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

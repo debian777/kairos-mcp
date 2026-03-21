@@ -1,5 +1,5 @@
 /**
- * Integration tests for export (MCP tool; markdown aggregate via v10 export).
+ * Integration tests for export (MCP tool; markdown aggregate via current export).
  */
 
 import { createMcpConnection } from '../utils/mcp-client-utils.js';

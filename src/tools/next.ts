@@ -1,9 +1,9 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { z } from 'zod';
-import { kairosNextInputSchema, kairosNextOutputSchema } from './kairos_next_schema.js';
+import { nextInputSchema, nextOutputSchema } from './next_schema.js';
 
-export type NextInput = z.infer<typeof kairosNextInputSchema>;
-export type NextOutput = z.infer<typeof kairosNextOutputSchema>;
+export type NextInput = z.infer<typeof nextInputSchema>;
+export type NextOutput = z.infer<typeof nextOutputSchema>;
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
@@ -11,11 +11,12 @@ import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
-import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious, ensurePreviousProofCompleted } from './kairos_next-previous-step.js';
-import { buildMissingProofPayload } from './kairos_next-missing-proof-payload.js';
+import { buildChallenge, handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './next-pow-helpers.js';
+import { tryApplySolutionToPreviousStep, tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious, ensurePreviousProofCompleted } from './next-previous-step.js';
+import { buildMissingProofPayload } from './next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
+import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 
 async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
   const cached = await redisCacheService.getMemoryResource(uuid);
@@ -28,20 +29,21 @@ async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string)
   }
   return memory;
 }
-function normalizeMemoryUri(value: string): { uuid: string; uri: string } {
-  const normalized = (value || '').trim();
-  const uuid = normalized.split('/').pop();
-  if (!uuid) {
-    throw new Error('Invalid kairos://mem URI');
+
+function normalizeLayerUri(value: string): { uuid: string; uri: string; executionId?: string } {
+  const parsed = parseKairosUri(value);
+  if (parsed.kind !== 'layer') {
+    throw new Error('Invalid KAIROS URI. next expects a layer URI.');
   }
-  const uri = normalized.startsWith('kairos://mem/')
-    ? normalized
-    : `kairos://mem/${uuid}`;
-  return { uuid, uri };
+  return {
+    uuid: parsed.id,
+    uri: parsed.raw,
+    ...(parsed.executionId ? { executionId: parsed.executionId } : {})
+  };
 }
 
-function buildCurrentStep(memory: Memory | null, requestedUri: string) {
-  const uri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
+function buildCurrentStep(memory: Memory | null, requestedUri: string, executionId?: string) {
+  const uri = memory ? buildLayerUri(memory.memory_uuid, executionId) : requestedUri;
   const content = memory ? extractMemoryBody(memory.text) : '';
   return {
     uri,
@@ -50,13 +52,14 @@ function buildCurrentStep(memory: Memory | null, requestedUri: string) {
   };
 }
 
-async function buildKairosNextPayload(
+async function buildNextPayload(
   memory: Memory | null,
   requestedUri: string,
-  nextStepUri: string | null,
-  proof?: ProofOfWorkDefinition
+  nextStepId: string | null,
+  proof?: ProofOfWorkDefinition,
+  executionId?: string
 ) {
-  const current_step = buildCurrentStep(memory, requestedUri);
+  const current_step = buildCurrentStep(memory, requestedUri, executionId);
   const challenge = await buildChallenge(memory, proof);
 
   const payload: any = {
@@ -65,17 +68,17 @@ async function buildKairosNextPayload(
     challenge
   };
 
-  if (nextStepUri) {
-    payload.next_action = `call kairos_next with ${nextStepUri} and solution matching challenge`;
+  if (nextStepId) {
+    payload.next_action = `call forward with ${buildLayerUri(nextStepId, executionId)} and solution matching challenge`;
   } else {
-    payload.message = 'Protocol steps complete. Call kairos_attest to finalize.';
-    payload.next_action = `call kairos_attest with ${requestedUri} and outcome (success or failure) and message to complete the protocol`;
+    payload.message = 'Adapter layers complete. Call reward to finalize.';
+    payload.next_action = `call reward with ${requestedUri} and outcome (success or failure) and feedback to complete the adapter`;
   }
 
   return payload;
 }
 
-/** Update quality_metadata and quality_metrics for the completed step. Log and continue on error; do not fail the request. Shared by MCP and HTTP kairos_next. */
+/** Update quality_metadata and quality_metrics for the completed step. Log and continue on error; do not fail the request. Shared by the forward bridge and the older HTTP next route. */
 export async function updateStepQuality(
   qdrantService: QdrantService,
   memory: Memory,
@@ -90,14 +93,14 @@ export async function updateStepQuality(
     const domain = (payload?.['domain'] as string) || 'general';
     const task = (payload?.['task'] as string) || 'general';
     const type = (payload?.['type'] as string) || 'context';
-    const tags = Array.isArray(payload?.['tags']) ? (payload!['tags'] as string[]) : [];
+    const tags = Array.isArray(payload?.['tags']) ? (payload['tags'] as string[]) : [];
 
     const metricsUpdate = {
       retrievalCount: 1,
       successCount: outcome === 'success' ? 1 : 0,
       failureCount: outcome === 'failure' ? 1 : 0,
       lastRated: new Date().toISOString(),
-      lastRater: 'kairos_next',
+      lastRater: 'forward',
       qualityBonus: outcome === 'success' ? 1 : -0.2
     };
     await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
@@ -114,18 +117,18 @@ export async function updateStepQuality(
       step_quality_score: updatedQualityMetadata.step_quality_score,
       step_quality: updatedQualityMetadata.step_quality
     });
-    structuredLogger.debug(`kairos_next: Updated quality for ${memory.memory_uuid} outcome=${outcome}`);
-  } catch (err) {
+    structuredLogger.debug(`forward: Updated quality for ${memory.memory_uuid} outcome=${outcome}`);
+  } catch (error) {
     kairosQualityUpdateErrors.inc({ tenant_id: tenantId });
-    structuredLogger.warn(`kairos_next: Quality update failed for ${memory.memory_uuid}: ${err instanceof Error ? err.message : String(err)}`);
+    structuredLogger.warn(`forward: Quality update failed for ${memory.memory_uuid}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 export type TryElicitResult = { payload: NextOutput } | { solution: ProofOfWorkSubmission };
 
 /**
- * Shared execute: submit solution and return next step/challenge. Used by MCP tool and HTTP route.
- * When tryElicit is provided (MCP), user_input elicitation may return a payload or adjusted solution.
+ * Shared execute: submit solution and return next step/challenge. Used by the forward bridge and the older HTTP route.
+ * When tryElicit is provided, user_input elicitation may return a payload or adjusted solution.
  */
 export async function executeNext(
   memoryStore: MemoryQdrantStore,
@@ -135,7 +138,7 @@ export async function executeNext(
   options?: { tryElicit?: (memory: Memory, solution: ProofOfWorkSubmission, requestedUri: string) => Promise<TryElicitResult> }
 ): Promise<NextOutput> {
   const { uri, solution } = input;
-  const { uuid, uri: requestedUri } = normalizeMemoryUri(uri);
+  const { uuid, uri: requestedUri, executionId } = normalizeLayerUri(uri);
   const memory = await loadMemoryWithCache(memoryStore, uuid);
 
   let solutionToUse = solution;
@@ -162,15 +165,16 @@ export async function executeNext(
         const previousBlock = await ensurePreviousProofCompleted(
           memory,
           (id) => loadMemoryWithCache(memoryStore, id),
-          qdrantService
+          qdrantService,
+          executionId
         );
         if (!previousBlock && qdrantService && !prevResult.outcome.alreadyRecorded) {
           await updateStepQuality(qdrantService, prevResult.prevMemory, 'success', tenantId);
         }
         if (!previousBlock) {
           const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
-          const nextStepUri = nextFromRequested?.uuid ? `kairos://mem/${nextFromRequested.uuid}` : null;
-          const output = (await buildKairosNextPayload(memory, requestedUri, nextStepUri, undefined)) as NextOutput;
+          const nextStepId = nextFromRequested?.uuid ?? null;
+          const output = (await buildNextPayload(memory, requestedUri, nextStepId, undefined, executionId)) as NextOutput;
           if (prevResult.outcome.proofHash) output.proof_hash = prevResult.outcome.proofHash;
           return output;
         }
@@ -193,10 +197,10 @@ export async function executeNext(
           await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'success', tenantId);
         }
         const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
-        const nextStepUri = nextFromRequested?.uuid ? `kairos://mem/${nextFromRequested.uuid}` : null;
+        const nextStepId = nextFromRequested?.uuid ?? null;
         const nextMemory = nextFromRequested ? await loadMemoryWithCache(memoryStore, nextFromRequested.uuid) : null;
-        const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
-        const output = (await buildKairosNextPayload(memory, requestedUri, nextStepUri, challengeProof)) as NextOutput;
+        const challengeProof = nextMemory?.proof_of_work ?? memory.proof_of_work;
+        const output = (await buildNextPayload(memory, requestedUri, nextStepId, challengeProof, executionId)) as NextOutput;
         if (prevResultWhenMatch.outcome.proofHash) output.proof_hash = prevResultWhenMatch.outcome.proofHash;
         return output;
       }
@@ -207,8 +211,8 @@ export async function executeNext(
     if (isStep1) {
       expectedPreviousHash = GENESIS_HASH;
     } else {
-      const prev = await resolveChainPreviousStep(memory, qdrantService);
-      const prevHash = prev?.uuid ? await proofOfWorkStore.getProofHash(prev.uuid) : null;
+      const previous = await resolveChainPreviousStep(memory, qdrantService);
+      const prevHash = previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       expectedPreviousHash = prevHash ?? GENESIS_HASH;
     }
     submissionOutcome = await handleProofSubmission(solutionToUse as ProofOfWorkSubmission, memory, { expectedPreviousHash });
@@ -220,7 +224,8 @@ export async function executeNext(
     const previousBlock = await ensurePreviousProofCompleted(
       memory,
       (id) => loadMemoryWithCache(memoryStore, id),
-      qdrantService
+      qdrantService,
+      executionId
     );
     if (previousBlock) {
       if (qdrantService) await updateStepQuality(qdrantService, memory, 'failure', tenantId);
@@ -230,7 +235,8 @@ export async function executeNext(
         requestedUri,
         uuid,
         (id) => loadMemoryWithCache(memoryStore, id),
-        qdrantService
+        qdrantService,
+        executionId
       );
       return {
         must_obey: payload.retry_count < 3,
@@ -251,10 +257,10 @@ export async function executeNext(
   const nextMemory = nextStepInfo ? await loadMemoryWithCache(memoryStore, nextStepInfo.uuid) : null;
   const displayMemory = nextMemory ?? memory ?? null;
   const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
-  const displayUri = nextStepInfo ? `kairos://mem/${nextStepInfo.uuid}` : requestedUri;
+  const displayUri = nextStepInfo ? buildLayerUri(nextStepInfo.uuid, executionId) : requestedUri;
   const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, qdrantService) : undefined;
-  const nextStepUri = nextFromDisplay?.uuid ? `kairos://mem/${nextFromDisplay.uuid}` : null;
-  const output = (await buildKairosNextPayload(displayMemory, displayUri, nextStepUri, challengeProof)) as NextOutput;
+  const nextStepId = nextFromDisplay?.uuid ?? null;
+  const output = (await buildNextPayload(displayMemory, displayUri, nextStepId, challengeProof, executionId)) as NextOutput;
   if (submissionOutcome?.proofHash) output.proof_hash = submissionOutcome.proofHash;
   return output;
 }

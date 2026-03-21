@@ -1,6 +1,6 @@
 import express from "express";
 import type { MemoryQdrantStore } from "../services/memory/store.js";
-import { executeSpaces } from "../tools/kairos_spaces.js";
+import { executeSpaces } from "../tools/spaces.js";
 import { structuredLogger } from "../utils/structured-logger.js";
 
 /**

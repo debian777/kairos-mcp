@@ -1,6 +1,6 @@
 /**
  * Integration tests: reward propagation to chain head and attest-based score boost.
- * Uses v10 tools: train, forward, reward, activate.
+ * Uses the current tools: train, forward, reward, activate.
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
@@ -164,11 +164,15 @@ describe('reward scoring: propagation and score boost', () => {
     const parsedAfter = await searchFn(uniqueLabel);
     const scoreAfter = getScoreForChain(parsedAfter, chainLabel);
 
-    withRawOnFail({ parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter, matchCount: matchChoicesBefore.length, matchSummary }, () => {
-      expect(scoreBefore).not.toBeNull();
-      expect(scoreAfter).not.toBeNull();
-      expect(scoreAfter as number).toBeGreaterThan(scoreBefore as number);
-    });
+    withRawOnFail(
+      { parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter, matchCount: matchChoicesBefore.length, matchSummary },
+      () => {
+        expect(scoreBefore).not.toBeNull();
+        expect(scoreAfter).not.toBeNull();
+        expect(scoreAfter as number).toBeGreaterThan(scoreBefore as number);
+      },
+      'reward scoring positive'
+    );
   }, 45000);
 
   test('negative reward: search score decreases or stays same after failure', async () => {
@@ -193,7 +197,8 @@ describe('reward scoring: propagation and score boost', () => {
         expect(scoreAfterSuccesses).not.toBeNull();
         expect(scoreAfterFailure).not.toBeNull();
         expect(scoreAfterFailure as number).toBeLessThanOrEqual((scoreAfterSuccesses as number) + 0.001);
-      }
+      },
+      'reward scoring negative'
     );
   }, 70000);
 
@@ -211,10 +216,14 @@ describe('reward scoring: propagation and score boost', () => {
     const parsedAfter = await searchFn(uniqueLabel);
     const scoreAfter = getScoreForChain(parsedAfter, chainLabel);
 
-    withRawOnFail({ parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter }, () => {
-      expect(scoreBefore).not.toBeNull();
-      expect(scoreAfter).not.toBeNull();
-      expect(scoreAfter as number).toBeCloseTo(scoreBefore as number, 5);
-    });
+    withRawOnFail(
+      { parsedBefore, parsedAfter, chainLabel, scoreBefore, scoreAfter },
+      () => {
+        expect(scoreBefore).not.toBeNull();
+        expect(scoreAfter).not.toBeNull();
+        expect(scoreAfter as number).toBeCloseTo(scoreBefore as number, 5);
+      },
+      'reward scoring threshold'
+    );
   }, 30000);
 });

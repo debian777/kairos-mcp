@@ -36,7 +36,7 @@ export function getVectorDescriptors(): VectorDescriptorMap {
 export function resolveCollectionAlias(collectionName: string): string {
   if (!collectionName) return collectionName;
   if (collectionName === 'current') {
-    // Priority: explicit current mapping, then legacy QDRANT_COLLECTION, then alias itself
+    // Priority: explicit current mapping, then older QDRANT_COLLECTION, then alias itself
     return QDRANT_COLLECTION_CURRENT || getQdrantCollection();
   }
   return collectionName;

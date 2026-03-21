@@ -4,9 +4,9 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { executeDump } from './kairos_dump.js';
+import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
-import { parseKairosUri } from './v10-uri.js';
+import { parseKairosUri } from './kairos-uri.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
 
 interface RegisterExportOptions {
@@ -17,7 +17,18 @@ interface RegisterExportOptions {
 async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: QdrantService | undefined, uri: string) {
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'adapter') {
-    return { adapterId: parsed.id, layerId: parsed.id };
+    if (qdrantService) {
+      const layers = await qdrantService.getChainMemories(parsed.id);
+      const firstLayerId = layers[0]?.uuid;
+      if (firstLayerId) {
+        return { adapterId: parsed.id, layerId: firstLayerId };
+      }
+    }
+    const layer = await memoryStore.getMemory(parsed.id);
+    if (layer) {
+      return { adapterId: parsed.id, layerId: layer.memory_uuid };
+    }
+    throw new Error('Adapter not found');
   }
 
   const memory = await memoryStore.getMemory(parsed.id);
@@ -25,7 +36,7 @@ async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: Qdr
   return { adapterId, layerId: parsed.id };
 }
 
-function toMarkdownV10(markdownDoc: string): string {
+function toCurrentMarkdown(markdownDoc: string): string {
   return markdownDoc
     .replaceAll('"challenge":', '"contract":')
     .replaceAll('Natural Language Triggers', 'Activation Patterns')
@@ -52,7 +63,7 @@ export async function executeExport(
       uri: input.uri,
       format: input.format,
       content_type: 'text/markdown',
-      content: toMarkdownV10(String(dump['markdown_doc'] ?? '')),
+      content: toCurrentMarkdown(String(dump['markdown_doc'] ?? '')),
       item_count: 1,
       adapter_name: typeof dump['label'] === 'string' ? dump['label'] : null,
       adapter_version: typeof dump['protocol_version'] === 'string' ? dump['protocol_version'] : null

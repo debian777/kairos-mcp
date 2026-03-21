@@ -1,7 +1,7 @@
 # KAIROS skills — how to use them
 
-Skills from this repo let you run KAIROS protocols (search → begin → next →
-attest) in Cursor or Claude Code. Install with:
+Skills from this repo let you run KAIROS protocols (**activate** →
+**forward** → **reward**) in Cursor or Claude Code. Install with:
 `npx skills add debian777/kairos-mcp`. For **authoring** skills (structure,
 protocol requirements, validation), see [SKILLS.md](SKILLS.md).
 
@@ -17,7 +17,7 @@ Install with: `npx skills add debian777/kairos-mcp`. The repo ships
 
 | Usage         | Skill           | When to install / use |
 |---------------|-----------------|------------------------|
-| **Everyday**  | kairos          | Default: run protocols; /k, /apply, /search. Install this first. |
+| **Everyday**  | kairos          | Default: run protocols; /k, /apply, /kairos. Install this first. |
 | **Occasional** | kairos-bundle   | Export/import protocol bundles; use when backing up or moving protocols. |
 | **One-time**  | kairos-install  | First-time environment setup (Ollama, kairos-mini); run once per machine. |
 
@@ -40,7 +40,7 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-bundle
 
 | Skill | Usage | Purpose |
 |-------|-------|---------|
-| kairos | Everyday | Run protocols; /k, /apply, /search. |
+| kairos | Everyday | Run protocols; /k, /apply, /kairos. |
 | kairos-bundle | Occasional | Export/import protocol bundles; scripts: kairos-bundle.py. |
 | kairos-install | One-time | First-time install: Ollama + kairos-mini; confirm each step with user. |
 

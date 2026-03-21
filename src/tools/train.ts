@@ -2,9 +2,9 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
-import { executeMint, MintError } from './kairos_mint.js';
+import { executeMint, MintError } from './mint.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
-import { buildAdapterUri, buildLayerUri } from './v10-uri.js';
+import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { trainInputSchema, trainOutputSchema, type TrainInput, type TrainOutput } from './train_schema.js';
 import { kairosMintSimilarMemoryFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 

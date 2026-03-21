@@ -6,15 +6,15 @@ import { getTenantId } from '../utils/tenant-context.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { tryUserInputElicitation, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
-import { executeNext } from './kairos_next.js';
+import { tryUserInputElicitation, type ProofOfWorkSubmission } from './next-pow-helpers.js';
+import { executeNext } from './next.js';
 import { forwardInputSchema, forwardOutputSchema, type ForwardInput, type ForwardOutput } from './forward_schema.js';
-import { buildAdapterUri, parseKairosUri } from './v10-uri.js';
+import { buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
 import {
   buildForwardView,
-  legacyCurrentStep,
+  buildCurrentLayerView,
   loadMemoryForParsedUri,
-  mapLegacyForwardOutput,
+  mapExecuteNextToForwardView,
   mapProofSolution,
   normalizeContract
 } from './forward-view.js';
@@ -67,13 +67,13 @@ export async function executeForward(
 
   const tenantId = getTenantId();
   const tryElicit = (currentMemory: typeof memory, solution: ProofOfWorkSubmission, requestedUri: string) =>
-    tryUserInputElicitation(server, currentMemory, solution, requestedUri, legacyCurrentStep);
+    tryUserInputElicitation(server, currentMemory, solution, requestedUri, buildCurrentLayerView);
 
-  const legacyOutput = await executeNext(
+  const nextOutput = await executeNext(
     memoryStore,
     qdrantService,
     {
-      uri: `kairos://mem/${memory.memory_uuid}`,
+      uri: buildLayerUri(memory.memory_uuid, executionId),
       solution: mapProofSolution(input.solution)
     },
     tenantId,
@@ -91,7 +91,7 @@ export async function executeForward(
     tensorOut
   );
 
-  return mapLegacyForwardOutput(memoryStore, executionId, legacyOutput);
+  return mapExecuteNextToForwardView(memoryStore, executionId, nextOutput);
 }
 
 export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterForwardOptions = {}) {

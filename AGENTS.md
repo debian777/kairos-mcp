@@ -7,10 +7,10 @@ agents operating in the repository.
 KAIROS MCP is a Model Context Protocol server for persistent memory and
 deterministic protocol-chain execution. It stores workflows as linked
 memory chains where each step carries a proof-of-work challenge. You
-execute a protocol by searching for a match, beginning the run, solving
-each challenge via `kairos_next`, and attesting completion. Every hash,
-nonce, and identifier is server-generated; echo them verbatim — never
-compute them.
+execute a protocol by calling **`activate`** (semantic match), then
+**`forward`** for each layer’s contract (loop until `next_action` directs you
+to **`reward`**), then **`reward`** to finalize the run. Every hash, nonce,
+and identifier is server-generated; echo them verbatim — never compute them.
 
 ## Architecture
 
@@ -30,9 +30,15 @@ compute them.
 
 ## Protocol execution model
 
-Execute every protocol in this order: **`kairos_search`** → **`kairos_begin`** → **`kairos_next`** (loop until `next_action` directs to attest) → **`kairos_attest`**. Follow each tool's `next_action` and `must_obey` exactly.
+Execute every adapter run in this order: **`activate`** → **`forward`** (loop
+per layer until `next_action` directs you to **`reward`**) → **`reward`**.
+Follow each tool's `next_action` and `must_obey` exactly.
 
-**Authority:** The tool descriptions in `src/embed-docs/tools/` for `kairos_search`, `kairos_begin`, `kairos_next`, and `kairos_attest` contain all execution rules (when to call search, challenge types, nonce and proof_hash echoing, error handling). Read those tool descriptions; they are authoritative.
+**Authority:** The tool descriptions in `src/embed-docs/tools/` for
+**`activate`**, **`forward`**, **`reward`**, plus **`train`**, **`tune`**,
+**`export`**, **`delete`**, and **`spaces`**, contain all execution rules
+(challenge types, nonce and `proof_hash` echoing, error handling). Read those
+files; they are authoritative.
 
 ## MUST ALWAYS (repo context)
 
@@ -48,12 +54,12 @@ Execute every protocol in this order: **`kairos_search`** → **`kairos_begin`**
 
 ## Minting and editing protocols
 
-When minting (`kairos_mint`) or editing (`kairos_update`) a protocol:
+When minting (**`train`**) or editing (**`tune`**) adapter markdown:
 
 - Use H1 for the protocol chain title.
 - Use H2 for each step label.
 - End every verifiable step with a trailing ` ```json ` block containing
-  `{"challenge": {...}}` (same shape as `kairos_begin`/`kairos_next`).
+  `{"challenge": {...}}` (same shape as responses from **`forward`**).
 - The opening \`\`\`json must be on its own line (line start). Blocks with
   text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
 - Add a `## Natural Language Triggers` section as the first H2.
@@ -90,3 +96,24 @@ For MCP work, search Context7 for:
 Apply [CONTRIBUTING.md § Agent-facing design
 principles](CONTRIBUTING.md#agent-facing-design-principles) when
 designing or reviewing MCP tools, agent-facing APIs, or tool schemas.
+
+## ESLint: `kairos-forbidden-text` (and related hits)
+
+When `kairos-forbidden-text/no-forbidden-kairos-text` fails in `src/`, `scripts/`, `tests/`, or `src/embed-docs/**/*.md`:
+
+### Must always
+
+- Remove obsolete branches, compatibility shims, and parallel implementations; keep **one** supported code path.
+- **Reword** comments, strings, and identifiers with neutral terms (e.g. older format, transitional, compat, format migration).
+- Preserve explanations that help the next reader; **do not** delete documentation **only** to clear the violation.
+- Re-run lint on touched files before you stop.
+
+### Must never
+
+- Strip whole comments or docstrings **only** to silence the rule.
+- Re-add env key **`KAIROS_BEARER_TOKEN`** or removed **`kairos_*`** tool names listed in `eslint/plugins/kairos-forbidden-text.cjs`.
+- Use wording or phrases banned there (including the substring `legacy`, removed `kairos_*` MCP names, and compatibility phrases).
+
+### Override
+
+If the user message contains **[OVERRIDE]** anywhere, ignore this section and follow the user’s instructions exactly.

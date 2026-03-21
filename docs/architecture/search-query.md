@@ -1,6 +1,12 @@
 # KAIROS search query architecture
 
-`kairos_search` is the **entry point for every KAIROS workflow**. Agents always search first, then follow a choice’s `next_action` (typically `kairos_begin`). This document describes how the search query is processed end-to-end and how scoring and filtering work. For response shape and scenarios, see [kairos_search workflow](workflow-kairos-search.md).
+The **`activate`** MCP tool is the **entry point for matching adapters**.
+It uses the same hybrid search pipeline described here. Agents call
+**`activate`** first, then follow a choice’s `next_action` (typically
+**`forward`** with an adapter URI). This document describes how the query
+is processed end-to-end and how scoring and filtering work. For response
+shape and scenarios, see [activate](../../src/embed-docs/tools/activate.md)
+and the legacy [kairos_search workflow](workflow-kairos-search.md) page.
 
 ## Principle: scoring in Qdrant, not in the app
 
@@ -8,7 +14,11 @@ We **fully rely on Qdrant for scoring**. All search logic (ranking, filtering, s
 
 ## Role in KAIROS
 
-Protocol execution order is typically **search → begin → next (loop) → attest**. Search is the normal discovery path for natural-language requests, but code can also jump directly to `kairos_begin` with an exact protocol slug (`key`) or a previously stored URI. That makes the quality and behaviour of the search query pipeline especially important for open-ended requests, even though it is not the only deterministic entry path.
+Protocol execution order is: **activate → forward (loop) → reward**.
+**Activate** is the usual way to discover which adapter to run; there is no
+“run by name” without a prior **`activate`** (or a stored adapter URI from
+an earlier run). So the quality and behaviour of this query pipeline
+directly determine which adapters agents find and how they rank.
 
 ```mermaid
 flowchart LR
@@ -23,19 +33,19 @@ flowchart LR
   end
   subgraph output [Output]
     Choices["choices + next_action"]
-    Begin["kairos_begin"]
+    Forward["forward"]
   end
   User --> Agent
   Agent -->|"query"| QNorm
   QNorm --> Store
   Store --> Qdrant
   Qdrant --> Choices
-  Choices --> Begin
+  Choices --> Forward
 ```
 
 ## End-to-end flow
 
-1. **Input:** MCP tool `kairos_search` or HTTP `POST /api/kairos_search` with `query` (and optional `space`).
+1. **Input:** MCP tool **`activate`** or HTTP **`POST /api/activate`** with `query` (and optional `space`).
 2. **Query preparation:** The raw query is cleaned for search and cache key: built-in protocol URIs and UUIDs (refine and creation) are stripped so the query text is not literally “searching for” those protocols. Empty after strip is valid (returns no vector matches).
 3. **Space context:** If `space` is provided and allowed, the request runs in that space context; otherwise the default (e.g. personal) is used. Search sees **allowed spaces plus the KAIROS app space** (`getSearchSpaceIds()`).
 4. **Cache:** A Redis cache key is built from the search query and group-collapse flag. On hit, the cached unified response is returned; no Qdrant call.
@@ -44,7 +54,7 @@ flowchart LR
 7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
 8. **Response:** Unified `choices` with `uri`, `label`, `chain_label`, `score`, `role`, `tags`, `next_action`, and optional `protocol_version`.
 
-Implementations: [src/tools/kairos_search.ts](../../src/tools/kairos_search.ts) (MCP), [src/http/http-api-begin.ts](../../src/http/http-api-begin.ts) (HTTP), [src/services/memory/store-methods.ts](../../src/services/memory/store-methods.ts) (vector search).
+Implementations: [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**; HTTP **`POST /api/activate`** in [http-api-begin.ts](../../src/http/http-api-begin.ts)), shared search helpers in [kairos_search.ts](../../src/tools/kairos_search.ts), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
 
 ## Query normalization
 

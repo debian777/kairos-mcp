@@ -5,7 +5,7 @@ import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
-import { buildAdapterUri, buildLayerUri } from '../../tools/v10-uri.js';
+import { buildAdapterUri, buildLayerUri } from '../../tools/kairos-uri.js';
 
 /**
  * Derives domain task type from label, text, and tags

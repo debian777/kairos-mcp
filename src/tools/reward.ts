@@ -2,9 +2,9 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { executeAttest } from './kairos_attest.js';
+import { executeAttest } from './attest.js';
 import { rewardInputSchema, rewardOutputSchema, type RewardInput, type RewardOutput } from './reward_schema.js';
-import { parseKairosUri } from './v10-uri.js';
+import { parseKairosUri } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
 

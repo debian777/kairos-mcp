@@ -16,9 +16,10 @@ actual base URL.
 
 ## One-click install
 
-The following Cursor deeplink pre-fills a local HTTP MCP server:
+The following Cursor deeplink pre-fills a local HTTP MCP server (current tool
+names):
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=KAIROS&config=eyJ0eXBlIjoic3RyZWFtYWJsZS1odHRwIiwidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwL21jcCIsImFsd2F5c0FsbG93IjpbImthaXJvc19zZWFyY2giLCJrYWlyb3NfYmVnaW4iLCJrYWlyb3NfbmV4dCIsImthaXJvc19taW50Iiwia2Fpcm9zX2F0dGVzdCIsImthaXJvc191cGRhdGUiLCJrYWlyb3NfZGVsZXRlIiwia2Fpcm9zX2R1bXAiLCJrYWlyb3Nfc3BhY2VzIl19)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=KAIROS&config=eyJ0eXBlIjoic3RyZWFtYWJsZS1odHRwIiwidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwL21jcCIsImFsd2F5c0FsbG93IjpbImFjdGl2YXRlIiwiZm9yd2FyZCIsInRyYWluIiwicmV3YXJkIiwidHVuZSIsImRlbGV0ZSIsImV4cG9ydCIsInNwYWNlcyJdfQ)
 
 ## Manual config
 
@@ -31,15 +32,14 @@ Open **Settings → MCP → Edit config** in Cursor and add:
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
       "alwaysAllow": [
-        "kairos_search",
-        "kairos_begin",
-        "kairos_next",
-        "kairos_mint",
-        "kairos_attest",
-        "kairos_update",
-        "kairos_delete",
-        "kairos_dump",
-        "kairos_spaces"
+        "activate",
+        "forward",
+        "train",
+        "reward",
+        "tune",
+        "delete",
+        "export",
+        "spaces"
       ]
     }
   }
@@ -111,12 +111,11 @@ in Cursor.
 Make sure the tools you want are listed under `alwaysAllow`. The currently
 registered tool set is:
 
-- `kairos_search`
-- `kairos_begin`
-- `kairos_next`
-- `kairos_mint`
-- `kairos_attest`
-- `kairos_update`
-- `kairos_delete`
-- `kairos_dump`
-- `kairos_spaces`
+- `activate`
+- `forward`
+- `train`
+- `reward`
+- `tune`
+- `delete`
+- `export`
+- `spaces`

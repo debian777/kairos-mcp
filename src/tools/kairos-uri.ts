@@ -5,7 +5,6 @@ const LAYER_URI_REGEX = new RegExp(
   `^kairos://layer/(${UUID_PATTERN})(?:\\?execution_id=([0-9a-f-]{36}))?$`,
   'i'
 );
-const LEGACY_MEMORY_URI_REGEX = new RegExp(`^kairos://mem/(${UUID_PATTERN})$`, 'i');
 
 export type ParsedKairosUri =
   | { kind: 'adapter'; id: string; raw: string }
@@ -43,15 +42,5 @@ export function parseKairosUri(value: string): ParsedKairosUri {
     };
   }
 
-  const legacyMatch = normalized.match(LEGACY_MEMORY_URI_REGEX);
-  if (legacyMatch?.[1]) {
-    return {
-      kind: 'layer',
-      id: legacyMatch[1],
-      raw: normalized
-    };
-  }
-
   throw new Error('Invalid KAIROS URI. Expected kairos://adapter/{uuid} or kairos://layer/{uuid}');
 }
-

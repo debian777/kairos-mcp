@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
 
-const memoryUriSchema = z
+const adapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
 
-const choiceUriSchema = memoryUriSchema;
+const choiceUriSchema = adapterUriSchema;
 
 export const searchInputSchema = z.object({
   query: z.string().min(1).describe('Search query for chain heads'),
@@ -31,8 +31,9 @@ export const searchOutputSchema = z.object({
     score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
     role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
     tags: z.array(z.string()),
-    next_action: z.string().describe("Instruction for this choice: call kairos_begin with this choice's uri."),
-    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) when known (match rows from search; refine/create from embedded footer protocols when resolvable). Compare with skill-bundled protocol to decide if re-mint is needed.')
+    next_action: z.string().describe('Instruction for this choice.'),
+    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.'),
+    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter')
   })).describe('Options: match(es) first, then refine (if present), then create (if present).')
 }).strict();
 

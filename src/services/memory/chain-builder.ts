@@ -255,7 +255,7 @@ export function buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, 
     }
   }
 
-  // If no H1 found, check for H2-only structure (legacy behavior)
+  // If no H1 is found, check for H2-only structure (older behavior)
   if (h1Positions.length === 0) {
     const structure = parseMarkdownStructure(cleanMarkdown);
     if (structure.h2Items.length === 0) {

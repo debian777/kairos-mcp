@@ -85,7 +85,7 @@
     "handoff": "npm run dev:deploy && npm run dev:test && npm run ensure-coding-rules && npm run knip",
     "infra:up": "docker compose -p kairos-mcp --env-file .env --profile fullstack up -d --remove-orphans && python3 scripts/configure-keycloak-realms.py",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
-    "lint": "eslint --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
+    "lint": "eslint .",
     "lint:skills": "python3 scripts/lint_skills.py",
     "version:sync-skills": "node scripts/sync-skill-versions.mjs",
     "version:check-skills": "node scripts/sync-skill-versions.mjs --check",

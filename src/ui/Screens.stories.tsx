@@ -57,7 +57,7 @@ export const KairosWithResults: Story = {
               score: 0.87,
               role: "match",
               tags: [],
-              next_action: "kairos_begin",
+              next_action: "forward",
             },
             {
               uri: "kairos://mem/refine-1",
@@ -66,7 +66,7 @@ export const KairosWithResults: Story = {
               score: null,
               role: "refine",
               tags: [],
-              next_action: "kairos_begin",
+              next_action: "forward",
             },
             {
               uri: "kairos://mem/create-1",
@@ -75,7 +75,7 @@ export const KairosWithResults: Story = {
               score: null,
               role: "create",
               tags: [],
-              next_action: "kairos_begin",
+              next_action: "forward",
             },
           ],
         },

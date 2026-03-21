@@ -3,8 +3,8 @@ import { qdrantService as qdrantServiceSingleton } from '../services/qdrant/inde
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
-import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './kairos_delete_schema.js';
-import { parseKairosUri } from './v10-uri.js';
+import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './delete_schema.js';
+import { parseKairosUri } from './kairos-uri.js';
 
 /** Shared execute: delete memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeDelete(
@@ -57,7 +57,7 @@ export async function executeDelete(
   };
 }
 
-export function registerKairosDeleteTool(server: any, toolName = 'kairos_delete') {
+export function registerDeleteTool(server: any, toolName = 'delete') {
   const qdrantService = qdrantServiceSingleton;
   server.registerTool(
     toolName,
