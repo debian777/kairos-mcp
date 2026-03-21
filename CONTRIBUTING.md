@@ -239,6 +239,12 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
   `npm run lint:fix` for auto-fixable issues. The pre-commit hook runs
   lint automatically; version-bump commits (only `package.json` and
   `package-lock.json` staged) skip hooks so no `--no-verify` is needed.
+- **Pre-commit hook (`.husky/pre-commit`):** Besides lint, it strips
+  `.claude/hooks/session-start.sh` from the index before and after `npm run
+  lint` so commits do not reference a missing blob when a host refreshes the
+  index mid-hook (common with linked worktrees). Do not track Claude hook
+  scripts; `.gitignore` keeps `.claude/*` except `settings.json`. To see hook
+  history: `git log -- .husky/pre-commit`.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for
   classes and types; `SCREAMING_SNAKE_CASE` for module-level constants
