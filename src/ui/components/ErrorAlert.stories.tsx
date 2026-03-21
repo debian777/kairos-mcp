@@ -23,7 +23,7 @@ export const Default: Story = {
 export const WithNextAction: Story = {
   args: {
     message: "Nonce mismatch. Please use the challenge from the last response.",
-    nextAction: "Retry kairos_next with the fresh challenge below.",
+    nextAction: "Retry forward with the fresh challenge below.",
     onRetry: () => {},
     showGoBack: true,
   },

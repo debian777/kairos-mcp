@@ -14,11 +14,44 @@ Participants must maintain a respectful and inclusive environment.
 - Docker and Docker Compose (v2)
 - Git
 
+### KAIROS MCP protocol (agents and editors)
+
+When **KAIROS** is connected as an MCP server (for example **Cursor** →
+Installed MCP Servers → **KAIROS**), run stored workflows in this order:
+
+1. **`activate`** — use the user’s intent as `query` (or a short phrase).
+2. **`forward`** — first call with the **adapter** URI from the chosen
+   `next_action` and **no** `solution`; then call again with each **layer**
+   URI and a `solution` matching `contract.type` until `next_action` points
+   to **`reward`**.
+3. **`reward`** — finalize with the **layer** URI from the final forward
+   response (include `execution_id` when required). When a step sets
+   `must_obey: true`, do not treat the task as finished until **`reward`**
+   succeeds.
+
+**Rules**
+
+- Follow each response’s **`next_action`** and the tool’s **`must_obey`**
+  fields.
+- Authoritative text for contributors is in **`AGENTS.md`** and
+  **`src/embed-docs/tools/`** (`activate`, `forward`, `reward`, `train`,
+  `tune`, `export`, `delete`, `spaces`).
+- Echo server-issued **nonce** and **proof_hash** values **verbatim** in
+  the next call; never compute or guess them.
+
+A **`/kairos`** invocation in agents that load the **kairos** skill means:
+start with **`activate`**, then complete **`forward`** through **`reward`**
+before answering the user.
+
+**Git vs MCP:** branches, commits, and pull requests follow the sections
+below. The protocol above runs **against the KAIROS server** your editor
+targets (for example **KAIROS LIVE**), not against Git.
+
 ### Claude Code (`.claude/hooks`)
 
- 
-
- 
+`.claude/*` is ignored by Git except **`.claude/settings.json`** (see
+`.gitignore`). Do not add hook scripts to version control unless the
+maintainers explicitly choose to track them.
 
 ## Setup from clone to passing tests
 
@@ -361,9 +394,9 @@ structured, actionable instructions.
 
 - Support repair paths (for example, update the step or abort after
   max retries).
-- When search finds no match, offer a deterministic "create new
-  protocol" path.
-- Keep attestation a simple stamp; make the last step a normal
+- When **activate** finds no match, offer a deterministic **train**
+  (create adapter) path.
+- Keep **`reward`** a simple finalization; make the last layer a normal
   verification step.
 
 ### 7. Checklist for new or changed APIs
@@ -374,8 +407,8 @@ structured, actionable instructions.
 - [ ] Two-phase error handling: retry first, then grant autonomy.
 - [ ] No redundant fields; single source of truth for each concept.
 - [ ] Server generates identifiers and hashes; agent echoes them.
-- [ ] Self-correction paths (for example, `kairos_update`) are exposed
-      and documented.
+- [ ] Self-correction paths (for example, **`tune`** / **`train`**) are
+      exposed and documented.
 - [ ] A creation fallback exists when no match is found.
 
 ## Constraints

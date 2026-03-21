@@ -156,6 +156,7 @@ export async function storeDefaultChain(
         created_by: actorId,
         modified_at: memory.created_at,
         modified_by: actorId,
+        slug: protocolSlug,
         activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
         inference_contract: inferenceContract,
         proof_of_work: inferenceContract,

@@ -8,15 +8,17 @@ description: >-
 metadata:
   version: "3.4.0"
   author: kairos-mcp
-allowed-tools: kairos_search kairos_begin kairos_next kairos_mint kairos_attest kairos_dump kairos_update kairos_delete kairos_spaces
+allowed-tools: activate forward train reward tune delete export spaces
 ---
 
 # kairos
 
-Call `kairos_search` with the user's message (or a concise intent phrase).
-Follow the returned choice's `next_action` exactly.
-Complete `kairos_attest` before responding to the user.
+Call **`activate`** with the user's message (or a concise intent phrase).
+Follow the returned choice's `next_action` exactly (usually **`forward`**
+with an adapter URI, then layer URIs until **`reward`**).
+Complete **`reward`** when `next_action` directs you to, before responding
+to the user.
 
-The tool descriptions for `kairos_search`, `kairos_begin`, `kairos_next`,
-and `kairos_attest` contain all execution rules. Read them; they are
-authoritative.
+The tool descriptions for **`activate`**, **`forward`**, and **`reward`**
+(and helpers **`train`**, **`tune`**, **`export`**, **`delete`**,
+**`spaces`**) contain all execution rules. Read them; they are authoritative.

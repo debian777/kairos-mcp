@@ -271,7 +271,7 @@ export async function findFirstStepMemoryUuidBySlug(
         key: normalized,
         must_obey: true,
         next_action:
-          'Use kairos_begin with uri for the specific protocol, or work in a single target space.',
+          'Use forward with the URI for the specific protocol, or work in a single target space.',
         spaces: [...new Set(unique.map((p) => spaceOf(p)))]
       }
     );

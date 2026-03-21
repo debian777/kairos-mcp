@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type { ExportOutput } from "../../tools/export_schema.js";
-import type { DumpOutput } from "../../tools/kairos_dump_schema.js";
+import type { DumpOutput } from "../../tools/dump_schema.js";
 
 async function fetchProtocol(uri: string): Promise<DumpOutput> {
   const res = await apiFetch("/api/export", {

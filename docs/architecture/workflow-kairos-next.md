@@ -1,5 +1,7 @@
 # kairos_next workflow
 
+> **Current MCP tool:** **`forward`** with a **layer** URI and a `solution` matching `contract.type`. See [`forward.md`](../../src/embed-docs/tools/forward.md).
+
 `kairos_next` submits a solution for the current step's challenge and
 returns the next step. Use it for steps 2 and later (step 1 uses
 `kairos_begin`). On the last step, `next_action` directs the AI to call

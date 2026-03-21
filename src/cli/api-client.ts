@@ -13,7 +13,7 @@ import type { RewardOutput } from '../tools/reward_schema.js';
 import type { TrainOutput } from '../tools/train_schema.js';
 import type { TuneOutput } from '../tools/tune_schema.js';
 import type { ExportOutput } from '../tools/export_schema.js';
-import type { DeleteOutput } from '../tools/kairos_delete_schema.js';
+import type { DeleteOutput } from '../tools/delete_schema.js';
 
 export class ApiClient {
     private baseUrl: string;

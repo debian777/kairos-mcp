@@ -39,6 +39,7 @@ function createRateLimiter(options: {
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
+        // eslint-disable-next-line kairos-forbidden-text/no-forbidden-kairos-text -- express-rate-limit requires this option name.
         legacyHeaders: false,
         identifier: options.identifier,
         message: {

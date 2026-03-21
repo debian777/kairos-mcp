@@ -1,17 +1,14 @@
 /**
  * MISSING_PROOF fix: when the requested step has no proof_of_work, apply the solution to the previous step.
- * Shared by MCP (kairos_next) and HTTP (http-api-next).
+ * Shared by the forward bridge and the older HTTP next route.
  */
 
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainPreviousStep } from '../services/chain-utils.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
-import {
-  formatShellChallengeInvocationSummary,
-  pickShellChallengeFields
-} from './shell-challenge-invocation.js';
+import { handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './next-pow-helpers.js';
+import { buildLayerUri } from './kairos-uri.js';
 
 export type PreviousProofBlock = {
   message: string;
@@ -43,8 +40,8 @@ export async function tryApplySolutionToPreviousStep(
   const expectedPrevHash = prevIsStep1
     ? GENESIS_HASH
     : (await (async () => {
-        const p = await resolveChainPreviousStep(prevMemory, qdrantService);
-        return p?.uuid ? await proofOfWorkStore.getProofHash(p.uuid) : null;
+        const previous = await resolveChainPreviousStep(prevMemory, qdrantService);
+        return previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       })()) ?? GENESIS_HASH;
 
   const outcome = await handleProofSubmission(solution, prevMemory, {
@@ -54,7 +51,7 @@ export async function tryApplySolutionToPreviousStep(
 }
 
 /**
- * PROOF_HASH_MISMATCH fix: when the client calls kairos_next with the URI from next_action (the *next*
+ * PROOF_HASH_MISMATCH fix: when the client calls forward with the URI from next_action (the next
  * step), they are submitting the solution for the step we just showed (the previous step). If the
  * requested step has proof_of_work but the previous step has none stored yet and the solution type
  * matches the previous step's challenge, apply the solution to the previous step and return applied.
@@ -84,8 +81,8 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
   const expectedPrevHash = prevIsStep1
     ? GENESIS_HASH
     : (await (async () => {
-        const p = await resolveChainPreviousStep(prevMemory, qdrantService);
-        return p?.uuid ? await proofOfWorkStore.getProofHash(p.uuid) : null;
+        const previous = await resolveChainPreviousStep(prevMemory, qdrantService);
+        return previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       })()) ?? GENESIS_HASH;
 
   const outcome = await handleProofSubmission(solution, prevMemory, {
@@ -97,7 +94,8 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
 export async function ensurePreviousProofCompleted(
   memory: Memory,
   loadMemory: (uuid: string) => Promise<Memory | null>,
-  qdrantService: QdrantService | undefined
+  qdrantService: QdrantService | undefined,
+  executionId?: string
 ): Promise<PreviousProofBlock | null> {
   if (!memory?.chain || memory.chain.step_index <= 1) return null;
   const previous = await resolveChainPreviousStep(memory, qdrantService);
@@ -109,39 +107,30 @@ export async function ensurePreviousProofCompleted(
   if (!storedResult) {
     const proofType = prevProof.type || 'shell';
     const stepLabel = prevMemory?.label || 'previous step';
-    const prevStepUri = `kairos://mem/${previous.uuid}`;
+    const prevStepUri = buildLayerUri(previous.uuid, executionId);
     let message = `Proof of work missing for ${stepLabel}.`;
     let next_action: string | undefined;
     if (proofType === 'shell') {
-      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'true';
-      const inv = formatShellChallengeInvocationSummary(
-        pickShellChallengeFields({
-          cmd,
-          interpreter: prevProof.shell?.interpreter,
-          flags: prevProof.shell?.flags,
-          args: prevProof.shell?.args,
-          workdir: prevProof.shell?.workdir
-        })
-      );
-      message += ` Run: ${inv} (see challenge.workdir if set). Capture real exit_code/stdout/stderr before continuing.`;
-      next_action = `Run \`${inv}\`, then call kairos_next with ${prevStepUri} and solution.shell matching that step's challenge.`;
+      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
+      message += ` Execute "${cmd}" and report the result before continuing.`;
+      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call forward with ${prevStepUri} and solution matching that step's challenge.`;
     } else if (proofType === 'user_input') {
       const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
-      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling kairos_next with ${prevStepUri} and solution.user_input.confirmation.`;
-      next_action = `Ask the user: "${prompt}" then call kairos_next with ${prevStepUri} and solution.user_input.confirmation set to their reply.`;
+      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling forward with ${prevStepUri} and solution.user_input.confirmation.`;
+      next_action = `Ask the user: "${prompt}" then call forward with ${prevStepUri} and solution.user_input.confirmation set to their reply.`;
     } else if (proofType === 'mcp') {
       const toolName = prevProof.mcp?.tool_name || 'the required tool';
-      message += ` Submit that proof by calling kairos_next with ${prevStepUri} and solution.mcp. Call the MCP tool "${toolName}" and report its real result; do not fabricate.`;
-      next_action = `Call ${toolName}, then call kairos_next with ${prevStepUri} and solution.mcp with the real result.`;
+      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.mcp. Call the MCP tool "${toolName}" and report its real result; do not fabricate.`;
+      next_action = `Call ${toolName}, then call forward with ${prevStepUri} and solution.mcp with the real result.`;
     } else if (proofType === 'comment') {
       const minLen = prevProof.comment?.min_length ?? 10;
-      message += ` Submit that proof by calling kairos_next with ${prevStepUri} and solution.comment.text (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
-      next_action = `call kairos_next with ${prevStepUri} and solution.comment.text (min ${minLen} chars).`;
+      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.comment.text (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
+      next_action = `call forward with ${prevStepUri} and solution.comment.text (min ${minLen} chars).`;
     } else {
       message += ` Complete the required ${proofType} verification before continuing.`;
-      next_action = `call kairos_next with ${prevStepUri} -- complete previous step first`;
+      next_action = `call forward with ${prevStepUri} -- complete previous step first`;
     }
-    if (!next_action) next_action = `call kairos_next with ${prevStepUri} -- complete previous step first`;
+    if (!next_action) next_action = `call forward with ${prevStepUri} -- complete previous step first`;
     const block: PreviousProofBlock = { message, error_code: 'MISSING_PROOF' };
     if (next_action !== undefined) block.next_action = next_action;
     return block;

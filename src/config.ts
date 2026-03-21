@@ -63,7 +63,7 @@ export const EMBEDDING_NORM_MIN = getEnvFloat('EMBEDDING_NORM_MIN', 0.5);
 export const EMBEDDING_NORM_MAX = getEnvFloat('EMBEDDING_NORM_MAX', 2.0);
 /**
  * Wall-clock cap for comment PoW semantic check (two embedding calls). On timeout, fail open (same as embedding errors)
- * so MCP `kairos_next` stays within agent-usable latency (well under typical ~30s client limits). Set to 0 to skip semantic check.
+ * so MCP `forward` stays within agent-usable latency (well under typical ~30s client limits). Set to 0 to skip semantic check.
  */
 export const COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS = getEnvInt('COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS', 10_000);
 export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESHOLD', 0.1);
@@ -74,9 +74,9 @@ export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
 export const KAIROS_SEARCH_MAX_FETCH = getEnvInt('KAIROS_SEARCH_MAX_FETCH', 200);
-/** Default number of match choices returned by kairos_search when agent omits max_choices. */
+/** Default number of match choices returned by search when the agent omits max_choices. */
 export const KAIROS_SEARCH_MAX_CHOICES = getEnvInt('KAIROS_SEARCH_MAX_CHOICES', 10);
-/** Absolute cap for kairos_search max_choices (prevents abuse and excessive resolveHead latency). */
+/** Absolute cap for search max_choices (prevents abuse and excessive resolveHead latency). */
 export const KAIROS_SEARCH_LIMIT_CAP = getEnvInt('KAIROS_SEARCH_LIMIT_CAP', 50);
 /** Minimum match choices when agent passes max_choices. */
 export const KAIROS_SEARCH_LIMIT_MIN = getEnvInt('KAIROS_SEARCH_LIMIT_MIN', 5);

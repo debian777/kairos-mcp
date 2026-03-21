@@ -4,9 +4,9 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, runWithOptionalSpaceAsync } from '../utils/tenant-context.js';
-import { executeSearch } from './kairos_search.js';
+import { executeSearch } from './search.js';
 import { activateInputSchema, activateOutputSchema, type ActivateInput, type ActivateOutput } from './activate_schema.js';
-import { buildAdapterUri } from './v10-uri.js';
+import { buildAdapterUri } from './kairos-uri.js';
 
 interface RegisterActivateOptions {
   toolName?: string;

@@ -15,8 +15,24 @@ chains for AI agents. It exposes:
 
 Protocol execution is deterministic:
 
-```text
-kairos_search -> kairos_begin -> kairos_next (loop) -> kairos_attest
+- **Persistent memory** — store and retrieve protocol chains across sessions
+- **Deterministic execution** — **activate** → **forward** (per layer) →
+  **reward**; the server drives `next_action` at every step
+- **Agent-facing design** — tool descriptions and error messages built for
+  programmatic consumption and recovery
+
+Protocol execution runs in a fixed order: **activate** (match adapters),
+**forward** (run each layer’s contract; loop), then **reward** (finalize the
+run). Use **train** / **tune** / **export** / **delete** / **spaces** as
+described in each tool’s MCP description.
+
+```mermaid
+flowchart LR
+  A([activate]) --> B([forward]) --> D([reward])
+  B -.-> B
+  style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style B fill:#ffb74d,stroke:#f57c00,color:#333
+  style D fill:#81c784,stroke:#388e3c,color:#333
 ```
 
 The server generates challenge data (`nonce`, `proof_hash`, URIs); agents echo
@@ -120,13 +136,16 @@ The CLI talks to a running KAIROS server over HTTP. See [docs/CLI.md](docs/CLI.m
 
 ### Add KAIROS to your agent instructions
 
+This repo ships the **kairos** skill (run protocols: /k, /apply, /kairos). Use `--list` to see what the skills registry reports for this repo.
+
 If you want agents to use KAIROS consistently, add a short repo rule or
 instruction such as:
 
 > KAIROS MCP is a Model Context Protocol server for persistent memory and
 > deterministic protocol-chain execution. Execute protocols in this order:
-> `kairos_search` -> `kairos_begin` -> `kairos_next` until told to call
-> `kairos_attest`. Echo all server-generated hashes, nonces, and URIs exactly.
+> **`activate`** → **`forward`** (loop per layer until `next_action` points to
+> **`reward`**) → **`reward`**. Echo all server-generated hashes, nonces, and
+> URIs exactly.
 
 ## Agent skills shipped in this repo
 

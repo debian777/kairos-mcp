@@ -330,6 +330,6 @@ Done.`;
 
 describe('CREATION_PROTOCOL_URI', () => {
   test('is the creation flow seed UUID', () => {
-    expect(CREATION_PROTOCOL_URI).toBe('kairos://mem/00000000-0000-0000-0000-000000002001');
+    expect(CREATION_PROTOCOL_URI).toBe('kairos://adapter/00000000-0000-0000-0000-000000002001');
   });
 });

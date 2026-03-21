@@ -139,9 +139,3 @@ export function getTestSpaceId(): string | undefined {
   return readAuthEnv()?.spaceId ?? undefined;
 }
 
-/**
- * Raw Bearer token for CLI (KAIROS_BEARER_TOKEN) or other use. Undefined when not auth.
- */
-export function getTestBearerToken(): string | undefined {
-  return readAuthEnv()?.bearerToken ?? undefined;
-}

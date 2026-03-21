@@ -12,7 +12,7 @@ import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
 import { scoreActivationRerank } from './activation-reranker.js';
 
-/** Built-in refine protocol (always offered at bottom of kairos_search). Excluded from vector results. */
+/** Built-in refine protocol (always offered at the bottom of search results). Excluded from vector results. */
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 
 export class MemoryQdrantStoreMethods {

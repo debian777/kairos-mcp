@@ -7,7 +7,7 @@
 
 import { findAllContractBlocks, hasPlainFenceContractBlock } from './chain-builder-proof.js';
 
-export const CREATION_PROTOCOL_URI = 'kairos://mem/00000000-0000-0000-0000-000000002001';
+export const CREATION_PROTOCOL_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
 
 export type ValidationResult = {
   valid: boolean;
@@ -107,8 +107,8 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
  * Validate adapter markdown structure before storeChain.
  * Returns { valid, missing, message } so train/mint can return a PROTOCOL_STRUCTURE_INVALID error with next_action.
  * When multiple H1 sections exist, each section must have first H2 =
- * Activation Patterns (or legacy Natural Language Triggers) and last H2 =
- * Reward Signal (or legacy Completion Rule).
+ * Activation Patterns (or older Natural Language Triggers) and last H2 =
+ * Reward Signal (or older Completion Rule).
  */
 export function validateProtocolStructure(markdownDoc: string): ValidationResult {
   const missing: string[] = [];

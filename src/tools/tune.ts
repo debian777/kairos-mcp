@@ -2,9 +2,9 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { qdrantService as qdrantServiceSingleton } from '../services/qdrant/index.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
-import { executeUpdate } from './kairos_update.js';
+import { executeUpdate } from './update.js';
 import { tuneInputSchema, tuneOutputSchema, type TuneInput, type TuneOutput } from './tune_schema.js';
-import { parseKairosUri, buildLayerUri } from './v10-uri.js';
+import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string): Promise<string> {

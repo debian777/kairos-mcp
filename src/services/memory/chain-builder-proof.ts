@@ -20,7 +20,7 @@ export interface ContractBlockMatch {
 
 /**
  * Parse a fenced JSON payload and return a normalized inference contract.
- * v10 prefers {"contract": ...}, but legacy {"challenge": ...} continues to
+ * v10 prefers {"contract": ...}, but older {"challenge": ...} continues to
  * parse so existing stored content can be migrated offline without breaking
  * internal helpers during the refactor.
  */
@@ -50,7 +50,7 @@ function parseContractBlock(rawJson: string): InferenceContractDefinition | null
 
 /**
  * Find all contract boundaries in content: each ```json block with
- * {"contract": ...} or legacy {"challenge": ...}. Layers are defined by these
+ * {"contract": ...} or older {"challenge": ...}. Layers are defined by these
  * boundaries, not by H2 headings.
  */
 export function findAllContractBlocks(content: string): ContractBlockMatch[] {
@@ -81,7 +81,7 @@ export function findAllContractBlocks(content: string): ContractBlockMatch[] {
 
 /**
  * Returns true if the document has any plain ``` (no "json") fenced block whose
- * content is valid JSON with a "contract" or legacy "challenge" key. Such docs
+ * content is valid JSON with a "contract" or older "challenge" key. Such docs
  * would pass "at least one ```json contract" but layer parsing would ignore the
  * plain blocks, minting fewer layers than the doc implies.
  */
@@ -98,7 +98,7 @@ export function hasPlainFenceContractBlock(content: string): boolean {
 }
 
 /**
- * Try to parse a trailing ```json block containing {"contract": ...} or legacy
+ * Try to parse a trailing ```json block containing {"contract": ...} or older
  * {"challenge": ...}. Uses the last code block in the content so layers with
  * multiple example blocks still get a contract. Returns the contract object and
  * cleaned content (without the block) if valid.

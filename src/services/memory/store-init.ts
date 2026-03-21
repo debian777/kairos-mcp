@@ -176,10 +176,10 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
       let existingDim: number | null = null;
 
       if (typeof collectionConfig === 'number') {
-        // Legacy single vector
+        // Older single-vector layout
         existingDim = collectionConfig;
         existingVectorName = `vs${existingDim}`;
-        logger.info(`[MemoryQdrantStore] Detected legacy single vector collection with size ${existingDim}, will migrate to named vector ${existingVectorName}`);
+        logger.info(`[MemoryQdrantStore] Detected older single-vector collection with size ${existingDim}, will migrate to named vector ${existingVectorName}`);
       } else {
         // Named vectors
         const vectorNames = Object.keys(collectionConfig);
@@ -201,13 +201,13 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
       } else {
         logger.info(`[MemoryQdrantStore] Dimension change detected: ${existingDim} -> ${currentDim}. Starting migration. existingVector=${existingVectorName} currentVector=${currentVectorName}`);
 
-        // Step 1: If legacy, convert to named vector by adding the named version
+        // Step 1: If the collection uses the older layout, add the named version
         if (typeof collectionConfig === 'number') {
-          // For legacy, we need to add the named vector first
-          logger.info(`[MemoryQdrantStore] Step 1: Adding named vector ${existingVectorName} to legacy collection`);
+          // For the older layout, add the named vector first.
+          logger.info(`[MemoryQdrantStore] Step 1: Adding named vector ${existingVectorName} to collection with the older layout`);
           try {
             await addVectorsToCollection(client, collection, { [existingVectorName!]: { size: existingDim!, distance: 'Cosine', on_disk: true } });
-            logger.info(`[MemoryQdrantStore] Step 1 complete: Added named vector ${existingVectorName} to legacy collection`);
+            logger.info(`[MemoryQdrantStore] Step 1 complete: Added named vector ${existingVectorName} to collection with the older layout`);
           } catch (err) {
             logger.error(`[MemoryQdrantStore] Step 1 failed: could not add named vector ${existingVectorName} to ${collection}: ${String(err)}`);
             throw err;

@@ -1,5 +1,7 @@
 # kairos_dump workflow
 
+> **Current surface:** use **`export`** and embedded docs for dumping markdown or datasets. See [`export.md`](../../src/embed-docs/tools/export.md).
+
 `kairos_dump` is a read-only inspection tool. It returns a `markdown_doc`
 string ready to pass to `kairos_update` (single step) or `kairos_mint`
 (full protocol). It creates no run state, issues no nonces, and returns no
