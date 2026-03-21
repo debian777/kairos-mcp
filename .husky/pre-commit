@@ -9,11 +9,6 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
-# Tracked-but-ignored hook + missing blob: some hosts refresh the index during
-# long hooks and reintroduce this path. Drop it before/after checks so tree
-# write cannot reference a missing object.
-git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh 2>/dev/null || true
-
 staged=$(git diff --cached --name-only)
 # Version check: mem = package.json, skills = last stable (same as CI). Run when version-related files are staged.
 if echo "$staged" | grep -q '^package\.json$' || echo "$staged" | grep -q '^skills/' || echo "$staged" | grep -q '^src/embed-docs/mem/'; then
@@ -61,5 +56,3 @@ if [ -n "$lint_git_paths" ]; then
   echo >&2 ""
 fi
 npm run lint
-
-git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh 2>/dev/null || true
