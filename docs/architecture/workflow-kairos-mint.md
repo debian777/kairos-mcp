@@ -1,5 +1,7 @@
 # kairos_mint workflow
 
+> **Current MCP tool:** **`train`**. See [`train.md`](../../src/embed-docs/tools/train.md).
+
 `kairos_mint` stores a markdown document as a KAIROS memory or protocol
 chain. H1 headings define a chain; H2 headings define steps. Use it when
 the user wants to create, add, mint, store, or save a protocol or document.

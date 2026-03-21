@@ -1,4 +1,4 @@
-# Building KAIROS adapters (v10)
+# Building KAIROS adapters (current surface)
 
 **Purpose:** Author **adapters** (markdown) and run them with **`train`** →
 **`activate`** → **`forward`** (loop) → **`reward`**. Each verifiable

@@ -48,5 +48,5 @@ Skills spec](https://agentskills.io/specification#validation) (Python).
 
 ## Relation to existing docs
 
-- **KAIROS protocol execution:** [AGENTS.md](../AGENTS.md) — search, begin, next, attest; tool descriptions in `src/embed-docs/tools/`.
-- **Minting protocols:** [kairos_mint](../src/embed-docs/tools/kairos_mint.md).
+- **KAIROS protocol execution:** [AGENTS.md](../AGENTS.md) — activate, forward, reward; tool descriptions in `src/embed-docs/tools/`.
+- **Minting adapters:** [Building KAIROS workflows](../src/embed-docs/resources/building-kairos-workflows.md), [train](../src/embed-docs/tools/train.md).

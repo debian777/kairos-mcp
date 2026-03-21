@@ -10,16 +10,17 @@ import {
   KAIROS_SEARCH_LIMIT_MIN,
   KAIROS_ENABLE_GROUP_COLLAPSE
 } from '../config.js';
-import { createResults, generateUnifiedOutput } from './kairos_search_output.js';
-import { searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
+import { createResults, generateUnifiedOutput } from './search_output.js';
+import { searchOutputSchema, type SearchInput, type SearchOutput } from './search_schema.js';
 import { logSearchAnomaly } from '../services/embedding/audit.js';
+import { buildAdapterUri } from './kairos-uri.js';
 
 const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
-const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
+const CREATION_PROTOCOL_URI = buildAdapterUri(CREATION_PROTOCOL_UUID);
 const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
-const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
-const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
-const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
+const REFINING_PROTOCOL_URI = buildAdapterUri(REFINING_PROTOCOL_UUID);
+const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
+const CREATE_NEXT_ACTION = 'call train with adapter markdown to create a new adapter';
 
 /** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
 function queryForSearch(query: string): string {

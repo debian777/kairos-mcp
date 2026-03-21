@@ -1,8 +1,8 @@
 import express from 'express';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { executeDelete } from '../tools/kairos_delete.js';
-import { deleteInputSchema } from '../tools/kairos_delete_schema.js';
+import { executeDelete } from '../tools/delete.js';
+import { deleteInputSchema } from '../tools/delete_schema.js';
 
 /**
  * Set up API route for delete. Uses shared executeDelete; returns same shape as MCP (no metadata).

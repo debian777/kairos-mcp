@@ -1,5 +1,7 @@
 # kairos_attest workflow
 
+> **Current MCP tool:** **`reward`** on the final **layer** URI. See [`reward.md`](../../src/embed-docs/tools/reward.md).
+
 `kairos_attest` is the required final step of every protocol run. When the
 last `kairos_next` (or `kairos_begin` for a single-step protocol) has no
 more content steps, `next_action` always directs the AI to call

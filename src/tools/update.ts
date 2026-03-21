@@ -1,21 +1,6 @@
 import type { QdrantService } from '../services/qdrant/service.js';
-import type { UpdateInput, UpdateOutput } from './kairos_update_schema.js';
-
-/** Extract BODY from a full KAIROS render if present; otherwise return input as-is */
-function extractBody(text: string): string {
-    const start = /<!--\s*KAIROS:BODY-START\s*-->/i;
-    const end = /<!--\s*KAIROS:BODY-END\s*-->/i;
-    const s = text.search(start);
-    const e = text.search(end);
-    if (s >= 0 && e > s) {
-        // slice between the end of start marker and beginning of end marker
-        const startMatch = text.match(start);
-        if (!startMatch) return text;
-        const startIdx = (startMatch.index || 0) + startMatch[0].length;
-        return text.slice(startIdx, e).trim();
-    }
-    return text;
-}
+import type { UpdateInput, UpdateOutput } from './update_schema.js';
+import { extractMemoryBody, hasMemoryBodyMarkers } from '../utils/memory-body.js';
 
 /** Shared execute: update memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeUpdate(
@@ -30,20 +15,20 @@ export async function executeUpdate(
   let totalUpdated = 0;
   let totalFailed = 0;
 
-  for (let i = 0; i < uris.length; i++) {
-    const uri = uris[i]!;
+  for (let index = 0; index < uris.length; index++) {
+    const uri = uris[index]!;
     try {
       const uuid = typeof uri === 'string' ? uri.split('/').pop() : undefined;
       if (!uuid) {
         throw new Error('Invalid URI format');
       }
-      const mk = Array.isArray(markdownDoc) ? markdownDoc[i] : undefined;
-      if (typeof mk === 'string' && mk.trim().length > 0) {
-        const body = extractBody(mk);
+      const markdown = Array.isArray(markdownDoc) ? markdownDoc[index] : undefined;
+      if (typeof markdown === 'string' && markdown.trim().length > 0) {
+        const body = extractMemoryBody(markdown);
         await qdrantService.updateMemory(uuid, { text: body });
       } else if (updates && Object.keys(updates).length > 0) {
-        if (typeof updates['text'] === 'string' && updates['text'].indexOf('<!-- KAIROS:BODY-START') !== -1 && updates['text'].indexOf('<!-- KAIROS:BODY-END') !== -1) {
-          const body = extractBody(updates['text']);
+        if (typeof updates['text'] === 'string' && hasMemoryBodyMarkers(updates['text'])) {
+          const body = extractMemoryBody(updates['text']);
           await qdrantService.updateMemory(uuid, { text: body });
         } else {
           await qdrantService.updateMemory(uuid, updates);

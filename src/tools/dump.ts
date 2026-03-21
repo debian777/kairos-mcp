@@ -4,7 +4,7 @@ import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../utils/dump-markdown.js';
 import { slugifyFromTitle } from '../utils/protocol-slug.js';
-import { buildChallengeShapeForDisplay } from './kairos_next-pow-helpers.js';
+import { buildChallengeShapeForDisplay } from './next-pow-helpers.js';
 import { resolveChainFirstStep } from '../services/chain-utils.js';
 import { redisCacheService } from '../services/redis-cache.js';
 
@@ -26,10 +26,10 @@ async function loadMemory(memoryStore: MemoryQdrantStore, uuid: string): Promise
   return memory;
 }
 
-/** Serialize proof-of-work as a JSON code block only (no legacy line format). */
-function challengeBlock(pow: ProofOfWorkDefinition | undefined): string {
-  if (!pow) return '';
-  return '\n\n```json\n' + JSON.stringify({ challenge: pow }) + '\n```';
+/** Serialize proof-of-work as a JSON code block only (no older line format). */
+function challengeBlock(proofOfWork: ProofOfWorkDefinition | undefined): string {
+  if (!proofOfWork) return '';
+  return `\n\n\`\`\`json\n${JSON.stringify({ challenge: proofOfWork })}\n\`\`\``;
 }
 
 function buildMarkdownDocSingle(memory: Memory): string {
@@ -40,11 +40,11 @@ function buildMarkdownDocSingle(memory: Memory): string {
 function buildMarkdownDocProtocol(memories: Memory[]): string {
   if (memories.length === 0) return '';
   const chainLabel = memories[0]!.chain?.label ?? memories[0]!.label ?? 'Protocol';
-  const parts: string[] = ['# ' + chainLabel];
-  for (const m of memories) {
-    const body = extractMemoryBody(m.text);
-    const bodyStripped = stripRedundantStepH2(body, m.label);
-    parts.push('## ' + m.label + '\n\n' + bodyStripped + challengeBlock(m.proof_of_work));
+  const parts: string[] = [`# ${chainLabel}`];
+  for (const memory of memories) {
+    const body = extractMemoryBody(memory.text);
+    const bodyStripped = stripRedundantStepH2(body, memory.label);
+    parts.push(`## ${memory.label}\n\n${bodyStripped}${challengeBlock(memory.proof_of_work)}`);
   }
   return parts.join('\n\n');
 }
@@ -64,16 +64,15 @@ export async function executeDump(
   const { uuid, uri: normalizedUri } = normalizeUri(uri);
 
   let memory = await loadMemory(memoryStore, uuid);
-  // Browse UI uses chain_id as protocol URI; dump expects memory UUID. Resolve chain_id -> first-step memory.
   if (!memory && qdrantService && typeof qdrantService.getChainMemories === 'function') {
     const chainPoints = await qdrantService.getChainMemories(uuid);
     const firstUuid = chainPoints[0]?.uuid;
     if (firstUuid) memory = await loadMemory(memoryStore, firstUuid);
   }
   if (!memory) {
-    const err = new Error('Memory not found');
-    (err as any).statusCode = 404;
-    throw err;
+    const error = new Error('Memory not found');
+    (error as Error & { statusCode?: number }).statusCode = 404;
+    throw error;
   }
 
   if (protocol && memory.chain) {
@@ -96,16 +95,16 @@ export async function executeDump(
       ? await qdrantService.getChainMemories(chainId, memory.space_id ? [memory.space_id] : undefined)
       : [];
     const memories: Memory[] = [];
-    for (const pt of points) {
-      const m = await loadMemory(memoryStore, pt.uuid);
-      if (m) memories.push(m);
+    for (const point of points) {
+      const currentMemory = await loadMemory(memoryStore, point.uuid);
+      if (currentMemory) memories.push(currentMemory);
     }
-    memories.sort((a, b) => (a.chain?.step_index ?? 0) - (b.chain?.step_index ?? 0));
+    memories.sort((left, right) => (left.chain?.step_index ?? 0) - (right.chain?.step_index ?? 0));
     const headUri = `kairos://mem/${firstStep.uuid}`;
     const headSlug = memories[0]?.slug?.trim();
     const slugForExport = headSlug && headSlug.length > 0 ? headSlug : slugifyFromTitle(chainLabel);
-    const mdBody = buildMarkdownDocProtocol(memories);
-    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion) + mdBody;
+    const markdownBody = buildMarkdownDocProtocol(memories);
+    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion) + markdownBody;
     return {
       markdown_doc,
       uri: headUri,
@@ -117,24 +116,24 @@ export async function executeDump(
     };
   }
 
-  const out: Record<string, unknown> = {
+  const output: Record<string, unknown> = {
     markdown_doc: buildMarkdownDocSingle(memory),
     uri: normalizedUri,
     label: memory.label,
     chain_label: memory.chain?.label ?? null
   };
   if (memory.chain) {
-    out['position'] = {
+    output['position'] = {
       step_index: memory.chain.step_index,
       step_count: memory.chain.step_count
     };
     if (memory.chain.protocol_version) {
-      out['protocol_version'] = memory.chain.protocol_version;
+      output['protocol_version'] = memory.chain.protocol_version;
     }
   }
   const challenge = buildChallengeShapeForDisplay(memory.proof_of_work);
   if (challenge && Object.keys(challenge).length > 0) {
-    out['challenge'] = challenge;
+    output['challenge'] = challenge;
   }
-  return out;
+  return output;
 }

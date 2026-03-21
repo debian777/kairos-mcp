@@ -2,17 +2,17 @@ import type { InferenceContractDefinition, Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
-import { buildChallenge, type ProofOfWorkSubmission } from './kairos_next-pow-helpers.js';
-import type { executeNext } from './kairos_next.js';
+import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
+import type { executeNext } from './next.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
-import { buildLayerUri, parseKairosUri } from './v10-uri.js';
+import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 
 export function extractUuid(uri: string): string {
   return uri.split('/').pop()?.split('?')[0] ?? '';
 }
 
-export function legacyCurrentStep(memory: Memory, uri: string) {
+export function buildCurrentLayerView(memory: Memory, uri: string) {
   return {
     uri,
     content: extractMemoryBody(memory.text),
@@ -174,35 +174,35 @@ export async function buildForwardView(
   };
 }
 
-export async function mapLegacyForwardOutput(
+export async function mapExecuteNextToForwardView(
   memoryStore: MemoryQdrantStore,
   executionId: string,
-  legacyOutput: Awaited<ReturnType<typeof executeNext>>
+  nextExecutionResult: Awaited<ReturnType<typeof executeNext>>
 ): Promise<ForwardOutput> {
-  const currentLayerId = legacyOutput.current_step?.uri ? extractUuid(legacyOutput.current_step.uri) : '';
+  const currentLayerId = nextExecutionResult.current_step?.uri
+    ? extractUuid(nextExecutionResult.current_step.uri)
+    : '';
   const displayMemory = currentLayerId ? await memoryStore.getMemory(currentLayerId) : null;
-  if (!displayMemory || !legacyOutput.current_step) {
-    throw new Error('Legacy next output did not include a resolvable current_step');
+  if (!displayMemory || !nextExecutionResult.current_step) {
+    throw new Error('Bridge next output did not include a resolvable current_step');
   }
 
-  const final = legacyOutput.next_action.includes('kairos_attest');
+  const final = nextExecutionResult.next_action.includes('reward');
   const displayContract = normalizeContract(displayMemory);
   const options: BuildForwardViewOptions = {
     final,
-    ...(legacyOutput.message
+    ...(nextExecutionResult.message
       ? {
-          message: legacyOutput.message
+          message: nextExecutionResult.message
             .replaceAll('protocol', 'adapter')
             .replaceAll('Protocol', 'Adapter')
-            .replaceAll('kairos_attest', 'reward')
-            .replaceAll('kairos_next', 'forward')
         }
       : {}),
-    ...(legacyOutput.proof_hash ? { proofHash: legacyOutput.proof_hash } : {}),
-    ...(legacyOutput.error_code ? { errorCode: legacyOutput.error_code } : {}),
-    ...(legacyOutput.retry_count !== undefined ? { retryCount: legacyOutput.retry_count } : {}),
-    mustObey: legacyOutput.must_obey,
-    ...(!final && displayContract?.type !== 'tensor' && { contractOverride: legacyOutput.challenge })
+    ...(nextExecutionResult.proof_hash ? { proofHash: nextExecutionResult.proof_hash } : {}),
+    ...(nextExecutionResult.error_code ? { errorCode: nextExecutionResult.error_code } : {}),
+    ...(nextExecutionResult.retry_count !== undefined ? { retryCount: nextExecutionResult.retry_count } : {}),
+    mustObey: nextExecutionResult.must_obey,
+    ...(!final && displayContract?.type !== 'tensor' && { contractOverride: nextExecutionResult.challenge })
   };
   return buildForwardView(displayMemory, executionId, options);
 }

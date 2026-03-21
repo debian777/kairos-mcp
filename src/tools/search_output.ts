@@ -1,6 +1,6 @@
 /**
- * Output building for kairos_search: createResults, resolveHead, generateUnifiedOutput.
- * Extracted to keep kairos_search.ts under the max-lines limit.
+ * Output building for search: createResults, resolveHead, generateUnifiedOutput.
+ * Extracted to keep `search.ts` under the max-lines limit.
  */
 
 import type { Memory } from '../types/memory.js';
@@ -40,7 +40,7 @@ export function createResults(
       tags: memory.tags || [],
       total_steps: memory.chain?.step_count || 1
     }))
-    .filter(r => r.score >= scoreThreshold);
+    .filter((result) => result.score >= scoreThreshold);
 }
 
 export async function resolveHead(
@@ -79,7 +79,7 @@ export async function generateUnifiedOutput(
       score: result.score,
       role: 'match',
       tags: result.tags,
-      next_action: `call kairos_begin with ${head.uri} to execute this protocol`,
+      next_action: `call forward with ${head.uri} to execute this protocol`,
       protocol_version: result.memory.chain?.protocol_version ?? null
     });
   }
@@ -91,7 +91,7 @@ export async function generateUnifiedOutput(
       {
         uri: refiningUri,
         label: 'Get help refining your search',
-        chain_label: 'Run protocol to turn vague user request into a better kairos_search query',
+        chain_label: 'Run protocol to turn vague user request into a better search query',
         score: null,
         role: 'refine',
         tags: ['meta', 'refine'],

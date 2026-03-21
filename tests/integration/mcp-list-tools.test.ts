@@ -38,7 +38,7 @@ describe('MCP Tools Listing', () => {
       });
 
       const names = tools.map((t) => t.name);
-      // v10 public surface
+      // Current public surface
       expect(names).toContain('train');
       expect(names).toContain('activate');
       expect(names).toContain('forward');

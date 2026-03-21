@@ -1,18 +1,19 @@
 /**
  * Build current_step and challenge for MISSING_PROOF response so the client gets the previous step's
- * challenge (correct nonce and proof_hash) for the next kairos_next call.
+ * challenge (correct nonce and proof_hash) for the next forward call.
  */
 
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainPreviousStep } from '../services/chain-utils.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
-import { buildChallenge, GENESIS_HASH } from './kairos_next-pow-helpers.js';
+import { buildChallenge, GENESIS_HASH } from './next-pow-helpers.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
-import type { PreviousProofBlock } from './kairos_next-previous-step.js';
+import type { PreviousProofBlock } from './next-previous-step.js';
+import { buildLayerUri } from './kairos-uri.js';
 
-function buildCurrentStep(memory: Memory | null, requestedUri: string) {
-  const uri = memory ? `kairos://mem/${memory.memory_uuid}` : requestedUri;
+function buildCurrentStep(memory: Memory | null, requestedUri: string, executionId?: string) {
+  const uri = memory ? buildLayerUri(memory.memory_uuid, executionId) : requestedUri;
   const content = memory ? extractMemoryBody(memory.text) : '';
   return { uri, content, mimeType: 'text/markdown' as const };
 }
@@ -30,22 +31,25 @@ export async function buildMissingProofPayload(
   requestedUri: string,
   uuid: string,
   loadMemory: (id: string) => Promise<Memory | null>,
-  qdrantService: QdrantService | undefined
+  qdrantService: QdrantService | undefined,
+  executionId?: string
 ): Promise<MissingProofPayload> {
-  const prev = await resolveChainPreviousStep(memory, qdrantService);
-  const prevMemory = prev?.uuid ? await loadMemory(prev.uuid) : null;
-  const prevUri = prev?.uuid ? `kairos://mem/${prev.uuid}` : requestedUri;
+  const previous = await resolveChainPreviousStep(memory, qdrantService);
+  const prevMemory = previous?.uuid ? await loadMemory(previous.uuid) : null;
+  const prevUri = previous?.uuid ? buildLayerUri(previous.uuid, executionId) : requestedUri;
   const isPrevStep1 = !prevMemory?.chain || prevMemory.chain.step_index <= 1;
-  const pPrev = prevMemory && !isPrevStep1 ? await resolveChainPreviousStep(prevMemory, qdrantService) : null;
-  const expectedPrevHash = isPrevStep1 ? GENESIS_HASH : (pPrev?.uuid ? await proofOfWorkStore.getProofHash(pPrev.uuid) : null) ?? GENESIS_HASH;
+  const previousOfPrevious = prevMemory && !isPrevStep1 ? await resolveChainPreviousStep(prevMemory, qdrantService) : null;
+  const expectedPrevHash = isPrevStep1
+    ? GENESIS_HASH
+    : (previousOfPrevious?.uuid ? await proofOfWorkStore.getProofHash(previousOfPrevious.uuid) : null) ?? GENESIS_HASH;
   let challenge = await buildChallenge(prevMemory, prevMemory?.proof_of_work);
   challenge = { ...challenge, proof_hash: expectedPrevHash };
   const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
   const retryCount = await proofOfWorkStore.incrementRetry(storedNonce ?? uuid);
   return {
-    current_step: buildCurrentStep(prevMemory, prevUri),
+    current_step: buildCurrentStep(prevMemory, prevUri, executionId),
     challenge,
-    next_action: previousBlock.next_action ?? `retry kairos_next with ${prevUri} -- complete previous step first`,
+    next_action: previousBlock.next_action ?? `retry forward with ${prevUri} -- complete previous step first`,
     retry_count: retryCount
   };
 }

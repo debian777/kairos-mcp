@@ -3,11 +3,11 @@ import express from 'express';
 import { kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { MintError } from '../tools/kairos_mint.js';
+import { MintError } from '../tools/mint.js';
 import { executeTrain } from '../tools/train.js';
 import { trainInputSchema } from '../tools/train_schema.js';
 import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
-import { buildAdapterUri } from '../tools/v10-uri.js';
+import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 
 const SAFE_MINT_DETAIL_KEYS = new Set([

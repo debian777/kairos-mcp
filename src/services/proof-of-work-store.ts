@@ -6,10 +6,10 @@ export type ProofOfWorkType = 'shell' | 'mcp' | 'user_input' | 'comment';
 
 export interface ProofOfWorkResultRecord {
   result_id: string;
-  type?: ProofOfWorkType;  // Optional for backward compatibility
+  type?: ProofOfWorkType;  // Optional for older persisted records
   status: ProofOfWorkStatus;
   executed_at: string;
-  // Legacy shell fields (backward compatible)
+  // Older shell fields retained for persisted records
   exit_code?: number;
   duration_seconds?: number;
   stdout?: string;

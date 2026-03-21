@@ -1,5 +1,7 @@
 # kairos_begin workflow
 
+> **Current MCP tool:** first call to **`forward`** with an **adapter** URI and **no** `solution`. See [`forward.md`](../../src/embed-docs/tools/forward.md).
+
 `kairos_begin` loads step 1 of a protocol and returns the first challenge.
 Step 1 never requires a solution from the caller. If you pass a non-step-1
 URI, KAIROS auto-redirects to step 1 of the same chain.

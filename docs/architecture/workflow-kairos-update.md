@@ -1,5 +1,7 @@
 # kairos_update workflow
 
+> **Current MCP tool:** **`tune`**. See [`tune.md`](../../src/embed-docs/tools/tune.md).
+
 `kairos_update` updates one or more KAIROS memories by URI. Use it when
 the user wants to replace, modify, update, edit, or change existing
 content. Prefer `markdown_doc` for content changes; use `updates` for

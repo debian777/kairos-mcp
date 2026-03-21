@@ -32,15 +32,20 @@ quick start.
 
 ## Tool workflows
 
-- [Full execution workflow](architecture/workflow-full-execution.md)
-- [kairos_search](architecture/workflow-kairos-search.md)
-- [kairos_begin](architecture/workflow-kairos-begin.md)
-- [kairos_next](architecture/workflow-kairos-next.md)
-- [kairos_attest](architecture/workflow-kairos-attest.md)
-- [kairos_mint](architecture/workflow-kairos-mint.md)
-- [kairos_update](architecture/workflow-kairos-update.md)
-- [kairos_delete](architecture/workflow-kairos-delete.md)
-- [kairos_dump](architecture/workflow-kairos-dump.md)
+- [Architecture and protocol workflows](architecture/README.md) — how the
+  protocol runs end-to-end (**activate** → **forward** → **reward**),
+  per-tool references, response shapes, and legacy page mapping.
+- [Full execution workflow](architecture/workflow-full-execution.md) —
+  end-to-end walkthrough with example calls.
+- Legacy per-tool pages (pre-adapter names):
+  [workflow-kairos-search](architecture/workflow-kairos-search.md),
+  [workflow-kairos-begin](architecture/workflow-kairos-begin.md),
+  [workflow-kairos-next](architecture/workflow-kairos-next.md),
+  [workflow-kairos-attest](architecture/workflow-kairos-attest.md),
+  [workflow-kairos-mint](architecture/workflow-kairos-mint.md),
+  [workflow-kairos-update](architecture/workflow-kairos-update.md),
+  [workflow-kairos-delete](architecture/workflow-kairos-delete.md),
+  [workflow-kairos-dump](architecture/workflow-kairos-dump.md).
 
 ## Examples and protocol authoring
 
@@ -55,9 +60,22 @@ quick start.
 - [Threat model](security/threat-model.md)
 - [Incident runbook](security/incident-runbook.md)
 - [Code security setup](security/code-security-setup.md)
+- [Skills that ship KAIROS protocols](../skills/README.md) — how a skill can
+  bundle a protocol, declare requirements, and run **activate** → **train** if
+  missing → **forward** / **reward**.
 
 ## Skills and contributor guidance
 
 - [Skills README](../skills/README.md)
 - [Skills structure reference](../skills/SKILLS.md)
 - [Contributing](../CONTRIBUTING.md)
+- [Developer commands](../CONTRIBUTING.md#developer-commands) — build, deploy,
+  and test (`dev:build`, `dev:deploy`, `dev:test`). Always deploy before testing.
+- [Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)
+  — doctrine for MCP tools, schemas, descriptions, and error shapes.
+
+## Archived material
+
+Older or superseded documents (phase snapshots, one-off reports, raw scenario
+data) are kept for reference only and may not reflect current behavior. Contact
+the maintainers if you need to locate a specific historical document.

@@ -96,6 +96,7 @@ export interface ExecutionTrace {
 export interface Memory {
   memory_uuid: string;
   label: string;
+  slug?: string;
   tags: string[];
   text: string;
   llm_model_id: string;
@@ -104,7 +105,7 @@ export interface Memory {
   inference_contract?: InferenceContractDefinition;
   activation_patterns?: string[];
   /**
-   * Legacy aliases kept for internal refactors only.
+   * Transitional aliases kept for internal refactors only.
    * Public v10 surfaces must use adapter / inference_contract.
    */
   chain?: ChainInfo;

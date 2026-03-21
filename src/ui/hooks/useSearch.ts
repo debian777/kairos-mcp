@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type { ActivateOutput } from "../../tools/activate_schema.js";
-import type { SearchOutput } from "../../tools/kairos_search_schema.js";
+import type { SearchOutput } from "../../tools/search_schema.js";
 
 function normalizeActivate(output: ActivateOutput): SearchOutput {
   return {

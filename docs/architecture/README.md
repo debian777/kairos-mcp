@@ -8,15 +8,15 @@ works end-to-end and how each MCP tool fits into the flow.
 
 - **Infrastructure:** Container topology, port map, startup sequence,
   volume layout, and service wiring — all with Mermaid diagrams.
-- **Full execution:** A single walkthrough from search to final attestation
-  with example requests and responses.
-- **Tool workflows:** Per-tool response shapes, scenarios, and AI
-  decision rules for execution tools (`kairos_search`, `kairos_begin`,
-  `kairos_next`), content tools (`kairos_mint`, `kairos_update`,
-  `kairos_delete`), and inspection (`kairos_dump`).
-  `kairos_attest` finalizes every run.
+- **Full execution:** Walkthrough from **activate** through **reward**
+  ([workflow-full-execution.md](workflow-full-execution.md)).
+- **Tool workflows:** Legacy pages named `workflow-kairos-*.md` describe
+  the pre-adapter API; the **current** MCP tools are **`activate`**,
+  **`forward`**, **`reward`**, **`train`**, **`tune`**, **`export`**,
+  **`delete`**, and **`spaces`**. Authoritative agent copy lives under
+  [`src/embed-docs/tools/`](../../src/embed-docs/tools/).
 
-Protocol order is always: search → begin → next (loop) → attest.
+Protocol order: **activate** → **forward** (loop) → **reward**.
 
 ## Infrastructure
 
@@ -31,7 +31,11 @@ separate Qdrant service initialization (payload indexes, alias).
 
 ## Search query (heart of operations)
 
-[KAIROS search query architecture](search-query.md) describes how `kairos_search` works end-to-end: query normalization, space scope, Qdrant hybrid query (dense + BM25, RRF, formula), filters, attest-based score adjustment, and cache. Read this when implementing or debugging search.
+[KAIROS search query architecture](search-query.md) describes the hybrid
+search pipeline used by **`activate`**: query normalization, space scope,
+Qdrant hybrid query (dense + BM25, RRF, formula), filters, attest-based
+score adjustment, and cache. Read this when implementing or debugging
+activation/search.
 
 ## UI frontend
 
@@ -42,27 +46,39 @@ Express deployment.
 
 ## Full execution walkthrough
 
-[Full execution workflow: search to final attestation](workflow-full-execution.md)
-shows one complete run of a 3-step protocol. It includes raw JSON for
-each call and how `next_action` chains the flow.
+[Full execution workflow: activate through reward](workflow-full-execution.md)
+summarizes the current MCP tool chain, example calls, and links to embedded tool
+docs.
 
-## Tool workflow reference
+## Tool reference (current MCP surface)
 
-| Tool | Purpose |
-| ---- | ------- |
-| [kairos_search](workflow-kairos-search.md) | Find protocols by query; get `choices` and `next_action`. See [search query architecture](search-query.md) for the query pipeline. |
-| [kairos_begin](workflow-kairos-begin.md) | Load step 1 and first challenge; no solution required. |
-| [kairos_next](workflow-kairos-next.md) | Submit a solution and receive the next step or completion. |
-| [kairos_attest](workflow-kairos-attest.md) | Final step. Call after the last `kairos_next` to finalize the run. |
-| [kairos_mint](workflow-kairos-mint.md) | Store markdown as a protocol chain; handles duplicate and similar chains. |
-| [kairos_update](workflow-kairos-update.md) | Update one or more memories by URI (markdown or field updates). |
-| [kairos_delete](workflow-kairos-delete.md) | Delete one or more memories by URI. |
-| [kairos_dump](workflow-kairos-dump.md) | Read-only inspection; returns `markdown_doc` for update or re-mint. |
-| `kairos_spaces` | List accessible spaces and optional chain titles/counts. |
+| Tool | Embedded description |
+| ---- | -------------------- |
+| [activate](../../src/embed-docs/tools/activate.md) | Semantic match; returns adapter URIs and `next_action`. |
+| [forward](../../src/embed-docs/tools/forward.md) | Run adapter layers; contracts and solutions. |
+| [reward](../../src/embed-docs/tools/reward.md) | Finalize a run (replaces legacy attest). |
+| [train](../../src/embed-docs/tools/train.md) | Store adapter markdown. |
+| [tune](../../src/embed-docs/tools/tune.md) | Edit stored layers / structure. |
+| [export](../../src/embed-docs/tools/export.md) | Export markdown or datasets. |
+| [delete](../../src/embed-docs/tools/delete.md) | Delete memories by URI. |
+| [spaces](../../src/embed-docs/tools/spaces.md) | List usable space names. |
+
+## Legacy workflow docs (pre-adapter names)
+
+| Legacy page | Notes |
+| ----------- | ----- |
+| [workflow-kairos-search](workflow-kairos-search.md) | Maps to **`activate`**. See [search query architecture](search-query.md). |
+| [workflow-kairos-begin](workflow-kairos-begin.md) | First **`forward`** call (adapter URI, no solution). |
+| [workflow-kairos-next](workflow-kairos-next.md) | Subsequent **`forward`** calls. |
+| [workflow-kairos-attest](workflow-kairos-attest.md) | Maps to **`reward`**. |
+| [workflow-kairos-mint](workflow-kairos-mint.md) | Maps to **`train`**. |
+| [workflow-kairos-update](workflow-kairos-update.md) | Maps to **`tune`**. |
+| [workflow-kairos-delete](workflow-kairos-delete.md) | Maps to **`delete`**. |
+| [workflow-kairos-dump](workflow-kairos-dump.md) | Inspection via **`export`** / tooling; see embedded docs. |
+
+| Topic | Purpose |
+| ----- | ------- |
 | [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
-
-Read the tool docs in that order when tracing a full run or implementing a
-client.
 
 ## Agent recovery UX
 

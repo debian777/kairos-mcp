@@ -114,7 +114,7 @@ export function getSearchSpaceIds(): string[] {
 
 /**
  * Async variant: run fn in narrowed space context so context persists across await.
- * Use when the callback does async work (e.g. kairos_search) and getSpaceContext() must see the context.
+ * Use when the callback does async work (for example search) and getSpaceContext() must see the context.
  */
 export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefined, fn: () => Promise<T>): Promise<T> {
   if (!spaceParam || typeof spaceParam !== 'string') return fn();

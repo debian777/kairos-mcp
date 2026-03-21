@@ -2,7 +2,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { IDGenerator } from '../services/id-generator.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { logger } from '../utils/structured-logger.js';
-import type { AttestInput, AttestOutput } from './kairos_attest_schema.js';
+import type { AttestInput, AttestOutput } from './attest_schema.js';
 
 /** Shared execute: rate protocol step completion. Used by MCP tool and HTTP route. */
 export async function executeAttest(
@@ -11,7 +11,7 @@ export async function executeAttest(
 ): Promise<AttestOutput> {
   const { uri, outcome, quality_bonus = 0, message, llm_model_id } = input;
   const modelIdentity = {
-    modelId: llm_model_id || 'kairos-attest',
+    modelId: llm_model_id || 'reward',
     provider: 'unknown',
     family: 'unknown'
   };
@@ -22,9 +22,9 @@ export async function executeAttest(
 
   logger.tool('rate', 'rate', `single rating of ${uri} with outcome="${outcome}" model="${modelIdentity.modelId}"`);
 
-  for (const u of uris) {
+  for (const currentUri of uris) {
     try {
-      const qdrantUuid = IDGenerator.qdrantIdFromUri(u);
+      const qdrantUuid = IDGenerator.qdrantIdFromUri(currentUri);
       const basicQualityBonus = outcome === 'success' ? 1 : -0.2;
       const currentPoint = await qdrantService.retrieveById(qdrantUuid);
       const currentMetrics = currentPoint?.payload?.quality_metrics || {};
@@ -62,34 +62,34 @@ export async function executeAttest(
           step_quality_score: updatedQualityMetadata.step_quality_score,
           step_quality: updatedQualityMetadata.step_quality
         });
-        logger.info(`attest: Updated quality metadata for ${u} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`);
+        logger.info(`reward: Updated quality metadata for ${currentUri} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`);
       }
 
-      await modelStats.processQualityFeedback(modelIdentity.modelId, u, outcome, totalQualityBonus);
+      await modelStats.processQualityFeedback(modelIdentity.modelId, currentUri, outcome, totalQualityBonus);
       if (implementationBonus > 0) {
         await modelStats.updateImplementationBonus(modelIdentity.modelId, implementationBonus);
       }
 
       results.push({
-        uri: u,
+        uri: currentUri,
         outcome,
         quality_bonus: totalQualityBonus,
         message,
         rated_at: new Date().toISOString()
       });
       totalRated++;
-      logger.success('rate', `rated ${u} with ${outcome} (${totalQualityBonus} bonus)`);
+      logger.success('rate', `rated ${currentUri} with ${outcome} (${totalQualityBonus} bonus)`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       results.push({
-        uri: u,
+        uri: currentUri,
         outcome,
         quality_bonus: 0,
-        message: `Failed to rate ${u}: ${errorMessage}`,
+        message: `Failed to rate ${currentUri}: ${errorMessage}`,
         rated_at: new Date().toISOString()
       });
       totalFailed++;
-      logger.error(`rate failed for ${u}`, error);
+      logger.error(`rate failed for ${currentUri}`, error);
     }
   }
 

@@ -1,7 +1,7 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
-import type { MintInput, MintOutput } from './kairos_mint_schema.js';
+import type { MintInput, MintOutput } from './mint_schema.js';
 
 /** Thrown by executeMint on validation or store errors. */
 export class MintError extends Error {
@@ -29,7 +29,7 @@ export async function executeMint(
     throw new MintError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
       missing: validation.missing,
       must_obey: true,
-      next_action: `call kairos_begin with ${CREATION_PROTOCOL_URI} for guided protocol creation`
+      next_action: `call forward with ${CREATION_PROTOCOL_URI} for guided adapter creation`
     });
   }
   const memories = await runStore(() =>

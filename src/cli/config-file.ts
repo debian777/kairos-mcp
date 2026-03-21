@@ -7,7 +7,7 @@
  *
  * New format:
  *   { "defaultUrl": "http://localhost:3300", "environments": { "http://localhost:3300": { "bearerToken": "..." }, ... } }
- * Legacy (single env): { "KAIROS_API_URL": "...", "bearerToken": "..." } — migrated on first write.
+ * Older single-env shape: { "KAIROS_API_URL": "...", "bearerToken": "..." } — migrated on first write.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -45,12 +45,12 @@ interface EnvironmentEntry {
 interface ConfigFileShape {
     defaultUrl?: string;
     environments?: Record<string, EnvironmentEntry>;
-    // Legacy top-level keys (migrated on write)
+    // Older top-level keys (migrated on write)
     KAIROS_API_URL?: string;
     bearerToken?: string;
 }
 
-function isLegacyFormat(parsed: ConfigFileShape): boolean {
+function isSingleEnvFlatConfig(parsed: ConfigFileShape): boolean {
     return (
         parsed.environments === undefined &&
         (parsed.KAIROS_API_URL !== undefined || parsed.bearerToken !== undefined)
@@ -100,7 +100,7 @@ export function getDefaultApiUrlFromFile(): string | undefined {
     const path = getConfigPath();
     const parsed = parseConfigFile(path);
     if (!parsed) return undefined;
-    if (isLegacyFormat(parsed) && typeof parsed.KAIROS_API_URL === 'string') {
+    if (isSingleEnvFlatConfig(parsed) && typeof parsed.KAIROS_API_URL === 'string') {
         return normalizeApiUrl(parsed.KAIROS_API_URL);
     }
     if (typeof parsed.defaultUrl === 'string') return normalizeApiUrl(parsed.defaultUrl);
@@ -122,7 +122,7 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
     let effectiveUrl: string | undefined;
     let tokenFromFile: string | undefined;
 
-    if (isLegacyFormat(parsed)) {
+    if (isSingleEnvFlatConfig(parsed)) {
         const apiUrl = typeof parsed.KAIROS_API_URL === 'string' ? parsed.KAIROS_API_URL : undefined;
         tokenFromFile = typeof parsed.bearerToken === 'string' ? parsed.bearerToken : undefined;
         if (baseUrl) {
@@ -171,7 +171,7 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
         token = tokenFromFile;
         if (stored) {
             const parsed2 = parseConfigFile(path);
-            if (parsed2 && !isLegacyFormat(parsed2)) {
+            if (parsed2 && !isSingleEnvFlatConfig(parsed2)) {
                 const envs = { ...(parsed2.environments ?? {}) };
                 const ent = envs[effectiveUrl];
                 if (ent) {
@@ -210,7 +210,7 @@ export async function writeConfig(partial: WriteConfigInput): Promise<void> {
     let defaultUrl: string | undefined;
     let environments: Record<string, EnvironmentEntry>;
 
-    if (!parsed || isLegacyFormat(parsed)) {
+    if (!parsed || isSingleEnvFlatConfig(parsed)) {
         defaultUrl =
             typeof parsed?.KAIROS_API_URL === 'string'
                 ? normalizeApiUrl(parsed.KAIROS_API_URL)

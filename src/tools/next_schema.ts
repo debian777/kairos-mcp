@@ -1,14 +1,17 @@
 /**
- * kairos_next input/output schemas (zod-only).
+ * Step-engine input/output schemas used by the forward runtime.
  * V2: removed next_step, protocol_status, attest_required, final_challenge.
  * Renamed genesis_hash -> proof_hash, previousProofHash -> proof_hash, last_proof_hash -> proof_hash.
- * Added error_code, retry_count for two-phase retry escalation.
+ * Added error_code and retry_count for two-phase retry escalation.
  */
 import { z } from 'zod';
 
-const memoryUriSchema = z
+const layerUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .regex(
+    /^kairos:\/\/layer\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i,
+    'must match kairos://layer/{uuid}[?execution_id={uuid}]'
+  );
 
 export const solutionSchema = z.object({
   type: z.enum(['shell', 'mcp', 'user_input', 'comment']).describe('Must match challenge.type'),
@@ -72,20 +75,20 @@ const challengeSchema = z.object({
   }).optional()
 });
 
-export const kairosNextInputSchema = z.object({
-  uri: memoryUriSchema.describe('Current step URI (from next_action of previous response)'),
+export const nextInputSchema = z.object({
+  uri: layerUriSchema.describe('Current layer URI (from next_action of previous response)'),
   solution: solutionSchema.describe('Proof matching challenge.type: shell/mcp/user_input/comment')
 });
 
-export const kairosNextOutputSchema = z.object({
+export const nextOutputSchema = z.object({
   must_obey: z.boolean().describe('true for success and recoverable errors, false after max retries'),
   current_step: z.object({
-    uri: memoryUriSchema,
+    uri: layerUriSchema,
     content: z.string(),
     mimeType: z.literal('text/markdown')
   }).optional().nullable(),
   challenge: challengeSchema,
-  next_action: z.string().describe('Next tool call with embedded kairos://mem/ URI'),
+  next_action: z.string().describe('Next tool call with embedded kairos://layer/ URI'),
   proof_hash: z.string().optional().describe('Hash of proof just stored. Use as solution.proof_hash for next step.'),
   message: z.string().optional(),
   error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
@@ -93,4 +96,4 @@ export const kairosNextOutputSchema = z.object({
 });
 
 export type SolutionSubmission = z.infer<typeof solutionSchema>;
-export { memoryUriSchema };
+export { layerUriSchema };

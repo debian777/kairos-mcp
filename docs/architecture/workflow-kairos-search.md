@@ -1,5 +1,7 @@
 # kairos_search workflow
 
+> **Current MCP tool:** **`activate`**. See [`activate.md`](../../src/embed-docs/tools/activate.md). This page keeps the legacy **`kairos_search`** name for reference.
+
 `kairos_search` returns a unified `choices` array for all scenarios. Every
 response has `must_obey: true`. Each choice has its own `next_action`.
 The `refine` choice (role `refine`) points to a built-in protocol the

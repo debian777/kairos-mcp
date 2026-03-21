@@ -123,7 +123,7 @@ export async function createOrUpdateAlias(conn: QdrantConnection, aliasName: str
 const BACKFILL_BATCH_SIZE = 256;
 
 /**
- * Backfill space_id for points that lack it (idempotent). Uses KAIROS_APP_SPACE_ID for legacy points.
+ * Backfill space_id for points that lack it (idempotent). Uses KAIROS_APP_SPACE_ID for older points.
  */
 export async function backfillSpaceId(conn: QdrantConnection): Promise<{ updated: number }> {
   return conn.executeWithReconnect(async () => {
