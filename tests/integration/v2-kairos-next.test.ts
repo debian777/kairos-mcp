@@ -1,5 +1,5 @@
 /**
- * V10 forward continuation response shape tests (with solution; formerly kairos_next).
+ * Forward continuation response shape tests (with solution).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
@@ -25,7 +25,7 @@ async function getPointPayload(pointId: string): Promise<Record<string, unknown>
   }
 }
 
-describe('V10 forward continuation response schema', () => {
+describe('v10-forward continuation response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {

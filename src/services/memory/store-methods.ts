@@ -106,7 +106,7 @@ export class MemoryQdrantStoreMethods {
   /**
    * Hybrid search: dense + BM25 via Query API with formula-based adapter-title
    * boosting. The storage layer currently persists both adapter.* and chain.*
-   * fields while the codebase moves to v10 naming.
+   * fields while the codebase moves to adapter-oriented naming.
    */
   private async vectorSearch(query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
     const queryEmbeddingResult = await embeddingService.generateEmbedding(query);

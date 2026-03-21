@@ -20,7 +20,7 @@ export interface ContractBlockMatch {
 
 /**
  * Parse a fenced JSON payload and return a normalized inference contract.
- * v10 prefers {"contract": ...}, but older {"challenge": ...} continues to
+ * Current format prefers {"contract": ...}, but older {"challenge": ...} continues to
  * parse so existing stored content can be migrated offline without breaking
  * internal helpers during the refactor.
  */
@@ -124,5 +124,4 @@ export function extractInferenceContract(content: string): { cleaned: string; co
   return { cleaned: content.trim() };
 }
 
-// Transitional aliases kept while the internal codebase moves to v10 naming.
-
+// Transitional aliases kept while the internal codebase moves to adapter-oriented naming.

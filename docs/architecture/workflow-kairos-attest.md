@@ -1,42 +1,36 @@
 # reward workflow
 
-> **Current MCP tool:** **`reward`** on the final **layer** URI. See [`reward.md`](../../src/embed-docs/tools/reward.md).
+> **Current MCP tool:** **`reward`**. Finalizes an adapter run on the **final
+> layer** URI. See [`reward.md`](../../src/embed-docs/tools/reward.md).
 
-`reward` is the required final step of every protocol run. When the
-last `forward` (or `kairos_begin` for a single-step protocol) has no
-more content steps, `next_action` always directs the AI to call
-`reward` with the last step URI, an outcome, and a message. Calling
-it finalizes the run, updates quality metrics on the step and on the chain
-head in Qdrant, and feeds into search scoring (attest-based boost).
-
-No `final_solution` is required — the last step's challenge was already
-validated by `forward`.
+**`reward`** runs after **`forward`** has validated the last layer’s contract
+and **`next_action`** tells you to finalize. It records outcome (and optional
+evaluator fields) and completes the run.
 
 ## Input schema
 
 ```json
 {
-  "uri": "kairos://mem/<uuid>",
-  "outcome": "<success|failure>",
-  "message": "<string>",
-  "quality_bonus": "<number, optional, default 0>",
-  "llm_model_id": "<string, optional>"
+  "uri": "kairos://layer/ccc33333-3333-3333-3333-333333333333?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "outcome": "success",
+  "message": "<non-empty summary>",
+  "score": 0.95,
+  "feedback": "<optional evaluator note>",
+  "rater": "<optional>",
+  "rubric_version": "<optional>",
+  "llm_model_id": "<optional>"
 }
 ```
 
 Fields:
 
-- `uri` — the URI of the last step in the protocol
-- `outcome` — `"success"` or `"failure"`
-- `message` — short summary of how the protocol went (required, non-empty)
-- `quality_bonus` — optional; added to the computed bonus (default 0)
-- `llm_model_id` — optional; used for attribution and implementation bonus
-
-Fields that no longer exist:
-
-- `final_solution` — removed; the last step's challenge is solved via
-  `forward` like every other step. `reward` is a completion
-  stamp, not a challenge/solution gate.
+- **`uri`** — **layer** URI from **`forward`** (include **`?execution_id=`**
+  when the run used it). Do not substitute an adapter URI unless the tool
+  description explicitly allows it.
+- **`outcome`** — **`success`** or **`failure`**.
+- **`message`** — short summary (required).
+- **`score`**, **`feedback`**, **`rater`**, **`rubric_version`**, **`llm_model_id`**
+  — optional evaluator metadata per schema.
 
 ## Response schema
 
@@ -44,49 +38,12 @@ Fields that no longer exist:
 {
   "results": [
     {
-      "uri": "kairos://mem/<uuid>",
-      "outcome": "<success|failure>",
-      "quality_bonus": "<number>",
-      "message": "<string>",
-      "rated_at": "<ISO timestamp>"
-    }
-  ],
-  "total_rated": "<number>",
-  "total_failed": "<number>"
-}
-```
-
-Fields:
-
-- `results` — array of rating outcomes (one per URI attested)
-- Each result has `uri`, `outcome`, `quality_bonus` (computed: basic + implementation bonus + optional input; success typically 1, failure -0.2), `message`, `rated_at`
-- `total_rated` — count of URIs that were successfully rated
-- `total_failed` — count of URIs for which the rating call failed
-
-## Scenario 1: success attestation
-
-The protocol completed successfully. Quality metrics are boosted.
-
-### Input
-
-```json
-{
-  "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
-  "outcome": "success",
-  "message": "All steps completed. Project structure created and verified."
-}
-```
-
-### Expected output
-
-```json
-{
-  "results": [
-    {
-      "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
+      "uri": "kairos://layer/ccc33333-3333-3333-3333-333333333333?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       "outcome": "success",
-      "quality_bonus": 1,
-      "message": "All steps completed. Project structure created and verified.",
+      "score": 0.95,
+      "feedback": null,
+      "rater": null,
+      "rubric_version": null,
       "rated_at": "2026-02-16T10:30:00.000Z"
     }
   ],
@@ -95,66 +52,24 @@ The protocol completed successfully. Quality metrics are boosted.
 }
 ```
 
-(Success typically yields `quality_bonus` 1 plus any implementation bonus; failure yields -0.2. Metrics are written to the step and propagated to the chain head so search can use them for attest-based score adjustment.)
+## Scenario: success
 
-### AI behavior
+After **`reward`**, the run is complete; you may answer the end user.
 
-After attestation the protocol run is complete. The AI may now respond to
-the user.
+## Scenario: failure
 
-## Scenario 2: failure attestation
-
-The protocol failed (for example, max retries exceeded, or the AI aborted).
-Quality metrics are penalized.
-
-### Input
-
-```json
-{
-  "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
-  "outcome": "failure",
-  "message": "Step 2 failed: permission denied when creating config file."
-}
-```
-
-### Expected output
-
-```json
-{
-  "results": [
-    {
-      "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
-      "outcome": "failure",
-      "quality_bonus": -0.2,
-      "message": "Step 2 failed: permission denied when creating config file.",
-      "rated_at": "2026-02-16T10:35:00.000Z"
-    }
-  ],
-  "total_rated": 1,
-  "total_failed": 0
-}
-```
-
-### AI behavior
-
-After failure attestation the protocol run is complete. The AI informs the
-user about what went wrong.
+Use **`outcome: "failure"`** and explain what went wrong in **`message`**.
 
 ## Validation rules
 
-1. `results` is always a non-empty array.
-2. Each result has `uri`, `outcome`, `quality_bonus`, `message`, and
-   `rated_at`.
-3. `total_rated` + `total_failed` equals `results.length`.
-4. `rated_at` is a valid ISO 8601 timestamp.
-5. The `final_solution` field must not be present in the input.
-6. Input may include optional `quality_bonus` and `llm_model_id`.
+1. **`results`** is non-empty when the call succeeds.
+2. **`total_rated`** + **`total_failed`** matches the result rows.
+3. **`rated_at`** is ISO 8601.
 
 ## See also
 
-- [forward workflow](workflow-kairos-next.md) — how the last step
-  directs the AI to call `reward`
+- [forward (subsequent calls)](workflow-kairos-next.md)
 - [Full execution workflow](workflow-full-execution.md)
-- [Search query architecture](search-query.md) — attest-based score adjustment uses `successCount` / `failureCount` propagated to the chain head
-- [Quality metadata](quality-metadata.md) — how attestation updates
-  quality scores and metadata
+- [Search query architecture](search-query.md) — ranking may use success /
+  failure signals on stored adapters.
+- [Quality metadata](quality-metadata.md)

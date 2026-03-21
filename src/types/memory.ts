@@ -106,12 +106,12 @@ export interface Memory {
   activation_patterns?: string[];
   /**
    * Transitional aliases kept for internal refactors only.
-   * Public v10 surfaces must use adapter / inference_contract.
+   * Public surfaces must use adapter / inference_contract.
    */
   chain?: ChainInfo;
   proof_of_work?: InferenceContractDefinition;
 }
 
-// Transitional alias kept to reduce churn while the internal codebase moves to v10 terms.
+// Transitional alias kept to reduce churn while the internal codebase moves to adapter terminology.
 export type ProofOfWorkType = Exclude<InferenceContractType, 'tensor'>;
 export type ProofOfWorkDefinition = InferenceContractDefinition;

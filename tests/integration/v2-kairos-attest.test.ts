@@ -1,5 +1,5 @@
 /**
- * V10 reward response shape tests (formerly kairos_attest).
+ * Reward tool response shape tests.
  * Allowed keys for each result item; must match tool outputSchema (additionalProperties: false).
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
@@ -8,7 +8,7 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
 const REWARD_RESULT_KEYS = ['uri', 'outcome', 'score', 'feedback', 'rater', 'rubric_version', 'rated_at'] as const;
 
-describe('V10 reward response schema', () => {
+describe('v10-reward response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {

@@ -70,7 +70,7 @@ activate(query)
 ```
 
 - `must_obey: true` → follow `next_action`.
-- Retry failures with the **fresh** `challenge` in the error payload; do not
+- Retry failures with the **fresh** `contract` in the error payload; do not
   restart the run from `activate` unless the tool text says so.
 
 ## See also
@@ -79,10 +79,10 @@ activate(query)
   pipeline behind **`activate`**.
 - Embedded tool docs under [`src/embed-docs/tools/`](../../src/embed-docs/tools/).
 
-## Historical note
+## Note on `workflow-kairos-*.md` filenames
 
-Older docs referred to `activate` → `kairos_begin` → `forward` →
-`reward`. The **logical** flow (match → run layers → finalize) is the
-same; **tool names and URI schemes** changed in the adapter model. The
-`workflow-kairos-*.md` files in this folder retain older naming for archive
-reference and point here for the current surface.
+Those pages are **companion narratives** aligned with this file and with
+`src/embed-docs/tools/*.md`. The filenames are historical; the described
+**MCP tools** are **`activate`**, **`forward`**, **`reward`**, **`train`**,
+**`tune`**, **`export`**, **`delete`**, **`spaces`**, with **`kairos://adapter/`**
+and **`kairos://layer/`** execution URIs.

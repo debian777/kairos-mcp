@@ -135,7 +135,7 @@ Done.`;
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
-      // V10 activate: exact top-level keys (canonical shape; no metadata in spec)
+      // Activate HTTP response: exact top-level keys (canonical shape; no metadata in spec)
       const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action'];
       expect(Object.keys(data).sort()).toEqual([...canonicalSearchKeys].sort());
       expect(data.must_obey).toBe(true);
