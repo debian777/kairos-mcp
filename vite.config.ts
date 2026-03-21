@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   build: {
+    /** CSP sets `img-src 'self'` (helmet). Inlined `data:image/*` logos are blocked — emit assets as /ui/assets/* URLs. */
+    assetsInlineLimit: 0,
     outDir: path.resolve(__dirname, "dist/ui"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 600,
