@@ -185,20 +185,25 @@ export class RedisCacheService {
   // Invalidate the cached activation/search result set
   async invalidateBeginCache(): Promise<void> {
     try {
-      logger.debug(`[RedisCacheService] Begin cache invalidation requested`);
-      // Delete keys matching begin cache pattern
-      const keys = await keyValueStore.keys('begin:*');
-      if (!keys || keys.length === 0) {
-        logger.debug('[RedisCacheService] No begin cache keys to delete');
+      logger.debug(`[RedisCacheService] Begin/activate cache invalidation requested`);
+      const patterns = ['begin:*', 'activate:*'];
+      const merged: string[] = [];
+      for (const pattern of patterns) {
+        const keys = await keyValueStore.keys(pattern);
+        if (keys?.length) merged.push(...keys);
+      }
+      if (merged.length === 0) {
+        logger.debug('[RedisCacheService] No begin/activate cache keys to delete');
         return;
       }
+      const unique = [...new Set(merged)];
       // Keys returned are full Redis keys (prefix + spaceId + logicalKey); strip to get logicalKey for del()
       const keyPrefix = `${KAIROS_REDIS_PREFIX}${getSpaceIdFromStorage()}:`;
-      const stripped: string[] = keys.map(k =>
+      const stripped: string[] = unique.map(k =>
         k.startsWith(keyPrefix) ? k.slice(keyPrefix.length) : k
       );
       await Promise.all(stripped.map(k => keyValueStore.del(k)));
-      logger.debug(`[RedisCacheService] Invalidated ${stripped.length} begin cache keys`);
+      logger.debug(`[RedisCacheService] Invalidated ${stripped.length} begin/activate cache keys`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate begin cache:', error);
     }

@@ -1,28 +1,27 @@
-import { buildBeginSchemas } from '../../src/tools/kairos_begin_schema.js';
+import { forwardInputSchema } from '../../src/tools/forward_schema.js';
 
-const { inputSchema } = buildBeginSchemas();
+const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+const LAYER_URI = 'kairos://layer/00000000-0000-0000-0000-000000000002';
+const LAYER_WITH_EXEC = `${LAYER_URI}?execution_id=00000000-0000-0000-0000-000000000003`;
 
-describe('kairos_begin input schema', () => {
-  test('requires uri or key', () => {
-    const r = inputSchema.safeParse({});
+describe('forward input schema (entry pass without solution)', () => {
+  test('requires uri', () => {
+    const r = forwardInputSchema.safeParse({});
     expect(r.success).toBe(false);
   });
 
-  test('accepts uri only', () => {
-    const r = inputSchema.safeParse({ uri: 'kairos://mem/00000000-0000-0000-0000-000000000001' });
+  test('accepts adapter uri without solution', () => {
+    const r = forwardInputSchema.safeParse({ uri: ADAPTER_URI });
     expect(r.success).toBe(true);
   });
 
-  test('accepts key only', () => {
-    const r = inputSchema.safeParse({ key: 'my-protocol-slug' });
+  test('accepts layer uri without solution', () => {
+    const r = forwardInputSchema.safeParse({ uri: LAYER_URI });
     expect(r.success).toBe(true);
   });
 
-  test('accepts both uri and key (uri wins at runtime)', () => {
-    const r = inputSchema.safeParse({
-      uri: 'kairos://mem/00000000-0000-0000-0000-000000000002',
-      key: 'ignored'
-    });
+  test('accepts layer uri with execution_id query', () => {
+    const r = forwardInputSchema.safeParse({ uri: LAYER_WITH_EXEC });
     expect(r.success).toBe(true);
   });
 });

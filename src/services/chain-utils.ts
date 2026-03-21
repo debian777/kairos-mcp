@@ -1,5 +1,6 @@
 import { qdrantService as globalQdrantService } from './qdrant/index.js';
 import type { Memory } from '../types/memory.js';
+import { buildAdapterUri } from '../tools/kairos-uri.js';
 
 export interface ResolvedChainStep {
     uuid: string;
@@ -28,12 +29,14 @@ export async function resolveFirstStep(
         layer_index: memory.chain.step_index,
         layer_count: memory.chain.step_count
     } : undefined);
+    const adapterId = adapter?.id ?? memory.chain?.id ?? memory.memory_uuid;
+    const adapterUri = buildAdapterUri(adapterId);
     if (!adapter || adapter.layer_index === 1) {
-        return { uri: `kairos://mem/${memory.memory_uuid}`, label: String(memory.label || 'Memory') };
+        return { uri: adapterUri, label: String(memory.label || 'Memory') };
     }
 
     const points: any[] = await getChainPoints(adapter.id, qdrantService);
-    if (!Array.isArray(points) || points.length === 0) return { uri: `kairos://mem/${memory.memory_uuid}`, label: String(memory.label || 'Memory') };
+    if (!Array.isArray(points) || points.length === 0) return { uri: adapterUri, label: String(memory.label || 'Memory') };
 
     const head = points
         .map(pt => ({
@@ -43,8 +46,8 @@ export async function resolveFirstStep(
         }))
         .sort((a, b) => (a.step ?? Number.MAX_SAFE_INTEGER) - (b.step ?? Number.MAX_SAFE_INTEGER))[0];
 
-    if (head && head.uuid) return { uri: `kairos://mem/${head.uuid}`, label: head.label };
-    return { uri: `kairos://mem/${memory.memory_uuid}`, label: String(memory.label || 'Memory') };
+    if (head && head.uuid) return { uri: adapterUri, label: String(head.label || memory.label || 'Memory') };
+    return { uri: adapterUri, label: String(memory.label || 'Memory') };
 }
 
 export async function resolveChainFirstStep(

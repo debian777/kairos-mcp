@@ -1,10 +1,10 @@
-# kairos_delete workflow
+# delete workflow
 
 > **Current MCP tool:** **`delete`**. See [`delete.md`](../../src/embed-docs/tools/delete.md).
 
-`kairos_delete` deletes one or more KAIROS memories by URI. Use it when
+`delete` deletes one or more KAIROS memories by URI. Use it when
 the user wants to delete, remove, purge, or clean KAIROS content. Resolve
-target URIs first (for example, via `kairos_search` or chain navigation).
+target URIs first (for example, via `activate` or chain navigation).
 Each URI is deleted independently; partial success is possible.
 
 ## Input schema
@@ -166,7 +166,7 @@ when `total_failed` > 0.
 
 ## See also
 
-- [kairos_search workflow](workflow-kairos-search.md) — obtain URIs before
+- [activate workflow](workflow-kairos-search.md) — obtain URIs before
   deleting
-- [kairos_dump workflow](workflow-kairos-dump.md) — inspect content before
+- [export workflow](workflow-kairos-dump.md) — inspect content before
   deleting

@@ -66,8 +66,8 @@ stay consistent.
 
 The UI keeps server interactions in hooks rather than inside page
 components. Current hooks cover auth, protocol search and fetch, spaces,
-and the guided run flow (`kairos_begin`, `kairos_next`,
-`kairos_attest`).
+and the guided run flow (`kairos_begin`, `forward`,
+`reward`).
 
 This split keeps pages focused on user flow and lets TanStack Query own
 loading, error, and cache state.
@@ -81,7 +81,7 @@ worth calling out explicitly.
 
 `ProtocolEditPage` is a markdown-first editor with upload, validation,
 preview, and save behavior. New protocols are created through
-`/api/kairos_mint/raw`, while edits go through `/api/kairos_update`.
+`/api/train/raw`, while edits go through `/api/kairos_update`.
 
 The editor validates for an H1 title plus the required `Natural language
 triggers` and `Completion rule` sections before submission.
@@ -89,7 +89,7 @@ triggers` and `Completion rule` sections before submission.
 ### Guided test runs
 
 `RunGuidedPage` starts a run with `kairos_begin`, advances steps with
-`kairos_next`, and finishes with `kairos_attest`. Browser-side session
+`forward`, and finishes with `reward`. Browser-side session
 state is persisted through the run-session hooks so a user can resume a
 manual test run on the same device.
 

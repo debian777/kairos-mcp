@@ -8,6 +8,8 @@ const config: KnipConfig = {
         'src/metrics-server.ts',  // Standalone metrics server
         'src/ui/main.tsx',        // UI entry (Vite)
         'scripts/**/*.{ts,mjs}',  // Build-time scripts
+        'eslint.config.cjs',      // ESLint entry (loads @typescript-eslint/*)
+        'eslint/flat-config.cjs',
     ],
     project: [
         'src/**/*.ts',
@@ -27,8 +29,8 @@ const config: KnipConfig = {
         'src/resources/embedded-mcp-resources.ts',
         // Vite ambient types and module declarations; not imported by source
         'src/ui/vite-env.d.ts',
-        // Schema files: exported *Input/*Output types are for UI/CLI (Phase 2); schemas used by tools and tests
-        'src/tools/kairos_*_schema.ts',
+        // Zod schema modules: tool input/output shapes; some exports are only for MCP hosts / tests
+        'src/tools/**/*_schema.ts',
     ],
     ignoreDependencies: [
         // Loaded via createRequire in src/cli/keyring.ts (dynamic require for ESM)

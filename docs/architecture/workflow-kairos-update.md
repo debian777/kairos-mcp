@@ -5,7 +5,7 @@
 `kairos_update` updates one or more KAIROS memories by URI. Use it when
 the user wants to replace, modify, update, edit, or change existing
 content. Prefer `markdown_doc` for content changes; use `updates` for
-targeted field-level changes. `kairos_next` references this tool when max
+targeted field-level changes. `forward` references this tool when max
 retries are exceeded and the agent chooses to fix a broken step.
 
 ## Input schema
@@ -23,7 +23,7 @@ Fields:
 - `uris` — non-empty array of `kairos://mem/{uuid}` URIs to update.
 - `markdown_doc` — optional. Array of markdown strings; length must match
   `uris`. Each string is the new body or full KAIROS render. When
-  `<!-- KAIROS:BODY-START -->` / `<!-- KAIROS:BODY-END -->` markers are
+  `<!-- KAIROS-BODY-START -->` / `<!-- KAIROS-BODY-END -->` markers are
   present, only the body between them is extracted and stored as `text`.
 - `updates` — optional. Record of field names to values applied to each
   URI. If `updates.text` contains KAIROS body markers, the body is
@@ -94,9 +94,9 @@ Set up configuration files.
 
 ### AI behavior
 
-Use this after fixing a broken step (for example, when `kairos_next`
+Use this after fixing a broken step (for example, when `forward`
 returned `MAX_RETRIES_EXCEEDED` and the agent chose to fix the step). Then
-retry `kairos_next` or inform the user that the protocol was updated.
+retry `forward` or inform the user that the protocol was updated.
 
 ## Scenario 2: update multiple memories (markdown_doc)
 
@@ -240,7 +240,7 @@ when `total_failed` > 0.
 
 ## See also
 
-- [kairos_dump workflow](workflow-kairos-dump.md) — read content before
+- [export workflow](workflow-kairos-dump.md) — read content before
   updating
-- [kairos_next workflow](workflow-kairos-next.md) — references
+- [forward workflow](workflow-kairos-next.md) — references
   `kairos_update` in the max-retries recovery path

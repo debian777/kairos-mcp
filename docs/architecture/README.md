@@ -10,7 +10,7 @@ works end-to-end and how each MCP tool fits into the flow.
   volume layout, and service wiring — all with Mermaid diagrams.
 - **Full execution:** Walkthrough from **activate** through **reward**
   ([workflow-full-execution.md](workflow-full-execution.md)).
-- **Tool workflows:** Legacy pages named `workflow-kairos-*.md` describe
+- **Tool workflows:** Older pages named `workflow-kairos-*.md` describe
   the pre-adapter API; the **current** MCP tools are **`activate`**,
   **`forward`**, **`reward`**, **`train`**, **`tune`**, **`export`**,
   **`delete`**, and **`spaces`**. Authoritative agent copy lives under
@@ -56,16 +56,16 @@ docs.
 | ---- | -------------------- |
 | [activate](../../src/embed-docs/tools/activate.md) | Semantic match; returns adapter URIs and `next_action`. |
 | [forward](../../src/embed-docs/tools/forward.md) | Run adapter layers; contracts and solutions. |
-| [reward](../../src/embed-docs/tools/reward.md) | Finalize a run (replaces legacy attest). |
+| [reward](../../src/embed-docs/tools/reward.md) | Finalize a run (replaces older attest). |
 | [train](../../src/embed-docs/tools/train.md) | Store adapter markdown. |
 | [tune](../../src/embed-docs/tools/tune.md) | Edit stored layers / structure. |
 | [export](../../src/embed-docs/tools/export.md) | Export markdown or datasets. |
 | [delete](../../src/embed-docs/tools/delete.md) | Delete memories by URI. |
 | [spaces](../../src/embed-docs/tools/spaces.md) | List usable space names. |
 
-## Legacy workflow docs (pre-adapter names)
+## Older workflow docs (pre-adapter names)
 
-| Legacy page | Notes |
+| Older page | Notes |
 | ----------- | ----- |
 | [workflow-kairos-search](workflow-kairos-search.md) | Maps to **`activate`**. See [search query architecture](search-query.md). |
 | [workflow-kairos-begin](workflow-kairos-begin.md) | First **`forward`** call (adapter URI, no solution). |

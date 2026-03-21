@@ -1,11 +1,11 @@
-# kairos_next workflow
+# forward workflow
 
 > **Current MCP tool:** **`forward`** with a **layer** URI and a `solution` matching `contract.type`. See [`forward.md`](../../src/embed-docs/tools/forward.md).
 
-`kairos_next` submits a solution for the current step's challenge and
+`forward` submits a solution for the current step's challenge and
 returns the next step. Use it for steps 2 and later (step 1 uses
 `kairos_begin`). On the last step, `next_action` directs the AI to call
-`kairos_attest`.
+`reward`.
 
 ## Response schema
 
@@ -45,7 +45,7 @@ Fields that no longer exist:
 - `next_step` — removed; the URI for the next call is in `next_action`
 - `protocol_status` — removed; `must_obey` + `next_action` is sufficient
 - `attest_required` — removed; the last step returns `next_action`
-  directing the AI to call `kairos_attest`
+  directing the AI to call `reward`
 - `genesis_hash` — renamed to `proof_hash`
 - `previousProofHash` — renamed to `proof_hash` (in solution input)
 - `last_proof_hash` — renamed to `proof_hash` (in response output)
@@ -54,7 +54,7 @@ Fields that no longer exist:
 **Proof hash flow:**
 
 - `challenge.proof_hash` — server-generated hash. Echo it back as
-  `solution.proof_hash` in the next `kairos_next` call.
+  `solution.proof_hash` in the next `forward` call.
 - Top-level `proof_hash` in the response — hash of the proof just stored.
   Use it as `solution.proof_hash` for the following step.
 - The AI never computes hashes. The server generates them; the AI echoes.
@@ -62,7 +62,7 @@ Fields that no longer exist:
 ## Scenario 1: continue (more steps remain)
 
 The solution is accepted and the next step is returned. The AI reads
-`next_action` to get the URI for the next `kairos_next` call.
+`next_action` to get the URI for the next `forward` call.
 
 ### Input
 
@@ -102,7 +102,7 @@ The solution is accepted and the next step is returned. The AI reads
       "timeout_seconds": 5
     }
   },
-  "next_action": "call kairos_next with kairos://mem/ccc33333-3333-3333-3333-333333333333 and solution matching challenge",
+  "next_action": "call forward with kairos://mem/ccc33333-3333-3333-3333-333333333333 and solution matching challenge",
   "proof_hash": "7d2f8e3a1b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0"
 }
 ```
@@ -115,7 +115,7 @@ The solution is accepted and the next step is returned. The AI reads
 3. Read `current_step.content` for the next task.
 4. Execute the challenge.
 5. Read `next_action` to get the next URI.
-6. Call `kairos_next`:
+6. Call `forward`:
 
 ```json
 {
@@ -137,7 +137,7 @@ The solution is accepted and the next step is returned. The AI reads
 ## Scenario 2: completed (last step)
 
 The solution is accepted and no more steps remain. The AI must call
-`kairos_attest` as instructed by `next_action`.
+`reward` as instructed by `next_action`.
 
 ### Input
 
@@ -178,8 +178,8 @@ The solution is accepted and no more steps remain. The AI must call
       "timeout_seconds": 5
     }
   },
-  "message": "Protocol steps complete. Call kairos_attest to finalize.",
-  "next_action": "call kairos_attest with kairos://mem/ccc33333-3333-3333-3333-333333333333 and outcome (success or failure) and message to complete the protocol",
+  "message": "Protocol steps complete. Call reward to finalize.",
+  "next_action": "call reward with kairos://mem/ccc33333-3333-3333-3333-333333333333 and outcome (success or failure) and message to complete the protocol",
   "proof_hash": "9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0"
 }
 ```
@@ -187,7 +187,7 @@ The solution is accepted and no more steps remain. The AI must call
 ### AI behavior
 
 1. `must_obey: true` — follow `next_action`.
-2. Call `kairos_attest` with the given URI and outcome/message:
+2. Call `reward` with the given URI and outcome/message:
 
 ```json
 {
@@ -238,7 +238,7 @@ response includes a fresh `challenge` with a new nonce.
     }
   },
   "message": "Nonce mismatch. Use the nonce from this response's challenge.",
-  "next_action": "retry kairos_next with kairos://mem/bbb22222-2222-2222-2222-222222222222 -- use nonce and proof_hash from THIS response's challenge",
+  "next_action": "retry forward with kairos://mem/bbb22222-2222-2222-2222-222222222222 -- use nonce and proof_hash from THIS response's challenge",
   "error_code": "NONCE_MISMATCH",
   "retry_count": 1
 }
@@ -249,7 +249,7 @@ response includes a fresh `challenge` with a new nonce.
 1. `must_obey: true` — follow `next_action`.
 2. Read `error_code` and `message` to understand what went wrong.
 3. Read the fresh `challenge` — it has a new `nonce`.
-4. Re-execute the command if needed, then retry `kairos_next` with the
+4. Re-execute the command if needed, then retry `forward` with the
    corrected solution using the nonce from this response's challenge.
 
 ## Scenario 3b: error — max retries exceeded (after 3 failures)
@@ -278,7 +278,7 @@ choose the best recovery path.
     }
   },
   "message": "Step failed 3 times. Use your judgment to recover.",
-  "next_action": "Options: (1) call kairos_update with kairos://mem/bbb22222-2222-2222-2222-222222222222 to fix the step for future executions (2) call kairos_attest with kairos://mem/bbb22222-2222-2222-2222-222222222222 and outcome failure to abort (3) ask the user for help",
+  "next_action": "Options: (1) call kairos_update with kairos://mem/bbb22222-2222-2222-2222-222222222222 to fix the step for future executions (2) call reward with kairos://mem/bbb22222-2222-2222-2222-222222222222 and outcome failure to abort (3) ask the user for help",
   "error_code": "MAX_RETRIES_EXCEEDED",
   "retry_count": 3
 }
@@ -291,7 +291,7 @@ choose the best recovery path.
 - **Fix the step:** Call `kairos_update` to improve the step content (for
   example, fix a broken command), then retry. This makes the protocol
   self-healing.
-- **Abort:** Call `kairos_attest` with `outcome: failure` to end the run
+- **Abort:** Call `reward` with `outcome: failure` to end the run
   and inform the user.
 - **Ask the user:** Present the problem and ask for guidance.
 
@@ -332,7 +332,7 @@ decision-making:
 ## See also
 
 - [kairos_begin workflow](workflow-kairos-begin.md)
-- [kairos_attest workflow](workflow-kairos-attest.md)
+- [reward workflow](workflow-kairos-attest.md)
 - [kairos_update workflow](workflow-kairos-update.md)
 - [Agent recovery UX](agent-recovery-ux.md)
 - [Full execution workflow](workflow-full-execution.md)

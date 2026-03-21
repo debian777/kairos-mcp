@@ -7,7 +7,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { waitForHealthCheck } from './health-check.js';
-import { getTestAuthBaseUrl, getTestBearerToken } from './auth-headers.js';
+import { getMcpTestBearerToken, getTestAuthBaseUrl } from './auth-headers.js';
 
 /** Base URL of the app (same server for MCP and health). From MCP_URL env or getTestAuthBaseUrl() (e.g. .test-auth-env.json when auth server runs). */
 const BASE_URL = process.env.MCP_URL
@@ -41,7 +41,7 @@ export async function createMcpConnection() {
     version: '1.0.0'
   });
 
-  const token = getTestBearerToken();
+  const token = getMcpTestBearerToken();
   const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), {
     requestInit: token
       ? { headers: new Headers({ Authorization: `Bearer ${token}` }) }

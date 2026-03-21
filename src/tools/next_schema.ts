@@ -95,5 +95,4 @@ export const nextOutputSchema = z.object({
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)')
 });
 
-export type SolutionSubmission = z.infer<typeof solutionSchema>;
 export { layerUriSchema };

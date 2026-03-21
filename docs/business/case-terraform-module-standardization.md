@@ -58,7 +58,7 @@ flowchart LR
   to the same rules.
 - **Repeatability:** Every run follows the same steps; no reliance on
   someone "just knowing" what to do.
-- **Scalability:** New or legacy modules can be standardized by running the
+- **Scalability:** New or older modules can be standardized by running the
   procedure again, so the standard scales across many repos.
 
 ## Takeaway

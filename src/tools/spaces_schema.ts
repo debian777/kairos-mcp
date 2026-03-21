@@ -19,6 +19,3 @@ const spaceInfoSchema = z.object({
 export const spacesOutputSchema = z.object({
   spaces: z.array(spaceInfoSchema)
 }).strict();
-
-export type SpacesInput = z.infer<typeof spacesInputSchema>;
-export type SpacesOutput = z.infer<typeof spacesOutputSchema>;

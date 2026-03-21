@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
 
-const memoryUriSchema = z
+const adapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
 
-const choiceUriSchema = memoryUriSchema;
+const choiceUriSchema = adapterUriSchema;
 
 export const searchInputSchema = z.object({
   query: z.string().min(1).describe('Search query for chain heads'),

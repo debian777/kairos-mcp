@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
 import { waitForHealthCheck } from '../utils/health-check.js';
-import { getTestAuthBaseUrl, getTestBearerToken } from '../utils/auth-headers.js';
+import { getMcpTestBearerToken, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const CONFIG_DIR_NAME = 'kairos';
 const CONFIG_FILE_NAME = 'config.json';
@@ -37,7 +37,7 @@ const execFilePromise = promisify(execFile);
 
 /** Run "cli login --token" so config is written to XDG_CONFIG_HOME (set by runner). Returns true if login ran, false if no token. */
 export async function setupCliConfigWithLogin(): Promise<boolean> {
-  const token = process.env.AUTH_ENABLED === 'true' ? getTestBearerToken() : undefined;
+  const token = process.env.AUTH_ENABLED === 'true' ? getMcpTestBearerToken() : undefined;
   if (!token) return false;
   const env = { ...process.env, BROWSER: 'true' };
   await execFilePromise('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 15000 });
@@ -63,7 +63,7 @@ export async function execAsyncNoAuth(
   try {
     return await execPromise(command, { env, ...options });
   } finally {
-    const token = getTestBearerToken();
+    const token = getMcpTestBearerToken();
     if (token) {
       await execFilePromise('node', [CLI_PATH, 'login', '--token', token, '--url', BASE_URL], { env, timeout: 10000 }).catch(() => {});
     }

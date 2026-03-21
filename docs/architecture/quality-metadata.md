@@ -36,14 +36,14 @@ Quality metadata is set in five situations:
    in `src/services/qdrant/quality.ts` merges the given object into
    existing `quality_metadata`, then overwrites the point.
 
-4. **After each step in kairos_next:** When a step is completed and the
+4. **After each step in forward:** When a step is completed and the
    solution is validated, that step's quality is updated with outcome
    `success` or `failure`. This is the primary update path during a
    protocol run.
 
-5. **After attestation (final step):** When `kairos_attest` runs with a
+5. **After attestation (final step):** When `reward` runs with a
    success or failure outcome, it recalculates quality and calls
-   `updateQualityMetadata`. `kairos_attest` is the required final step
+   `updateQualityMetadata`. `reward` is the required final step
    of every protocol run.
 
 Calculation is centralized in `src/services/stats/scoring.ts`:
@@ -179,10 +179,10 @@ payloads after fetching by `chain.id` or `protocol_id`.
 ```mermaid
 flowchart LR
   subgraph writes["Writes"]
-    A[kairos_mint / store chain]
+    A[train / store chain]
     B[memory-updates]
     C[updateQualityMetadata]
-    D[kairos_next / kairos_attest]
+    D[forward / reward]
   end
 
   subgraph storage["Qdrant"]
@@ -207,7 +207,7 @@ flowchart LR
 ```
 
 - **Writes:** Chain store and memory-updates set `quality_metadata` on
-  upsert. `kairos_next` and `kairos_attest` update it via retrieve +
+  upsert. `forward` and `reward` update it via retrieve +
   merge + upsert.
 - **Storage:** One field on the point payload; no separate collection.
 - **Reads:** Protocol stats scrolls by `protocol_id` and reads
@@ -217,7 +217,7 @@ flowchart LR
 ## Observability and runbook
 
 - **Metrics:**
-  - `kairos_quality_update_errors_total` — counter when a `kairos_next`
+  - `kairos_quality_update_errors_total` — counter when a `forward`
     quality update fails.
   - `kairos_mint_similar_memory_found_total` — counter when mint returns
     `SIMILAR_MEMORY_FOUND`.
@@ -225,13 +225,13 @@ flowchart LR
   rate (for example, > 0.1/s over 5 minutes).
 - **Runbook:** When quality seems stale or steps are not reflecting
   success/failure, check `kairos_quality_update_errors_total` and Qdrant
-  write latency. Quality updates in `kairos_next` are best-effort (log
+  write latency. Quality updates in `forward` are best-effort (log
   and continue); errors are not surfaced to the client.
 
 ## See also
 
-- [kairos_attest workflow](workflow-kairos-attest.md) — how attestation
+- [reward workflow](workflow-kairos-attest.md) — how attestation
   updates quality
-- [kairos_next workflow](workflow-kairos-next.md) — per-step quality
+- [forward workflow](workflow-kairos-next.md) — per-step quality
   update during execution
 - [Architecture README](README.md)

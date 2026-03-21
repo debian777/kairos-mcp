@@ -1,16 +1,16 @@
-# kairos_attest workflow
+# reward workflow
 
 > **Current MCP tool:** **`reward`** on the final **layer** URI. See [`reward.md`](../../src/embed-docs/tools/reward.md).
 
-`kairos_attest` is the required final step of every protocol run. When the
-last `kairos_next` (or `kairos_begin` for a single-step protocol) has no
+`reward` is the required final step of every protocol run. When the
+last `forward` (or `kairos_begin` for a single-step protocol) has no
 more content steps, `next_action` always directs the AI to call
-`kairos_attest` with the last step URI, an outcome, and a message. Calling
+`reward` with the last step URI, an outcome, and a message. Calling
 it finalizes the run, updates quality metrics on the step and on the chain
 head in Qdrant, and feeds into search scoring (attest-based boost).
 
 No `final_solution` is required — the last step's challenge was already
-validated by `kairos_next`.
+validated by `forward`.
 
 ## Input schema
 
@@ -35,7 +35,7 @@ Fields:
 Fields that no longer exist:
 
 - `final_solution` — removed; the last step's challenge is solved via
-  `kairos_next` like every other step. `kairos_attest` is a completion
+  `forward` like every other step. `reward` is a completion
   stamp, not a challenge/solution gate.
 
 ## Response schema
@@ -152,8 +152,8 @@ user about what went wrong.
 
 ## See also
 
-- [kairos_next workflow](workflow-kairos-next.md) — how the last step
-  directs the AI to call `kairos_attest`
+- [forward workflow](workflow-kairos-next.md) — how the last step
+  directs the AI to call `reward`
 - [Full execution workflow](workflow-full-execution.md)
 - [Search query architecture](search-query.md) — attest-based score adjustment uses `successCount` / `failureCount` propagated to the chain head
 - [Quality metadata](quality-metadata.md) — how attestation updates

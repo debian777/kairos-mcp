@@ -80,7 +80,7 @@ Apply these on every screen and component.
 
 ### Search API (protocol browser)
 
-`POST /api/kairos_search` returns `choices[]`. Each: `uri`, `label`, `chain_label`, `score` (0–1 or null), `role` (`match` | `refine` | `create`), `tags`, `next_action`. **Roles:** `match` → UI **View**; `refine` → **Refine search**; `create` → **Create new**. Order: matches (by score), then refine, then create. No matches → only Refine and Create.
+`POST /api/activate` returns `choices[]`. Each: `uri`, `label`, `chain_label`, `score` (0–1 or null), `role` (`match` | `refine` | `create`), `tags`, `next_action`. **Roles:** `match` → UI **View**; `refine` → **Refine search**; `create` → **Create new**. Order: matches (by score), then refine, then create. No matches → only Refine and Create.
 
 ### Protocol structure (detail page)
 
