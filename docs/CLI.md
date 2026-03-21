@@ -107,18 +107,34 @@ kairos next kairos://mem/<step-uuid> \
 
 ### mint — store a new document
 
-Store a new markdown document in KAIROS.
+Store a new markdown document in KAIROS. You can pass a single `.md` file, or a
+directory. For a directory, the CLI mints every `.md` file in that directory
+(non-recursive by default) and prints a JSON batch object. Use `--recursive` to
+include `.md` files in subdirectories. If any mint in a batch fails, the CLI
+still finishes the rest unless you pass `--fail-fast`; the process exits with
+status `1` when at least one file failed.
 
 ```bash
 kairos mint document.md
 kairos mint document.md --model "gpt-4"
 kairos mint document.md --model "gpt-4" --force
+kairos mint ./my-bundle --force
+kairos mint ./my-bundle --force --recursive
 ```
 
 **Options:**
 
 - `--model <model>` — LLM model ID for attribution (for example, `gpt-4`)
 - `--force` — overwrite if a chain with the same label already exists
+- `-r, --recursive` — when the path is a directory, include `.md` files in
+  subdirectories
+- `--fail-fast` — stop after the first mint error in a directory batch (default
+  is to continue and report all results)
+
+**Directory batch output:** stdout is a JSON object with `batch: true`, `root`
+(resolved directory path), and `results`: an array of per-file outcomes. Each
+success entry includes `ok: true`, `status`, and `items` (same shape as a
+single-file mint). Each failure includes `ok: false` and `error`.
 
 ### update — update memories
 
@@ -232,6 +248,7 @@ kairos search "coding standards"
 kairos begin kairos://mem/xxx
 kairos next kairos://mem/xxx --follow
 kairos mint my-protocol.md --model "claude-3" --force
+kairos mint ./exported-protocols --model "claude-3" --force --recursive
 kairos update kairos://mem/xxx --file updated-content.md
 kairos delete kairos://mem/xxx
 kairos attest kairos://mem/xxx success "All steps completed"
