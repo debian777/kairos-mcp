@@ -33,6 +33,7 @@ function createFlatConfig(rootDir) {
         '.cache/**',
         'helm/**',
         '.ai/**',
+        '.local/**',
         '.git',
         '.git/**',
         '**/.git/**',

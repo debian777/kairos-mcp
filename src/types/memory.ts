@@ -43,6 +43,10 @@ export interface InferenceContractDefinition {
   shell?: {
     cmd: string;
     timeout_seconds: number;
+    interpreter?: string;
+    flags?: string[];
+    args?: string[];
+    workdir?: string;
   };
   mcp?: {
     tool_name: string;
@@ -95,6 +99,8 @@ export interface ExecutionTrace {
 
 export interface Memory {
   memory_uuid: string;
+  /** Qdrant payload space when present (export / chain scroll scoping). */
+  space_id?: string;
   label: string;
   slug?: string;
   tags: string[];

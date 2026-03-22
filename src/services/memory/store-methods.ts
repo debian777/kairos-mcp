@@ -221,6 +221,7 @@ export class MemoryQdrantStoreMethods {
     const memoryUuid = point.id ? String(point.id) : crypto.randomUUID();
     const base: any = {
       memory_uuid: memoryUuid,
+      ...(typeof payload.space_id === 'string' && payload.space_id.length > 0 && { space_id: payload.space_id }),
       label: typeof payload.label === 'string' && payload.label.length > 0 ? payload.label : 'Memory',
       tags: Array.isArray(payload.tags) ? payload.tags : [],
       text: typeof payload.text === 'string' ? payload.text : '',
