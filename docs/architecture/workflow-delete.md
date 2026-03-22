@@ -167,7 +167,7 @@ when `total_failed` > 0.
 
 ## See also
 
-- [activate workflow](workflow-kairos-search.md) — obtain URIs before
+- [activate workflow](workflow-activate.md) — obtain URIs before
   deleting
-- [export workflow](workflow-kairos-dump.md) — inspect content before
+- [export workflow](workflow-export.md) — inspect content before
   deleting

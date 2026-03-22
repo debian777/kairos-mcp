@@ -93,6 +93,6 @@ may list options such as **`tune`** to fix stored content, **`reward`** with
 
 ## See also
 
-- [First forward call](workflow-kairos-begin.md)
-- [reward workflow](workflow-kairos-attest.md)
+- [First forward call](workflow-forward-first-call.md)
+- [reward workflow](workflow-reward.md)
 - [Full execution workflow](workflow-full-execution.md)

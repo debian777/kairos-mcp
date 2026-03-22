@@ -151,5 +151,5 @@ rules.
 
 ## See also
 
-- [First forward call](workflow-kairos-begin.md)
+- [First forward call](workflow-forward-first-call.md)
 - [Full execution workflow](workflow-full-execution.md)

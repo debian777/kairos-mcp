@@ -10,8 +10,9 @@ works end-to-end and how each MCP tool fits into the flow.
   volume layout, and service wiring — all with Mermaid diagrams.
 - **Full execution:** Walkthrough from **activate** through **reward**
   ([workflow-full-execution.md](workflow-full-execution.md)).
-- **Tool workflows:** Pages named `workflow-kairos-*.md` are **companion
-  narratives** (historical filenames) aligned with the **current** MCP tools:
+- **Tool workflows:** Pages named `workflow-<tool>.md` (for example
+  **`workflow-activate.md`**, **`workflow-forward-first-call.md`**) are
+  **companion narratives** aligned with the **current** MCP tools:
   **`activate`**, **`forward`**, **`reward`**, **`train`**, **`tune`**,
   **`export`**, **`delete`**, and **`spaces`**. Authoritative agent copy lives
   under [`src/embed-docs/tools/`](../../src/embed-docs/tools/).
@@ -63,18 +64,18 @@ docs.
 | [delete](../../src/embed-docs/tools/delete.md) | Delete memories by URI. |
 | [spaces](../../src/embed-docs/tools/spaces.md) | List usable space names. |
 
-## Companion workflow pages (`workflow-kairos-*.md`)
+## Companion workflow pages (`workflow-*.md`)
 
 | Page | Topic |
 | ---- | ----- |
-| [workflow-kairos-search](workflow-kairos-search.md) | **`activate`** (adapter choices, scores, next actions). See [search query architecture](search-query.md). |
-| [workflow-kairos-begin](workflow-kairos-begin.md) | First **`forward`** (adapter URI, omit `solution`). |
-| [workflow-kairos-next](workflow-kairos-next.md) | Later **`forward`** calls (layer URI + solution). |
-| [workflow-kairos-attest](workflow-kairos-attest.md) | **`reward`** (final layer URI). |
-| [workflow-kairos-mint](workflow-kairos-mint.md) | **`train`** (store adapter markdown). |
-| [workflow-kairos-update](workflow-kairos-update.md) | **`tune`** (edit stored bodies / fields). |
-| [workflow-kairos-delete](workflow-kairos-delete.md) | **`delete`** (adapter or layer URIs). |
-| [workflow-kairos-dump](workflow-kairos-dump.md) | **`export`** and related inspection; see embedded docs. |
+| [workflow-activate](workflow-activate.md) | **`activate`** (adapter choices, scores, next actions). See [search query architecture](search-query.md). |
+| [workflow-forward-first-call](workflow-forward-first-call.md) | First **`forward`** (adapter URI, omit `solution`). |
+| [workflow-forward-continue](workflow-forward-continue.md) | Later **`forward`** calls (layer URI + solution). |
+| [workflow-reward](workflow-reward.md) | **`reward`** (final layer URI). |
+| [workflow-train](workflow-train.md) | **`train`** (store adapter markdown). |
+| [workflow-tune](workflow-tune.md) | **`tune`** (edit stored bodies / fields). |
+| [workflow-delete](workflow-delete.md) | **`delete`** (adapter or layer URIs). |
+| [workflow-export](workflow-export.md) | **`export`** and related inspection; see embedded docs. |
 | [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
 
 ## Agent recovery UX

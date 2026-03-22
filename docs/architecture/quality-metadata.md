@@ -230,8 +230,8 @@ flowchart LR
 
 ## See also
 
-- [reward workflow](workflow-kairos-attest.md) — how attestation
+- [reward workflow](workflow-reward.md) — how attestation
   updates quality
-- [forward workflow](workflow-kairos-next.md) — per-step quality
+- [forward workflow](workflow-forward-continue.md) — per-step quality
   update during execution
 - [Architecture README](README.md)
