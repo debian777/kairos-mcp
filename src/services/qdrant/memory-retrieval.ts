@@ -2,7 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
-import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { buildAdapterSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { KairosError } from '../../types/index.js';
 
@@ -160,11 +160,19 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
   });
 }
 
-export async function getChainMemories(conn: QdrantConnection, chainId: string): Promise<Array<{ uuid: string; payload: any }>> {
+export async function getChainMemories(
+  conn: QdrantConnection,
+  chainId: string,
+  allowedSpaceIdsOverride?: string[]
+): Promise<Array<{ uuid: string; payload: any }>> {
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
-    const filter = buildSpaceFilter(getSearchSpaceIds(), { must: [{ key: 'adapter.id', match: { value: chainId } }] });
+    const spaceIds =
+      allowedSpaceIdsOverride && allowedSpaceIdsOverride.length > 0
+        ? allowedSpaceIdsOverride
+        : getSearchSpaceIds();
+    const filter = buildAdapterSiblingScrollFilter(spaceIds, chainId);
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,

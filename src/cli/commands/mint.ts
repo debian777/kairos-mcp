@@ -13,6 +13,11 @@ import { writeError, writeJson } from '../output.js';
  * Open path read-only, require regular file, read UTF-8 from the same fd
  * (avoids path-based stat-then-read races; CodeQL js/file-system-race).
  */
+/** Directory batch skips `README.md` (human docs); single-file `train path/to/README.md` still works. */
+function isReadmeMarkdownFileName(name: string): boolean {
+  return /^readme\.md$/i.test(name);
+}
+
 function readRegularFileUtf8(absPath: string): string {
   const fd = openSync(absPath, 'r');
   try {
@@ -33,14 +38,18 @@ function listMarkdownFiles(dir: string, recursive: boolean): string[] {
       for (const ent of readdirSync(current, { withFileTypes: true })) {
         const full = join(current, ent.name);
         if (ent.isDirectory()) walk(full);
-        else if (ent.isFile() && ent.name.endsWith('.md')) out.push(full);
+        else if (ent.isFile() && ent.name.endsWith('.md') && !isReadmeMarkdownFileName(ent.name)) {
+          out.push(full);
+        }
       }
     };
     walk(base);
   } else {
     for (const ent of readdirSync(base, { withFileTypes: true })) {
       const full = join(base, ent.name);
-      if (ent.isFile() && ent.name.endsWith('.md')) out.push(full);
+      if (ent.isFile() && ent.name.endsWith('.md') && !isReadmeMarkdownFileName(ent.name)) {
+        out.push(full);
+      }
     }
   }
   return out.sort((a, b) => relative(base, a).localeCompare(relative(base, b)));
