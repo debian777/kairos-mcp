@@ -171,11 +171,12 @@ jobs:
           path: .cache/docker-infra
           key: infra-docker-${{ hashFiles('compose.yaml') }}
 
+      # Keep artifact outside ./dist — integration tests expect ./dist/cli/index.js (see tests/integration/cli-commands-shared.ts).
       - name: Download npm package artifact
         uses: actions/download-artifact@v4
         with:
           name: npm-package
-          path: dist
+          path: artifact-npm
 
       # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui.
       - name: Restore Playwright browsers cache
@@ -212,7 +213,12 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           node scripts/run-with-github-summary.mjs "Install package from tgz" -- \
-            npm install "./dist/debian777-kairos-mcp-${VERSION}.tgz"
+            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
+
+      - name: Expose installed package dist for CLI tests
+        run: |
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
 
       - name: Start app (from installed package)
         env:
