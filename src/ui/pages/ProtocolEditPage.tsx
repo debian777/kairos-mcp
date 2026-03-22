@@ -274,7 +274,17 @@ export function ProtocolEditPage() {
                         onClick={() =>
                           setStep(index, {
                             type,
-                            shell: type === "shell" ? { cmd: step.shell?.cmd ?? "" } : undefined,
+                            shell:
+                              type === "shell"
+                                ? {
+                                    cmd: step.shell?.cmd ?? "",
+                                    timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                    interpreter: step.shell?.interpreter,
+                                    workdir: step.shell?.workdir,
+                                    flags: step.shell?.flags ?? [],
+                                    args: step.shell?.args ?? [],
+                                  }
+                                : undefined,
                             mcp: type === "mcp" ? { tool_name: step.mcp?.tool_name ?? "" } : undefined,
                             user_input: type === "user_input" ? { prompt: step.user_input?.prompt ?? "" } : undefined,
                             comment: type === "comment" ? { min_length: step.comment?.min_length ?? 10 } : undefined,
@@ -303,17 +313,141 @@ export function ProtocolEditPage() {
                   <div className="mb-3 text-sm font-medium text-[var(--color-text-heading)]">Challenge fields</div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {step.type === "shell" && (
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
-                          {t("protocolEdit.shellCmd")}
-                        </label>
-                        <input
-                          type="text"
-                          value={step.shell?.cmd ?? ""}
-                          onChange={(e) => setStep(index, { shell: { cmd: e.target.value } })}
-                          className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                        />
-                      </div>
+                      <>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellCmd")}
+                          </label>
+                          <input
+                            type="text"
+                            value={step.shell?.cmd ?? ""}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: e.target.value,
+                                  timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                  interpreter: step.shell?.interpreter,
+                                  workdir: step.shell?.workdir,
+                                  flags: step.shell?.flags ?? [],
+                                  args: step.shell?.args ?? [],
+                                },
+                              })
+                            }
+                            className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellTimeout")}
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={step.shell?.timeout_seconds ?? 30}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: step.shell?.cmd ?? "",
+                                  timeout_seconds: Math.max(1, Number(e.target.value) || 30),
+                                  interpreter: step.shell?.interpreter,
+                                  workdir: step.shell?.workdir,
+                                  flags: step.shell?.flags ?? [],
+                                  args: step.shell?.args ?? [],
+                                },
+                              })
+                            }
+                            className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellInterpreter")}
+                          </label>
+                          <input
+                            type="text"
+                            value={step.shell?.interpreter ?? ""}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: step.shell?.cmd ?? "",
+                                  timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                  interpreter: e.target.value || undefined,
+                                  workdir: step.shell?.workdir,
+                                  flags: step.shell?.flags ?? [],
+                                  args: step.shell?.args ?? [],
+                                },
+                              })
+                            }
+                            className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellWorkdir")}
+                          </label>
+                          <input
+                            type="text"
+                            value={step.shell?.workdir ?? ""}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: step.shell?.cmd ?? "",
+                                  timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                  interpreter: step.shell?.interpreter,
+                                  workdir: e.target.value || undefined,
+                                  flags: step.shell?.flags ?? [],
+                                  args: step.shell?.args ?? [],
+                                },
+                              })
+                            }
+                            className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellFlags")}
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={(step.shell?.flags ?? []).join("\n")}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: step.shell?.cmd ?? "",
+                                  timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                  interpreter: step.shell?.interpreter,
+                                  workdir: step.shell?.workdir,
+                                  flags: e.target.value.split("\n").map((l) => l.trim()).filter(Boolean),
+                                  args: step.shell?.args ?? [],
+                                },
+                              })
+                            }
+                            className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="mb-2 block text-sm font-medium text-[var(--color-text-heading)]">
+                            {t("protocolEdit.shellArgs")}
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={(step.shell?.args ?? []).join("\n")}
+                            onChange={(e) =>
+                              setStep(index, {
+                                shell: {
+                                  cmd: step.shell?.cmd ?? "",
+                                  timeout_seconds: step.shell?.timeout_seconds ?? 30,
+                                  interpreter: step.shell?.interpreter,
+                                  workdir: step.shell?.workdir,
+                                  flags: step.shell?.flags ?? [],
+                                  args: e.target.value.split("\n").map((l) => l.trim()).filter(Boolean),
+                                },
+                              })
+                            }
+                            className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                          />
+                        </div>
+                      </>
                     )}
                     {step.type === "mcp" && (
                       <div>

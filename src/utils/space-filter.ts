@@ -24,3 +24,25 @@ export function buildSpaceFilter(
     must: [spaceCondition, ...existingMust]
   };
 }
+
+/**
+ * Scroll filter for chain siblings: same `chain.id` and either `space_id` in the allowed set
+ * or legacy rows with no `space_id` (Qdrant `match any` does not match missing payload keys).
+ * Still requires `chain.id`; this is not an unscoped chain-id-only fallback.
+ */
+export function buildChainSiblingScrollFilter(
+  allowedSpaceIds: string[],
+  chainId: string
+): { must: Array<Record<string, unknown>> } {
+  return {
+    must: [
+      { key: 'chain.id', match: { value: chainId } },
+      {
+        should: [
+          { key: 'space_id', match: { any: allowedSpaceIds } },
+          { is_empty: { key: 'space_id' } }
+        ]
+      }
+    ]
+  };
+}

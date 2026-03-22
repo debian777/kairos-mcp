@@ -255,18 +255,30 @@ export class MemoryQdrantStoreMethods {
       llm_model_id: typeof payload.llm_model_id === 'string' ? payload.llm_model_id : 'unknown-model',
       created_at: typeof payload.created_at === 'string' ? payload.created_at : new Date().toISOString()
     };
-    // Build chain object from payload if chain fields exist
-    if (payload.chain && typeof payload.chain.id === 'string') {
-      base.chain = {
-        id: payload.chain.id,
-        label: typeof payload.chain.label === 'string' ? payload.chain.label : 'Knowledge Chain',
-        step_index: typeof payload.chain.step_index === 'number' ? payload.chain.step_index : 1,
-        step_count: typeof payload.chain.step_count === 'number' ? payload.chain.step_count : 1,
-        ...(typeof (payload.chain as any).protocol_version === 'string' && {
-          protocol_version: (payload.chain as any).protocol_version
-        })
-      };
-    } else if (typeof payload.memory_chain_id === 'string') {
+    // Build chain object from payload if chain fields exist (coerce id to string for Qdrant/JSON edge types)
+    if (payload.chain && typeof payload.chain === 'object') {
+      const rawChainId = (payload.chain as { id?: unknown }).id;
+      const chainId =
+        rawChainId !== undefined && rawChainId !== null && String(rawChainId).trim().length > 0
+          ? String(rawChainId).trim()
+          : undefined;
+      if (chainId) {
+        const ch = payload.chain as {
+          label?: unknown;
+          step_index?: unknown;
+          step_count?: unknown;
+          protocol_version?: unknown;
+        };
+        base.chain = {
+          id: chainId,
+          label: typeof ch.label === 'string' ? ch.label : 'Knowledge Chain',
+          step_index: typeof ch.step_index === 'number' ? ch.step_index : 1,
+          step_count: typeof ch.step_count === 'number' ? ch.step_count : 1,
+          ...(typeof ch.protocol_version === 'string' && { protocol_version: ch.protocol_version })
+        };
+      }
+    }
+    if (!base.chain && typeof payload.memory_chain_id === 'string') {
       // Backward compatibility: read flat fields during transition
       base.chain = {
         id: payload.memory_chain_id,
@@ -277,6 +289,9 @@ export class MemoryQdrantStoreMethods {
     }
     if (typeof payload.slug === 'string' && payload.slug.length > 0) {
       base.slug = payload.slug;
+    }
+    if (typeof payload.space_id === 'string' && payload.space_id.length > 0) {
+      base.space_id = payload.space_id;
     }
     if (payload.proof_of_work && typeof payload.proof_of_work === 'object') {
       const pow = payload.proof_of_work as Record<string, unknown>;

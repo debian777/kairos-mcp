@@ -52,7 +52,13 @@ const challengeSchema = z.object({
   proof_hash: z.string().optional().describe('Echo back as solution.proof_hash'),
   shell: z.object({
     cmd: z.string(),
-    timeout_seconds: z.number()
+    timeout_seconds: z.number(),
+    interpreter: z.string().optional(),
+    flags: z.array(z.string()).optional(),
+    args: z.array(z.string()).optional(),
+    workdir: z.string().optional(),
+    /** Server-computed display line for agents/UI. */
+    invocation_display: z.string().optional()
   }).optional(),
   mcp: z.object({
     tool_name: z.string(),

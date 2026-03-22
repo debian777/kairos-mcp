@@ -1,6 +1,16 @@
 import type { ProofOfWorkDefinition, ProofOfWorkType } from '../types/memory.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { GENESIS_HASH } from './kairos-genesis-proof-hash.js';
+import {
+  buildShellChallengeArgv,
+  formatShellInvocationForDisplay,
+  pickShellChallengeFields
+} from './shell-challenge-invocation.js';
+
+/** Safe fragment inside backticks in description text. */
+function shellQuoteForDesc(s: string): string {
+  return s.replace(/[`$\\]/g, '');
+}
 
 function isAllowedStoredChallengeType(t: unknown): t is ProofOfWorkType {
   return t === 'shell' || t === 'mcp' || t === 'user_input' || t === 'comment';
@@ -25,8 +35,31 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
     if (proofType === 'shell') {
       const cmd = proof.shell?.cmd || proof.cmd || 'No command specified';
       const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 30;
-      result['description'] = `Execute shell command: ${cmd}. You MUST actually run this command and report the real exit_code/stdout/stderr; do not fabricate.`;
-      result['shell'] = { cmd, timeout_seconds: timeout };
+      const interpreter = proof.shell?.interpreter;
+      const flags = proof.shell?.flags;
+      const args = proof.shell?.args;
+      const workdir = proof.shell?.workdir;
+      const argv = buildShellChallengeArgv(
+        pickShellChallengeFields({ cmd, interpreter, flags, args, workdir })
+      );
+      const invocationLine = formatShellInvocationForDisplay(argv);
+      let description = `Shell challenge (timeout ${timeout}s): run exactly: ${invocationLine}. Capture stdout and stderr (do not suppress stderr); exit_code 0 = pass. Report real exit_code/stdout/stderr; do not fabricate.`;
+      const interpTrim = interpreter?.trim();
+      if (interpTrim) {
+        description += ` Before running, ensure the interpreter is on PATH (e.g. \`which ${shellQuoteForDesc(interpTrim)}\`); if not found, fail with a clear local error.`;
+      }
+      const wd = workdir?.trim();
+      if (wd) {
+        description += ` Use workdir "${wd}" as the process working directory after expanding env vars (e.g. $KAIROS_WORK_DIR); if it does not exist, is not a directory, or a required variable is unset, fail with a clear local error.`;
+      }
+      result['description'] = description;
+      const shellOut: Record<string, unknown> = { cmd, timeout_seconds: timeout };
+      if (interpreter !== undefined && interpreter !== '') shellOut['interpreter'] = interpreter;
+      if (flags !== undefined && flags.length > 0) shellOut['flags'] = flags;
+      if (args !== undefined && args.length > 0) shellOut['args'] = args;
+      if (workdir !== undefined && workdir !== '') shellOut['workdir'] = workdir;
+      shellOut['invocation_display'] = invocationLine;
+      result['shell'] = shellOut;
     } else if (proofType === 'mcp') {
       const toolName = proof.mcp?.tool_name || 'No tool specified';
       result['description'] = `Call MCP tool: ${toolName}. You MUST actually call this tool and report its real result; do not fabricate.`;

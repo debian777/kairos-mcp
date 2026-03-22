@@ -237,7 +237,12 @@ When each step is verified and attestation is done.
       protocolLabel: "Empty fields",
       triggersMarkdown: "test",
       steps: [
-        { label: "Empty shell", bodyMarkdown: "TBD", type: "shell" as const, shell: { cmd: "" } },
+        {
+          label: "Empty shell",
+          bodyMarkdown: "TBD",
+          type: "shell" as const,
+          shell: { cmd: "", timeout_seconds: 30, flags: [], args: [] },
+        },
         { label: "Empty mcp", bodyMarkdown: "TBD", type: "mcp" as const, mcp: { tool_name: "" } },
         { label: "Empty prompt", bodyMarkdown: "TBD", type: "user_input" as const, user_input: { prompt: "" } },
       ],
@@ -251,5 +256,36 @@ When each step is verified and attestation is done.
     expect(reparsedForm.steps[0]!.shell?.cmd).toBe("");
     expect(reparsedForm.steps[1]!.mcp?.tool_name).toBe("");
     expect(reparsedForm.steps[2]!.user_input?.prompt).toBe("");
+  });
+
+  it("round-trips shell interpreter, flags, args, workdir", () => {
+    const md = `# T
+
+## Natural language triggers
+
+When.
+
+## Step one
+
+Body.
+
+\`\`\`json
+{"challenge":{"type":"shell","shell":{"cmd":"die unless 1","interpreter":"perl","flags":["-e"],"timeout_seconds":5,"args":["x"],"workdir":"$KAIROS_WORK_DIR"},"required":true}}
+\`\`\`
+
+## Completion rule
+
+Done.
+`;
+    const form = parseProtocolMarkdownToForm(md);
+    expect(form.steps[0]!.shell?.interpreter).toBe("perl");
+    expect(form.steps[0]!.shell?.flags).toEqual(["-e"]);
+    expect(form.steps[0]!.shell?.args).toEqual(["x"]);
+    expect(form.steps[0]!.shell?.workdir).toBe("$KAIROS_WORK_DIR");
+    const rebuilt = buildMarkdownFromForm(form);
+    expect(rebuilt).toContain('"interpreter": "perl"');
+    expect(rebuilt).toContain('"flags"');
+    expect(rebuilt).toContain('"args"');
+    expect(rebuilt).toContain('"workdir"');
   });
 });

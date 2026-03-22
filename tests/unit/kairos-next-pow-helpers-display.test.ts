@@ -14,7 +14,25 @@ describe('buildChallengeShapeForDisplay', () => {
     } as any);
     expect(shape.type).toBe('shell');
     expect(shape.shell).toMatchObject({ cmd: 'echo hi', timeout_seconds: 5 });
-    expect(String(shape.description)).toContain('shell');
+    expect(String(shape.description)).toMatch(/shell/i);
+  });
+
+  test('shell challenge includes interpreter and invocation_display', () => {
+    const shape = buildChallengeShapeForDisplay({
+      required: true,
+      type: 'shell',
+      shell: {
+        cmd: 'print 1',
+        timeout_seconds: 5,
+        interpreter: 'perl',
+        flags: ['-e']
+      }
+    } as any);
+    expect(shape.type).toBe('shell');
+    expect((shape.shell as any).interpreter).toBe('perl');
+    expect((shape.shell as any).invocation_display).toBeDefined();
+    expect(String(shape.description)).toContain('perl');
+    expect(String(shape.description)).toContain('PATH');
   });
 
   test('invalid stored type is coerced to comment with valid schema fields', () => {

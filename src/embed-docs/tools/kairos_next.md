@@ -22,10 +22,11 @@ have the URI from the previous response's `next_action`.
   steps 2+ echo the `proof_hash` from the previous `kairos_next`
   response. The server generates all hashes.
 
+**Challenge execution modes:** Same as `kairos_begin`: `shell`, `mcp`, and `comment` are **AUTOMATIC** (run and submit without asking the user); `user_input` is the **only** type that requires showing a prompt and waiting for a human reply. See `kairos_begin` for the **silent execution principle**.
+
 **Execution rules by `challenge.type`:**
 
-- `shell`: Run `challenge.shell.cmd`. Report actual `exit_code`,
-  `stdout`, `stderr`. Never fabricate.
+- `shell`: Same as `kairos_begin` — use `invocation_display` / `challenge.shell` / `description`; capture `stdout` and `stderr`; never fabricate.
 - `mcp`: Call `challenge.mcp.tool_name`. Report actual result.
   `success` must reflect reality.
 - `user_input`: Display `challenge.user_input.prompt` verbatim to the

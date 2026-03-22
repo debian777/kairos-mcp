@@ -141,7 +141,7 @@ Suffix text`;
         'utf8'
       );
       const results = findAllChallengeBlocks(md);
-      expect(results).toHaveLength(5);
+      expect(results).toHaveLength(4);
       for (const r of results) {
         expect(ALLOWED.has(String(r.proof.type))).toBe(true);
       }

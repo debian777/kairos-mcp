@@ -38,7 +38,14 @@ export interface StepFormState {
   label: string;
   bodyMarkdown: string;
   type: "shell" | "mcp" | "user_input" | "comment";
-  shell?: { cmd: string };
+  shell?: {
+    cmd: string;
+    timeout_seconds: number;
+    interpreter?: string;
+    workdir?: string;
+    flags: string[];
+    args: string[];
+  };
   mcp?: { tool_name: string };
   user_input?: { prompt: string };
   comment?: { min_length: number };
@@ -89,7 +96,12 @@ export function parseProtocolMarkdown(md: string): {
           if (challenge?.type) type = String(challenge.type);
           if (type === "shell") {
             const cmd = challenge?.shell?.cmd ?? challenge?.cmd;
-            summary = cmd ? `Shell: ${String(cmd)}` : "Shell";
+            const interp = challenge?.shell?.interpreter;
+            summary = cmd
+              ? interp
+                ? `Shell (${interp}): ${String(cmd).slice(0, 60)}${String(cmd).length > 60 ? "…" : ""}`
+                : `Shell: ${String(cmd).slice(0, 80)}${String(cmd).length > 80 ? "…" : ""}`
+              : "Shell";
           } else if (type === "mcp") {
             const tool = challenge?.mcp?.tool_name;
             summary = tool ? `MCP: ${String(tool)}` : "MCP";
@@ -129,7 +141,17 @@ export function parseProtocolMarkdownToForm(md: string): ProtocolFormState {
           type = challenge.type as StepFormState["type"];
           stepState.type = type;
         }
-        if (type === "shell") stepState.shell = { cmd: String(challenge?.shell?.cmd ?? challenge?.cmd ?? "").trim() };
+        if (type === "shell") {
+          const sh = challenge?.shell;
+          stepState.shell = {
+            cmd: String(sh?.cmd ?? challenge?.cmd ?? "").trim(),
+            timeout_seconds: Number(sh?.timeout_seconds ?? 30),
+            interpreter: typeof sh?.interpreter === "string" ? sh.interpreter : undefined,
+            workdir: typeof sh?.workdir === "string" ? sh.workdir : undefined,
+            flags: Array.isArray(sh?.flags) ? sh.flags.map(String) : [],
+            args: Array.isArray(sh?.args) ? sh.args.map(String) : [],
+          };
+        }
         else if (type === "mcp") stepState.mcp = { tool_name: String(challenge?.mcp?.tool_name ?? "").trim() };
         else if (type === "user_input") stepState.user_input = { prompt: String(challenge?.user_input?.prompt ?? "").trim() };
         else if (type === "comment") stepState.comment = { min_length: Number(challenge?.comment?.min_length ?? 10) };
@@ -161,7 +183,19 @@ export function buildMarkdownFromForm(state: ProtocolFormState): string {
     lines.push("");
     lines.push(step.bodyMarkdown.trim() || "Step content.");
     const challenge: Record<string, unknown> = { type: step.type };
-    if (step.type === "shell") challenge.shell = { cmd: step.shell?.cmd ?? "" };
+    if (step.type === "shell") {
+      const shell: Record<string, unknown> = {
+        cmd: step.shell?.cmd ?? "",
+        timeout_seconds: step.shell?.timeout_seconds ?? 30,
+      };
+      const interp = step.shell?.interpreter?.trim();
+      if (interp) shell.interpreter = interp;
+      const wd = step.shell?.workdir?.trim();
+      if (wd) shell.workdir = wd;
+      if (step.shell?.flags?.length) shell.flags = step.shell.flags;
+      if (step.shell?.args?.length) shell.args = step.shell.args;
+      challenge.shell = shell;
+    }
     else if (step.type === "mcp") challenge.mcp = { tool_name: step.mcp?.tool_name ?? "" };
     else if (step.type === "user_input") challenge.user_input = { prompt: step.user_input?.prompt ?? "" };
     else if (step.type === "comment") challenge.comment = { min_length: step.comment?.min_length ?? 10 };

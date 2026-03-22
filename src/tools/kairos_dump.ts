@@ -100,7 +100,7 @@ export async function executeDump(
     const stepCount = memory.chain.step_count;
     const protocolVersion = memory.chain.protocol_version;
     const points = qdrantService && typeof qdrantService.getChainMemories === 'function'
-      ? await qdrantService.getChainMemories(chainId)
+      ? await qdrantService.getChainMemories(chainId, memory.space_id ? [memory.space_id] : undefined)
       : [];
     const memories: Memory[] = [];
     for (const pt of points) {

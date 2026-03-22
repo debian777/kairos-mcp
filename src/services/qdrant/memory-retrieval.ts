@@ -2,7 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
-import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { buildChainSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { KairosError } from '../../types/index.js';
 
@@ -135,11 +135,34 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
   });
 }
 
-export async function getChainMemories(conn: QdrantConnection, chainId: string): Promise<Array<{ uuid: string; payload: any }>> {
+function mergeSpaceIdsForChainScroll(extraSpaceIds?: string[]): string[] {
+  const base = getSearchSpaceIds();
+  const seen = new Set(base);
+  const out = [...base];
+  for (const raw of extraSpaceIds ?? []) {
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+/**
+ * Scroll chain members by chain.id, scoped to search spaces plus optional anchor spaces.
+ * `extraSpaceIds` should come only from a Memory.space_id the caller already loaded via authorized retrieve
+ * (never from raw client input), so sibling resolution matches the same tenant rows as the anchor point.
+ */
+export async function getChainMemories(
+  conn: QdrantConnection,
+  chainId: string,
+  extraSpaceIds?: string[]
+): Promise<Array<{ uuid: string; payload: any }>> {
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
-    const filter = buildSpaceFilter(getSearchSpaceIds(), { must: [{ key: 'chain.id', match: { value: chainId } }] });
+    const filter = buildChainSiblingScrollFilter(mergeSpaceIdsForChainScroll(extraSpaceIds), chainId);
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,

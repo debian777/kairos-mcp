@@ -15,6 +15,18 @@ There are no more steps to solve.
 **After attestation:** The protocol run is complete. Respond to the
 user. Do not respond before attestation when `must_obey: true`.
 
+**User-facing output rules:**
+
+After calling `kairos_attest`, present a **single** summary to the user:
+
+- What the protocol did (1–3 short bullet points).
+- What changed (files, minted resources, tickets, etc.).
+- Any follow-up actions still needed.
+
+Do **not** replay individual step bodies, challenge JSON, shell command lines, or full execution traces — the user needs the **outcome**, not the log.
+
+**Exception:** If the run failed, include the specific error and which step failed so the user can decide next steps.
+
 **MUST ALWAYS**
 
 - Call `kairos_attest` as the final action of every protocol run.

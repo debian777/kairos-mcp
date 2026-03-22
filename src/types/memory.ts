@@ -18,6 +18,14 @@ export interface ProofOfWorkDefinition {
   shell?: {
     cmd: string;
     timeout_seconds: number;
+    /** Optional; default bash -c when omitted. */
+    interpreter?: string;
+    /** Interpreter-specific flags (do not duplicate auto-injected -c / -e). */
+    flags?: string[];
+    /** Positional args after script body (e.g. bash -- "$1"). */
+    args?: string[];
+    /** Working directory for execution (executor resolves $KAIROS_WORK_DIR, paths). */
+    workdir?: string;
   };
   mcp?: {
     tool_name: string;
@@ -40,6 +48,8 @@ export interface Memory {
   created_at: string;
   chain?: ChainInfo;               // Memory chain metadata (formerly protocol)
   proof_of_work?: ProofOfWorkDefinition;
+  /** Qdrant payload space_id when present; used to scope sibling chain scrolls to spaces we already read from. */
+  space_id?: string;
   /** Qdrant payload: exact routing key for kairos_begin(key). */
   slug?: string;
 }

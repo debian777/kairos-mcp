@@ -7,6 +7,10 @@ import { readdir, readFile } from 'fs/promises';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
+/** Mem markdown whose basename (no .md) is a UUID — inject as kairos://mem/{uuid}. */
+const MEM_FILE_UUID_KEY =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Get the directory containing mem files at runtime
  * Works in both development (src/) and production (dist/)
@@ -103,12 +107,18 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
 
     for (const [key, markdownContent] of Object.entries(memResources)) {
       if (typeof markdownContent !== 'string') continue;
+      if (!MEM_FILE_UUID_KEY.test(key)) {
+        structuredLogger.debug(`[mem-resources-boot] Skip non-UUID mem key: ${key}`);
+        continue;
+      }
 
       const targetUuid = key; // Use key (filename) as UUID
 
       try {
-      // Use storeChain to handle parsing, embeddings, and force update logic
-      // storeChain handles forceUpdate by deleting existing chains, but we need to handle individual UUIDs
+      // Use storeChain to handle parsing, embeddings, and force update logic.
+      // Always forceUpdate on storeChain so a prior boot (e.g. old step-1 UUID before filename change)
+      // does not leave a same-label chain that blocks minting the canonical file UUID (DUPLICATE_CHAIN / DUPLICATE_SLUG).
+      // Per-file skip when target UUID already exists (below) still avoids re-embedding on normal restarts.
         if (options.force) {
           try {
             await qdrantService.deleteMemory(targetUuid);
@@ -128,7 +138,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           }
         }
 
-        const memories = await memoryStore.storeChain([markdownContent], llmModelId, { forceUpdate: options.force || false });
+        const memories = await memoryStore.storeChain([markdownContent], llmModelId, { forceUpdate: true });
 
         if (memories.length > 0) {
           // Only the first step is remapped to the file UUID; other steps of the same chain keep server-generated IDs.

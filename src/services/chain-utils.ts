@@ -1,5 +1,6 @@
 import { qdrantService as globalQdrantService } from './qdrant/index.js';
 import type { Memory } from '../types/memory.js';
+import { effectiveChainStepCount } from './chain-step-count.js';
 
 export interface ResolvedChainStep {
     uuid: string;
@@ -8,14 +9,22 @@ export interface ResolvedChainStep {
     count?: number;
 }
 
-async function getChainPoints(chainId: string, qdrantService?: any): Promise<any[]> {
+async function getChainPoints(
+    chainId: string,
+    qdrantService?: any,
+    extraSpaceIds?: string[]
+): Promise<any[]> {
     const svc = qdrantService || globalQdrantService;
     if (!svc || typeof (svc as any).getChainMemories !== 'function') return [];
     try {
-        return await (svc as any).getChainMemories(chainId);
+        return await (svc as any).getChainMemories(chainId, extraSpaceIds);
     } catch {
         return [];
     }
+}
+
+function anchorSpaces(memory: Memory): string[] | undefined {
+    return memory.space_id ? [memory.space_id] : undefined;
 }
 
 export async function resolveFirstStep(
@@ -26,7 +35,7 @@ export async function resolveFirstStep(
         return { uri: `kairos://mem/${memory.memory_uuid}`, label: String(memory.label || 'Memory') };
     }
 
-    const points: any[] = await getChainPoints(memory.chain.id, qdrantService);
+    const points: any[] = await getChainPoints(memory.chain.id, qdrantService, anchorSpaces(memory));
     if (!Array.isArray(points) || points.length === 0) return { uri: `kairos://mem/${memory.memory_uuid}`, label: String(memory.label || 'Memory') };
 
     const head = points
@@ -46,7 +55,7 @@ export async function resolveChainFirstStep(
     qdrantService?: any
 ): Promise<ResolvedChainStep | undefined> {
     if (!memory.chain) return undefined;
-    const points: any[] = await getChainPoints(memory.chain.id, qdrantService);
+    const points: any[] = await getChainPoints(memory.chain.id, qdrantService, anchorSpaces(memory));
     if (!Array.isArray(points) || points.length === 0) return undefined;
     const first = points
         .map(pt => ({
@@ -66,9 +75,10 @@ export async function resolveChainNextStep(
     qdrantService?: any
 ): Promise<ResolvedChainStep | undefined> {
     if (!memory.chain) return undefined;
-    const { id: chainId, step_index: idx, step_count: count } = memory.chain;
-    if (idx >= count) return undefined;
-    const points: any[] = await getChainPoints(chainId, qdrantService);
+    const { id: chainId, step_index: idx, step_count: memoryCount } = memory.chain;
+    const points: any[] = await getChainPoints(chainId, qdrantService, anchorSpaces(memory));
+    const effectiveCount = effectiveChainStepCount(points, memoryCount);
+    if (effectiveCount < 1 || idx >= effectiveCount) return undefined;
     if (!Array.isArray(points) || points.length === 0) return undefined;
     const next = points
         .map(pt => ({
@@ -77,7 +87,7 @@ export async function resolveChainNextStep(
             step: (pt as any)?.payload?.chain?.step_index ?? Number.MAX_SAFE_INTEGER
         }))
         .find(p => p.step === idx + 1);
-    if (next && next.uuid) return { uuid: next.uuid, label: next.label, step: next.step, count };
+    if (next && next.uuid) return { uuid: next.uuid, label: next.label, step: next.step, count: effectiveCount };
     return undefined;
 }
 
@@ -88,7 +98,7 @@ export async function resolveChainPreviousStep(
     if (!memory.chain) return undefined;
     const { id: chainId, step_index: idx, step_count: count } = memory.chain;
     if (idx <= 1) return undefined;
-    const points: any[] = await getChainPoints(chainId, qdrantService);
+    const points: any[] = await getChainPoints(chainId, qdrantService, anchorSpaces(memory));
     if (!Array.isArray(points) || points.length === 0) return undefined;
     const prev = points
         .map(pt => ({

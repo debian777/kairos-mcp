@@ -43,7 +43,10 @@ for purely informational steps where no verification is possible.
 
 **Challenge examples (one per type):**
 
-`shell` — run a command:
+`shell` — run a command (executor-side). Required: `cmd`, `timeout_seconds`.
+Optional: `interpreter`, `flags`, `args`, `workdir` — see
+`building-kairos-workflows` and `kairos_begin` for argv rules and silent
+execution.
 
 Example: ```json
 {
