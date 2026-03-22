@@ -3,7 +3,11 @@
  * Tests that only line-start ```json blocks are parsed as steps.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { findAllChallengeBlocks } from '../../src/services/memory/chain-builder-proof.js';
+
+const ALLOWED = new Set(['shell', 'mcp', 'user_input', 'comment']);
 
 describe('chain-builder-proof', () => {
   describe('findAllChallengeBlocks', () => {
@@ -129,6 +133,18 @@ Suffix text`;
       
       expect(beforeBlock.trim()).toBe('Prefix text');
       expect(afterBlock.trim()).toBe('Suffix text');
+    });
+
+    test('embedded create-new-protocol has only valid challenge types and expected step count', () => {
+      const md = readFileSync(
+        join(process.cwd(), 'src/embed-docs/mem/00000000-0000-0000-0000-000000002001.md'),
+        'utf8'
+      );
+      const results = findAllChallengeBlocks(md);
+      expect(results).toHaveLength(5);
+      for (const r of results) {
+        expect(ALLOWED.has(String(r.proof.type))).toBe(true);
+      }
     });
   });
 });
