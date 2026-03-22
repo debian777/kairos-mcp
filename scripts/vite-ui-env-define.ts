@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** npm `version` from repo root `package.json` (single source for Vite + Vitest `define`). */
 export function getPackageVersionForUi(): string {
