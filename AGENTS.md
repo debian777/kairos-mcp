@@ -83,6 +83,21 @@ server before treating a change as production-ready.
 
 Validate all code changes in dev before promoting to live. Deploy: `npm run dev:deploy && npm run dev:test`
 
+## Runtime authority split
+
+**CRITICAL:** Agents are connected to a real KAIROS MCP server at runtime.
+Use the version shown at connect, the connected server's tool list, and the
+connected server's tool descriptions as the authority for MCP calls.
+
+When the connected MCP surface differs from this worktree:
+
+- For actual MCP calls, follow the connected server's runtime contract.
+- For code changes in this repo, implement the target behavior described by
+  this branch's source, tests, and embedded docs.
+- If runtime and worktree differ, call out the mismatch before proceeding.
+- Do not use the current branch name as protocol authority. Branch names are a
+  hint only.
+
 ## Context7 usage
 
 Call Context7 MCP tools whenever you need library/API documentation.

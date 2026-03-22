@@ -117,7 +117,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'nested', 'README.md'), '# Nested readme\n', 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force --recursive "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force --recursive "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -146,7 +146,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'README.md'), '# Human docs\n', 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${dir}"`,
         { timeout: 120000 }
       );
 
