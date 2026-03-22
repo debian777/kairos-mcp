@@ -119,7 +119,7 @@ Tool and API error responses use stable `error_code` values. Include
 - `MISSING_PROOF` — previous step proof missing or invalid
 - `MISSING_FIELD` — required field missing
 
-See [workflow-kairos-next.md](workflow-kairos-next.md)
+See [workflow-forward-continue.md](workflow-forward-continue.md)
 for the full error code list.
 
 ## Verifying

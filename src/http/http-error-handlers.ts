@@ -1,9 +1,14 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { structuredLogger } from '../utils/structured-logger.js';
 
+function singleHeader(value: string | string[] | undefined): string {
+    if (value == null) return 'unknown';
+    return Array.isArray(value) ? (value[0] ?? 'unknown') : value;
+}
+
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     try {
-        const rid = req?.headers?.['x-request-id'] || 'unknown';
+        const rid = singleHeader(req?.headers?.['x-request-id']);
         const method = req?.method || 'UNKNOWN';
         const url = req?.url || 'UNKNOWN';
         structuredLogger.error('HTTP error handled by global Express handler', err, {

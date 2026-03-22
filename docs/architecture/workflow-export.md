@@ -53,5 +53,5 @@ JSON blocks).
 ## See also
 
 - [`export_schema.ts`](../../src/tools/export_schema.ts)
-- [train workflow](workflow-kairos-mint.md)
-- [tune workflow](workflow-kairos-update.md)
+- [train workflow](workflow-train.md)
+- [tune workflow](workflow-tune.md)

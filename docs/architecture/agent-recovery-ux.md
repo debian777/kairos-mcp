@@ -52,5 +52,5 @@ When adding a new proof type:
 
 - [CONTRIBUTING.md — Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles)
   (errors teach; `next_action` in errors)
-- [forward workflow](workflow-kairos-next.md) — error codes and
+- [forward workflow](workflow-forward-continue.md) — error codes and
   recovery paths
