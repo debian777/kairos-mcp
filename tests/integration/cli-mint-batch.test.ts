@@ -104,6 +104,62 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
+  test('mint --recursive skips README.md at root and in subdirs', async () => {
+    if (!serverAvailable || !cliLoggedIn) return;
+
+    const ts = Date.now();
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-readme-rec-'));
+    try {
+      mkdirSync(join(dir, 'nested'), { recursive: true });
+      writeFileSync(join(dir, 'root.md'), minimalProtocolMd(`CLI ReadmeRec Root ${ts}`), 'utf-8');
+      writeFileSync(join(dir, 'nested', 'deep.md'), minimalProtocolMd(`CLI ReadmeRec Deep ${ts}`), 'utf-8');
+      writeFileSync(join(dir, 'README.md'), '# Human docs only\n', 'utf-8');
+      writeFileSync(join(dir, 'nested', 'README.md'), '# Nested readme\n', 'utf-8');
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} mint --url ${BASE_URL} --force --recursive "${dir}"`,
+        { timeout: 120000 }
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout) as {
+        batch: boolean;
+        results: Array<{ path: string; ok: boolean }>;
+      };
+      expect(result.batch).toBe(true);
+      expect(result.results).toHaveLength(2);
+      const paths = result.results.map(r => r.path).sort();
+      expect(paths).toEqual(['nested/deep.md', 'root.md']);
+      expect(result.results.every(r => r.ok)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
+  test('mint directory batch skips root README.md only', async () => {
+    if (!serverAvailable || !cliLoggedIn) return;
+
+    const ts = Date.now();
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-readme-flat-'));
+    try {
+      writeFileSync(join(dir, 'a.md'), minimalProtocolMd(`CLI ReadmeFlat A ${ts}`), 'utf-8');
+      writeFileSync(join(dir, 'README.md'), '# Human docs\n', 'utf-8');
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${dir}"`,
+        { timeout: 120000 }
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout) as { batch: boolean; results: Array<{ path: string }> };
+      expect(result.batch).toBe(true);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]!.path).toBe('a.md');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
   test('mint without --recursive skips nested .md', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 

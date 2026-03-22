@@ -18,6 +18,8 @@ These guides walk you through connecting to and using KAIROS.
   server to Cursor and connect to a running KAIROS instance.
 - [KAIROS CLI](CLI.md) — command-line usage: installation, configuration,
   and all available commands.
+- [KAIROS bundles](kairos-bundles.md) — versioned trees of protocol markdown in
+  Git; bulk import with `kairos mint --force -r` and `README.md` handling.
 
 ## Architecture and workflows
 

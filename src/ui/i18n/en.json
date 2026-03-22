@@ -4,6 +4,7 @@
   "nav.create": "Create",
   "nav.runs": "Test Run",
   "nav.account": "Account",
+  "layout.kairosVersion": "KAIROS v{{version}}",
   "skipToMain": "Skip to main content",
   "home.title": "Home",
   "home.tagline": "Overview of your spaces and protocols.",

@@ -112,7 +112,10 @@ directory. For a directory, the CLI mints every `.md` file in that directory
 (non-recursive by default) and prints a JSON batch object. Use `--recursive` to
 include `.md` files in subdirectories. If any mint in a batch fails, the CLI
 still finishes the rest unless you pass `--fail-fast`; the process exits with
-status `1` when at least one file failed.
+status `1` when at least one file failed. Directory batches **skip**
+`README.md` at any depth (basename match) so bundle repos can keep human-facing
+READMEs; see [KAIROS bundles](kairos-bundles.md). To mint one `README.md` file,
+pass it explicitly as the path argument.
 
 ```bash
 kairos mint document.md
