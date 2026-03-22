@@ -19,6 +19,9 @@ const MISSING_COMPLETION_RULE = 'completion_rule';
 const MISSING_H1 = 'h1_title';
 const MISSING_CHALLENGE_BLOCK = 'challenge_block';
 const MIXED_CHALLENGE_FENCES = 'mixed_challenge_fences';
+const INVALID_CHALLENGE_TYPE = 'invalid_challenge_type';
+
+const ALLOWED_CHALLENGE_TYPES = new Set(['shell', 'mcp', 'user_input', 'comment']);
 
 /**
  * Extract H1 and H2 headings from markdown, ignoring lines inside fenced code blocks.
@@ -142,6 +145,15 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
     missing.push(MISSING_CHALLENGE_BLOCK);
   }
 
+  for (const block of challengeBlocks) {
+    const t = block.proof.type;
+    if (t === undefined) continue;
+    if (typeof t !== 'string' || !ALLOWED_CHALLENGE_TYPES.has(t)) {
+      missing.push(INVALID_CHALLENGE_TYPE);
+      break;
+    }
+  }
+
   const valid = missing.length === 0;
   let message: string;
   if (valid) {
@@ -153,6 +165,9 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
       if (m === MISSING_COMPLETION_RULE) return 'Completion Rule (last H2)';
       if (m === MISSING_CHALLENGE_BLOCK) return 'at least one ```json challenge block';
       if (m === MIXED_CHALLENGE_FENCES) return 'use only ```json for challenge blocks (no plain ``` with challenge)';
+      if (m === INVALID_CHALLENGE_TYPE) {
+        return 'each ```json challenge must set type to exactly shell, mcp, user_input, or comment (no placeholders or combined values)';
+      }
       return m;
     });
     message = `Protocol is missing required structure: ${parts.join(', ')}. Run the creation protocol for guided help.`;

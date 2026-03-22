@@ -55,6 +55,40 @@ Done.`;
     expect(body.message).toMatch(/Natural Language Triggers|required structure/i);
   });
 
+  test('kairos_mint returns PROTOCOL_STRUCTURE_INVALID for invalid challenge type placeholder', async () => {
+    const badTypeMd = `# Bad Type Protocol ${Date.now()}
+
+## Natural Language Triggers
+
+Run when testing invalid challenge types.
+
+## Step 1
+
+Bad illustrative type.
+
+\`\`\`json
+{"challenge":{"type":"comment|user_input|mcp|shell","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+
+Done.`;
+
+    const result = await mcpConnection.client.callTool({
+      name: 'kairos_mint',
+      arguments: {
+        markdown_doc: badTypeMd,
+        llm_model_id: 'minimax/minimax-m2:free'
+      }
+    });
+
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text);
+    expect(body.error).toBe('PROTOCOL_STRUCTURE_INVALID');
+    expect(body.missing).toContain('invalid_challenge_type');
+    expect(body.message).toMatch(/shell, mcp, user_input, or comment/i);
+  });
+
   test('kairos_mint stores valid markdown with required sections (no regression)', async () => {
     const validMd = `# Valid Protocol ${Date.now()}
 

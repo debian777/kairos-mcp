@@ -2,6 +2,8 @@
  * Unit tests for validate-protocol-structure.ts: protocol markdown validation before mint.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   validateProtocolStructure,
   CREATION_PROTOCOL_URI
@@ -288,6 +290,40 @@ Example heading in block:
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(true);
+  });
+
+  test('rejects challenge type that is not a single allowed enum value', () => {
+    const doc = `# My Protocol
+
+## Natural Language Triggers
+
+Run when needed.
+
+## Step 1
+
+Do it.
+
+\`\`\`json
+{"challenge":{"type":"comment|user_input|mcp|shell","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Completion Rule
+
+Done.`;
+    const result = validateProtocolStructure(doc);
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain('invalid_challenge_type');
+    expect(result.message).toMatch(/shell, mcp, user_input, or comment/);
+  });
+
+  test('embedded create-new-protocol markdown passes validation', () => {
+    const md = readFileSync(
+      join(process.cwd(), 'src/embed-docs/mem/00000000-0000-0000-0000-000000002001.md'),
+      'utf8'
+    );
+    const result = validateProtocolStructure(md);
+    expect(result.valid).toBe(true);
+    expect(result.missing).toHaveLength(0);
   });
 });
 

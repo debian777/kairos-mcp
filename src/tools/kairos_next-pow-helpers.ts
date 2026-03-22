@@ -4,12 +4,13 @@ import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../
 import { embeddingService } from '../services/embedding/service.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
+import { buildChallengeShapeForDisplay } from './kairos-challenge-display.js';
+
+export { GENESIS_HASH } from './kairos-genesis-proof-hash.js';
+export { buildChallengeShapeForDisplay };
 
 /** Minimum cosine similarity for comment proof to pass semantic validation. Reject if below. */
 const COMMENT_SEMANTIC_THRESHOLD = 0.25;
-
-/** Hash used as proof_hash for step 1 (no prior proof). */
-export const GENESIS_HASH = crypto.createHash('sha256').update('genesis').digest('hex');
 
 function hashProofRecord(record: ProofOfWorkResultRecord): string {
   const canonical = JSON.stringify(record, Object.keys(record).sort());
@@ -44,38 +45,6 @@ export type ProofOfWorkSubmission = {
     text: string;
   };
 };
-
-/** Build challenge shape from proof only (no nonce, no store). For read-only display e.g. kairos_dump. */
-export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Record<string, unknown> {
-  const base: Record<string, unknown> = proof ? (() => {
-    const proofType: ProofOfWorkType = proof.type || 'shell';
-    const result: Record<string, unknown> = { type: proofType, description: '' };
-    if (proofType === 'shell') {
-      const cmd = proof.shell?.cmd || proof.cmd || 'No command specified';
-      const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 30;
-      result['description'] = `Execute shell command: ${cmd}. You MUST actually run this command and report the real exit_code/stdout/stderr; do not fabricate.`;
-      result['shell'] = { cmd, timeout_seconds: timeout };
-    } else if (proofType === 'mcp') {
-      const toolName = proof.mcp?.tool_name || 'No tool specified';
-      result['description'] = `Call MCP tool: ${toolName}. You MUST actually call this tool and report its real result; do not fabricate.`;
-      result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
-    } else if (proofType === 'user_input') {
-      const prompt = proof.user_input?.prompt || 'Confirm completion';
-      result['description'] = `User confirmation: ${prompt}. You MUST show this prompt to the user and use only their reply as user_input.confirmation; do not assume or invent it.`;
-      result['user_input'] = { prompt };
-    } else if (proofType === 'comment') {
-      const minLength = proof.comment?.min_length || 10;
-      result['description'] = `Provide a verification comment (minimum ${minLength} characters) that genuinely summarises what was done in this step; do not paste unrelated text.`;
-      result['comment'] = { min_length: minLength };
-    }
-    return result;
-  })() : {
-    type: 'comment' as ProofOfWorkType,
-    description: 'Provide a verification comment describing how you completed this step. Write a genuine summary; do not paste unrelated text.'
-  };
-  base['proof_hash'] = GENESIS_HASH;
-  return base;
-}
 
 export type BuildChallengeOptions = {
   /** When set, use this nonce and do not overwrite the stored nonce (e.g. for error responses so retry count is preserved). */
