@@ -58,7 +58,7 @@ All build, deploy, and test operations are npm scripts. **Always deploy before t
 **Build**
 
 ```bash
-npm run dev:build    # lint + TypeScript → dist/ (dev)
+npm run dev:build    # lint + knip + ui build + TypeScript build path used by dev deploy
 ```
 
 **Deploy**
@@ -249,8 +249,8 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
   objects. Never swallow errors silently. Include `error_code` and
   `request_id` in log payloads at the call site.
 - **Logger:** Use `structuredLogger` (from
-  `src/utils/structured-logger.ts`) for HTTP/MCP request flow. Use
-  `logger` (from `src/utils/logger.ts`) for services. See
+  `src/utils/structured-logger.ts`) for HTTP/MCP request flow. The same module
+  also exports `logger` as an alias used by services. See
   [docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
 - **Tests:** Write integration tests for new tools and API endpoints.
   Place them in `tests/integration/`.
@@ -274,8 +274,8 @@ When adding or changing code that touches Qdrant or Redis, verify:
 - **Optional space param:** Validate HTTP query `space` / `space_id`
   and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
 
-See [docs/architecture/auth-urls-qa.md](docs/architecture/auth-urls-qa.md)
-for Keycloak URL routing and the full multitenancy rules.
+See [docs/architecture/auth-overview.md](docs/architecture/auth-overview.md)
+for Keycloak URL routing and the current auth model.
 
 ## Principles
 

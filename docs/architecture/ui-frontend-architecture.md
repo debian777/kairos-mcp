@@ -56,6 +56,7 @@ The current route set is:
 - `/protocols/:uri` for protocol detail
 - `/protocols/:uri/edit` for protocol editing
 - `/protocols/:uri/run` for guided test execution
+- `/protocols/:uri/skill` for skill-bundle export guidance
 - `/account` for session identity details
 
 `Layout` wraps all routed pages so navigation, branding, and page shell
@@ -127,6 +128,6 @@ separate UI stack or a duplicated static mockup export path.
 
 ## Next steps
 
-If the route tree or frontend boundary changes, update this page
-together with `docs/design/README.md` so design docs and architecture
-docs stay cleanly separated.
+If the route tree or frontend boundary changes, update this page together with
+the relevant docs in `docs/design/` so product-facing design guidance and
+implementation-facing architecture notes stay separated.
