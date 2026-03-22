@@ -13,6 +13,10 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  integrationReportSection,
+  writeIntegrationReportFile
+} from './ai-mcp-integration-report-utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -30,7 +34,16 @@ function defaultRunId() {
   const s = String(d.getSeconds()).padStart(2, '0');
   return `workflow-${Y}-${M}-${D}-${h}${m}${s}`;
 }
-const RUN_ID = process.env.RUN_ID || defaultRunId();
+/** RUN_ID from env must stay within reports/ (no path segments). */
+function resolveRunId() {
+  const fromEnv = process.env.RUN_ID;
+  if (!fromEnv) return defaultRunId();
+  if (!/^[a-zA-Z0-9._-]+$/.test(fromEnv) || fromEnv.length > 200) {
+    throw new Error('RUN_ID must be alphanumeric plus ._- only and length <= 200');
+  }
+  return fromEnv;
+}
+const RUN_ID = resolveRunId();
 
 const KAIROS_URI_REGEX = /kairos:\/\/(?:adapter|layer|mem)\/[a-f0-9-]+(?:\?execution_id=[a-f0-9-]+)?/gi;
 
@@ -156,10 +169,6 @@ function getFirstMatchUri(activateData) {
   return match?.uri ?? choices[0]?.uri ?? null;
 }
 
-function section(title, request, response) {
-  return `### ${title}\n\n**Request:**\n\n\`\`\`json\n${JSON.stringify(request, null, 2)}\n\`\`\`\n\n**Response:**\n\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\`\n\n`;
-}
-
 async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   const steps = [];
   let proofHashFromPrevious;
@@ -176,11 +185,10 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
     const report = [
       `# ${protocolName}\n\n`,
       '## Train\n\n',
-      section('Train', steps[0].request, steps[0].response),
+      integrationReportSection('Train', steps[0].request, steps[0].response),
       'Workflow stopped: train failed or returned an error.\n'
     ].join('');
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, report, 'utf8');
+    writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
     return;
   }
 
@@ -197,11 +205,10 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   if (!adapterUri) {
     const report = [
       `# ${protocolName}\n\n`,
-      steps.map((s) => `## ${s.title}\n\n${section(s.title, s.request, s.response)}`).join(''),
+      steps.map((s) => `## ${s.title}\n\n${integrationReportSection(s.title, s.request, s.response)}`).join(''),
       'Workflow stopped: activate returned no runnable choice.\n'
     ].join('');
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, report, 'utf8');
+    writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
     return;
   }
 
@@ -247,11 +254,12 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   const report = [
     `# ${protocolName}\n\n`,
     'Flow: Train → Activate → Forward (loop) → Reward.\n\n',
-    ...steps.map((s) => `## ${s.title}\n\n${s.what}\n\n${section(s.title, s.request, s.response)}`)
+    ...steps.map(
+      (s) => `## ${s.title}\n\n${s.what}\n\n${integrationReportSection(s.title, s.request, s.response)}`
+    )
   ].join('');
 
-  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, report, 'utf8');
+  writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
 }
 
 function listProtocolFiles() {
