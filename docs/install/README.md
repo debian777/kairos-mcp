@@ -1,46 +1,147 @@
 # Install and environment
 
-Copy one of the env examples below to `.env` in the project root, then edit as needed.
+KAIROS reads all runtime configuration from environment variables. For local
+work, copy one of the provided examples to `.env` at the repository root and
+edit only the values you need.
 
-## OpenAI API key (restricted / embeddings-only)
-
-KAIROS only needs **Embeddings** (`/v1/embeddings`) access. You can create a restricted key in the [OpenAI API Keys](https://platform.openai.com/api-keys) UI.
-
-**UI workaround:** The permissions UI has a quirk. Setting only **Embeddings** to **Request** can yield `401 Missing scopes: model.request`. To get an embeddings-only key that works:
-
-1. Create a new secret key and choose **Restricted**.
-2. Set the **Model capabilities** group to **Request** first (so the `model.request` scope is granted).
-3. Then set every *individual* capability under Model capabilities to **None**, except **Embeddings (/v1/embeddings)** — leave that as **Request**.
-4. Leave **List models**, **Assistants**, and all other top-level items as **None**.
-
-Result: **Model capabilities** shows **Mixed**; only Embeddings has Request. The key will work for embeddings and not for chat, images, etc.
-
-![OpenAI key: embeddings-only permissions](openai-key-embeddings-only.png)
-
-To verify the key locally: `npm run dev:test-embedding-key` (or `OPENAI_API_KEY=sk-... node scripts/test-embedding-key.mjs`).
-
-### Optional — Ollama (local embeddings)
-
-Use [Ollama](https://ollama.com) with an OpenAI-compatible embeddings endpoint (e.g. `nomic-embed-text`). KAIROS only needs the **base** URL; it appends `/v1/embeddings` itself — do **not** put `/v1` in `OPENAI_API_URL` or you get a double path.
-
-| App runs on | `OPENAI_API_URL` |
-|-------------|-------------------|
-| Host (e.g. `npm run dev`) | `http://localhost:11434` |
-| Docker, Ollama on host (Mac/Windows) | `http://host.docker.internal:11434` |
-
-In `.env`: set `OPENAI_EMBEDDING_MODEL=nomic-embed-text` and `OPENAI_API_KEY=ollama` (Ollama does not validate the key). Ensure Ollama is running and the model is pulled: `ollama pull nomic-embed-text`.
-
-**Note:** Switching to or from Ollama changes embedding dimension (e.g. 1536 → 768). On first start the app will migrate the Qdrant collection (recreate vectors, re-embed if there was existing data). Empty collections migrate quickly.
-
-See commented lines in `env.example.minimal.txt`.
+## Choose an env example
 
 | File | Use case |
 |------|----------|
-| **env.example.minimal.txt** | App + Qdrant only (minimal; no Redis, no auth, no Keycloak). |
-| **env.example.fullstack.txt** | Full Docker stack: Redis, Qdrant, Postgres, Keycloak, auth enabled. Use for local full stack and CI. |
+| `docs/install/env.example.minimal.txt` | Minimal Docker deployment: app + Qdrant only, `AUTH_ENABLED=false` |
+| `docs/install/env.example.fullstack.txt` | Local full stack: Redis, Postgres, Keycloak, auth enabled |
+| `scripts/env/.env.template` | Template used by `scripts/generate_dev_secrets.py` for dev/CI-style fullstack `.env` generation |
 
-- **Quick start (minimal, default):** `cp env.example.minimal.txt .env`, set `OPENAI_API_KEY` (or TEI) and `QDRANT_API_KEY`, then `docker compose -p kairos-mcp up -d`. The minimal example sets `AUTH_ENABLED=false` explicitly so it keeps working with the secure auth default.
-- **Full stack (Redis, Keycloak):** `cp env.example.fullstack.txt .env`, set `OPENAI_API_KEY`, `QDRANT_API_KEY`, `REDIS_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, and `SESSION_SECRET`, then `docker compose -p kairos-mcp --profile fullstack up -d`. If the app runs inside Docker, set `REDIS_URL=redis://:your-password@redis:6379`. If the app runs on the host, keep `REDIS_URL=redis://:your-password@127.0.0.1:6379`.
-- **CI / generate script:** Uses `scripts/env/.env.template` (fullstack). Run `python3 scripts/generate_dev_secrets.py` to produce `.env`.
+## Minimal setup
 
-For **Google sign-in in dev**, see [Google auth (dev)](google-auth-dev.md).
+Use this when you want the default Docker stack from `compose.yaml`.
+
+```bash
+cp docs/install/env.example.minimal.txt .env
+docker compose -p kairos-mcp up -d
+```
+
+Set at least:
+
+- `QDRANT_API_KEY`
+- one embedding backend:
+  - `OPENAI_API_KEY`, or
+  - `OPENAI_API_URL` + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`, or
+  - `TEI_BASE_URL` (+ optional `TEI_MODEL`)
+
+The minimal example pins `AUTH_ENABLED=false`, so the app starts without
+Keycloak or session/Bearer auth.
+
+## Fullstack setup
+
+Use this when you want Redis, Postgres, Keycloak, and auth enabled locally.
+
+```bash
+cp docs/install/env.example.fullstack.txt .env
+docker compose -p kairos-mcp --profile fullstack up -d
+```
+
+Set these before starting:
+
+- `QDRANT_API_KEY`
+- `REDIS_PASSWORD`
+- `SESSION_SECRET`
+- `KEYCLOAK_ADMIN_PASSWORD`
+- `KEYCLOAK_DB_PASSWORD`
+- an embedding backend (`OPENAI_API_KEY` or TEI settings)
+
+### `REDIS_URL` depends on where the app runs
+
+If the app runs **inside Docker Compose**, use the Redis service hostname:
+
+```env
+REDIS_URL=redis://:your-password@redis:6379
+```
+
+If the app runs **on the host** (for example `npm run dev:start`), use the
+host-mapped port:
+
+```env
+REDIS_URL=redis://:your-password@127.0.0.1:6379
+```
+
+## Embedding backends
+
+### OpenAI
+
+KAIROS uses the embeddings API only. A restricted API key is sufficient if it
+is allowed to call `/v1/embeddings`.
+
+To verify the key locally:
+
+```bash
+npm run dev:test-embedding-key
+```
+
+### Ollama / OpenAI-compatible local endpoint
+
+KAIROS expects the **base URL** only. Do not include `/v1`; the server appends
+`/v1/embeddings` itself.
+
+| App location | `OPENAI_API_URL` |
+|--------------|------------------|
+| app on host | `http://localhost:11434` |
+| app in Docker, Ollama on host (Mac/Windows) | `http://host.docker.internal:11434` |
+
+Typical Ollama settings:
+
+```env
+OPENAI_API_URL=http://localhost:11434
+OPENAI_EMBEDDING_MODEL=nomic-embed-text
+OPENAI_API_KEY=ollama
+```
+
+You must have Ollama running and the model pulled:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+Switching embedding backends can change vector dimension. On the next start,
+the server may migrate the Qdrant collection to the current vector layout.
+
+### TEI
+
+If you are using a TEI-compatible endpoint, set:
+
+```env
+TEI_BASE_URL=http://your-tei-host:8080
+TEI_MODEL=Alibaba-NLP/gte-large-en-v1.5
+```
+
+`TEI_MODEL` is optional if the server default is acceptable.
+
+## Generated dev secrets
+
+To create a fullstack-style `.env` with generated secrets:
+
+```bash
+python3 scripts/generate_dev_secrets.py
+```
+
+That script writes `.env` using `scripts/env/.env.template`.
+
+## Common env variables
+
+These are the most important runtime settings documented by `src/config.ts`:
+
+| Variable | Meaning |
+|----------|---------|
+| `PORT` | Main HTTP server port |
+| `METRICS_PORT` | Separate metrics server port |
+| `QDRANT_URL` | Qdrant base URL |
+| `QDRANT_API_KEY` | Qdrant API key |
+| `QDRANT_COLLECTION` | Default collection name when no current alias override is set |
+| `REDIS_URL` | Enables Redis-backed cache / proof-of-work state when non-empty |
+| `AUTH_ENABLED` | Enables auth enforcement for `/api`, `/mcp`, and `/ui` |
+| `KEYCLOAK_URL` | Public Keycloak base URL used for browser-facing auth flows |
+| `KEYCLOAK_INTERNAL_URL` | Optional internal Keycloak URL for server-side token exchange |
+| `AUTH_CALLBACK_BASE_URL` | Base URL used to build `/auth/callback` |
+
+For Google sign-in setup in the dev realm, see
+[Google sign-in (dev)](google-auth-dev.md).

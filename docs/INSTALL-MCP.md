@@ -1,28 +1,28 @@
 # Install KAIROS MCP in Cursor
 
-**Agent skills:** Install the [KAIROS agent skills](../README.md#agent-skills) and ask your agent to run KAIROS protocols; for MCP config the agent can help or use this section. This section is for manual configuration.
+This guide configures Cursor to use the KAIROS MCP server over HTTP.
 
-This guide shows you how to connect KAIROS to Cursor as an MCP server. Once
-connected, Cursor can call KAIROS tools automatically without prompting for
-each one.
+Prerequisite: a running KAIROS server, for example from the Docker quick start
+in the root [README](../README.md).
 
-You need a KAIROS server running at a URL you control before you add the
-config. See the [README](../README.md) for the Docker quick start.
+## Connection details
 
-## The easy way: Add to Cursor (one-click)
+- transport: **streamable HTTP**
+- default local MCP URL: `http://localhost:3000/mcp`
+- unauthenticated discovery endpoint: `http://localhost:3000/.well-known/oauth-protected-resource`
 
-Click the button below. Cursor opens with the server name, transport, and URL
-already filled in. Click **Install** and you’re done.
+If your server is running elsewhere, replace `http://localhost:3000` with your
+actual base URL.
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=KAIROS&config=eyJ0eXBlIjoic3RyZWFtYWJsZS1odHRwIiwidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwL21jcCIsImFsd2F5c0FsbG93IjpbImthaXJvc19zZWFyY2giLCJrYWlyb3NfYmVnaW4iLCJrYWlyb3NfbmV4dCIsImthaXJvc19taW50Iiwia2Fpcm9zX2F0dGVzdCIsImthaXJvc191cGRhdGUiLCJrYWlyb3NfZGVsZXRlIl19)
+## One-click install
 
-The link assumes KAIROS is at `http://localhost:3000`. If your server uses a
-different URL, use the manual config below and change the `url` value.
+The following Cursor deeplink pre-fills a local HTTP MCP server:
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=KAIROS&config=eyJ0eXBlIjoic3RyZWFtYWJsZS1odHRwIiwidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwL21jcCIsImFsd2F5c0FsbG93IjpbImthaXJvc19zZWFyY2giLCJrYWlyb3NfYmVnaW4iLCJrYWlyb3NfbmV4dCIsImthaXJvc19taW50Iiwia2Fpcm9zX2F0dGVzdCIsImthaXJvc191cGRhdGUiLCJrYWlyb3NfZGVsZXRlIiwia2Fpcm9zX2R1bXAiLCJrYWlyb3Nfc3BhY2VzIl19)
 
 ## Manual config
 
-Copy this JSON into your Cursor MCP settings (e.g. **Settings → MCP → Edit
-config**) if you prefer to edit the URL or tool list by hand:
+Open **Settings → MCP → Edit config** in Cursor and add:
 
 ```json
 {
@@ -37,27 +37,86 @@ config**) if you prefer to edit the URL or tool list by hand:
         "kairos_mint",
         "kairos_attest",
         "kairos_update",
-        "kairos_delete"
+        "kairos_delete",
+        "kairos_dump",
+        "kairos_spaces"
       ]
     }
   }
 }
 ```
 
-Change the `url` value if your KAIROS server is not at `http://localhost:3000`.
-The `alwaysAllow` list lets Cursor run these tools without asking for
-confirmation each time. Save the config, then reload Cursor or restart the MCP
-connection.
+`alwaysAllow` is optional, but without it Cursor may prompt before running each
+tool.
+
+## Auth-enabled servers
+
+If `AUTH_ENABLED=true`, Cursor connects to the same `/mcp` URL, but the server
+will require authentication. KAIROS exposes the standard protected-resource
+metadata endpoint at:
+
+```text
+/.well-known/oauth-protected-resource
+```
+
+That metadata is what clients use to discover auth endpoints. Depending on your
+Cursor version and setup, you may either:
+
+- complete the authentication flow from Cursor, or
+- authenticate with the KAIROS CLI first and reuse the shared local token/config
+
+See [CLI auth](CLI.md#authentication) and
+[authentication overview](architecture/auth-overview.md).
+
+## Verify the connection
+
+Before debugging Cursor, verify the server itself:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected local endpoints:
+
+- app health: `http://localhost:3000/health`
+- MCP: `http://localhost:3000/mcp`
+- UI: `http://localhost:3000/ui`
 
 ## Troubleshooting
 
-**Cursor shows "MCP server not connected."** Confirm the KAIROS server is
-running. Run `curl http://localhost:3000/health` to verify. If that fails,
-check the Docker logs with `docker compose -p kairos-mcp logs app-prod`.
+### Cursor shows the server as disconnected
 
-**Tools are not auto-running.** Add the KAIROS tools to `alwaysAllow` in the
-manual config so Cursor can run them without asking each time.
+Check the app directly:
 
-**The server connects but returns errors.** Check the KAIROS server logs for
-embedding provider or Qdrant connectivity errors. A missing
-`OPENAI_API_KEY` is the most common cause.
+```bash
+curl http://localhost:3000/health
+docker compose -p kairos-mcp logs app-prod
+```
+
+If health fails, fix the server first.
+
+### Cursor connects but tool calls fail
+
+Common causes:
+
+- Qdrant not reachable
+- embedding backend not configured
+- auth enabled but not completed
+
+Inspect server logs and confirm the configured base URL matches the one you put
+in Cursor.
+
+### Tools are not auto-running
+
+Make sure the tools you want are listed under `alwaysAllow`. The currently
+registered tool set is:
+
+- `kairos_search`
+- `kairos_begin`
+- `kairos_next`
+- `kairos_mint`
+- `kairos_attest`
+- `kairos_update`
+- `kairos_delete`
+- `kairos_dump`
+- `kairos_spaces`
