@@ -15,7 +15,7 @@ chains for AI agents. It exposes:
 
 Without persistent workflows, agents repeat work, lose context, and cannot
 follow multi-step procedures reliably. KAIROS fixes this with three core
-ideas (the diagram below lists every **MCP tool**):
+ideas (the diagrams below list every **MCP tool**):
 
 - **Persistent memory** — store and retrieve protocol chains across sessions
 - **Deterministic execution** — **activate** → **forward** (per layer) →
@@ -28,21 +28,23 @@ Protocol execution runs in a fixed order: **activate** (match adapters),
 run). Use **train** / **tune** / **export** / **delete** / **spaces** as
 described in each tool’s MCP description.
 
+**Default run order** — `activate` → `forward` (loop per layer) → `reward`:
+
 ```mermaid
-flowchart TB
-  subgraph run["Default run order"]
-    direction LR
-    A([activate]) --> B([forward])
-    B -.-> B
-    B --> D([reward])
-  end
-  subgraph more["Discovery and adapter lifecycle"]
-    direction LR
-    S([spaces]) --- TR([train]) --- TU([tune]) --- EX([export]) --- DL([delete])
-  end
+flowchart LR
+  A([activate]) --> B([forward])
+  B -.-> B
+  B --> D([reward])
   style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
   style B fill:#ffb74d,stroke:#f57c00,color:#333
   style D fill:#81c784,stroke:#388e3c,color:#333
+```
+
+**Discovery and adapter lifecycle** — no fixed order; follow each tool’s MCP description:
+
+```mermaid
+flowchart LR
+  S([spaces]) --- TR([train]) --- TU([tune]) --- EX([export]) --- DL([delete])
   style S fill:#4a6fa5,stroke:#2d4a7a,color:#fff
   style TR fill:#ede7f6,stroke:#5e35b1,color:#333
   style TU fill:#fff3e0,stroke:#f57c00,color:#333
