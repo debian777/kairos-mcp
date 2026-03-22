@@ -29,6 +29,9 @@ returns the next step. Use it for steps 2 and later (step 1 uses
 }
 ```
 
+`current_step.content` contains the step body only. The challenge JSON block is
+returned separately in `challenge`.
+
 AI decision rules:
 
 - `must_obey: true` → follow `next_action` (success or recoverable error)
@@ -85,7 +88,7 @@ The solution is accepted and the next step is returned. The AI reads
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo config > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
+    "content": "Set up configuration files.",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -160,16 +163,17 @@ The solution is accepted and no more steps remain. The AI must call
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/ccc33333-3333-3333-3333-333333333333",
-    "content": "Check that everything works.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"test -f project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
+    "content": "Check that everything works.",
     "mimeType": "text/markdown"
   },
   "challenge": {
-    "type": "comment",
-    "description": "Provide a verification comment describing how you completed this step",
+    "type": "shell",
+    "description": "Execute shell command: test -f project/config.json",
     "nonce": "c3d4e5f6a1b2",
     "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
-    "comment": {
-      "min_length": 20
+    "shell": {
+      "cmd": "test -f project/config.json",
+      "timeout_seconds": 5
     }
   },
   "message": "Protocol steps complete. Call kairos_attest to finalize.",
@@ -218,7 +222,7 @@ response includes a fresh `challenge` with a new nonce.
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/bbb22222-2222-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo config > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
+    "content": "Set up configuration files.",
     "mimeType": "text/markdown"
   },
   "challenge": {

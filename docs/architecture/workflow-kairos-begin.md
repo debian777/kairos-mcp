@@ -4,6 +4,11 @@
 Step 1 never requires a solution from the caller. If you pass a non-step-1
 URI, KAIROS auto-redirects to step 1 of the same chain.
 
+You can start a protocol either by:
+
+- `uri` — a `kairos://mem/<uuid>` URI
+- `key` — an exact protocol slug
+
 ## Response schema
 
 ```json
@@ -24,6 +29,9 @@ URI, KAIROS auto-redirects to step 1 of the same chain.
   "message": "<string, optional>"
 }
 ```
+
+`current_step.content` contains the step body only. The challenge JSON is not
+embedded in that string; it is returned separately in `challenge`.
 
 AI decision rules:
 
@@ -59,7 +67,7 @@ The protocol has more than 1 step. The AI executes the challenge and calls
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p src\",\"timeout_seconds\":30},\"required\":true}}\n```",
+    "content": "Create the project directory structure.",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -134,7 +142,7 @@ instructed by `next_action`.
       "min_length": 20
     }
   },
-  "message": "Protocol completed. Call kairos_attest to finalize.",
+  "message": "Single-step protocol. Call kairos_attest to finalize.",
   "next_action": "call kairos_attest with kairos://mem/ccc33333-3333-3333-3333-333333333333, outcome, and message"
 }
 ```
@@ -176,7 +184,7 @@ resolves the chain, finds step 1, and returns it:
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/aaa11111-1111-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p src\",\"timeout_seconds\":30},\"required\":true}}\n```",
+    "content": "Create the project directory structure.",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -196,6 +204,24 @@ resolves the chain, finds step 1, and returns it:
 
 Transparent to the AI — it called `kairos_begin`, got step 1, and proceeds
 normally.
+
+## Scenario 4: deterministic routing by slug
+
+When you already know the protocol slug, you can skip semantic search and call
+`kairos_begin` with `key`.
+
+### Input
+
+```json
+{
+  "key": "create-new-protocol"
+}
+```
+
+### Expected behavior
+
+KAIROS resolves the slug to the accessible step-1 memory and returns the same
+response shape as a URI-based `kairos_begin` call.
 
 ## Validation rules
 

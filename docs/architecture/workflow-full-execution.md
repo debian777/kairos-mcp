@@ -90,7 +90,7 @@ kairos_begin({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step1-uuid-1111-1111-111111111111",
-    "content": "Create the project directory structure.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"mkdir -p project/src\",\"timeout_seconds\":10},\"required\":true}}\n```",
+    "content": "Create the project directory structure.",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -138,7 +138,7 @@ kairos_next({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step2-uuid-2222-2222-222222222222",
-    "content": "Set up configuration files.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"echo \\\"config\\\" > project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
+    "content": "Set up configuration files.",
     "mimeType": "text/markdown"
   },
   "challenge": {
@@ -187,16 +187,17 @@ kairos_next({
   "must_obey": true,
   "current_step": {
     "uri": "kairos://mem/step3-uuid-3333-3333-333333333333",
-    "content": "Check that everything works.\n\n```json\n{\"challenge\":{\"type\":\"shell\",\"shell\":{\"cmd\":\"test -f project/config.json\",\"timeout_seconds\":5},\"required\":true}}\n```",
+    "content": "Check that everything works.",
     "mimeType": "text/markdown"
   },
   "challenge": {
-    "type": "comment",
-    "description": "Provide a verification comment describing how you completed this step",
+    "type": "shell",
+    "description": "Execute shell command: test -f project/config.json",
     "nonce": "nonce-ccc",
     "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
-    "comment": {
-      "min_length": 20
+    "shell": {
+      "cmd": "test -f project/config.json",
+      "timeout_seconds": 5
     }
   },
   "message": "Protocol steps complete. Call kairos_attest to finalize.",

@@ -8,7 +8,7 @@ We **fully rely on Qdrant for scoring**. All search logic (ranking, filtering, s
 
 ## Role in KAIROS
 
-Protocol execution order is: **search → begin → next (loop) → attest**. Search is the only way to discover which protocol to run; there is no “run by name” or “run by ID” without a prior search (or a stored URI from a previous search). So the quality and behaviour of the search query pipeline directly determine which protocols agents find and how they rank.
+Protocol execution order is typically **search → begin → next (loop) → attest**. Search is the normal discovery path for natural-language requests, but code can also jump directly to `kairos_begin` with an exact protocol slug (`key`) or a previously stored URI. That makes the quality and behaviour of the search query pipeline especially important for open-ended requests, even though it is not the only deterministic entry path.
 
 ```mermaid
 flowchart LR
@@ -123,7 +123,7 @@ The store returns `{ memories, scores }`. The tool layer then:
 
 ## Cache
 
-- **Key:** `begin:v3:{searchQuery}:{enableGroupCollapse}:{limit}` (e.g. Redis).
+- **Key:** `begin:v3:{effectiveSpaceId}:{searchQuery}:{enableGroupCollapse}:{limit}`.
 - **Value:** Full unified JSON response (stringified).
 - **TTL:** 300 seconds (configurable where the cache is set).
 - Cache is written after a successful search and read at the start of the request when the key exists.
