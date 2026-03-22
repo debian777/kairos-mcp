@@ -132,6 +132,25 @@ jobs:
       - name: Install dependencies
         run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
 
+      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; this job no longer inherits browsers from `checks` (separate runner).
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache-integration
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        id: playwright-install-integration
+        run: node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache-integration.outputs.cache-hit != 'true' && steps.playwright-install-integration.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Wait for infra (Redis, Qdrant, Postgres, Keycloak)
         run: bash scripts/wait-for-infra-ci.sh
 
