@@ -13,7 +13,9 @@ chains for AI agents. It exposes:
 - a browser UI under `/ui`
 - a CLI named `kairos`
 
-Protocol execution is deterministic:
+Without persistent workflows, agents repeat work, lose context, and cannot
+follow multi-step procedures reliably. KAIROS fixes this with three core
+ideas (the diagram below lists every **MCP tool**):
 
 - **Persistent memory** — store and retrieve protocol chains across sessions
 - **Deterministic execution** — **activate** → **forward** (per layer) →
@@ -27,12 +29,25 @@ run). Use **train** / **tune** / **export** / **delete** / **spaces** as
 described in each tool’s MCP description.
 
 ```mermaid
-flowchart LR
-  A([activate]) --> B([forward]) --> D([reward])
-  B -.-> B
+flowchart TB
+  subgraph run["Default run order"]
+    direction LR
+    A([activate]) --> B([forward])
+    B -.-> B
+    B --> D([reward])
+  end
+  subgraph more["Discovery and adapter lifecycle"]
+    direction LR
+    S([spaces]) --- TR([train]) --- TU([tune]) --- EX([export]) --- DL([delete])
+  end
   style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
   style B fill:#ffb74d,stroke:#f57c00,color:#333
   style D fill:#81c784,stroke:#388e3c,color:#333
+  style S fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style TR fill:#ede7f6,stroke:#5e35b1,color:#333
+  style TU fill:#fff3e0,stroke:#f57c00,color:#333
+  style EX fill:#e8f5e9,stroke:#388e3c,color:#333
+  style DL fill:#ffebee,stroke:#c62828,color:#333
 ```
 
 The server generates challenge data (`nonce`, `proof_hash`, URIs); agents echo
