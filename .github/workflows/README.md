@@ -57,11 +57,20 @@ Each workflow is made of one or more **jobs**. Arrows show `needs:` — the targ
 ```mermaid
 flowchart TB
   subgraph INT_WF["Integration (integration.yml)"]
-    J_CHK[checks]
-    J_INT[integration]
+    subgraph parallel_with_build [Parallel at workflow start]
+      direction LR
+      J_BLD[build]
+      J_UI[verify-ui]
+    end
+    J_INT[verify-integration]
+    J_DKR[verify-docker]
     J_PASS[integration-pass]
-    J_CHK --> J_PASS
+    J_BLD --> J_INT
+    J_BLD --> J_DKR
+    J_BLD --> J_PASS
+    J_UI --> J_PASS
     J_INT --> J_PASS
+    J_DKR --> J_PASS
   end
 
   subgraph RTAG_WF["Release tag on version bump (release-tag-on-version-bump.yml)"]
@@ -85,13 +94,13 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_CHK,J_INT,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `checks`, `integration` (parallel) → `integration-pass` | `integration-pass` needs both `checks` and `integration` |
+| Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -109,9 +118,11 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`checks`** runs version/skills lint, `npm ci`, Playwright browsers, then **TypeScript + Knip + UI tests in parallel** (`scripts/run-parallel-checks-ci.mjs`). **`integration`** runs **`docker compose up` and `npm ci` in parallel** (same shell step), then **`npx playwright install chromium` and `scripts/wait-for-infra-ci.sh` in parallel** so browser download overlaps Redis/Qdrant/Postgres/Keycloak readiness polling. Playwright is required on this runner for **browser E2E** tests (e.g. `cli-auth-browser-login.e2e.test.ts`). After Keycloak realm setup it builds the tgz, then **release-equivalent `docker build` and `npm install` from that tgz run in parallel** (after staging `package.tgz` for the Dockerfile); **Trivy** scans the image next, then the app starts from the installed package and **`dev:test`** runs. **`integration-pass`** runs with `if: always()` and fails unless both upstream jobs succeeded — use it as the **single required status check** (name: **Integration workflow passed**) so a green `integration` alone cannot merge while `checks` is red.
+**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads the **`npm-package`** artifact. **`verify-ui`** runs **in parallel with `build`** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) downloads the tgz **after** **Compose is already up and `npm ci` has run** (infra + test harness do not wait on the artifact); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-docker`** (`needs: build`, parallel with `verify-integration`) stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
 
-**Caching:** Both jobs use the same **`~/.cache/ms-playwright`** cache key (`runner.os` + `package-lock.json` hash). **`integration`** also restores/saves **Docker infra** images (`compose.yaml` hash).
+**Caching:** **`verify-ui`** and **`verify-integration`** share the **`~/.cache/ms-playwright`** key. **`verify-integration`** restores/saves **Docker infra** images (`compose.yaml` hash).
+
+**Note:** `verify-integration` cannot start until **`build`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build time plus later steps.
 
 **Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/run-with-github-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/run-env.sh`).
 
