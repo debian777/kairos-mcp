@@ -105,7 +105,7 @@ jobs:
         run: node scripts/run-parallel-checks-ci.mjs
 
   verify-integration:
-    name: Infra + npm package integration (AUTH on)
+    name: Infra + dev deploy + integration tests (AUTH on)
     needs: [build]
     runs-on: ubuntu-latest
     env:
@@ -293,15 +293,6 @@ jobs:
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
-
-  # Exact name may still be listed in branch protection from the pre-split workflow.
-  integration-legacy-check-name:
-    name: Infra + dev deploy + integration tests (AUTH on)
-    needs: [verify-integration]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delegate note
-        run: echo "Real infra + npm tests run in verify-integration; this job satisfies legacy required-check name only."
 
   integration-pass:
     name: Integration workflow passed
