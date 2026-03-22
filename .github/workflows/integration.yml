@@ -111,8 +111,17 @@ jobs:
         if: steps.docker-infra-cache.outputs.cache-hit == 'true'
         run: docker load -i .cache/docker-infra/images.tar
 
-      - name: Start Docker infra (no app container; app runs via npm)
-        run: docker compose -p kairos-mcp --env-file .env --profile fullstack up -d redis qdrant postgres keycloak
+      - name: Start Docker infra and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          docker compose -p kairos-mcp --env-file .env --profile fullstack up -d redis qdrant postgres keycloak &
+          pid_compose=$!
+          node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_compose || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
 
       - name: Save infra Docker images for cache
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
@@ -129,9 +138,6 @@ jobs:
           path: .cache/docker-infra
           key: infra-docker-${{ hashFiles('compose.yaml') }}
 
-      - name: Install dependencies
-        run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
-
       # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; this job no longer inherits browsers from `checks` (separate runner).
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
@@ -140,9 +146,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers and wait for infra (parallel)
         id: playwright-install-integration
-        run: node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+        run: |
+          set -euo pipefail
+          ec=0
+          node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          pid_pw=$!
+          bash scripts/wait-for-infra-ci.sh &
+          pid_wait=$!
+          wait $pid_pw || ec=1
+          wait $pid_wait || ec=1
+          exit $ec
 
       - name: Save Playwright browsers cache
         uses: actions/cache/save@v5
@@ -151,26 +166,29 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Wait for infra (Redis, Qdrant, Postgres, Keycloak)
-        run: bash scripts/wait-for-infra-ci.sh
-
       - name: Configure Keycloak realms and test user
         run: node scripts/run-with-github-summary.mjs "Configure Keycloak realms" -- python3 scripts/configure-keycloak-realms.py
 
       - name: Build package (tgz)
         run: node scripts/run-with-github-summary.mjs "Build package (tgz)" -- npm run build:tgz
 
-      - name: Stage tarball for release-equivalent Docker build
+      # Docker build (release-equivalent image) overlaps npm install from the same tgz; Trivy runs after the image exists.
+      - name: Stage tgz, Docker build + install package from tgz (parallel)
         run: |
+          set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
           mkdir -p .ci/docker
           cp "dist/debian777-kairos-mcp-${VERSION}.tgz" .ci/docker/package.tgz
-
-      - name: Build release-equivalent Docker image (target runtime-ci)
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
+          ec=0
           node scripts/run-with-github-summary.mjs "Docker build (release-equivalent)" -- \
-            docker build --target runtime-ci --build-arg "PACKAGE_VERSION=${VERSION}" -t kairos-mcp:release-ci .
+            docker build --target runtime-ci --build-arg "PACKAGE_VERSION=${VERSION}" -t kairos-mcp:release-ci . &
+          pid_docker=$!
+          node scripts/run-with-github-summary.mjs "Install package from tgz" -- \
+            npm install "./dist/debian777-kairos-mcp-${VERSION}.tgz" &
+          pid_npm=$!
+          wait $pid_docker || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
 
       - name: Trivy container scan (same policy as Release)
         uses: aquasecurity/trivy-action@0.35.0
@@ -179,9 +197,6 @@ jobs:
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
-
-      - name: Install package from tgz
-        run: node scripts/run-with-github-summary.mjs "Install package from tgz" -- npm install ./dist/debian777-kairos-mcp-$(node -p "require('./package.json').version").tgz
 
       - name: Start app (from installed package)
         env:
