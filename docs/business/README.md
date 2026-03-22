@@ -1,13 +1,12 @@
-# Business application cases
+# Illustrative business application cases
 
 <img src="../../logo/kaiiros-mcp.svg" width="96" alt="KAIROS MCP logo" />
 
-This section describes **real-world applications** of KAIROS for managers and
-decision-makers. Each case is a short example of how teams use automated
-workflows to standardize processes, speed up compliance, or keep codebases
-consistent—without going into technical protocol details.
+This section contains **illustrative examples** of how KAIROS can be applied in
+organizational workflows. These pages are scenario sketches for managers and
+decision-makers, not executable product guarantees or benchmark results.
 
-## What these cases show
+## What these examples show
 
 - **Repeatable procedures:** The same workflow runs the same way every time,
   so outcomes are predictable.
@@ -43,12 +42,12 @@ flowchart LR
   style G fill:#81c784,stroke:#388e3c,color:#333
 ```
 
-## Cases
+## Example cases
 
 | Case | Problem | Outcome |
 |------|--------|--------|
 | [Standardize commits and merge requests](case-standardize-commits-and-merge-requests.md) | Align the team on commit messages and MR rules | One shared procedure; everyone follows the same steps when creating merge requests |
-| [Compliance review from a new document (15 minutes)](case-compliance-review-from-pdf.md) | Check a codebase against a new compliance standard (e.g. NIST) | New procedure created from the PDF; first compliance report against the repo in about 15 minutes |
+| [Compliance review from a new document](case-compliance-review-from-pdf.md) | Check a codebase against a new compliance standard (e.g. NIST) | Example flow for turning a document into a reusable review procedure |
 | [Terraform module standardization](case-terraform-module-standardization.md) | Keep Terraform modules consistent and up to date | Standardize-project style workflow applied to Terraform; updated, consistent modules |
 
 ## Who this is for
@@ -61,5 +60,5 @@ flowchart LR
 
 ## More information
 
-For technical details on how protocols run, see [Architecture and protocol
-workflows](../architecture/README.md).
+For technical details on how protocols actually run in this repository, see
+[Architecture and protocol workflows](../architecture/README.md).

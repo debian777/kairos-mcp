@@ -31,4 +31,7 @@ When the server returns a challenge, the agent submits a solution in `kairos_nex
 
 Always echo `nonce` and `proof_hash` from the challenge (or previous response) when present; the server generates them.
 
+After the final `kairos_next`, the server directs the client to call
+`kairos_attest` to finish the run.
+
 For execution semantics (how to perform each challenge type, not infer or fabricate), see the kairos_begin / kairos_next tool descriptions.

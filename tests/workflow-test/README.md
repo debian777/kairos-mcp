@@ -7,7 +7,7 @@ This directory defines **agent-driven workflow tests** for KAIROS: an AI agent r
 ## Purpose
 
 - **Imports:** Mint protocols from `docs/examples/` via `kairos_mint`.
-- **Search + workflows:** Execute search → begin → next (loop) until run complete.
+- **Search + workflows:** Execute search → begin → next (loop) until the flow directs you to `kairos_attest`, then attest.
 - **Update step:** Dump one step, edit, then `kairos_update` (single step).
 - **Update chain:** Dump full chain, edit, then `kairos_update` (multiple steps).
 
@@ -21,7 +21,8 @@ Use the prompt in [PROMPT.md](PROMPT.md) when running these tests. It enforces:
 - **Exception:** write only under `reports/`.
 - **Report layout:** `reports/<run-id>/report.md` (summary) and `reports/<run-id>/calls/<nnn>-<tool>.json` (one file per request with full raw request/response).
 
-The same constraints are available as a Cursor rule in [.cursor/rules/workflow-test-mcp-only.mdc](../../.cursor/rules/workflow-test-mcp-only.mdc) for use inside the IDE.
+If you run these tests in an IDE chat, paste the contents of [PROMPT.md](PROMPT.md)
+directly into the session or otherwise enforce the same constraints manually.
 
 ## How to run
 
@@ -29,7 +30,7 @@ The same constraints are available as a Cursor rule in [.cursor/rules/workflow-t
    ```bash
    npm run dev:deploy
    ```
-2. **Start a session** with the workflow-test prompt active (paste [PROMPT.md](PROMPT.md) or open a chat in Cursor with the rule that applies under `tests/workflow-test/` or when `reports/` is in scope).
+2. **Start a session** with the workflow-test prompt active (for example, paste [PROMPT.md](PROMPT.md) into the chat or inject it through your automation harness).
 3. **Ask the agent** to run the four scenarios (imports; search + workflows; update step; update chain). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.
 4. **Inspect results:** Check `reports/<run-id>/report.md` and `reports/<run-id>/calls/*.json` for pass/fail and raw calls.
 

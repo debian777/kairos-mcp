@@ -5,7 +5,7 @@ description: "Runs end-to-end bug fix for kairos-mcp from a bug report: reproduc
 
 # KAIROS bug fix (from bug report)
 
-**Input:** A bug report (path under `reports/` or pasted content). If none exists yet, use the **mcp-bug-report** agent skill only to **capture** the incident; this skill owns **fixing** it.
+**Input:** A bug report (path under `reports/` or pasted content). If none exists yet, create one first under `reports/` (for example `reports/mcp-bug-<slug>.md`) or use a separate bug-capture workflow if your environment provides one. This skill owns **fixing** the bug once the report exists.
 
 **Authority:** Tool behavior on **live** is authoritative for “does the bug exist?” Local code and tests prove regression coverage after the fix.
 
@@ -37,7 +37,7 @@ From repo root:
 npm run dev:deploy && npm run dev:test
 ```
 
-If the project’s full gate is required (per change scope), use `npm test` per [AGENTS.md](../../../AGENTS.md) / [CLAUDE.md](../../../CLAUDE.md) guidance.
+If the project’s full gate is required (per change scope), use `npm test` only if the repo’s checked-in documentation or agent rules require it.
 
 ### 5. Commit, push, PR
 
@@ -82,4 +82,4 @@ When CI is green, give the user a short **merge-ready** summary:
 
 ## Optional reference
 
-- Bug report template and filename rules: `reports/mcp-bug-*.md` (see mcp-bug-report skill when drafting).
+- Bug report template and filename convention: `reports/mcp-bug-*.md`.

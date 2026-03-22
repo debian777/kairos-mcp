@@ -1,6 +1,7 @@
-# _meta/
+# Bundled meta-protocols
 
-Meta-protocols about KAIROS itself — how to create, structure, and maintain protocols.
+This directory contains the bundled KAIROS-internal protocol chains and policy
+documents that are injected into the Kairos app space at boot.
 
 ## Protocols
 
@@ -10,10 +11,10 @@ Meta-protocols about KAIROS itself — how to create, structure, and maintain pr
 | [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | Chain 2: Review & Publish — format review, stranger review, approval, mint |
 | [2002](00000000-0000-0000-0000-000000002002.md) | `refine-search` | Refine search — improve a failed kairos_search query |
 
-### Chain flow
+### Chained authoring flow
 
 ```
-2001 (Author) → kairos_begin("create-new-protocol-review") → 2003 (Review & Publish)
+2001 (Author) → kairos_begin(key: "create-new-protocol-review") → 2003 (Review & Publish)
 ```
 
 ## Reference Documents

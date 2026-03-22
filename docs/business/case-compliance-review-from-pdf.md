@@ -1,10 +1,11 @@
-# Case 2: Verify new compliance in 15 minutes (from a PDF to a first report)
+# Illustrative case 2: Turn a new compliance document into a review procedure
 
 <img src="../../logo/kaiiros-mcp.svg" width="64" alt="KAIROS MCP logo" />
 
 ## Problem
 
-A new compliance or security standard is published (e.g. a NIST guideline).
+Example problem: a new compliance or security standard is published (for
+example a NIST guideline).
 The team needs to check the codebase against it quickly, without manually
 reading the whole document and turning it into a checklist every time.
 
@@ -12,7 +13,7 @@ reading the whole document and turning it into a checklist every time.
 
 | | |
 |--|--|
-| **Goal** | First compliance report against a new standard in ~15 minutes |
+| **Goal** | Turn a new standard into a reusable review procedure quickly |
 | **Input** | Link to the standard (e.g. [NIST SP 800-218A](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218A.pdf)) |
 | **Output** | Runnable procedure + report (gaps and areas to improve) |
 | **Benefit** | No manual checklist building; procedure is reusable for other repos |
@@ -57,10 +58,10 @@ flowchart LR
 4. Run it against a target (e.g. repo, project); get a report with gaps and
    recommendations.
 
-## Outcome
+## Example outcome
 
-- **Speed:** From "we have a new PDF" to "we have a first report" in the
-  order of **15 minutes**, not days.
+- **Speed:** The checklist-building step becomes part of the workflow instead
+  of a manual document review exercise.
 - **Reuse:** The same procedure can be run again on other repos or after
   changes, so compliance checks stay repeatable.
 - **Clarity:** The report highlights where the codebase aligns or falls
@@ -68,6 +69,5 @@ flowchart LR
 
 ## Takeaway
 
-New compliance requirements can be turned into an automated review procedure
-quickly. The team gets a first compliance snapshot against the new standard
-without manually building a checklist from the document.
+This is an illustrative workflow pattern for turning a new standard into a
+repeatable review process.
