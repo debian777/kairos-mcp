@@ -284,9 +284,9 @@ and do not claim success.
 
 ## See also
 
-- [export workflow](workflow-kairos-dump.md) — inspect existing
+- [export workflow](workflow-export.md) — inspect existing
   content before overwriting
-- [tune workflow](workflow-kairos-update.md) — update individual
+- [tune workflow](workflow-tune.md) — update individual
   steps
-- [activate workflow](workflow-kairos-search.md) — find existing
+- [activate workflow](workflow-activate.md) — find existing
   protocols before minting a duplicate

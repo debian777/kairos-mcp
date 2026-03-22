@@ -6,7 +6,7 @@ It uses the same hybrid search pipeline described here. Agents call
 **`forward`** with an adapter URI). This document describes how the query
 is processed end-to-end and how scoring and filtering work. For response
 shape and scenarios, see [activate](../../src/embed-docs/tools/activate.md)
-and the companion [activate workflow](workflow-kairos-search.md) page.
+and the companion [activate workflow](workflow-activate.md) page.
 
 ## Principle: scoring in Qdrant, not in the app
 
@@ -159,6 +159,6 @@ To see `attest_boost` in the printed results, run once on the target collection:
 
 ## See also
 
-- [activate workflow](workflow-kairos-search.md) — response schema, scenarios, validation rules.
+- [activate workflow](workflow-activate.md) — response schema, scenarios, validation rules.
 - [Full execution workflow](workflow-full-execution.md) — search → begin → next → attest.
 - [Infrastructure](infrastructure.md) — Qdrant and Redis in the deployment.

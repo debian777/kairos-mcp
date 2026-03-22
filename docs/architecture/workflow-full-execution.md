@@ -79,10 +79,10 @@ activate(query)
   pipeline behind **`activate`**.
 - Embedded tool docs under [`src/embed-docs/tools/`](../../src/embed-docs/tools/).
 
-## Note on `workflow-kairos-*.md` filenames
+## Companion `workflow-*.md` pages
 
-Those pages are **companion narratives** aligned with this file and with
-`src/embed-docs/tools/*.md`. The filenames are historical; the described
-**MCP tools** are **`activate`**, **`forward`**, **`reward`**, **`train`**,
-**`tune`**, **`export`**, **`delete`**, **`spaces`**, with **`kairos://adapter/`**
-and **`kairos://layer/`** execution URIs.
+The **`workflow-activate.md`**, **`workflow-forward-*.md`**, **`workflow-reward.md`**,
+and related files in this folder are **companion narratives** aligned with this
+file and with **`src/embed-docs/tools/*.md`**. They use the **current** MCP tool
+names (not removed **`kairos_*`** wire names). Execution uses **`kairos://adapter/`**
+and **`kairos://layer/`** URIs.

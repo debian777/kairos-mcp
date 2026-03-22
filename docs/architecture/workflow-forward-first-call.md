@@ -82,7 +82,7 @@ store logic; always prefer the **adapter** URI from **`activate`**.
 
 ## See also
 
-- [activate workflow](workflow-kairos-search.md)
-- [Subsequent forward calls](workflow-kairos-next.md)
-- [reward workflow](workflow-kairos-attest.md)
+- [activate workflow](workflow-activate.md)
+- [Subsequent forward calls](workflow-forward-continue.md)
+- [reward workflow](workflow-reward.md)
 - [Full execution workflow](workflow-full-execution.md)

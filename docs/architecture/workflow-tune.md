@@ -55,5 +55,5 @@ may mention **`tune`** as a way to repair broken stored layers before new runs.
 ## See also
 
 - [`tune_schema.ts`](../../src/tools/tune_schema.ts)
-- [export workflow](workflow-kairos-dump.md)
-- [forward workflow](workflow-kairos-next.md)
+- [export workflow](workflow-export.md)
+- [forward workflow](workflow-forward-continue.md)

@@ -68,7 +68,7 @@ Use **`outcome: "failure"`** and explain what went wrong in **`message`**.
 
 ## See also
 
-- [forward (subsequent calls)](workflow-kairos-next.md)
+- [forward (subsequent calls)](workflow-forward-continue.md)
 - [Full execution workflow](workflow-full-execution.md)
 - [Search query architecture](search-query.md) — ranking may use success /
   failure signals on stored adapters.
