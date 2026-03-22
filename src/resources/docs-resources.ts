@@ -1,4 +1,4 @@
-import { getResource, getResources } from './embedded-mcp-resources.js';
+import { getMeta, getResource, getResources } from './embedded-mcp-resources.js';
 import { logger } from '../utils/structured-logger.js';
 
 function mdOrFallback(uri: any, text?: string, notFound: string = 'Document not found') {
@@ -57,6 +57,19 @@ export function registerDocsResources(server: any) {
         }
       }
     }
+  }
+
+  const meta = getMeta() as Record<string, string>;
+  for (const [slug, content] of Object.entries(meta)) {
+    if (typeof content !== 'string') continue;
+    const uri = `kairos://meta/${slug}`;
+    const name = `Meta: ${slug.replace(/-/g, ' ')}`;
+    server.registerResource(
+      `meta-${slug.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+      uri,
+      { name, description: `Bundled protocol or policy (${slug})`, mimeType: 'text/markdown' },
+      (uriObj: any) => mdOrFallback(uriObj, content)
+    );
   }
 
   // Tools docs are not registered as resources to keep resources/list lean.

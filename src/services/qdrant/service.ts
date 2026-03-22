@@ -74,8 +74,8 @@ export class QdrantService {
     return retrieval.getMemoryByUUID(this.conn, uuid);
   }
 
-  getChainMemories(chainId: string) {
-    return retrieval.getChainMemories(this.conn, chainId);
+  getChainMemories(chainId: string, extraSpaceIds?: string[]) {
+    return retrieval.getChainMemories(this.conn, chainId, extraSpaceIds);
   }
 
   /** Exact slug lookup: first step UUID of the protocol chain, or null. */

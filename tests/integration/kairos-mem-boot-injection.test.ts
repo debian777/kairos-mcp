@@ -2,7 +2,7 @@
  * Integration tests for mem boot injection.
  * Injection runs at server start (injectMemResourcesAtBoot). This test confirms mint at boot
  * by calling kairos_spaces and asserting the Kairos app space (kairos_dev) has at least 2 chains
- * (the two mem files in src/embed-docs/mem/). Uses normal MCP connection (auth when enabled).
+ * (UUID-named .md files in src/embed-docs/mem/). Uses normal MCP connection (auth when enabled).
  * Requires dev server (npm run dev:deploy).
  */
 
@@ -10,7 +10,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 const KAIROS_APP_SPACE_NAME = 'Kairos app';
-const EXPECTED_BOOT_CHAIN_COUNT = 2;
+const EXPECTED_BOOT_CHAIN_COUNT = 4;
 
 describe('Mem boot injection', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
@@ -23,7 +23,7 @@ describe('Mem boot injection', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  test('kairos_spaces shows Kairos app space with at least 2 chains (mint at boot)', async () => {
+  test('kairos_spaces shows Kairos app space with expected mem chains (mint at boot)', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'kairos_spaces',
       arguments: { include_chain_titles: true }

@@ -18,6 +18,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { collectMetaBySlug } from './embed-docs-slug-meta.ts';
 
 // Logger shim for build-time embedding (avoid importing runtime logger)
 const logger = {
@@ -113,7 +114,8 @@ function main() {
     resources: {},
     templates: {},
     tools: {},
-    mem: {} // Empty - mem files are read from filesystem at runtime
+    mem: {}, // Empty - mem files are read from filesystem at runtime
+    meta: {} // Protocol / policy markdown keyed by YAML slug (from mem/ then root *.md)
   };
 
   // Collect known categories with their specific logic
@@ -136,6 +138,12 @@ function main() {
   if (fs.existsSync(templatesDir)) {
     collectDirFlat(templatesDir, mcpResources.templates);
   }
+
+  const metaBySlug: Record<string, string> = {};
+  const memDirPath = path.join(baseDir, 'mem');
+  collectMetaBySlug(memDirPath, baseDir, metaBySlug, 'mem', readMarkdown, logger);
+  collectMetaBySlug(baseDir, baseDir, metaBySlug, 'root', readMarkdown, logger);
+  mcpResources.meta = metaBySlug;
 
   // Discover any other top-level directories and add them as flat collections
   // NOTE: mem/ directory is excluded - it's read from filesystem at runtime
@@ -194,8 +202,12 @@ export function getPrompt(key: string): string | undefined {
  * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.<uuid>')
  */
 export function getResource(key: string): string | any | undefined {
-  const resources = (mcpResources.resources || {}) as Record<string, any>;
   const parts = key.split('.');
+  if (parts[0] === 'meta' && parts.length === 2) {
+    const meta = (mcpResources.meta || {}) as Record<string, string>;
+    return meta[parts[1]!];
+  }
+  const resources = (mcpResources.resources || {}) as Record<string, any>;
   let current: any = resources;
   for (const part of parts) {
     if (current && typeof current === 'object') {
@@ -205,6 +217,14 @@ export function getResource(key: string): string | any | undefined {
     }
   }
   return current;
+}
+
+/**
+ * Meta protocol / policy markdown by slug (from frontmatter).
+ */
+export function getMetaDoc(slug: string): string | undefined {
+  const meta = (mcpResources.meta || {}) as Record<string, string>;
+  return meta[slug];
 }
 
 /**
@@ -232,11 +252,12 @@ export function listResourceKeys(): Record<string, string[]> {
   const templates = Object.keys((mcpResources.templates || {}) as Record<string, unknown>);
   const tools = Object.keys((mcpResources.tools || {}) as Record<string, unknown>);
   
-  const result: Record<string, string[]> = { prompts, resources, templates, tools };
+  const meta = Object.keys((mcpResources.meta || {}) as Record<string, unknown>);
+  const result: Record<string, string[]> = { prompts, resources, templates, tools, meta };
   
   // Add any other top-level categories
   for (const [key, value] of Object.entries(mcpResources)) {
-    if (!['prompts', 'resources', 'templates', 'tools'].includes(key)) {
+    if (!['prompts', 'resources', 'templates', 'tools', 'meta'].includes(key)) {
       if (typeof value === 'object' && value !== null) {
         result[key] = Object.keys(value as Record<string, unknown>);
       }
@@ -276,13 +297,23 @@ function collectAllKeys(obj: any, prefix: string = '', keys: string[] = []): str
     // Copy all .md files from mem/ to dist/embed-docs/mem/
     const memFiles = fs.readdirSync(memSourceDir, { withFileTypes: true });
     let copiedCount = 0;
+    const allowedMemNames = new Set<string>();
     for (const entry of memFiles) {
       if (entry.isFile() && entry.name.endsWith('.md')) {
+        allowedMemNames.add(entry.name);
         const sourceFile = path.join(memSourceDir, entry.name);
         const destFile = path.join(memDestDir, entry.name);
         fs.copyFileSync(sourceFile, destFile);
         copiedCount++;
         logger.info(`Copied mem file: ${entry.name} -> ${path.relative(process.cwd(), destFile)}`);
+      }
+    }
+    if (fs.existsSync(memDestDir)) {
+      for (const entry of fs.readdirSync(memDestDir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name.endsWith('.md') && !allowedMemNames.has(entry.name)) {
+          fs.unlinkSync(path.join(memDestDir, entry.name));
+          logger.info(`Removed stale mem file from dist: ${entry.name}`);
+        }
       }
     }
     logger.info(`Copied ${copiedCount} mem file(s) to ${path.relative(process.cwd(), memDestDir)}`);

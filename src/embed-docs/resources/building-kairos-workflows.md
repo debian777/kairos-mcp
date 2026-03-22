@@ -64,11 +64,37 @@ returned by `kairos_begin`/`kairos_next`; it round-trips with
 
 **`shell`:**
 
-Example: ```json
+Required: `shell.cmd`, `shell.timeout_seconds`. Optional: `interpreter`
+(default bash via `bash -c`), `flags` (interpreter flags; do not duplicate
+auto-injected `-c` / `-e` where applicable), `args` (extra argv after the
+script segment, e.g. bash `--` positional args), `workdir` (cwd for the
+executor after expanding env vars such as `$KAIROS_WORK_DIR`). The server
+does not run the command; agents build argv from these fields (see
+`challenge.invocation_display` when present) and must capture **stdout and
+stderr**. If `interpreter` is set, verify it exists on PATH (e.g.
+`which`) before running.
+
+Default (bash) example: ```json
 {
   "challenge": {
     "type": "shell",
     "shell": { "cmd": "echo \"test\"", "timeout_seconds": 30 },
+    "required": true
+  }
+}
+```
+
+With `interpreter` (e.g. Perl): ```json
+{
+  "challenge": {
+    "type": "shell",
+    "shell": {
+      "interpreter": "perl",
+      "flags": ["-00", "-ne"],
+      "cmd": "die \"bad\" unless /^## /m;",
+      "args": ["draft.md"],
+      "timeout_seconds": 10
+    },
     "required": true
   }
 }
@@ -116,8 +142,21 @@ stored text; the challenge becomes that step's `proof_of_work`.
 
 ### Challenge execution semantics
 
-- **`shell`:** Run the command; report `exit_code`/`stdout`/`stderr`.
-  Exit code 0 = success.
+- **`shell`:** Run the command the challenge describes (prefer
+  `invocation_display`); honor `workdir` locally; report
+  `exit_code`/`stdout`/`stderr`. Exit code 0 = success. See `kairos_begin`
+  for silent execution: automatic shell steps should not be narrated to
+  the user unless they fail.
+
+### Session working directory (`$KAIROS_WORK_DIR`)
+
+The MCP server has **no access** to the user's project filesystem. Any
+**engine-managed** session directory under `.local/cache/kairos/<nonce>/`
+is an **agent or CLI convention**: create/remove it in the workspace when
+documented, add `.local/` to `.gitignore` if you use it, and export
+`KAIROS_WORK_DIR` for steps that reference it in `workdir` or `args`.
+Optional env `KAIROS_PRESERVE_ON_FAILURE=1` may skip cleanup on failure
+for post-mortems — document that in your protocol if you rely on it.
 - **`mcp`:** Call the tool; report `result` and `success`.
 - **`user_input`:** Display the prompt to the user; place only their
   reply in `user_input.confirmation`.

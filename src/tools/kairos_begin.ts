@@ -17,12 +17,12 @@ interface RegisterBeginOptions {
   qdrantService?: QdrantService;
 }
 
-async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
-  const cached = await redisCacheService.getMemoryResource(uuid);
-  if (cached) {
-    return cached;
-  }
-  const memory = await memoryStore.getMemory(uuid);
+/**
+ * Load memory for kairos_begin from Qdrant (bypass Redis/L1) so chain.step_count / chain.id match
+ * siblings used by resolveChainNextStep; then refresh Redis snapshot for other tools.
+ */
+async function loadMemoryForBegin(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
+  const memory = await memoryStore.getMemory(uuid, { fresh: true });
   if (memory) {
     await redisCacheService.setMemoryResource(memory);
   }
@@ -143,13 +143,13 @@ export async function executeBegin(
     requestedUri = `kairos://mem/${found}`;
   }
 
-  let memory = await loadMemoryWithCache(memoryStore, uuid);
+  let memory = await loadMemoryForBegin(memoryStore, uuid);
   let redirectMessage: string | undefined;
 
   if (memory?.chain && memory.chain.step_index !== 1) {
     const firstStep = await resolveChainFirstStep(memory, qdrantService);
     if (firstStep?.uuid) {
-      const step1Memory = await loadMemoryWithCache(memoryStore, firstStep.uuid);
+      const step1Memory = await loadMemoryForBegin(memoryStore, firstStep.uuid);
       if (step1Memory) {
         memory = step1Memory;
         redirectMessage = 'Redirected to step 1 of this protocol chain.';

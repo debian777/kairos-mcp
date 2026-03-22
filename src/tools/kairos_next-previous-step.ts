@@ -8,6 +8,10 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainPreviousStep } from '../services/chain-utils.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './kairos_next-pow-helpers.js';
+import {
+  formatShellChallengeInvocationSummary,
+  pickShellChallengeFields
+} from './shell-challenge-invocation.js';
 
 export type PreviousProofBlock = {
   message: string;
@@ -109,9 +113,18 @@ export async function ensurePreviousProofCompleted(
     let message = `Proof of work missing for ${stepLabel}.`;
     let next_action: string | undefined;
     if (proofType === 'shell') {
-      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
-      message += ` Execute "${cmd}" and report the result before continuing.`;
-      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call kairos_next with ${prevStepUri} and solution matching that step's challenge.`;
+      const cmd = prevProof.shell?.cmd || prevProof.cmd || 'true';
+      const inv = formatShellChallengeInvocationSummary(
+        pickShellChallengeFields({
+          cmd,
+          interpreter: prevProof.shell?.interpreter,
+          flags: prevProof.shell?.flags,
+          args: prevProof.shell?.args,
+          workdir: prevProof.shell?.workdir
+        })
+      );
+      message += ` Run: ${inv} (see challenge.workdir if set). Capture real exit_code/stdout/stderr before continuing.`;
+      next_action = `Run \`${inv}\`, then call kairos_next with ${prevStepUri} and solution.shell matching that step's challenge.`;
     } else if (proofType === 'user_input') {
       const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
       message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling kairos_next with ${prevStepUri} and solution.user_input.confirmation.`;
