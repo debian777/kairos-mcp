@@ -57,7 +57,11 @@ Each workflow is made of one or more **jobs**. Arrows show `needs:` — the targ
 ```mermaid
 flowchart TB
   subgraph INT_WF["Integration (integration.yml)"]
+    J_CHK[checks]
     J_INT[integration]
+    J_PASS[integration-pass]
+    J_CHK --> J_PASS
+    J_INT --> J_PASS
   end
 
   subgraph RTAG_WF["Release tag on version bump (release-tag-on-version-bump.yml)"]
@@ -81,13 +85,13 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_INT,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_CHK,J_INT,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `integration` | — |
+| Integration | `checks`, `integration` (parallel) → `integration-pass` | `integration-pass` needs both `checks` and `integration` |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -105,9 +109,11 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Caching:** The job restores/saves **Docker infra** images (`compose.yaml` hash) and **`~/.cache/ms-playwright`** keyed by `package-lock.json` so Playwright’s Chromium install is usually a no-op after the first run per lockfile revision.
+**Jobs:** **`checks`** runs version/skills lint, `npm ci`, Playwright browsers, then **TypeScript + Knip + UI tests in parallel** (`scripts/run-parallel-checks-ci.mjs`). **`integration`** brings up Docker infra, overlaps **`npm ci` with container warmup**, waits for Redis/Qdrant/Postgres/Keycloak **in parallel** (`scripts/wait-for-infra-ci.sh`), configures Keycloak, builds the tgz and release-equivalent image, runs Trivy, installs from tgz, starts the app, and runs **`dev:test`**. **`integration-pass`** runs with `if: always()` and fails unless both upstream jobs succeeded — use it as the **single required status check** (name: **Integration workflow passed**) so a green `integration` alone cannot merge while `checks` is red.
 
-**Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/run-with-github-summary.mjs`. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/run-env.sh`).
+**Caching:** The **`checks`** job restores/saves **`~/.cache/ms-playwright`** keyed by `package-lock.json`. **`integration`** restores/saves **Docker infra** images (`compose.yaml` hash).
+
+**Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/run-with-github-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/run-env.sh`).
 
 ## Release: only acceptable final output
 

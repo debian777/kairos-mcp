@@ -1,10 +1,12 @@
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { getUiImportMetaEnvDefine } from "./vite-ui-env-define.js";
 
 export default defineConfig({
   root: "src/ui",
   base: "/ui/",
+  define: getUiImportMetaEnvDefine(),
   plugins: [react()],
   resolve: {
     alias: {

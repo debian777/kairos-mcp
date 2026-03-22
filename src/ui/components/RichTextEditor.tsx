@@ -5,11 +5,8 @@
 
 import type { ReactNode } from "react";
 import { EditorContent, type Editor, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import { Markdown } from "@tiptap/markdown";
-import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { useEffect, useRef } from "react";
+import { createRichTextEditorExtensions } from "@/utils/rich-text-editor-extensions";
 
 const EDITOR_CLASS =
   "min-h-[11rem] px-4 py-3 text-sm leading-6 text-[var(--color-text)] focus:outline-none prose prose-sm max-w-none " +
@@ -211,19 +208,18 @@ export interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, label, hint, id, contentKey }: RichTextEditorProps) {
-  const lastKey = useRef(contentKey);
+  const lastContentKeyRef = useRef(contentKey);
+  const lastEmittedMarkdown = useRef<string | null>(null);
+  /** `useEditor` keeps the initial `onUpdate` closure; refs avoid stale `value` / `onChange`. */
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  valueRef.current = value;
+  onChangeRef.current = onChange;
+
   const editor = useEditor({
     key: contentKey ?? "default",
     immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({ heading: false, link: false }),
-      Link.configure({ openOnClick: false, autolink: false }),
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      Markdown,
-    ],
+    extensions: createRichTextEditorExtensions(),
     content: value,
     contentType: "markdown",
     editorProps: {
@@ -231,14 +227,25 @@ export function RichTextEditor({ value, onChange, label, hint, id, contentKey }:
     },
     onUpdate: ({ editor: e }) => {
       const md = (e as Editor & { getMarkdown?: () => string }).getMarkdown?.() ?? "";
-      if (md !== value) onChange(md);
+      lastEmittedMarkdown.current = md;
+      if (md !== valueRef.current) onChangeRef.current(md);
     },
   });
 
   useEffect(() => {
-    if (!editor || contentKey === lastKey.current) return;
-    lastKey.current = contentKey;
-    editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
+    if (!editor) return;
+
+    if (contentKey !== lastContentKeyRef.current) {
+      lastContentKeyRef.current = contentKey;
+      lastEmittedMarkdown.current = value;
+      editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
+      return;
+    }
+
+    if (value !== lastEmittedMarkdown.current) {
+      lastEmittedMarkdown.current = value;
+      editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
+    }
   }, [contentKey, value, editor]);
 
   return (

@@ -4,7 +4,7 @@
 
 import { Command } from 'commander';
 import { closeSync, fstatSync, openSync, readFileSync, readdirSync } from 'fs';
-import { join, relative, resolve } from 'path';
+import { basename, join, relative, resolve } from 'path';
 import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
@@ -12,6 +12,11 @@ import type { MintOutput } from '../../tools/kairos_mint_schema.js';
 
 function isMdFileName(name: string): boolean {
     return name.endsWith('.md');
+}
+
+/** Directory batches skip README.md (human docs in bundles); single-file mint is unchanged. */
+function isBatchSkippedMd(relOrName: string): boolean {
+    return basename(relOrName.replace(/\\/g, '/')) === 'README.md';
 }
 
 /**
@@ -37,6 +42,7 @@ function collectMdFiles(absRoot: string, recursive: boolean): string[] {
         const paths: string[] = [];
         for (const d of dirents) {
             if (!isMdFileName(d.name)) continue;
+            if (isBatchSkippedMd(d.name)) continue;
             paths.push(join(absRoot, d.name));
         }
         return paths.sort((a, b) => a.localeCompare(b));
@@ -46,6 +52,7 @@ function collectMdFiles(absRoot: string, recursive: boolean): string[] {
     const paths: string[] = [];
     for (const rel of relEntries) {
         if (!rel || !isMdFileName(rel)) continue;
+        if (isBatchSkippedMd(rel)) continue;
         paths.push(join(absRoot, rel));
     }
     return paths.sort((a, b) => a.localeCompare(b));

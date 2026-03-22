@@ -24,6 +24,8 @@ export function Layout() {
     ? "min(100%, var(--layout-main-max), var(--layout-main-wide))"
     : "min(100%, var(--layout-main-max), var(--layout-main-narrow))";
 
+  const kairosVersion = import.meta.env.VITE_KAIROS_VERSION ?? "";
+
   return (
     <>
       <a href="#main" className="skip-link">
@@ -31,7 +33,7 @@ export function Layout() {
       </a>
       <div className="flex min-h-screen">
         <aside
-          className="w-[var(--layout-sidebar-width)] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-4"
+          className="flex min-h-screen w-[var(--layout-sidebar-width)] flex-shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-4"
           aria-label="Main navigation"
         >
           <div className="px-4 pb-4">
@@ -53,7 +55,7 @@ export function Layout() {
               </span>
             </NavLink>
           </div>
-          <nav className="flex flex-col gap-0.5">
+          <nav className="flex min-h-0 flex-1 flex-col gap-0.5">
             <NavLink to="/" end aria-current={path === "/" ? "page" : undefined} className={navLinkClass}>
               {t("nav.home")}
             </NavLink>
@@ -86,6 +88,11 @@ export function Layout() {
               {t("nav.account")}
             </NavLink>
           </nav>
+          <div className="mt-auto border-t border-[var(--color-border)] px-4 pt-3">
+            <p className="m-0 text-xs text-[var(--color-text-muted)]">
+              {t("layout.kairosVersion", { version: kairosVersion || "—" })}
+            </p>
+          </div>
         </aside>
         <main
           id="main"
