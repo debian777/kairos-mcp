@@ -34,4 +34,25 @@ if echo "$staged" | grep -q '^skills/'; then
   npm run lint:skills || exit 1
 fi
 #npm run build || exit 1
+# Git: lint-related paths differ from HEAD (staged and/or unstaged). Informational only — does not block commit.
+lint_git_paths=$(git diff --name-only HEAD -- eslint.config.cjs knip.config.ts eslint/ 2>/dev/null || true)
+if [ -n "$lint_git_paths" ]; then
+  echo >&2 ""
+  echo >&2 "  ERROR (policy): Lint configuration changed vs last commit — review required"
+  echo >&2 "  Files:"
+  echo >&2 "$lint_git_paths" | sed 's/^/    - /' >&2
+  echo >&2 ""
+  echo >&2 "  AI / automation MUST:"
+  echo >&2 "    - Fix the root cause (correct code, types, imports, dead exports, real rule updates)."
+  echo >&2 "    - If the config itself is wrong, fix the rule or scope — not the symptom elsewhere."
+  echo >&2 ""
+  echo >&2 "  FORBIDDEN (hiding / bypass):"
+  echo >&2 "    - Broad eslint ignore globs (e.g. **/*.ext) to silence one file."
+  echo >&2 "    - eslint-disable / file-wide suppressions to avoid addressing the real issue."
+  echo >&2 "    - Knip ignore* churn to hide unused code instead of removing or using it."
+  echo >&2 "    - Checksum / fingerprint tricks that mask config drift."
+  echo >&2 ""
+  echo >&2 "  Pre-commit still allows this commit; humans must verify the diff."
+  echo >&2 ""
+fi
 npm run lint

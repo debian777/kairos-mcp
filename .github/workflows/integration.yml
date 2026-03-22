@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
 
-      # ESLint (lint-config fingerprint + eslint): matches `npm run lint` / Husky pre-commit — disabled in CI for now.
+      # ESLint: matches `npm run lint` / Husky pre-commit — disabled in CI for now.
       # - name: ESLint
       #   run: node scripts/run-with-github-summary.mjs "ESLint" -- npm run lint
 
