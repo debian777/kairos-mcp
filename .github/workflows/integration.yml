@@ -82,6 +82,7 @@ jobs:
       # - name: ESLint
       #   run: node scripts/run-with-github-summary.mjs "ESLint" -- npm run lint
 
+      # Avoid re-downloading ~280MB Chromium/headless-shell/ffmpeg when lockfile unchanged
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache
@@ -159,6 +160,7 @@ jobs:
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p .cache/docker-infra
+          # Only save images for services we start (redis, qdrant, postgres, keycloak); config --images includes app image which is not pulled
           IMAGES=$(docker compose -p kairos-mcp --env-file .env --profile fullstack config --format json | jq -r '.services | to_entries[] | select(.key | test("^(redis|qdrant|postgres|keycloak)$")) | .value.image')
           docker save -o .cache/docker-infra/images.tar $IMAGES
 
@@ -175,6 +177,7 @@ jobs:
           name: npm-package
           path: dist
 
+      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui.
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache-integration
