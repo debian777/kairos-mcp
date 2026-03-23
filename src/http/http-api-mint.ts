@@ -1,6 +1,6 @@
 import getRawBody from 'raw-body';
 import express from 'express';
-import { kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
+import { kairosTrainSimilarAdapterFound } from '../services/metrics/mcp-metrics.js';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { MintError } from '../tools/mint.js';
@@ -123,7 +123,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         return;
       }
       if (err?.code === 'SIMILAR_MEMORY_FOUND') {
-        kairosMintSimilarMemoryFound.inc({ transport: 'http', tenant_id: 'http' });
+        kairosTrainSimilarAdapterFound.inc({ transport: 'http', tenant_id: 'http' });
         structuredLogger.warn(`✗ Similar memory found: ${err.message}`);
         const d = err.details || {};
         res.status(409).json({

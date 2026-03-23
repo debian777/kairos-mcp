@@ -83,7 +83,7 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('next_action');
       expect(result).toHaveProperty('contract');
-      expect(result.current_layer !== undefined || result.current_step !== undefined).toBe(true);
+      expect(result.current_layer).toBeDefined();
     }, 30000);
 
     test('forward uses -u short form with URI', async () => {
@@ -98,7 +98,7 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('next_action');
       expect(result).toHaveProperty('contract');
-      expect(result.current_layer !== undefined || result.current_step !== undefined).toBe(true);
+      expect(result.current_layer).toBeDefined();
     }, 30000);
   });
 

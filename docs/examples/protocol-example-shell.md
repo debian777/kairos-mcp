@@ -12,7 +12,7 @@ Execute the project test suite. Success means the command exits with code 0.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "shell",
     "shell": {
       "cmd": "npm test",

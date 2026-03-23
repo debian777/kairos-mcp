@@ -56,6 +56,11 @@ function extractActivationPatterns(sectionText: string): string[] {
     .filter(Boolean);
 }
 
+function startsWithCompletionSection(sectionText: string): boolean {
+  const trimmed = sectionText.trimStart();
+  return /^##\s+(Reward Signal|Completion Rule)\s*(?:\r?\n|$)/i.test(trimmed);
+}
+
 /**
  * Process a single H1 section into an adapter of layer memories. Layer
  * boundaries are defined by fenced contract blocks. H2 headings are used only
@@ -71,7 +76,8 @@ function processH1Section(
   const blocks = findAllContractBlocks(h1Content);
   const activationPatterns = extractActivationPatterns(h1Content);
 
-  // No contract blocks: single layer (entire content, optional trailing contract parsed by extractInferenceContract)
+  // No contract blocks: single layer (entire content, optional trailing
+  // contract parsed by extractInferenceContract).
   if (blocks.length === 0) {
     const { cleaned, contract } = extractInferenceContract(h1Content);
     const codeResult = codeBlockProcessor.processMarkdown(cleaned);
@@ -173,7 +179,7 @@ function processH1Section(
 
   // Trailing content after last block = final layer (no contract required).
   const trailing = h1Content.slice(prevEnd).trim();
-  if (trailing.length > 0) {
+  if (trailing.length > 0 && !startsWithCompletionSection(trailing)) {
     const codeResult = codeBlockProcessor.processMarkdown(trailing);
     const baseTags = generateTags(trailing);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);

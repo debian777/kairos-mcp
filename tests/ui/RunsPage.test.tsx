@@ -7,12 +7,12 @@ import type { RunSession } from "@/hooks/useRunSession";
 
 const minimalSession: RunSession = {
   id: "uri-a:2024-01-01T00:00:00.000Z",
-  protocol_uri: "kairos://adapter/abc",
+  adapter_uri: "kairos://adapter/abc",
   started_at: "2024-01-01T00:00:00.000Z",
   updated_at: "2024-01-01T00:00:00.000Z",
   status: "running",
-  current_step: { uri: "kairos://layer/22222222-2222-2222-2222-222222222222", content: "", mimeType: "text/plain" },
-  challenge: { type: "comment", comment: { min_length: 10 } },
+  current_layer: { uri: "kairos://layer/22222222-2222-2222-2222-222222222222", content: "", mimeType: "text/plain" },
+  contract: { type: "comment", comment: { min_length: 10 } },
   history: [],
 };
 

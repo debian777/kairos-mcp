@@ -12,7 +12,7 @@ Invoke the `activate` tool with a query and report the result. The solution must
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "mcp",
     "mcp": {
       "tool_name": "activate"

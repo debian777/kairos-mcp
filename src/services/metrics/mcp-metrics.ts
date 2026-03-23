@@ -54,10 +54,10 @@ export const kairosQualityUpdateErrors = new Counter({
   registers: [register]
 });
 
-/** Incremented when mint returns SIMILAR_MEMORY_FOUND (MCP or HTTP). */
-export const kairosMintSimilarMemoryFound = new Counter({
-  name: 'kairos_mint_similar_memory_found_total',
-  help: 'Times mint returned SIMILAR_MEMORY_FOUND (agent must inspect the similar adapter before deciding)',
+/** Incremented when train returns SIMILAR_MEMORY_FOUND (MCP or HTTP). */
+export const kairosTrainSimilarAdapterFound = new Counter({
+  name: 'kairos_train_similar_adapter_found_total',
+  help: 'Times train returned SIMILAR_MEMORY_FOUND (agent must inspect the similar adapter before deciding)',
   labelNames: ['transport', 'tenant_id'],
   registers: [register]
 });

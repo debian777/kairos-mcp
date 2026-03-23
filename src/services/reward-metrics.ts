@@ -1,27 +1,47 @@
-import type { QdrantService } from '../services/qdrant/service.js';
-import { redisCacheService } from '../services/redis-cache.js';
-import { IDGenerator } from '../services/id-generator.js';
-import { modelStats } from '../services/stats/model-stats.js';
+import type { QdrantService } from './qdrant/service.js';
+import { redisCacheService } from './redis-cache.js';
+import { IDGenerator } from './id-generator.js';
+import { modelStats } from './stats/model-stats.js';
 import { logger } from '../utils/structured-logger.js';
-import type { AttestInput, AttestOutput } from './attest_schema.js';
 
-/** Shared execute: rate protocol step completion. Used by MCP tool and HTTP route. */
-export async function executeAttest(
+export interface RewardMetricsResult {
+  results: Array<{
+    uri: string;
+    outcome: 'success' | 'failure';
+    quality_bonus: number;
+    feedback?: string;
+    rated_at: string;
+  }>;
+  total_rated: number;
+  total_failed: number;
+}
+
+export async function applyRewardMetrics(
   qdrantService: QdrantService,
-  input: AttestInput
-): Promise<AttestOutput> {
-  const { uri, outcome, quality_bonus = 0, message, llm_model_id } = input;
+  input: {
+    uri: string;
+    outcome: 'success' | 'failure';
+    feedback?: string;
+    qualityBonus?: number;
+    evaluatorId?: string;
+  }
+): Promise<RewardMetricsResult> {
+  const { uri, outcome, feedback, qualityBonus = 0, evaluatorId } = input;
   const modelIdentity = {
-    modelId: llm_model_id || 'reward',
+    modelId: evaluatorId || 'reward',
     provider: 'unknown',
     family: 'unknown'
   };
   const uris = [uri];
-  const results: AttestOutput['results'] = [];
+  const results: RewardMetricsResult['results'] = [];
   let totalRated = 0;
   let totalFailed = 0;
 
-  logger.tool('rate', 'rate', `single rating of ${uri} with outcome="${outcome}" model="${modelIdentity.modelId}"`);
+  logger.tool(
+    'reward',
+    'rate',
+    `single rating of ${uri} with outcome="${outcome}" model="${modelIdentity.modelId}"`
+  );
 
   for (const currentUri of uris) {
     try {
@@ -34,7 +54,7 @@ export async function executeAttest(
         modelIdentity.modelId,
         outcome
       );
-      const totalQualityBonus = basicQualityBonus + implementationBonus + quality_bonus;
+      const totalQualityBonus = basicQualityBonus + implementationBonus + qualityBonus;
       const metricsUpdate: Record<string, unknown> = {
         retrievalCount: 1,
         successCount: outcome === 'success' ? 1 : 0,
@@ -43,11 +63,11 @@ export async function executeAttest(
         lastRater: modelIdentity.modelId,
         qualityBonus: totalQualityBonus
       };
-      if (message) {
-        metricsUpdate['usageContext'] = message;
+      if (feedback) {
+        metricsUpdate['usageContext'] = feedback;
       }
       await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
-      await qdrantService.propagateAttestToChainHead(qdrantUuid, metricsUpdate);
+      await qdrantService.propagateRewardToChainHead(qdrantUuid, metricsUpdate);
       await redisCacheService.invalidateBeginCache();
 
       if (currentPoint?.payload) {
@@ -64,7 +84,9 @@ export async function executeAttest(
           step_quality_score: updatedQualityMetadata.step_quality_score,
           step_quality: updatedQualityMetadata.step_quality
         });
-        logger.info(`reward: Updated quality metadata for ${currentUri} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`);
+        logger.info(
+          `reward: Updated quality metadata for ${currentUri} with execution ${outcome} - score: ${updatedQualityMetadata.step_quality_score} (${updatedQualityMetadata.step_quality})`
+        );
       }
 
       await modelStats.processQualityFeedback(modelIdentity.modelId, currentUri, outcome, totalQualityBonus);
@@ -76,22 +98,22 @@ export async function executeAttest(
         uri: currentUri,
         outcome,
         quality_bonus: totalQualityBonus,
-        message,
+        ...(feedback ? { feedback } : {}),
         rated_at: new Date().toISOString()
       });
       totalRated++;
-      logger.success('rate', `rated ${currentUri} with ${outcome} (${totalQualityBonus} bonus)`);
+      logger.success('reward', `rated ${currentUri} with ${outcome} (${totalQualityBonus} bonus)`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       results.push({
         uri: currentUri,
         outcome,
         quality_bonus: 0,
-        message: `Failed to rate ${currentUri}: ${errorMessage}`,
+        feedback: `Failed to rate ${currentUri}: ${errorMessage}`,
         rated_at: new Date().toISOString()
       });
       totalFailed++;
-      logger.error(`rate failed for ${currentUri}`, error);
+      logger.error(`reward failed for ${currentUri}`, error);
     }
   }
 

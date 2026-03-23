@@ -24,6 +24,9 @@ Fields:
   `preference_jsonl`.
 - **`include_reward`** — affects trace-style formats; see schema.
 
+`export` does not expose `rft_jsonl` yet. That format stays gated until
+grader reliability and task suitability are proven.
+
 ## Response schema (markdown format)
 
 ```json
@@ -41,6 +44,14 @@ Fields:
 Markdown exports normalize headings and JSON keys toward the current adapter
 vocabulary (for example **`contract`** rather than **`challenge`** in embedded
 JSON blocks).
+
+Training exports apply the stored reward gate:
+
+- **`trace_jsonl`** keeps execution traces whether or not they are exportable.
+- **`sft_jsonl`** includes only successful rewards that meet the SFT threshold
+  and include rubric plus evaluator identity.
+- **`preference_jsonl`** includes only layers with both an eligible chosen and
+  eligible rejected response after canonical layer grouping.
 
 ## Typical use
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Disallow commits on main — use a branch and open a PR.
+# Disallow commits on main; use a branch and open a PR.
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 if [ "$branch" = "main" ]; then
   echo ""

@@ -37,7 +37,7 @@ Run when user says "perfect match case 1".
 This protocol tests CASE 1 behavior: single perfect match.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
 ## Completion Rule

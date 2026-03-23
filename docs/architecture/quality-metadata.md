@@ -41,7 +41,7 @@ Quality metadata is set in five situations:
    `success` or `failure`. This is the primary update path during a
    protocol run.
 
-5. **After attestation (final step):** When `reward` runs with a
+5. **After reward (final step):** When `reward` runs with a
    success or failure outcome, it recalculates quality and calls
    `updateQualityMetadata`. `reward` is the required final step
    of every protocol run.
@@ -219,7 +219,7 @@ flowchart LR
 - **Metrics:**
   - `kairos_quality_update_errors_total` — counter when a `forward`
     quality update fails.
-  - `kairos_mint_similar_memory_found_total` — counter when mint returns
+  - `kairos_train_similar_adapter_found_total` — counter when train returns
     `SIMILAR_MEMORY_FOUND`.
 - **Alert:** Configure an alert on `kairos_quality_update_errors_total`
   rate (for example, > 0.1/s over 5 minutes).
@@ -230,7 +230,7 @@ flowchart LR
 
 ## See also
 
-- [reward workflow](workflow-reward.md) — how attestation
+- [reward workflow](workflow-reward.md) — how reward
   updates quality
 - [forward workflow](workflow-forward-continue.md) — per-step quality
   update during execution

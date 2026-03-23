@@ -14,7 +14,7 @@ documents that are injected into the Kairos app space at boot.
 ### Chained authoring flow
 
 ```
-2001 (Author) → kairos_begin(key: "create-new-protocol-review") → 2003 (Review & Publish)
+2001 (Author) → forward(kairos://adapter/00000000-0000-0000-0000-000000002003) → 2003 (Review & Publish)
 ```
 
 ## Reference Documents

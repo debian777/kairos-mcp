@@ -137,17 +137,17 @@ describe('v10-forward (open execution) response schema', () => {
     const ts = Date.now();
     const doc = `# V2Begin Single ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "v2 begin single".
 
 ## Only Step
 Do the thing.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',

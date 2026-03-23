@@ -33,7 +33,7 @@ Run when user says "export single".
 Body for export single.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Completion Rule
@@ -83,14 +83,14 @@ Run when user says "export protocol".
 First step.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo one","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo one","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Second
 Second step.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Completion Rule

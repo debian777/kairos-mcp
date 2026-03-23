@@ -1,45 +1,83 @@
-import { scoreActivationRerank } from '../../src/services/memory/activation-reranker.js';
-import type { Memory } from '../../src/types/memory.js';
+import { createMcpConnection } from '../utils/mcp-client-utils.js';
+import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 
-function makeMemory(overrides: Partial<Memory> = {}): Memory {
-  return {
-    memory_uuid: '11111111-1111-1111-1111-111111111111',
-    label: 'Ship release adapter',
-    tags: ['release', 'deploy'],
-    text: 'Adapter content',
-    llm_model_id: 'test-model',
-    created_at: new Date().toISOString(),
-    adapter: {
-      id: '22222222-2222-2222-2222-222222222222',
-      name: 'Ship release',
-      layer_index: 1,
-      layer_count: 1,
-      activation_patterns: ['cut a release', 'publish a release candidate']
-    },
-    activation_patterns: ['cut a release', 'publish a release candidate'],
-    ...overrides
-  };
+function buildAdapterMarkdown(title: string, activationPatterns: string[]): string {
+  return [
+    `# ${title}`,
+    '',
+    '## Activation Patterns',
+    '',
+    ...activationPatterns.map((pattern) => `- ${pattern}`),
+    '',
+    '## Step One',
+    'Perform the requested maintenance task.',
+    '',
+    '```json',
+    '{"contract":{"type":"comment","comment":{"min_length":20},"required":true}}',
+    '```',
+    '',
+    '## Reward Signal',
+    'Only after all steps.'
+  ].join('\n');
 }
 
-describe('activation reranker', () => {
-  test('rewards direct activation pattern matches over unrelated intents', () => {
-    const memory = makeMemory();
+describe('activate precision', () => {
+  let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
-    const strongMatch = scoreActivationRerank('cut a release', memory);
-    const weakMatch = scoreActivationRerank('rotate database credentials', memory);
+  beforeAll(async () => {
+    mcpConnection = await createMcpConnection();
+  }, 30000);
 
-    expect(strongMatch).toBeGreaterThan(weakMatch);
-    expect(strongMatch).toBeGreaterThan(0);
+  afterAll(async () => {
+    if (mcpConnection) {
+      await mcpConnection.close();
+    }
   });
 
-  test('uses adapter labels, tags, and activation patterns together', () => {
-    const memory = makeMemory({
-      label: 'Deploy release candidate',
-      tags: ['release', 'candidate']
+  test('prefers the adapter whose activation patterns match the query', async () => {
+    const ts = Date.now();
+    const targetTitle = `Alpha Adapter ${ts}`;
+    const distractorTitle = `Beta Adapter ${ts}`;
+
+    const trainTarget = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        markdown_doc: buildAdapterMarkdown(targetTitle, [
+          'rotate database credentials',
+          'rotate postgres password'
+        ]),
+        llm_model_id: 'test-activate-precision',
+        force_update: true
+      }
     });
+    const trainDistractor = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        markdown_doc: buildAdapterMarkdown(distractorTitle, [
+          'restart background worker',
+          'drain a queue consumer'
+        ]),
+        llm_model_id: 'test-activate-precision',
+        force_update: true
+      }
+    });
+    expect(parseMcpJson(trainTarget, 'activate precision target').status).toBe('stored');
+    expect(parseMcpJson(trainDistractor, 'activate precision distractor').status).toBe('stored');
 
-    const score = scoreActivationRerank('release candidate', memory);
+    const call = {
+      name: 'activate',
+      arguments: { query: 'rotate database credentials' }
+    };
+    const result = await mcpConnection.client.callTool(call);
+    const parsed = parseMcpJson(result, 'activate precision search');
 
-    expect(score).toBeGreaterThan(0.2);
-  });
+    withRawOnFail({ call, result }, () => {
+      const matchChoices = (parsed.choices as Array<Record<string, unknown>>).filter(
+        (choice) => choice.role === 'match'
+      );
+      expect(matchChoices.length).toBeGreaterThan(0);
+      expect(matchChoices[0]?.label).toBe(targetTitle);
+      expect(matchChoices[0]?.activation_patterns).toContain('rotate database credentials');
+    });
+  }, 30000);
 });

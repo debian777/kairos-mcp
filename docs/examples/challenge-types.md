@@ -1,6 +1,6 @@
 # KAIROS challenge types — mintable examples
 
-The documents in this folder are **real markdown protocols ready for minting**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"challenge": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
+The documents in this folder are **real markdown protocols ready for minting**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"contract": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
 
 ## Mintable protocol documents
 
@@ -35,5 +35,6 @@ After the final **`forward`** for the run, the server directs the client to
 call **`reward`** to finish the run.
 
 For execution semantics (how to perform each challenge type, not infer or
-fabricate), see the **`forward`** and **`reward`** tool descriptions (and legacy
-workflow pages under `docs/architecture/workflow-kairos-*.md` where noted).
+fabricate), see the **`activate`**, **`forward`**, and **`reward`** tool
+descriptions (and companion workflow pages under `docs/architecture/workflow-*.md`
+where noted).

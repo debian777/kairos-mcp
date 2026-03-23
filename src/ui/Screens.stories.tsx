@@ -114,7 +114,7 @@ deploy and test, run tests and deploy
 Run build.
 
 \`\`\`json
-{"challenge": {"type": "shell"}}
+{"contract": {"type": "shell"}}
 \`\`\`
 
 ## Run tests
@@ -122,7 +122,7 @@ Run build.
 Run tests.
 
 \`\`\`json
-{"challenge": {"type": "shell"}}
+{"contract": {"type": "shell"}}
 \`\`\`
 
 ## Deploy
@@ -130,7 +130,7 @@ Run tests.
 Deploy step.
 
 \`\`\`json
-{"challenge": {"type": "shell"}}
+{"contract": {"type": "shell"}}
 \`\`\`
 
 ## Completion Rule
