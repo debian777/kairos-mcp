@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useSpaces } from "@/hooks/useSpaces";
 
 /**
- * Home page per mockup 01-home-search: overview, search form (submits to KAIROS),
- * space protocol counts, and CTA to KAIROS. No search results here.
+ * Home page per mockup 01-home-search: overview, activation query form
+ * (submits to KAIROS), space protocol counts, and CTA to KAIROS.
+ * No activation results render here.
  */
 export function HomePage() {
   const { t } = useTranslation();

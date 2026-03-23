@@ -9,7 +9,7 @@ import { executeActivate } from '../tools/activate.js';
  * Set up API route for activate.
  * Validates with canonical schema and returns executeSearch result only (no metadata).
  */
-export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
+export function setupActivateRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
   app.post('/api/activate', async (req, res) => {
     try {
       const parsed = activateInputSchema.safeParse(req.body);

@@ -7,7 +7,7 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeJson } from '../output.js';
 
-export function beginCommand(program: Command): void {
+export function forwardCommand(program: Command): void {
     program
         .command('forward')
         .description('Run the first or next KAIROS adapter layer')
