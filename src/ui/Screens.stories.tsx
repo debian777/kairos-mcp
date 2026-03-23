@@ -41,41 +41,50 @@ export const Kairos: Story = {
   parameters: { initialEntry: "/kairos" },
 };
 
-/** KAIROS with results — seeded search response. */
+/** KAIROS with results — seeded activate response. */
 export const KairosWithResults: Story = {
   parameters: {
     initialEntry: "/kairos?q=deploy",
     queryData: [
       [
-        ["search", "deploy"],
+        ["activate", "deploy"],
         {
+          must_obey: true,
+          message: "Pick one choice and follow that choice's next_action.",
+          next_action: "Pick one choice and follow that choice's next_action.",
           choices: [
             {
-              uri: "kairos://mem/abc123",
+              uri: "kairos://adapter/11111111-1111-1111-1111-111111111111",
               label: "Deploy and test workflow",
-              chain_label: "Build → test → deploy",
-              score: 0.87,
+              adapter_name: "Build → test → deploy",
+              activation_score: 0.87,
               role: "match",
               tags: [],
-              next_action: "forward",
+              next_action: "call forward with kairos://adapter/11111111-1111-1111-1111-111111111111 to execute this adapter",
+              adapter_version: "1.0.0",
+              activation_patterns: [],
             },
             {
-              uri: "kairos://mem/refine-1",
-              label: "Get step-by-step help improving your search",
-              chain_label: "Refine query",
-              score: null,
+              uri: "kairos://adapter/22222222-2222-2222-2222-222222222222",
+              label: "Get step-by-step help improving your activation query",
+              adapter_name: "Refine query",
+              activation_score: null,
               role: "refine",
               tags: [],
-              next_action: "forward",
+              next_action: "call forward with kairos://adapter/22222222-2222-2222-2222-222222222222 to execute the refine adapter",
+              adapter_version: null,
+              activation_patterns: [],
             },
             {
-              uri: "kairos://mem/create-1",
+              uri: "kairos://adapter/33333333-3333-3333-3333-333333333333",
               label: "Create a new protocol",
-              chain_label: "Start from scratch",
-              score: null,
+              adapter_name: "Start from scratch",
+              activation_score: null,
               role: "create",
               tags: [],
-              next_action: "forward",
+              next_action: "call train with adapter markdown to register a new adapter",
+              adapter_version: null,
+              activation_patterns: [],
             },
           ],
         },

@@ -7,7 +7,7 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeJson } from '../output.js';
 
-export function searchCommand(program: Command): void {
+export function activateCommand(program: Command): void {
     program
         .command('activate')
         .description('Activate the best matching KAIROS adapter for a query')

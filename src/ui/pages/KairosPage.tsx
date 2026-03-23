@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { useSearch } from "@/hooks/useSearch";
+import { useActivate } from "@/hooks/useActivate";
 import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
@@ -26,7 +26,7 @@ export function KairosPage() {
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useSearch(submittedQuery, !!submittedQuery);
+  const { data, isLoading, isError, error, refetch } = useActivate(submittedQuery, !!submittedQuery);
   const showBrowse = !submittedQuery;
   const {
     data: spacesData,
@@ -55,13 +55,13 @@ export function KairosPage() {
     .sort((a, b) => {
       const ro = (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
       if (ro !== 0) return ro;
-      const as = a.score ?? -1;
-      const bs = b.score ?? -1;
+      const as = a.activation_score ?? -1;
+      const bs = b.activation_score ?? -1;
       return bs - as;
     });
   const topScore =
     choices.length > 0
-      ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
+      ? Math.max(...choices.map((c) => (c.activation_score != null ? c.activation_score * 100 : 0)))
       : null;
 
   const { browseChains, countsByLetter } = useMemo(() => {
@@ -288,9 +288,9 @@ export function KairosPage() {
                         {choice.label}
                       </span>
                       <div className="text-sm text-[var(--color-text-muted)] mt-1">
-                        {choice.chain_label ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
-                        {choice.score != null && ` · ${t("kairos.score")}: ${Math.round(choice.score * 100)}%`}
-                        {choice.protocol_version && ` · ${t("kairos.version")}: ${choice.protocol_version}`}
+                        {choice.adapter_name ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
+                        {choice.activation_score != null && ` · ${t("kairos.score")}: ${Math.round(choice.activation_score * 100)}%`}
+                        {choice.adapter_version && ` · ${t("kairos.version")}: ${choice.adapter_version}`}
                       </div>
                       <span
                         className={`inline-block mt-1 text-xs uppercase tracking-wide px-2 py-0.5 rounded ${roleBadgeClass[choice.role] ?? "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}

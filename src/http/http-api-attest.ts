@@ -7,7 +7,7 @@ import { executeReward } from '../tools/reward.js';
 /**
  * Set up API route for reward.
  */
-export function setupAttestRoute(app: express.Express, qdrantService: QdrantService) {
+export function setupRewardRoute(app: express.Express, qdrantService: QdrantService) {
   app.post('/api/reward', async (req, res) => {
     try {
       const parsed = rewardInputSchema.safeParse(req.body);
