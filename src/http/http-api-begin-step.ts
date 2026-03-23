@@ -8,7 +8,7 @@ import { executeForward } from '../tools/forward.js';
 /**
  * Set up API route for forward.
  */
-export function setupBeginStepRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
+export function setupForwardRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
   app.post('/api/forward', async (req, res) => {
     try {
       const parsed = forwardInputSchema.safeParse(req.body);

@@ -5,8 +5,8 @@
 
 import { Command } from 'commander';
 import { createRequire } from 'module';
-import { searchCommand } from './commands/search.js';
-import { beginCommand } from './commands/begin.js';
+import { activateCommand } from './commands/search.js';
+import { forwardCommand } from './commands/begin.js';
 import { mintCommand } from './commands/mint.js';
 import { updateCommand } from './commands/update.js';
 import { deleteCommand } from './commands/delete.js';
@@ -40,8 +40,8 @@ program
     });
 
 // Register commands for the current MCP tool surface.
-searchCommand(program);   // activate
-beginCommand(program);    // forward
+activateCommand(program);   // activate
+forwardCommand(program);    // forward
 mintCommand(program);     // train
 updateCommand(program);   // tune
 deleteCommand(program);   // delete
