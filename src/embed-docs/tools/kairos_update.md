@@ -8,12 +8,14 @@ scope.
 **Input:**
 
 - `uris` (required) — array of `kairos://mem/{uuid}` URIs to update.
-- `markdown_doc` (array of markdown strings, one per URI) — replaces
-  the full content of each targeted memory.
+- `markdown_doc` (array of markdown strings, one per URI) — Markdown
+  BODY or full KAIROS render. If BODY markers are present, only the BODY
+  is stored.
 - `updates` (field-level updates) — use when replacing specific fields
   instead of the full document.
 
-Provide either `markdown_doc` or `updates`, not both.
+If both are provided, a non-empty `markdown_doc[i]` takes precedence for
+that URI. Otherwise `updates` is applied.
 
 **Typical round-trip edit flow:**
 
@@ -21,7 +23,8 @@ Provide either `markdown_doc` or `updates`, not both.
 2. Edit the markdown.
 3. Call `kairos_update({ uris: [uri], markdown_doc: [edited_markdown] })`.
 
-**Response:** Updated memory URI(s) and confirmation.
+**Response:** `results[]` with per-URI `updated` or `error` status, plus
+`total_updated` and `total_failed`.
 
 **MUST ALWAYS**
 
@@ -32,4 +35,3 @@ Provide either `markdown_doc` or `updates`, not both.
 **MUST NEVER**
 
 - Update a URI you have not resolved or verified.
-- Mix `markdown_doc` and `updates` in the same call.

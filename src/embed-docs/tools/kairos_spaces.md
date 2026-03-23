@@ -11,14 +11,15 @@ counts.
 
 **Output:** `spaces` array. Each item has:
 
-- `name` — human-readable: `"Personal"`, `"Group: <ref>"`, or
-  `"Kairos app"`.
-- `chain_count` — number of protocol chains in this space.
+- `name` — human-readable display name. Common values are `"Personal"`,
+  `"Group: <ref>"`, and `"Kairos app"`.
+- `chain_count` — number of distinct chains returned for this space in
+  the current listing.
 - `chains` (optional) — array of `{ chain_id, title, step_count }` when
   `include_chain_titles: true`.
 
-Spaces include the agent's personal space, any group spaces, and the
-Kairos app space (read-only protocols).
+The list always includes the Kairos app space. Personal and group spaces
+appear only when they are present in the current allowed space context.
 
 **MUST ALWAYS**
 

@@ -9,8 +9,12 @@ There are no more steps to solve.
 - `uri` — last step URI from the completion response's `next_action`.
 - `outcome` — `"success"` or `"failure"`.
 - `message` — short summary (1–2 sentences) of how the protocol went.
+- `quality_bonus` (optional) — additional quality bonus to apply.
+- `llm_model_id` (optional) — model identifier for attribution.
 
-**Response:** Confirmation that the run is recorded.
+**Response:** `results[]` with per-URI outcome details, plus
+`total_rated` and `total_failed`. A successful tool call can still
+include per-URI failures in this response.
 
 **After attestation:** The protocol run is complete. Respond to the
 user. Do not respond before attestation when `must_obey: true`.

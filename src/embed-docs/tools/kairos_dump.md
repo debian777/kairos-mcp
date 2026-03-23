@@ -13,12 +13,14 @@ state, no nonce.
 
 **Output:**
 
-- Default mode: `markdown_doc` (string), and optionally `uri`, `label`,
-  `position`, `challenge`.
-- Protocol mode: `markdown_doc` (string) begins with YAML **frontmatter**
-  (`slug:` and `version:` when present), then `#` chain title and steps;
-  response also includes `slug`, `uri` (chain head), `label`,
-  `step_count`, and `protocol_version` when set.
+- Default mode: `markdown_doc` (string), `uri`, `label`, `chain_label`,
+  and optionally `position`, `challenge`, and `protocol_version`.
+- Protocol mode: when the chain head can be resolved, `markdown_doc`
+  begins with YAML **frontmatter** (`slug:` and `version:` when
+  present), then `#` chain title and steps. The response also includes
+  `slug`, `uri` (chain head), `label`, `chain_label`, `step_count`, and
+  `protocol_version` when set. If the chain head cannot be resolved, the
+  tool falls back to single-step markdown.
 
 **Round-trip edit flow (single step):**
 

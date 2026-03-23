@@ -8,13 +8,7 @@ type PromptOverride = {
   resultDescription?: string;
 };
 
-const promptOverrides: Record<string, PromptOverride> = {
-  'contextual-prompt': {
-    title: 'KAIROS Core Execution Engine',
-    description: 'Required execution policy for KAIROS protocol runs',
-    resultDescription: 'Required execution policy for KAIROS protocol runs'
-  }
-};
+const promptOverrides: Record<string, PromptOverride> = {};
 
 /**
  * Register all prompts from embedded-mcp-resources

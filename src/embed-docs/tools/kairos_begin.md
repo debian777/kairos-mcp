@@ -1,5 +1,5 @@
 Start protocol execution. Loads step 1 and returns its challenge.
-Step 1 never requires a solution submission.
+The `kairos_begin` call itself never includes a solution submission.
 
 **Precondition (uri path):** You have a URI from `kairos_search` (via a
 choice's `next_action`), or another trusted source. Do not invent URIs.
@@ -78,11 +78,12 @@ the next `kairos_next` call. The server generates all hashes.
 **MUST NEVER**
 
 - Compute or modify hashes or nonces.
-- Call `kairos_begin` again on error — use the fresh challenge in the
-  error response to retry via `kairos_next`.
+- Retry a step-execution error with `kairos_begin`; use `kairos_next`
+  with the fresh challenge from that error response instead.
 
 **Errors (key path):** `INVALID_PROTOCOL_KEY` (bad slug shape),
-`PROTOCOL_KEY_NOT_FOUND` (no step-1 match in searchable spaces),
-`PROTOCOL_KEY_AMBIGUOUS` (same slug in multiple chains/spaces — use
-`uri` or narrow space). HTTP status codes are always in the 4xx/5xx
-range even if an internal error carries an invalid code.
+`BEGIN_KEY_UNAVAILABLE` (key lookup requires the Qdrant-backed search
+service), `PROTOCOL_KEY_NOT_FOUND` (no step-1 match in searchable
+spaces), `PROTOCOL_KEY_AMBIGUOUS` (same slug in multiple chains/spaces
+— use `uri` or narrow space). On the HTTP route, status codes stay in
+the 4xx/5xx range even if an internal error carries an invalid code.

@@ -191,7 +191,7 @@ export function get${camelName}(): Record<string, any> {
 ${getters}
 
 /**
- * Get a prompt by key (e.g. 'contextual-prompt')
+ * Get a prompt by key
  */
 export function getPrompt(key: string): string | undefined {
   const prompts = (mcpResources.prompts || {}) as Record<string, string>;
@@ -228,7 +228,7 @@ export function getMetaDoc(slug: string): string | undefined {
 }
 
 /**
- * Get a template by key (e.g. 'kairos-memory')
+ * Get a template by key
  */
 export function getTemplate(key: string): string | undefined {
   const templates = (mcpResources.templates || {}) as Record<string, string>;

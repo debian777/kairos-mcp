@@ -8,7 +8,8 @@ Delete one or more memories from KAIROS.
 - `uris` (required, non-empty array) — `kairos://mem/{uuid}` URIs to
   delete.
 
-**Response:** Confirmation of deleted URIs.
+**Response:** `results[]` with per-URI `deleted` or `error` status, plus
+`total_deleted` and `total_failed`.
 
 **MUST ALWAYS**
 

@@ -2,7 +2,8 @@ Store a markdown document as a KAIROS protocol chain. Each H1 defines
 a chain; each H2 defines a step.
 
 **Precondition:** You have a complete markdown document with H1 title,
-H2 steps, and a trailing ` ```json ` challenge block per verifiable step.
+H2 steps, and at least one trailing ` ```json ` challenge block. Add a
+challenge block to every step you want KAIROS to verify.
 
 **Recommended:** For guided protocol creation, call `kairos_begin` with
 `kairos://mem/00000000-0000-0000-0000-000000002001`. Direct minting
@@ -26,10 +27,12 @@ the server appends `-2`, `-3`, … until unique.
 - `llm_model_id` (required) — e.g. `"minimax/minimax-m2:free"`.
 - `force_update` (optional, default `false`) — set `true` to overwrite
   an existing chain with the same label.
-- `protocol_version` (optional) — e.g. `"1.0.0"`. Overrides or supplies
-  the version when the document has no YAML frontmatter; otherwise
-  version is parsed from frontmatter. Stored and exposed in
-  `kairos_search` choices for agent comparison.
+- `protocol_version` (optional) — e.g. `"1.0.0"`. If provided, it
+  overrides the frontmatter version. Otherwise the server uses the
+  frontmatter version when present. Stored and exposed in
+  `kairos_search` choices.
+- `space` (optional) — target space name. Use `"personal"` (default) or
+  a group name from `kairos_spaces`.
 
 **Challenge block format:** Place a single trailing ` ```json ` block at
 the end of each H2 step. The object must have a `challenge` key. Only
@@ -45,8 +48,7 @@ for purely informational steps where no verification is possible.
 
 `shell` — run a command (executor-side). Required: `cmd`, `timeout_seconds`.
 Optional: `interpreter`, `flags`, `args`, `workdir` — see
-`building-kairos-workflows` and `kairos_begin` for argv rules and silent
-execution.
+`kairos_begin` for argv rules and silent execution.
 
 Example: ```json
 {
@@ -94,8 +96,9 @@ Example: ```json
 }
 ```
 
-**Response:** Chain head URI(s). Find the minted protocol via
-`kairos_search` with a query matching the document content.
+**Response:** `items` array of stored memory URI(s), UUIDs, labels, and
+tags. Find the minted protocol via `kairos_search` with a query matching
+the document content.
 
 **MUST ALWAYS**
 
