@@ -18,7 +18,6 @@ function extractUuid(uri: string): string {
 }
 
 async function mapSearchToActivate(
-  memoryStore: MemoryQdrantStore,
   searchOutput: Awaited<ReturnType<typeof executeSearch>>
 ): Promise<ActivateOutput> {
   const choices = await Promise.all(
@@ -41,11 +40,8 @@ async function mapSearchToActivate(
         };
       }
 
-      const uuid = extractUuid(choice.uri);
-      const memory = uuid ? await memoryStore.getMemory(uuid) : null;
-      const adapterId = memory?.adapter?.id ?? memory?.chain?.id ?? uuid;
-      const adapterUri = buildAdapterUri(adapterId);
-      const adapterLabel = memory?.adapter?.name ?? memory?.chain?.label ?? choice.chain_label ?? choice.label;
+      const adapterUri = choice.uri;
+      const adapterLabel = choice.chain_label ?? choice.label;
       return {
         uri: adapterUri,
         label: adapterLabel,
@@ -54,8 +50,8 @@ async function mapSearchToActivate(
         role: choice.role,
         tags: choice.tags,
         next_action: `call forward with ${adapterUri} to execute this adapter`,
-        adapter_version: memory?.adapter?.protocol_version ?? memory?.chain?.protocol_version ?? choice.protocol_version,
-        activation_patterns: memory?.activation_patterns ?? memory?.adapter?.activation_patterns ?? []
+        adapter_version: choice.protocol_version,
+        activation_patterns: choice.activation_patterns ?? []
       };
     })
   );
@@ -86,7 +82,7 @@ export async function executeActivate(
       : undefined
   );
 
-  return mapSearchToActivate(memoryStore, searchOutput);
+  return mapSearchToActivate(searchOutput);
 }
 
 export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterActivateOptions = {}) {

@@ -30,7 +30,7 @@ describe('v10-activate unified response schema', () => {
   }
 
   async function trainProtocol(title: string) {
-    const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
+    const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
     await mcpConnection.client.callTool({
       name: 'train',
       arguments: { markdown_doc: content, llm_model_id: 'test-v2-search', force_update: true }

@@ -10,12 +10,18 @@ import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import {
+  getActivationPatternVectorName,
+  getAdapterTitleVectorName,
+  getPrimaryVectorName
+} from '../../utils/qdrant-vector-types.js';
+import {
   allocateProtocolSlugForMint,
   deriveDomainTaskType,
   handleDuplicateChain,
   type ProtocolSlugMintInput
 } from './store-chain-helpers.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
+import { buildActivationSearchFieldsForMemory } from './activation-search-fields.js';
 
 /**
  * Handles header-based chain storage (H1/H2 sections)
@@ -44,27 +50,42 @@ export async function storeHeaderBasedChain(
 
   const protocolSlug = await allocateProtocolSlugForMint(client, collection, slugInput, chainUuid);
 
-  // Generate embeddings: for chain head (step 1) include protocol title so search ranks by protocol name, not just step heading
-  const sectionTexts = headerChainMemories.map((m, i) =>
-    i === 0 ? `${chainLabel}\n\n${m.text}` : m.text
-  );
   const vectorSize = getEmbeddingDimension();
-  const currentVectorName = `vs${vectorSize}`;
-  let vectors: number[][];
+  const primaryVectorName = getPrimaryVectorName(vectorSize);
+  const titleVectorName = getAdapterTitleVectorName(vectorSize);
+  const activationPatternVectorName = getActivationPatternVectorName(vectorSize);
+  const activationFields = headerChainMemories.map((memory) => buildActivationSearchFieldsForMemory(memory));
+  let primaryVectors: number[][];
+  let titleVectors: number[][];
+  let activationPatternVectors: number[][];
   try {
-    const batch = await embeddingService.generateBatchEmbeddings(sectionTexts);
-    vectors = batch.embeddings;
-    const wrongCount = vectors.length !== headerChainMemories.length;
-    const wrongDim = vectors.some(v => !Array.isArray(v) || v.length !== vectorSize);
+    const batch = await embeddingService.generateBatchEmbeddings(
+      activationFields.flatMap((fields) => [
+        fields.primaryDenseText,
+        fields.titleDenseText,
+        fields.activationPatternDenseText
+      ])
+    );
+    const embeddings = batch.embeddings;
+    const wrongCount = embeddings.length !== headerChainMemories.length * 3;
+    const wrongDim = embeddings.some(v => !Array.isArray(v) || v.length !== vectorSize);
     if (wrongCount || wrongDim) {
       logger.warn(
-        `[MemoryQdrantStore] Embedding shape mismatch for header-based chain (count=${vectors.length}/${headerChainMemories.length}, dimOK=${!wrongDim}). Falling back to zero vectors.`
+        `[MemoryQdrantStore] Embedding shape mismatch for header-based chain (count=${embeddings.length}/${headerChainMemories.length * 3}, dimOK=${!wrongDim}). Falling back to zero vectors.`
       );
-      vectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+      primaryVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+      titleVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+      activationPatternVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+    } else {
+      primaryVectors = headerChainMemories.map((_, index) => embeddings[index * 3]!);
+      titleVectors = headerChainMemories.map((_, index) => embeddings[index * 3 + 1]!);
+      activationPatternVectors = headerChainMemories.map((_, index) => embeddings[index * 3 + 2]!);
     }
   } catch (err) {
     logger.error('[MemoryQdrantStore] Failed to generate embeddings for header-based chain; falling back to zero vectors', err);
-    vectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+    primaryVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+    titleVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+    activationPatternVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
   }
 
   const chainStepCount = headerChainMemories.length;
@@ -81,8 +102,8 @@ export async function storeHeaderBasedChain(
       dtt.type,
       memory.tags
     );
-    const sparseInput = i === 0 ? `${chainLabel} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
-    const sparse = bm25Tokenizer.tokenize(sparseInput);
+    const fields = activationFields[i]!;
+    const sparse = bm25Tokenizer.tokenize(fields.sparseText);
     const adapter = memory.adapter ?? {
       id: chainUuid,
       name: chainLabel,
@@ -95,7 +116,9 @@ export async function storeHeaderBasedChain(
     return ({
       id: memory.memory_uuid,
       vector: {
-        [currentVectorName]: vectors[i]!,
+        [primaryVectorName]: primaryVectors[i]!,
+        [titleVectorName]: titleVectors[i]!,
+        [activationPatternVectorName]: activationPatternVectors[i]!,
         bm25: { indices: sparse.indices, values: sparse.values }
       },
       payload: {
@@ -109,6 +132,10 @@ export async function storeHeaderBasedChain(
         modified_at: memory.created_at,
         modified_by: actorId,
         activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
+        adapter_name_text: fields.adapterNameText,
+        label_text: fields.labelText,
+        activation_patterns_text: fields.activationPatternsText,
+        tags_text: fields.tagsText,
         inference_contract: inferenceContract,
         proof_of_work: inferenceContract,
         task: dtt.task,
@@ -152,10 +179,12 @@ export async function storeHeaderBasedChain(
     if (msg.includes('Bad Request') || msg.includes('sparse') || msg.includes('vector')) {
       const pointsDenseOnly = points.map(p => ({
         ...p,
-        vector: { [currentVectorName]: (p.vector as any)[currentVectorName] }
+        vector: Object.fromEntries(
+          Object.entries(p.vector as Record<string, unknown>).filter(([name]) => name !== 'bm25')
+        )
       }));
       logger.warn(`[Qdrant][upsert] retrying without bm25 (collection may lack sparse config): ${msg}`);
-      await client.upsert(collection, { points: pointsDenseOnly });
+      await client.upsert(collection, { points: pointsDenseOnly } as any);
     } else {
       throw err;
     }

@@ -293,10 +293,10 @@ Done.`;
     expect(result.valid).toBe(true);
   });
 
-  test('rejects challenge type that is not a single allowed enum value', () => {
-    const doc = `# My Protocol
+  test('rejects contract type that is not a single allowed enum value', () => {
+    const doc = `# My Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when needed.
 
@@ -305,16 +305,16 @@ Run when needed.
 Do it.
 
 \`\`\`json
-{"challenge":{"type":"comment|user_input|mcp|shell","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment|user_input|mcp|shell","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 
 Done.`;
     const result = validateProtocolStructure(doc);
     expect(result.valid).toBe(false);
-    expect(result.missing).toContain('invalid_challenge_type');
-    expect(result.message).toMatch(/shell, mcp, user_input, or comment/);
+    expect(result.missing).toContain('invalid_contract_type');
+    expect(result.message).toMatch(/tensor, shell, mcp, user_input, or comment/);
   });
 
   test('embedded create-new-protocol markdown passes validation', () => {

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { Memory, TensorValue } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
+import { getAdapterId, getInferenceContract, getLayerIndex } from '../services/memory/memory-accessors.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainNextStep } from '../services/chain-utils.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
@@ -9,7 +10,7 @@ import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
-import { buildForwardView, normalizeContract } from './forward-view.js';
+import { buildForwardView } from './forward-view.js';
 
 function tensorProofHash(executionId: string, layerId: string, tensor: TensorValue): string {
   return crypto
@@ -52,12 +53,12 @@ export async function appendExecutionTrace(
   tensorIn: Record<string, unknown> = {},
   tensorOut?: TensorValue
 ): Promise<void> {
-  const adapterId = memory.adapter?.id ?? memory.chain?.id ?? memory.memory_uuid;
+  const adapterId = getAdapterId(memory);
   await executionTraceStore.appendTrace({
     execution_id: executionId,
     adapter_uri: buildAdapterUri(adapterId),
     layer_uri: buildLayerUri(memory.memory_uuid, executionId),
-    layer_index: memory.adapter?.layer_index ?? memory.chain?.step_index ?? 1,
+    layer_index: getLayerIndex(memory),
     created_at: new Date().toISOString(),
     ...(activationQuery ? { activation_query: activationQuery } : {}),
     layer_instructions: extractMemoryBody(memory.text),
@@ -90,7 +91,7 @@ export async function handleTensorForward(
   solution: ForwardSolution,
   qdrantService: QdrantService | undefined
 ): Promise<ForwardOutput> {
-  const contract = normalizeContract(memory);
+  const contract = getInferenceContract(memory);
   if (!contract?.tensor) {
     throw new Error('Tensor forward requires a tensor contract');
   }

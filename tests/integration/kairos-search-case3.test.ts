@@ -37,7 +37,7 @@ Run when user says "partial match case 3".
 This protocol tests CASE 3 behavior: no perfect match but good candidate.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
 ## Completion Rule

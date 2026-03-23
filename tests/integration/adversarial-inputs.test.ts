@@ -113,7 +113,7 @@ describe('Adversarial and robustness inputs', () => {
       'Payload includes null-byte \\u0000 and unicode 🧪 𝄞 測試 for parser robustness.',
       '',
       '```json',
-      '{"challenge":{"type":"comment","description":"Edge-case content accepted safely"}}',
+      '{"contract":{"type":"comment","description":"Edge-case content accepted safely"}}',
       '```',
       '',
       '## Completion Rule',

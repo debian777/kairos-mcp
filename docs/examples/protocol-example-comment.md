@@ -12,7 +12,7 @@ Provide a short summary of the changes made. Minimum 50 characters.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "comment",
     "comment": {
       "min_length": 50

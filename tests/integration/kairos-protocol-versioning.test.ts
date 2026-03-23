@@ -22,7 +22,7 @@ Run when user says "version test".
 Content.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":5},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}
 \`\`\`
 
 ## Completion Rule
@@ -39,7 +39,7 @@ Run when user says "version test".
 Content.
 
 \`\`\`json
-{"challenge":{"type":"comment","comment":{"min_length":5},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}
 \`\`\`
 
 ## Completion Rule

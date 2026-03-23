@@ -23,7 +23,7 @@ export function RunsPage() {
               className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 flex items-start justify-between gap-4"
             >
               <div className="min-w-0">
-                <div className="font-medium text-[var(--color-text-heading)] truncate">{s.protocol_uri}</div>
+                <div className="font-medium text-[var(--color-text-heading)] truncate">{s.adapter_uri}</div>
                 <div className="text-sm text-[var(--color-text-muted)] mt-1">
                   {t("runs.status")}: {s.status} · {t("runs.updated")}: {new Date(s.updated_at).toLocaleString()}
                   {" · "}
@@ -33,7 +33,7 @@ export function RunsPage() {
               </div>
               <div className="flex flex-wrap gap-2 flex-shrink-0">
                 <Link
-                  to={`/protocols/${encodeURIComponent(s.protocol_uri)}/run?session=${encodeURIComponent(s.id)}`}
+                  to={`/protocols/${encodeURIComponent(s.adapter_uri)}/run?session=${encodeURIComponent(s.id)}`}
                   className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                 >
                   {t("runs.resume")}

@@ -12,7 +12,7 @@ Ask the user to approve deployment. The agent must obtain confirmation and send 
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "user_input",
     "user_input": {
       "prompt": "Approve deployment to production?"

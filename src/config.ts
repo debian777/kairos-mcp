@@ -4,6 +4,7 @@
  * REDIS_URL: when set (non-empty) → Redis backend; when unset or empty → in-memory backend. QDRANT_URL is always required.
  */
 
+import os from 'os';
 import path from 'path';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
@@ -48,6 +49,13 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 export const REDIS_URL = (getEnvString('REDIS_URL', '')).trim();
 export const USE_REDIS = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
+const TRACE_STORE_DIR_RAW = getEnvString(
+  'KAIROS_TRACE_STORE_DIR',
+  path.join(os.homedir(), '.local', 'share', 'kairos', 'traces')
+).trim();
+export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
+  ? TRACE_STORE_DIR_RAW
+  : path.resolve(TRACE_STORE_DIR_RAW);
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');

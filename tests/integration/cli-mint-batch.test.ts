@@ -25,7 +25,7 @@ Run when user says "${title}".
 Basic setup.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Completion Rule

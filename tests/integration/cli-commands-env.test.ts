@@ -84,7 +84,7 @@ describe('CLI Commands Environment & Error Tests', () => {
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('next_action');
       expect(result).toHaveProperty('contract');
-      expect(result.current_layer !== undefined || result.current_step !== undefined).toBe(true);
+      expect(result.current_layer).toBeDefined();
     }, 30000);
 
     test('train uses KAIROS_API_URL environment variable', async () => {

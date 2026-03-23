@@ -11,6 +11,11 @@ import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
 import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
+import {
+  getActivationPatternVectorName,
+  getAdapterTitleVectorName,
+  getPrimaryVectorName
+} from '../../utils/qdrant-vector-types.js';
 import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
 import {
   allocateProtocolSlugForMint,
@@ -21,6 +26,7 @@ import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
 import { KairosError } from '../../types/index.js';
 import type { CodeBlockProcessor } from '../code-block-processor.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
+import { buildActivationSearchFieldsForMemory } from './activation-search-fields.js';
 
 /**
  * Handles default chain storage (one memory per document)
@@ -71,18 +77,10 @@ export async function storeDefaultChain(
     chainUuid
   );
 
-  let embeddings: any;
-  try {
-    const textsToEmbed = processedDocs.map((p, idx) =>
-      idx === 0 ? `${firstGeneratedLabel}\n\n${p.enhanced}` : p.enhanced
-    );
-    embeddings = await embeddingService.generateBatchEmbeddings(textsToEmbed);
-  } catch (err) {
-    logger.warn('[MemoryQdrantStore] Failed to generate embeddings for default path; falling back to zero vectors: ' + (err instanceof Error ? err.message : String(err)));
-    const vectorSize = getEmbeddingDimension();
-    embeddings = { embeddings: processedDocs.map(() => Array(vectorSize).fill(0)) } as any;
-  }
-  const currentVectorName = `vs${getEmbeddingDimension()}`;
+  const vectorSize = getEmbeddingDimension();
+  const primaryVectorName = getPrimaryVectorName(vectorSize);
+  const titleVectorName = getAdapterTitleVectorName(vectorSize);
+  const activationPatternVectorName = getActivationPatternVectorName(vectorSize);
   const memories: Memory[] = processedDocs.map((processed, index) => {
     const memory_uuid = uuids[index]!;
     const baseTags = generateTags(processed.original);
@@ -118,6 +116,42 @@ export async function storeDefaultChain(
     };
   });
 
+  const activationFields = memories.map((memory) => buildActivationSearchFieldsForMemory(memory));
+  let primaryEmbeddings: number[][];
+  let titleEmbeddings: number[][];
+  let activationPatternEmbeddings: number[][];
+  try {
+    const textsToEmbed = activationFields.flatMap((fields) => [
+      fields.primaryDenseText,
+      fields.titleDenseText,
+      fields.activationPatternDenseText
+    ]);
+    const embeddingBatch = await embeddingService.generateBatchEmbeddings(textsToEmbed);
+    const embeddingCount = embeddingBatch.embeddings.length;
+    const wrongCount = embeddingCount !== memories.length * 3;
+    const wrongDim = embeddingBatch.embeddings.some(
+      (embedding) => !Array.isArray(embedding) || embedding.length !== vectorSize
+    );
+    if (wrongCount || wrongDim) {
+      throw new Error(
+        `embedding shape mismatch for activation vectors (count=${embeddingCount}/${memories.length * 3}, dim_ok=${!wrongDim})`
+      );
+    }
+    primaryEmbeddings = activationFields.map((_, index) => embeddingBatch.embeddings[index * 3]!);
+    titleEmbeddings = activationFields.map((_, index) => embeddingBatch.embeddings[index * 3 + 1]!);
+    activationPatternEmbeddings = activationFields.map(
+      (_, index) => embeddingBatch.embeddings[index * 3 + 2]!
+    );
+  } catch (err) {
+    logger.warn(
+      '[MemoryQdrantStore] Failed to generate activation-aware embeddings for default path; falling back to zero vectors: ' +
+        (err instanceof Error ? err.message : String(err))
+    );
+    primaryEmbeddings = memories.map(() => Array(vectorSize).fill(0));
+    titleEmbeddings = memories.map(() => Array(vectorSize).fill(0));
+    activationPatternEmbeddings = memories.map(() => Array(vectorSize).fill(0));
+  }
+
   const context = getSpaceContext();
   const spaceId = context.defaultWriteSpaceId;
   const actorId = context.userId || 'system';
@@ -130,8 +164,8 @@ export async function storeDefaultChain(
       type,
       memory.tags
     );
-    const sparseInput = index === 0 ? `${memory.chain!.label} ${memory.label} ${memory.text}` : `${memory.label} ${memory.text}`;
-    const sparse = bm25Tokenizer.tokenize(sparseInput);
+    const fields = activationFields[index]!;
+    const sparse = bm25Tokenizer.tokenize(fields.sparseText);
     const adapter = memory.adapter ?? {
       id: memory.chain!.id,
       name: memory.chain!.label,
@@ -143,7 +177,9 @@ export async function storeDefaultChain(
     return ({
       id: memory.memory_uuid,
       vector: {
-        [currentVectorName]: embeddings.embeddings[index]!,
+        [primaryVectorName]: primaryEmbeddings[index]!,
+        [titleVectorName]: titleEmbeddings[index]!,
+        [activationPatternVectorName]: activationPatternEmbeddings[index]!,
         bm25: { indices: sparse.indices, values: sparse.values }
       },
       payload: {
@@ -158,6 +194,10 @@ export async function storeDefaultChain(
         modified_by: actorId,
         slug: protocolSlug,
         activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
+        adapter_name_text: fields.adapterNameText,
+        label_text: fields.labelText,
+        activation_patterns_text: fields.activationPatternsText,
+        tags_text: fields.tagsText,
         inference_contract: inferenceContract,
         proof_of_work: inferenceContract,
         task,
@@ -201,10 +241,12 @@ export async function storeDefaultChain(
     if (msg.includes('Bad Request') || msg.includes('sparse') || msg.includes('vector')) {
       const pointsDenseOnly = points.map(p => ({
         ...p,
-        vector: { [currentVectorName]: (p.vector as any)[currentVectorName] }
+        vector: Object.fromEntries(
+          Object.entries(p.vector as Record<string, unknown>).filter(([name]) => name !== 'bm25')
+        )
       }));
       logger.warn(`[Qdrant][upsert] retrying without bm25 (collection may lack sparse config): ${msg}`);
-      await client.upsert(collection, { points: pointsDenseOnly });
+      await client.upsert(collection, { points: pointsDenseOnly } as any);
     } else {
       throw err;
     }

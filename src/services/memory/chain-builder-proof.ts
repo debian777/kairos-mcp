@@ -4,7 +4,7 @@ import type { InferenceContractDefinition } from '../../types/memory.js';
 // Note: Requires \n before the fence, so only matches line-start blocks (aligns with line-start-only rule).
 const TRAILING_JSON_BLOCK_REGEX = /([\s\S]*)\n```(?:json)?\s*\n([\s\S]*?)```\s*$/;
 
-/** Match a single fenced ```json block (for finding all challenge blocks). Only ```json counts so we avoid matching other fences (e.g. ```typescript) or stray ```\n. */
+/** Match a single fenced ```json block (for finding all contract blocks). Only ```json counts so we avoid matching other fences (e.g. ```typescript) or stray ```\n. */
 const ANY_JSON_BLOCK_REGEX = /(^|\n)(```json\s*\n([\s\S]*?)```)/gm;
 
 /** Match plain ``` (no json) fenced blocks at line start. Used to reject mixed-fence docs. */
@@ -20,14 +20,12 @@ export interface ContractBlockMatch {
 
 /**
  * Parse a fenced JSON payload and return a normalized inference contract.
- * Current format prefers {"contract": ...}, but older {"challenge": ...} continues to
- * parse so existing stored content can be migrated offline without breaking
- * internal helpers during the refactor.
+ * v4 accepts only {"contract": ...}.
  */
 function parseContractBlock(rawJson: string): InferenceContractDefinition | null {
-  let parsed: { challenge?: unknown; contract?: unknown };
+  let parsed: { contract?: unknown };
   try {
-    parsed = JSON.parse(rawJson) as { challenge?: unknown; contract?: unknown };
+    parsed = JSON.parse(rawJson) as { contract?: unknown };
   } catch {
     return null;
   }
@@ -35,9 +33,7 @@ function parseContractBlock(rawJson: string): InferenceContractDefinition | null
   const source =
     parsed && typeof parsed === 'object' && parsed.contract && typeof parsed.contract === 'object'
       ? parsed.contract
-      : parsed && typeof parsed === 'object' && parsed.challenge && typeof parsed.challenge === 'object'
-        ? parsed.challenge
-        : null;
+      : null;
 
   if (!source || typeof source !== 'object') {
     return null;
@@ -50,8 +46,7 @@ function parseContractBlock(rawJson: string): InferenceContractDefinition | null
 
 /**
  * Find all contract boundaries in content: each ```json block with
- * {"contract": ...} or older {"challenge": ...}. Layers are defined by these
- * boundaries, not by H2 headings.
+ * {"contract": ...}. Layers are defined by these boundaries, not by H2 headings.
  */
 export function findAllContractBlocks(content: string): ContractBlockMatch[] {
   const results: ContractBlockMatch[] = [];
@@ -81,9 +76,9 @@ export function findAllContractBlocks(content: string): ContractBlockMatch[] {
 
 /**
  * Returns true if the document has any plain ``` (no "json") fenced block whose
- * content is valid JSON with a "contract" or older "challenge" key. Such docs
- * would pass "at least one ```json contract" but layer parsing would ignore the
- * plain blocks, minting fewer layers than the doc implies.
+ * content is valid JSON with a "contract" key. Such docs would pass
+ * "at least one ```json contract" but layer parsing would ignore the plain
+ * blocks, minting fewer layers than the doc implies.
  */
 export function hasPlainFenceContractBlock(content: string): boolean {
   let match: RegExpExecArray | null;
@@ -98,8 +93,8 @@ export function hasPlainFenceContractBlock(content: string): boolean {
 }
 
 /**
- * Try to parse a trailing ```json block containing {"contract": ...} or older
- * {"challenge": ...}. Uses the last code block in the content so layers with
+ * Try to parse a trailing ```json block containing {"contract": ...}. Uses the
+ * last code block in the content so layers with
  * multiple example blocks still get a contract. Returns the contract object and
  * cleaned content (without the block) if valid.
  */

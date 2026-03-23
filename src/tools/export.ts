@@ -2,6 +2,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
+import { getAdapterId } from '../services/memory/memory-accessors.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { executeDump } from './dump.js';
@@ -32,7 +33,7 @@ async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: Qdr
   }
 
   const memory = await memoryStore.getMemory(parsed.id);
-  const adapterId = memory?.adapter?.id ?? memory?.chain?.id ?? parsed.id;
+  const adapterId = memory ? getAdapterId(memory) : parsed.id;
   return { adapterId, layerId: parsed.id };
 }
 
@@ -45,6 +46,15 @@ function toCurrentMarkdown(markdownDoc: string): string {
 
 function stringifyLines(items: unknown[]): string {
   return items.map((item) => JSON.stringify(item)).join('\n');
+}
+
+function canonicalLayerUri(uri: string): string {
+  try {
+    const parsed = parseKairosUri(uri);
+    return parsed.kind === 'layer' ? `kairos://layer/${parsed.id}` : uri;
+  } catch {
+    return uri;
+  }
 }
 
 export async function executeExport(
@@ -127,7 +137,7 @@ export async function executeExport(
   }> = [];
   const byLayer = new Map<string, typeof pairs>();
   for (const pair of pairs) {
-    const key = `${pair.layer_uri}:${pair.layer_index}`;
+    const key = `${canonicalLayerUri(pair.layer_uri)}:${pair.layer_index}`;
     byLayer.set(key, [...(byLayer.get(key) ?? []), pair]);
   }
   for (const layerPairs of byLayer.values()) {
@@ -147,7 +157,7 @@ export async function executeExport(
       rejected: JSON.stringify(rejected.response),
       metadata: {
         adapter_uri: chosen.adapter_uri,
-        layer_uri: chosen.layer_uri,
+        layer_uri: canonicalLayerUri(chosen.layer_uri),
         layer_index: chosen.layer_index
       }
     });

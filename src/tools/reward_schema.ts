@@ -17,6 +17,14 @@ export const rewardInputSchema = z.object({
   llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
 });
 
+const rewardEligibilityBlockerSchema = z.enum([
+  'missing_rubric_version',
+  'missing_evaluator_identity',
+  'outcome_not_success',
+  'score_below_sft_threshold',
+  'score_below_preference_threshold'
+]);
+
 export const rewardOutputSchema = z.object({
   results: z.array(z.object({
     uri: layerUriSchema,
@@ -25,6 +33,13 @@ export const rewardOutputSchema = z.object({
     feedback: z.string().nullable(),
     rater: z.string().nullable(),
     rubric_version: z.string().nullable(),
+    llm_model_id: z.string().nullable(),
+    grader_kind: z.enum(['human', 'model', 'unknown']),
+    evaluation_label: z.enum(['gold', 'silver', 'bronze', 'rejected']),
+    exportable_for_sft: z.boolean(),
+    exportable_for_preference: z.boolean(),
+    sft_blockers: z.array(rewardEligibilityBlockerSchema),
+    preference_blockers: z.array(rewardEligibilityBlockerSchema),
     rated_at: z.string()
   })),
   total_rated: z.number(),

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Challenge, ProofOfWorkSubmission, ProofOfWorkType } from "@/lib/kairosRunTypes";
+import type { RunContract, RunContractType, RunSolutionSubmission } from "@/lib/runToolTypes";
 
-type DraftSolution = Omit<ProofOfWorkSubmission, "nonce" | "proof_hash" | "previousProofHash">;
+type DraftSolution = Omit<RunSolutionSubmission, "nonce" | "proof_hash" | "previousProofHash">;
 
 function parseJsonOrThrow(text: string): unknown {
   const trimmed = text.trim();
@@ -11,31 +11,31 @@ function parseJsonOrThrow(text: string): unknown {
 }
 
 export function SolutionForm({
-  challenge,
+  contract,
   disabled,
   onSubmit,
 }: {
-  challenge: Challenge;
+  contract: RunContract;
   disabled?: boolean;
   onSubmit: (draft: DraftSolution) => void;
 }) {
   const { t } = useTranslation();
-  const type: ProofOfWorkType = challenge.type;
+  const type: RunContractType = contract.type;
 
   const [exitCode, setExitCode] = useState<number>(0);
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
   const [tensorValueText, setTensorValueText] = useState("");
 
-  const toolName = challenge.mcp?.tool_name ?? "";
+  const toolName = contract.mcp?.tool_name ?? "";
   const [mcpSuccess, setMcpSuccess] = useState(true);
   const [mcpArgsText, setMcpArgsText] = useState("");
   const [mcpResultText, setMcpResultText] = useState("");
 
-  const prompt = challenge.user_input?.prompt ?? "";
+  const prompt = contract.user_input?.prompt ?? "";
   const [confirmation, setConfirmation] = useState("");
 
-  const minLen = challenge.comment?.min_length ?? 10;
+  const minLen = contract.comment?.min_length ?? 10;
   const [comment, setComment] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function SolutionForm({
         onSubmit({
           type,
           tensor: {
-            name: challenge.tensor?.output.name ?? "tensor",
+            name: contract.tensor?.output.name ?? "tensor",
             value: parsedValue,
           },
         });
@@ -187,11 +187,11 @@ export function SolutionForm({
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
             <div className="text-sm text-[var(--color-text-muted)]">Output tensor</div>
             <div className="font-medium text-[var(--color-text-heading)]">
-              {challenge.tensor?.output.name ?? "tensor"} ({challenge.tensor?.output.type ?? "unknown"})
+                {contract.tensor?.output.name ?? "tensor"} ({contract.tensor?.output.type ?? "unknown"})
             </div>
-            {challenge.tensor?.required_inputs?.length ? (
+            {contract.tensor?.required_inputs?.length ? (
               <div className="text-sm text-[var(--color-text-muted)] mt-2">
-                Required inputs: {challenge.tensor.required_inputs.join(", ")}
+                Required inputs: {contract.tensor.required_inputs.join(", ")}
               </div>
             ) : null}
           </div>

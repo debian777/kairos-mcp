@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Export or import KAIROS protocols via the API (bundle to dir / mint from dir).
+Export or import KAIROS adapters via the API (bundle to dir / train from dir).
 Self-manages .venv and requirements.txt in the skill directory.
 
 Requires:
@@ -8,8 +8,8 @@ Requires:
   KAIROS_API_URL - Optional; default http://localhost:3000
 
 Usage:
-  export  - save all protocols from spaces into --dir
-  import  - mint all .md files from --dir into KAIROS (personal space)
+  export  - save all adapters from spaces into --dir
+  import  - train all .md files from --dir into KAIROS (personal space)
 
 Run from the skill directory (directory containing SKILL.md):
   KAIROS_TOKEN=$(kairos token) python3 scripts/kairos-bundle.py export [--dir DIR]
@@ -90,7 +90,7 @@ def run_export(
     dry_run: bool,
 ) -> int:
     req = urllib.request.Request(
-        f"{base_url}/api/kairos_spaces",
+        f"{base_url}/api/spaces",
         data=json.dumps({"include_chain_titles": True}).encode(),
         headers={
             "Content-Type": "application/json",
@@ -102,7 +102,7 @@ def run_export(
         with urllib.request.urlopen(req, timeout=30) as resp:
             spaces_data = json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
-        print(f"kairos_spaces failed: {e.code} {e.reason}", file=sys.stderr)
+        print(f"spaces failed: {e.code} {e.reason}", file=sys.stderr)
         if e.fp:
             print(e.fp.read().decode(), file=sys.stderr)
         return 1
@@ -111,34 +111,34 @@ def run_export(
         return 1
 
     spaces = spaces_data.get("spaces") or []
-    chains: list[tuple[str, str, str]] = []
+    adapters: list[tuple[str, str, str]] = []
     for sp in spaces:
         name = sp.get("name") or "unknown"
         if space_filter and name != space_filter:
             continue
         for ch in sp.get("chains") or []:
-            cid = ch.get("chain_id")
-            title = ch.get("title") or cid or "unnamed"
-            if cid:
-                chains.append((cid, title, name))
+            adapter_id = ch.get("chain_id")
+            title = ch.get("title") or adapter_id or "unnamed"
+            if adapter_id:
+                adapters.append((adapter_id, title, name))
 
-    if not chains:
-        print("No chains found (or none match --space).", file=sys.stderr)
+    if not adapters:
+        print("No adapters found (or none match --space).", file=sys.stderr)
         return 0
 
-    print(f"Found {len(chains)} protocol(s).", file=sys.stderr)
+    print(f"Found {len(adapters)} adapter(s).", file=sys.stderr)
     if dry_run:
-        for cid, title, space_name in chains:
-            print(f"  {cid}  {title}  ({space_name})")
+        for adapter_id, title, space_name in adapters:
+            print(f"  {adapter_id}  {title}  ({space_name})")
         return 0
 
     os.makedirs(target_dir, exist_ok=True)
     failed = 0
-    for cid, title, space_name in chains:
-        uri = f"kairos://mem/{cid}"
+    for adapter_id, title, space_name in adapters:
+        uri = f"kairos://adapter/{adapter_id}"
         req = urllib.request.Request(
-            f"{base_url}/api/kairos_dump",
-            data=json.dumps({"uri": uri, "protocol": True}).encode(),
+            f"{base_url}/api/export",
+            data=json.dumps({"uri": uri, "format": "markdown"}).encode(),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}",
@@ -149,25 +149,25 @@ def run_export(
             with urllib.request.urlopen(req, timeout=30) as resp:
                 out = json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
-            print(f"  dump {cid} failed: {e.code}", file=sys.stderr)
+            print(f"  export {adapter_id} failed: {e.code}", file=sys.stderr)
             failed += 1
             continue
         except urllib.error.URLError as e:
-            print(f"  dump {cid} failed: {e.reason}", file=sys.stderr)
+            print(f"  export {adapter_id} failed: {e.reason}", file=sys.stderr)
             failed += 1
             continue
 
-        md = out.get("markdown_doc") or ""
+        md = out.get("content") or ""
         safe_title = slug(title)
-        path = os.path.join(target_dir, f"{safe_title}_{cid[:8]}.md")
+        path = os.path.join(target_dir, f"{safe_title}_{adapter_id[:8]}.md")
         with open(path, "w", encoding="utf-8") as f:
             f.write(md)
         print(f"  {path}", file=sys.stderr)
 
     if failed:
-        print(f"Failed: {failed} of {len(chains)}", file=sys.stderr)
+        print(f"Failed: {failed} of {len(adapters)}", file=sys.stderr)
         return 1
-    print(f"Wrote {len(chains)} file(s) to {target_dir}", file=sys.stderr)
+    print(f"Wrote {len(adapters)} file(s) to {target_dir}", file=sys.stderr)
     return 0
 
 
@@ -204,7 +204,7 @@ def run_import(
             print(f"  skip (empty): {name}", file=sys.stderr)
             continue
 
-        url = f"{base_url}/api/kairos_mint/raw"
+        url = f"{base_url}/api/train/raw"
         if force:
             url += "?force=true"
         req = urllib.request.Request(
@@ -221,11 +221,11 @@ def run_import(
                 out = json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
             body = e.fp.read().decode() if e.fp else ""
-            print(f"  mint {name} failed: {e.code} {body[:200]}", file=sys.stderr)
+            print(f"  train {name} failed: {e.code} {body[:200]}", file=sys.stderr)
             failed += 1
             continue
         except urllib.error.URLError as e:
-            print(f"  mint {name} failed: {e.reason}", file=sys.stderr)
+            print(f"  train {name} failed: {e.reason}", file=sys.stderr)
             failed += 1
             continue
 
@@ -236,19 +236,19 @@ def run_import(
     if failed:
         print(f"Failed: {failed} of {len(files)}", file=sys.stderr)
         return 1
-    print(f"Minted {len(files)} file(s) from {target_dir}", file=sys.stderr)
+    print(f"Trained {len(files)} file(s) from {target_dir}", file=sys.stderr)
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Export or import KAIROS protocols (bundle to dir / mint from dir).",
+        description="Export or import KAIROS adapters (bundle to dir / train from dir).",
         epilog="Set KAIROS_TOKEN (e.g. KAIROS_TOKEN=$(kairos token)). Optional: KAIROS_API_URL.",
     )
-    sub = parser.add_subparsers(dest="command", required=True, help="export: save all protocols to dir; import: mint all .md files from dir")
+    sub = parser.add_subparsers(dest="command", required=True, help="export: save all adapters to dir; import: train all .md files from dir")
 
     # export
-    p_export = sub.add_parser("export", help="Save all protocols from spaces into --dir")
+    p_export = sub.add_parser("export", help="Save all adapters from spaces into --dir")
     p_export.add_argument(
         "--dir",
         dest="dir",
@@ -260,12 +260,12 @@ def main() -> int:
         "--space",
         default=None,
         metavar="NAME",
-        help="Only export chains from this space (e.g. 'Personal'). Default: all.",
+        help="Only export adapters from this space (for example, 'Personal'). Default: all.",
     )
-    p_export.add_argument("--dry-run", action="store_true", help="List chains only, do not save")
+    p_export.add_argument("--dry-run", action="store_true", help="List adapters only, do not save")
 
     # import
-    p_import = sub.add_parser("import", help="Mint all .md files from --dir into KAIROS (personal space)")
+    p_import = sub.add_parser("import", help="Train all .md files from --dir into KAIROS (personal space)")
     p_import.add_argument(
         "--dir",
         dest="dir",
@@ -274,7 +274,7 @@ def main() -> int:
         help="Target directory to read .md files from (default: .local/cache/dump)",
     )
     p_import.add_argument("--force", action="store_true", help="Overwrite existing chain with same title (force=true)")
-    p_import.add_argument("--dry-run", action="store_true", help="List .md files only, do not mint")
+    p_import.add_argument("--dry-run", action="store_true", help="List .md files only, do not train")
 
     args = parser.parse_args()
 
