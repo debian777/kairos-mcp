@@ -34,6 +34,6 @@ When running **MCP-only** workflow tests (no shell, no filesystem except `report
 
 - [Architecture and protocol workflows](../architecture/README.md) — End-to-end flow (search → begin → next → attest) and per-tool workflows.
 - [Workflow test README](../../tests/workflow-test/README.md) — Test harness and how to run.
-- Building KAIROS workflows is described in the MCP resource **building-kairos-workflows** and in the tool description for `kairos_mint`.
+- Minting rules are described in the tool description for `kairos_mint`.
 - [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles) — For contributors designing or reviewing MCP tools and APIs.
 

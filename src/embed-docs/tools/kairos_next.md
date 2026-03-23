@@ -1,5 +1,4 @@
-Submit a solution and advance to the next step. Use for every step
-after step 1.
+Submit a solution for the current step and advance to the next one.
 
 **Precondition:** You have completed the current step's challenge. You
 have the URI from the previous response's `next_action`.
@@ -7,12 +6,13 @@ have the URI from the previous response's `next_action`.
 **Input:**
 
 - `uri` — current step URI from `next_action` of the previous response.
-  Do not use for step 1 — use `kairos_begin` for step 1.
+  Use `kairos_begin` to start step 1, then use the URI from
+  `kairos_begin.next_action` when you submit the step-1 solution here.
 - `solution` — proof matching `challenge.type`:
   - `shell`: `{ type: "shell", shell: { exit_code, stdout?, stderr?,
     duration_seconds? } }` — `exit_code: 0` = success.
   - `mcp`: `{ type: "mcp", mcp: { tool_name, result, success,
-    arguments? } }` — `success` must be `true`.
+    arguments? } }` — `success` must reflect the real outcome.
   - `user_input`: `{ type: "user_input", user_input: { confirmation,
     timestamp? } }`.
   - `comment`: `{ type: "comment", comment: { text } }` — `text.length`

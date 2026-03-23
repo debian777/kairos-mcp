@@ -11,6 +11,9 @@ KAIROS, protocols, or tools. The user's natural language IS the query.
   user's intent; add specificity, do not substitute your own
   interpretation. Expand slash-commands or shorthand (e.g. `/ai-docs` →
   `write ai instructions zero-drift template`).
+- `space` (optional) — scope results to a specific allowed space by
+  name.
+- `space_id` (optional) — alias for `space`.
 - `max_choices` (optional) — maximum number of match choices to return.
   Omit for server default. Use a higher value for broad or vague
   queries when the best match may not be in the top few.
@@ -19,8 +22,9 @@ KAIROS, protocols, or tools. The user's natural language IS the query.
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
 `next_action`, and optional `protocol_version`), `message`, and a
 global `next_action`. For match choices, `protocol_version` is the
-stored protocol version (e.g. semver); compare with skill-bundled
-protocol to decide if re-mint is needed.
+stored protocol version (for example, semver). Match choices are
+already filtered by the server's configured minimum score threshold
+before they are returned.
 
 **Choice roles:**
 
@@ -36,14 +40,16 @@ protocol to decide if re-mint is needed.
 
 **Ordering:** Match choices first (top N), then refine (if present),
 then create (if present). Refine and create are not part of the search
-limit.
+limit. If there is exactly one match with score `>= 0.5`, the server
+omits the refine and create choices.
 
 **AI decision tree:** `must_obey: true` — pick one choice and follow
 **that choice's `next_action`**. The global `next_action` says: "Pick
 one choice and follow that choice's next_action."
 
-When results are weak (no scores above 0.5), pick the refine choice and
-run that protocol for step-by-step help improving the query.
+When results are weak (for example, no scores above 0.5) and a refine
+choice is present, pick it and run that protocol for step-by-step help
+improving the query.
 
 **MUST ALWAYS**
 
