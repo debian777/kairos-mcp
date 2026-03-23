@@ -1,6 +1,6 @@
 ---
 name: git-worktree-index-repair
-description: "Fix Git commit failures in worktrees: invalid object / Error building trees. Use when commit or write-tree fails after a long hook run. Covers root-cause diagnosis via fs_usage, manual index repair, and when NOT to add hook workarounds."
+description: "Fix Git commit failures in worktrees: invalid object / Error building trees. Use when commit or write-tree fails after a long hook run. Covers fs_usage diagnosis, manual read-tree repair, and this repo’s single pre-lint git rm --cached for .claude/hooks/session-start.sh (no full index rebuild in hooks)."
 ---
 
 # Git worktree index and commit repair
@@ -34,7 +34,16 @@ Then trigger the hook (`sh .husky/pre-commit` or `git commit`) in another termin
 ### What does NOT work as a fix
 
 - **Rebuilding the index inside the hook** (`git read-tree HEAD && git add -A` in a trap). This races with Cursor's background git processes and can make things worse by spawning additional concurrent index writers.
-- **Stripping specific files** (e.g. `.claude/hooks/session-start.sh`) in the hook. Too narrow — the IDE can inject any stale entry, not just `.claude` paths.
+
+### Repo-specific narrow guardrail (this worktree)
+
+**`.husky/pre-commit`** runs once, immediately before **`npm run lint`**:
+
+```sh
+git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh
+```
+
+That path is the recurring missing-blob offender in this setup. Do not generalize to broad index rewrites or stripping arbitrary paths in hooks.
 
 ## Manual repair (canonical)
 
@@ -69,11 +78,11 @@ Missing blobs often need **`git fetch`** from a complete remote or repair of the
 ## Prevention
 
 - **`git.autoRefresh: false`** in `.vscode/settings.json` for worktree workspaces reduces background git activity that can carry stale entries forward.
-- Keep the pre-commit hook **clean** — no index-modifying workarounds. They add concurrent writers and make the race condition worse.
+- Allow **only** the single **`git rm --cached`** for **`.claude/hooks/session-start.sh`** before lint in this repo’s hook — not full index rebuilds.
 - Run **`git gc`** carefully in repos with many worktrees; pruned blobs can leave orphan index entries in other worktrees.
 
 ## Agent execution notes
 
 - Prefer **`GIT_EDITOR=true`** for any Git command that might open an editor.
 - Do not force-add ignored local config dirs unless the user explicitly wants them committed.
-- Do not add index-modifying code to hooks. If the index is corrupt, repair it manually before committing.
+- If the index is corrupt for paths other than that hook, repair manually (**read-tree** + **add -A** + **write-tree**) before committing.
