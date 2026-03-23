@@ -274,9 +274,10 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
   `package-lock.json` staged) skip hooks so no `--no-verify` is needed.
 - **Pre-commit hook (`.husky/pre-commit`):** Blocks commits on `main`, runs
   version/skills checks when relevant, `lint:skills` when `skills/` is staged,
-  then `npm run lint` (ESLint). It does not rewrite the Git index; if
-  **`git write-tree`** fails with invalid objects in a linked worktree, see
-  **`.cursor/skills/git-worktree-index-repair/SKILL.md`**. To see hook history:
+  then runs **`git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh`**
+  (ignored local hook that linked worktrees can re-stage with a missing blob)
+  immediately before **`npm run lint`**. For other index issues, see
+  **`.cursor/skills/git-worktree-index-repair/SKILL.md`**. Hook history:
   `git log -- .husky/pre-commit`.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for
