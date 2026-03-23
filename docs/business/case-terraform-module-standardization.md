@@ -1,10 +1,10 @@
-# Case 3: Standardizing and updating Terraform modules
+# Illustrative case 3: Standardizing and updating Terraform modules
 
 <img src="../../logo/kaiiros-mcp.svg" width="64" alt="KAIROS MCP logo" />
 
 ## Problem
 
-Terraform modules across teams or repos have drifted: different naming,
+Example problem: Terraform modules across teams or repos have drifted: different naming,
 structure, or patterns. Updating them manually is slow and error-prone; you
 want a consistent, repeatable way to bring modules in line with a standard.
 
@@ -52,7 +52,7 @@ flowchart LR
 4. The same procedure can be run on other modules so that over time all
    of them follow the same standard.
 
-## Outcome
+## Example outcome
 
 - **Consistency:** All modules that have been through the workflow conform
   to the same rules.
@@ -63,6 +63,5 @@ flowchart LR
 
 ## Takeaway
 
-Terraform module standardization becomes a defined workflow. Teams get
-updated, consistent modules by running the same procedure instead of
-hand-crafting each change.
+This is an example of how a standardization workflow can be applied to a class
+of repositories instead of hand-crafting each update.

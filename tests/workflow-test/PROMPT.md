@@ -37,11 +37,11 @@ For each workflow test run:
 Execute these in order and record results in the main report:
 
 1. **Imports** — Mint protocols from the canonical examples (e.g. content from `docs/examples/`). Use only MCP-only examples if the run forbids shell (protocol-example-mcp, protocol-example-comment, protocol-example-user-input). Call `kairos_mint` for each; expect `status: stored` or equivalent.
-2. **Search + workflows** — Run `kairos_search` with a query that should match the minted chains; pick a chain; call `kairos_begin` with its URI; then call `kairos_next` in a loop until `next_action` indicates run complete. Use protocols that do not require shell (MCP-only) if constraints forbid shell.
+2. **Search + workflows** — Run `kairos_search` with a query that should match the minted chains; pick a chain; call `kairos_begin` with its URI; then call `kairos_next` in a loop until `next_action` tells you to call `kairos_attest`. Use protocols that do not require shell (MCP-only) if constraints forbid shell.
 3. **Update step** — Resolve one step (e.g. via search → begin or existing URI). Call `kairos_dump` for that step URI; edit the returned `markdown_doc`; call `kairos_update` with `uris: [uri]` and `markdown_doc: [edited_doc]`. Confirm success.
 4. **Update chain** — Resolve a full chain (e.g. head URI). Call `kairos_dump` with `protocol: true` for the chain; edit the markdown; call `kairos_update` with multiple URIs and corresponding `markdown_doc` array. Confirm success.
 
 ## Where to use this prompt
 
-- **Cursor / IDE:** When running workflow tests from this repo, include this prompt (or the rule in `.cursor/rules/workflow-test-mcp-only.mdc`) so the agent sees the constraints and report format.
-- **CI / scripts:** When driving an AI agent for workflow tests, inject this prompt so the agent writes only to `reports/` and uses only MCP tools.
+- **IDE / chat session:** Paste or inject this prompt so the agent sees the constraints and report format.
+- **CI / scripts:** Inject this prompt so the agent writes only to `reports/` and uses only MCP tools.

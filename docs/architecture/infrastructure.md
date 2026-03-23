@@ -100,7 +100,7 @@ flowchart TB
 | redis        | 6379  | 6379  | TCP  | Key-value store |
 | redisinsight | 5540  | 5540  | HTTP | Redis web UI (profile `infra-ui`) |
 | qdrant       | 6333  | 6333  | HTTP | Vector DB REST API |
-| qdrant       | 6344  | 6344  | gRPC | Vector DB gRPC API |
+| qdrant       | 6344  | 6344  | TCP | Extra Qdrant port exposed by `compose.yaml`; the application code uses the HTTP API on 6333 |
 | postgres     | 5432  | 5432  | TCP  | Postgres (Keycloak DB only) |
 | keycloak     | 8080  | 8080  | HTTP | OIDC / auth |
 | keycloak     | 9000  | 9000  | HTTP | Keycloak health endpoint |
@@ -109,8 +109,10 @@ flowchart TB
 
 ## Application startup sequence
 
-`src/index.ts` enforces a strict boot order. No HTTP traffic is accepted
-until every step completes successfully.
+`src/index.ts` enforces a strict boot order. The process does not start serving
+HTTP until the application has verified Qdrant availability, resolved the
+embedding dimension, initialized the memory store, injected bundled resources,
+and started the metrics server.
 
 ```mermaid
 sequenceDiagram
@@ -119,10 +121,10 @@ sequenceDiagram
     participant GEH   as 🛡 GlobalErrorHandlers
     participant MEM   as 🧩 MemoryQdrantStore
     participant QD    as 🧠 Qdrant :6333
+    participant EMB   as 🧠 Embedding probe
     participant SNAP  as 📸 SnapshotService
     participant RES   as 📦 EmbeddedResources
     participant MT    as 📊 MetricsServer :9090
-    participant SRV   as ⚙️ MCPServer
     participant HTTP  as 🌐 HTTPServer :3000
 
     PROC->>GEH: installGlobalErrorHandlers()
@@ -135,7 +137,10 @@ sequenceDiagram
         QD-->>-MEM: healthy ✓ / error ✗
     end
 
-    MEM->>+QD: init() — ensure collection exists
+    PROC->>+EMB: probeEmbeddingDimension()
+    EMB-->>-PROC: resolved vector size
+
+    MEM->>+QD: init() — ensure collection exists / migrate schema
     QD-->>-MEM: collection ready
     deactivate MEM
 
@@ -153,18 +158,14 @@ sequenceDiagram
     PROC->>+MT: startMetricsServer()
     MT-->>-PROC: listening :9090
 
-    PROC->>+SRV: createServer(memoryStore)
-    Note right of SRV: Registers 8 MCP tools<br/>+ docs & prompt resources
-    SRV-->>-PROC: McpServer instance
-
-    PROC->>+HTTP: startServer(server, memoryStore)
+    PROC->>+HTTP: startServer(memoryStore)
     HTTP-->>-PROC: listening :3000 ✅
 ```
 
 ## Internal service wiring
 
-This diagram shows how an incoming HTTP/MCP call flows from the transport
-layer down through the service layer to external infrastructure.
+This diagram shows how an incoming HTTP or MCP request flows through the
+Express server and into the current service layer.
 
 ```mermaid
 flowchart LR
@@ -176,42 +177,43 @@ flowchart LR
     subgraph APP["⚙️  KAIROS MCP Process"]
         direction TB
 
-        subgraph TRANSPORT["HTTP Transport  :3000"]
+        subgraph TRANSPORT["HTTP application server :3000"]
             EXP["Express Router"]
             MCPH["MCP over HTTP handler"]
+            API["REST route handlers"]
         end
 
-        subgraph REGISTRY["MCP Server  (tool registry)"]
+        subgraph REGISTRY["Per-request MCP server"]
             T_SEARCH["kairos_search"]
             T_BEGIN["kairos_begin"]
             T_NEXT["kairos_next"]
             T_MINT["kairos_mint"]
+            T_ATTEST["kairos_attest"]
             T_UPD["kairos_update"]
             T_DEL["kairos_delete"]
             T_DUMP["kairos_dump"]
+            T_SPACES["kairos_spaces"]
         end
 
         subgraph SERVICES["Service Layer"]
             MEM_SVC["MemoryQdrantStore
             (chain CRUD)"]
-            SRCH_SVC["SearchService
-            (semantic ranking)"]
             EMB_SVC["EmbeddingService
             (vector generation)"]
             POW_SVC["ProofOfWorkStore
             (nonce / TTL)"]
-            STATS["StatsService
-            (quality scoring)"]
+            QDRANT_SVC["QdrantService
+            (direct point operations)"]
         end
 
         subgraph OBS["Observability  :9090"]
-            PROM["Prometheus Metrics"]
+            PROM["Metrics endpoint"]
         end
     end
 
     subgraph INFRA["🏗  Infrastructure"]
         QDRANT_DB[("🧠 Qdrant
-        :6333 HTTP · :6344 gRPC")]
+        :6333 HTTP")]
         REDIS_DB[("🗄 Redis
         :6379")]
         OPENAI(["☁️  OpenAI API
@@ -221,37 +223,37 @@ flowchart LR
     end
 
     AGT   -->|"HTTP POST /mcp"| EXP
+    AGT   -->|"HTTP /api/*"| EXP
     EXP   --> MCPH
-    MCPH  --> T_SEARCH & T_BEGIN & T_NEXT & T_MINT & T_UPD & T_DEL & T_DUMP
+    EXP   --> API
+    MCPH  --> T_SEARCH & T_BEGIN & T_NEXT & T_MINT & T_ATTEST & T_UPD & T_DEL & T_DUMP & T_SPACES
 
-    T_SEARCH --> SRCH_SVC
+    T_SEARCH --> MEM_SVC
     T_BEGIN  --> MEM_SVC & POW_SVC
-    T_NEXT   --> MEM_SVC & POW_SVC & STATS
+    T_NEXT   --> MEM_SVC & POW_SVC & QDRANT_SVC
     T_MINT   --> MEM_SVC
-    T_UPD    --> MEM_SVC
-    T_DEL    --> MEM_SVC
+    T_ATTEST --> QDRANT_SVC
+    T_UPD    --> QDRANT_SVC
+    T_DEL    --> QDRANT_SVC
     T_DUMP   --> MEM_SVC
+    T_SPACES --> MEM_SVC
+    API      --> MEM_SVC & QDRANT_SVC
 
     MEM_SVC  --> EMB_SVC
     MEM_SVC  --> QDRANT_DB
-    SRCH_SVC --> EMB_SVC
-    SRCH_SVC --> QDRANT_DB
     POW_SVC  --> REDIS_DB
-    STATS    --> QDRANT_DB
+    QDRANT_SVC --> QDRANT_DB
 
     EMB_SVC  -->|"provider = openai"| OPENAI
     EMB_SVC  -->|"provider = tei"| TEI
-
-    PROM     -. "scrapes" .-> QDRANT_DB
-    PROM     -. "scrapes" .-> REDIS_DB
 
     classDef tool  fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f,stroke-width:1px
     classDef svc   fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1px
     classDef infra fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
     classDef ext   fill:#f3e8ff,stroke:#9333ea,color:#581c87,stroke-width:1px,stroke-dasharray:4
 
-    class T_SEARCH,T_BEGIN,T_NEXT,T_MINT,T_UPD,T_DEL,T_DUMP tool
-    class MEM_SVC,SRCH_SVC,EMB_SVC,POW_SVC,STATS svc
+    class T_SEARCH,T_BEGIN,T_NEXT,T_MINT,T_ATTEST,T_UPD,T_DEL,T_DUMP,T_SPACES tool
+    class MEM_SVC,EMB_SVC,POW_SVC,QDRANT_SVC svc
     class QDRANT_DB,REDIS_DB infra
     class OPENAI,TEI ext
 ```
@@ -267,22 +269,16 @@ flowchart LR
 
 ## Volume layout
 
-The default `compose.yaml` uses Docker named volumes (`redis-data`,
-`qdrant-data`, `postgres-data`, `snapshots-prod`); no host path
-required. To use bind mounts instead, set `VOLUME_LOCAL_PATH` to the
-desired host path and update the volume definitions in `compose.yaml`
-accordingly.
+The checked-in `compose.yaml` uses Docker named volumes only:
 
-```
-${VOLUME_LOCAL_PATH}/
-├── data/
-│   ├── redis/             # AOF journal + RDB snapshot (60 s / 1000 writes)
-│   ├── qdrant/            # Vector storage (segments, WAL, indexes)
-│   ├── redisinsight/      # RedisInsight UI settings
-│   └── postgres/          # Postgres data (Keycloak DB only)
-└── snapshots/
-    └── prod/qdrant/       # On-demand or startup snapshots — prod
-```
+- `redis-data`
+- `redisinsight-data`
+- `qdrant-data`
+- `postgres-data`
+- `snapshots-prod`
+
+There is no alternate bind-mount compose file checked into this repository.
+If you want host-path mounts, you must edit `compose.yaml` yourself.
 
 ## Redis data model
 
@@ -299,8 +295,11 @@ Config: `maxmemory 512mb`, `allkeys-lru`, persistence via
 
 ## Qdrant data model
 
-One collection (default `kairos`) holds every protocol step as a vector +
-payload point. H1 headings become chain headers; H2 headings become steps.
+One collection holds every protocol step as a vector + payload point. The
+source default is `kairos` (`src/config.ts`), while the published runtime image
+sets `QDRANT_COLLECTION=kairos_memories` unless you override it with env.
+Within that collection, H1 headings become chain headers and H2 headings become
+steps.
 
 ```mermaid
 erDiagram

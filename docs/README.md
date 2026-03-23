@@ -1,69 +1,63 @@
 # KAIROS MCP documentation
 
-KAIROS MCP automates AI agents and chats with persistent, deterministic
-workflows. This folder contains setup guides, CLI reference, and protocol
-workflow details.
+This directory documents the current behavior of the repository: how to run the
+server, connect clients, use the CLI, understand the protocol engine, and work
+on the codebase.
 
-## Start here
-
-The [README](../README.md) covers what KAIROS MCP is, the quick start, and
-all installation options. Read it first.
+Start with the root [README](../README.md) for the product overview and the
+quick start.
 
 ## Getting started
 
-These guides walk you through connecting to and using KAIROS.
+- [Install and environment](install/README.md) — minimal and fullstack env
+  files, embedding-provider setup, and auth-related variables
+- [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — configure Cursor to talk to
+  the HTTP MCP endpoint
+- [CLI reference](CLI.md) — commands, auth flow, config/keyring behavior, and
+  batch minting
+- [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
 
-- [Install and environment](install/README.md) — env examples (minimal, fullstack); copy one to `.env`.
-- [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — add the KAIROS MCP
-  server to Cursor and connect to a running KAIROS instance.
-- [KAIROS CLI](CLI.md) — command-line usage: installation, configuration,
-  and all available commands.
-- [KAIROS bundles](kairos-bundles.md) — versioned trees of protocol markdown in
-  Git; bulk import with `kairos mint --force -r` and `README.md` handling.
+## Architecture and behavior
 
-## Architecture and workflows
+- [Architecture overview](architecture/README.md) — entry point into transport,
+  auth, storage, UI, and tool workflow docs
+- [Authentication overview](architecture/auth-overview.md) — browser session,
+  Bearer validation, shared CLI/MCP token storage, and well-known discovery
+- [Infrastructure](architecture/infrastructure.md) — Compose topology, ports,
+  volumes, startup, and service relationships
+- [Search query architecture](architecture/search-query.md) — hybrid Qdrant
+  search, space scoping, and score shaping
+- [Logging](architecture/logging.md) — logger behavior, audit stream, and
+  metrics-related env vars
 
-These documents explain how KAIROS works internally and how protocol chains
-execute end-to-end.
+## Tool workflows
 
-- [Architecture and protocol workflows](architecture/README.md) — how the
-  protocol runs end-to-end (search → begin → next → run complete),
-  per-tool workflow reference, response shapes, and scenarios.
-- [Authentication overview](architecture/auth-overview.md) — server auth (Bearer/session), shared CLI and MCP config, Keycloak, login flow.
-- [Logging](architecture/logging.md) — log levels, standard fields, env vars, error codes.
+- [Full execution workflow](architecture/workflow-full-execution.md)
+- [kairos_search](architecture/workflow-kairos-search.md)
+- [kairos_begin](architecture/workflow-kairos-begin.md)
+- [kairos_next](architecture/workflow-kairos-next.md)
+- [kairos_attest](architecture/workflow-kairos-attest.md)
+- [kairos_mint](architecture/workflow-kairos-mint.md)
+- [kairos_update](architecture/workflow-kairos-update.md)
+- [kairos_delete](architecture/workflow-kairos-delete.md)
+- [kairos_dump](architecture/workflow-kairos-dump.md)
 
-## Business applications
+## Examples and protocol authoring
 
-- [Business application cases](business/README.md) — manager-focused examples:
-  standardizing commits and MRs, compliance review from a new document (e.g. NIST),
-  Terraform module standardization.
+- [Protocol examples](examples/README.md) — mintable example protocols
+- [Challenge types](examples/challenge-types.md) — challenge/solution shapes
+- [Deterministic slug routing](design/slug-deterministic-routing.md)
 
-## Concepts
+## Security and operations
 
-- [Skills that ship KAIROS protocols](../skills/README.md) —
-  how a skill can bundle a protocol, declare requirements, and run
-  search → mint if missing → execute.
-- [Known issues and limitations](known-issues-and-limitations.md) —
-  current limitations, upgrade policy, and where to find breaking changes.
+- [Known issues and limitations](known-issues-and-limitations.md)
+- [Security policy](../SECURITY.md)
+- [Threat model](security/threat-model.md)
+- [Incident runbook](security/incident-runbook.md)
+- [Code security setup](security/code-security-setup.md)
 
-## Examples
+## Skills and contributor guidance
 
-The examples show how to build and structure protocols.
-
-- [Protocol examples and challenge types](examples/README.md) —
-  human-readable examples for challenge types (`shell`, `mcp`,
-  `user_input`, `comment`), step bodies, and solution shapes for
-  `kairos_next`.
-
-## For contributors
-
-- [Developer commands](../CONTRIBUTING.md#developer-commands) — build, deploy, and test (`dev:build`, `dev:deploy`, `dev:test`). Always deploy before testing.
-- [Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)
-  — doctrine for MCP tools, schemas, descriptions, and error shapes.
-
-## Archived material
-
-Older or superseded documents (phase snapshots, one-off reports, raw
-scenario data) are kept for reference only and may not reflect current
-behavior. Contact the maintainers if you need to locate a specific
-historical document.
+- [Skills README](../skills/README.md)
+- [Skills structure reference](../skills/SKILLS.md)
+- [Contributing](../CONTRIBUTING.md)

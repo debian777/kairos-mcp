@@ -48,7 +48,7 @@ However forks must:
 
 ## CLI Naming Policy
 
-The CLI names `kairos` and `kairos-mcp` are part of the KAIROS MCP trademark.
+The shipped CLI binary name `kairos` is part of the KAIROS MCP trademark.
 
 Forks and redistributions must rename the CLI binary.
 

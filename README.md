@@ -5,171 +5,245 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org/)
 
-KAIROS MCP™ **automates AI agents and chats** with persistent memory and
-deterministic protocol execution. Agents store, retrieve, and run reusable
-workflows across sessions—so you get repeatable procedures, not one-off chat.
+KAIROS MCP is a TypeScript service for storing and executing reusable protocol
+chains for AI agents. It exposes:
 
-## Why KAIROS
+- an MCP endpoint at `POST /mcp`
+- REST endpoints under `/api/*`
+- a browser UI under `/ui`
+- a CLI named `kairos`
 
-Without persistent workflows, agents repeat work, lose context, and cannot
-follow multi-step procedures reliably. KAIROS fixes this with three
-primitives:
+Protocol execution is deterministic:
 
-- **Persistent memory** — store and retrieve protocol chains across sessions
-- **Deterministic execution** — search → begin → next → attest; the server
-drives `next_action` at every step
-- **Agent-facing design** — tool descriptions and error messages built for  
-programmatic consumption and recovery
-
-Protocol execution runs in a fixed order: search for a match, begin the run,
-solve each step’s challenge, then attest completion.
-
-```mermaid
-flowchart LR
-  A([search]) --> B([begin]) --> C([next]) --> D([attest])
-  C -.-> C
-  style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
-  style B fill:#4a6fa5,stroke:#2d4a7a,color:#fff
-  style C fill:#ffb74d,stroke:#f57c00,color:#333
-  style D fill:#81c784,stroke:#388e3c,color:#333
+```text
+kairos_search -> kairos_begin -> kairos_next (loop) -> kairos_attest
 ```
 
-**Use cases:** Run the same release or deploy checklist every time; onboard
-repos or triage support with a searchable playbook; let agents follow
-minted procedures across sessions instead of ad-hoc chat.
+The server generates challenge data (`nonce`, `proof_hash`, URIs); agents echo
+those values back exactly.
+
+## What runs in this repository
+
+The current codebase includes:
+
+- **HTTP application server** — Express app for MCP, REST, auth routes, and UI
+- **Qdrant-backed protocol store** — required for runtime
+- **Optional Redis cache / proof-of-work state store** — enabled when `REDIS_URL` is set
+- **Optional Keycloak auth integration** — browser session + Bearer JWT validation
+- **React UI** — served from the same origin at `/ui`
+- **CLI** — talks to the HTTP API
 
 ## Quick start
 
-KAIROS runs as a Docker stack. Docker and Docker Compose are required.
+### Minimal Docker stack (default)
 
-**Minimal (default):** Qdrant + app only. No Redis or auth.
+The default Compose profile starts **Qdrant + app only**. This is the smallest
+working server deployment.
 
-1. Download the Compose file and minimal env example (or from a clone: `cp docs/install/env.example.minimal.txt .env` from repo root):
-  ```bash
-   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/compose.yaml
-   curl -LO https://raw.githubusercontent.com/debian777/kairos-mcp/main/docs/install/env.example.minimal.txt
-   cp env.example.minimal.txt .env
-  ```
-2. Set your embedding provider in `.env`: `OPENAI_API_KEY=sk-proj-...` (OpenAI), or [Ollama](docs/install/README.md#optional--ollama-local-embeddings) (local), or TEI. Also set `QDRANT_API_KEY`. The minimal example already pins `AUTH_ENABLED=false` so it remains a no-auth setup.
-3. Start the stack (from the directory that has `compose.yaml` and `.env`):
-  ```bash
+1. Copy the minimal env example:
+
+   ```bash
+   cp docs/install/env.example.minimal.txt .env
+   ```
+
+2. Edit `.env` and set at least:
+   - `QDRANT_API_KEY`
+   - one embedding provider:
+     - `OPENAI_API_KEY`, or
+     - `OPENAI_API_URL` + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`, or
+     - `TEI_BASE_URL` (+ optional `TEI_MODEL`)
+
+3. Start the stack:
+
+   ```bash
    docker compose -p kairos-mcp up -d
-  ```
-   For a separate minimal deployment (e.g. your own mini directory with its own compose and `.env`): `docker compose -p kairos-mini up -d` from that directory.
-4. Confirm the server is healthy:
-  ```bash
+   ```
+
+4. Verify the server:
+
+   ```bash
    curl http://localhost:3000/health
-  ```
+   ```
 
-**Full stack (Redis, Postgres, Keycloak):** Use [docs/install/env.example.fullstack.txt](docs/install/env.example.fullstack.txt) as `.env`, set `QDRANT_API_KEY`, `REDIS_PASSWORD`, and the Keycloak/session secrets, then choose the right `REDIS_URL` for where the app runs (`redis://:password@redis:6379` inside Docker, `redis://:password@127.0.0.1:6379` on the host). See [docs/install/README.md](docs/install/README.md) for env variants and full stack setup. Full developer workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
+5. Open the UI or MCP endpoint:
+   - UI: `http://localhost:3000/ui`
+   - MCP: `http://localhost:3000/mcp`
+   - Metrics: `http://localhost:9090/metrics`
 
-## Installation
+### Full stack (Redis + Postgres + Keycloak)
 
-- **Docker Compose (recommended)** — minimal (Qdrant + app) by default, or
-full stack with Redis and Keycloak; see the quick start above.
-- **npm (CLI only)** — run the `kairos` CLI without installing, or install globally.
+For local auth-enabled development, copy the fullstack env example and start
+the `fullstack` profile:
+
+```bash
+cp docs/install/env.example.fullstack.txt .env
+docker compose -p kairos-mcp --profile fullstack up -d
+```
+
+If you want the repo’s full local development flow, use the documented scripts:
+
+```bash
+npm ci
+npm run infra:up
+npm run dev:deploy
+```
+
+See [docs/install/README.md](docs/install/README.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md) for the exact env variables and dev workflow.
+
+## Installation options
+
+### Run the server with Docker Compose
+
+Use the Compose quick start above. This repository ships `compose.yaml`,
+minimal and fullstack env examples, and the scripts used for local development
+and CI.
+
+### Install the CLI
+
 Node.js 25 or later is required.
-  ```bash
-  npx @debian777/kairos-mcp
-  ```
-  Or install globally: `npm install -g @debian777/kairos-mcp` then run `kairos`.
-  Pre-release: `npm install -g @debian777/kairos-mcp@3.2.0-pre.2` (or latest `*-pre.*` on [npm](https://www.npmjs.com/package/@debian777/kairos-mcp?activeTab=versions)). Use `--install-links` to install link dependencies as real packages.
-  See [KAIROS CLI](docs/CLI.md) for usage.
-- **Update your agent instructions (recommended):** Add the KAIROS intro to your project’s **AGENTS.md** (or your IDE’s rules) so agents follow the protocol. Example to copy or adapt:
 
-  > KAIROS MCP is a Model Context Protocol server for persistent memory and
-  > deterministic protocol-chain execution. It stores workflows as linked
-  > memory chains where each step carries a proof-of-work challenge. You
-  > execute a protocol by searching for a match, beginning the run, solving
-  > each challenge via `kairos_next`, and attesting completion. Every hash,
-  > nonce, and identifier is server-generated; echo them verbatim — never
-  > compute them.
+Run once without installing globally:
 
+```bash
+npx @debian777/kairos-mcp --help
+```
 
+Or install globally:
 
-For development setup, all `npm run` commands, and **how we do releases**, see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+```bash
+npm install -g @debian777/kairos-mcp
+kairos --help
+```
 
-### Agent skills
+The CLI talks to a running KAIROS server over HTTP. See [docs/CLI.md](docs/CLI.md).
 
-This repo ships the **kairos** skill (run protocols: /k, /apply, /search). Use `--list` to see what the skills registry reports for this repo.
+### Add KAIROS to your agent instructions
 
-**Install from this repo:**
+If you want agents to use KAIROS consistently, add a short repo rule or
+instruction such as:
+
+> KAIROS MCP is a Model Context Protocol server for persistent memory and
+> deterministic protocol-chain execution. Execute protocols in this order:
+> `kairos_search` -> `kairos_begin` -> `kairos_next` until told to call
+> `kairos_attest`. Echo all server-generated hashes, nonces, and URIs exactly.
+
+## Agent skills shipped in this repo
+
+This repository currently ships three installable skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `kairos` | Run KAIROS protocols |
+| `kairos-bundle` | Export and import protocol bundles |
+| `kairos-install` | First-time local setup guidance |
+
+Install all shipped skills:
 
 ```bash
 npx skills add debian777/kairos-mcp
 ```
 
-**Install only the kairos skill:**
+Install one specific skill:
 
 ```bash
 npx skills add debian777/kairos-mcp --skill kairos
 ```
 
-List what’s available: `npx skills add debian777/kairos-mcp --list`
+List available skills:
 
-| Skill | Purpose |
-|-------|---------|
-| `kairos` | Run protocols (/k, /apply, /search). |
+```bash
+npx skills add debian777/kairos-mcp --list
+```
 
-**Popular agents (global install, non-interactive):**
+Popular global installs:
 
 | Agents | Command |
 |--------|---------|
 | Cursor | `npx skills add debian777/kairos-mcp -y -g -a cursor` |
 | Claude Code | `npx skills add debian777/kairos-mcp -y -g -a claude-code` |
 | Cursor + Claude Code | `npx skills add debian777/kairos-mcp -y -g -a cursor -a claude-code` |
-| All detected agents | `npx skills add debian777/kairos-mcp -y -g` (omit `-a` to install to all) |
+| All detected agents | `npx skills add debian777/kairos-mcp -y -g` |
 
-Optionally add `--skill kairos` to install only that skill.
+More detail: [skills/README.md](skills/README.md)
 
-**Remove a skill** (use the skill name, e.g. `kairos`):
+## Documentation map
 
-```bash
-npx skills remove kairos -g
-```
-
-Run without `-y` to choose agents interactively. Full list and install details: [skills/README.md](skills/README.md). For server setup and MCP config, see [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md).
-
-## Documentation
-
+- [Documentation index](docs/README.md)
+- [Install and environment](docs/install/README.md)
 - [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md)
-- [KAIROS CLI reference](docs/CLI.md)
-- [Architecture and protocol workflows](docs/architecture/README.md) — tool workflows, infrastructure, [auth overview](docs/architecture/auth-overview.md), [logging](docs/architecture/logging.md)
-- [Protocol examples and challenge types](docs/examples/README.md)
-- [All documentation](docs/README.md)
+- [CLI reference](docs/CLI.md)
+- [Architecture](docs/architecture/README.md)
+- [Protocol examples](docs/examples/README.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Troubleshooting
 
-**The server does not start.** Check that ports 3000 and 6333 (Qdrant) are free (6379 only if using fullstack). Run `docker compose -p kairos-mcp logs` to inspect errors.
+### The server does not start
 
-**Embeddings fail on startup.** Set an embedding provider in `.env`: `OPENAI_API_KEY` (OpenAI), or [Ollama](docs/install/README.md#optional--ollama-local-embeddings) (`OPENAI_API_URL` base URL + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`; use `http://host.docker.internal:11434` if the app runs in Docker), or TEI (`TEI_BASE_URL` + `TEI_MODEL`). See [docs/install/README.md](docs/install/README.md).
+Check container logs:
 
-**Health check returns 503.** Qdrant (and Redis if fullstack) may still be initializing. Wait 10–15 seconds, then retry.
+```bash
+docker compose -p kairos-mcp logs app-prod
+```
 
-**Container exits immediately.** Run `docker compose -p kairos-mcp logs app-prod` and look for missing required environment variables.
+Also verify that required ports are free:
+
+- minimal stack: `3000`, `6333`, `9090`
+- full stack adds: `6379`, `5432`, `8080`, `9000`
+
+### Health check returns `503`
+
+KAIROS only reports healthy when Qdrant is ready. Wait for Qdrant to finish
+starting, then retry:
+
+```bash
+curl http://localhost:3000/health
+```
+
+### Embeddings fail on startup
+
+Set one working embedding backend in `.env`:
+
+- OpenAI: `OPENAI_API_KEY`
+- Ollama/OpenAI-compatible: `OPENAI_API_URL`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_API_KEY=ollama`
+- TEI: `TEI_BASE_URL` (+ optional `TEI_MODEL`)
+
+### Auth-enabled development is failing
+
+Use the fullstack env example, start the `fullstack` profile, and configure
+realms:
+
+```bash
+npm run infra:up
+```
+
+### The CLI keeps asking for login
+
+The CLI stores tokens per API URL. Confirm that:
+
+- you are using the expected `--url` / `KAIROS_API_URL`
+- the token is still valid
+- Keycloak and the KAIROS server agree on issuer and audience
+
+Use:
+
+```bash
+kairos token --validate
+```
 
 ## Support
 
 - [Documentation](docs/README.md)
-- [Issue tracker](https://github.com/debian777/kairos-mcp/issues)
+- [Issues](https://github.com/debian777/kairos-mcp/issues)
 - [Discussions](https://github.com/debian777/kairos-mcp/discussions)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, contribution
-guidelines, and agent-facing design principles.
 
 ## Trademark
 
-KAIROS MCP™ and the KAIROS MCP logo are trademarks of the project.
+KAIROS MCP™ and the KAIROS MCP logo are trademarks of the project owner.
+They are not covered by the MIT license. Forks must remove the name and logo.
 
-The software is open source under the MIT License,
-but the name and branding are not covered by that license.
-
-Forks must remove the KAIROS MCP branding.
-
-See [TRADEMARK.md](TRADEMARK.md) for details.
+See [TRADEMARK.md](TRADEMARK.md).
 
 ## License
 

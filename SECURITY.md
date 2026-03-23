@@ -67,11 +67,14 @@ deliverables.
 The **Security** workflow (`.github/workflows/security.yml`) runs on PRs, push to
 main, and weekly:
 
-- **Dependency review** (PRs only): blocks merging if new dependencies introduce
-  high/critical vulnerabilities or policy violations.
+- **Dependency review** (PRs only): reports new dependency risk. In the current
+  workflow it runs with `continue-on-error`, so it becomes a merge gate only if
+  you require that check in branch protection.
 - **npm audit**: fails on high/critical vulnerabilities in the dependency tree.
 - **CodeQL**: static analysis (SAST) for JavaScript/TypeScript (security-extended
   queries). Results appear under the repo’s Security → Code scanning tab.
+- **Base image OS Trivy**: scans the Docker base image layer for CRITICAL/HIGH
+  OS-package vulnerabilities.
 
 To **require** these checks before merging and to enable **secret scanning**
 (and push protection), see [Code security setup](docs/security/code-security-setup.md).

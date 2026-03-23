@@ -1,10 +1,10 @@
-# Case 1: Standardize commits and merge requests across the team
+# Illustrative case 1: Standardize commits and merge requests across a team
 
 <img src="../../logo/kaiiros-mcp.svg" width="64" alt="KAIROS MCP logo" />
 
 ## Problem
 
-The team's commit messages and merge request (MR) habits are inconsistent.
+Example problem: a team's commit messages and merge request (MR) habits are inconsistent.
 Some use conventional commits, others free-form text; branch naming and MR
 titles vary. Review and tooling (e.g. changelogs) become harder, and
 onboarding is noisy.
@@ -50,7 +50,7 @@ flowchart LR
 4. Over time, all MRs created via this workflow follow the same rules;
    tooling and reviews can rely on that.
 
-## Outcome
+## Example outcome
 
 - **One source of truth:** Commit and MR standards live in one procedure,
   not in scattered docs or memory.
@@ -61,6 +61,5 @@ flowchart LR
 
 ## Takeaway
 
-Standardizing commits and merge requests becomes a matter of adopting a
-shared workflow. The team gets consistent MRs and commits without depending
-on each person remembering the policy.
+This is an example of how a shared workflow can encode MR and commit rules so
+humans and agents follow the same structure.

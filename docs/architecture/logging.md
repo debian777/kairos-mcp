@@ -92,7 +92,7 @@ logger.tool('kairos_attest', 'rate', `rated ${uri}`);
 |----------|---------|-------------|
 | `LOG_LEVEL` | `info` | Minimum level: `trace`, `debug`, `info`, `warn`, `error`. |
 | `LOG_FORMAT` | `text` | `text` (human-readable) or `json` (one JSON object per line). |
-| `TRANSPORT_TYPE` | `stdio` | `stdio` (logs to stderr; stdout reserved for MCP) or `http` (logs to stdout). |
+| `TRANSPORT_TYPE` | `stdio` | Log-stream routing hint used by the logger: `stdio` sends text logs to stderr, `http` sends text logs to stdout. The application runtime itself is HTTP-only; this variable does not enable a second MCP transport. |
 | `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
 
 See [install/](../install/) for env examples. All env vars and defaults are in

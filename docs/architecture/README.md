@@ -8,7 +8,7 @@ works end-to-end and how each MCP tool fits into the flow.
 
 - **Infrastructure:** Container topology, port map, startup sequence,
   volume layout, and service wiring — all with Mermaid diagrams.
-- **Full execution:** A single walkthrough from search to run complete
+- **Full execution:** A single walkthrough from search to final attestation
   with example requests and responses.
 - **Tool workflows:** Per-tool response shapes, scenarios, and AI
   decision rules for execution tools (`kairos_search`, `kairos_begin`,
@@ -42,7 +42,7 @@ Express deployment.
 
 ## Full execution walkthrough
 
-[Full execution workflow: search to run complete](workflow-full-execution.md)
+[Full execution workflow: search to final attestation](workflow-full-execution.md)
 shows one complete run of a 3-step protocol. It includes raw JSON for
 each call and how `next_action` chains the flow.
 
@@ -58,6 +58,7 @@ each call and how `next_action` chains the flow.
 | [kairos_update](workflow-kairos-update.md) | Update one or more memories by URI (markdown or field updates). |
 | [kairos_delete](workflow-kairos-delete.md) | Delete one or more memories by URI. |
 | [kairos_dump](workflow-kairos-dump.md) | Read-only inspection; returns `markdown_doc` for update or re-mint. |
+| `kairos_spaces` | List accessible spaces and optional chain titles/counts. |
 | [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
 
 Read the tool docs in that order when tracing a full run or implementing a

@@ -1,5 +1,9 @@
 # KAIROS
 
+Repository-specific agent guidance for working on this codebase. This file mixes
+codebase facts (paths, tool flow, tech stack) with maintainer workflow rules for
+agents operating in the repository.
+
 KAIROS MCP is a Model Context Protocol server for persistent memory and
 deterministic protocol-chain execution. It stores workflows as linked
 memory chains where each step carries a proof-of-work challenge. You
@@ -57,9 +61,14 @@ When minting (`kairos_mint`) or editing (`kairos_update`) a protocol:
 
 ## Environment context
 
-**CRITICAL:** You are connected to **KAIROS LIVE** (production environment). Your local development environment is **dev**.
+For the maintainer workflow used with this repository, **dev** refers to the
+local development environment and **live** refers to the production KAIROS
+deployment.
 
-**IMPORTANT:** All code changes must follow the **full ELITE AI CODING STANDARDS protocol** to be promoted from dev to live. This means: (1) Follow the complete protocol (not just step 1 — feature branch isolation). (2) Establish baseline tests. (3) Run full test suite after changes. (4) Deploy to dev first (`npm run dev:deploy`). (5) Test against dev server. (6) Only after full validation in dev can changes be promoted to live.
+All code changes are expected to be validated in dev before any live promotion.
+In this repo that means: establish baseline expectations, run the relevant
+tests, deploy to dev first (`npm run dev:deploy`), and validate against the dev
+server before treating a change as production-ready.
 
 | Environment | Purpose |
 |-------------|---------|

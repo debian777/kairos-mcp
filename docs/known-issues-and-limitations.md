@@ -1,20 +1,51 @@
 # Known issues and limitations
 
-## Known issues
+This page only lists limitations that are directly supported by the current
+codebase and configuration model.
 
-None at this time.
+## Runtime limitations
 
-When you fix something that was only tracked informally, add a one-line “Fixed in X.Y.Z” note when you release.
+- **HTTP transport only at runtime.** The server started by `src/index.ts`
+  serves HTTP endpoints only (`/mcp`, `/api/*`, `/ui`). There is no separate
+  stdio server process in the main runtime entrypoint.
+- **Qdrant is always required.** Startup fails without a reachable
+  `QDRANT_URL`.
+- **Embedding provider is always required.** Search and minting depend on a
+  working embedding backend (OpenAI-compatible or TEI-compatible).
+- **Redis is optional, but the no-Redis path is in-process only.** When
+  `REDIS_URL` is empty, caches and proof-of-work state live in the local memory
+  store. That is suitable for single-process/local use, not shared multi-process
+  deployments.
 
-## Limitations
+## Auth and client limitations
 
-- **Single maintainer; no SLA.** This project is maintained by a single person. There is no formal support or uptime guarantee.
-- **Embedding provider required.** You must use OpenAI (embeddings API), an OpenAI-compatible endpoint (e.g. [Ollama](install/README.md#optional--ollama-local-embeddings)), or a self-hosted TEI-compatible endpoint. See [Install and environment](install/README.md) and `EMBEDDING_PROVIDER` in [config](../src/config.ts).
-- **Keycloak optional but required for multi-tenant auth.** Without Keycloak (or another OIDC provider), the server runs without authentication. Multi-tenant or authenticated access requires Keycloak (or equivalent) configuration.
-- **Qdrant and (for production) Redis.** Vector storage (Qdrant) is always required. Redis is required for production use (proof-of-work state); in-memory backend is for dev only.
+- **Auth is optional, not transparent.** If `AUTH_ENABLED=false`, the server
+  allows unauthenticated access to `/api`, `/mcp`, and `/ui`. If
+  `AUTH_ENABLED=true`, those surfaces require a valid session or Bearer token.
+- **CLI token storage is per API URL.** Logging in against one base URL does
+  not authenticate the CLI against a different base URL.
+- **Browser PKCE login depends on a reachable local callback port.** If local
+  callback binding is blocked, browser login will fail until you free or change
+  the callback port.
 
-## Upgrade and breaking changes
+## UI limitations
 
-Release notes and version history are published on [GitHub Releases](https://github.com/debian777/kairos-mcp/releases).
+- **The browser UI is not a full agent runtime.** It provides browsing,
+  protocol detail/editing, and a guided run/testing surface, but the core
+  automation model remains MCP/REST/CLI driven.
 
-We follow [semantic versioning](https://semver.org/). **Patch and minor releases are backward-compatible.** **Major releases may introduce breaking changes** to the protocol, configuration, or APIs; check the release notes before upgrading.
+## Project/operational limitations
+
+- **Single-maintainer project.** There is no formal SLA or managed support
+  channel in the repository.
+
+## Upgrades
+
+Release notes are published on
+[GitHub Releases](https://github.com/debian777/kairos-mcp/releases).
+
+Before upgrading, check:
+
+- release notes
+- env var changes in `src/config.ts`
+- workflow or image changes in `.github/workflows/` and the Dockerfiles
