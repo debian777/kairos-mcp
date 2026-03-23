@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/memory.js';
 import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import type {
@@ -92,7 +93,8 @@ export async function tryUserInputElicitation(
   requestedUri: string,
   buildCurrentStep: (memory: Memory, uri: string) => any
 ): Promise<ElicitResult> {
-  if (memory.proof_of_work?.type !== 'user_input' || solution?.user_input?.confirmation) {
+  const contract = getInferenceContract(memory);
+  if (contract?.type !== 'user_input' || solution?.user_input?.confirmation) {
     return { solution };
   }
   const lowLevel = (server as {
@@ -105,7 +107,7 @@ export async function tryUserInputElicitation(
   if (caps?.elicitation == null || typeof lowLevel?.elicitInput !== 'function') {
     return { solution };
   }
-  const prompt = memory.proof_of_work.user_input?.prompt || 'Confirm completion';
+  const prompt = contract.user_input?.prompt || 'Confirm completion';
   try {
     const elicitResult = await lowLevel.elicitInput({
       message: prompt,
@@ -127,14 +129,14 @@ export async function tryUserInputElicitation(
         }
       };
     }
-    const challenge = await buildChallenge(memory, memory.proof_of_work);
+    const challenge = await buildChallenge(memory, contract);
     const current_step = buildCurrentStep(memory, requestedUri);
     if (elicitResult?.action === 'decline') {
       return { payload: buildErrorPayload(memory, current_step, challenge, 'User declined confirmation.', 'USER_DECLINED', 1) };
     }
     return { payload: buildErrorPayload(memory, current_step, challenge, 'User cancelled or did not confirm.', 'USER_DECLINED', 1) };
   } catch (error) {
-    const challenge = await buildChallenge(memory, memory.proof_of_work);
+    const challenge = await buildChallenge(memory, contract);
     return {
       payload: buildErrorPayload(
         memory,
@@ -185,13 +187,14 @@ export async function handleProofSubmission(
   memory: Memory,
   options?: HandleProofOptions
 ): Promise<HandleProofResult> {
-  if (!memory?.proof_of_work) {
+  const proof = getInferenceContract(memory);
+  if (!proof) {
     return {};
   }
 
   const uuid = memory.memory_uuid;
   const proofType: ProofOfWorkType = submission.type;
-  const requiredTypeRaw = memory.proof_of_work.type;
+  const requiredTypeRaw = proof.type;
 
   const submittedProofHash = submission.proof_hash ?? submission.previousProofHash;
 
@@ -203,8 +206,8 @@ export async function handleProofSubmission(
     let challengePayload =
       challengeObj ||
       (storedNonce != null
-        ? await buildChallenge(memory, memory.proof_of_work, { existingNonce: storedNonce })
-        : await buildChallenge(memory, memory.proof_of_work));
+        ? await buildChallenge(memory, proof, { existingNonce: storedNonce })
+        : await buildChallenge(memory, proof));
     if (options?.expectedPreviousHash != null) {
       challengePayload = { ...challengePayload, proof_hash: options.expectedPreviousHash };
     }
@@ -287,7 +290,7 @@ export async function handleProofSubmission(
     if (!comment || !comment.text) {
       return blocked('Comment proof requires comment.text', 'MISSING_FIELD');
     }
-    const minLength = memory.proof_of_work.comment?.min_length || 10;
+    const minLength = proof.comment?.min_length || 10;
     if (comment.text.length < minLength) {
       return blocked(`Comment must be at least ${minLength} characters`, 'COMMENT_TOO_SHORT');
     }
@@ -328,7 +331,7 @@ export async function handleProofSubmission(
   const proofHash = hashProofRecord(record);
   await proofOfWorkStore.setProofHash(uuid, proofHash);
 
-  if (memory.proof_of_work.required && record.status === 'failed') {
+  if (proof.required && record.status === 'failed') {
     return blocked('Proof of work failed. Fix and retry.', 'COMMAND_FAILED');
   }
 

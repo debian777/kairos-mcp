@@ -4,11 +4,11 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { RunGuidedContent } from "@/components/run/RunGuidedContent";
 import { ErrorAlert } from "@/components/ErrorAlert";
-import { useKairosBegin } from "@/hooks/useKairosBegin";
-import { useKairosNext } from "@/hooks/useKairosNext";
-import { useKairosAttest } from "@/hooks/useKairosAttest";
+import { useForwardStart } from "@/hooks/useForwardStart";
+import { useForwardStep } from "@/hooks/useForwardStep";
+import { useReward } from "@/hooks/useReward";
 import { useRunSession, useRunSessions, type RunSession } from "@/hooks/useRunSession";
-import type { ProofOfWorkSubmission } from "@/lib/kairosRunTypes";
+import type { RunSolutionSubmission } from "@/lib/runToolTypes";
 
 function extractFirstMemUri(text: string | undefined): string | undefined {
   if (!text) return undefined;
@@ -30,20 +30,20 @@ export function RunGuidedPage() {
   const { session: existingSession } = useRunSession(sessionIdFromQuery);
   const { upsert } = useRunSessions();
 
-  const begin = useKairosBegin();
-  const next = useKairosNext();
-  const attest = useKairosAttest();
+  const forwardStart = useForwardStart();
+  const forwardStep = useForwardStep();
+  const reward = useReward();
 
   const [run, setRun] = useState<RunSession | null>(null);
-  const [attestOutcome, setAttestOutcome] = useState<"success" | "failure">("success");
-  const [attestMessage, setAttestMessage] = useState("");
+  const [rewardOutcome, setRewardOutcome] = useState<"success" | "failure">("success");
+  const [rewardFeedback, setRewardFeedback] = useState("");
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (existingSession && !run) {
       setRun(existingSession);
-      setAttestOutcome("success");
-      setAttestMessage("");
+      setRewardOutcome("success");
+      setRewardFeedback("");
     }
   }, [existingSession, run]);
 
@@ -55,23 +55,23 @@ export function RunGuidedPage() {
   const handleStart = async () => {
     if (!decodedUri) return;
     try {
-      const res = await begin.mutateAsync(decodedUri);
+      const res = await forwardStart.mutateAsync(decodedUri);
       const startedAt = nowIso();
       const id = `${decodedUri}:${startedAt}`;
-      const status: RunSession["status"] = res.next_action?.includes("reward") ? "ready_to_attest" : "running";
-      const attestUri = extractFirstMemUri(res.next_action);
+      const status: RunSession["status"] = res.next_action?.includes("reward") ? "ready_to_reward" : "running";
+      const rewardUri = extractFirstMemUri(res.next_action);
       persist({
         id,
-        protocol_uri: decodedUri,
+        adapter_uri: decodedUri,
         started_at: startedAt,
         updated_at: startedAt,
         status,
-        current_step: res.current_step ?? null,
-        challenge: res.challenge,
+        current_layer: res.current_layer ?? null,
+        contract: res.contract,
         next_action: res.next_action,
         last_message: res.message,
         previous_proof_hash: res.proof_hash,
-        attest_uri: status === "ready_to_attest" ? attestUri : undefined,
+        reward_uri: status === "ready_to_reward" ? rewardUri : undefined,
         history: [],
       });
     } catch (_err) {
@@ -90,36 +90,36 @@ export function RunGuidedPage() {
     }
   };
 
-  const handleSubmitStep = async (draft: Omit<ProofOfWorkSubmission, "nonce" | "proof_hash" | "previousProofHash">) => {
-    if (!run?.current_step) return;
-    const nonce = run.challenge.nonce;
-    const proofHash = run.previous_proof_hash ?? run.challenge.proof_hash;
-    const solution: ProofOfWorkSubmission = {
+  const handleSubmitStep = async (draft: Omit<RunSolutionSubmission, "nonce" | "proof_hash" | "previousProofHash">) => {
+    if (!run?.current_layer) return;
+    const nonce = run.contract.nonce;
+    const proofHash = run.previous_proof_hash ?? run.contract.proof_hash;
+    const solution: RunSolutionSubmission = {
       ...draft,
       ...(nonce ? { nonce } : {}),
       ...(proofHash ? { proof_hash: proofHash } : {}),
     };
 
     try {
-      const res = await next.mutateAsync({ uri: run.current_step!.uri, solution });
+      const res = await forwardStep.mutateAsync({ uri: run.current_layer.uri, solution });
       const updatedAt = nowIso();
-      const readyToAttest = res.next_action?.includes("reward") || (res.message?.toLowerCase().includes("call reward") ?? false);
-      const attestUri = extractFirstMemUri(res.next_action) ?? run.attest_uri;
+      const readyToReward = res.next_action?.includes("reward") || (res.message?.toLowerCase().includes("call reward") ?? false);
+      const rewardUri = extractFirstMemUri(res.next_action) ?? run.reward_uri;
       persist({
         ...run,
         updated_at: updatedAt,
-        status: readyToAttest ? "ready_to_attest" : "running",
-        current_step: res.current_step ?? null,
-        challenge: res.challenge,
+        status: readyToReward ? "ready_to_reward" : "running",
+        current_layer: res.current_layer ?? null,
+        contract: res.contract,
         next_action: res.next_action,
         last_message: res.message,
         previous_proof_hash: res.proof_hash ?? run.previous_proof_hash,
-        attest_uri: readyToAttest ? attestUri : undefined,
+        reward_uri: readyToReward ? rewardUri : undefined,
         history: [
           ...run.history,
           {
-            step: run.current_step!,
-            challenge: run.challenge,
+            layer: run.current_layer,
+            contract: run.contract,
             solution,
             submitted_at: updatedAt,
             proof_hash: res.proof_hash,
@@ -137,21 +137,21 @@ export function RunGuidedPage() {
     }
   };
 
-  const handleAttest = async () => {
+  const handleReward = async () => {
     if (!run) return;
-    const attestUri = run.attest_uri ?? run.current_step?.uri;
-    if (!attestUri) return;
+    const rewardUri = run.reward_uri ?? run.current_layer?.uri;
+    if (!rewardUri) return;
     try {
-      const res = await attest.mutateAsync({
-        uri: attestUri,
-        outcome: attestOutcome,
-        message: attestMessage.trim() || t("run.attest.defaultMessage"),
+      const res = await reward.mutateAsync({
+        uri: rewardUri,
+        outcome: rewardOutcome,
+        feedback: rewardFeedback.trim() || t("run.reward.defaultFeedback"),
       });
       persist({
         ...run,
         updated_at: nowIso(),
         status: "completed",
-        last_message: res.results[0]?.message ?? run.last_message,
+        last_message: res.results[0]?.feedback ?? run.last_message,
       });
     } catch (err) {
       persist({
@@ -171,7 +171,7 @@ export function RunGuidedPage() {
     <div>
       <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">{t("run.title")}</h1>
       <p className="text-sm text-[var(--color-text-muted)] mb-4">
-        {t("run.protocolUri")}:{" "}
+        {t("run.adapterUri")}:{" "}
         <span className="font-mono break-all">{decodedUri}</span>
       </p>
 
@@ -186,10 +186,10 @@ export function RunGuidedPage() {
           <button
             type="button"
             onClick={handleStart}
-            disabled={begin.isPending}
+            disabled={forwardStart.isPending}
             className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
           >
-            {begin.isPending ? t("run.starting") : t("run.start")}
+            {forwardStart.isPending ? t("run.starting") : t("run.start")}
           </button>
         )}
       </div>
@@ -199,9 +199,9 @@ export function RunGuidedPage() {
         <p className="text-sm text-[var(--color-text-muted)]">{t("run.safety.copy")}</p>
       </div>
 
-      {begin.isError && (
+      {forwardStart.isError && (
         <ErrorAlert
-          message={begin.error instanceof Error ? begin.error.message : String(begin.error)}
+          message={forwardStart.error instanceof Error ? forwardStart.error.message : String(forwardStart.error)}
           onRetry={() => handleStart()}
           showGoBack={true}
         />
@@ -220,17 +220,17 @@ export function RunGuidedPage() {
       {run && run.status !== "error" && (
         <RunGuidedContent
           run={run}
-          attestOutcome={attestOutcome}
-          setAttestOutcome={setAttestOutcome}
-          attestMessage={attestMessage}
-          setAttestMessage={setAttestMessage}
+          rewardOutcome={rewardOutcome}
+          setRewardOutcome={setRewardOutcome}
+          rewardFeedback={rewardFeedback}
+          setRewardFeedback={setRewardFeedback}
           copyStatus={copyStatus}
           onCopy={handleCopy}
           onSubmitStep={handleSubmitStep}
-          onAttest={handleAttest}
-          isNextPending={next.isPending}
-          isBeginPending={begin.isPending}
-          isAttestPending={attest.isPending}
+          onReward={handleReward}
+          isForwardStepPending={forwardStep.isPending}
+          isForwardStartPending={forwardStart.isPending}
+          isRewardPending={reward.isPending}
         />
       )}
     </div>

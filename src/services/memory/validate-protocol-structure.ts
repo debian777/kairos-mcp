@@ -1,5 +1,5 @@
 /**
- * Lightweight structural validation for adapter markdown before train/mint.
+ * Lightweight structural validation for adapter markdown before train.
  * Ensures required sections (Activation Patterns, Reward Signal) and at least
  * one ```json contract block. Rejects mixed-fence docs (plain ``` blocks with
  * contract) and validates each H1 section when multiple adapters are present.
@@ -20,9 +20,9 @@ const MISSING_REWARD_SIGNAL = 'reward_signal';
 const MISSING_H1 = 'h1_title';
 const MISSING_CONTRACT_BLOCK = 'contract_block';
 const MIXED_CONTRACT_FENCES = 'mixed_contract_fences';
-const INVALID_CHALLENGE_TYPE = 'invalid_challenge_type';
+const INVALID_CONTRACT_TYPE = 'invalid_contract_type';
 
-const ALLOWED_CHALLENGE_TYPES = new Set(['shell', 'mcp', 'user_input', 'comment']);
+const ALLOWED_CONTRACT_TYPES = new Set(['shell', 'mcp', 'user_input', 'comment', 'tensor']);
 
 /**
  * Extract H1 and H2 headings from markdown, ignoring lines inside fenced code blocks.
@@ -61,7 +61,8 @@ function extractHeadings(markdown: string): { h1: boolean; h2Titles: string[] } 
 }
 
 /**
- * Split markdown by H1 lines and return each section's H2 titles (for multi-protocol validation).
+ * Split markdown by H1 lines and return each section's H2 titles (for
+ * multi-adapter validation).
  */
 function extractH2TitlesPerH1Section(markdown: string): string[][] {
   const lines = markdown.split(/\r?\n/);
@@ -105,7 +106,8 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
 
 /**
  * Validate adapter markdown structure before storeChain.
- * Returns { valid, missing, message } so train/mint can return a PROTOCOL_STRUCTURE_INVALID error with next_action.
+ * Returns { valid, missing, message } so train can return a
+ * PROTOCOL_STRUCTURE_INVALID error with next_action.
  * When multiple H1 sections exist, each section must have first H2 =
  * Activation Patterns (or older Natural Language Triggers) and last H2 =
  * Reward Signal (or older Completion Rule).
@@ -151,8 +153,8 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
   for (const block of contractBlocks) {
     const t = block.contract.type;
     if (t === undefined) continue;
-    if (typeof t !== 'string' || !ALLOWED_CHALLENGE_TYPES.has(t)) {
-      missing.push(INVALID_CHALLENGE_TYPE);
+    if (typeof t !== 'string' || !ALLOWED_CONTRACT_TYPES.has(t)) {
+      missing.push(INVALID_CONTRACT_TYPE);
       break;
     }
   }
@@ -168,12 +170,12 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
         return 'Activation Patterns or Natural Language Triggers (first H2)';
       }
       if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal or Completion Rule (last H2)';
-      if (m === MISSING_CONTRACT_BLOCK) return 'at least one ```json contract or challenge block';
+      if (m === MISSING_CONTRACT_BLOCK) return 'at least one ```json contract block';
       if (m === MIXED_CONTRACT_FENCES) {
-        return 'use only ```json for contract blocks (no plain ``` with contract/challenge)';
+        return 'use only ```json for contract blocks (no plain ``` with contract JSON)';
       }
-      if (m === INVALID_CHALLENGE_TYPE) {
-        return 'each ```json block must set type to exactly shell, mcp, user_input, or comment (no placeholders or combined values)';
+      if (m === INVALID_CONTRACT_TYPE) {
+        return 'each ```json block must set type to exactly tensor, shell, mcp, user_input, or comment (no placeholders or combined values)';
       }
       return m;
     });

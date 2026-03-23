@@ -6,6 +6,7 @@
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveFirstStep } from '../services/chain-utils.js';
+import { getActivationPatterns, getAdapterId, getAdapterInfo, getAdapterName, getLayerCount } from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
 
 export interface Candidate {
@@ -26,6 +27,7 @@ export interface UnifiedChoice {
   tags: string[];
   next_action: string;
   protocol_version: string | null;
+  activation_patterns?: string[];
 }
 
 export function createResults(
@@ -36,10 +38,10 @@ export function createResults(
     .map(({ memory, score }) => ({
       memory,
       score,
-      uri: buildAdapterUri(memory.chain?.id ?? memory.memory_uuid),
+      uri: buildAdapterUri(getAdapterId(memory)),
       label: memory.label,
       tags: memory.tags || [],
-      total_steps: memory.chain?.step_count || 1
+      total_steps: getLayerCount(memory)
     }))
     .filter((result) => result.score >= scoreThreshold);
 }
@@ -49,7 +51,7 @@ export async function resolveHead(
   qdrantService?: QdrantService
 ): Promise<{ uri: string; label: string }> {
   const head = (await resolveFirstStep(memory, qdrantService)) ?? {
-    uri: buildAdapterUri(memory.chain?.id ?? memory.memory_uuid),
+    uri: buildAdapterUri(getAdapterId(memory)),
     label: memory.label
   };
   return head;
@@ -76,12 +78,13 @@ export async function generateUnifiedOutput(
     choices.push({
       uri: head.uri,
       label: head.label || result.label,
-      chain_label: result.memory.chain?.label || null,
+      chain_label: getAdapterName(result.memory) || null,
       score: result.score,
       role: 'match',
       tags: result.tags,
-      next_action: `call forward with ${head.uri} to execute this protocol`,
-      protocol_version: result.memory.chain?.protocol_version ?? null
+      next_action: `call forward with ${head.uri} to execute this adapter`,
+      protocol_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
+      activation_patterns: getActivationPatterns(result.memory)
     });
   }
 
@@ -101,8 +104,8 @@ export async function generateUnifiedOutput(
       },
       {
         uri: createUri,
-        label: 'Create New KAIROS Protocol Chain',
-        chain_label: 'Create New KAIROS Protocol Chain',
+        label: 'Create New KAIROS adapter',
+        chain_label: 'Create New KAIROS adapter',
         score: null,
         role: 'create',
         tags: ['meta', 'creation'],
@@ -115,7 +118,7 @@ export async function generateUnifiedOutput(
   let message: string;
   let nextAction: string;
   if (matchCount === 0) {
-    message = 'No existing protocol matched your query. Refine your search or create a new one.';
+    message = 'No existing adapter matched your query. Refine your search or create a new one.';
     nextAction = "Pick one choice and follow that choice's next_action.";
   } else if (matchCount === 1) {
     message = 'Found 1 match.';
@@ -123,7 +126,7 @@ export async function generateUnifiedOutput(
   } else {
     const topMatch = choices[0]!;
     const confidencePercent = Math.round((topMatch.score || 0) * 100);
-    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new protocol.`;
+    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new adapter.`;
     nextAction = "Pick one choice and follow that choice's next_action.";
   }
   return { must_obey: true, message, next_action: nextAction, choices };

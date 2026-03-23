@@ -1,0 +1,24 @@
+import { CodeBlockProcessor } from '../../src/services/code-block-processor.js';
+import { buildHeaderMemoryChain } from '../../src/services/memory/chain-builder.js';
+import { buildProofMarkdown } from '../utils/proof-of-work.js';
+
+describe('buildHeaderMemoryChain', () => {
+  test('does not turn Reward Signal into an executable trailing layer', () => {
+    const markdown = buildProofMarkdown('Two Step Adapter', [
+      { heading: 'Step One', body: 'First body.', proofCmd: 'echo step1' },
+      { heading: 'Step Two', body: 'Second body.', proofCmd: 'echo step2' }
+    ]);
+
+    const memories = buildHeaderMemoryChain(
+      markdown,
+      'test-chain-builder',
+      new Date('2026-03-23T00:00:00.000Z'),
+      new CodeBlockProcessor()
+    );
+
+    expect(memories).toHaveLength(2);
+    expect(memories[1]?.label).toBe('Step Two');
+    expect(memories[memories.length - 1]?.text).toContain('Second body.');
+    expect(memories[memories.length - 1]?.text).not.toContain('## Reward Signal');
+  });
+});

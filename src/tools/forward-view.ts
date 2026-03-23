@@ -1,9 +1,9 @@
 import type { InferenceContractDefinition, Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
-import type { executeNext } from './next.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
@@ -29,7 +29,7 @@ function currentLayer(memory: Memory, executionId: string) {
 }
 
 export function normalizeContract(memory: Memory): InferenceContractDefinition | undefined {
-  return memory.inference_contract ?? memory.proof_of_work;
+  return getInferenceContract(memory);
 }
 
 function summarizeContract(contract: InferenceContractDefinition): string {
@@ -174,17 +174,17 @@ export async function buildForwardView(
   };
 }
 
-export async function mapExecuteNextToForwardView(
+export async function mapLayerPayloadShapeToForwardView(
   memoryStore: MemoryQdrantStore,
   executionId: string,
-  nextExecutionResult: Awaited<ReturnType<typeof executeNext>>
+  nextExecutionResult: LayerPayload
 ): Promise<ForwardOutput> {
   const currentLayerId = nextExecutionResult.current_step?.uri
     ? extractUuid(nextExecutionResult.current_step.uri)
     : '';
   const displayMemory = currentLayerId ? await memoryStore.getMemory(currentLayerId) : null;
   if (!displayMemory || !nextExecutionResult.current_step) {
-    throw new Error('Bridge next output did not include a resolvable current_step');
+    throw new Error('Layer payload did not include a resolvable current layer');
   }
 
   const final = nextExecutionResult.next_action.includes('reward');
@@ -205,4 +205,27 @@ export async function mapExecuteNextToForwardView(
     ...(!final && displayContract?.type !== 'tensor' && { contractOverride: nextExecutionResult.challenge })
   };
   return buildForwardView(displayMemory, executionId, options);
+}
+
+export interface LayerPayload {
+  must_obey: boolean;
+  current_step?: {
+    uri: string;
+    content: string;
+    mimeType: 'text/markdown';
+  } | null;
+  challenge: ForwardOutput['contract'];
+  next_action: string;
+  proof_hash?: string;
+  message?: string;
+  error_code?: string;
+  retry_count?: number;
+}
+
+export async function mapLayerPayloadToForwardView(
+  memoryStore: MemoryQdrantStore,
+  executionId: string,
+  nextExecutionResult: LayerPayload
+): Promise<ForwardOutput> {
+  return mapLayerPayloadShapeToForwardView(memoryStore, executionId, nextExecutionResult);
 }

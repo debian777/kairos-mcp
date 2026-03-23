@@ -73,7 +73,7 @@ When to run.
 Content for HTTP export test.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Minimal"}}
+{"contract": {"type": "comment", "description": "Minimal"}}
 \`\`\`
 
 ## Completion Rule
@@ -120,7 +120,7 @@ Browse adapter export.
 First step body.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Step one"}}
+{"contract": {"type": "comment", "description": "Step one"}}
 \`\`\`
 
 ## Completion Rule

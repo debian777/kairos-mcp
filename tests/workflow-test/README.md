@@ -1,61 +1,72 @@
-# Workflow tests (dev)
+# Workflow eval harness
 
-This directory defines **agent-driven workflow tests** for KAIROS: an AI agent runs scenarios using **only MCP tools**, with no shell or filesystem access except writing to `reports/`. The canonical protocol examples live in [docs/examples/](../../docs/examples/).
+This directory defines the repeatable workflow eval harness for KAIROS.
+Use it to verify code-graded behavior for `activate`, `forward`, `reward`,
+`train`, `tune`, and `export` before you change reward semantics, retrieval,
+or training exports.
 
-**Canonical agent instructions** (prompt and constraints) are in [PROMPT.md](PROMPT.md).
+## What lives here
 
-## Purpose
+This directory now focuses on deterministic evaluation assets instead of
+open-ended agent sessions.
 
-- **Imports:** Train adapters from `docs/examples/` via **`train`** (same markdown as mint examples).
-- **Activate + run:** **`activate`** → **`forward`** (loop with `solution` per layer) until **`reward`** completes the run.
-- **Update layer:** **`export`** one layer → edit markdown → **`tune`** with that URI and `markdown_doc`.
-- **Update adapter:** **`export`** full adapter (`format: markdown` from adapter URI) → edit → **`tune`** with multiple URIs / docs as needed.
+- `eval-harness.ts` provides shared helpers for structured eval cases.
+- `README.md` explains how to run the harness and how to extend it.
+- `PROMPT.md` defines the optional rubric-driven follow-up prompt for a
+  separate evaluator model after code-graded checks pass.
 
-All tool calls and outcomes must be recorded under `reports/` so runs are reproducible and auditable.
+## Current coverage
 
-## Prompt and constraints
+The first code-graded suite focuses on reward normalization and export
+readiness because those behaviors gate every downstream training format.
 
-Use the prompt in [PROMPT.md](PROMPT.md) when running these tests. It enforces:
+- `tests/integration/reward-export-evals.test.ts` verifies that ungraded
+  rewards stay out of SFT exports.
+- `tests/integration/reward-export-evals.test.ts` verifies that rubric-scored
+  model rewards can feed both SFT and preference exports.
+- `tests/integration/reward-evals.test.ts` covers normalization logic and
+  eligibility fallbacks at the unit level.
 
-- **MCP tools only** (no filesystem, no shell).
-- **Exception:** write only under `reports/`.
-- **Report layout:** `reports/<run-id>/report.md` (summary) and `reports/<run-id>/calls/<nnn>-<tool>.json` (one file per request with full raw request/response).
+## How to run the harness
 
-If you run these tests in an IDE chat, paste the contents of [PROMPT.md](PROMPT.md)
-directly into the session or otherwise enforce the same constraints manually.
+Run the eval harness against the dev server so the tests exercise the same MCP
+surface that clients use.
 
-## How to run
+1. Deploy the dev environment.
 
-1. **Deploy dev server** so MCP is available:
    ```bash
    npm run dev:deploy
    ```
-2. **Start a session** with the workflow-test prompt active (paste [PROMPT.md](PROMPT.md) or inject it through your automation harness).
-3. **Ask the agent** to run the four scenarios (imports; activate + run; update layer; update adapter). The agent must use only KAIROS MCP tools and write all output to `reports/<run-id>/`.
-4. **Inspect results:** Check `reports/<run-id>/report.md` and `reports/<run-id>/calls/*.json` for pass/fail and raw calls.
 
-## Automated import test
+2. Run the reward and export eval suites.
 
-The **imports** scenario is also covered by an integration test that stores each mintable file from `docs/examples/` via the MCP client (no agent). Run it after deploy:
+   ```bash
+   NODE_OPTIONS='--experimental-vm-modules' npx jest --runInBand \
+     tests/integration/reward-evals.test.ts \
+     tests/integration/reward-export-evals.test.ts
+   ```
 
-```bash
-npm run dev:deploy && npm run dev:test -- tests/integration/kairos-mint-docs-examples.test.ts
-```
+3. Review any failed checks in the Jest output. The harness reports the case
+   id, the failed check name, and the captured artifacts.
 
-See [kairos-mint-docs-examples.test.ts](../integration/kairos-mint-docs-examples.test.ts).
+4. Re-run the broader workflow suites after the focused harness passes.
 
-## Report structure (reference)
+### Optional: agent-driven scenario test
 
-```
-reports/
-  <run-id>/
-    report.md          # Summary: scenarios, pass/fail, brief notes
-    calls/
-      001-train.json
-      002-activate.json
-      003-forward.json
-      004-reward.json
-      ...
-```
+If you validate via an IDE chat session, paste [PROMPT.md](PROMPT.md) (or inject
+equivalent constraints), then have the agent run the four scenarios (imports;
+activate + run; update layer; update adapter) using only KAIROS MCP tools and
+writing output to `reports/<run-id>/`. Inspect `report.md` and `calls/*.json`
+under that directory.
 
-Each `calls/*.json` file should contain at least `request` and `response` (full bodies) for that single MCP call.
+## Optional rubric-driven review
+
+Use [PROMPT.md](PROMPT.md) only after the automated harness passes. That prompt
+is for a separate evaluator model or a human reviewer when a workflow needs a
+rubric-based score that code checks can't determine on their own.
+
+## Next steps
+
+Expand this harness as later roadmap items land. Add code-graded cases for
+activation ranking, `tune`, and full migration cutover before you rely on
+manual review.

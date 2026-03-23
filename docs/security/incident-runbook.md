@@ -12,7 +12,7 @@ to end.
 - `request_id` from logs, client reports, or monitoring alerts.
 - Time window in UTC.
 - Tenant or space identifier when available.
-- Suspected operation such as `train`, `activate`, or `kairos_update`.
+- Suspected operation such as `train`, `activate`, `forward`, `reward`, or `tune`.
 
 ## Severity and ownership
 

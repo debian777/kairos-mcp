@@ -1,5 +1,6 @@
 import { qdrantService as globalQdrantService } from './qdrant/index.js';
 import type { Memory } from '../types/memory.js';
+import { getAdapterInfo, getAdapterId } from './memory/memory-accessors.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 
 export interface ResolvedChainStep {
@@ -23,13 +24,8 @@ export async function resolveFirstStep(
     memory: Memory,
     qdrantService?: any
 ): Promise<{ uri: string; label: string } | undefined> {
-    const adapter = memory.adapter ?? (memory.chain ? {
-        id: memory.chain.id,
-        name: memory.chain.label,
-        layer_index: memory.chain.step_index,
-        layer_count: memory.chain.step_count
-    } : undefined);
-    const adapterId = adapter?.id ?? memory.chain?.id ?? memory.memory_uuid;
+    const adapter = getAdapterInfo(memory);
+    const adapterId = getAdapterId(memory);
     const adapterUri = buildAdapterUri(adapterId);
     if (!adapter || adapter.layer_index === 1) {
         return { uri: adapterUri, label: String(memory.label || 'Memory') };
@@ -54,12 +50,7 @@ export async function resolveChainFirstStep(
     memory: Memory,
     qdrantService?: any
 ): Promise<ResolvedChainStep | undefined> {
-    const adapter = memory.adapter ?? (memory.chain ? {
-        id: memory.chain.id,
-        name: memory.chain.label,
-        layer_index: memory.chain.step_index,
-        layer_count: memory.chain.step_count
-    } : undefined);
+    const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
     const points: any[] = await getChainPoints(adapter.id, qdrantService);
     if (!Array.isArray(points) || points.length === 0) return undefined;
@@ -80,12 +71,7 @@ export async function resolveChainNextStep(
     memory: Memory,
     qdrantService?: any
 ): Promise<ResolvedChainStep | undefined> {
-    const adapter = memory.adapter ?? (memory.chain ? {
-        id: memory.chain.id,
-        name: memory.chain.label,
-        layer_index: memory.chain.step_index,
-        layer_count: memory.chain.step_count
-    } : undefined);
+    const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
     const { id: chainId, layer_index: idx, layer_count: count } = adapter;
     if (idx >= count) return undefined;
@@ -106,12 +92,7 @@ export async function resolveChainPreviousStep(
     memory: Memory,
     qdrantService?: any
 ): Promise<ResolvedChainStep | undefined> {
-    const adapter = memory.adapter ?? (memory.chain ? {
-        id: memory.chain.id,
-        name: memory.chain.label,
-        layer_index: memory.chain.step_index,
-        layer_count: memory.chain.step_count
-    } : undefined);
+    const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
     const { id: chainId, layer_index: idx, layer_count: count } = adapter;
     if (idx <= 1) return undefined;

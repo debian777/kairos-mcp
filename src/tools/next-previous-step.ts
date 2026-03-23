@@ -6,6 +6,7 @@
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveChainPreviousStep } from '../services/chain-utils.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './next-pow-helpers.js';
 import { buildLayerUri } from './kairos-uri.js';
@@ -31,10 +32,11 @@ export async function tryApplySolutionToPreviousStep(
   loadMemory: (uuid: string) => Promise<Memory | null>,
   qdrantService: QdrantService | undefined
 ): Promise<TryApplyToPreviousResult> {
-  if (memory.proof_of_work) return { applied: false };
+  if (getInferenceContract(memory)) return { applied: false };
   const prevInfo = await resolveChainPreviousStep(memory, qdrantService);
   const prevMemory = prevInfo?.uuid ? await loadMemory(prevInfo.uuid) : null;
-  if (!prevMemory?.proof_of_work?.required) return { applied: false };
+  const prevContract = prevMemory ? getInferenceContract(prevMemory) : undefined;
+  if (!prevMemory || !prevContract?.required) return { applied: false };
 
   const prevIsStep1 = !prevMemory.chain || prevMemory.chain.step_index <= 1;
   const expectedPrevHash = prevIsStep1
@@ -64,16 +66,17 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
   loadMemory: (uuid: string) => Promise<Memory | null>,
   qdrantService: QdrantService | undefined
 ): Promise<TryApplyToPreviousResult> {
-  if (!requestedMemory.proof_of_work) return { applied: false };
+  if (!getInferenceContract(requestedMemory)) return { applied: false };
   const prevInfo = await resolveChainPreviousStep(requestedMemory, qdrantService);
   if (!prevInfo?.uuid) return { applied: false };
   const prevMemory = await loadMemory(prevInfo.uuid);
-  if (!prevMemory?.proof_of_work?.required) return { applied: false };
+  const prevContract = prevMemory ? getInferenceContract(prevMemory) : undefined;
+  if (!prevMemory || !prevContract?.required) return { applied: false };
 
   const storedResult = await proofOfWorkStore.getResult(prevInfo.uuid);
   if (storedResult) return { applied: false };
 
-  const requiredType = prevMemory.proof_of_work.type || 'shell';
+  const requiredType = prevContract.type || 'shell';
   const solutionType = solution.type || 'shell';
   if (solutionType !== requiredType) return { applied: false };
 
@@ -101,7 +104,7 @@ export async function ensurePreviousProofCompleted(
   const previous = await resolveChainPreviousStep(memory, qdrantService);
   if (!previous?.uuid) return null;
   const prevMemory = await loadMemory(previous.uuid);
-  const prevProof = prevMemory?.proof_of_work;
+  const prevProof = prevMemory ? getInferenceContract(prevMemory) : undefined;
   if (!prevProof || !prevProof.required) return null;
   const storedResult = await proofOfWorkStore.getResult(previous.uuid);
   if (!storedResult) {

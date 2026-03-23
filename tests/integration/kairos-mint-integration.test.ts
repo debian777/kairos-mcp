@@ -42,7 +42,7 @@ This document exists to test activate after train.
 Body.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Completion Rule

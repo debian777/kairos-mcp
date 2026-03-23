@@ -74,10 +74,13 @@ export interface RewardRecord {
   feedback?: string;
   rater?: string;
   rubric_version?: string;
+  llm_model_id?: string;
   grader_kind?: 'human' | 'model' | 'unknown';
   evaluation_label?: 'gold' | 'silver' | 'bronze' | 'rejected';
   exportable_for_sft?: boolean;
   exportable_for_preference?: boolean;
+  sft_blockers?: string[];
+  preference_blockers?: string[];
   rated_at: string;
 }
 

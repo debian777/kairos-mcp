@@ -28,6 +28,21 @@ describe('reward eval normalization', () => {
     expect(evaluation.exportableForPreference).toBe(true);
   });
 
+  test('model-graded rewards become exportable when rubric metadata is present', () => {
+    const evaluation = evaluateReward({
+      outcome: 'success',
+      score: 0.82,
+      rubricVersion: 'reward-v1',
+      llmModelId: 'grader-model-v1'
+    });
+
+    expect(evaluation.graderKind).toBe('model');
+    expect(evaluation.exportableForSft).toBe(true);
+    expect(evaluation.exportableForPreference).toBe(true);
+    expect(evaluation.sftEligibility.blockers).toEqual([]);
+    expect(evaluation.preferenceEligibility.blockers).toEqual([]);
+  });
+
   test('eligibility helpers only allow explicitly graded rewards into exports', () => {
     expect(
       isRewardEligibleForSft({
@@ -43,6 +58,16 @@ describe('reward eval normalization', () => {
         outcome: 'failure',
         score: 0.85,
         exportable_for_preference: true,
+        rated_at: new Date().toISOString()
+      })
+    ).toBe(true);
+
+    expect(
+      isRewardEligibleForSft({
+        outcome: 'success',
+        score: 0.8,
+        rubric_version: 'reward-v1',
+        llm_model_id: 'grader-model-v1',
         rated_at: new Date().toISOString()
       })
     ).toBe(true);

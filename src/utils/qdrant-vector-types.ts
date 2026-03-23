@@ -9,15 +9,29 @@ export function getVectorSize(): number {
   return getEmbeddingDimension();
 }
 
+export function getPrimaryVectorName(size: number = getEmbeddingDimension()): string {
+  return `vs${size}`;
+}
+
+export function getAdapterTitleVectorName(size: number = getEmbeddingDimension()): string {
+  return `adapter_title_vs${size}`;
+}
+
+export function getActivationPatternVectorName(size: number = getEmbeddingDimension()): string {
+  return `activation_pattern_vs${size}`;
+}
+
 /**
  * Build a named vector configuration object from resolved dimension.
  * Uses "vs{DIMENSION}" naming to support migration between dimensions.
  */
 export function getVectorDescriptors(): VectorDescriptorMap {
   const dim = getEmbeddingDimension();
-  const map: VectorDescriptorMap = {};
-  map[`vs${dim}`] = { size: dim, distance: 'Cosine', on_disk: true };
-  return map;
+  return {
+    [getPrimaryVectorName(dim)]: { size: dim, distance: 'Cosine', on_disk: true },
+    [getAdapterTitleVectorName(dim)]: { size: dim, distance: 'Cosine', on_disk: true },
+    [getActivationPatternVectorName(dim)]: { size: dim, distance: 'Cosine', on_disk: true }
+  };
 }
 
 /**

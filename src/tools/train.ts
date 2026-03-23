@@ -6,7 +6,7 @@ import { executeMint, MintError } from './mint.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { trainInputSchema, trainOutputSchema, type TrainInput, type TrainOutput } from './train_schema.js';
-import { kairosMintSimilarMemoryFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 
 interface RegisterTrainOptions {
   toolName?: string;
@@ -171,7 +171,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
           };
         }
         if (err.code === 'SIMILAR_MEMORY_FOUND') {
-          kairosMintSimilarMemoryFound.inc({ transport: 'mcp', tenant_id: tenantId });
+          kairosTrainSimilarAdapterFound.inc({ transport: 'mcp', tenant_id: tenantId });
         }
         if (err.code === 'DUPLICATE_CHAIN' || err.code === 'DUPLICATE_KEY' || err.code === 'SIMILAR_MEMORY_FOUND') {
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });

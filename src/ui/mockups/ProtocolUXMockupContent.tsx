@@ -673,7 +673,7 @@ export function ProtocolDetailTargetContent() {
           <p className="m-0 text-sm text-[var(--color-text)]">deploy and test, run tests and deploy, release a build after checks pass</p>
         </SurfaceCard>
         <SurfaceCard title="Completion rule">
-          <p className="m-0 text-sm text-[var(--color-text)]">Complete when each step is verified and the final attestation records the release outcome.</p>
+          <p className="m-0 text-sm text-[var(--color-text)]">Complete when each step is verified and the final reward records the release outcome.</p>
         </SurfaceCard>
       </div>
     </div>
@@ -684,19 +684,19 @@ export function RunsTargetContent() {
   const mockSessions = [
     {
       id: "run-1",
-      protocolUri: "kairos://mem/abc123",
+      adapterUri: "kairos://adapter/abc123",
       status: "running",
       updatedAt: "Mar 13, 2026, 10:24",
       stepsDone: 2,
-      message: "Challenge ready for the Run tests step.",
+      message: "Contract ready for the Run tests layer.",
     },
     {
       id: "run-2",
-      protocolUri: "kairos://mem/skill-xyz",
-      status: "ready_to_attest",
+      adapterUri: "kairos://adapter/skill-xyz",
+      status: "ready_to_reward",
       updatedAt: "Mar 12, 2026, 18:02",
       stepsDone: 4,
-      message: "All steps completed. Submit the final attestation.",
+      message: "All steps completed. Submit the final reward.",
     },
   ];
 
@@ -714,7 +714,7 @@ export function RunsTargetContent() {
             className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 sm:flex-row sm:items-start sm:justify-between"
           >
             <div className="min-w-0">
-              <div className="truncate font-medium text-[var(--color-text-heading)]">{session.protocolUri}</div>
+              <div className="truncate font-medium text-[var(--color-text-heading)]">{session.adapterUri}</div>
               <div className="mt-1 text-sm text-[var(--color-text-muted)]">
                 Status: {session.status} · Updated: {session.updatedAt} · {session.stepsDone} steps completed
               </div>
@@ -806,7 +806,7 @@ export function ProtocolEditTargetContent() {
 
           <RichTextEditorDemo
             label="Completion rule"
-            markdown={`Complete when each step is verified and the final attestation records the release outcome.`}
+            markdown={`Complete when each step is verified and the final reward records the release outcome.`}
           />
 
           <div className="flex flex-wrap gap-2">

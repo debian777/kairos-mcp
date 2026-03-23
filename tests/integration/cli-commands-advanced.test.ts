@@ -113,7 +113,7 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test attestation"`
+        `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test reward"`
       );
 
       expect(stderr).toBe('');
@@ -126,7 +126,7 @@ describe('CLI Commands Advanced --url Tests', () => {
       const uri = cachedMintedUri;
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} reward -u ${BASE_URL} "${uri}" success "Test attestation"`
+        `node ${CLI_PATH} reward -u ${BASE_URL} "${uri}" success "Test reward"`
       );
 
       expect(stderr).toBe('');

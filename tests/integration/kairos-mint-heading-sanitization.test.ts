@@ -27,7 +27,7 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
     return parseMcpJson(result, '[train heading sanitization] raw MCP result');
   }
   const shellBlock = (cmd: string, timeout = 20) =>
-    `\n\`\`\`json\n{"challenge":{"type":"shell","shell":{"cmd":"${cmd}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
+    `\n\`\`\`json\n{"contract":{"type":"shell","shell":{"cmd":"${cmd}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
 
   test('sanitizes STEP patterns and numbering from H2 headings', async () => {
     const timestamp = Date.now();

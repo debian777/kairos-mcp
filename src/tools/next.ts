@@ -124,18 +124,18 @@ export async function updateStepQuality(
   }
 }
 
-export type TryElicitResult = { payload: NextOutput } | { solution: ProofOfWorkSubmission };
+type _TryElicitResult = { payload: NextOutput } | { solution: ProofOfWorkSubmission };
 
 /**
  * Shared execute: submit solution and return next step/challenge. Used by the forward bridge and the older HTTP route.
  * When tryElicit is provided, user_input elicitation may return a payload or adjusted solution.
  */
-export async function executeNext(
+async function _executeNext(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
   input: NextInput,
   tenantId: string,
-  options?: { tryElicit?: (memory: Memory, solution: ProofOfWorkSubmission, requestedUri: string) => Promise<TryElicitResult> }
+  options?: { tryElicit?: (memory: Memory, solution: ProofOfWorkSubmission, requestedUri: string) => Promise<_TryElicitResult> }
 ): Promise<NextOutput> {
   const { uri, solution } = input;
   const { uuid, uri: requestedUri, executionId } = normalizeLayerUri(uri);

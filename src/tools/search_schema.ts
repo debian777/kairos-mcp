@@ -32,7 +32,8 @@ export const searchOutputSchema = z.object({
     role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice.'),
-    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.')
+    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.'),
+    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter')
   })).describe('Options: match(es) first, then refine (if present), then create (if present).')
 }).strict();
 

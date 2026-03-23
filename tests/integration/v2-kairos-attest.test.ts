@@ -6,7 +6,22 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
-const REWARD_RESULT_KEYS = ['uri', 'outcome', 'score', 'feedback', 'rater', 'rubric_version', 'rated_at'] as const;
+const REWARD_RESULT_KEYS = [
+  'uri',
+  'outcome',
+  'score',
+  'feedback',
+  'rater',
+  'rubric_version',
+  'llm_model_id',
+  'grader_kind',
+  'evaluation_label',
+  'exportable_for_sft',
+  'exportable_for_preference',
+  'sft_blockers',
+  'preference_blockers',
+  'rated_at'
+] as const;
 
 describe('v10-reward response schema', () => {
   let mcpConnection;
@@ -92,6 +107,12 @@ describe('v10-reward response schema', () => {
       expect(r.outcome).toBe('success');
       expect(r.score === null || typeof r.score === 'number').toBe(true);
       expect(r.feedback === null || typeof r.feedback === 'string').toBe(true);
+      expect(r.grader_kind).toBe('unknown');
+      expect(r.evaluation_label).toBe('gold');
+      expect(r.exportable_for_sft).toBe(false);
+      expect(r.exportable_for_preference).toBe(false);
+      expect(r.sft_blockers).toContain('missing_rubric_version');
+      expect(r.preference_blockers).toContain('missing_evaluator_identity');
       expect(typeof r.rated_at).toBe('string');
 
       const resultKeys = Object.keys(r).sort();
@@ -121,6 +142,7 @@ describe('v10-reward response schema', () => {
       expect(Array.isArray(parsed.results)).toBe(true);
       const r = parsed.results[0];
       expect(r.outcome).toBe('failure');
+      expect(r.evaluation_label).toBe('rejected');
       expect(Object.keys(r).sort()).toEqual([...REWARD_RESULT_KEYS].sort());
     });
   });
