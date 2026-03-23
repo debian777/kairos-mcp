@@ -6,7 +6,7 @@ description: >-
   /kairos. Do not require the user to mention tools or protocols. For
   first-time install and server setup, use the kairos-install skill instead.
 metadata:
-  version: "3.4.0"
+  version: "4.0.0-beta.0"
   author: kairos-mcp
 allowed-tools: activate forward train reward tune delete export spaces
 ---

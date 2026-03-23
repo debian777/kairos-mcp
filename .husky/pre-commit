@@ -55,7 +55,14 @@ if [ -n "$lint_git_paths" ]; then
   echo >&2 "  Pre-commit still allows this commit; humans must verify the diff."
   echo >&2 ""
 fi
-# Linked worktrees: hosts can re-stage this ignored hook with a missing blob
-# during long eslint runs; drop it from the index so tree write succeeds.
-git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh >/dev/null 2>&1 || true
 npm run lint
+# Linked worktrees / IDE races: drop staged paths whose blob OID is missing from the
+# object DB (otherwise `git commit` fails with "invalid object" / "Error building trees").
+git diff --cached --name-only | while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  sha=$(git ls-files -s -- "$f" 2>/dev/null | awk '{print $2; exit}')
+  [ -z "$sha" ] && continue
+  if ! git cat-file -e "$sha" 2>/dev/null; then
+    git rm --cached -f --ignore-unmatch -- "$f" >/dev/null 2>&1 || true
+  fi
+done
