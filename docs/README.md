@@ -34,24 +34,23 @@ quick start.
 
 - [Architecture and protocol workflows](architecture/README.md) — how the
   protocol runs end-to-end (**activate** → **forward** → **reward**),
-  per-tool references, response shapes, and legacy page mapping.
+  per-tool references, response shapes, and companion workflow page mapping.
 - [Full execution workflow](architecture/workflow-full-execution.md) —
   end-to-end walkthrough with example calls.
-- Legacy per-tool pages (pre-adapter names):
-  [workflow-kairos-search](architecture/workflow-kairos-search.md),
-  [workflow-kairos-begin](architecture/workflow-kairos-begin.md),
-  [workflow-kairos-next](architecture/workflow-kairos-next.md),
-  [workflow-kairos-attest](architecture/workflow-kairos-attest.md),
-  [workflow-kairos-mint](architecture/workflow-kairos-mint.md),
-  [workflow-kairos-update](architecture/workflow-kairos-update.md),
-  [workflow-kairos-delete](architecture/workflow-kairos-delete.md),
-  [workflow-kairos-dump](architecture/workflow-kairos-dump.md).
+- Companion workflow pages:
+  [workflow-activate](architecture/workflow-activate.md),
+  [workflow-forward-first-call](architecture/workflow-forward-first-call.md),
+  [workflow-forward-continue](architecture/workflow-forward-continue.md),
+  [workflow-reward](architecture/workflow-reward.md),
+  [workflow-train](architecture/workflow-train.md),
+  [workflow-tune](architecture/workflow-tune.md),
+  [workflow-delete](architecture/workflow-delete.md),
+  [workflow-export](architecture/workflow-export.md).
 
 ## Examples and protocol authoring
 
 - [Protocol examples](examples/README.md) — mintable example protocols
 - [Challenge types](examples/challenge-types.md) — challenge/solution shapes
-- [Deterministic slug routing](design/slug-deterministic-routing.md)
 
 ## Security and operations
 
