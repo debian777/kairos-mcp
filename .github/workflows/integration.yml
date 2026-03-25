@@ -11,10 +11,12 @@ name: Integration
 
 on:
   pull_request:
-    branches: [main, v4]
+    # Base branches: include ci/** so PRs into integration lines get the same gate as main/v4.
+    branches: [main, v4, "ci/**"]
   merge_group:
   push:
-    branches: [main, v4]
+    # Integration + Release tag (workflow_run) must run on beta/integration branches or beta never auto-tags.
+    branches: [main, v4, "ci/**"]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
