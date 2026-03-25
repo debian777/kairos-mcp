@@ -11,17 +11,30 @@ const PER_REQUEST_ESTIMATE_BYTES = 5 * 1024 * 1024; // 5 MB conservative estimat
 const MEMORY_HEADROOM_FACTOR = 0.7;
 const MIN_LIMIT = 10;
 
+type ReadFileSyncFn = typeof readFileSync;
+
+/** Default cgroup probes use Node’s readFileSync; tests swap via setCgroupReadFileSyncForTests. */
+let readFileSyncForCgroup: ReadFileSyncFn = readFileSync;
+
+/**
+ * Override file reads used only by cgroup memory limit detection (unit tests).
+ * Pass `null` to restore production behaviour.
+ */
+export function setCgroupReadFileSyncForTests(fn: ReadFileSyncFn | null): void {
+  readFileSyncForCgroup = fn ?? readFileSync;
+}
+
 function readCgroupMemoryLimit(): number | null {
   // cgroups v2
   try {
-    const raw = readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim();
+    const raw = readFileSyncForCgroup('/sys/fs/cgroup/memory.max', 'utf8').trim();
     if (raw !== 'max') return parseInt(raw, 10);
   } catch {
     /* not available */
   }
   // cgroups v1
   try {
-    const raw = readFileSync('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf8').trim();
+    const raw = readFileSyncForCgroup('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf8').trim();
     const val = parseInt(raw, 10);
     if (!Number.isNaN(val) && val < os.totalmem() * 2) return val; // ignore kernel "unlimited" sentinel
   } catch {
