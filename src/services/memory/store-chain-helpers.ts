@@ -68,21 +68,38 @@ export async function handleDuplicateChain(
   }
 }
 
+/** Max length for embedded mint-similarity query (chain + first step). */
+const MINT_SIMILARITY_QUERY_MAX = 400;
+
 /**
- * Checks for similar memories by title/label before creating a new memory.
- * If a very high match is found (score >= SIMILAR_MEMORY_THRESHOLD), throws an error with existing memory info.
- * This helps prevent duplicate memories that pollute search results.
+ * Text for pre-mint similarity search: chain identity plus first step title.
+ * Mandatory step headings match across protocols; chain title differentiates.
+ */
+export function buildMintSimilaritySearchQuery(chainTitle: string, stepTitle: string): string {
+  const c = chainTitle.trim();
+  const s = stepTitle.trim();
+  if (!c && !s) return 'Memory';
+  if (!s) return c.slice(0, MINT_SIMILARITY_QUERY_MAX);
+  if (!c) return s.slice(0, MINT_SIMILARITY_QUERY_MAX);
+  return `${c}\n${s}`.slice(0, MINT_SIMILARITY_QUERY_MAX);
+}
+
+/**
+ * Similarity guard before mint: vector search on chain title + first step title (not step alone).
  * Set SIMILAR_MEMORY_THRESHOLD=1 in env to effectively disable.
  */
 export async function checkSimilarMemoryByTitle(
   methods: MemoryQdrantStoreMethods,
-  label: string,
+  chainTitle: string,
+  stepTitle: string,
   forceUpdate: boolean
 ): Promise<void> {
   // Skip check if force update is enabled
   if (forceUpdate) {
     return;
   }
+
+  const label = buildMintSimilaritySearchQuery(chainTitle, stepTitle);
 
   // Search for existing memories with similar title
   const { memories, scores } = await methods.searchMemories(label, 10, false);

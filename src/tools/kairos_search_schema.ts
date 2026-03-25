@@ -32,7 +32,7 @@ export const searchOutputSchema = z.object({
     role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
     tags: z.array(z.string()),
     next_action: z.string().describe("Instruction for this choice: call kairos_begin with this choice's uri."),
-    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) for match choices; null for refine/create. Compare with skill-bundled protocol to decide if re-mint is needed.')
+    protocol_version: z.string().nullable().describe('Stored protocol version (e.g. semver) when known (match rows from search; refine/create from embedded footer protocols when resolvable). Compare with skill-bundled protocol to decide if re-mint is needed.')
   })).describe('Options: match(es) first, then refine (if present), then create (if present).')
 }).strict();
 

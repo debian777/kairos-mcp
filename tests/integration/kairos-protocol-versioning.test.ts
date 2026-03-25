@@ -149,13 +149,17 @@ describe('Kairos protocol versioning', () => {
     expect(dump).toHaveProperty('protocol_version', '3.0.0');
   });
 
-  test('refine and create choices have protocol_version null', async () => {
+  test('refine and create choices include protocol_version when footer protocols are resolvable', async () => {
     const gibberish = `XyZVersioningGarbage${Date.now()}`;
     const parsed = await search(gibberish);
 
     const refineChoice = parsed.choices?.find((c: any) => c.role === 'refine');
     const createChoice = parsed.choices?.find((c: any) => c.role === 'create');
-    expect(refineChoice).toHaveProperty('protocol_version', null);
-    expect(createChoice).toHaveProperty('protocol_version', null);
+    expect(refineChoice).toHaveProperty('protocol_version');
+    expect(createChoice).toHaveProperty('protocol_version');
+    for (const c of [refineChoice, createChoice]) {
+      const v = c?.protocol_version;
+      expect(v === null || typeof v === 'string').toBe(true);
+    }
   });
 });

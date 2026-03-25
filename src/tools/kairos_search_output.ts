@@ -59,6 +59,10 @@ export interface GenerateUnifiedOutputOpts {
   refiningNextAction: string;
   createUri: string;
   createNextAction: string;
+  /** Stored chain version for refine protocol (from Qdrant), when resolvable. */
+  refiningProtocolVersion?: string | null;
+  /** Stored chain version for create protocol (from Qdrant), when resolvable. */
+  createProtocolVersion?: string | null;
 }
 
 export async function generateUnifiedOutput(
@@ -66,7 +70,14 @@ export async function generateUnifiedOutput(
   qdrantService: QdrantService | undefined,
   opts: GenerateUnifiedOutputOpts
 ): Promise<{ must_obey: boolean; message: string; next_action: string; choices: UnifiedChoice[] }> {
-  const { refiningUri, refiningNextAction, createUri, createNextAction } = opts;
+  const {
+    refiningUri,
+    refiningNextAction,
+    createUri,
+    createNextAction,
+    refiningProtocolVersion = null,
+    createProtocolVersion = null
+  } = opts;
   const choices: UnifiedChoice[] = [];
   const matchCount = results.length;
 
@@ -96,7 +107,7 @@ export async function generateUnifiedOutput(
         role: 'refine',
         tags: ['meta', 'refine'],
         next_action: refiningNextAction,
-        protocol_version: null
+        protocol_version: refiningProtocolVersion
       },
       {
         uri: createUri,
@@ -106,7 +117,7 @@ export async function generateUnifiedOutput(
         role: 'create',
         tags: ['meta', 'creation'],
         next_action: createNextAction,
-        protocol_version: null
+        protocol_version: createProtocolVersion
       }
     );
   }
