@@ -5,8 +5,8 @@
 ```mermaid
 flowchart LR
   subgraph triggers["Triggers"]
-    PR[PR → main]
-    PUSH[Push → main]
+    PR[PR → main or v4]
+    PUSH[Push → main or v4]
     TAG[Tag push v*.*.*]
     MANUAL[Manual dispatch]
   end
@@ -42,7 +42,7 @@ flowchart LR
 
 **Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
 
-**Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
+**Integration:** Runs on every PR and push to **main** or **v4** (and on tag push to re-verify the released ref). Manual run available.
 
 **PR/MR tooling:** This repo uses the GitHub CLI (**gh**) for PRs. For GitLab MRs use **glab**. KAIROS protocols: *GitHub PR with gh* (create/track PRs with `gh`), *GitLab MR with glab* (create/track MRs with `glab`).
 
@@ -114,7 +114,7 @@ flowchart TB
 
 The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. In the workflow they are referenced as `${{ secrets.OPENAI_API_KEY }}` etc. Non-sensitive values use **repository variables** as `${{ vars.VAR_NAME }}`. If optional secrets are not set, the job uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
 
-**Triggers:** `push` tags `v*.*.*`, `workflow_dispatch` (optional force input).
+**Triggers:** `pull_request` / `push` to **main** or **v4**; `push` tags `v*.*.*`; `workflow_dispatch` (optional force input).
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
