@@ -6,6 +6,10 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    # typescript-eslint 8.x peers typescript <6; keep TS 5 until a release widens the range.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # Bundle all npm version updates into a single PR (branch/title: npm-dependencies)
       npm-dependencies:
