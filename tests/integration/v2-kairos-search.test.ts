@@ -85,6 +85,19 @@ describe('V2 kairos_search unified response schema', () => {
     });
   });
 
+  test('builtin refine/create chains are not returned as vector matches (no duplicate URIs)', async () => {
+    const { call, result, parsed } = await search('protocol');
+    const refineUri = 'kairos://mem/00000000-0000-0000-0000-000000002002';
+    const createUri = 'kairos://mem/00000000-0000-0000-0000-000000002001';
+    withRawOnFail({ call, result }, () => {
+      const matches = parsed.choices.filter((c: any) => c.role === 'match');
+      expect(matches.some((c: any) => c.uri === refineUri)).toBe(false);
+      expect(matches.some((c: any) => c.uri === createUri)).toBe(false);
+      const footerCreate = parsed.choices.filter((c: any) => c.role === 'create' && c.uri === createUri);
+      expect(footerCreate.length).toBeLessThanOrEqual(1);
+    });
+  }, 45000);
+
   test('no matches: must_obey true, creation protocol with role create', async () => {
     const ts = Date.now();
     const gibberish = `XyZ123GarbageV2Test${ts}NoOneSearchesThis`;

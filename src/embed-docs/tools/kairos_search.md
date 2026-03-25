@@ -21,10 +21,12 @@ KAIROS, protocols, or tools. The user's natural language IS the query.
 **Response:** Always `must_obey: true`. Contains `choices` array (each
 with `uri`, `label`, `chain_label`, `score`, `role`, `tags`,
 `next_action`, and optional `protocol_version`), `message`, and a
-global `next_action`. For match choices, `protocol_version` is the
-stored protocol version (for example, semver). Match choices are
-already filtered by the server's configured minimum score threshold
-before they are returned.
+global `next_action`. For each choice, `protocol_version` is the stored
+protocol version when the server can resolve it (vector matches and the
+built-in refine/create footer protocols). Match choices are already
+filtered by the server's configured minimum score threshold before they
+are returned. Built-in refine/create chains are not included as vector
+matches; they only appear as the footer choices.
 
 **Choice roles:**
 

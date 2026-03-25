@@ -10,9 +10,11 @@ import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
-
-/** Built-in refine protocol (always offered at bottom of kairos_search). Excluded from vector results. */
-const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+import {
+  KAIROS_CREATION_PROTOCOL_UUID,
+  KAIROS_REFINING_PROTOCOL_UUID,
+  memoryIsBuiltinSearchFooterProtocol
+} from '../../constants/builtin-search-meta.js';
 
 export class MemoryQdrantStoreMethods {
   private client: QdrantClient;
@@ -151,7 +153,7 @@ export class MemoryQdrantStoreMethods {
     });
     const filter = {
       ...baseFilter,
-      must_not: [{ has_id: [REFINING_PROTOCOL_UUID] }]
+      must_not: [{ has_id: [KAIROS_REFINING_PROTOCOL_UUID, KAIROS_CREATION_PROTOCOL_UUID] }]
     };
 
     const bm25Leg = {
@@ -221,10 +223,8 @@ export class MemoryQdrantStoreMethods {
       return { memory, score };
     });
 
-    const isRefineProtocol = (m: Memory) =>
-      m.memory_uuid === REFINING_PROTOCOL_UUID || m.chain?.id === REFINING_PROTOCOL_UUID;
     let filtered = scored
-      .filter(entry => entry.score > 0 && !isRefineProtocol(entry.memory))
+      .filter(entry => entry.score > 0 && !memoryIsBuiltinSearchFooterProtocol(entry.memory))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return (a.memory.memory_uuid ?? '').localeCompare(b.memory.memory_uuid ?? '');
@@ -233,7 +233,7 @@ export class MemoryQdrantStoreMethods {
 
     if (filtered.length === 0 && scored.length > 0) {
       filtered = scored
-        .filter(entry => !isRefineProtocol(entry.memory))
+        .filter(entry => !memoryIsBuiltinSearchFooterProtocol(entry.memory))
         .slice(0, limit)
         .map(entry => ({ memory: entry.memory, score: 0.5 }));
     }

@@ -16,18 +16,25 @@ import {
 import { createResults, generateUnifiedOutput } from './kairos_search_output.js';
 import { searchInputSchema, searchOutputSchema, type SearchInput, type SearchOutput } from './kairos_search_schema.js';
 import { logSearchAnomaly } from '../services/embedding/audit.js';
+import {
+  KAIROS_CREATION_PROTOCOL_UUID,
+  KAIROS_REFINING_PROTOCOL_UUID
+} from '../constants/builtin-search-meta.js';
 
-const CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
-const CREATION_PROTOCOL_URI = `kairos://mem/${CREATION_PROTOCOL_UUID}`;
-const REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
-const REFINING_PROTOCOL_URI = `kairos://mem/${REFINING_PROTOCOL_UUID}`;
+const CREATION_PROTOCOL_URI = `kairos://mem/${KAIROS_CREATION_PROTOCOL_UUID}`;
+const REFINING_PROTOCOL_URI = `kairos://mem/${KAIROS_REFINING_PROTOCOL_UUID}`;
 const REFINING_NEXT_ACTION = `call kairos_begin with ${REFINING_PROTOCOL_URI} to get step-by-step help turning the user's request into a better search query`;
 const CREATE_NEXT_ACTION = `call kairos_begin with ${CREATION_PROTOCOL_URI} to create a new protocol`;
 
 /** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
 function queryForSearch(query: string): string {
   let q = (query || '').trim();
-  for (const token of [REFINING_PROTOCOL_URI, REFINING_PROTOCOL_UUID, CREATION_PROTOCOL_URI, CREATION_PROTOCOL_UUID]) {
+  for (const token of [
+    REFINING_PROTOCOL_URI,
+    KAIROS_REFINING_PROTOCOL_UUID,
+    CREATION_PROTOCOL_URI,
+    KAIROS_CREATION_PROTOCOL_UUID
+  ]) {
     q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
   }
   return q.replace(/\s+/g, ' ').trim();
@@ -85,6 +92,19 @@ async function searchAndBuildCandidates(
   return candidateMap;
 }
 
+async function resolveFooterProtocolVersions(
+  memoryStore: MemoryQdrantStore
+): Promise<{ refine: string | null; create: string | null }> {
+  const [refineMem, createMem] = await Promise.all([
+    memoryStore.getMemory(KAIROS_REFINING_PROTOCOL_UUID),
+    memoryStore.getMemory(KAIROS_CREATION_PROTOCOL_UUID)
+  ]);
+  return {
+    refine: refineMem?.chain?.protocol_version ?? null,
+    create: createMem?.chain?.protocol_version ?? null
+  };
+}
+
 /** Core search: build candidates and return unified output. Used by executeSearch. */
 async function doSearch(
   memoryStore: MemoryQdrantStore,
@@ -94,6 +114,7 @@ async function doSearch(
 ): Promise<SearchOutput> {
   const tenantId = getTenantId();
   const requestId = getRequestIdFromStorage();
+  const footerVersions = await resolveFooterProtocolVersions(memoryStore);
   const candidateMap = await searchAndBuildCandidates(
     memoryStore,
     searchQuery,
@@ -116,7 +137,9 @@ async function doSearch(
     refiningUri: REFINING_PROTOCOL_URI,
     refiningNextAction: REFINING_NEXT_ACTION,
     createUri: CREATION_PROTOCOL_URI,
-    createNextAction: CREATE_NEXT_ACTION
+    createNextAction: CREATE_NEXT_ACTION,
+    refiningProtocolVersion: footerVersions.refine,
+    createProtocolVersion: footerVersions.create
   });
 }
 
@@ -221,11 +244,14 @@ export function registerSearchTool(server: any, memoryStore: MemoryQdrantStore, 
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        const footerVersions = await resolveFooterProtocolVersions(memoryStore);
         const fallback = await generateUnifiedOutput([], qdrantService, {
           refiningUri: REFINING_PROTOCOL_URI,
           refiningNextAction: REFINING_NEXT_ACTION,
           createUri: CREATION_PROTOCOL_URI,
-          createNextAction: CREATE_NEXT_ACTION
+          createNextAction: CREATE_NEXT_ACTION,
+          refiningProtocolVersion: footerVersions.refine,
+          createProtocolVersion: footerVersions.create
         });
         return respond(fallback);
       }
