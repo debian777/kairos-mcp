@@ -1,7 +1,7 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { executionTraceStore } from '../services/execution-trace-store.js';
+import { executionTraceStore, type TrainingPair } from '../services/execution-trace-store.js';
 import { getAdapterId } from '../services/memory/memory-accessors.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
@@ -9,10 +9,48 @@ import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
 import { parseKairosUri } from './kairos-uri.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
+import type { RewardRecord, TensorValue } from '../types/memory.js';
 
 interface RegisterExportOptions {
   toolName?: string;
   qdrantService?: QdrantService;
+}
+
+interface RewardJsonlItem {
+  instruction: {
+    activation_query: string | null;
+    tensor_in: Record<string, unknown>;
+    layer_instructions: string;
+  };
+  response: {
+    tensor_out: TensorValue | null;
+    trace: string | null;
+    raw_solution: unknown | null;
+  };
+  reward: {
+    outcome: RewardRecord['outcome'];
+    score: number | null;
+    signed_score: number | null;
+    quality_bonus: number | null;
+    feedback: string | null;
+    rater: string | null;
+    llm_model_id: string | null;
+    rubric_version: string | null;
+    grader_kind: NonNullable<RewardRecord['grader_kind']>;
+    evaluation_label: RewardRecord['evaluation_label'] | null;
+    exportable_for_sft: boolean;
+    exportable_for_preference: boolean;
+    sft_blockers: string[];
+    preference_blockers: string[];
+    rated_at: string;
+  };
+  metadata: {
+    execution_id: string;
+    adapter_uri: string;
+    layer_uri: string;
+    layer_index: number;
+    timestamp: string;
+  };
 }
 
 async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: QdrantService | undefined, uri: string) {
@@ -57,6 +95,52 @@ function canonicalLayerUri(uri: string): string {
   }
 }
 
+function toRewardJsonlItem(pair: TrainingPair & { reward: RewardRecord }): RewardJsonlItem {
+  return {
+    instruction: {
+      activation_query: pair.instruction.activation_query ?? null,
+      tensor_in: pair.instruction.tensor_in,
+      layer_instructions: pair.instruction.layer_instructions
+    },
+    response: {
+      tensor_out: pair.response.tensor_out ?? null,
+      trace: pair.response.trace ?? null,
+      raw_solution: pair.response.raw_solution ?? null
+    },
+    reward: {
+      outcome: pair.reward.outcome,
+      score: pair.reward.score ?? null,
+      signed_score: pair.reward.signed_score ?? null,
+      quality_bonus: pair.reward.quality_bonus ?? null,
+      feedback: pair.reward.feedback ?? null,
+      rater: pair.reward.rater ?? null,
+      llm_model_id: pair.reward.llm_model_id ?? null,
+      rubric_version: pair.reward.rubric_version ?? null,
+      grader_kind: pair.reward.grader_kind ?? 'unknown',
+      evaluation_label: pair.reward.evaluation_label ?? null,
+      exportable_for_sft: pair.reward.exportable_for_sft ?? isRewardEligibleForSft(pair.reward),
+      exportable_for_preference:
+        pair.reward.exportable_for_preference ?? isRewardEligibleForPreference(pair.reward),
+      sft_blockers: pair.reward.sft_blockers ?? [],
+      preference_blockers: pair.reward.preference_blockers ?? [],
+      rated_at: pair.reward.rated_at
+    },
+    metadata: {
+      execution_id: pair.execution_id,
+      adapter_uri: pair.adapter_uri,
+      layer_uri: canonicalLayerUri(pair.layer_uri),
+      layer_index: pair.layer_index,
+      timestamp: pair.timestamp
+    }
+  };
+}
+
+function buildRewardJsonlItems(pairs: TrainingPair[]): RewardJsonlItem[] {
+  return pairs
+    .filter((pair): pair is TrainingPair & { reward: RewardRecord } => Boolean(pair.reward))
+    .map((pair) => toRewardJsonlItem(pair));
+}
+
 export async function executeExport(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
@@ -80,7 +164,10 @@ export async function executeExport(
     };
   }
 
-  const pairs = await executionTraceStore.buildTrainingPairsForAdapter(adapterId, input.include_reward);
+  const pairs = await executionTraceStore.buildTrainingPairsForAdapter(
+    adapterId,
+    input.format === 'reward_jsonl' ? true : input.include_reward
+  );
 
   if (input.format === 'trace_jsonl') {
     return {
@@ -89,6 +176,17 @@ export async function executeExport(
       content_type: 'application/x-ndjson',
       content: stringifyLines(pairs),
       item_count: pairs.length
+    };
+  }
+
+  if (input.format === 'reward_jsonl') {
+    const rewardItems = buildRewardJsonlItems(pairs);
+    return {
+      uri: input.uri,
+      format: input.format,
+      content_type: 'application/x-ndjson',
+      content: stringifyLines(rewardItems),
+      item_count: rewardItems.length
     };
   }
 

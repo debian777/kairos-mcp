@@ -89,7 +89,7 @@ describe('workflow eval harness: reward export readiness', () => {
 
   async function exportFormat(
     adapterUri: string,
-    format: 'trace_jsonl' | 'sft_jsonl' | 'preference_jsonl'
+    format: 'trace_jsonl' | 'reward_jsonl' | 'sft_jsonl' | 'preference_jsonl'
   ): Promise<{ item_count: number; content: string }> {
     const result = await mcpConnection.client.callTool({
       name: 'export',
@@ -116,15 +116,28 @@ describe('workflow eval harness: reward export readiness', () => {
           });
 
           const traceExport = await exportFormat(adapterUri, 'trace_jsonl');
+          const rewardExport = await exportFormat(adapterUri, 'reward_jsonl');
           const sftExport = await exportFormat(adapterUri, 'sft_jsonl');
           const traceItems = parseJsonl(traceExport.content) as Array<{
             reward?: { exportable_for_sft?: boolean; sft_blockers?: string[] };
+          }>;
+          const rewardItems = parseJsonl(rewardExport.content) as Array<{
+            reward?: {
+              exportable_for_sft?: boolean;
+              sft_blockers?: string[];
+              rated_at?: string;
+            };
+            metadata?: {
+              execution_id?: string;
+              layer_uri?: string;
+            };
           }>;
           const reward = traceItems[0]?.reward;
 
           return {
             metrics: {
               trace_item_count: traceExport.item_count,
+              reward_item_count: rewardExport.item_count,
               sft_item_count: sftExport.item_count
             },
             checks: [
@@ -140,6 +153,18 @@ describe('workflow eval harness: reward export readiness', () => {
                   reward.sft_blockers?.includes('missing_rubric_version') === true &&
                   reward.sft_blockers?.includes('missing_evaluator_identity') === true,
                 details: reward
+              },
+              {
+                name: 'reward export keeps blocked rewards in a normalized dataset row',
+                passed:
+                  rewardExport.item_count === 1 &&
+                  rewardItems[0]?.reward?.exportable_for_sft === false &&
+                  rewardItems[0].reward?.sft_blockers?.includes('missing_rubric_version') === true &&
+                  typeof rewardItems[0]?.reward?.rated_at === 'string' &&
+                  typeof rewardItems[0]?.metadata?.execution_id === 'string' &&
+                  typeof rewardItems[0]?.metadata?.layer_uri === 'string' &&
+                  !rewardItems[0].metadata.layer_uri.includes('?execution_id='),
+                details: rewardItems
               },
               {
                 name: 'sft export remains gated without structured evaluator metadata',
@@ -176,6 +201,7 @@ describe('workflow eval harness: reward export readiness', () => {
           });
 
           const traceExport = await exportFormat(adapterUri, 'trace_jsonl');
+          const rewardExport = await exportFormat(adapterUri, 'reward_jsonl');
           const sftExport = await exportFormat(adapterUri, 'sft_jsonl');
           const preferenceExport = await exportFormat(adapterUri, 'preference_jsonl');
           const traceItems = parseJsonl(traceExport.content) as Array<{
@@ -185,6 +211,27 @@ describe('workflow eval harness: reward export readiness', () => {
               rubric_version?: string;
               exportable_for_sft?: boolean;
               exportable_for_preference?: boolean;
+            };
+          }>;
+          const rewardItems = parseJsonl(rewardExport.content) as Array<{
+            instruction?: {
+              activation_query?: string | null;
+              tensor_in?: Record<string, unknown>;
+              layer_instructions?: string;
+            };
+            response?: {
+              raw_solution?: unknown;
+            };
+            reward?: {
+              outcome?: 'success' | 'failure';
+              llm_model_id?: string | null;
+              rubric_version?: string | null;
+              exportable_for_sft?: boolean;
+              exportable_for_preference?: boolean;
+            };
+            metadata?: {
+              execution_id?: string;
+              layer_uri?: string;
             };
           }>;
           const sftItems = parseJsonl(sftExport.content) as Array<{
@@ -199,6 +246,7 @@ describe('workflow eval harness: reward export readiness', () => {
           return {
             metrics: {
               trace_item_count: traceExport.item_count,
+              reward_item_count: rewardExport.item_count,
               sft_item_count: sftExport.item_count,
               preference_item_count: preferenceExport.item_count
             },
@@ -211,6 +259,26 @@ describe('workflow eval harness: reward export readiness', () => {
                     item.reward?.rubric_version === 'reward-v1'
                 ),
                 details: traceItems
+              },
+              {
+                name: 'reward export keeps both rewarded runs in a stable schema',
+                passed:
+                  rewardExport.item_count === 2 &&
+                  rewardItems.length === 2 &&
+                  rewardItems.every(
+                    (item) =>
+                      typeof item.instruction?.layer_instructions === 'string' &&
+                      typeof item.instruction?.tensor_in === 'object' &&
+                      item.response?.raw_solution !== undefined &&
+                      item.reward?.llm_model_id === 'grader-model-v1' &&
+                      item.reward?.rubric_version === 'reward-v1' &&
+                      typeof item.metadata?.execution_id === 'string' &&
+                      typeof item.metadata?.layer_uri === 'string' &&
+                      !item.metadata.layer_uri.includes('?execution_id=')
+                  ) &&
+                  rewardItems.some((item) => item.reward?.outcome === 'success') &&
+                  rewardItems.some((item) => item.reward?.outcome === 'failure'),
+                details: rewardItems
               },
               {
                 name: 'graded success reward becomes sft exportable',

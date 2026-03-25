@@ -208,12 +208,13 @@ Export an adapter or layer as markdown or training JSONL.
 
 ```bash
 kairos export kairos://adapter/<uuid>
-kairos export kairos://layer/<uuid> --format trace_jsonl --output json
+kairos export kairos://layer/<uuid> --format reward_jsonl --output json
 ```
 
 Options:
 
-- `--format` — `markdown` (default), `trace_jsonl`, `sft_jsonl`, or `preference_jsonl`
+- `--format` — `markdown` (default), `trace_jsonl`, `reward_jsonl`,
+  `sft_jsonl`, or `preference_jsonl`
 - `--output` — `text` (default) for raw content, or `json` for the full API response
 
 ## Common flows

@@ -4,7 +4,13 @@ const adapterOrLayerUriSchema = z
   .string()
   .regex(/^kairos:\/\/(adapter|layer)\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i, 'must match kairos://adapter/{uuid} or kairos://layer/{uuid}');
 
-export const exportFormatSchema = z.enum(['markdown', 'trace_jsonl', 'sft_jsonl', 'preference_jsonl']);
+export const exportFormatSchema = z.enum([
+  'markdown',
+  'trace_jsonl',
+  'reward_jsonl',
+  'sft_jsonl',
+  'preference_jsonl'
+]);
 
 export const exportInputSchema = z.object({
   uri: adapterOrLayerUriSchema.describe('Adapter or layer URI to export'),

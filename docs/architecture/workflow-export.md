@@ -20,9 +20,10 @@ Fields:
 
 - **`uri`** — **`kairos://adapter/{uuid}`** or **`kairos://layer/{uuid}`** (with
   optional **`?execution_id=`** when applicable).
-- **`format`** — `markdown` (default), `trace_jsonl`, `sft_jsonl`, or
-  `preference_jsonl`.
-- **`include_reward`** — affects trace-style formats; see schema.
+- **`format`** — `markdown` (default), `trace_jsonl`, `reward_jsonl`,
+  `sft_jsonl`, or `preference_jsonl`.
+- **`include_reward`** — affects `trace_jsonl`; `reward_jsonl` always includes
+  normalized reward fields and skips unrewarded executions.
 
 `export` does not expose `rft_jsonl` yet. That format stays gated until
 grader reliability and task suitability are proven.
@@ -48,6 +49,8 @@ JSON blocks).
 Training exports apply the stored reward gate:
 
 - **`trace_jsonl`** keeps execution traces whether or not they are exportable.
+- **`reward_jsonl`** keeps only rewarded executions and normalizes them into a
+  reward-centric dataset contract.
 - **`sft_jsonl`** includes only successful rewards that meet the SFT threshold
   and include rubric plus evaluator identity.
 - **`preference_jsonl`** includes only layers with both an eligible chosen and

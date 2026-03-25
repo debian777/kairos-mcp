@@ -193,7 +193,10 @@ export class ApiClient {
         });
     }
 
-    async export(uri: string, format: 'markdown' | 'trace_jsonl' | 'sft_jsonl' | 'preference_jsonl' = 'markdown'): Promise<ExportOutput> {
+    async export(
+        uri: string,
+        format: 'markdown' | 'trace_jsonl' | 'reward_jsonl' | 'sft_jsonl' | 'preference_jsonl' = 'markdown'
+    ): Promise<ExportOutput> {
         return this.request<ExportOutput>('/api/export', {
             method: 'POST',
             body: JSON.stringify({ uri, format }),

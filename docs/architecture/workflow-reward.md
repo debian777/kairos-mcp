@@ -72,6 +72,8 @@ Use **`outcome: "failure"`** and explain what went wrong in **`feedback`**.
 Structured evaluator metadata controls whether a reward can flow into
 training exports.
 
+- **`reward_jsonl`** requires only a stored reward record. It preserves the
+  normalized reward fields even when stricter training gates are not met.
 - **`sft_jsonl`** requires `outcome: "success"`, a score at or above the
   SFT threshold, `rubric_version`, and either `rater` or `llm_model_id`.
 - **`preference_jsonl`** requires a score at or above the preference
