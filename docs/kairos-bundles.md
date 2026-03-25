@@ -61,7 +61,7 @@ That script uses:
 
 `export`:
 
-- calls `/api/kairos_spaces`
+- calls `POST /api/spaces`
 - optionally filters by one human-readable space name
 - dumps each chain with `protocol: true`
 - writes one `.md` file per exported protocol into `--dir`
@@ -71,11 +71,11 @@ That script uses:
 `import`:
 
 - reads `.md` files from `--dir`
-- mints them through `/api/kairos_mint/raw`
+- stores them through `POST /api/train/raw`
 - supports `--force`
 - does **not** recurse into subdirectories
 
-For nested directory trees, prefer the CLI’s `kairos mint --recursive`.
+For nested directory trees, prefer the CLI’s `kairos train --recursive`.
 
 ## Practical guidance
 
