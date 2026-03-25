@@ -2,10 +2,12 @@ import { mcpResources } from '../../src/resources/embedded-mcp-resources.js';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 
 describe('Embedded MCP Resources', () => {
-  test('mcpResources.prompts is empty when no prompts are embedded', () => {
+  test('mcpResources.prompts embeds the contextual prompt', () => {
     expect(mcpResources).toHaveProperty('prompts');
     expect(typeof mcpResources.prompts).toBe('object');
-    expect(Object.keys(mcpResources.prompts)).toHaveLength(0);
+    expect(mcpResources.prompts).toHaveProperty('contextual-prompt');
+    expect(typeof (mcpResources.prompts as Record<string, string>)['contextual-prompt']).toBe('string');
+    expect((mcpResources.prompts as Record<string, string>)['contextual-prompt'].length).toBeGreaterThan(20);
   });
 
   test('mcpResources contains tools', () => {
@@ -17,10 +19,12 @@ describe('Embedded MCP Resources', () => {
     }
   });
 
-  test('mcpResources.templates is empty when no templates are embedded', () => {
+  test('mcpResources.templates embeds the adapter markdown template', () => {
     expect(mcpResources).toHaveProperty('templates');
     expect(typeof mcpResources.templates).toBe('object');
-    expect(Object.keys(mcpResources.templates)).toHaveLength(0);
+    expect(mcpResources.templates).toHaveProperty('kairos-memory');
+    expect(typeof (mcpResources.templates as Record<string, string>)['kairos-memory']).toBe('string');
+    expect((mcpResources.templates as Record<string, string>)['kairos-memory'].length).toBeGreaterThan(20);
   });
 });
 
@@ -62,7 +66,7 @@ describe('MCP Tools and Resources', () => {
     const resources = await mcp.client.listResources();
     expect(Array.isArray(resources.resources)).toBe(true);
     expect(resources.resources.some((r: any) => typeof r.uri === 'string' && r.uri.startsWith('kairos://meta/'))).toBe(false);
-    expect(resources.resources.some((r: any) => r.uri === 'kairos://doc/building-kairos-workflows')).toBe(false);
+    expect(resources.resources.some((r: any) => r.uri === 'kairos://doc/building-kairos-workflows')).toBe(true);
   }, 30000);
 
   test('resources/templates/list returns empty array when no templates are registered', async () => {

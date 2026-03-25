@@ -112,64 +112,47 @@ kairos token --login
 
 ## Commands
 
-### `search`
+### `activate`
 
-Search for protocols.
+Match stored adapters for a natural-language query.
 
 ```bash
-kairos search "ai coding standards"
+kairos activate ai coding standards
 ```
 
-This calls `POST /api/kairos_search` and prints the JSON response.
+This calls `POST /api/activate` and prints the JSON response (choices and
+`next_action`).
 
-### `begin`
+### `forward`
 
-Start a protocol from a URI or an exact protocol slug.
+Run the first or next adapter layer. For a **new** run, pass an **adapter** URI
+from **`activate`** and **omit** `--solution`. For later steps, pass the
+**layer** URI from the prior response (include `?execution_id=` when the server
+returned one) and a `--solution` JSON object whose `type` matches the current
+`contract`.
 
 ```bash
-kairos begin kairos://mem/<uuid>
-kairos begin --key create-new-protocol
+kairos forward kairos://adapter/<uuid>
+kairos forward 'kairos://layer/<uuid>?execution_id=<id>' --solution '{"type":"comment","comment":{"text":"done"}}'
 ```
 
-If both a URI and `--key` are supplied, the CLI sends the URI.
+### `train`
 
-### `next`
-
-Advance a protocol step.
-
-```bash
-kairos next kairos://mem/<uuid> --solution '{"type":"comment","comment":{"text":"done"}}'
-kairos next kairos://mem/<uuid> --output json
-```
-
-Options:
-
-- `--solution <json>` — send the solution payload
-- `--output md|json` — markdown content only (`md`) or full JSON (`json`)
-- `--follow` — keep following `next_action` URIs until the response no longer
-  points to `kairos_next`
-
-`--follow` does **not** generate solutions for later steps. It only reuses the
-response flow, so it is useful only when the later steps do not need new manual
-input or when you are intentionally exploring the raw flow.
-
-### `mint`
-
-Mint one markdown file or a directory of markdown files.
+Register one adapter from a markdown file, or many from a directory of `.md`
+files.
 
 ```bash
-kairos mint protocol.md --model "gpt-4.1"
-kairos mint protocol.md --model "gpt-4.1" --force
-kairos mint ./bundle --force
-kairos mint ./bundle --force --recursive
+kairos train protocol.md --model "gpt-4.1"
+kairos train protocol.md --model "gpt-4.1" --force
+kairos train ./bundle --force
+kairos train ./bundle --force --recursive
 ```
 
 Options:
 
-- `--model <model>` — value sent as `llm_model_id`
-- `--force` — overwrite an existing chain with the same title/label
-- `--recursive` — recurse into subdirectories when the argument is a directory
-- `--fail-fast` — stop the batch after the first mint failure
+- `--model <model>` — sent as `llm_model_id` (required for single-file train)
+- `--force` — replace an existing adapter with the same label when allowed
+- `--recursive` — when the path is a directory, include nested `.md` files
 
 Directory-batch behavior:
 
@@ -177,60 +160,77 @@ Directory-batch behavior:
 - skips files whose basename is exactly `README.md`
 - prints one JSON batch object with per-file results
 
-### `update`
+### `tune`
 
-Update one or more memories.
+Update one or more adapter or layer URIs.
 
 ```bash
-kairos update kairos://mem/<uuid> --file updated.md
-kairos update kairos://mem/<a> kairos://mem/<b> --files a.md b.md
-kairos update kairos://mem/<uuid> --updates '{"text":"new content"}'
+kairos tune kairos://adapter/<uuid> --file updated.md
+kairos tune kairos://layer/<a> kairos://layer/<b> --files a.md b.md
+kairos tune kairos://layer/<uuid> --updates '{"text":"new content"}'
 ```
 
-Use either:
+Use one of:
 
 - `--file`
-- `--files`
+- `--files` (one path per URI)
 - `--updates`
 
 ### `delete`
 
-Delete one or more memories.
+Delete one or more adapters or layers by URI.
 
 ```bash
-kairos delete kairos://mem/<uuid>
-kairos delete kairos://mem/<a> kairos://mem/<b>
+kairos delete kairos://adapter/<uuid>
+kairos delete kairos://layer/<a> kairos://layer/<b>
 ```
 
-### `attest`
+### `reward`
 
-Record success or failure after the last protocol step.
+Attach a reward outcome to the **final layer** URI for a completed run (see tool
+docs for `execution_id` when applicable).
 
 ```bash
-kairos attest kairos://mem/<uuid> success "Completed successfully"
-kairos attest kairos://mem/<uuid> failure "Validation failed" --quality-bonus 2
+kairos reward kairos://layer/<uuid> success "Completed successfully"
+kairos reward 'kairos://layer/<uuid>?execution_id=<id>' failure "Validation failed"
 ```
 
 Options:
 
-- `--quality-bonus <number>`
-- `--model <model>`
+- `--score <number>` — normalized score in `0..1`
+- `--rater <id>` — evaluator identifier
+- `--rubric-version <version>`
+- `--model <model>` — `llm_model_id` for attribution
+
+### `export`
+
+Export an adapter or layer as markdown or training JSONL.
+
+```bash
+kairos export kairos://adapter/<uuid>
+kairos export kairos://layer/<uuid> --format trace_jsonl --output json
+```
+
+Options:
+
+- `--format` — `markdown` (default), `trace_jsonl`, `sft_jsonl`, or `preference_jsonl`
+- `--output` — `text` (default) for raw content, or `json` for the full API response
 
 ## Common flows
 
-### Search -> begin -> next -> attest
+### Activate → forward (loop) → reward
 
 ```bash
-kairos search "release checklist"
-kairos begin kairos://mem/<uuid>
-kairos next kairos://mem/<step-uuid> --solution '{"type":"comment","comment":{"text":"done"}}'
-kairos attest kairos://mem/<last-step-uuid> success "Run completed"
+kairos activate "release checklist"
+kairos forward kairos://adapter/<uuid>
+kairos forward 'kairos://layer/<step-uuid>?execution_id=<id>' --solution '{"type":"comment","comment":{"text":"done"}}'
+kairos reward 'kairos://layer/<last-layer-uuid>?execution_id=<id>' success "Run completed"
 ```
 
-### Batch mint a bundle
+### Batch train a bundle
 
 ```bash
-kairos mint ./protocols --force --recursive
+kairos train ./protocols --force --recursive
 ```
 
 ## Run from this repo against the local dev server
@@ -239,7 +239,7 @@ After the local dev server is ready on port `3300`:
 
 ```bash
 npm run dev:cli-ready
-npm run cli:dev -- search "test"
+npm run cli:dev -- activate "test"
 ```
 
 `npm run dev:cli-ready` performs an auth-ready check for the local dev setup.
