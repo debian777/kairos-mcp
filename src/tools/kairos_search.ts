@@ -92,17 +92,25 @@ async function searchAndBuildCandidates(
   return candidateMap;
 }
 
+/** Never throws: footer versions are optional; Qdrant errors must not break search or the error fallback. */
 async function resolveFooterProtocolVersions(
   memoryStore: MemoryQdrantStore
 ): Promise<{ refine: string | null; create: string | null }> {
-  const [refineMem, createMem] = await Promise.all([
-    memoryStore.getMemory(KAIROS_REFINING_PROTOCOL_UUID),
-    memoryStore.getMemory(KAIROS_CREATION_PROTOCOL_UUID)
-  ]);
-  return {
-    refine: refineMem?.chain?.protocol_version ?? null,
-    create: createMem?.chain?.protocol_version ?? null
-  };
+  try {
+    const [refineMem, createMem] = await Promise.all([
+      memoryStore.getMemory(KAIROS_REFINING_PROTOCOL_UUID),
+      memoryStore.getMemory(KAIROS_CREATION_PROTOCOL_UUID)
+    ]);
+    return {
+      refine: refineMem?.chain?.protocol_version ?? null,
+      create: createMem?.chain?.protocol_version ?? null
+    };
+  } catch (err) {
+    structuredLogger.warn(
+      `kairos_search resolveFooterProtocolVersions: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return { refine: null, create: null };
+  }
 }
 
 /** Core search: build candidates and return unified output. Used by executeSearch. */

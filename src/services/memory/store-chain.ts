@@ -5,7 +5,7 @@ import { CodeBlockProcessor } from '../code-block-processor.js';
 import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { memoryStoreDuration } from '../metrics/memory-metrics.js';
 import { getTenantId } from '../../utils/tenant-context.js';
-import { normalizeMarkdownBlob, generateLabel } from '../../utils/memory-store-utils.js';
+import { normalizeMarkdownBlob, generateLabel, parseMarkdownStructure } from '../../utils/memory-store-utils.js';
 import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
 import { parseFrontmatter } from '../../utils/frontmatter.js';
 import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
@@ -85,10 +85,14 @@ export class MemoryQdrantStoreChain {
             throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
           }
 
-          const firstDocLabel = generateLabel(docForChain);
+          const chainTitleForSimilarity = (
+            parsedSingleDoc?.title?.trim() || chainLabel
+          ).slice(0, 120);
+          const stepTitleForSimilarity = (headerChainMemories[0]?.label || '').trim().slice(0, 120);
           await checkSimilarMemoryByTitle(
             this.methods,
-            firstDocLabel,
+            chainTitleForSimilarity,
+            stepTitleForSimilarity,
             options.forceUpdate || false
           );
           return await storeHeaderBasedChain(
@@ -106,11 +110,16 @@ export class MemoryQdrantStoreChain {
         logger.debug('[MemoryQdrantStore] Header-based chain failed, falling back to single memory storage');
       }
 
-      // Extract label from first document for similarity check (default path)
-      const firstDocLabel = generateLabel(docsForDefaultPath[0]!);
+      const doc0 = docsForDefaultPath[0]!;
+      const struct0 = parseMarkdownStructure(doc0);
+      const chainTitleForSimilarity = (
+        parsedSingleDoc?.title?.trim() || struct0.h1 || generateLabel(doc0)
+      ).slice(0, 120);
+      const stepTitleForSimilarity = (struct0.h2Items[0] || '').slice(0, 120);
       await checkSimilarMemoryByTitle(
         this.methods,
-        firstDocLabel,
+        chainTitleForSimilarity,
+        stepTitleForSimilarity,
         options.forceUpdate || false
       );
 
