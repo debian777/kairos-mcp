@@ -151,13 +151,20 @@ describe('Kairos protocol versioning', () => {
     expect(dump).toHaveProperty('adapter_version', '3.0.0');
   });
 
-  test('refine and create choices have adapter_version null', async () => {
+  test('refine and create footer choices expose adapter_version when builtin metadata has one', async () => {
     const gibberish = `XyZVersioningGarbage${Date.now()}`;
     const parsed = await activate(gibberish);
 
     const refineChoice = parsed.choices?.find((c: { role: string }) => c.role === 'refine');
     const createChoice = parsed.choices?.find((c: { role: string }) => c.role === 'create');
-    expect(refineChoice).toHaveProperty('adapter_version', null);
-    expect(createChoice).toHaveProperty('adapter_version', null);
+    expect(refineChoice).toBeDefined();
+    expect(createChoice).toBeDefined();
+    // Footer rows mirror stored chain protocol_version (embedded boot mem); not tied to user matches.
+    expect(refineChoice).toHaveProperty('adapter_version');
+    expect(createChoice).toHaveProperty('adapter_version');
+    expect(typeof refineChoice!.adapter_version).toBe('string');
+    expect(typeof createChoice!.adapter_version).toBe('string');
+    expect(refineChoice!.adapter_version!.length).toBeGreaterThan(0);
+    expect(createChoice!.adapter_version!.length).toBeGreaterThan(0);
   });
 });
