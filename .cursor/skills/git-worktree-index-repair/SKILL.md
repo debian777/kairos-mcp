@@ -1,6 +1,6 @@
 ---
 name: git-worktree-index-repair
-description: "Fix Git commit failures in worktrees: invalid object / Error building trees. Use when commit or write-tree fails after a long hook run. Covers fs_usage diagnosis, Husky pre-commit bisection (skip lint first), manual read-tree repair, and this repo’s post-lint index cleanup in .husky/pre-commit."
+description: "Fix Git commit failures in worktrees: invalid object / Error building trees. Use when commit or write-tree fails after a long hook run. Covers fs_usage diagnosis, Husky pre-commit bisection (skip lint first), manual read-tree repair, and this repo’s pre/post-lint index cleanup in .husky/pre-commit."
 ---
 
 # Git worktree index and commit repair
@@ -52,7 +52,7 @@ When the failure happens **during or right after** Husky, **bisect the hook** in
 
 **Interpretation:**
 
-- **Fails only when lint runs:** suspect concurrent index writers during the long ESLint pass, or phantom paths that appear mid-hook. The repo’s `.husky/pre-commit` includes a **post-lint** pass that drops staged paths whose blob OID is missing from the ODB — see the file for the current implementation.
+- **Fails only when lint runs:** suspect concurrent index writers during the long ESLint pass, or phantom paths that appear mid-hook. The repo’s `.husky/pre-commit` runs the same **drop missing-blob staged paths** pass **before and after** `npm run lint` so ESLint starts from a sane index and the index is cleaned again before Git finishes the commit — see the file for the current implementation.
 - **Fails even with the whole hook disabled:** suspect **missing git objects** (`git fsck`), not Husky.
 
 ### What does NOT work as a fix
@@ -61,7 +61,7 @@ When the failure happens **during or right after** Husky, **bisect the hook** in
 
 ### Repo-specific note (this repository)
 
-**Authority:** `.husky/pre-commit` in the repo. It currently includes (among other checks) **`npm run lint`**, optional **`lint:skills`**, version checks, and a **post-lint** loop that runs **`git rm --cached`** on staged paths whose blob is absent from the object database. Do not duplicate stale snippets from this skill — read the hook file when automating fixes.
+**Authority:** `.husky/pre-commit` in the repo. It currently includes (among other checks) **`npm run lint`**, optional **`lint:skills`**, version checks, and **`git rm --cached`** on staged paths whose blob is absent from the object database **immediately before and after** lint. Do not duplicate stale snippets from this skill — read the hook file when automating fixes.
 
 ## Manual repair (canonical)
 
