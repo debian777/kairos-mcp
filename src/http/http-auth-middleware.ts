@@ -217,7 +217,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  // codeql[js/user-controlled-bypass]: Bearer branch is an alternate auth path; token is still validated (or rejected) against issuer/audience when configured—it does not bypass auth.
+  // codeql[js/user-controlled-bypass]: Bearer is an alternate auth path; token is validated or rejected against configured issuer and audience.
   if (hasBearerReq) {
     if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
       structuredLogger.info(
@@ -284,6 +284,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // MCP client must receive 401 + WWW-Authenticate to show "Needs authentication" / Connect.
   // Redirect (302) would prevent discovery; always return 401 for /mcp.
   const isMcp = req.path === '/mcp';
+  // codeql[js/user-controlled-bypass]: Redirect only when method is GET and listed in node:http METHODS; any other verb gets 401 JSON.
   if (isRecognizedGetRequest(req) && !isMcp) {
     structuredLogger.info(`[auth] 302 ${req.method} ${req.path} redirect to login`);
     res.redirect(302, loginUrl(state, codeChallenge));

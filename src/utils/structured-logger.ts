@@ -52,11 +52,12 @@ if (AUDIT_LOG_FILE) {
   }
 }
 
-/** Sanitize string for safe logging and audit write: no control chars, newlines become space. Limits log injection. */
+/** Sanitize string for safe logging and audit write: neutralize line breaks first (CodeQL log-injection pattern), then other CTL. */
 function sanitizeLogMessage(s: string, maxLen = 32_768): string {
   if (typeof s !== 'string') return '';
-  const trimmed = s.slice(0, maxLen).replace(/[\r\n\t\x00-\x1f]/g, ' ');
-  return trimmed.replace(/\s+/g, ' ').trim() || '(empty)';
+  const clipped = s.slice(0, maxLen).replace(/\n|\r/g, ' ');
+  const noCtl = clipped.replace(/[\t\x00-\x1f]/g, ' ');
+  return noCtl.replace(/\s+/g, ' ').trim() || '(empty)';
 }
 
 type SafeAuditPrimitive = string | number | boolean | null;
