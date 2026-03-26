@@ -194,6 +194,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
   return {
     debug(message: string): void {
+      // Keep CR/LF stripping adjacent to the raw input so static analysis can see the sink sanitization.
       const safeDebugMessage = String(message).replace(/\n|\r/g, ' ');
       pinoInstance.debug(sanitizeLogMessage(safeDebugMessage));
     },
