@@ -3,31 +3,16 @@
  */
 
 import { Command } from 'commander';
-import { closeSync, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
 import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
+import { readMarkdownUploadFromFile } from '../upload-guards.js';
 
-/**
- * Open path read-only, require regular file, read UTF-8 from the same fd
- * (avoids path-based stat-then-read races; CodeQL js/file-system-race).
- */
 /** Directory batch skips `README.md` (human docs); single-file `train path/to/README.md` still works. */
 function isReadmeMarkdownFileName(name: string): boolean {
   return /^readme\.md$/i.test(name);
-}
-
-function readRegularFileUtf8(absPath: string): string {
-  const fd = openSync(absPath, 'r');
-  try {
-    if (!fstatSync(fd).isFile()) {
-      throw Object.assign(new Error('Path is not a regular file'), { code: 'ENOTREG' });
-    }
-    return readFileSync(fd, 'utf-8') as string;
-  } finally {
-    closeSync(fd);
-  }
 }
 
 function listMarkdownFiles(dir: string, recursive: boolean): string[] {
@@ -63,8 +48,12 @@ export function mintCommand(program: Command): void {
     .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
     .option('--force', 'Force update if a memory chain with the same label already exists')
     .option('--recursive', 'When path is a directory, include nested .md files')
+    .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
     .action(
-      async (target: string, options: { model?: string; force?: boolean; recursive?: boolean }) => {
+      async (
+        target: string,
+        options: { model?: string; force?: boolean; recursive?: boolean; allowSensitiveUpload?: boolean }
+      ) => {
         try {
           const abs = resolve(target);
           const st = statSync(abs, { throwIfNoEntry: false });
@@ -94,7 +83,7 @@ export function mintCommand(program: Command): void {
             for (const fp of files) {
               const rel = relative(abs, fp).replace(/\\/g, '/');
               try {
-                const markdown = readRegularFileUtf8(fp);
+                const markdown = readMarkdownUploadFromFile(fp, 'train', Boolean(options.allowSensitiveUpload));
                 const response = await client.train(markdown, trainOptions);
                 results.push({
                   path: rel,
@@ -119,7 +108,7 @@ export function mintCommand(program: Command): void {
             process.exit(1);
           }
 
-          const markdown = readRegularFileUtf8(abs);
+          const markdown = readMarkdownUploadFromFile(abs, 'train', Boolean(options.allowSensitiveUpload));
           const response = await client.train(markdown, trainOptions);
           writeJson(response);
         } catch (error) {

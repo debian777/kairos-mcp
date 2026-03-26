@@ -3,10 +3,10 @@
  */
 
 import { Command } from 'commander';
-import { readFileSync } from 'fs';
 import { ApiClient } from '../api-client.js';
 import { handleApiError } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
+import { readMarkdownUploadFromFile, type SafeMarkdownUpload } from '../upload-guards.js';
 
 export function updateCommand(program: Command): void {
     program
@@ -16,10 +16,14 @@ export function updateCommand(program: Command): void {
         .option('--file <file>', 'Path to markdown file to apply to all specified URIs')
         .option('--files <files...>', 'Paths to markdown files, one per URI (must match number of URIs)')
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
-        .action(async (uris: string[], options: { file?: string; files?: string[]; updates?: string }) => {
+        .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
+        .action(async (
+            uris: string[],
+            options: { file?: string; files?: string[]; updates?: string; allowSensitiveUpload?: boolean }
+        ) => {
             try {
                 const client = new ApiClient(undefined, !program.opts()['noBrowser']);
-                let markdownDoc: string[] | undefined;
+                let markdownDoc: SafeMarkdownUpload[] | undefined;
                 let updates: Record<string, any> | undefined;
 
                 if (options.files) {
@@ -29,10 +33,16 @@ export function updateCommand(program: Command): void {
                         process.exit(1);
                         return;
                     }
-                    markdownDoc = options.files.map(file => readFileSync(file, 'utf-8'));
+                    markdownDoc = options.files.map((file) =>
+                        readMarkdownUploadFromFile(file, 'tune', Boolean(options.allowSensitiveUpload))
+                    );
                 } else if (options.file) {
                     // Single file for all URIs
-                    const content = readFileSync(options.file, 'utf-8');
+                    const content = readMarkdownUploadFromFile(
+                        options.file,
+                        'tune',
+                        Boolean(options.allowSensitiveUpload)
+                    );
                     markdownDoc = uris.map(() => content);
                 } else if (options.updates) {
                     try {

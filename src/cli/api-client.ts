@@ -7,6 +7,7 @@ import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
+import { normalizeAndValidateApiBaseUrl, type SafeMarkdownUpload } from './upload-guards.js';
 import type { ActivateOutput } from '../tools/activate_schema.js';
 import type { ForwardOutput } from '../tools/forward_schema.js';
 import type { RewardOutput } from '../tools/reward_schema.js';
@@ -22,8 +23,8 @@ export class ApiClient {
     constructor(baseUrl?: string, openInBrowser?: boolean) {
         // Precedence: env, then parameter, then config file (sync URL only), then default. openInBrowser true = auto-login on 401 or no token
         const configUrl = getDefaultApiUrlFromFile();
-        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
-        this.baseUrl = this.baseUrl.replace(/\/$/, '');
+        const resolvedBaseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
+        this.baseUrl = normalizeAndValidateApiBaseUrl(resolvedBaseUrl);
         this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
     }
 
@@ -107,7 +108,7 @@ export class ApiClient {
     }
 
     async train(
-        markdown: string,
+        markdown: SafeMarkdownUpload,
         options?: { llmModelId?: string; force?: boolean },
         isRetryAfterLogin = false
     ): Promise<TrainOutput> {
@@ -159,7 +160,7 @@ export class ApiClient {
         return data as TrainOutput;
     }
 
-    async tune(uris: string[], markdownDoc?: string[], updates?: Record<string, unknown>): Promise<TuneOutput> {
+    async tune(uris: string[], markdownDoc?: SafeMarkdownUpload[], updates?: Record<string, unknown>): Promise<TuneOutput> {
         return this.request<TuneOutput>('/api/tune', {
             method: 'POST',
             body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),

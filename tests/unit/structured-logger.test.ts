@@ -6,6 +6,7 @@
 
 import { jest } from '@jest/globals';
 import {
+  buildAuditLine,
   sanitizeLogMessage,
   sanitizeBindingsForAudit,
   structuredLogger
@@ -68,10 +69,30 @@ describe('sanitizeBindingsForAudit', () => {
     expect(out).toEqual({ n: 42, b: true, nil: null });
   });
 
-  test('does not mutate Error instances (pass-through)', () => {
+  test('normalizes Error instances into safe objects', () => {
     const err = new Error('msg');
     const out = sanitizeBindingsForAudit({ e: err });
-    expect((out.e as Error).message).toBe('msg');
+    expect(out).toMatchObject({ e: { name: 'Error', message: 'msg' } });
+  });
+
+  test('normalizes arrays into bounded summaries', () => {
+    const out = sanitizeBindingsForAudit({ values: ['x\ny', 'second'] });
+    expect(out).toEqual({
+      values: { kind: 'array', item_count: 2, first_item: 'x y' }
+    });
+  });
+});
+
+describe('buildAuditLine', () => {
+  test('serializes only safe audit bindings', () => {
+    const line = buildAuditLine('info', 'safe message', {
+      category: 'audit.test',
+      details: { nested: 'x y' }
+    });
+    expect(line).toContain('"msg":"safe message"');
+    expect(line).toContain('"category":"audit.test"');
+    expect(line).toContain('"nested":"x y"');
+    expect(line.endsWith('\n')).toBe(true);
   });
 });
 

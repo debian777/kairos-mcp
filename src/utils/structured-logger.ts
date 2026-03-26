@@ -38,6 +38,10 @@ function getClientIp(req: Request): string {
 
 const baseLogger = getBaseLogger();
 let auditLogStream: WriteStream | null = null;
+const MAX_AUDIT_LINE_BYTES = 65_536;
+const MAX_AUDIT_DEPTH = 4;
+const MAX_AUDIT_KEYS = 40;
+const MAX_AUDIT_STRING_LEN = 2_048;
 
 if (AUDIT_LOG_FILE) {
   try {
@@ -54,39 +58,75 @@ function sanitizeLogMessage(s: string, maxLen = 32_768): string {
   return trimmed.replace(/\s+/g, ' ').trim() || '(empty)';
 }
 
-/** Sanitize bindings for audit file write: string values sanitized, total line size capped. */
-function sanitizeBindingsForAudit(bindings: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(bindings)) {
-    if (typeof v === 'string') out[k] = sanitizeLogMessage(v, 2048);
-    else if (v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Error)) {
-      out[k] = sanitizeBindingsForAudit(v as Record<string, unknown>);
-    } else {
-      out[k] = v;
+type SafeAuditPrimitive = string | number | boolean | null;
+interface SafeAuditRecord {
+  [key: string]: SafeAuditValue;
+}
+type SafeAuditValue = SafeAuditPrimitive | SafeAuditRecord;
+
+function toSafeAuditValue(value: unknown, depth = 0): SafeAuditValue {
+  if (depth > MAX_AUDIT_DEPTH) return '[max depth]';
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return sanitizeLogMessage(value, MAX_AUDIT_STRING_LEN);
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return sanitizeLogMessage(value.toString(), 128);
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Error) {
+    const out: SafeAuditRecord = {
+      name: sanitizeLogMessage(value.name || 'Error', 128),
+      message: sanitizeLogMessage(value.message, MAX_AUDIT_STRING_LEN)
+    };
+    if (typeof value.stack === 'string' && value.stack) {
+      out['stack'] = sanitizeLogMessage(value.stack, MAX_AUDIT_STRING_LEN);
     }
+    return out;
   }
-  return out;
+  if (Array.isArray(value)) {
+    const out: SafeAuditRecord = { kind: 'array', item_count: value.length };
+    if (value.length > 0) out['first_item'] = toSafeAuditValue(value[0], depth + 1);
+    return out;
+  }
+  if (typeof value === 'object') {
+    const out: SafeAuditRecord = {};
+    const entries = Object.entries(value as Record<string, unknown>);
+    const limit = Math.min(entries.length, MAX_AUDIT_KEYS);
+    for (let i = 0; i < limit; i++) {
+      const entry = entries[i];
+      if (!entry) continue;
+      const [k, v] = entry;
+      out[k] = toSafeAuditValue(v, depth + 1);
+    }
+    if (entries.length > MAX_AUDIT_KEYS) out['_omitted_key_count'] = entries.length - MAX_AUDIT_KEYS;
+    return out;
+  }
+  return sanitizeLogMessage(String(value), 256);
+}
+
+/** Convert arbitrary bindings to a safe audit-only shape before any file write. */
+function sanitizeBindingsForAudit(bindings: Record<string, unknown>): SafeAuditRecord {
+  const safe = toSafeAuditValue(bindings);
+  return (safe !== null && typeof safe === 'object' && !Array.isArray(safe)) ? safe as SafeAuditRecord : {};
 }
 
 /** Build audit line only from sanitized message and bindings + server-controlled fields (for CodeQL: no raw untrusted input). */
 function buildAuditLine(
   level: 'info' | 'warn' | 'error',
   safeMsg: string,
-  safeBindings: Record<string, unknown>
+  safeBindings: SafeAuditRecord
 ): string {
   const time = new Date().toISOString();
   return `${JSON.stringify({ time, level, msg: safeMsg, ...safeBindings })}\n`;
 }
 
-function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', message: string, bindings: Record<string, unknown>): void {
+function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', message: string, bindings: SafeAuditRecord): void {
   if (!auditLogStream) return;
   const category = typeof bindings['category'] === 'string' ? bindings['category'] : '';
   if (!category.startsWith('audit.')) return;
   try {
     const safeMsg = sanitizeLogMessage(message);
-    const safeBindings = sanitizeBindingsForAudit(bindings);
-    const line = buildAuditLine(level, safeMsg, safeBindings);
-    if (line.length <= 65_536) auditLogStream.write(line);
+    const line = buildAuditLine(level, safeMsg, bindings);
+    if (Buffer.byteLength(line, 'utf8') <= MAX_AUDIT_LINE_BYTES) auditLogStream.write(line);
   } catch {
     // Never fail request path because audit side-stream write fails.
   }
@@ -169,7 +209,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
-        const bindings = { category: 'info' };
+        const bindings = sanitizeBindingsForAudit({ category: 'info' });
         const safeMsg = sanitizeLogMessage(msgOrBindings);
         pinoInstance.info(bindings, safeMsg);
         maybeWriteAuditLine('info', safeMsg, bindings);
@@ -189,7 +229,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
     warn(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
-        const bindings = { category: 'warning' };
+        const bindings = sanitizeBindingsForAudit({ category: 'warning' });
         const safeMsg = sanitizeLogMessage(msgOrBindings);
         pinoInstance.warn(bindings, safeMsg);
         maybeWriteAuditLine('warn', safeMsg, bindings);
@@ -273,6 +313,14 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
 const structuredLogger = wrapPino(baseLogger);
 
-export { structuredLogger, structuredLogger as logger, httpLogger, getClientIp, sanitizeLogMessage, sanitizeBindingsForAudit };
+export {
+  structuredLogger,
+  structuredLogger as logger,
+  httpLogger,
+  getClientIp,
+  sanitizeLogMessage,
+  sanitizeBindingsForAudit,
+  buildAuditLine
+};
 export type { Request, Response };
 export type { Logger } from 'pino';

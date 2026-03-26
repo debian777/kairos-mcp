@@ -22,6 +22,16 @@ import {
   integrationReportSection,
   writeIntegrationReportFile
 } from './ai-mcp-integration-report-utils.mjs';
+import { buildAuthHeaders, loadIntegrationBearer } from './ai-mcp-integration-auth-utils.mjs';
+import {
+  buildActivateResponseProof,
+  buildForwardResponseProof,
+  buildRequestProof,
+  buildRewardResponseProof,
+  buildTrainResponseProof,
+  classifySolutionType,
+  classifyUriKind
+} from './ai-mcp-integration-proof-utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -50,26 +60,7 @@ function resolveRunId() {
 }
 const RUN_ID = resolveRunId();
 
-/** @returns {string | null} */
-function loadIntegrationBearer() {
-  const fromEnv = process.env.KAIROS_INTEGRATION_BEARER?.trim();
-  if (fromEnv) return fromEnv;
-  const authPath = path.join(ROOT, '.test-auth-env.dev.json');
-  try {
-    if (!fs.existsSync(authPath)) return null;
-    const parsed = JSON.parse(fs.readFileSync(authPath, 'utf8'));
-    const t = parsed?.bearerToken;
-    return typeof t === 'string' && t.length > 0 ? t : null;
-  } catch {
-    return null;
-  }
-}
-
-const INTEGRATION_BEARER = loadIntegrationBearer();
-
-function authHeaders() {
-  return INTEGRATION_BEARER ? { Authorization: `Bearer ${INTEGRATION_BEARER}` } : {};
-}
+const INTEGRATION_BEARER = loadIntegrationBearer(ROOT);
 
 const KAIROS_URI_REGEX = /kairos:\/\/(?:adapter|layer|mem)\/[a-f0-9-]+(?:\?execution_id=[a-f0-9-]+)?/gi;
 
@@ -137,7 +128,7 @@ async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force
   const url = `${baseUrl}/api/train/raw?llm_model_id=${encodeURIComponent(llmModelId)}&force=${force}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/markdown', ...authHeaders() },
+    headers: { 'Content-Type': 'text/markdown', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: markdown
   });
   const body = await res.text();
@@ -153,7 +144,7 @@ async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force
 async function activate(baseUrl, query) {
   const res = await fetch(`${baseUrl}/api/activate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: JSON.stringify({ query })
   });
   const data = await res.json();
@@ -163,7 +154,7 @@ async function activate(baseUrl, query) {
 async function forward(baseUrl, uri, solution) {
   const res = await fetch(`${baseUrl}/api/forward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: JSON.stringify(solution === undefined ? { uri } : { uri, solution })
   });
   const data = await res.json();
@@ -173,7 +164,7 @@ async function forward(baseUrl, uri, solution) {
 async function reward(baseUrl, uri, outcome = 'success', feedback = 'Integration run completed successfully.') {
   const res = await fetch(`${baseUrl}/api/reward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: JSON.stringify({ uri, outcome, feedback })
   });
   const data = await res.json();
@@ -203,8 +194,13 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   steps.push({
     title: 'Train',
     what: 'Stored adapter markdown via POST /api/train/raw.',
-    request: { body: '(raw markdown)', query: 'llm_model_id=ai-mcp-integration&force=true' },
-    response: trainRes.data
+    request: buildRequestProof('/api/train/raw', Boolean(INTEGRATION_BEARER), {
+      markdown_source: 'local_file',
+      markdown_bytes: Buffer.byteLength(markdown, 'utf8'),
+      llm_model_id: 'ai-mcp-integration',
+      force_update: true
+    }),
+    response: buildTrainResponseProof(trainRes.status, trainRes.data)
   });
 
   if (trainRes.status !== 200 || trainRes.data.error) {
@@ -222,9 +218,12 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   const activateRes = await activate(baseUrl, activationQuery);
   steps.push({
     title: 'Activate',
-    what: `Activated with query "${activationQuery}" to find the adapter.`,
-    request: { query: activationQuery },
-    response: activateRes.data
+    what: 'Activated to find the best matching adapter.',
+    request: buildRequestProof('/api/activate', Boolean(INTEGRATION_BEARER), {
+      query_source: 'markdown_heading',
+      query_bytes: Buffer.byteLength(activationQuery, 'utf8')
+    }),
+    response: buildActivateResponseProof(activateRes.status, activateRes.data)
   });
 
   const adapterUri = getFirstMatchUri(activateRes.data);
@@ -242,8 +241,11 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   steps.push({
     title: 'Forward (start)',
     what: 'Started adapter execution with the selected adapter URI.',
-    request: { uri: adapterUri },
-    response: forwardRes.data
+    request: buildRequestProof('/api/forward', Boolean(INTEGRATION_BEARER), {
+      uri_kind: classifyUriKind(adapterUri),
+      has_solution: false
+    }),
+    response: buildForwardResponseProof(forwardRes.status, forwardRes.data)
   });
 
   let stepIndex = 1;
@@ -256,9 +258,15 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
     const nextRes = await forward(baseUrl, layerUri, solution);
     steps.push({
       title: `Forward (layer ${stepIndex})`,
-      what: `Submitted a ${contract?.type || 'unknown'} solution for layer ${stepIndex}.`,
-      request: { uri: layerUri, solution },
-      response: nextRes.data
+      what: `Submitted a solution for layer ${stepIndex}.`,
+      request: buildRequestProof('/api/forward', Boolean(INTEGRATION_BEARER), {
+        uri_kind: classifyUriKind(layerUri),
+        has_solution: true,
+        solution_type: classifySolutionType(solution?.type),
+        has_nonce: typeof solution?.nonce === 'string',
+        has_proof_hash: typeof solution?.proof_hash === 'string'
+      }),
+      response: buildForwardResponseProof(nextRes.status, nextRes.data)
     });
     if (nextRes.data?.error_code) break;
     proofHashFromPrevious = nextRes.data?.proof_hash ?? proofHashFromPrevious;
@@ -272,8 +280,12 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
     steps.push({
       title: 'Reward',
       what: 'Finalized the adapter execution with reward.',
-      request: { uri: rewardUri, outcome: 'success', feedback: 'Integration run completed successfully.' },
-      response: rewardRes.data
+      request: buildRequestProof('/api/reward', Boolean(INTEGRATION_BEARER), {
+        uri_kind: classifyUriKind(rewardUri),
+        outcome: 'success',
+        feedback_bytes: Buffer.byteLength('Integration run completed successfully.', 'utf8')
+      }),
+      response: buildRewardResponseProof(rewardRes.status, rewardRes.data)
     });
   }
 
