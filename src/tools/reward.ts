@@ -2,7 +2,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
-import { applyRewardMetrics } from '../services/reward-metrics.js';
+import { applyRewardMetrics, type RewardMetricsResult } from '../services/reward-metrics.js';
 import { rewardInputSchema, rewardOutputSchema, type RewardInput, type RewardOutput } from './reward_schema.js';
 import { parseKairosUri } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
@@ -10,6 +10,15 @@ import { evaluateReward } from '../services/reward-evals.js';
 
 interface RegisterRewardOptions {
   toolName?: string;
+}
+
+function buildRewardPersistenceError(uri: string, error: unknown): Error {
+  const wrapped = new Error(
+    `Failed to record reward for ${uri}. No reward was stored. Retry the same reward call once reward storage is healthy.`,
+    { cause: error instanceof Error ? error : undefined }
+  );
+  wrapped.name = 'RewardPersistenceError';
+  return wrapped;
 }
 
 export async function executeReward(
@@ -39,7 +48,12 @@ export async function executeReward(
   if (evaluatorId) {
     rewardMetricsInput.evaluatorId = evaluatorId;
   }
-  const rewardMetricsResult = await applyRewardMetrics(qdrantService, rewardMetricsInput);
+  let rewardMetricsResult: RewardMetricsResult;
+  try {
+    rewardMetricsResult = await applyRewardMetrics(qdrantService, rewardMetricsInput);
+  } catch (error) {
+    throw buildRewardPersistenceError(input.uri, error);
+  }
 
   const ratedAt = new Date().toISOString();
   if (parsed.executionId) {

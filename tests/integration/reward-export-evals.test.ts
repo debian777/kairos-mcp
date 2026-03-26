@@ -85,6 +85,7 @@ describe('workflow eval harness: reward export readiness', () => {
     });
     const parsed = parseMcpJson(result, 'reward export eval reward');
     expect(parsed.total_rated).toBeGreaterThanOrEqual(1);
+    expect(parsed.total_failed).toBe(0);
   }
 
   async function exportFormat(

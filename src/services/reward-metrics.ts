@@ -35,7 +35,6 @@ export async function applyRewardMetrics(
   const uris = [uri];
   const results: RewardMetricsResult['results'] = [];
   let totalRated = 0;
-  let totalFailed = 0;
 
   logger.tool(
     'reward',
@@ -104,18 +103,13 @@ export async function applyRewardMetrics(
       totalRated++;
       logger.success('reward', `rated ${currentUri} with ${outcome} (${totalQualityBonus} bonus)`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      results.push({
-        uri: currentUri,
-        outcome,
-        quality_bonus: 0,
-        feedback: `Failed to rate ${currentUri}: ${errorMessage}`,
-        rated_at: new Date().toISOString()
-      });
-      totalFailed++;
       logger.error(`reward failed for ${currentUri}`, error);
+      throw new Error(
+        `Failed to persist reward metrics for ${currentUri}. No reward was stored.`,
+        { cause: error instanceof Error ? error : undefined }
+      );
     }
   }
 
-  return { results, total_rated: totalRated, total_failed: totalFailed };
+  return { results, total_rated: totalRated, total_failed: 0 };
 }

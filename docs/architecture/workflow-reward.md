@@ -66,6 +66,15 @@ After **`reward`**, the run is complete; you may answer the end user.
 ## Scenario: failure
 
 Use **`outcome: "failure"`** and explain what went wrong in **`feedback`**.
+This still records a reward row when the call succeeds. **`total_failed`**
+tracks reward write failures, not adapter outcomes.
+
+## Operational failures
+
+If KAIROS cannot persist the reward or propagate the quality update, the
+**`reward`** call fails instead of returning contradictory **`results`**
+and aggregate counters. Retry the same **`reward`** call for the same
+layer URI after the storage path is healthy.
 
 ## Export eligibility
 

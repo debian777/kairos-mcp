@@ -118,8 +118,8 @@ describe('v10-reward response schema', () => {
       const resultKeys = Object.keys(r).sort();
       expect(resultKeys).toEqual([...REWARD_RESULT_KEYS].sort());
 
-      expect(typeof parsed.total_rated).toBe('number');
-      expect(typeof parsed.total_failed).toBe('number');
+      expect(parsed.total_rated).toBe(parsed.results.length);
+      expect(parsed.total_failed).toBe(0);
     });
   });
 
@@ -140,10 +140,13 @@ describe('v10-reward response schema', () => {
 
     withRawOnFail({ call, result }, () => {
       expect(Array.isArray(parsed.results)).toBe(true);
+      expect(parsed.results.length).toBeGreaterThanOrEqual(1);
       const r = parsed.results[0];
       expect(r.outcome).toBe('failure');
       expect(r.evaluation_label).toBe('rejected');
       expect(Object.keys(r).sort()).toEqual([...REWARD_RESULT_KEYS].sort());
+      expect(parsed.total_rated).toBe(parsed.results.length);
+      expect(parsed.total_failed).toBe(0);
     });
   });
 });
