@@ -10,7 +10,11 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
 
 1. Realms: create minimal if missing, then always merge and PUT config from import/*.json (idempotent).
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
-3. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev realm (for tests).
+3. OIDC scope `openid` for dynamic registration: ensure a realm Client Scope named `openid`
+   exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
+4. Allowed client scopes (policies): whitelist client-scope templates for anonymous/authenticated
+   registration (includes `openid` and kairos-cli default templates).
+5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev realm (for tests).
 
 Identity providers (e.g. Google) are not in realm JSON; configure via configure-keycloak-google-idp.py.
 
@@ -37,6 +41,20 @@ from pathlib import Path
 
 CLIENT_REGISTRATION_POLICY_TYPE = "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy"
 TRUSTED_HOSTS_PROVIDER_ID = "trusted-hosts"
+# UI label "Allowed Client Scopes"; providerId is allowed-client-templates (Keycloak Admin API).
+ALLOWED_CLIENT_TEMPLATES_PROVIDER_ID = "allowed-client-templates"
+# Realm client-scope names permitted for OIDC dynamic registration. `openid` must be a real
+# Client Scope in the realm (ensure_openid_client_scope); OAuth scope "openid" maps to that name.
+# Other entries align with default scopes on kairos-cli.
+DYNAMIC_REGISTRATION_ALLOWED_CLIENT_SCOPES = [
+    "openid",
+    "basic",
+    "acr",
+    "web-origins",
+    "profile",
+    "roles",
+    "email",
+]
 REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),
     ("kairos-prod", "kairos-prod-realm.json"),
@@ -178,6 +196,80 @@ def create_realm_client(base_url: str, realm_name: str, client_payload: dict, to
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"Create client {client_payload.get('clientId', '?')} in {realm_name} failed: {e.code} {body}")
+
+
+def list_realm_client_scopes(base_url: str, realm_name: str, token: str) -> list[dict]:
+    """GET realm-defined client scopes (templates)."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"List client scopes {realm_name} failed: {e.code} {body}")
+
+
+def ensure_openid_client_scope(base_url: str, realm_name: str, token: str) -> None:
+    """
+    Keycloak maps OAuth scope 'openid' in DCR to a Client Scope named 'openid'. If that
+    template does not exist, the Allowed Client Scopes registration policy rejects the request
+    (mcp-remote, RFC 9728 metadata with scopes_supported containing openid).
+    """
+    scopes = list_realm_client_scopes(base_url, realm_name, token)
+    openid_row = next((s for s in scopes if s.get("name") == "openid"), None)
+    if not openid_row:
+        url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes"
+        payload = json.dumps({
+            "name": "openid",
+            "protocol": "openid-connect",
+            "attributes": {
+                "include.in.token.scope": "true",
+                "display.on.consent.screen": "false",
+            },
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, method="POST")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", "application/json")
+        try:
+            urllib.request.urlopen(req, timeout=15)
+        except urllib.error.HTTPError as e:
+            if e.code != 409:
+                body = e.read().decode() if e.fp else ""
+                sys.exit(f"Create client scope openid in {realm_name} failed: {e.code} {body}")
+        scopes = list_realm_client_scopes(base_url, realm_name, token)
+        openid_row = next((s for s in scopes if s.get("name") == "openid"), None)
+        if not openid_row:
+            sys.exit(f"Client scope openid missing in {realm_name} after create attempt")
+        print(f"  Created client scope 'openid' in {realm_name}")
+    else:
+        print(f"  Client scope 'openid' already present in {realm_name}")
+
+    scope_id = openid_row["id"]
+    opt_url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/default-optional-client-scopes"
+    req = urllib.request.Request(opt_url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            optional = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET default optional client scopes {realm_name} failed: {e.code} {body}")
+
+    if any(s.get("name") == "openid" for s in optional):
+        print(f"  'openid' already in default optional client scopes ({realm_name})")
+        return
+
+    add_url = f"{opt_url}/{scope_id}"
+    put_req = urllib.request.Request(add_url, data=b"", method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(put_req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Add openid to optional scopes {realm_name} failed: {e.code} {body}")
+    print(f"  Linked 'openid' to default optional client scopes ({realm_name})")
 
 
 def _merge_realm(current: dict, desired: dict) -> dict:
@@ -361,6 +453,41 @@ def ensure_trusted_hosts(
     config["client-uris-must-match"] = ["false"]
     update_component(base_url, realm, trusted["id"], {**trusted, "config": config}, token)
     print(f"  Trusted hosts {realm}: {trusted_hosts}")
+
+
+def ensure_allowed_client_templates(
+    base_url: str, realm: str, token: str
+) -> None:
+    """
+    Allow named realm client scopes for dynamic OIDC client registration.
+
+    Requires a Client Scope named `openid` (see ensure_openid_client_scope) so mcp-remote
+    and similar clients can register with OAuth scope `openid`.
+    """
+    parent_id = get_realm_id(base_url, realm, token)
+    components = get_components(
+        base_url, realm, token, parent_id, CLIENT_REGISTRATION_POLICY_TYPE
+    )
+    targets = [
+        c
+        for c in components
+        if c.get("providerId") == ALLOWED_CLIENT_TEMPLATES_PROVIDER_ID
+        and c.get("subType") in ("anonymous", "authenticated")
+    ]
+    if not targets:
+        print(
+            f"WARNING: No Allowed Client Scopes (allowed-client-templates) in {realm}; skip.",
+            file=sys.stderr,
+        )
+        return
+    allowed = list(DYNAMIC_REGISTRATION_ALLOWED_CLIENT_SCOPES)
+    for comp in targets:
+        config = dict(comp.get("config") or {})
+        config["allow-default-scopes"] = ["true"]
+        config["allowed-client-scopes"] = allowed
+        update_component(base_url, realm, comp["id"], {**comp, "config": config}, token)
+        sub = comp.get("subType") or "?"
+        print(f"  Allowed client templates ({sub}) {realm}: {allowed}")
 
 
 def get_user_id(base_url: str, realm: str, username: str, token: str) -> str | None:
@@ -603,11 +730,19 @@ def main() -> int:
         env_key = realm_name.replace("kairos-", "")
         ensure_trusted_hosts(base_url, realm_name, env_key, token)
 
-    # 3. Test user in dev only
+    # 3. Client Scope `openid` + realm optional defaults (DCR / mcp-remote)
+    for realm_name, _ in REALM_FILES:
+        ensure_openid_client_scope(base_url, realm_name, token)
+
+    # 4. Dynamic client registration: allowed client-scope templates
+    for realm_name, _ in REALM_FILES:
+        ensure_allowed_client_templates(base_url, realm_name, token)
+
+    # 5. Test user in dev only
     for realm_name in ("kairos-dev",):
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
 
-    # 4. Verify: dump from Keycloak and compare with import
+    # 6. Verify: dump from Keycloak and compare with import
     verify_errors = verify_realms_after_update(base_url, token, import_dir)
     if verify_errors:
         print("Verification failed (dump vs import):", file=sys.stderr)

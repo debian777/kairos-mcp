@@ -23,7 +23,9 @@ The script:
 
 1. **Realms:** creates minimal realm if missing, then merges and PUTs config from `scripts/keycloak/import/*.json` (idempotent; preserves existing clients/flows by id).
 2. **Trusted hosts:** set per realm (dev: 127.0.0.1 + Docker gateway; prod: app-prod).
-3. **Test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
+3. **Client Scope `openid`:** creates a realm Client Scope named `openid` (if missing), adds it to **default optional client scopes**, and allowlists it on **Allowed Client Scopes** registration policies. MCP clients such as `mcp-remote` register with OAuth `scope: openid` (from protected-resource metadata); without this named scope, Keycloak rejects dynamic client registration with *Not permitted to use specified clientScope*.
+4. **Allowed client templates:** sets anonymous/authenticated registration policy allow lists (includes `openid` plus templates aligned with `kairos-cli` defaults).
+5. **Test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
 
 Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
 
