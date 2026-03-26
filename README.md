@@ -68,10 +68,39 @@ The current codebase includes:
 
 ## Quick start
 
-### Minimal Docker stack (default)
+If your agent supports installable skills, start with the guided setup below.
+If not, use the manual Docker path that follows.
 
-The default Compose profile starts **Qdrant + app only**. This is the smallest
-working server deployment.
+### Guided setup with the `kairos-install` skill
+
+Use this when you want a guided first-time setup for Ollama, `.env`
+configuration, and the minimal local stack.
+
+1. Install the setup skill:
+
+   ```bash
+   npx skills add debian777/kairos-mcp --skill kairos-install
+   ```
+
+2. Ask your agent to run `kairos-install` for this repo. The skill confirms
+   each system-changing step before it installs Ollama, prepares `.env`, and
+   starts the minimal Docker stack.
+
+3. Verify the server:
+
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+4. Open the UI or MCP endpoint:
+   - UI: `http://localhost:3000/ui`
+   - MCP: `http://localhost:3000/mcp`
+   - Metrics: `http://localhost:9090/metrics`
+
+### Manual minimal Docker stack
+
+Use this when you want the smallest working server deployment without the
+guided skill. The default Compose profile starts **Qdrant + app only**.
 
 1. Copy the minimal env example:
 
@@ -153,7 +182,8 @@ The CLI talks to a running KAIROS server over HTTP. See [docs/CLI.md](docs/CLI.m
 
 ### Add KAIROS to your agent instructions
 
-This repo ships the **kairos** skill (run protocols: /k, /apply, /kairos). Use `--list` to see what the skills registry reports for this repo.
+This repo ships the **kairos** skill for running protocols. Use `--list`
+to see what the skills registry reports for this repo.
 
 If you want agents to use KAIROS consistently, add a short repo rule or
 instruction such as:
@@ -171,7 +201,7 @@ This repository currently ships three installable skills:
 | Skill | Purpose |
 |-------|---------|
 | `kairos` | Run KAIROS protocols |
-| `kairos-bundle` | Export and import protocol bundles |
+| `kairos-bug-report` | Capture structured MCP bug reports in `reports/` |
 | `kairos-install` | First-time local setup guidance |
 
 Install all shipped skills:

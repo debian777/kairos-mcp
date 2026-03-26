@@ -23,7 +23,7 @@ skills/
 ├── README.md              # How to use our skills
 ├── SKILLS.md              # This file — references and structure
 ├── kairos/                # Everyday: run protocols
-├── kairos-bundle/         # Occasional: export/import bundles
+├── kairos-bug-report/     # Occasional: capture MCP bug reports
 └── .system/               # One-time / system skills (CLI discovery)
     └── kairos-install/
 ```

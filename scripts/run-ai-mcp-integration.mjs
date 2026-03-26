@@ -8,6 +8,11 @@
  *
  * Usage: node scripts/run-ai-mcp-integration.mjs
  * Env:   KAIROS_BASE_URL (default http://localhost:3300), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
+ *
+ * Auth (when the dev server has Keycloak / AUTH_ENABLED): same bearer as Jest integration tests —
+ * either `.test-auth-env.dev.json` in the repo root (written by globalSetup when you run
+ * AUTH_ENABLED=true npm run dev:test after deploy), or override with env KAIROS_INTEGRATION_BEARER
+ * (raw JWT string, no Bearer prefix).
  */
 
 import fs from 'fs';
@@ -44,6 +49,27 @@ function resolveRunId() {
   return fromEnv;
 }
 const RUN_ID = resolveRunId();
+
+/** @returns {string | null} */
+function loadIntegrationBearer() {
+  const fromEnv = process.env.KAIROS_INTEGRATION_BEARER?.trim();
+  if (fromEnv) return fromEnv;
+  const authPath = path.join(ROOT, '.test-auth-env.dev.json');
+  try {
+    if (!fs.existsSync(authPath)) return null;
+    const parsed = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+    const t = parsed?.bearerToken;
+    return typeof t === 'string' && t.length > 0 ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+const INTEGRATION_BEARER = loadIntegrationBearer();
+
+function authHeaders() {
+  return INTEGRATION_BEARER ? { Authorization: `Bearer ${INTEGRATION_BEARER}` } : {};
+}
 
 const KAIROS_URI_REGEX = /kairos:\/\/(?:adapter|layer|mem)\/[a-f0-9-]+(?:\?execution_id=[a-f0-9-]+)?/gi;
 
@@ -111,7 +137,7 @@ async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force
   const url = `${baseUrl}/api/train/raw?llm_model_id=${encodeURIComponent(llmModelId)}&force=${force}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/markdown' },
+    headers: { 'Content-Type': 'text/markdown', ...authHeaders() },
     body: markdown
   });
   const body = await res.text();
@@ -127,7 +153,7 @@ async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force
 async function activate(baseUrl, query) {
   const res = await fetch(`${baseUrl}/api/activate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ query })
   });
   const data = await res.json();
@@ -137,7 +163,7 @@ async function activate(baseUrl, query) {
 async function forward(baseUrl, uri, solution) {
   const res = await fetch(`${baseUrl}/api/forward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(solution === undefined ? { uri } : { uri, solution })
   });
   const data = await res.json();
@@ -147,7 +173,7 @@ async function forward(baseUrl, uri, solution) {
 async function reward(baseUrl, uri, outcome = 'success', feedback = 'Integration run completed successfully.') {
   const res = await fetch(`${baseUrl}/api/reward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ uri, outcome, feedback })
   });
   const data = await res.json();
@@ -280,6 +306,14 @@ function listProtocolFiles() {
 
 async function main() {
   console.log(`KAIROS_BASE_URL=${BASE_URL} RUN_ID=${RUN_ID}`);
+  if (INTEGRATION_BEARER) {
+    const src = process.env.KAIROS_INTEGRATION_BEARER?.trim() ? 'KAIROS_INTEGRATION_BEARER' : '.test-auth-env.dev.json';
+    console.log(`Auth: Bearer from ${src}`);
+  } else {
+    console.warn(
+      'Auth: no bearer token. With AUTH_ENABLED, use .test-auth-env.dev.json (e.g. AUTH_ENABLED=true npm run dev:test after deploy) or set KAIROS_INTEGRATION_BEARER.'
+    );
+  }
   const protocols = listProtocolFiles();
   console.log(`Protocols: ${protocols.map((p) => p.name).join(', ')}`);
 

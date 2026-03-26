@@ -48,45 +48,29 @@ In directory-batch mode, the CLI skips files whose basename is exactly
 want to mint a `README.md` file, pass that file path explicitly instead of a
 directory.
 
-## Export/import with the `kairos-bundle` skill script
+## Export from a running server
 
-The repo also ships `skills/kairos-bundle/scripts/kairos-bundle.py`.
+Use `kairos export` or the MCP `export` tool to save current server
+content before curating a bundle in Git.
 
-That script uses:
+```bash
+kairos export kairos://adapter/<uuid>
+kairos export kairos://layer/<uuid> --format reward_jsonl --output json
+```
 
-- `KAIROS_TOKEN` for Bearer auth
-- optional `KAIROS_API_URL` (defaults to `http://localhost:3000`)
-
-### Export
-
-`export`:
-
-- calls `POST /api/spaces`
-- optionally filters by one human-readable space name
-- dumps each chain with `protocol: true`
-- writes one `.md` file per exported protocol into `--dir`
-
-### Import
-
-`import`:
-
-- reads `.md` files from `--dir`
-- stores them through `POST /api/train/raw`
-- supports `--force`
-- does **not** recurse into subdirectories
-
-For nested directory trees, prefer the CLI’s `kairos train --recursive`.
+`export` works one adapter or layer URI at a time. If you want a
+reviewable bundle, export the specific protocols you need and place the
+resulting markdown files in a directory that follows the layout above.
 
 ## Practical guidance
 
-- Use the **CLI** when your bundle is already a nested directory tree and you
-  want recursive import.
-- Use the **bundle script/skill** when you want a simple export/import workflow
-  built around Bearer auth and a single bundle directory.
+- Use `kairos train --recursive` when your bundle is already a nested
+  directory tree and you want recursive import.
+- Use `kairos export` or the MCP `export` tool when you need current
+  server content before curating a bundle in Git.
 
 ## Caveats
 
 - Only the exact basename `README.md` is skipped in CLI directory-batch mode.
-- The bundle script import path is non-recursive.
-- Exported filenames from the bundle script are generated from protocol title +
-  chain ID prefix, so they may not match your original source tree layout.
+- `export` works one URI at a time; it does not recreate a directory
+  tree for you.
