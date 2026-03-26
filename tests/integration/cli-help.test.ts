@@ -1,4 +1,3 @@
-import { describe, expect, test } from '@jest/globals';
 import { CLI_PATH, execAsync } from './cli-commands-shared.js';
 
 describe('CLI usage help', () => {
