@@ -10,7 +10,7 @@ function layerIdFromUri(uri: string): string {
   return base.split('/').pop() ?? '';
 }
 
-describe('v10-forward (open execution) response schema', () => {
+describe('v4-forward first-call response schema', () => {
   let mcpConnection;
 
   // createMcpConnection health poll can run up to 60s; Jest default hook timeout is too low
@@ -29,21 +29,21 @@ describe('v10-forward (open execution) response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
-    const parsed = parseMcpJson(storeResult, 'v10-forward mint');
+    const parsed = parseMcpJson(storeResult, 'v4-forward first-call mint');
     expect(parsed.status).toBe('stored');
     return parsed.items as Array<{ uri: string; adapter_uri: string }>;
   }
 
   test('multi-step: must_obey true, contract, current_layer, next_action references forward', async () => {
     const ts = Date.now();
-    const items = await trainTwoStepProtocol(`V2Begin Multi ${ts}`);
+    const items = await trainTwoStepProtocol(`V4ForwardFirstCall Multi ${ts}`);
     const adapterUri = items[0].adapter_uri;
 
     const call = { name: 'forward', arguments: { uri: adapterUri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-forward');
+    const parsed = parseMcpJson(result, 'v4-forward first-call');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
@@ -65,13 +65,13 @@ describe('v10-forward (open execution) response schema', () => {
 
   test('opening with second layer URI starts execution at that layer (no silent redirect to step 1)', async () => {
     const ts = Date.now();
-    const items = await trainTwoStepProtocol(`V2Begin Redirect ${ts}`);
+    const items = await trainTwoStepProtocol(`V4ForwardFirstCall Redirect ${ts}`);
     const secondUri = items[1].uri;
     const firstLayerId = layerIdFromUri(items[0].uri);
 
     const call = { name: 'forward', arguments: { uri: secondUri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-forward second layer');
+    const parsed = parseMcpJson(result, 'v4-forward first-call second layer');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
@@ -85,7 +85,7 @@ describe('v10-forward (open execution) response schema', () => {
   test('refining protocol: forward with refine adapter returns comment contract', async () => {
     const call = { name: 'forward', arguments: { uri: REFINING_ADAPTER_URI } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-forward refining');
+    const parsed = parseMcpJson(result, 'v4-forward first-call refining');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
@@ -106,7 +106,7 @@ describe('v10-forward (open execution) response schema', () => {
       name: 'forward',
       arguments: { uri: REFINING_ADAPTER_URI }
     });
-    const beginPayload = parseMcpJson(beginResult, 'v10-forward refine step1');
+    const beginPayload = parseMcpJson(beginResult, 'v4-forward first-call refine step1');
     const layerUri = beginPayload.current_layer.uri as string;
     const nonce = beginPayload.contract?.nonce;
     const proofHash = beginPayload.contract?.proof_hash;
@@ -123,7 +123,7 @@ describe('v10-forward (open execution) response schema', () => {
         }
       }
     });
-    const nextPayload = parseMcpJson(nextResult, 'v10-forward refine step2');
+    const nextPayload = parseMcpJson(nextResult, 'v4-forward first-call refine step2');
 
     withRawOnFail({ beginResult, nextResult }, () => {
       expect(nextPayload.error_code).toBeUndefined();
@@ -135,10 +135,10 @@ describe('v10-forward (open execution) response schema', () => {
 
   test('single-step adapter: next_action directs to forward or reward', async () => {
     const ts = Date.now();
-    const doc = `# V2Begin Single ${ts}
+    const doc = `# V4ForwardFirstCall Single ${ts}
 
 ## Activation Patterns
-Run when user says "v2 begin single".
+Run when user says "v4 forward first call single".
 
 ## Only Step
 Do the thing.
@@ -151,14 +151,14 @@ Do the thing.
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v2-begin', force_update: true }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
-    const stored = parseMcpJson(storeResult, 'v10-forward single mint');
+    const stored = parseMcpJson(storeResult, 'v4-forward first-call single mint');
     const uri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;
 
     const call = { name: 'forward', arguments: { uri } };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-forward single');
+    const parsed = parseMcpJson(result, 'v4-forward first-call single');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);

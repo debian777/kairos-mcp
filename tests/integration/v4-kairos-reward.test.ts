@@ -23,7 +23,7 @@ const REWARD_RESULT_KEYS = [
   'rated_at'
 ] as const;
 
-describe('v10-reward response schema', () => {
+describe('v4-reward response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -42,9 +42,9 @@ describe('v10-reward response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v2-attest', force_update: true }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-reward', force_update: true }
     });
-    const stored = parseMcpJson(storeResult, 'v10-reward train');
+    const stored = parseMcpJson(storeResult, 'v4-reward train');
     expect(stored.status).toBe('stored');
     const items = stored.items as Array<{ adapter_uri: string }>;
 
@@ -52,7 +52,7 @@ describe('v10-reward response schema', () => {
       name: 'forward',
       arguments: { uri: items[0].adapter_uri }
     });
-    let payload = parseMcpJson(open, 'v10-reward open');
+    let payload = parseMcpJson(open, 'v4-reward open');
     let layerUri = payload.current_layer.uri as string;
     let nonce = payload.contract?.nonce;
     let proofHash = payload.contract?.proof_hash || payload.contract?.genesis_hash;
@@ -70,7 +70,7 @@ describe('v10-reward response schema', () => {
           }
         }
       });
-      payload = parseMcpJson(result, `v10-reward step${i + 1}`);
+      payload = parseMcpJson(result, `v4-reward step${i + 1}`);
       if (i === 0) {
         layerUri = payload.current_layer.uri as string;
         nonce = payload.contract?.nonce;
@@ -85,7 +85,7 @@ describe('v10-reward response schema', () => {
 
   test('success reward: returns results array', async () => {
     const ts = Date.now();
-    const { lastUri } = await trainAndWalkToLastLayer(`V2Reward Success ${ts}`);
+    const { lastUri } = await trainAndWalkToLastLayer(`V4Reward Success ${ts}`);
 
     const call = {
       name: 'reward',
@@ -96,7 +96,7 @@ describe('v10-reward response schema', () => {
       }
     };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-reward success');
+    const parsed = parseMcpJson(result, 'v4-reward success');
 
     withRawOnFail({ call, result }, () => {
       expect(Array.isArray(parsed.results)).toBe(true);
@@ -120,12 +120,12 @@ describe('v10-reward response schema', () => {
 
       expect(parsed.total_rated).toBe(parsed.results.length);
       expect(parsed.total_failed).toBe(0);
-    });
+    }, 'v4-reward success');
   });
 
   test('failure reward', async () => {
     const ts = Date.now();
-    const { lastUri } = await trainAndWalkToLastLayer(`V2Reward Failure ${ts}`);
+    const { lastUri } = await trainAndWalkToLastLayer(`V4Reward Failure ${ts}`);
 
     const call = {
       name: 'reward',
@@ -136,7 +136,7 @@ describe('v10-reward response schema', () => {
       }
     };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-reward failure');
+    const parsed = parseMcpJson(result, 'v4-reward failure');
 
     withRawOnFail({ call, result }, () => {
       expect(Array.isArray(parsed.results)).toBe(true);
@@ -147,6 +147,6 @@ describe('v10-reward response schema', () => {
       expect(Object.keys(r).sort()).toEqual([...REWARD_RESULT_KEYS].sort());
       expect(parsed.total_rated).toBe(parsed.results.length);
       expect(parsed.total_failed).toBe(0);
-    });
+    }, 'v4-reward failure');
   });
 });

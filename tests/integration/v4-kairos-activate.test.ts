@@ -9,7 +9,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
 
-describe('v10-activate unified response schema', () => {
+describe('v4-activate unified response schema', () => {
   let mcpConnection;
 
   function expectConfidenceMessageWithinBounds(message: string) {
@@ -32,20 +32,20 @@ describe('v10-activate unified response schema', () => {
     if (spaceId) args.space_id = spaceId;
     const call = { name: 'activate', arguments: args };
     const result = await mcpConnection.client.callTool(call);
-    return { call, result, parsed: parseMcpJson(result, 'v10-activate') };
+    return { call, result, parsed: parseMcpJson(result, 'v4-activate') };
   }
 
   async function trainProtocol(title: string) {
     const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: content, llm_model_id: 'test-v2-search', force_update: true }
+      arguments: { markdown_doc: content, llm_model_id: 'test-v4-activate', force_update: true }
     });
   }
 
   test('Create New KAIROS adapter: activate returns choices', async () => {
     const ts = Date.now();
-    const title = `V2SearchSingle ${ts}`;
+    const title = `V4ActivateSingle ${ts}`;
     await trainProtocol(title);
 
     // Allow Qdrant indexing to complete
@@ -108,7 +108,7 @@ describe('v10-activate unified response schema', () => {
 
   test('no matches: must_obey true, creation adapter with role create', async () => {
     const ts = Date.now();
-    const gibberish = `XyZ123GarbageV2Test${ts}NoOneSearchesThis`;
+    const gibberish = `XyZ123GarbageV4Test${ts}NoOneSearchesThis`;
 
     const { call, result, parsed } = await activateQuery(gibberish);
 
@@ -142,7 +142,7 @@ describe('v10-activate unified response schema', () => {
 
   test('multiple matches: refine and create choices have correct URI and next_action', async () => {
     const ts = Date.now();
-    const token = `V2RefineMulti${ts}`;
+    const token = `V4ActivateMulti${ts}`;
     await trainProtocol(`${token} Alpha`);
     await trainProtocol(`${token} Beta`);
     let parsed: ReturnType<typeof parseMcpJson>;
@@ -183,7 +183,7 @@ describe('v10-activate unified response schema', () => {
 
   test('every choice has uri, label, adapter_name, activation_score, role, tags', async () => {
     const ts = Date.now();
-    const title = `V2SearchFields ${ts}`;
+    const title = `V4ActivateFields ${ts}`;
     await trainProtocol(title);
 
     await new Promise((r) => setTimeout(r, 2000));

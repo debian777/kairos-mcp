@@ -25,7 +25,7 @@ async function getPointPayload(pointId: string): Promise<Record<string, unknown>
   }
 }
 
-describe('v10-forward continuation response schema', () => {
+describe('v4-forward continuation response schema', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -44,23 +44,23 @@ describe('v10-forward continuation response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v2-next', force_update: true }
+      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-continue', force_update: true }
     });
-    const parsed = parseMcpJson(storeResult, 'v10-forward-continue mint');
+    const parsed = parseMcpJson(storeResult, 'v4-forward-continue mint');
     expect(parsed.status).toBe('stored');
     return parsed.items as Array<{ uri: string; adapter_uri: string; layer_uuid: string }>;
   }
 
   test('continue: proof_hash naming, next_action with layer URI, contract on next layer', async () => {
     const ts = Date.now();
-    const items = await trainThreeStepProtocol(`V2Next Continue ${ts}`);
+    const items = await trainThreeStepProtocol(`V4ForwardContinue ${ts}`);
     const secondLayerId = layerIdFromUri(items[1].uri);
 
     const open = await mcpConnection.client.callTool({
       name: 'forward',
       arguments: { uri: items[0].adapter_uri }
     });
-    const openPayload = parseMcpJson(open, 'v10-forward open');
+    const openPayload = parseMcpJson(open, 'v4-forward open');
     const c0 = openPayload.contract;
     const nonce = c0?.nonce;
     const proofHash = c0?.proof_hash || c0?.genesis_hash;
@@ -78,7 +78,7 @@ describe('v10-forward continuation response schema', () => {
       }
     };
     const result = await mcpConnection.client.callTool(call);
-    const parsed = parseMcpJson(result, 'v10-forward continue');
+    const parsed = parseMcpJson(result, 'v4-forward continue');
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
@@ -112,14 +112,14 @@ describe('v10-forward continuation response schema', () => {
 
   test('continue: current layer contract proof_hash is accepted on the next forward call', async () => {
     const ts = Date.now();
-    const items = await trainThreeStepProtocol(`V2Next Contract ProofHash ${ts}`);
+    const items = await trainThreeStepProtocol(`V4Forward Contract ProofHash ${ts}`);
     const thirdLayerId = layerIdFromUri(items[2].uri);
 
     const openResult = await mcpConnection.client.callTool({
       name: 'forward',
       arguments: { uri: items[0].adapter_uri }
     });
-    const openPayload = parseMcpJson(openResult, 'v10-forward contract-proof-hash open');
+    const openPayload = parseMcpJson(openResult, 'v4-forward contract-proof-hash open');
     const firstProofHash = openPayload.contract?.proof_hash || openPayload.contract?.genesis_hash;
 
     expect(typeof firstProofHash).toBe('string');
@@ -136,7 +136,7 @@ describe('v10-forward continuation response schema', () => {
         }
       }
     });
-    const step2Payload = parseMcpJson(step2Result, 'v10-forward contract-proof-hash step2');
+    const step2Payload = parseMcpJson(step2Result, 'v4-forward contract-proof-hash step2');
     const step2ContractProofHash = step2Payload.contract?.proof_hash;
 
     withRawOnFail({ step2Result, step2Payload }, () => {
@@ -156,7 +156,7 @@ describe('v10-forward continuation response schema', () => {
         }
       }
     });
-    const step3Payload = parseMcpJson(step3Result, 'v10-forward contract-proof-hash step3');
+    const step3Payload = parseMcpJson(step3Result, 'v4-forward contract-proof-hash step3');
 
     withRawOnFail({ step3Result, step3Payload }, () => {
       expect(step3Payload.error_code).toBeUndefined();
@@ -166,13 +166,13 @@ describe('v10-forward continuation response schema', () => {
 
   test('completed (last step): next_action directs to reward', async () => {
     const ts = Date.now();
-    const items = await trainThreeStepProtocol(`V2Next Completed ${ts}`);
+    const items = await trainThreeStepProtocol(`V4Forward Completed ${ts}`);
 
     const openResult = await mcpConnection.client.callTool({
       name: 'forward',
       arguments: { uri: items[0].adapter_uri }
     });
-    let payload = parseMcpJson(openResult, 'v10-forward step0');
+    let payload = parseMcpJson(openResult, 'v4-forward step0');
     let layerUri = payload.current_layer.uri as string;
     let nonce = payload.contract?.nonce;
     let proofHash = payload.contract?.proof_hash || payload.contract?.genesis_hash;
@@ -191,7 +191,7 @@ describe('v10-forward continuation response schema', () => {
           }
         }
       });
-      payload = parseMcpJson(result, `v10-forward completed-${i + 1}`);
+      payload = parseMcpJson(result, `v4-forward completed-${i + 1}`);
       if (i < 2) {
         layerUri = payload.current_layer.uri as string;
         nonce = payload.contract?.nonce;
