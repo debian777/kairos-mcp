@@ -1,35 +1,47 @@
-export interface ChainInfo {
-  id: string;                      // Stable chain identifier (e.g., head UUID)
-  label: string;                   // Title of the chain (H1) when part of a header-sliced document
-  step_index: number;              // 1-based step index in the chain
-  step_count: number;              // Total number of steps in the chain
-  protocol_version?: string;       // Optional semver from frontmatter or kairos_mint (for agent comparison)
+export interface AdapterInfo {
+  id: string; // Stable adapter identifier (typically the head layer UUID)
+  name: string; // Adapter title (H1)
+  layer_index: number; // 1-based layer index in the adapter
+  layer_count: number; // Total number of layers in the adapter
+  protocol_version?: string; // Optional semver carried from frontmatter/train input
+  activation_patterns?: string[];
 }
 
-export type ProofOfWorkType = 'shell' | 'mcp' | 'user_input' | 'comment';
+export interface TensorOutputSpec {
+  name: string;
+  type: string;
+  min_length?: number;
+  max_length?: number;
+  min_items?: number;
+  max_items?: number;
+}
 
-export interface ProofOfWorkDefinition {
-  type?: ProofOfWorkType;  // Optional for backward compatibility, defaults to 'shell'
-  // Shell-specific fields (backward compatible)
+export interface TensorContractDetails {
+  required_inputs: string[];
+  output: TensorOutputSpec;
+  merge?: string;
+  condition?: string;
+}
+
+export type InferenceContractType = 'tensor' | 'shell' | 'mcp' | 'user_input' | 'comment';
+
+export interface InferenceContractDefinition {
+  type?: InferenceContractType;
+  required: boolean;
+  // Shell-specific convenience fields retained for older internal helpers.
   cmd?: string;
   timeout_seconds?: number;
-  required: boolean;
-  // Type-specific fields
   shell?: {
     cmd: string;
     timeout_seconds: number;
-    /** Optional; default bash -c when omitted. */
     interpreter?: string;
-    /** Interpreter-specific flags (do not duplicate auto-injected -c / -e). */
     flags?: string[];
-    /** Positional args after script body (e.g. bash -- "$1"). */
     args?: string[];
-    /** Working directory for execution (executor resolves $KAIROS_WORK_DIR, paths). */
     workdir?: string;
   };
   mcp?: {
     tool_name: string;
-    expected_result?: any;
+    expected_result?: unknown;
   };
   user_input?: {
     prompt?: string;
@@ -37,19 +49,62 @@ export interface ProofOfWorkDefinition {
   comment?: {
     min_length?: number;
   };
+  tensor?: TensorContractDetails;
+}
+
+export interface TensorValue {
+  name: string;
+  value: unknown;
+}
+
+export interface RewardRecord {
+  outcome: 'success' | 'failure';
+  score?: number;
+  signed_score?: number;
+  quality_bonus?: number;
+  feedback?: string;
+  rater?: string;
+  rubric_version?: string;
+  llm_model_id?: string;
+  grader_kind?: 'human' | 'model' | 'unknown';
+  evaluation_label?: 'gold' | 'silver' | 'bronze' | 'rejected';
+  exportable_for_sft?: boolean;
+  exportable_for_preference?: boolean;
+  sft_blockers?: string[];
+  preference_blockers?: string[];
+  rated_at: string;
+}
+
+export interface ExecutionTrace {
+  execution_id: string;
+  adapter_uri: string;
+  layer_uri: string;
+  layer_index: number;
+  created_at: string;
+  activation_query?: string;
+  layer_instructions?: string;
+  tensor_in: Record<string, unknown>;
+  tensor_out?: TensorValue;
+  trace?: string;
+  raw_solution?: unknown;
+  reward?: RewardRecord;
+  merge_depth?: number;
 }
 
 export interface Memory {
   memory_uuid: string;
+  /** Qdrant payload space when present (export / adapter scroll scoping). */
+  space_id?: string;
   label: string;
+  slug?: string;
   tags: string[];
   text: string;
   llm_model_id: string;
   created_at: string;
-  chain?: ChainInfo;               // Memory chain metadata (formerly protocol)
-  proof_of_work?: ProofOfWorkDefinition;
-  /** Qdrant payload space_id when present; used to scope sibling chain scrolls to spaces we already read from. */
-  space_id?: string;
-  /** Qdrant payload: exact routing key for kairos_begin(key). */
-  slug?: string;
+  adapter?: AdapterInfo;
+  inference_contract?: InferenceContractDefinition;
 }
+
+// Transitional alias kept to reduce churn while the internal codebase moves to adapter terminology.
+export type ProofOfWorkType = Exclude<InferenceContractType, 'tensor'>;
+export type ProofOfWorkDefinition = InferenceContractDefinition;

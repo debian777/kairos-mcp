@@ -3,6 +3,7 @@
  * Run with REDIS_URL unset or empty to use the memory backend without Redis.
  */
 
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MemoryStore } from '../../src/services/memory-store.js';
 import { KAIROS_APP_SPACE_ID } from '../../src/config.js';
 import { runWithSpaceContext } from '../../src/utils/tenant-context.js';

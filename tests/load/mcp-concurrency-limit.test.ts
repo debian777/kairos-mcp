@@ -43,13 +43,13 @@ function postMcp(body: object, timeoutMs?: number): Promise<{ status: number; he
   }));
 }
 
-/** Payload that triggers kairos_search (embedding + Qdrant) so request holds the slot longer. */
+/** Payload that triggers activate (embedding + Qdrant) so request holds the slot longer. */
 function searchPayload(id: number): object {
   return {
     jsonrpc: '2.0',
     id,
     method: 'tools/call',
-    params: { name: 'kairos_search', arguments: { query: 'load test concurrency' } }
+    params: { name: 'activate', arguments: { query: 'load test concurrency' } }
   };
 }
 

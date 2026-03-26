@@ -1,6 +1,6 @@
 # Example: Shell challenge
 
-Short protocol: one real step plus a final verification step. Run a command to prove completion. Ready to mint with `kairos_mint`.
+Short protocol: one real step plus a final verification step. Run a command to prove completion. Ready to mint with `train`.
 
 ## Natural Language Triggers
 
@@ -12,7 +12,7 @@ Execute the project test suite. Success means the command exits with code 0.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "shell",
     "shell": {
       "cmd": "npm test",

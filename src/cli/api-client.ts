@@ -7,13 +7,14 @@ import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
-import type { SearchOutput } from '../tools/kairos_search_schema.js';
-import type { BeginOutput } from '../tools/kairos_begin.js';
-import type { NextOutput } from '../tools/kairos_next.js';
-import type { AttestOutput } from '../tools/kairos_attest_schema.js';
-import type { MintOutput } from '../tools/kairos_mint_schema.js';
-import type { UpdateOutput } from '../tools/kairos_update_schema.js';
-import type { DeleteOutput } from '../tools/kairos_delete_schema.js';
+import { normalizeAndValidateApiBaseUrl, type SafeMarkdownUpload } from './upload-guards.js';
+import type { ActivateOutput } from '../tools/activate_schema.js';
+import type { ForwardOutput } from '../tools/forward_schema.js';
+import type { RewardOutput } from '../tools/reward_schema.js';
+import type { TrainOutput } from '../tools/train_schema.js';
+import type { TuneOutput } from '../tools/tune_schema.js';
+import type { ExportOutput } from '../tools/export_schema.js';
+import type { DeleteOutput } from '../tools/delete_schema.js';
 
 export class ApiClient {
     private baseUrl: string;
@@ -22,22 +23,28 @@ export class ApiClient {
     constructor(baseUrl?: string, openInBrowser?: boolean) {
         // Precedence: env, then parameter, then config file (sync URL only), then default. openInBrowser true = auto-login on 401 or no token
         const configUrl = getDefaultApiUrlFromFile();
-        this.baseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
-        this.baseUrl = this.baseUrl.replace(/\/$/, '');
+        const resolvedBaseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
+        this.baseUrl = normalizeAndValidateApiBaseUrl(resolvedBaseUrl);
         this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
+    }
+
+    private async sleep(ms: number): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     private async request<T>(
         endpoint: string,
         options: RequestInit = {},
-        isRetryAfterLogin = false
+        isRetryAfterLogin = false,
+        preLoginIfTokenMissing = true,
+        rateLimitRetryCount = 0
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
         let bearer = (await readConfig(this.baseUrl)).bearerToken;
-        if (!bearer && this.openInBrowser && !isRetryAfterLogin) {
+        if (!bearer && preLoginIfTokenMissing && this.openInBrowser && !isRetryAfterLogin) {
             const ok = await loginWithBrowser(this.baseUrl);
             if (ok) return this.request(endpoint, options, true);
         }
@@ -67,6 +74,15 @@ export class ApiClient {
         }
         clearTimeout(timeoutId);
 
+        if (response.status === 429 && rateLimitRetryCount < 2) {
+            const retryAfterSeconds = Number(response.headers.get('Retry-After') ?? '1');
+            const retryDelayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+                ? retryAfterSeconds * 1000
+                : 1000;
+            await this.sleep(retryDelayMs);
+            return this.request<T>(endpoint, options, isRetryAfterLogin, preLoginIfTokenMissing, rateLimitRetryCount + 1);
+        }
+
         const data = await response.json().catch(() => {
             throw new Error(`Failed to parse response from ${url}`);
         });
@@ -92,41 +108,28 @@ export class ApiClient {
 
         return data as T;
     }
-    async search(query: string): Promise<SearchOutput> {
-        return this.request<SearchOutput>('/api/kairos_search', {
+    async activate(query: string): Promise<ActivateOutput> {
+        return this.request<ActivateOutput>('/api/activate', {
             method: 'POST',
             body: JSON.stringify({ query }),
         });
     }
 
-    async begin(params: { uri: string } | { key: string }): Promise<BeginOutput> {
-        const body = 'uri' in params ? { uri: params.uri } : { key: params.key };
-        return this.request<BeginOutput>('/api/kairos_begin', {
-            method: 'POST',
-            body: JSON.stringify(body),
-        });
-    }
-
-    async next(uri: string, solution?: unknown): Promise<NextOutput> {
-        return this.request<NextOutput>('/api/kairos_next', {
+    async forward(uri: string, solution?: unknown): Promise<ForwardOutput> {
+        return this.request<ForwardOutput>('/api/forward', {
             method: 'POST',
             body: JSON.stringify({ uri, solution }),
         });
     }
 
-    async mint(
-        markdown: string,
+    async train(
+        markdown: SafeMarkdownUpload,
         options?: { llmModelId?: string; force?: boolean },
         isRetryAfterLogin = false
-    ): Promise<MintOutput> {
-        const url = `${this.baseUrl}/api/kairos_mint/raw`;
+    ): Promise<TrainOutput> {
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
-        const bearer = (await readConfig(this.baseUrl)).bearerToken;
-        if (bearer) {
-            headers['Authorization'] = `Bearer ${bearer}`;
-        }
 
         if (options?.llmModelId) {
             headers['x-llm-model-id'] = options.llmModelId;
@@ -136,66 +139,55 @@ export class ApiClient {
             headers['x-force-update'] = 'true';
         }
 
-        const response = await fetch(url, {
+        return this.request<TrainOutput>('/api/train/raw', {
             method: 'POST',
             headers,
             body: markdown,
-        });
-
-        const data = await response.json().catch(() => {
-            throw new Error(`Failed to parse response from ${url}`);
-        }) as MintOutput & { message?: string; error?: string; login_url?: string };
-
-        if (!response.ok) {
-            const msg = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401) {
-                if (this.openInBrowser && !isRetryAfterLogin) {
-                    const ok = await loginWithBrowser(this.baseUrl);
-                    if (ok) return this.mint(markdown, options, true);
-                }
-                if (data.login_url) {
-                    throw new AuthRequiredError(
-                        `${msg}\n\nLog in at:\n${data.login_url}`,
-                        data.login_url
-                    );
-                }
-                throw new Error(msg);
-            }
-            throw new Error(msg);
-        }
-
-        return data as MintOutput;
+        }, isRetryAfterLogin, false);
     }
 
-    async update(uris: string[], markdownDoc?: string[], updates?: Record<string, unknown>): Promise<UpdateOutput> {
-        return this.request<UpdateOutput>('/api/kairos_update', {
+    async tune(uris: string[], markdownDoc?: SafeMarkdownUpload[], updates?: Record<string, unknown>): Promise<TuneOutput> {
+        return this.request<TuneOutput>('/api/tune', {
             method: 'POST',
             body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),
         });
     }
 
     async delete(uris: string[]): Promise<DeleteOutput> {
-        return this.request<DeleteOutput>('/api/kairos_delete', {
+        return this.request<DeleteOutput>('/api/delete', {
             method: 'POST',
             body: JSON.stringify({ uris }),
         });
     }
 
-    async attest(
+    async reward(
         uri: string,
         outcome: 'success' | 'failure',
-        message: string,
-        options?: { qualityBonus?: number; llmModelId?: string }
-    ): Promise<AttestOutput> {
-        return this.request<AttestOutput>('/api/kairos_attest', {
+        feedback: string,
+        options?: { score?: number; rater?: string; rubricVersion?: string; llmModelId?: string }
+    ): Promise<RewardOutput> {
+        return this.request<RewardOutput>('/api/reward', {
             method: 'POST',
             body: JSON.stringify({
                 uri,
                 outcome,
-                message,
-                quality_bonus: options?.qualityBonus ?? 0,
+                feedback,
+                score: options?.score,
+                rater: options?.rater,
+                rubric_version: options?.rubricVersion,
                 llm_model_id: options?.llmModelId,
             }),
         });
     }
+
+    async export(
+        uri: string,
+        format: 'markdown' | 'trace_jsonl' | 'reward_jsonl' | 'sft_jsonl' | 'preference_jsonl' = 'markdown'
+    ): Promise<ExportOutput> {
+        return this.request<ExportOutput>('/api/export', {
+            method: 'POST',
+            body: JSON.stringify({ uri, format }),
+        });
+    }
+
 }

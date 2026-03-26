@@ -57,8 +57,6 @@ async function searchAndReplace(
 
       // Check all text fields that might contain the search text
       const textFields = [
-        'description_full',
-        'description_short',
         'text',
         'label',
         'content'
@@ -152,13 +150,12 @@ async function searchAndReplace(
           }
         }
 
-        // Regenerate embedding if description_full or text changed
-        const textChanged = 
-          (updatedPayload.description_full && updatedPayload.description_full !== payload.description_full) ||
-          (updatedPayload.text && updatedPayload.text !== payload.text);
+        // Regenerate embedding if text changed
+        const textChanged =
+          updatedPayload.text && updatedPayload.text !== payload.text;
 
         if (textChanged) {
-          const source = updatedPayload.description_full || updatedPayload.text || '';
+          const source = updatedPayload.text || '';
           try {
             const embeddingResult = await embeddingService.generateEmbedding(source);
             vector = embeddingResult.embedding;

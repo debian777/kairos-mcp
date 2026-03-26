@@ -47,7 +47,7 @@ describe('resolveProtocolSlugCandidate', () => {
     expect(r).toMatchObject({ error: 'INVALID_SLUG' });
   });
 
-  test('derives from chain label when no slug', () => {
+  test('derives from adapter label when no slug', () => {
     const r = resolveProtocolSlugCandidate({}, 'Hello World');
     expect(r).toEqual({ slug: 'hello-world', authorSupplied: false });
   });

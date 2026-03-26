@@ -75,12 +75,12 @@ describe('Metrics Operational Tests', () => {
     const beforeCount = getMetricValue(
       beforeMetrics, 
       'kairos_mcp_tool_calls_total',
-      { tool: 'kairos_search', status: 'success' }
+      { tool: 'activate', status: 'success' }
     ) || 0;
     
     // Call a tool
     await mcpConnection.client.callTool({
-      name: 'kairos_search',
+      name: 'activate',
       arguments: { query: 'test query' }
     });
     
@@ -93,7 +93,7 @@ describe('Metrics Operational Tests', () => {
     const afterCount = getMetricValue(
       afterMetrics,
       'kairos_mcp_tool_calls_total',
-      { tool: 'kairos_search', status: 'success' }
+      { tool: 'activate', status: 'success' }
     ) || 0;
     
     // Metrics should have increased
@@ -124,7 +124,7 @@ describe('Metrics Operational Tests', () => {
     
     expect(metrics).toContain('kairos_memory_store_total');
     expect(metrics).toContain('kairos_memory_store_duration_seconds');
-    expect(metrics).toContain('kairos_memory_chain_size');
+    expect(metrics).toContain('kairos_memory_adapter_size');
   });
 
   test('qdrant metrics are present', async () => {

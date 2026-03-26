@@ -6,7 +6,7 @@ import { MemoryQdrantStoreMethods } from './store-methods.js';
 import { resolveCollectionAlias } from '../../utils/qdrant-utils.js';
 import { getQdrantUrl, getQdrantCollection, QDRANT_API_KEY } from '../../config.js';
 import { initializeQdrantStore } from './store-init.js';
-import { MemoryQdrantStoreChain } from './store-chain.js';
+import { MemoryQdrantStoreAdapter } from './store-adapter.js';
 
 const DEFAULT_QDRANT_URL = getQdrantUrl();
 const DEFAULT_COLLECTION = getQdrantCollection('kairos');
@@ -23,7 +23,7 @@ export class MemoryQdrantStore {
   private url: string;
   private codeBlockProcessor: CodeBlockProcessor;
   private methods: MemoryQdrantStoreMethods;
-  private chainStore: MemoryQdrantStoreChain;
+  private adapterStore: MemoryQdrantStoreAdapter;
 
   constructor(options: MemoryQdrantStoreOptions = {}) {
     const url = options.url || DEFAULT_QDRANT_URL;
@@ -48,7 +48,7 @@ export class MemoryQdrantStore {
     this.url = url;
     this.codeBlockProcessor = new CodeBlockProcessor();
     this.methods = new MemoryQdrantStoreMethods(this.client, this.collection, this.url, this.codeBlockProcessor);
-    this.chainStore = new MemoryQdrantStoreChain(this.client, this.collection, this.codeBlockProcessor, this.methods);
+    this.adapterStore = new MemoryQdrantStoreAdapter(this.client, this.collection, this.codeBlockProcessor, this.methods);
   }
 
   async init(): Promise<void> {
@@ -119,12 +119,12 @@ export class MemoryQdrantStore {
     }
   }
 
-  async storeChain(
+  async storeAdapter(
     docs: string[],
     llmModelId: string,
     options: { forceUpdate?: boolean; protocolVersion?: string } = {}
   ): Promise<Memory[]> {
-    return this.chainStore.storeChain(docs, llmModelId, options);
+    return this.adapterStore.storeAdapter(docs, llmModelId, options);
   }
 
   async getMemory(memory_uuid: string, options?: { fresh?: boolean }): Promise<Memory | null> {

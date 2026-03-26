@@ -29,8 +29,8 @@ export async function listItemsByCategory(conn: QdrantConnection, domain: string
       const payload = point.payload as any;
       return {
         id: point.id.toString(),
-        description_short: payload.description_short || 'No description',
-        description_full: payload.description_full || '',
+        label: payload.label || 'No description',
+        text: payload.text || '',
         domain: payload.domain,
         task: payload.task,
         type: payload.type,
@@ -67,7 +67,7 @@ export async function getDomainOverview(conn: QdrantConnection, domain: string) 
         }
         recentMemoriesData.push({
           id: point.id.toString(),
-          description: payload.description_short || 'No description',
+          description: payload.label || 'No description',
           created_at: payload.created_at || new Date().toISOString(),
           timestamp: new Date(payload.created_at || Date.now()).getTime()
         });

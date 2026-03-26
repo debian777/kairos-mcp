@@ -1,6 +1,6 @@
 # Example: All challenge types
 
-One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to mint with `kairos_mint`.
+One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to mint with `train`.
 
 ## Natural Language Triggers
 
@@ -12,7 +12,7 @@ Run the given shell command. Exit code 0 means success.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "shell",
     "shell": {
       "cmd": "echo OK",
@@ -25,14 +25,14 @@ Run the given shell command. Exit code 0 means success.
 
 ## Step 2 — Call an MCP tool
 
-Call the `kairos_search` tool with any query and report success.
+Call the `activate` tool with any query and report success.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "mcp",
     "mcp": {
-      "tool_name": "kairos_search"
+      "tool_name": "activate"
     },
     "required": true
   }
@@ -45,7 +45,7 @@ Obtain explicit approval from the user before continuing.
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "user_input",
     "user_input": {
       "prompt": "Proceed to the next step?"
@@ -61,7 +61,7 @@ Write a short summary of what was done in this protocol (at least 30 characters)
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "comment",
     "comment": {
       "min_length": 30

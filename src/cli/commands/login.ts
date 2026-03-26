@@ -40,6 +40,7 @@ export function getBaseUrl(): string {
 
 /** Check if token is valid (GET /api/me). Used by login to skip relogin and by ApiClient. */
 export async function isTokenValid(baseUrl: string, token: string): Promise<boolean> {
+    // codeql[js/file-access-to-http]: CLI uses configured API base URL (env or saved config) for Kairos requests by design.
     const res = await fetch(`${baseUrl}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -47,6 +48,7 @@ export async function isTokenValid(baseUrl: string, token: string): Promise<bool
 }
 
 async function loginWithToken(baseUrl: string, token: string): Promise<boolean> {
+    // codeql[js/file-access-to-http]: CLI uses configured API base URL (env or saved config) for Kairos requests by design.
     const res = await fetch(`${baseUrl}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -75,6 +77,7 @@ export interface LoginWithBrowserOptions {
 /** Run browser PKCE login and store token. Exported for 401+--open retry from ApiClient. */
 export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrowserOptions): Promise<boolean> {
     const wellKnownUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
+    // codeql[js/file-access-to-http]: CLI uses configured API base URL (env or saved config) for Kairos requests by design.
     const wkRes = await fetch(wellKnownUrl);
     if (!wkRes.ok) {
         writeError(`Server did not return auth metadata (GET ${wellKnownUrl} → ${wkRes.status}). Is auth enabled?`);

@@ -1,5 +1,5 @@
 /**
- * Integration tests for POST /api/kairos_dump.
+ * Integration tests for POST /api/export.
  */
 
 import { waitForHealthCheck } from '../utils/health-check.js';
@@ -8,7 +8,7 @@ import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
 
-describe('POST /api/kairos_dump', () => {
+describe('POST /api/export', () => {
   let serverAvailable = false;
 
   beforeAll(async () => {
@@ -21,7 +21,7 @@ describe('POST /api/kairos_dump', () => {
       serverAvailable = true;
     } catch (_error) {
       serverAvailable = false;
-      console.warn('Server not available, skipping HTTP kairos_dump tests');
+      console.warn('Server not available, skipping HTTP export tests');
     }
   }, 60000);
 
@@ -31,7 +31,7 @@ describe('POST /api/kairos_dump', () => {
       return;
     }
 
-    const response = await fetch(`${API_BASE}/kairos_dump`, {
+    const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({})
@@ -39,7 +39,7 @@ describe('POST /api/kairos_dump', () => {
     expect(response.status).toBe(400);
     const data = await response.json();
     expect(data).toHaveProperty('error', 'INVALID_INPUT');
-    expect(data.message).toContain('uri');
+    expect(String(data.message ?? '')).toMatch(/uri/i);
   });
 
   test('returns 404 for non-existent memory UUID', async () => {
@@ -48,17 +48,17 @@ describe('POST /api/kairos_dump', () => {
       return;
     }
 
-    const response = await fetch(`${API_BASE}/kairos_dump`, {
+    const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ uri: 'kairos://mem/00000000-0000-0000-0000-000000000099' })
+      body: JSON.stringify({ uri: 'kairos://layer/00000000-0000-0000-0000-000000000099' })
     });
     expect(response.status).toBe(404);
     const data = await response.json();
     expect(data).toHaveProperty('error', 'NOT_FOUND');
   });
 
-  test('returns markdown_doc for valid URI (mint then dump)', async () => {
+  test('returns markdown content for valid URI (train then export)', async () => {
     if (!serverAvailable) {
       console.warn('Skipping test - server not available');
       return;
@@ -70,90 +70,80 @@ describe('POST /api/kairos_dump', () => {
 When to run.
 
 ## Step 1
-Content for HTTP dump test.
+Content for HTTP export test.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Minimal"}}
+{"contract": {"type": "comment", "description": "Minimal"}}
 \`\`\`
 
 ## Completion Rule
 Done.`;
-    const mintRes = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+    const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
       body: markdown
     });
-    expect(mintRes.status).toBe(200);
-    const mintData = await mintRes.json();
-    expect(mintData.items).toBeDefined();
-    expect(mintData.items.length).toBeGreaterThanOrEqual(1);
-    const uri = mintData.items[0].uri;
+    expect(trainRes.status).toBe(200);
+    const trainData = await trainRes.json();
+    expect(trainData.items).toBeDefined();
+    expect(trainData.items.length).toBeGreaterThanOrEqual(1);
+    const uri = trainData.items[0].uri as string;
 
-    const response = await fetch(`${API_BASE}/kairos_dump`, {
+    const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ uri })
+      body: JSON.stringify({ uri, format: 'markdown' })
     });
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toHaveProperty('markdown_doc');
-    expect(typeof data.markdown_doc).toBe('string');
-    expect(data.markdown_doc.length).toBeGreaterThan(0);
+    expect(data).toHaveProperty('content');
+    expect(typeof data.content).toBe('string');
+    expect(data.content.length).toBeGreaterThan(0);
     expect(data).toHaveProperty('uri', uri);
-    expect(data).toHaveProperty('label');
+    expect(data).toHaveProperty('format', 'markdown');
+    expect(data).toHaveProperty('content_type');
   }, 30000);
 
-  test('returns full protocol when URI is chain_id (browse case)', async () => {
+  test('returns full adapter markdown when URI resolves to adapter (browse case)', async () => {
     if (!serverAvailable) {
       console.warn('Skipping test - server not available');
       return;
     }
 
-    const title = `Dump By Chain ${Date.now()}`;
-    const markdown = `# ${title}
+    const title = `Export By Adapter ${Date.now()}`;
+    const md = `# ${title}
 
 ## Natural Language Triggers
-Browse chain dump.
+Browse adapter export.
 
 ## Step One
 First step body.
 
 \`\`\`json
-{"challenge": {"type": "comment", "description": "Step one"}}
+{"contract": {"type": "comment", "description": "Step one"}}
 \`\`\`
 
 ## Completion Rule
 Done.`;
-    const mintRes = await fetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+    const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
-      body: markdown
+      body: md
     });
-    expect(mintRes.status).toBe(200);
+    expect(trainRes.status).toBe(200);
+    const trainData = await trainRes.json();
+    const adapterUri = trainData.items?.[0]?.adapter_uri as string;
+    expect(adapterUri).toMatch(/^kairos:\/\/adapter\//);
 
-    const spacesRes = await fetch(`${API_BASE}/kairos_spaces`, {
+    const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ include_chain_titles: true })
-    });
-    expect(spacesRes.status).toBe(200);
-    const spacesData = await spacesRes.json();
-    const chains = spacesData.spaces?.flatMap((s: { chains?: Array<{ chain_id: string; title: string }> }) => s.chains ?? []) ?? [];
-    const chain = chains.find((c: { title: string }) => c.title === title);
-    expect(chain).toBeDefined();
-
-    const dumpByChainUri = `kairos://mem/${chain!.chain_id}`;
-    const response = await fetch(`${API_BASE}/kairos_dump`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ uri: dumpByChainUri, protocol: true })
+      body: JSON.stringify({ uri: adapterUri, format: 'markdown' })
     });
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toHaveProperty('markdown_doc');
-    expect(typeof data.markdown_doc).toBe('string');
-    expect(data.markdown_doc).toContain('First step body');
-    expect(data).toHaveProperty('step_count');
-    expect(Number(data.step_count)).toBeGreaterThanOrEqual(1);
+    expect(data).toHaveProperty('content');
+    expect(typeof data.content).toBe('string');
+    expect(data.content).toContain('First step body');
   }, 30000);
 });

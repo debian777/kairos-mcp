@@ -6,6 +6,7 @@
 
 import { jest } from '@jest/globals';
 import {
+  buildAuditLine,
   sanitizeLogMessage,
   sanitizeBindingsForAudit,
   structuredLogger
@@ -68,10 +69,36 @@ describe('sanitizeBindingsForAudit', () => {
     expect(out).toEqual({ n: 42, b: true, nil: null });
   });
 
-  test('does not mutate Error instances (pass-through)', () => {
+  test('normalizes Error instances into safe objects', () => {
     const err = new Error('msg');
     const out = sanitizeBindingsForAudit({ e: err });
-    expect((out.e as Error).message).toBe('msg');
+    expect(out).toMatchObject({ e: { name: 'Error', message: 'msg' } });
+  });
+
+  test('normalizes arrays into bounded summaries', () => {
+    const out = sanitizeBindingsForAudit({ values: ['x\ny', 'second'] });
+    expect(out).toEqual({
+      values: { kind: 'array', item_count: 2, first_item: 'x y' }
+    });
+  });
+});
+
+describe('buildAuditLine', () => {
+  test('serializes only coarse allowlisted audit events', () => {
+    const line = buildAuditLine('info', {
+      category: 'audit.embedding',
+      stage: 'provider',
+      status: 'error',
+      tenant_id: 'tenant-1',
+      request_id: 'req-1',
+      error_message: 'upstream failed'
+    });
+    expect(line).toContain('"category":"audit.embedding"');
+    expect(line).toContain('"event":"embedding_provider_error"');
+    expect(line).not.toContain('tenant-1');
+    expect(line).not.toContain('req-1');
+    expect(line).not.toContain('upstream failed');
+    expect(line?.endsWith('\n')).toBe(true);
   });
 });
 
@@ -138,6 +165,20 @@ describe('structuredLogger sink sanitization', () => {
     const [, message] = infoSpy.mock.calls[0] as [Record<string, unknown>, string];
     expect(message).not.toContain('\n');
     expect(message).toBe('user input forged line');
+    infoSpy.mockRestore();
+  });
+
+  test('info with string message truncates long input at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const infoSpy = jest.spyOn(pino, 'info');
+    const longInput = 'a'.repeat(40_000);
+
+    structuredLogger.info(longInput);
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const [, message] = infoSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe(sanitizeLogMessage(longInput));
+    expect(message.length).toBeLessThanOrEqual(32_768);
     infoSpy.mockRestore();
   });
 });

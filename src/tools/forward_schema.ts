@@ -1,0 +1,121 @@
+import { z } from 'zod';
+import { ADAPTER_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
+
+const adapterUriSchema = z
+  .string()
+  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid} or kairos://adapter/{slug}');
+
+const layerUriSchema = z
+  .string()
+  .regex(LAYER_URI_INPUT_REGEX, 'must match kairos://layer/{uuid}[?execution_id={uuid}]');
+
+const forwardUriSchema = z.union([adapterUriSchema, layerUriSchema]);
+
+const tensorOutputSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  min_length: z.number().optional(),
+  max_length: z.number().optional(),
+  min_items: z.number().optional(),
+  max_items: z.number().optional()
+});
+
+const tensorContractSchema = z.object({
+  required_inputs: z.array(z.string()),
+  output: tensorOutputSchema,
+  merge: z.string().optional(),
+  condition: z.string().optional()
+});
+
+export const forwardContractSchema = z.object({
+  type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']),
+  required: z.boolean().optional(),
+  description: z.string().optional(),
+  nonce: z.string().optional(),
+  proof_hash: z.string().optional(),
+  tensor: tensorContractSchema.optional(),
+  shell: z.object({
+    cmd: z.string(),
+    timeout_seconds: z.number()
+  }).optional(),
+  mcp: z.object({
+    tool_name: z.string(),
+    expected_result: z.any().optional()
+  }).optional(),
+  user_input: z.object({
+    prompt: z.string().optional()
+  }).optional(),
+  comment: z.object({
+    min_length: z.number().optional()
+  }).optional()
+});
+
+export const forwardSolutionSchema = z.object({
+  type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']).describe('Must match contract.type'),
+  nonce: z.string().optional().describe('Echo nonce from contract for proof-based layers'),
+  proof_hash: z.string().optional().describe('Echo proof_hash from previous layer when required'),
+  tensor: z.object({
+    name: z.string(),
+    value: z.any()
+  }).optional(),
+  shell: z.object({
+    exit_code: z.number(),
+    stdout: z.string().optional(),
+    stderr: z.string().optional(),
+    duration_seconds: z.number().optional()
+  }).optional(),
+  mcp: z.object({
+    tool_name: z.string(),
+    arguments: z.any().optional(),
+    result: z.any(),
+    success: z.boolean()
+  }).optional(),
+  user_input: z.object({
+    confirmation: z.string(),
+    timestamp: z.string().optional()
+  }).optional(),
+  comment: z.object({
+    text: z.string()
+  }).optional(),
+  trace: z.string().optional().describe('Optional reasoning trace stored with the execution trace')
+}).refine(
+  (data) => !!(data.tensor || data.shell || data.mcp || data.user_input || data.comment),
+  { message: 'At least one type-specific field must be provided' }
+).refine(
+  (data) => {
+    if (data.type === 'tensor' && !data.tensor) return false;
+    if (data.type === 'shell' && !data.shell) return false;
+    if (data.type === 'mcp' && !data.mcp) return false;
+    if (data.type === 'user_input' && !data.user_input) return false;
+    if (data.type === 'comment' && !data.comment) return false;
+    return true;
+  },
+  { message: 'The type-specific field must match the solution type' }
+);
+
+export const forwardInputSchema = z.object({
+  uri: forwardUriSchema.describe('Adapter or layer URI'),
+  solution: forwardSolutionSchema.optional().describe('Layer solution; omit to start a new forward execution')
+});
+
+export const forwardOutputSchema = z.object({
+  must_obey: z.boolean(),
+  current_layer: z.object({
+    uri: layerUriSchema,
+    content: z.string(),
+    mimeType: z.literal('text/markdown')
+  }).optional().nullable(),
+  contract: forwardContractSchema,
+  tensor_in: z.record(z.string(), z.unknown()).optional(),
+  next_action: z.string(),
+  proof_hash: z.string().optional(),
+  execution_id: z.string().optional(),
+  message: z.string().optional(),
+  error_code: z.string().optional(),
+  retry_count: z.number().optional()
+}).strict();
+
+export type ForwardInput = z.infer<typeof forwardInputSchema>;
+export type ForwardSolution = z.infer<typeof forwardSolutionSchema>;
+export type ForwardOutput = z.infer<typeof forwardOutputSchema>;
+

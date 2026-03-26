@@ -29,14 +29,14 @@ All REST endpoints and POST `/mcp` use the same auth middleware. There is no sep
 - **Config path:** `$XDG_CONFIG_HOME/kairos/config.json` (Unix) or `%APPDATA%\kairos\config.json` (Windows).
 - **Storage model:** OS keyring first when available; config-file fallback when keyring access is unavailable or fails.
 - **Contract:**  
-  1. **Try read:** Token from keyring first, otherwise from the shared config file. The CLI does **not** read `KAIROS_BEARER_TOKEN` from the environment.  
+  1. **Try read:** Token from keyring first, otherwise from the shared config file. Bearer tokens are **not** read from process environment variables.  
   2. **If absent:** Perform auth (see below), then save the token for that API URL.
 - **CLI:** Reads from keyring when possible, otherwise from the shared config file. `kairos login` (browser PKCE or `--token`) writes the token back through the same storage abstraction. Other commands reuse that token and can trigger login on 401.
 - **MCP:** The host (for example Cursor) can reuse the same local config/keyring state, or direct the user to run `kairos login` first. If no token is present, the host can discover auth endpoints via the well-known protected-resource metadata and perform its own OAuth PKCE flow.
 
 ## CLI
 
-- **Token source:** Keyring first, config-file fallback at `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\kairos\config.json` on Windows). The CLI does **not** use the `KAIROS_BEARER_TOKEN` environment variable.
+- **Token source:** Keyring first, config-file fallback at `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\kairos\config.json` on Windows). Bearer tokens are **not** read from process environment variables.
 - **Login:** `kairos login --token <token>` validates the token with `GET /api/me` and stores it for the current API URL. `kairos login` (no flag) runs browser PKCE: the CLI uses the public client ID `kairos-cli`, discovers auth/token endpoints from well-known, binds a local callback port, and exchanges the code for an access token. The callback path includes a per-request token. **Requirement:** run `python3 scripts/configure-keycloak-realms.py` so the `kairos-cli` client exists in Keycloak with redirect URIs allowing `http://localhost:*/callback/*`. Tests use `kairos login --no-browser` to get the URL from stdout; port can be pinned via `KAIROS_LOGIN_CALLBACK_PORT` (see [CLI.md](../CLI.md)).
 - **Logout:** `kairos logout` clears the stored token for the current API URL.
 - **401 handling:** When auth is required, the CLI opens the browser by default (same PKCE flow as `kairos login`) and retries after storing the token. Use **`--no-browser`** to disable (e.g. in tests or scripts); then run `kairos login` and re-run the command.

@@ -11,7 +11,7 @@ export async function createQdrantCollection(client: QdrantClient, collectionNam
   let vectorConfig: any;
   const keys = Object.keys(vecs);
   if (keys.length === 1 && keys[0] === 'oai') {
-    // Backwards compatibility: single vector under root
+    // Keep the older single-vector shape under root
     const oaiVec = vecs['oai'];
     if (oaiVec) {
       vectorConfig = { size: oaiVec.size, distance: oaiVec.distance || 'Cosine', on_disk: oaiVec.on_disk };
@@ -55,7 +55,7 @@ export async function getCollectionVectorConfig(client: QdrantClient, collection
       return out;
     }
     if (typeof vectors === 'object' && 'size' in vectors) {
-      // Single vector configured (legacy)
+      // Single vector configured (older layout)
       return (vectors as any).size;
     }
     return null;

@@ -1,16 +1,16 @@
 import express from 'express';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { executeUpdate } from '../tools/kairos_update.js';
-import { updateInputSchema } from '../tools/kairos_update_schema.js';
+import { executeTune } from '../tools/tune.js';
+import { tuneInputSchema } from '../tools/tune_schema.js';
 
 /**
- * Set up API route for kairos_update. Uses shared executeUpdate; returns same shape as MCP (no metadata).
+ * Set up API route for tune.
  */
 export function setupUpdateRoute(app: express.Express, qdrantService: QdrantService) {
-  app.post('/api/kairos_update', async (req, res) => {
+  app.post('/api/tune', async (req, res) => {
     try {
-      const input = updateInputSchema.safeParse(req.body);
+      const input = tuneInputSchema.safeParse(req.body);
       if (!input.success) {
         res.status(400).json({
           error: 'INVALID_INPUT',
@@ -18,15 +18,15 @@ export function setupUpdateRoute(app: express.Express, qdrantService: QdrantServ
         });
         return;
       }
-      structuredLogger.info(`→ POST /api/kairos_update (${input.data.uris.length} URI(s))`);
-      const result = await executeUpdate(qdrantService, input.data);
-      structuredLogger.info(`✓ kairos_update completed (${result.total_updated} updated, ${result.total_failed} failed)`);
+      structuredLogger.info(`→ POST /api/tune (${input.data.uris.length} URI(s))`);
+      const result = await executeTune(qdrantService, input.data);
+      structuredLogger.info(`✓ tune completed (${result.total_updated} updated, ${result.total_failed} failed)`);
       res.status(200).json(result);
     } catch (error) {
-      structuredLogger.error('✗ kairos_update failed', error);
+      structuredLogger.error('✗ tune failed', error);
       res.status(500).json({
-        error: 'UPDATE_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to update memories'
+        error: 'TUNE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to update adapter layers'
       });
     }
   });

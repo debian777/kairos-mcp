@@ -1,21 +1,18 @@
 #!/bin/sh
-while read local_ref local_sha remote_ref remote_sha; do
-  if echo "$remote_ref" | grep -q "refs/tags/v"; then
-    msg=$(git log -1 --format="%s" "$local_sha")
-    if ! echo "$msg" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
-      echo ""
-      echo "  ERROR: Tag pushes must be created via 'npm version'"
-      echo ""
-      echo "  Run one of:"
-      echo "    npm version patch          # x.y.Z"
-      echo "    npm version minor          # x.Y.0"
-      echo "    npm version major          # X.0.0"
-      echo "    npm version 2.1.0          # exact version"
-      echo ""
-      echo "  Then: git push --follow-tags"
-      echo ""
-      exit 1
-    fi
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if echo "$remote_ref" | grep -q "^refs/tags/v"; then
+    echo >&2 ""
+    echo >&2 "  ERROR: Do not push release tags manually."
+    echo >&2 ""
+    echo >&2 "  This repo creates version tags after a version-bump PR merges to main."
+    echo >&2 "  Use the version-bump workflow instead:"
+    echo >&2 "    1. npm version <type> --no-git-tag-version"
+    echo >&2 "       or npm run release:<type>"
+    echo >&2 "    2. npm run version:sync-skills"
+    echo >&2 "    3. Commit on release/<version> and open a PR to main"
+    echo >&2 "    4. Merge the PR and let CI create the tag"
+    echo >&2 ""
+    exit 1
   fi
 done
 exit 0

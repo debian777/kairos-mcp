@@ -56,8 +56,10 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
       { field_name: 'quality_metadata.step_quality_score', field_schema: 'integer' as const },
       { field_name: 'quality_metadata.step_quality', field_schema: 'keyword' as const },
       { field_name: 'ai.memory_uuid', field_schema: 'keyword' as const },
-      { field_name: 'chain.id', field_schema: 'keyword' as const },
-      { field_name: 'chain.step_index', field_schema: 'integer' as const },
+      { field_name: 'adapter.id', field_schema: 'keyword' as const },
+      { field_name: 'adapter.layer_index', field_schema: 'integer' as const },
+      { field_name: 'adapter.layer_count', field_schema: 'integer' as const },
+      { field_name: 'adapter.activation_patterns', field_schema: 'keyword' as const },
       { field_name: 'slug', field_schema: 'keyword' as const }
     ];
 
@@ -120,7 +122,7 @@ export async function createOrUpdateAlias(conn: QdrantConnection, aliasName: str
 const BACKFILL_BATCH_SIZE = 256;
 
 /**
- * Backfill space_id for points that lack it (idempotent). Uses KAIROS_APP_SPACE_ID for legacy points.
+ * Backfill space_id for points that lack it (idempotent). Uses KAIROS_APP_SPACE_ID for older points.
  */
 export async function backfillSpaceId(conn: QdrantConnection): Promise<{ updated: number }> {
   return conn.executeWithReconnect(async () => {

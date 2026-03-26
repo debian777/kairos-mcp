@@ -1,0 +1,29 @@
+import type { AdapterInfo, InferenceContractDefinition, Memory } from '../../types/memory.js';
+
+export function getAdapterInfo(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): AdapterInfo | undefined {
+  return memory.adapter;
+}
+
+export function getAdapterId(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): string {
+  return getAdapterInfo(memory)?.id ?? memory.memory_uuid;
+}
+
+export function getAdapterName(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): string {
+  return getAdapterInfo(memory)?.name ?? memory.label;
+}
+
+export function getActivationPatterns(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): string[] {
+  return getAdapterInfo(memory)?.activation_patterns ?? [];
+}
+
+export function getLayerIndex(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): number {
+  return getAdapterInfo(memory)?.layer_index ?? 1;
+}
+
+export function getLayerCount(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): number {
+  return getAdapterInfo(memory)?.layer_count ?? 1;
+}
+
+export function getInferenceContract(memory: Pick<Memory, 'inference_contract'>): InferenceContractDefinition | undefined {
+  return memory.inference_contract;
+}

@@ -22,7 +22,7 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_search raw MCP result');
+    return parseMcpJson(result, 'activate raw MCP result');
   }
 
   test('returns V2 unified schema with no matches — only create choice', async () => {
@@ -31,7 +31,7 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
     const gibberishQuery = `XyZ123AbC789GarbageQuery${ts}NoOneWouldEverSearchForThisRandomString`;
 
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: gibberishQuery
       }
@@ -58,7 +58,11 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
       const createChoices = parsed.choices.filter((c) => c.role === 'create');
-      const relevantMatches = parsed.choices.filter((c) => c.role === 'match' && (c.score ?? 0) >= 0.5);
+      const relevantMatches = parsed.choices.filter((c) => {
+        if (c.role !== 'match') return false;
+        const s = (c as { activation_score?: number | null }).activation_score ?? c.score ?? 0;
+        return (s as number) >= 0.5;
+      });
       expect(createChoices.length >= 1 || relevantMatches.length >= 1).toBe(true);
       if (relevantMatches.length === 0) {
         expect(createChoices.length).toBeGreaterThanOrEqual(1);
@@ -66,14 +70,14 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       for (const cc of createChoices) {
         expect(cc.uri).toBeDefined();
         expect(typeof cc.uri).toBe('string');
-        expect(cc.uri.startsWith('kairos://mem/')).toBe(true);
+        expect(cc.uri.startsWith('kairos://adapter/')).toBe(true);
         expect(cc.role).toBe('create');
       }
 
       // Old fields must be absent
       expect(parsed.protocol_status).toBeUndefined();
       expect(parsed.start_here).toBeUndefined();
-      expect(parsed.chain_label).toBeUndefined();
+      expect(parsed.adapter_name).toBeUndefined();
       expect(parsed.total_steps).toBeUndefined();
       expect(parsed.best_match).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();

@@ -21,13 +21,13 @@ on the payload stores quality tier or score.
 
 Quality metadata is set in five situations:
 
-1. **Initial store (chain mint):** When a protocol chain is stored,
-   each step's payload is built with `quality_metadata` from
-   `modelStats.calculateStepQualityMetadata(...)` using the step's
-   description, domain, task, type, and tags (no execution context yet).
+1. **Initial store (adapter mint):** When a protocol adapter is stored,
+   each layer payload is built with `quality_metadata` from
+   `modelStats.calculateStepQualityMetadata(...)` using the layer's
+   label, domain, task, type, and tags (no execution context yet).
 
 2. **Memory payload updates:** When `memory-updates` applies changes that
-   affect quality (for example, `description_short`, `domain`, `task`,
+   affect quality (for example, `label`, `domain`, `task`,
    `type`, `tags`), it recalculates quality via
    `modelStats.calculateStepQualityMetadata(...)` and sets
    `quality_metadata` before upserting.
@@ -36,14 +36,14 @@ Quality metadata is set in five situations:
    in `src/services/qdrant/quality.ts` merges the given object into
    existing `quality_metadata`, then overwrites the point.
 
-4. **After each step in kairos_next:** When a step is completed and the
+4. **After each step in forward:** When a step is completed and the
    solution is validated, that step's quality is updated with outcome
    `success` or `failure`. This is the primary update path during a
    protocol run.
 
-5. **After attestation (final step):** When `kairos_attest` runs with a
+5. **After reward (final step):** When `reward` runs with a
    success or failure outcome, it recalculates quality and calls
-   `updateQualityMetadata`. `kairos_attest` is the required final step
+   `updateQualityMetadata`. `reward` is the required final step
    of every protocol run.
 
 Calculation is centralized in `src/services/stats/scoring.ts`:
@@ -61,7 +61,7 @@ promote the tier (for example, success + high base → excellent).
   "Legendary Workflow").
 
 - **Attestation:** Attest reads the point's payload to get
-  `description_short`, `domain`, `task`, `type`, and `tags` for
+  `label`, `domain`, `task`, `type`, and `tags` for
   recalculating quality. The updated `quality_metadata` is written back
   after the new score is computed.
 
@@ -74,17 +74,17 @@ promote the tier (for example, success + high base → excellent).
 
 ## Real Qdrant query examples
 
-### Scroll: fetch all steps of a chain by chain ID
+### Scroll: fetch all layers of an adapter by adapter ID
 
-Used when checking for duplicate chains or loading steps that belong to one
-chain.
+Used when checking for duplicate adapters or loading layers that belong to one
+adapter.
 
 ```json
 {
   "filter": {
     "must": [
       {
-        "key": "chain.id",
+        "key": "adapter.id",
         "match": { "value": "a67e7ead-4aef-4b0e-b3e5-b6cbb7416917" }
       }
     ]
@@ -100,7 +100,7 @@ JavaScript (as used in code):
 ```javascript
 await client.scroll(collection, {
   filter: {
-    must: [{ key: 'chain.id', match: { value: chainUuid } }]
+    must: [{ key: 'adapter.id', match: { value: adapterUuid } }]
   },
   limit: 256,
   with_payload: true,
@@ -128,7 +128,7 @@ for aggregate quality:
 
 ### Example payload (with quality_metadata)
 
-Typical payload shape for a chain step after store or update:
+Typical payload shape for an adapter layer after store or update:
 
 ```json
 {
@@ -143,11 +143,11 @@ Typical payload shape for a chain step after store or update:
     "step_quality_score": 3,
     "step_quality": "high"
   },
-  "chain": {
+  "adapter": {
     "id": "a67e7ead-4aef-4b0e-b3e5-b6cbb7416917",
-    "label": "Simple Setup Protocol",
-    "step_index": 1,
-    "step_count": 3
+    "name": "Simple Setup Protocol",
+    "layer_index": 1,
+    "layer_count": 3
   },
   "updated_at": "2026-02-17T12:05:00.000Z"
 }
@@ -172,17 +172,17 @@ To filter by quality tier — for example, only "excellent" steps:
 ```
 
 The codebase does not currently use such a filter; quality is read from
-payloads after fetching by `chain.id` or `protocol_id`.
+payloads after fetching by `adapter.id` or `protocol_id`.
 
 ## Data flow
 
 ```mermaid
 flowchart LR
   subgraph writes["Writes"]
-    A[kairos_mint / store chain]
+    A[train / store adapter]
     B[memory-updates]
     C[updateQualityMetadata]
-    D[kairos_next / kairos_attest]
+    D[forward / reward]
   end
 
   subgraph storage["Qdrant"]
@@ -200,14 +200,14 @@ flowchart LR
   C -->|merge + upsert| P
   D -->|recalc + updateQualityMetadata| P
 
-  P -->|findProtocolSteps / scroll by chain.id| E
+  P -->|findProtocolSteps / scroll by adapter.id| E
   P -->|retrieveById| F
   P -->|score boost| G
   F -->|updateQualityMetadata| P
 ```
 
-- **Writes:** Chain store and memory-updates set `quality_metadata` on
-  upsert. `kairos_next` and `kairos_attest` update it via retrieve +
+- **Writes:** Adapter store and memory-updates set `quality_metadata` on
+  upsert. `forward` and `reward` update it via retrieve +
   merge + upsert.
 - **Storage:** One field on the point payload; no separate collection.
 - **Reads:** Protocol stats scrolls by `protocol_id` and reads
@@ -217,21 +217,21 @@ flowchart LR
 ## Observability and runbook
 
 - **Metrics:**
-  - `kairos_quality_update_errors_total` — counter when a `kairos_next`
+  - `kairos_quality_update_errors_total` — counter when a `forward`
     quality update fails.
-  - `kairos_mint_similar_memory_found_total` — counter when mint returns
+  - `kairos_train_similar_adapter_found_total` — counter when train returns
     `SIMILAR_MEMORY_FOUND`.
 - **Alert:** Configure an alert on `kairos_quality_update_errors_total`
   rate (for example, > 0.1/s over 5 minutes).
 - **Runbook:** When quality seems stale or steps are not reflecting
   success/failure, check `kairos_quality_update_errors_total` and Qdrant
-  write latency. Quality updates in `kairos_next` are best-effort (log
+  write latency. Quality updates in `forward` are best-effort (log
   and continue); errors are not surfaced to the client.
 
 ## See also
 
-- [kairos_attest workflow](workflow-kairos-attest.md) — how attestation
+- [reward workflow](workflow-reward.md) — how reward
   updates quality
-- [kairos_next workflow](workflow-kairos-next.md) — per-step quality
+- [forward workflow](workflow-forward-continue.md) — per-step quality
   update during execution
 - [Architecture README](README.md)

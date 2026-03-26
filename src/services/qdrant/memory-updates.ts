@@ -35,8 +35,8 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
       const memoryPayload = {
         ...existingPayload,
         space_id: existingPayload.space_id ?? defaultSpaceId,
-        ...(updates.description_short && { description_short: updates.description_short }),
-        ...(updates.description_full && { description_full: updates.description_full }),
+        ...(updates.label && { label: updates.label }),
+        ...(updates.text && { text: updates.text }),
         ...(updates.domain && { domain: updates.domain }),
         ...(updates.task && { task: updates.task }),
         ...(updates.type && { type: updates.type }),
@@ -56,8 +56,8 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
         if (firstKey && Array.isArray(existingVectorObj[firstKey])) vector = existingVectorObj[firstKey] as number[];
       }
 
-      if (updates.description_full && updates.description_full !== existingPayload.description_full) {
-        const embeddingResult = await embeddingService.generateEmbedding(updates.description_full);
+      if (updates.text && updates.text !== existingPayload.text) {
+        const embeddingResult = await embeddingService.generateEmbedding(updates.text);
         vector = embeddingResult.embedding;
       }
 
@@ -110,11 +110,11 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
       const actorId = getSpaceContext().userId || 'system';
 
       let newQualityMetadata = existingPayload.quality_metadata;
-      const shouldRecalculateQuality = updates.description_short || updates.description_full || updates.domain || updates.task || updates.type || updates.tags;
+      const shouldRecalculateQuality = updates.label || updates.text || updates.domain || updates.task || updates.type || updates.tags;
       if (shouldRecalculateQuality) {
         const { modelStats } = await import('../stats/model-stats.js');
         const qualityMetadata = modelStats.calculateStepQualityMetadata(
-          updates.description_short || existingPayload.description_short || '',
+          updates.label || existingPayload.label || '',
           updates.domain || existingPayload.domain || 'general',
           updates.task || existingPayload.task || 'general-task',
           updates.type || existingPayload.type || 'context',
@@ -126,11 +126,17 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
         };
       }
 
+      // Drop retired content aliases if an older caller still sends them.
+      const {
+        description_short: _ignoredDescriptionShort,
+        description_full: _ignoredDescriptionFull,
+        ...safeUpdates
+      } = updates ?? {};
       const defaultSpaceId = getSpaceContext().defaultWriteSpaceId;
       const updatedPayload = {
         ...existingPayload,
         space_id: existingPayload.space_id ?? defaultSpaceId,
-        ...updates,
+        ...safeUpdates,
         updated_at: new Date().toISOString(),
         modified_at: new Date().toISOString(),
         modified_by: actorId,
@@ -150,9 +156,8 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
       }
 
       const textChanged = typeof (updates as any).text === 'string' && (updates as any).text !== existingPayload.text;
-      const fullChanged = typeof updates.description_full === 'string' && updates.description_full !== existingPayload.description_full;
-      if (textChanged || fullChanged) {
-        const source = textChanged ? (updates as any).text : updates.description_full as string;
+      if (textChanged) {
+        const source = (updates as any).text as string;
         const embeddingResult = await embeddingService.generateEmbedding(source);
         vector = embeddingResult.embedding;
       }

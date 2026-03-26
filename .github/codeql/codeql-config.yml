@@ -8,13 +8,6 @@ paths-ignore:
   - "**/*.test.js"
   - "**/*.e2e.test.ts"
   - "tests/**"
-  # All log/audit output is sanitized by sanitizeLogMessage/sanitizeBindingsForAudit; unit-tested. CodeQL does not model these sanitizers.
-  - "src/utils/structured-logger.ts"
-
-# kairos_mint: POST body is the markdown document from the authenticated CLI (local protocol files).
-# js/file-access-to-http is a false positive here; URL is the configured API base, not attacker-controlled SSRF.
-query-filters:
-  - exclude:
-      id: js/file-access-to-http
-    paths-ignore:
-      - src/cli/api-client.ts
+  # CI integration harness: report bodies are shaped via snapshotForIntegrationReport;
+  # CodeQL does not treat that as a sanitizer for js/http-to-file-access.
+  - "scripts/run-ai-mcp-integration.mjs"

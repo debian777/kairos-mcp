@@ -50,7 +50,7 @@ When all steps are done.
 Run the command.
 
 \`\`\`json
-{"challenge": {"type": "shell", "shell": {"cmd": "npm test"}}}
+{"contract": {"type": "shell", "shell": {"cmd": "npm test"}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -71,7 +71,7 @@ Run the command.
 Call the tool.
 
 \`\`\`json
-{"challenge": {"type": "mcp", "mcp": {"tool_name": "kairos_search"}}}
+{"contract": {"type": "mcp", "mcp": {"tool_name": "activate"}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -79,7 +79,7 @@ Call the tool.
     expect(result.steps[0]).toMatchObject({
       label: "Step 2",
       type: "mcp",
-      summary: "MCP: kairos_search",
+      summary: "MCP: activate",
     });
   });
 
@@ -91,7 +91,7 @@ Call the tool.
 Please confirm.
 
 \`\`\`json
-{"challenge": {"type": "user_input", "user_input": {"prompt": "Proceed?"}}}
+{"contract": {"type": "user_input", "user_input": {"prompt": "Proceed?"}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -111,7 +111,7 @@ Please confirm.
 Write a comment.
 
 \`\`\`json
-{"challenge": {"type": "comment", "comment": {"min_length": 10}}}
+{"contract": {"type": "comment", "comment": {"min_length": 10}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -169,13 +169,13 @@ Done.
 ## Step A
 
 \`\`\`json
-{"challenge": {"type": "comment"}}
+{"contract": {"type": "comment"}}
 \`\`\`
 
 ## Step B
 
 \`\`\`json
-{"challenge": {"type": "shell", "shell": {"cmd": "echo ok"}}}
+{"contract": {"type": "shell", "shell": {"cmd": "echo ok"}}}
 \`\`\`
 `;
     const result = parseProtocolMarkdown(md);
@@ -201,12 +201,12 @@ run tests and deploy
 Run the build.
 
 \`\`\`json
-{"challenge": {"type": "shell", "shell": {"cmd": "npm run build"}}}
+{"contract": {"type": "shell", "shell": {"cmd": "npm run build"}}}
 \`\`\`
 
 ## Completion rule
 
-When each step is verified and attestation is done.
+When each step is verified and the final reward is recorded.
 `;
     const form = parseProtocolMarkdownToForm(md);
     expect(form.protocolLabel).toBe("Deploy and test");
@@ -220,10 +220,10 @@ When each step is verified and attestation is done.
 
     const rebuilt = buildMarkdownFromForm(form);
     expect(rebuilt).toContain("# Deploy and test");
-    expect(rebuilt).toContain("## Natural language triggers");
+    expect(rebuilt).toContain("## Activation Patterns");
     expect(rebuilt).toContain("## Build");
     expect(rebuilt).toContain("npm run build");
-    expect(rebuilt).toContain("## Completion rule");
+    expect(rebuilt).toContain("## Reward Signal");
 
     const reparsed = parseProtocolMarkdown(rebuilt);
     expect(reparsed.title).toBe(form.protocolLabel);
@@ -270,7 +270,7 @@ When.
 Body.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"die unless 1","interpreter":"perl","flags":["-e"],"timeout_seconds":5,"args":["x"],"workdir":"$KAIROS_WORK_DIR"},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"die unless 1","interpreter":"perl","flags":["-e"],"timeout_seconds":5,"args":["x"],"workdir":"$KAIROS_WORK_DIR"},"required":true}}
 \`\`\`
 
 ## Completion rule

@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { useSearch } from "@/hooks/useSearch";
+import { useActivate } from "@/hooks/useActivate";
 import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
-import { BROWSE_LETTERS, browseChainsFromSpaces } from "@/utils/browse-chains";
+import { toConfidencePercent } from "@/utils/confidence";
+import { browseAdaptersFromSpaces } from "@/utils/browse-adapters";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -14,8 +15,10 @@ const roleBadgeClass: Record<string, string> = {
   create: "bg-[#fef3c7] text-[#92400e]",
 };
 
-/** Protocol URI prefix for chain_id from kairos_spaces. */
-const PROTOCOL_URI_PREFIX = "kairos://mem/";
+const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+/** Adapter URI prefix for adapter_id from spaces browse results. */
+const PROTOCOL_URI_PREFIX = "kairos://adapter/";
 
 export function KairosPage() {
   const { t } = useTranslation();
@@ -25,7 +28,7 @@ export function KairosPage() {
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useSearch(submittedQuery, !!submittedQuery);
+  const { data, isLoading, isError, error, refetch } = useActivate(submittedQuery, !!submittedQuery);
   const showBrowse = !submittedQuery;
   const {
     data: spacesData,
@@ -33,7 +36,7 @@ export function KairosPage() {
     isError: spacesError,
     error: spacesErrorDetail,
     refetch: refetchSpaces,
-  } = useSpaces(showBrowse, { includeChainTitles: true });
+  } = useSpaces(showBrowse, { includeAdapterTitles: true });
 
   useEffect(() => {
     const q = searchParams.get("q") ?? "";
@@ -54,27 +57,26 @@ export function KairosPage() {
     .sort((a, b) => {
       const ro = (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
       if (ro !== 0) return ro;
-      const as = a.score ?? -1;
-      const bs = b.score ?? -1;
+      const as = a.activation_score ?? -1;
+      const bs = b.activation_score ?? -1;
       return bs - as;
     });
-  const topScore =
-    choices.length > 0
-      ? Math.max(...choices.map((c) => (c.score != null ? c.score * 100 : 0)))
-      : null;
+  const topScore = choices.length > 0
+    ? Math.max(...choices.map((c) => toConfidencePercent(c.activation_score)))
+    : null;
 
-  const { browseChains, countsByLetter } = useMemo(
-    () => browseChainsFromSpaces(spacesData?.spaces),
+  const { browseAdapters, countsByLetter } = useMemo(
+    () => browseAdaptersFromSpaces(spacesData?.spaces),
     [spacesData?.spaces]
   );
 
-  const letterChains = useMemo(() => {
+  const letterAdapters = useMemo(() => {
     if (!expandedLetter) return [];
-    return browseChains.filter((c) => {
-      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
+    return browseAdapters.filter((adapter) => {
+      const first = (adapter.title ?? "").trim().charAt(0).toUpperCase();
       return first === expandedLetter;
     });
-  }, [browseChains, expandedLetter]);
+  }, [browseAdapters, expandedLetter]);
 
   return (
     <div>
@@ -163,7 +165,7 @@ export function KairosPage() {
               </p>
               {!spacesLoading && (
               <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
-                {BROWSE_LETTERS.map((letter) => {
+                {A_Z.map((letter) => {
                   const count = countsByLetter[letter] ?? 0;
                   return (
                     <button
@@ -197,7 +199,7 @@ export function KairosPage() {
                   <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
                     {t("kairos.labelsStartingWith", { letter: expandedLetter })}
                   </h3>
-                  {letterChains.length === 0 ? (
+                  {letterAdapters.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
                   ) : (
                     <ul
@@ -205,20 +207,17 @@ export function KairosPage() {
                       role="list"
                       aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
                     >
-                      {letterChains.map((chain, index) => {
-                        const uri = `${PROTOCOL_URI_PREFIX}${chain.chain_id}`;
-                        const rowKey = (chain.chain_id ?? "").trim()
-                          ? chain.chain_id
-                          : `browse-${expandedLetter}-${index}-${chain.title}`;
+                      {letterAdapters.map((adapter) => {
+                        const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
                         return (
                           <li
-                            key={rowKey}
+                            key={adapter.adapter_id}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                           >
-                            <span className="font-medium text-[var(--color-text-heading)]">{chain.title}</span>
+                            <span className="font-medium text-[var(--color-text-heading)]">{adapter.title}</span>
                             <Link
                               to={`/protocols/${encodeURIComponent(uri)}`}
-                              aria-label={t("kairos.viewProtocol", { title: chain.title })}
+                              aria-label={t("kairos.viewProtocol", { title: adapter.title })}
                               className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                             >
                               {t("kairos.view")}
@@ -279,9 +278,9 @@ export function KairosPage() {
                         {choice.label}
                       </span>
                       <div className="text-sm text-[var(--color-text-muted)] mt-1">
-                        {choice.chain_label ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
-                        {choice.score != null && ` · ${t("kairos.score")}: ${Math.round(choice.score * 100)}%`}
-                        {choice.protocol_version && ` · ${t("kairos.version")}: ${choice.protocol_version}`}
+                        {choice.adapter_name ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
+                        {choice.activation_score != null && ` · ${t("kairos.score")}: ${toConfidencePercent(choice.activation_score)}%`}
+                        {choice.adapter_version && ` · ${t("kairos.version")}: ${choice.adapter_version}`}
                       </div>
                       <span
                         className={`inline-block mt-1 text-xs uppercase tracking-wide px-2 py-0.5 rounded ${roleBadgeClass[choice.role] ?? "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}

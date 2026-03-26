@@ -4,7 +4,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 /**
  * FORBIDDEN BEHAVIOUR tests
  * 
- * Tests that kairos_search never violates the forbidden behaviors from reports/outputs.md:
+ * Tests that activate never violates the forbidden behaviors from reports/outputs.md:
  * - Do not return `error` field
  * - Do not return raw `score` (0.73) to user
  * - Do not return `results[]` when must_obey: true
@@ -26,13 +26,13 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, 'kairos_search raw MCP result');
+    return parseMcpJson(result, 'activate raw MCP result');
   }
 
   test('never returns error field', async () => {
     const ts = Date.now();
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: `NoErrorFieldTest ${ts}`
       }
@@ -49,11 +49,11 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   test('never returns raw score to user', async () => {
     const ts = Date.now();
     const uniqueTitle = `NoRawScoreTest ${ts}`;
-    const content = `# ${uniqueTitle}\n\nTest for raw score exposure.`;
+    const content = `# ${uniqueTitle}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nTest for raw score exposure.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
 
     // Store
     await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -63,7 +63,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
 
     // Search
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: uniqueTitle.toLowerCase()
       }
@@ -74,11 +74,12 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
       const parsed = expectValidJsonResult(result);
       // Score should never appear as top-level field
       expect(parsed.score).toBeUndefined();
-      // V2: score is only inside choices[].score, never at top level
+      // activation_score is only inside choices[], never at top level
       if (Array.isArray(parsed.choices)) {
         for (const choice of parsed.choices) {
           if (choice.role === 'match') {
-            expect(typeof choice.score).toBe('number');
+            const s = (choice as { activation_score?: number }).activation_score ?? choice.score;
+            expect(typeof s).toBe('number');
           }
         }
       }
@@ -90,11 +91,11 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   test('never returns results[] array when must_obey: true', async () => {
     const ts = Date.now();
     const uniqueTitle = `NoResultsArrayTest ${ts}`;
-    const content = `# ${uniqueTitle}\n\nTest for results array.`;
+    const content = `# ${uniqueTitle}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nTest for results array.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
 
     // Store
     await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',
@@ -104,7 +105,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
 
     // Search
     const call = {
-      name: 'kairos_search',
+      name: 'activate',
       arguments: {
         query: uniqueTitle.toLowerCase()
       }

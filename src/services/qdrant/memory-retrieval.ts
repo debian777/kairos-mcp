@@ -2,7 +2,7 @@ import { QdrantConnection } from './connection.js';
 import { validateAndConvertId } from './utils.js';
 import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-metrics.js';
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
-import { buildChainSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
+import { buildAdapterSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { KairosError } from '../../types/index.js';
 
@@ -107,8 +107,8 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
     const payload = result.payload;
     return {
       id: result.uuid,
-      description_short: payload.label || payload.description_short || '',
-      description_full: payload.text || payload.description_full || '',
+      label: payload.label || '',
+      text: payload.text || '',
       domain: payload.domain || '',
       task: payload.task || '',
       type: payload.type || 'context',
@@ -117,12 +117,19 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
       quality_metrics: payload.quality_metrics,
       quality_metadata: payload.quality_metadata,
       memory_uuid: uuid,
-      chain: payload.chain ? {
-        id: payload.chain.id,
-        label: payload.chain.label,
-        step_index: payload.chain.step_index,
-        step_count: payload.chain.step_count
+      adapter: payload.adapter ? {
+        id: payload.adapter.id,
+        name: payload.adapter.name,
+        layer_index: payload.adapter.layer_index,
+        layer_count: payload.adapter.layer_count,
+        ...(typeof payload.adapter.protocol_version === 'string' && {
+          protocol_version: payload.adapter.protocol_version
+        }),
+        ...(Array.isArray(payload.adapter.activation_patterns) && {
+          activation_patterns: payload.adapter.activation_patterns
+        })
       } : undefined,
+      inference_contract: payload.inference_contract,
       embedding: [],
       access_count: payload.quality_metrics?.retrievalCount || 0,
       last_accessed: new Date(payload.updated_at || payload.created_at || Date.now()),
@@ -135,34 +142,19 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
   });
 }
 
-function mergeSpaceIdsForChainScroll(extraSpaceIds?: string[]): string[] {
-  const base = getSearchSpaceIds();
-  const seen = new Set(base);
-  const out = [...base];
-  for (const raw of extraSpaceIds ?? []) {
-    const id = typeof raw === 'string' ? raw.trim() : '';
-    if (id && !seen.has(id)) {
-      seen.add(id);
-      out.push(id);
-    }
-  }
-  return out;
-}
-
-/**
- * Scroll chain members by chain.id, scoped to search spaces plus optional anchor spaces.
- * `extraSpaceIds` should come only from a Memory.space_id the caller already loaded via authorized retrieve
- * (never from raw client input), so sibling resolution matches the same tenant rows as the anchor point.
- */
-export async function getChainMemories(
+export async function getAdapterLayers(
   conn: QdrantConnection,
-  chainId: string,
-  extraSpaceIds?: string[]
+  adapterId: string,
+  allowedSpaceIdsOverride?: string[]
 ): Promise<Array<{ uuid: string; payload: any }>> {
   return conn.executeWithReconnect(async () => {
     const results: Array<{ uuid: string; payload: any }> = [];
     let offset: any = undefined;
-    const filter = buildChainSiblingScrollFilter(mergeSpaceIdsForChainScroll(extraSpaceIds), chainId);
+    const spaceIds =
+      allowedSpaceIdsOverride && allowedSpaceIdsOverride.length > 0
+        ? allowedSpaceIdsOverride
+        : getSearchSpaceIds();
+    const filter = buildAdapterSiblingScrollFilter(spaceIds, adapterId);
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,
@@ -176,8 +168,12 @@ export async function getChainMemories(
     } while (offset);
 
     results.sort((a, b) => {
-      const ai = typeof a.payload?.chain?.step_index === 'number' ? a.payload.chain.step_index : 0;
-      const bi = typeof b.payload?.chain?.step_index === 'number' ? b.payload.chain.step_index : 0;
+      const ai = typeof a.payload?.adapter?.layer_index === 'number'
+        ? a.payload.adapter.layer_index
+        : 0;
+      const bi = typeof b.payload?.adapter?.layer_index === 'number'
+        ? b.payload.adapter.layer_index
+        : 0;
       return ai - bi;
     });
 
@@ -186,9 +182,9 @@ export async function getChainMemories(
 }
 
 /**
- * Find step-1 memory UUID for a protocol slug (exact match), scoped to searchable spaces.
+ * Find the first adapter layer UUID for a protocol slug (exact match), scoped to searchable spaces.
  * Paginates scroll so matches are not truncated at a small limit.
- * If the slug maps to more than one chain, prefers the default write space; otherwise throws.
+ * If the slug maps to more than one adapter, prefers the default write space; otherwise throws.
  */
 export async function findFirstStepMemoryUuidBySlug(
   conn: QdrantConnection,
@@ -200,7 +196,7 @@ export async function findFirstStepMemoryUuidBySlug(
     const filter = buildSpaceFilter(getSearchSpaceIds(), {
       must: [
         { key: 'slug', match: { value: normalized } },
-        { key: 'chain.step_index', match: { value: 1 } }
+        { key: 'adapter.layer_index', match: { value: 1 } }
       ]
     });
 
@@ -223,15 +219,16 @@ export async function findFirstStepMemoryUuidBySlug(
 
     allPts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
 
-    const byChainId = new Map<string, any>();
+    const byAdapterId = new Map<string, any>();
     for (const p of allPts) {
-      const chainObj = p.payload?.chain as { id?: string } | undefined;
-      const chainId =
-        chainObj?.id && typeof chainObj.id === 'string' ? chainObj.id : `__orphan_${String(p.id)}`;
-      if (!byChainId.has(chainId)) byChainId.set(chainId, p);
+      const adapterId =
+        typeof p.payload?.adapter?.id === 'string'
+          ? p.payload.adapter.id
+          : `__orphan_${String(p.id)}`;
+      if (!byAdapterId.has(adapterId)) byAdapterId.set(adapterId, p);
     }
 
-    const unique = [...byChainId.values()];
+    const unique = [...byAdapterId.values()];
     if (unique.length === 1) {
       return String(unique[0]!.id);
     }
@@ -239,6 +236,10 @@ export async function findFirstStepMemoryUuidBySlug(
     const defaultWrite = getSpaceContext().defaultWriteSpaceId;
     const spaceOf = (p: any) => String(p.payload?.space_id ?? KAIROS_APP_SPACE_ID);
     const inDefault = unique.filter((p) => spaceOf(p) === defaultWrite);
+    const activateNextAction =
+      'Call activate with the user intent to find the correct protocol, or use the exact adapter URI.';
+    const crossSpaceNextAction =
+      `${activateNextAction} If you work across spaces, narrow the active space first.`;
 
     if (inDefault.length === 1) {
       return String(inDefault[0]!.id);
@@ -249,7 +250,12 @@ export async function findFirstStepMemoryUuidBySlug(
         `Protocol slug "${normalized}" matches more than one protocol in your default space.`,
         'PROTOCOL_KEY_AMBIGUOUS',
         409,
-        { key: normalized, chain_count: inDefault.length }
+        {
+          key: normalized,
+          adapter_count: inDefault.length,
+          must_obey: true,
+          next_action: activateNextAction
+        }
       );
     }
 
@@ -260,8 +266,7 @@ export async function findFirstStepMemoryUuidBySlug(
       {
         key: normalized,
         must_obey: true,
-        next_action:
-          'Use kairos_begin with uri for the specific protocol, or work in a single target space.',
+        next_action: crossSpaceNextAction,
         spaces: [...new Set(unique.map((p) => spaceOf(p)))]
       }
     );

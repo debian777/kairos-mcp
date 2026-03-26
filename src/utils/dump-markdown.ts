@@ -1,5 +1,5 @@
 /**
- * YAML frontmatter for protocol dumps (round-trip with kairos_mint).
+ * YAML frontmatter for protocol dumps (round-trip with mint).
  * Slug and version values are constrained at mint time; kept single-line.
  */
 export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: string): string {
@@ -19,7 +19,7 @@ export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: str
  * Minting derives `label` from the first `##` line in the segment (any line),
  * but the stored body can include prose before that heading. The previous
  * implementation only stripped when `## label` was the first line, which
- * produced duplicate H2s in `kairos_dump` protocol output.
+ * produced duplicate H2s in protocol dump output.
  */
 export function stripRedundantStepH2(body: string, label: string): string {
   if (!body || !label) return body;

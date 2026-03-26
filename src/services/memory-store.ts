@@ -159,7 +159,6 @@ export class MemoryStore implements IKeyValueStore {
     return result;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- interface requires (channel, message); no-op for memory backend
   async publish(_channel: string, _message: string): Promise<number> {
     return 0;
   }

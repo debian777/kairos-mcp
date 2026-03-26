@@ -38,11 +38,11 @@ describe('MCP Tools Listing', () => {
       });
 
       const names = tools.map((t) => t.name);
-      // Ensure core tools are present
-      expect(names).toContain('kairos_mint');
-      expect(names).toContain('kairos_search');
-      expect(names).toContain('kairos_begin');
-      expect(names).toContain('kairos_dump');
+      // Current public surface
+      expect(names).toContain('train');
+      expect(names).toContain('activate');
+      expect(names).toContain('forward');
+      expect(names).toContain('export');
     }, 'tools/list raw response');
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Baseline and verification tests for kairos_search scores.
+ * Baseline and verification tests for activate (activation_score) vs. recorded baseline.
  * Per plan: (a) RECORD_BASELINE=1 runs fixed queries and writes tests/test-data/kairos-search-score-baseline.json.
  *           (b) Default run loads baseline and asserts top score >= baseline for each query.
  * Uses mint-in-test + fixed queries for deterministic dev. Run: npm run dev:deploy && npm run dev:test -- tests/integration/kairos-search-scores.test.ts
@@ -31,19 +31,28 @@ interface BaselineFile {
 
 const FIXED_QUERIES = ['ScoreBaseline'];
 
-function buildBaselineFromParsed(parsed: { choices: Array<{ label: string; score: number | null }> }): BaselineQueryResult {
-  const matchChoices = parsed.choices.filter((c: { role: string }) => c.role === 'match');
+function expectConfidenceMessageWithinBounds(message: string) {
+  const match = message.match(/top confidence: (\d+)%/i);
+  if (!match) return;
+  expect(Number(match[1])).toBeLessThanOrEqual(100);
+}
+
+function buildBaselineFromParsed(parsed: {
+  choices: Array<{ label: string; score?: number | null; activation_score?: number | null; role: string }>;
+}): BaselineQueryResult {
+  const matchChoices = parsed.choices.filter((c) => c.role === 'match');
   const top = matchChoices[0];
-  const topScore = top && typeof top.score === 'number' ? top.score : 0;
+  const rawTop = top ? top.activation_score ?? top.score : null;
+  const topScore = typeof rawTop === 'number' ? rawTop : 0;
   const topLabel = top?.label ?? '';
-  const choices = parsed.choices.map((c: { label: string; score: number | null }) => ({
+  const choices = parsed.choices.map((c) => ({
     label: c.label,
-    score: c.score
+    score: (c.activation_score ?? c.score) ?? null
   }));
   return { topScore, topLabel, choices };
 }
 
-describe('kairos_search score baseline and verification', () => {
+describe('activate score baseline and verification', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
@@ -58,14 +67,14 @@ describe('kairos_search score baseline and verification', () => {
     const args: { query: string; space_id?: string } = { query };
     const spaceId = getTestSpaceId();
     if (spaceId) args.space_id = spaceId;
-    const result = await mcpConnection!.client.callTool({ name: 'kairos_search', arguments: args });
-    return parseMcpJson(result, 'kairos_search scores');
+    const result = await mcpConnection!.client.callTool({ name: 'activate', arguments: args });
+    return parseMcpJson(result, 'activate scores');
   }
 
   async function mintProtocol(title: string) {
-    const content = `# ${title}\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"challenge":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\``;
+    const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
     await mcpConnection!.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: { markdown_doc: content, llm_model_id: 'test-score-baseline', force_update: true }
     });
   }
@@ -80,6 +89,14 @@ describe('kairos_search score baseline and verification', () => {
       const results: Record<string, BaselineQueryResult> = {};
       for (const q of FIXED_QUERIES) {
         const parsed = await search(q);
+        const matchChoices = parsed.choices.filter((c: { role: string }) => c.role === 'match');
+        expectConfidenceMessageWithinBounds(parsed.message);
+        for (const choice of matchChoices) {
+          const score = choice.activation_score ?? choice.score;
+          expect(typeof score).toBe('number');
+          expect(score).toBeGreaterThanOrEqual(0);
+          expect(score).toBeLessThanOrEqual(1);
+        }
         results[q] = buildBaselineFromParsed(parsed);
       }
 

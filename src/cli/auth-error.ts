@@ -3,8 +3,10 @@
  * Auth message is written without "Error: " prefix; --open can open the URL.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
+import { existsSync } from 'fs';
 import { platform } from 'os';
+import { isAbsolute } from 'path';
 import { writeError, writeStderr } from './output.js';
 
 export class AuthRequiredError extends Error {
@@ -23,25 +25,94 @@ export function isBrowserDisabled(): boolean {
     return b != null && b !== '' && /^(true|none|no|false|0)$/i.test(b);
 }
 
+interface BrowserLaunchCommand {
+    file: string;
+    args: string[];
+}
+
+const ALLOWED_BROWSER_BINARIES = new Set([
+    'brave',
+    'brave-browser',
+    'chrome',
+    'chromium',
+    'chromium-browser',
+    'firefox',
+    'google-chrome',
+    'google-chrome-stable',
+    'microsoft-edge',
+    'msedge',
+    'open',
+    'rundll32.exe',
+    'safari',
+    'xdg-open',
+]);
+
+function normalizeBrowserUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed || /[\r\n\t\x00]/.test(trimmed)) {
+        throw new Error('Browser URL contains invalid control characters');
+    }
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error(`Unsupported browser URL protocol: ${parsed.protocol}`);
+    }
+    return parsed.toString();
+}
+
+function resolveCustomBrowser(browserEnv: string, url: string): BrowserLaunchCommand | null {
+    const trimmed = browserEnv.trim();
+    if (!trimmed) return null;
+    if (/["'`$&|;<>]/.test(trimmed)) return null;
+    if (/\s/.test(trimmed)) {
+        if (isAbsolute(trimmed) && existsSync(trimmed)) {
+            return { file: trimmed, args: [url] };
+        }
+        return null;
+    }
+    if (!ALLOWED_BROWSER_BINARIES.has(trimmed) && !(isAbsolute(trimmed) && existsSync(trimmed))) {
+        return null;
+    }
+    return { file: trimmed, args: [url] };
+}
+
+function resolveSystemBrowser(url: string): BrowserLaunchCommand {
+    if (platform() === 'win32') {
+        return { file: 'rundll32.exe', args: ['url.dll,FileProtocolHandler', url] };
+    }
+    if (platform() === 'darwin') {
+        return { file: 'open', args: [url] };
+    }
+    return { file: 'xdg-open', args: [url] };
+}
+
+function runBrowser(launch: BrowserLaunchCommand, url: string, errorPrefix: string): void {
+    execFile(launch.file, launch.args, (err) => {
+        if (err) writeStderr(`${errorPrefix}: ${err.message}. Open this URL manually:\n${url}`);
+    });
+}
+
 /** When set, used instead of system default (open/xdg-open/start). BROWSER=true or none skips opening. */
 export function openBrowser(url: string): void {
     if (isBrowserDisabled()) return;
-    const browserEnv = process.env['BROWSER'];
-    if (browserEnv != null && browserEnv !== '') {
-        exec(`${browserEnv} "${url}"`, (err) => {
-            if (err) writeStderr(`Could not run BROWSER: ${err.message}. Open this URL manually:\n${url}`);
-        });
+    let safeUrl: string;
+    try {
+        safeUrl = normalizeBrowserUrl(url);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid browser URL';
+        writeStderr(`${message}. Open this URL manually:\n${url}`);
         return;
     }
-    const cmd =
-        platform() === 'win32'
-            ? `start "${url}"`
-            : platform() === 'darwin'
-              ? `open "${url}"`
-              : `xdg-open "${url}"`;
-    exec(cmd, (err) => {
-        if (err) writeStderr(`Could not open browser: ${err.message}. Open this URL manually:\n${url}`);
-    });
+
+    const browserEnv = process.env['BROWSER'];
+    if (browserEnv != null && browserEnv !== '') {
+        const customLaunch = resolveCustomBrowser(browserEnv, safeUrl);
+        if (customLaunch) {
+            runBrowser(customLaunch, safeUrl, 'Could not run BROWSER');
+            return;
+        }
+        writeStderr(`Ignoring unsafe BROWSER override. Falling back to system browser for:\n${safeUrl}`);
+    }
+    runBrowser(resolveSystemBrowser(safeUrl), safeUrl, 'Could not open browser');
 }
 
 /**

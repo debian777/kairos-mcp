@@ -2,17 +2,18 @@ import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { searchInputSchema } from '../tools/kairos_search_schema.js';
-import { executeSearch } from '../tools/kairos_search.js';
+import { activateInputSchema } from '../tools/activate_schema.js';
+import { executeActivate } from '../tools/activate.js';
+import { sendToolRouteError } from './http-route-errors.js';
 
 /**
- * Set up API route for kairos_search (V2 unified response).
+ * Set up API route for activate.
  * Validates with canonical schema and returns executeSearch result only (no metadata).
  */
-export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
-  app.post('/api/kairos_search', async (req, res) => {
+export function setupActivateRoute(app: express.Express, memoryStore: MemoryQdrantStore, qdrantService: QdrantService): void {
+  app.post('/api/activate', async (req, res) => {
     try {
-      const parsed = searchInputSchema.safeParse(req.body);
+      const parsed = activateInputSchema.safeParse(req.body);
       if (!parsed.success) {
         const first = parsed.error.flatten().fieldErrors;
         const msg = Object.keys(first).length
@@ -24,15 +25,12 @@ export function setupBeginRoute(app: express.Express, memoryStore: MemoryQdrantS
         return;
       }
 
-      structuredLogger.info(`-> POST /api/kairos_search (query: ${parsed.data.query})`);
-      const result = await executeSearch(memoryStore, qdrantService, parsed.data);
+      structuredLogger.info(`-> POST /api/activate (query: ${parsed.data.query})`);
+      const result = await executeActivate(memoryStore, qdrantService, parsed.data);
       res.status(200).json(result);
     } catch (error) {
-      structuredLogger.error('kairos_search failed', error);
-      res.status(500).json({
-        error: 'SEARCH_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to search for chain heads'
-      });
+      structuredLogger.error('activate failed', error);
+      sendToolRouteError(res, error, 'ACTIVATE_FAILED');
     }
   });
 }

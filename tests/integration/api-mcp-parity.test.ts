@@ -7,13 +7,16 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
-import { spacesOutputSchema } from '../../src/tools/kairos_spaces_schema.js';
-import { searchOutputSchema } from '../../src/tools/kairos_search_schema.js';
-import { dumpOutputSchema } from '../../src/tools/kairos_dump_schema.js';
-import { deleteOutputSchema } from '../../src/tools/kairos_delete_schema.js';
+import { spacesOutputSchema } from '../../src/tools/spaces_schema.js';
+import { activateOutputSchema } from '../../src/tools/activate_schema.js';
+import { exportOutputSchema } from '../../src/tools/export_schema.js';
+import { deleteOutputSchema } from '../../src/tools/delete_schema.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;
+
+/** Boot-injected creation layer (see CREATION_PROTOCOL_URI) — valid export input. */
+const SAMPLE_EXPORT_URI = 'kairos://layer/00000000-0000-0000-0000-000000002001';
 
 function httpFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(path, {
@@ -37,20 +40,20 @@ describe('API-MCP parity: identical response shapes', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  describe('kairos_spaces', () => {
+  describe('spaces', () => {
     test('MCP and HTTP responses have identical key sets', async () => {
       expect.hasAssertions();
 
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_spaces',
-        arguments: { include_chain_titles: false }
+        name: 'spaces',
+        arguments: { include_adapter_titles: false }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_spaces MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'spaces MCP');
 
-      const httpRes = await httpFetch(`${API_BASE}/kairos_spaces`, {
+      const httpRes = await httpFetch(`${API_BASE}/spaces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ include_chain_titles: false })
+        body: JSON.stringify({ include_adapter_titles: false })
       });
       expect(httpRes.ok).toBe(true);
       const httpParsed = (await httpRes.json()) as Record<string, unknown>;
@@ -59,18 +62,18 @@ describe('API-MCP parity: identical response shapes', () => {
     });
   });
 
-  describe('kairos_search', () => {
+  describe('activate', () => {
     test('MCP and HTTP responses have identical key sets', async () => {
       expect.hasAssertions();
 
       const query = `ParityTest ${Date.now()}`;
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_search',
+        name: 'activate',
         arguments: { query }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_search MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'activate MCP');
 
-      const httpRes = await httpFetch(`${API_BASE}/kairos_search`, {
+      const httpRes = await httpFetch(`${API_BASE}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
@@ -82,21 +85,21 @@ describe('API-MCP parity: identical response shapes', () => {
     });
   });
 
-  describe('kairos_dump', () => {
+  describe('export', () => {
     test('MCP and HTTP responses have identical key sets for same URI', async () => {
       expect.hasAssertions();
 
-      const uri = 'kairos://mem/00000000-0000-0000-0000-000000002001';
+      const uri = SAMPLE_EXPORT_URI;
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_dump',
-        arguments: { uri, protocol: false }
+        name: 'export',
+        arguments: { uri, format: 'markdown' }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_dump MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'export MCP');
 
-      const httpRes = await httpFetch(`${API_BASE}/kairos_dump`, {
+      const httpRes = await httpFetch(`${API_BASE}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri, protocol: false })
+        body: JSON.stringify({ uri, format: 'markdown' })
       });
       expect(httpRes.ok).toBe(true);
       const httpParsed = (await httpRes.json()) as Record<string, unknown>;
@@ -105,18 +108,18 @@ describe('API-MCP parity: identical response shapes', () => {
     });
   });
 
-  describe('kairos_delete', () => {
+  describe('delete', () => {
     test('MCP and HTTP responses have identical key sets', async () => {
       expect.hasAssertions();
 
-      const uris = ['kairos://mem/00000000-0000-0000-0000-000000000000'];
+      const uris = ['kairos://layer/00000000-0000-0000-0000-000000000000'];
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_delete',
+        name: 'delete',
         arguments: { uris }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_delete MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'delete MCP');
 
-      const httpRes = await httpFetch(`${API_BASE}/kairos_delete`, {
+      const httpRes = await httpFetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uris })
@@ -129,20 +132,20 @@ describe('API-MCP parity: identical response shapes', () => {
   });
 
   describe('Schema conformance: outputSchema.parse(response)', () => {
-    test('kairos_spaces: MCP response parses against spacesOutputSchema', async () => {
+    test('spaces: MCP response parses against spacesOutputSchema', async () => {
       expect.hasAssertions();
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_spaces',
-        arguments: { include_chain_titles: false }
+        name: 'spaces',
+        arguments: { include_adapter_titles: false }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_spaces MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'spaces MCP');
       const parsed = spacesOutputSchema.safeParse(mcpParsed);
       expect(parsed.success).toBe(true);
     });
 
-    test('kairos_spaces: HTTP response parses against spacesOutputSchema', async () => {
+    test('spaces: HTTP response parses against spacesOutputSchema', async () => {
       expect.hasAssertions();
-      const httpRes = await httpFetch(`${API_BASE}/kairos_spaces`, {
+      const httpRes = await httpFetch(`${API_BASE}/spaces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -152,35 +155,47 @@ describe('API-MCP parity: identical response shapes', () => {
       expect(parsed.success).toBe(true);
     });
 
-    test('kairos_search: MCP response parses against searchOutputSchema', async () => {
+    test('activate: MCP response parses against activateOutputSchema', async () => {
       expect.hasAssertions();
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_search',
+        name: 'activate',
         arguments: { query: 'SchemaConformance' }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_search MCP');
-      const parsed = searchOutputSchema.safeParse(mcpParsed);
+      const mcpParsed = parseMcpJson(mcpResult, 'activate MCP');
+      const parsed = activateOutputSchema.safeParse(mcpParsed);
       expect(parsed.success).toBe(true);
     });
 
-    test('kairos_dump: MCP response parses against dumpOutputSchema', async () => {
+    test('activate: HTTP response parses against activateOutputSchema', async () => {
       expect.hasAssertions();
-      const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_dump',
-        arguments: { uri: 'kairos://mem/00000000-0000-0000-0000-000000002001', protocol: false }
+      const httpRes = await httpFetch(`${API_BASE}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'SchemaConformance' })
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_dump MCP');
-      const parsed = dumpOutputSchema.safeParse(mcpParsed);
+      const httpParsed = (await httpRes.json()) as Record<string, unknown>;
+      const parsed = activateOutputSchema.safeParse(httpParsed);
       expect(parsed.success).toBe(true);
     });
 
-    test('kairos_delete: MCP response parses against deleteOutputSchema', async () => {
+    test('export: MCP response parses against exportOutputSchema', async () => {
       expect.hasAssertions();
       const mcpResult = await mcpConnection.client.callTool({
-        name: 'kairos_delete',
-        arguments: { uris: ['kairos://mem/00000000-0000-0000-0000-000000000000'] }
+        name: 'export',
+        arguments: { uri: SAMPLE_EXPORT_URI, format: 'markdown' }
       });
-      const mcpParsed = parseMcpJson(mcpResult, 'kairos_delete MCP');
+      const mcpParsed = parseMcpJson(mcpResult, 'export MCP');
+      const parsed = exportOutputSchema.safeParse(mcpParsed);
+      expect(parsed.success).toBe(true);
+    });
+
+    test('delete: MCP response parses against deleteOutputSchema', async () => {
+      expect.hasAssertions();
+      const mcpResult = await mcpConnection.client.callTool({
+        name: 'delete',
+        arguments: { uris: ['kairos://layer/00000000-0000-0000-0000-000000000000'] }
+      });
+      const mcpParsed = parseMcpJson(mcpResult, 'delete MCP');
       const parsed = deleteOutputSchema.safeParse(mcpParsed);
       expect(parsed.success).toBe(true);
     });

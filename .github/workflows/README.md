@@ -5,8 +5,8 @@
 ```mermaid
 flowchart LR
   subgraph triggers["Triggers"]
-    PR[PR → main]
-    PUSH[Push → main]
+    PR[PR → main, v4, or ci/**]
+    PUSH[Push → main, v4, or ci/**]
     TAG[Tag push v*.*.*]
     MANUAL[Manual dispatch]
   end
@@ -42,7 +42,7 @@ flowchart LR
 
 **Release path (normal flow):** Version-bump PR merged to main → **Release tag on version bump** runs; if `package.json` version &gt; latest tag, it pushes that tag → **Release** runs on tag push (publish npm → publish Docker → create GitHub Release).
 
-**Integration:** Runs on every PR and push to main (and on tag push to re-verify the released ref). Manual run available.
+**Integration:** Runs on every PR and push to **main**, **v4**, or **`ci/**`** (integration and beta lines such as `ci/integration-on-v4`), and on tag push to re-verify the released ref. Manual run available. Without a push (or PR) trigger on those `ci/**` branches, **Release tag on version bump** never sees a successful **Integration** `workflow_run`, so beta tags are not created automatically after CI green.
 
 **PR/MR tooling:** This repo uses the GitHub CLI (**gh**) for PRs. For GitLab MRs use **glab**. KAIROS protocols: *GitHub PR with gh* (create/track PRs with `gh`), *GitLab MR with glab* (create/track MRs with `glab`).
 
@@ -114,7 +114,7 @@ flowchart TB
 
 The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding tests), `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `SESSION_SECRET`. In the workflow they are referenced as `${{ secrets.OPENAI_API_KEY }}` etc. Non-sensitive values use **repository variables** as `${{ vars.VAR_NAME }}`. If optional secrets are not set, the job uses fixed defaults for Keycloak and generates `SESSION_SECRET` so the job runs without any secrets.
 
-**Triggers:** `push` tags `v*.*.*`, `workflow_dispatch` (optional force input).
+**Triggers:** `pull_request` / `push` to **main**, **v4**, or **`ci/**`**; `push` tags `v*.*.*`; `workflow_dispatch` (optional force input).
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
@@ -156,7 +156,7 @@ sequenceDiagram
 
 - **Main:** Full releases (`vX.Y.Z`) and pre-releases (`vX.Y.Z-pre.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing stable tag. Same as before.
 - **Any other branch:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist. Full/pre releases are not created from non-main branches.
-- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `feat/seamless-kairos-opus-4.6-max`). Beta only: tags the commit if `package.json` version is a beta and the tag does not exist. Use when you want a beta release from a feature branch without merging to main. The ref does not need to have passed Integration first.
+- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-on-v4` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when Integration has not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to a **`ci/**`** branch (or **main** / **v4**), let **Integration** go green, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
 
 **Flow:** When a tag is created (by this workflow), it triggers the **Release** workflow (npm → Docker → GitHub Release).
 

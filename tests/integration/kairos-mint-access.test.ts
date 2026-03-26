@@ -11,11 +11,11 @@ describe('Kairos mint accessibility', () => {
     const maxRounds = 5;
     for (let round = 0; round < maxRounds; round++) {
       const searchCall = {
-        name: 'kairos_search',
+        name: 'activate',
         arguments: { query: QUERY }
       };
       const searchResult = await mcpConnection.client.callTool(searchCall);
-      const searchPayload = parseMcpJson(searchResult, '[kairos_search] cleanup AI CODING RULES');
+      const searchPayload = parseMcpJson(searchResult, '[activate] cleanup AI CODING RULES');
 
       // V2: collect URIs from choices array
       const uris = new Set<string>();
@@ -32,11 +32,11 @@ describe('Kairos mint accessibility', () => {
       }
 
       const deleteCall = {
-        name: 'kairos_delete',
+        name: 'delete',
         arguments: { uris: Array.from(uris) }
       };
       const deleteResult = await mcpConnection.client.callTool(deleteCall);
-      parseMcpJson(deleteResult, '[kairos_delete] cleanup result');
+      parseMcpJson(deleteResult, '[delete] cleanup result');
       // One round done; total_deleted may be 0 (e.g. space isolation)—break to avoid looping
       await new Promise(resolve => setTimeout(resolve, 500));
       break;
@@ -53,7 +53,7 @@ describe('Kairos mint accessibility', () => {
     }
   });
 
-  test('kairos_mint stores AI CODING RULES markdown', async () => {
+  test('train stores AI CODING RULES markdown', async () => {
     await purgeExistingProtocols();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -61,7 +61,7 @@ describe('Kairos mint accessibility', () => {
     const markdownDoc = readFileSync(docPath, 'utf-8');
 
     const mintCall = {
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: markdownDoc,
         llm_model_id: 'test-ai-coding-rules',
@@ -69,13 +69,13 @@ describe('Kairos mint accessibility', () => {
       }
     };
     const mintResult = await mcpConnection.client.callTool(mintCall);
-    const mintPayload = parseMcpJson(mintResult, '[kairos_mint] AI CODING RULES');
+    const mintPayload = parseMcpJson(mintResult, '[train] AI CODING RULES');
 
     withRawOnFail({ call: mintCall, result: mintResult }, () => {
       expect(mintPayload.status).toBe('stored');
       expect(Array.isArray(mintPayload.items)).toBe(true);
       expect(mintPayload.items.length).toBeGreaterThanOrEqual(1);
-    }, '[kairos_mint] AI CODING RULES raw');
+    }, '[train] AI CODING RULES raw');
   }, 60000);
 });
 

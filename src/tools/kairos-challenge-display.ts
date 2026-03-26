@@ -16,7 +16,7 @@ function isAllowedStoredChallengeType(t: unknown): t is ProofOfWorkType {
   return t === 'shell' || t === 'mcp' || t === 'user_input' || t === 'comment';
 }
 
-/** Build challenge shape from proof only (no nonce, no store). For read-only display e.g. kairos_dump. */
+/** Build challenge shape from proof only (no nonce, no store). For read-only display e.g. export. */
 export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Record<string, unknown> {
   const base: Record<string, unknown> = proof ? (() => {
     let proofType: ProofOfWorkType;
@@ -27,7 +27,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
     } else {
       structuredLogger.warn(
         { event: 'invalid_stored_challenge_type', storedType: proof.type },
-        'Invalid proof_of_work.type in stored step; coercing to comment for MCP output schema compliance'
+        'Invalid stored contract type in adapter layer; coercing to comment for MCP output schema compliance'
       );
       proofType = 'comment';
     }

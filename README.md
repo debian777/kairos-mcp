@@ -13,10 +13,43 @@ chains for AI agents. It exposes:
 - a browser UI under `/ui`
 - a CLI named `kairos`
 
-Protocol execution is deterministic:
+Without persistent workflows, agents repeat work, lose context, and cannot
+follow multi-step procedures reliably. KAIROS fixes this with three core
+ideas (the diagrams below list every **MCP tool**):
 
-```text
-kairos_search -> kairos_begin -> kairos_next (loop) -> kairos_attest
+- **Persistent memory** — store and retrieve protocol chains across sessions
+- **Deterministic execution** — **activate** → **forward** (per layer) →
+  **reward**; the server drives `next_action` at every step
+- **Agent-facing design** — tool descriptions and error messages built for
+  programmatic consumption and recovery
+
+Protocol execution runs in a fixed order: **activate** (match adapters),
+**forward** (run each layer’s contract; loop), then **reward** (finalize the
+run). Use **train** / **tune** / **export** / **delete** / **spaces** as
+described in each tool’s MCP description.
+
+**Default run order** — `activate` → `forward` (loop per layer) → `reward`:
+
+```mermaid
+flowchart LR
+  A([activate]) --> B([forward])
+  B -.-> B
+  B --> D([reward])
+  style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style B fill:#ffb74d,stroke:#f57c00,color:#333
+  style D fill:#81c784,stroke:#388e3c,color:#333
+```
+
+**Discovery and adapter lifecycle** — no fixed order; follow each tool’s MCP description:
+
+```mermaid
+flowchart LR
+  S([spaces]) --- TR([train]) --- TU([tune]) --- EX([export]) --- DL([delete])
+  style S fill:#4a6fa5,stroke:#2d4a7a,color:#fff
+  style TR fill:#ede7f6,stroke:#5e35b1,color:#333
+  style TU fill:#fff3e0,stroke:#f57c00,color:#333
+  style EX fill:#e8f5e9,stroke:#388e3c,color:#333
+  style DL fill:#ffebee,stroke:#c62828,color:#333
 ```
 
 The server generates challenge data (`nonce`, `proof_hash`, URIs); agents echo
@@ -35,10 +68,41 @@ The current codebase includes:
 
 ## Quick start
 
-### Minimal Docker stack (default)
+If your agent supports installable skills, start with the guided setup below.
+If not, use the manual Docker path that follows.
 
-The default Compose profile starts **Qdrant + app only**. This is the smallest
-working server deployment.
+### Guided setup with the `kairos-install` skill
+
+Use this when you want a guided first-time setup for Ollama, `.env`
+configuration, and the minimal local stack.
+The repo stores `kairos-install` under `skills/.system/`, but you still
+install it by name.
+
+1. Install the setup skill:
+
+   ```bash
+   npx skills add debian777/kairos-mcp --skill kairos-install
+   ```
+
+2. Ask your agent to run `kairos-install` for this repo. The skill confirms
+   each system-changing step before it installs Ollama, prepares `.env`, and
+   starts the minimal Docker stack.
+
+3. Verify the server:
+
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+4. Open the UI or MCP endpoint:
+   - UI: `http://localhost:3000/ui`
+   - MCP: `http://localhost:3000/mcp`
+   - Metrics: `http://localhost:9090/metrics`
+
+### Manual minimal Docker stack
+
+Use this when you want the smallest working server deployment without the
+guided skill. The default Compose profile starts **Qdrant + app only**.
 
 1. Copy the minimal env example:
 
@@ -120,22 +184,28 @@ The CLI talks to a running KAIROS server over HTTP. See [docs/CLI.md](docs/CLI.m
 
 ### Add KAIROS to your agent instructions
 
+This repo ships the **kairos** skill for running protocols. Use `--list`
+to see what the skills registry reports for this repo.
+
 If you want agents to use KAIROS consistently, add a short repo rule or
 instruction such as:
 
 > KAIROS MCP is a Model Context Protocol server for persistent memory and
-> deterministic protocol-chain execution. Execute protocols in this order:
-> `kairos_search` -> `kairos_begin` -> `kairos_next` until told to call
-> `kairos_attest`. Echo all server-generated hashes, nonces, and URIs exactly.
+> deterministic adapter execution. Execute protocols in this order:
+> **`activate`** → **`forward`** (loop per layer until `next_action` points to
+> **`reward`**) → **`reward`**. Echo all server-generated hashes, nonces, and
+> URIs exactly.
 
 ## Agent skills shipped in this repo
 
-This repository currently ships three installable skills:
+This repository currently ships three installable skills. The primary
+workflow skill lives in `skills/`. The helper skills live in
+`skills/.system/`, but you still install them by name.
 
 | Skill | Purpose |
 |-------|---------|
 | `kairos` | Run KAIROS protocols |
-| `kairos-bundle` | Export and import protocol bundles |
+| `kairos-bug-report` | Capture structured MCP bug reports in `reports/` |
 | `kairos-install` | First-time local setup guidance |
 
 Install all shipped skills:

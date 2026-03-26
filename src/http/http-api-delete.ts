@@ -1,14 +1,14 @@
 import express from 'express';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { executeDelete } from '../tools/kairos_delete.js';
-import { deleteInputSchema } from '../tools/kairos_delete_schema.js';
+import { executeDelete } from '../tools/delete.js';
+import { deleteInputSchema } from '../tools/delete_schema.js';
 
 /**
- * Set up API route for kairos_delete. Uses shared executeDelete; returns same shape as MCP (no metadata).
+ * Set up API route for delete. Uses shared executeDelete; returns same shape as MCP (no metadata).
  */
 export function setupDeleteRoute(app: express.Express, qdrantService: QdrantService) {
-  app.post('/api/kairos_delete', async (req, res) => {
+  app.post('/api/delete', async (req, res) => {
     try {
       const input = deleteInputSchema.safeParse(req.body);
       if (!input.success) {
@@ -19,12 +19,12 @@ export function setupDeleteRoute(app: express.Express, qdrantService: QdrantServ
         return;
       }
 
-      structuredLogger.info(`→ POST /api/kairos_delete (${input.data.uris.length} URI(s))`);
+      structuredLogger.info(`→ POST /api/delete (${input.data.uris.length} URI(s))`);
       const result = await executeDelete(qdrantService, input.data);
-      structuredLogger.info(`✓ kairos_delete completed (${result.total_deleted} deleted, ${result.total_failed} failed)`);
+      structuredLogger.info(`✓ delete completed (${result.total_deleted} deleted, ${result.total_failed} failed)`);
       res.status(200).json(result);
     } catch (error) {
-      structuredLogger.error('✗ kairos_delete failed', error);
+      structuredLogger.error('✗ delete failed', error);
       res.status(500).json({
         error: 'DELETE_FAILED',
         message: error instanceof Error ? error.message : 'Failed to delete memories'

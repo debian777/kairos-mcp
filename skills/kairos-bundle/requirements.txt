@@ -1,3 +1,0 @@
-# Runtime prerequisites (see SKILL.md): Python 3, KAIROS CLI (for kairos token),
-# KAIROS MCP server (API reachable at KAIROS_API_URL).
-# pip deps below (stdlib-only; add packages here if needed)

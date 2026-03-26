@@ -14,19 +14,23 @@ limited; protocols are unlimited). For **using** and installing skills, see
 
 ## Folder structure
 
-Skills are discovered under `skills/` (and, in this repo, under `skills/.system/`).
-Each skill is a directory with a required `SKILL.md` and optional supporting
-dirs per the [Agent Skills spec](https://agentskills.io/specification).
+Skills are discovered under `skills/` and, in this repo, also under
+`skills/.system/`. Each skill is a directory with a required `SKILL.md`
+and optional supporting dirs per the [Agent Skills
+spec](https://agentskills.io/specification).
 
 ```
 skills/
 ├── README.md              # How to use our skills
 ├── SKILLS.md              # This file — references and structure
-├── kairos/                # Everyday: run protocols
-├── kairos-bundle/         # Occasional: export/import bundles
-└── .system/               # One-time / system skills (CLI discovery)
+├── kairos/                # Everyday workflow skill
+└── .system/               # Helper and setup skills (CLI discovery)
+    ├── kairos-bug-report/
     └── kairos-install/
 ```
+
+`kairos` is the main everyday skill. `kairos-bug-report` and
+`kairos-install` are helper skills kept under `.system/`.
 
 **Per-skill layout (spec-aligned):**
 
@@ -48,5 +52,5 @@ Skills spec](https://agentskills.io/specification#validation) (Python).
 
 ## Relation to existing docs
 
-- **KAIROS protocol execution:** [AGENTS.md](../AGENTS.md) — search, begin, next, attest; tool descriptions in `src/embed-docs/tools/`.
-- **Minting protocols:** [kairos_mint](../src/embed-docs/tools/kairos_mint.md).
+- **KAIROS protocol execution:** [AGENTS.md](../AGENTS.md) — activate, forward, reward; tool descriptions in `src/embed-docs/tools/`.
+- **Minting adapters:** [Building KAIROS workflows](../src/embed-docs/resources/building-kairos-workflows.md), [train](../src/embed-docs/tools/train.md).

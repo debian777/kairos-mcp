@@ -65,7 +65,7 @@ export async function addVectorsToCollection(client: QdrantClient, collectionNam
               mergedVectors[k] = { size: (v as any).size, distance: (v as any).distance || 'Cosine', on_disk: (v as any).on_disk };
             });
           } else if (typeof existingVectors === 'object' && (existingVectors as any).size) {
-            // legacy single-vector
+            // older single-vector layout
             const ev = existingVectors as any;
             mergedVectors[`vs${ev.size}`] = { size: ev.size, distance: ev.distance || 'Cosine', on_disk: ev.on_disk };
           }
@@ -155,7 +155,7 @@ export async function migrateVectorSpace(
       const payload = point.payload as any;
       // Re-embed the content to get new vector
       const textToEmbed = [
-        payload.description_full || '',
+        payload.text || '',
         payload.label || '',
         payload.text || '',
         `Tags: ${(payload.tags || []).join(', ')}`

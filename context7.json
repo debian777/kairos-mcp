@@ -1,17 +1,17 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "KAIROS MCP",
-  "description": "MCP server for persistent memory and deterministic protocol-chain execution for AI agents.",
+  "description": "MCP server for persistent memory and deterministic adapter execution for AI agents.",
   "folders": ["docs", "src/embed-docs"],
   "excludeFolders": ["node_modules", "dist", ".git", "reports", "tests"],
   "excludeFiles": ["docs/install/env.example.*.txt"],
   "rules": [
-    "Follow `next_action` exactly when `must_obey` is `true`. Do not respond to the user until the protocol run is complete (after calling kairos_attest).",
+    "Follow `next_action` exactly when `must_obey` is `true`. Finish the run with `reward` when directed before treating the task as complete.",
     "Echo server-generated `nonce` and `proof_hash` verbatim in solutions. Never compute hashes yourself.",
-    "Protocol order is fixed: kairos_search → kairos_begin → kairos_next (loop) → kairos_attest. Never skip or reorder steps.",
-    "For step 1, use `challenge.proof_hash`. For later steps, use the `proof_hash` returned by the previous kairos_next.",
-    "Errors include a fresh challenge. Retry using the data in the error response — do not re-call kairos_begin.",
+    "Protocol order is fixed: activate → forward (loop per layer) → reward. Never skip or reorder steps.",
+    "Echo `challenge.proof_hash` and subsequent top-level `proof_hash` values exactly as each tool description requires.",
+    "Errors include a fresh challenge. Retry using the data in the error response — do not restart from activate unless the tool text says so.",
     "Space names are used at the tool interface; never pass raw space IDs as tool arguments.",
-    "When `must_obey` is `false`, use judgment; prefer kairos_update to repair a broken step before aborting."
+    "When `must_obey` is `false`, use judgment; prefer `tune` / `train` to repair adapter markdown before aborting."
   ]
 }
