@@ -4,30 +4,31 @@ import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { applyRewardMetrics, type RewardMetricsResult } from '../services/reward-metrics.js';
 import { rewardInputSchema, rewardOutputSchema, type RewardInput, type RewardOutput } from './reward_schema.js';
-import { parseKairosUri } from './kairos-uri.js';
+import { parseKairosUriOrThrow } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
+import { KairosError } from '../types/index.js';
 
 interface RegisterRewardOptions {
   toolName?: string;
 }
 
-function buildRewardPersistenceError(uri: string, error: unknown): Error {
-  const wrapped = new Error(
+function buildRewardPersistenceError(uri: string, error: unknown): KairosError {
+  return new KairosError(
     `Failed to record reward for ${uri}. No reward was stored. Retry the same reward call once reward storage is healthy.`,
-    { cause: error instanceof Error ? error : undefined }
+    'REWARD_FAILED',
+    503,
+    error instanceof Error ? { cause: error.message } : undefined
   );
-  wrapped.name = 'RewardPersistenceError';
-  return wrapped;
 }
 
 export async function executeReward(
   qdrantService: QdrantService,
   input: RewardInput
 ): Promise<RewardOutput> {
-  const parsed = parseKairosUri(input.uri);
+  const parsed = parseKairosUriOrThrow(input.uri);
   if (parsed.kind !== 'layer') {
-    throw new Error('reward requires a layer URI');
+    throw new KairosError('reward requires a layer URI', 'INVALID_URI', 400);
   }
 
   const evaluation = evaluateReward({
@@ -52,6 +53,9 @@ export async function executeReward(
   try {
     rewardMetricsResult = await applyRewardMetrics(qdrantService, rewardMetricsInput);
   } catch (error) {
+    if (error instanceof KairosError) {
+      throw error;
+    }
     throw buildRewardPersistenceError(input.uri, error);
   }
 

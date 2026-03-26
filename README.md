@@ -75,6 +75,8 @@ If not, use the manual Docker path that follows.
 
 Use this when you want a guided first-time setup for Ollama, `.env`
 configuration, and the minimal local stack.
+The repo stores `kairos-install` under `skills/.system/`, but you still
+install it by name.
 
 1. Install the setup skill:
 
@@ -196,7 +198,9 @@ instruction such as:
 
 ## Agent skills shipped in this repo
 
-This repository currently ships three installable skills:
+This repository currently ships three installable skills. The primary
+workflow skill lives in `skills/`. The helper skills live in
+`skills/.system/`, but you still install them by name.
 
 | Skill | Purpose |
 |-------|---------|

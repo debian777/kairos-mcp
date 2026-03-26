@@ -4,6 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { activateInputSchema } from '../tools/activate_schema.js';
 import { executeActivate } from '../tools/activate.js';
+import { sendToolRouteError } from './http-route-errors.js';
 
 /**
  * Set up API route for activate.
@@ -29,10 +30,7 @@ export function setupActivateRoute(app: express.Express, memoryStore: MemoryQdra
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('activate failed', error);
-      res.status(500).json({
-        error: 'ACTIVATE_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to activate an adapter'
-      });
+      sendToolRouteError(res, error, 'ACTIVATE_FAILED');
     }
   });
 }

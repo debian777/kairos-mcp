@@ -14,19 +14,23 @@ limited; protocols are unlimited). For **using** and installing skills, see
 
 ## Folder structure
 
-Skills are discovered under `skills/` (and, in this repo, under `skills/.system/`).
-Each skill is a directory with a required `SKILL.md` and optional supporting
-dirs per the [Agent Skills spec](https://agentskills.io/specification).
+Skills are discovered under `skills/` and, in this repo, also under
+`skills/.system/`. Each skill is a directory with a required `SKILL.md`
+and optional supporting dirs per the [Agent Skills
+spec](https://agentskills.io/specification).
 
 ```
 skills/
 ├── README.md              # How to use our skills
 ├── SKILLS.md              # This file — references and structure
-├── kairos/                # Everyday: run protocols
-├── kairos-bug-report/     # Occasional: capture MCP bug reports
-└── .system/               # One-time / system skills (CLI discovery)
+├── kairos/                # Everyday workflow skill
+└── .system/               # Helper and setup skills (CLI discovery)
+    ├── kairos-bug-report/
     └── kairos-install/
 ```
+
+`kairos` is the main everyday skill. `kairos-bug-report` and
+`kairos-install` are helper skills kept under `.system/`.
 
 **Per-skill layout (spec-aligned):**
 

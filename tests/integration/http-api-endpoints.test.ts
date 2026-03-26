@@ -3,7 +3,6 @@ import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
-
 function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   return fetch(url, {
     ...init,
@@ -232,8 +231,8 @@ Done.`;
       expect(data).toHaveProperty('next_action');
       expect(typeof data.next_action).toBe('string');
     }, 30000);
-  });
 
+  });
   describe('POST /api/reward', () => {
     test('rejects request without uri', async () => {
       expect.hasAssertions();
@@ -268,6 +267,7 @@ Done.`;
       const data = await response.json();
       expect(data).toHaveProperty('error', 'INVALID_INPUT');
     });
+
   });
 
   describe('POST /api/tune', () => {

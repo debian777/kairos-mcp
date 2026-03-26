@@ -3,6 +3,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { rewardInputSchema } from '../tools/reward_schema.js';
 import { executeReward } from '../tools/reward.js';
+import { sendToolRouteError } from './http-route-errors.js';
 
 /**
  * Set up API route for reward.
@@ -27,10 +28,7 @@ export function setupRewardRoute(app: express.Express, qdrantService: QdrantServ
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('reward failed', error);
-      res.status(500).json({
-        error: 'REWARD_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to record reward'
-      });
+      sendToolRouteError(res, error, 'REWARD_FAILED');
     }
   });
 }

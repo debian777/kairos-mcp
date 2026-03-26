@@ -4,6 +4,101 @@ KAIROS MCP is an MCP server for persistent memory and deterministic
 protocol-chain execution. This document is the definitive contract for
 contributors: setup, workflow, code conventions, and PR requirements.
 
+## Principles
+
+These principles apply to architecture, APIs, code, and documentation.
+
+- **Agents are the primary users.** Optimize the interface for agent
+execution, not human aesthetics.
+- **Determinism over ambiguity.** Prefer one correct next action over
+many possible actions.
+- **Teach in the interface.** Tool descriptions, schemas, and errors
+must explain what to do next.
+- **Server generates; agent echoes.** Identifiers, nonces, and proof
+hashes are server-owned. The agent copies them back exactly.
+- **Backend orchestrates complexity.** Validation, retries, state,
+idempotency, and integrations live behind the interface.
+- **Make failure recoverable.** Errors must be actionable. Retry paths
+must be explicit.
+- **Keep the core small.** Add primitives only when they unlock many
+workflows or eliminate systemic failure modes.
+
+## Agent-facing design principles
+
+Apply these when contributing MCP tools, agent-facing REST APIs, or
+changes to tool schemas and descriptions.
+
+### 1. MCP users are AI agents
+
+Primary users are AI agents, not humans. Design for programmatic
+consumption. Every field name, description, and instruction is written
+for LLM comprehension. Avoid vague messages like "Try again"; use
+structured, actionable instructions.
+
+### 2. LLM-friendly frontend
+
+- **Consistent names.** Same concept = same name everywhere.
+- **Unambiguous instructions.** Spell out exactly what to do.
+- **Server generates; agent echoes.** Hashes, nonces, and identifiers
+are server-owned; the agent copies them back exactly.
+- **Describe field purpose in schema** so the agent knows when and how
+to use each field.
+- **Errors teach, don't punish.** Error messages must guide the agent
+to correct and retry.
+
+### 3. Frontend vs backend roles
+
+- **Frontend (MCP tools, schemas, descriptions):** Optimize for agent
+comprehension and execution.
+- **Backend:** Orchestrate complexity — business logic, validation,
+retries, idempotency, and state.
+- **Spaces: names at the frontend, IDs in the backend.** Tool
+parameters and responses use space **names**. The backend resolves
+names to space **IDs** for Qdrant filters and Redis keys.
+
+### 4. Outputs designed for execution
+
+- **Embed URIs in `next_action`.** Prefer `next_action` with exact URIs
+and instructions the agent can copy.
+- **Always provide an actionable next step** on success.
+- `**must_obey` semantics:** `must_obey: true` means the agent must
+follow `next_action`; `must_obey: false` means the agent may choose
+among options.
+- **Unify response shapes** across tools to reduce patterns the agent
+must learn.
+
+### 5. Error outputs that help execution
+
+- **Errors are recoverable by default.** Include fresh challenge data
+on error so the agent can retry without re-fetching.
+- **Include `next_action` in errors** with exact retry instructions.
+- **Use structured error codes** for monitoring and agent branching.
+- **Retry escalation:** Retries 1–N use `must_obey: true` with a
+deterministic correction path. After N retries, `must_obey: false`
+allows repair, abort, or escalation.
+- Use a circuit breaker to avoid infinite retry loops.
+
+### 6. Self-correcting workflows
+
+- Support repair paths (for example, update the step or abort after
+max retries).
+- When **activate** finds no match, offer a deterministic **train**
+(create adapter) path.
+- Keep `**reward`** a simple finalization; make the last layer a normal
+verification step.
+
+### 7. Checklist for new or changed APIs
+
+- Outputs use LLM-friendly, consistent field names.
+- `next_action` embeds exact URIs and instructions.
+- Errors include recovery instructions and fresh data to retry.
+- Two-phase error handling: retry first, then grant autonomy.
+- No redundant fields; single source of truth for each concept.
+- Server generates identifiers and hashes; agent echoes them.
+- Self-correction paths (for example, `**tune**` / `**train**`) are
+exposed and documented.
+- A creation fallback exists when no match is found.
+
 ## Code of conduct
 
 Participants must maintain a respectful and inclusive environment.
@@ -19,28 +114,28 @@ Participants must maintain a respectful and inclusive environment.
 When **KAIROS** is connected as an MCP server (for example **Cursor** →
 Installed MCP Servers → **KAIROS**), run stored workflows in this order:
 
-1. **`activate`** — use the user’s intent as `query` (or a short phrase).
-2. **`forward`** — first call with the **adapter** URI from the chosen
-   `next_action` and **no** `solution`; then call again with each **layer**
+1. `**activate`** — use the user’s intent as `query` (or a short phrase).
+2. `**forward**` — first call with the **adapter** URI from the chosen
+  `next_action` and **no** `solution`; then call again with each **layer**
    URI and a `solution` matching `contract.type` until `next_action` points
-   to **`reward`**.
-3. **`reward`** — finalize with the **layer** URI from the final forward
-   response (include `execution_id` when required). When a step sets
-   `must_obey: true`, do not treat the task as finished until **`reward`**
+   to `**reward`**.
+3. `**reward**` — finalize with the **layer** URI from the final forward
+  response (include `execution_id` when required). When a step sets
+   `must_obey: true`, do not treat the task as finished until `**reward`**
    succeeds.
 
 **Rules**
 
-- Follow each response’s **`next_action`** and the tool’s **`must_obey`**
-  fields.
-- Authoritative text for contributors is in **`AGENTS.md`** and
-  **`src/embed-docs/tools/`** (`activate`, `forward`, `reward`, `train`,
-  `tune`, `export`, `delete`, `spaces`).
+- Follow each response’s `**next_action`** and the tool’s `**must_obey**`
+fields.
+- Authoritative text for contributors is in `**AGENTS.md**` and
+`**src/embed-docs/tools/**` (`activate`, `forward`, `reward`, `train`,
+`tune`, `export`, `delete`, `spaces`).
 - Echo server-issued **nonce** and **proof_hash** values **verbatim** in
-  the next call; never compute or guess them.
+the next call; never compute or guess them.
 
-A **`/kairos`** invocation in agents that load the **kairos** skill means:
-start with **`activate`**, then complete **`forward`** through **`reward`**
+A `**/kairos`** invocation in agents that load the **kairos** skill means:
+start with `**activate`**, then complete `**forward**` through `**reward**`
 before answering the user.
 
 **Git vs MCP:** branches, commits, and pull requests follow the sections
@@ -49,7 +144,7 @@ targets (for example **KAIROS LIVE**), not against Git.
 
 ### Claude Code (`.claude/hooks`)
 
-`.claude/*` is ignored by Git except **`.claude/settings.json`** (see
+`.claude/*` is ignored by Git except `**.claude/settings.json`** (see
 `.gitignore`). Do not add hook scripts to version control unless the
 maintainers explicitly choose to track them.
 
@@ -57,29 +152,29 @@ maintainers explicitly choose to track them.
 
 1. Fork the repository on GitHub.
 2. Clone your fork:
-   ```bash
+  ```bash
    git clone https://github.com/YOUR_USERNAME/kairos-mcp.git
    cd kairos-mcp
-   ```
+  ```
 3. Install dependencies:
-   ```bash
+  ```bash
    npm ci
-   ```
+  ```
 4. Copy the example env file and configure required variables:
-   ```bash
+  ```bash
    cp docs/install/env.example.fullstack.txt .env
    # Edit .env — set OPENAI_API_KEY (or TEI), QDRANT_API_KEY,
    # REDIS_PASSWORD, SESSION_SECRET, KEYCLOAK_ADMIN_PASSWORD,
    # and KEYCLOAK_DB_PASSWORD.
-   ```
+  ```
 5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
-   ```bash
+  ```bash
    npm run infra:up
-   ```
+  ```
 6. Deploy and run tests:
-   ```bash
+  ```bash
    npm run dev:deploy && npm run dev:test
-   ```
+  ```
 
 All tests pass against a running dev server. Deploy before testing —
 tests run against the live process, not in-process.
@@ -164,6 +259,7 @@ npm run infra:up
 ```bash
 npm run lint          # ESLint
 npm run lint:fix      # ESLint with auto-fix
+npm run lint:skills   # Validate shipped agent skills
 npm run verify:clean  # check for uncommitted changes
 npm run knip          # dead code / unused exports
 ```
@@ -192,15 +288,16 @@ tests/test-data/   Test fixtures
 tests/workflow-test/ Workflow test harness; prompt in tests/workflow-test/PROMPT.md
 reports/           Workflow test output (gitignored except .gitkeep)
 docs/examples/     Mintable protocol examples for dev workflow tests
+skills/            Shipped agent skills (`kairos/` and `skills/.system/`)
 scripts/           Build and utility scripts
 ```
 
 ## Contribution workflow
 
 1. Create a branch from `main`:
-   ```bash
+  ```bash
    git checkout -b feature/your-feature-name
-   ```
+  ```
 2. Make your changes.
 3. Run tests: `npm run dev:deploy && npm run dev:test`
 4. Run the full handoff check: `npm run handoff`
@@ -233,11 +330,11 @@ To enable a [merge queue](https://docs.github.com/en/repositories/configuring-br
 1. **Repo** → **Settings** → **Rules** → **Rulesets** → open the ruleset that applies to `main`, or **Branches** → **Branch protection** for `main`.
 2. Enable **Require merge queue**.
 3. Optional settings:
-   - **Merge method:** merge / rebase / squash (e.g. **Squash** for single-commit PRs).
-   - **Build concurrency:** 1–100 (max concurrent `merge_group` runs; e.g. **3**).
-   - **Only merge non-failing pull requests:** on = **ALLGREEN** (every PR in the group must pass); off = **HEADGREEN** (only the combined head must pass).
-   - **Status check timeout:** how long to wait for CI before treating as failed (e.g. 15 min).
-   - **Merge limits:** min/max PRs per merge (e.g. 1–5), and wait time for minimum group size.
+  - **Merge method:** merge / rebase / squash (e.g. **Squash** for single-commit PRs).
+  - **Build concurrency:** 1–100 (max concurrent `merge_group` runs; e.g. **3**).
+  - **Only merge non-failing pull requests:** on = **ALLGREEN** (every PR in the group must pass); off = **HEADGREEN** (only the combined head must pass).
+  - **Status check timeout:** how long to wait for CI before treating as failed (e.g. 15 min).
+  - **Merge limits:** min/max PRs per merge (e.g. 1–5), and wait time for minimum group size.
 
 The integration workflow (`.github/workflows/integration.yml`) already triggers on `merge_group`, so required checks run when PRs are in the queue. Use `gh pr merge` (no strategy) to add a PR to the queue; use `gh pr merge --admin` to bypass the queue.
 
@@ -245,21 +342,21 @@ The integration workflow (`.github/workflows/integration.yml`) already triggers 
 
 Releases are driven by **version in `package.json`**. Do not create git tags manually; the tag is created when a version-bump PR is merged to main.
 
-**Flow:** Bump version → open PR to main → merge → [Release tag on version bump](.github/workflows/README.md#release-tag-on-version-bump) creates tag if `package.json` version &gt; latest tag → [Release](.github/workflows/README.md#release-workflow-tag--npm--docker) runs on tag push (publish npm → Docker → GitHub Release).
+**Flow:** Bump version → open PR to main → merge → [Release tag on version bump](.github/workflows/README.md#release-tag-on-version-bump) creates tag if `package.json` version > latest tag → [Release](.github/workflows/README.md#release-workflow-tag--npm--docker) runs on tag push (publish npm → Docker → GitHub Release).
 
 ### How to cut a release
 
 1. **Check latest version:** `git tag -l 'v*' | sort -V | tail -1` or use `package.json`.
 2. **Bump version** (do not create a git tag):
-   - **Prerelease** (e.g. `3.0.1-beta.18` → `3.0.1-beta.19`):  
-     `npm version prerelease --preid=beta --no-git-tag-version`
-   - **Stable** (e.g. `3.0.1` → `3.0.2`):  
-     `npm version patch --no-git-tag-version` (or `minor` / `major` as appropriate).
-3. **Sync skill/embed-docs version:**  
-   `npm run version:sync-skills`  
+  - **Prerelease** (e.g. `3.0.1-beta.18` → `3.0.1-beta.19`):  
+   `npm version prerelease --preid=beta --no-git-tag-version`
+  - **Stable** (e.g. `3.0.1` → `3.0.2`):  
+  `npm version patch --no-git-tag-version` (or `minor` / `major` as appropriate).
+3. **Sync skill/embed-docs version:**
+  `npm run version:sync-skills`  
    Commit the changed files (e.g. `src/embed-docs/mem/*.md`) together with `package.json` and `package-lock.json`.
-4. **Open a version-bump PR to main:**  
-   Use a branch named `release/<version>` (e.g. `release/3.0.2`).  
+4. **Open a version-bump PR to main:**
+  Use a branch named `release/<version>` (e.g. `release/3.0.2`).  
    Example: `git checkout -b release/3.0.2`, commit, push, then `gh pr create --base main --head release/3.0.2`.
 5. **Merge the PR.** After merge, the workflow creates the tag and runs the Release workflow (npm publish, Docker, GitHub Release). Ensure repository secret `GH_PAT` is set so the tag push triggers Release; see [workflows README](.github/workflows/README.md#release-tag-on-version-bump).
 
@@ -269,148 +366,52 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
 
 - **Language:** TypeScript for all source files.
 - **Linter:** ESLint. Run `npm run lint` before committing. Use
-  `npm run lint:fix` for auto-fixable issues. The pre-commit hook runs
-  lint automatically; version-bump commits (only `package.json` and
-  `package-lock.json` staged) skip hooks so no `--no-verify` is needed.
+`npm run lint:fix` for auto-fixable issues. The pre-commit hook runs
+lint automatically; version-bump commits (only `package.json` and
+`package-lock.json` staged) skip hooks so no `--no-verify` is needed.
 - **Pre-commit hook (`.husky/pre-commit`):** Blocks commits on `main`, runs
-  version/skills checks when relevant, `lint:skills` when `skills/` is staged,
-  then runs **`git rm --cached -f --ignore-unmatch .claude/hooks/session-start.sh`**
-  (ignored local hook that linked worktrees can re-stage with a missing blob)
-  immediately before **`npm run lint`**. For other index issues, see
-  **`.cursor/skills/git-worktree-index-repair/SKILL.md`**. Hook history:
-  `git log -- .husky/pre-commit`.
+version/skills checks when relevant, `lint:skills` when `skills/` is staged,
+then drops any staged paths whose blob is missing from the object database
+immediately before and after `**npm run lint**`. For worktree index issues,
+see `**.cursor/skills/git-worktree-index-repair/SKILL.md**`. Hook history:
+`git log -- .husky/pre-commit`.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for
-  classes and types; `SCREAMING_SNAKE_CASE` for module-level constants
-  read from the environment.
+classes and types; `SCREAMING_SNAKE_CASE` for module-level constants
+read from the environment.
 - **Files:** One primary export per file; filename matches the export
-  (for example, `structured-logger.ts` exports `structuredLogger`).
+(for example, `structured-logger.ts` exports `structuredLogger`).
 - **Error handling:** Throw typed errors or return structured error
-  objects. Never swallow errors silently. Include `error_code` and
-  `request_id` in log payloads at the call site.
+objects. Never swallow errors silently. Include `error_code` and
+`request_id` in log payloads at the call site.
 - **Logger:** Use `structuredLogger` (from
-  `src/utils/structured-logger.ts`) for HTTP/MCP request flow. The same module
-  also exports `logger` as an alias used by services. See
-  [docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
+`src/utils/structured-logger.ts`) for HTTP/MCP request flow. The same module
+also exports `logger` as an alias used by services. See
+[docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
 - **Tests:** Write integration tests for new tools and API endpoints.
-  Place them in `tests/integration/`.
+Place them in `tests/integration/`.
 
 ## Multitenancy (Qdrant + Redis) audit checklist
 
 When adding or changing code that touches Qdrant or Redis, verify:
 
 - **Allowed spaces:** Derive only from the verified token or session
-  (Keycloak `sub` + `groups`). Never trust client-supplied space lists.
+(Keycloak `sub` + `groups`). Never trust client-supplied space lists.
 - **Qdrant reads:** Search uses `getSearchSpaceIds()` (allowedSpaceIds +
-  Kairos app space). Scroll and filter operations use
-  `getSpaceContext().allowedSpaceIds`. Every retrieve-by-id must check
-  that the point's `space_id` is in `allowedSpaceIds`; otherwise treat
-  as not found (404).
+Kairos app space). Scroll and filter operations use
+`getSpaceContext().allowedSpaceIds`. Every retrieve-by-id must check
+that the point's `space_id` is in `allowedSpaceIds`; otherwise treat
+as not found (404).
 - **Qdrant writes:** Every upsert includes `space_id` from
-  `getSpaceContext().defaultWriteSpaceId` or a validated parameter. The
-  Kairos app space is read-only for users.
+`getSpaceContext().defaultWriteSpaceId` or a validated parameter. The
+Kairos app space is read-only for users.
 - **Redis:** Keys are namespaced by space via `getKey()` (prefix +
-  space id + key). Each request runs inside `runWithSpaceContext()`.
+space id + key). Each request runs inside `runWithSpaceContext()`.
 - **Optional space param:** Validate HTTP query `space` / `space_id`
-  and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
+and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
 
 See [docs/architecture/auth-overview.md](docs/architecture/auth-overview.md)
 for Keycloak URL routing and the current auth model.
-
-## Principles
-
-These principles apply to architecture, APIs, code, and documentation.
-
-- **Agents are the primary users.** Optimize the interface for agent
-  execution, not human aesthetics.
-- **Determinism over ambiguity.** Prefer one correct next action over
-  many possible actions.
-- **Teach in the interface.** Tool descriptions, schemas, and errors
-  must explain what to do next.
-- **Server generates; agent echoes.** Identifiers, nonces, and proof
-  hashes are server-owned. The agent copies them back exactly.
-- **Backend orchestrates complexity.** Validation, retries, state,
-  idempotency, and integrations live behind the interface.
-- **Make failure recoverable.** Errors must be actionable. Retry paths
-  must be explicit.
-- **Keep the core small.** Add primitives only when they unlock many
-  workflows or eliminate systemic failure modes.
-
-## Agent-facing design principles
-
-Apply these when contributing MCP tools, agent-facing REST APIs, or
-changes to tool schemas and descriptions.
-
-### 1. MCP users are AI agents
-
-Primary users are AI agents, not humans. Design for programmatic
-consumption. Every field name, description, and instruction is written
-for LLM comprehension. Avoid vague messages like "Try again"; use
-structured, actionable instructions.
-
-### 2. LLM-friendly frontend
-
-- **Consistent names.** Same concept = same name everywhere.
-- **Unambiguous instructions.** Spell out exactly what to do.
-- **Server generates; agent echoes.** Hashes, nonces, and identifiers
-  are server-owned; the agent copies them back exactly.
-- **Describe field purpose in schema** so the agent knows when and how
-  to use each field.
-- **Errors teach, don't punish.** Error messages must guide the agent
-  to correct and retry.
-
-### 3. Frontend vs backend roles
-
-- **Frontend (MCP tools, schemas, descriptions):** Optimize for agent
-  comprehension and execution.
-- **Backend:** Orchestrate complexity — business logic, validation,
-  retries, idempotency, and state.
-- **Spaces: names at the frontend, IDs in the backend.** Tool
-  parameters and responses use space **names**. The backend resolves
-  names to space **IDs** for Qdrant filters and Redis keys.
-
-### 4. Outputs designed for execution
-
-- **Embed URIs in `next_action`.** Prefer `next_action` with exact URIs
-  and instructions the agent can copy.
-- **Always provide an actionable next step** on success.
-- **`must_obey` semantics:** `must_obey: true` means the agent must
-  follow `next_action`; `must_obey: false` means the agent may choose
-  among options.
-- **Unify response shapes** across tools to reduce patterns the agent
-  must learn.
-
-### 5. Error outputs that help execution
-
-- **Errors are recoverable by default.** Include fresh challenge data
-  on error so the agent can retry without re-fetching.
-- **Include `next_action` in errors** with exact retry instructions.
-- **Use structured error codes** for monitoring and agent branching.
-- **Retry escalation:** Retries 1–N use `must_obey: true` with a
-  deterministic correction path. After N retries, `must_obey: false`
-  allows repair, abort, or escalation.
-- Use a circuit breaker to avoid infinite retry loops.
-
-### 6. Self-correcting workflows
-
-- Support repair paths (for example, update the step or abort after
-  max retries).
-- When **activate** finds no match, offer a deterministic **train**
-  (create adapter) path.
-- Keep **`reward`** a simple finalization; make the last layer a normal
-  verification step.
-
-### 7. Checklist for new or changed APIs
-
-- [ ] Outputs use LLM-friendly, consistent field names.
-- [ ] `next_action` embeds exact URIs and instructions.
-- [ ] Errors include recovery instructions and fresh data to retry.
-- [ ] Two-phase error handling: retry first, then grant autonomy.
-- [ ] No redundant fields; single source of truth for each concept.
-- [ ] Server generates identifiers and hashes; agent echoes them.
-- [ ] Self-correction paths (for example, **`tune`** / **`train`**) are
-      exposed and documented.
-- [ ] A creation fallback exists when no match is found.
 
 ## Constraints
 
@@ -424,9 +425,9 @@ When goals conflict:
 
 1. Correctness and determinism over convenience.
 2. Interface that reduces agent errors over interface that reduces
-   developer typing.
+  developer typing.
 3. Changes that simplify the agent-facing surface over moving complexity
-   into agents.
+  into agents.
 
 ## Reporting issues
 

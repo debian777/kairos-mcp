@@ -1,10 +1,11 @@
 # KAIROS skills — how to use them
 
 Skills from this repo help you run KAIROS protocols (**activate** →
-**forward** → **reward**) and capture MCP bug reports in Cursor or
-Claude Code. Install with: `npx skills add debian777/kairos-mcp`. For
-**authoring** skills (structure, protocol requirements, validation),
-see [SKILLS.md](SKILLS.md).
+**forward** → **reward**), capture MCP bug reports, and guide
+first-time setup in Cursor or Claude Code. Install with:
+`npx skills add debian777/kairos-mcp`. For **authoring** skills
+(structure, protocol requirements, validation), see
+[SKILLS.md](SKILLS.md).
 
 **References:** [skills CLI (vercel-labs/skills)](https://github.com/vercel-labs/skills) · [Agent Skills Directory (skills.sh)](https://skills.sh/)
 
@@ -13,6 +14,9 @@ see [SKILLS.md](SKILLS.md).
 Install with: `npx skills add debian777/kairos-mcp`. The repo ships
 **multiple skills**. Adding the repo without `--skill` typically installs
 **all** of them. Use `--skill` to install only the ones you need.
+`kairos` lives in `skills/`. The helper skills `kairos-bug-report` and
+`kairos-install` live in `skills/.system/`, but install and removal are
+still name-based.
 
 ### Usage tiers
 
@@ -24,7 +28,7 @@ Install with: `npx skills add debian777/kairos-mcp`. The repo ships
 
 **Recommended:** Install `kairos` for daily use. Add
 `kairos-bug-report` when you want reusable MCP failure capture. Run
-`kairos-install` once for setup.
+`kairos-install` once per machine for setup.
 
 **Install all skills:**
 
@@ -53,13 +57,14 @@ and optionally `-a cursor` or `-a claude-code`. Example:
 npx skills add debian777/kairos-mcp --skill kairos -y -g -a cursor
 ```
 
-**Remove:** `npx skills remove <skill-name> -g` (e.g. `kairos`,
-`kairos-bug-report`).
+**Remove:** `npx skills remove <skill-name> -g` (for example `kairos`,
+`kairos-bug-report`, `kairos-install`).
 
 See the
 [main README](../README.md#agent-skills-shipped-in-this-repo) for a short
 table and agent-specific commands.
 
-**Layout:** Everyday and occasional skills live in `skills/<skill-name>/`. The
-one-time setup skill lives in `skills/.system/kairos-install/` (per [skills
-CLI](https://github.com/vercel-labs/skills) discovery). CI and `npm run lint:skills` validate both locations.
+**Layout:** `kairos` lives in `skills/kairos/`. The helper skills
+`kairos-bug-report` and `kairos-install` live in `skills/.system/` per
+[skills CLI](https://github.com/vercel-labs/skills) discovery. CI and
+`npm run lint:skills` validate both locations.

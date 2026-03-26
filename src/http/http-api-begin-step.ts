@@ -4,6 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { forwardInputSchema } from '../tools/forward_schema.js';
 import { executeForward } from '../tools/forward.js';
+import { sendToolRouteError } from './http-route-errors.js';
 
 /**
  * Set up API route for forward.
@@ -28,10 +29,7 @@ export function setupForwardRoute(app: express.Express, memoryStore: MemoryQdran
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('forward failed', error);
-      res.status(500).json({
-        error: 'FORWARD_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to execute adapter forward pass'
-      });
+      sendToolRouteError(res, error, 'FORWARD_FAILED');
     }
   });
 }
