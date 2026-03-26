@@ -10,8 +10,6 @@ paths-ignore:
   - "tests/**"
   # All log/audit output is sanitized by sanitizeLogMessage/sanitizeBindingsForAudit; unit-tested. CodeQL does not model these sanitizers.
   - "src/utils/structured-logger.ts"
-  # Dev-only: persists bounded API snapshots under reports/ (path + size bounded in-module). Not part of the MCP server attack surface.
-  - "scripts/ai-mcp-integration-report-utils.mjs"
 
 # kairos_mint: POST body is the markdown document from the authenticated CLI (local protocol files).
 # js/file-access-to-http is a false positive here; URL is the configured API base, not attacker-controlled SSRF.
