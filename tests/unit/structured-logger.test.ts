@@ -167,4 +167,18 @@ describe('structuredLogger sink sanitization', () => {
     expect(message).toBe('user input forged line');
     infoSpy.mockRestore();
   });
+
+  test('info with string message truncates long input at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const infoSpy = jest.spyOn(pino, 'info');
+    const longInput = 'a'.repeat(40_000);
+
+    structuredLogger.info(longInput);
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const [, message] = infoSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe(sanitizeLogMessage(longInput));
+    expect(message.length).toBeLessThanOrEqual(32_768);
+    infoSpy.mockRestore();
+  });
 });

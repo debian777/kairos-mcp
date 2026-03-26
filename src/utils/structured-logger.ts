@@ -134,10 +134,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
     user_agent: req.headers['user-agent'],
     request_id: requestId
   });
-  const startMessage = String(`${req.method} ${req.url}`)
-    .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || '(empty)';
+  const startMessage = sanitizeLogMessage(`${req.method} ${req.url}`);
   baseLogger.info(
     startBindings as Record<string, unknown>,
     startMessage
@@ -157,10 +154,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
       user_agent: req.headers['user-agent'],
       request_id: rid
     });
-    const finishMessage = String(`${req.method} ${req.url} -> ${statusCode}`)
-      .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim() || '(empty)';
+    const finishMessage = sanitizeLogMessage(`${req.method} ${req.url} -> ${statusCode}`);
     (baseLogger as pino.Logger)[methodName](
       finishBindings as Record<string, unknown>,
       finishMessage
@@ -198,21 +192,15 @@ export interface StructuredLoggerApi {
 function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
   const includeStack = LOG_LEVEL === 'debug' || process.env['NODE_ENV'] === 'development';
   return {
+    // Keep free-form log text on one auditable sanitization path for every sink.
     debug(message: string): void {
-      const safeDebugMessage = String(message)
-        .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || '(empty)';
-      pinoInstance.debug(safeDebugMessage);
+      pinoInstance.debug(sanitizeLogMessage(message));
     },
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'info' });
-        const safeMsg = String(msgOrBindings)
-          .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim() || '(empty)';
+        const safeMsg = sanitizeLogMessage(msgOrBindings);
         pinoInstance.info(bindings, safeMsg);
         maybeWriteAuditLine('info', bindings);
       } else {
@@ -223,10 +211,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           ? { ...msgOrBindings }
           : { ...msgOrBindings, category: 'info' };
         const bindings = sanitizeBindingsForAudit(rawBindings);
-        const finalMessage = String(message ?? '')
-          .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim() || '(empty)';
+        const finalMessage = sanitizeLogMessage(message ?? '');
         pinoInstance.info(bindings, finalMessage);
         maybeWriteAuditLine('info', bindings);
       }
@@ -235,10 +220,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
     warn(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'warning' });
-        const safeMsg = String(msgOrBindings)
-          .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim() || '(empty)';
+        const safeMsg = sanitizeLogMessage(msgOrBindings);
         pinoInstance.warn(bindings, safeMsg);
         maybeWriteAuditLine('warn', bindings);
         return;
@@ -250,10 +232,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
         ? { ...msgOrBindings }
         : { ...msgOrBindings, category: 'warning' };
       const bindings = sanitizeBindingsForAudit(rawBindings);
-      const finalMessage = String(message ?? '')
-        .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || '(empty)';
+      const finalMessage = sanitizeLogMessage(message ?? '');
       pinoInstance.warn(bindings, finalMessage);
       maybeWriteAuditLine('warn', bindings);
     },
@@ -273,19 +252,13 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           : error;
       }
       const bindings = sanitizeBindingsForAudit(rawBindings);
-      const safeMessage = String(message)
-        .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || '(empty)';
+      const safeMessage = sanitizeLogMessage(message);
       pinoInstance.error(bindings, safeMessage);
       maybeWriteAuditLine('error', bindings);
     },
 
     tool(toolName: string, operation: ToolOperation, details: string): void {
-      const msg = String(`[${toolName}] ${operation.toUpperCase()} ${details}`)
-        .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || '(empty)';
+      const msg = sanitizeLogMessage(`[${toolName}] ${operation.toUpperCase()} ${details}`);
       const bindings = sanitizeBindingsForAudit({
         tool: toolName,
         operation: operation.toUpperCase(),
@@ -297,10 +270,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
     success(operation: string, details: string): void {
       const bindings = sanitizeBindingsForAudit({ operation, details, category: 'success' });
-      const msg = String(`[${operation}] ${details}`)
-        .replace(/[\r\n\t\x00-\x1f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || '(empty)';
+      const msg = sanitizeLogMessage(`[${operation}] ${details}`);
       pinoInstance.info(
         bindings,
         msg
