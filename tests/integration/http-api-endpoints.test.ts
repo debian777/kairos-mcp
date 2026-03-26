@@ -123,7 +123,7 @@ Done.`;
   });
 
   describe('POST /api/activate', () => {
-    test('searches for chain heads', async () => {
+    test('searches for adapter entry layers', async () => {
       expect.hasAssertions();
       const query = `Test Query ${Date.now()}`;
       const response = await apiFetch(`${API_BASE}/activate`, {

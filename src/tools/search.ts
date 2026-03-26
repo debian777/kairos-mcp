@@ -49,14 +49,14 @@ function addCandidate(
   score: number
 ): void {
   if (!memory) return;
-  const key = memory.chain?.id || memory.memory_uuid;
+  const key = memory.adapter?.id || memory.memory_uuid;
   const existing = candidateMap.get(key);
-  const incomingIsHead = memory.chain?.step_index === 1;
+  const incomingIsHead = memory.adapter?.layer_index === 1;
   if (!existing) {
     candidateMap.set(key, { memory, score });
     return;
   }
-  const existingIsHead = existing.memory.chain?.step_index === 1;
+  const existingIsHead = existing.memory.adapter?.layer_index === 1;
   if (incomingIsHead && !existingIsHead) {
     candidateMap.set(key, { memory, score });
     return;
@@ -96,8 +96,8 @@ async function resolveFooterProtocolVersions(
       memoryStore.getMemory(KAIROS_CREATION_PROTOCOL_UUID)
     ]);
     return {
-      refine: refineMem?.chain?.protocol_version ?? null,
-      create: createMem?.chain?.protocol_version ?? null
+      refine: refineMem?.adapter?.protocol_version ?? null,
+      create: createMem?.adapter?.protocol_version ?? null
     };
   } catch (err) {
     structuredLogger.warn(
@@ -146,7 +146,7 @@ async function doSearch(
 }
 
 /**
- * Shared execute: search for protocol chains. Used by MCP tool and HTTP route.
+ * Shared execute: search for protocol adapters. Used by MCP tool and HTTP route.
  * When runInSpace is provided and input has space/space_id, the search runs in that space context.
  */
 export async function executeSearch(

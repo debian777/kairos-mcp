@@ -45,7 +45,7 @@ Fields:
 ## Scenario 1: delete one memory
 
 The user asks to remove a single memory. The agent has the URI (for
-example, from search or from a step in a chain).
+example, from search or from a layer in an adapter).
 
 ### Input
 
@@ -73,14 +73,14 @@ example, from search or from a step in a chain).
 
 ### AI behavior
 
-Confirm deletion to the user. If the URI was a step in a chain, note that
-other steps of the same chain are not automatically deleted. Delete them
-explicitly when the user wants the whole chain removed.
+Confirm deletion to the user. If the URI was a layer in an adapter, note that
+other layers of the same adapter are not automatically deleted. Delete them
+explicitly when the user wants the whole adapter removed.
 
-## Scenario 2: delete multiple memories (full chain)
+## Scenario 2: delete multiple memories (full adapter)
 
-The agent deletes all steps of a protocol chain. URIs come from search
-plus chain navigation.
+The agent deletes all layers of a protocol adapter. URIs come from search
+plus adapter navigation.
 
 ### Input
 
@@ -162,8 +162,8 @@ when `total_failed` > 0.
 2. `total_deleted` + `total_failed` equals `results.length`.
 3. Each result has `uri`, `status` (`"deleted"` or `"error"`), and
    `message`.
-4. Deleting a memory does not automatically delete other steps in the same
-   chain. Pass all step URIs to remove an entire protocol.
+4. Deleting a memory does not automatically delete other layers in the same
+   adapter. Pass all layer URIs to remove an entire protocol.
 
 ## See also
 

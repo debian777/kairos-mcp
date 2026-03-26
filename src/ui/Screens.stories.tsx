@@ -19,8 +19,8 @@ export default meta;
 type Story = StoryObj<typeof AppRoutes>;
 
 const mockSpaces = [
-  { name: "Personal", chain_count: 3 },
-  { name: "Kairos app", chain_count: 12 },
+  { name: "Personal", adapter_count: 3 },
+  { name: "Kairos app", adapter_count: 12 },
 ];
 
 /** Home — overview, search form, space protocol counts, CTA to KAIROS (mockup 01). */
@@ -156,8 +156,8 @@ export const ProtocolDetail: Story = {
         {
           uri: "kairos://mem/abc123",
           label: "Deploy and test workflow",
-          chain_label: "Build → test → deploy",
-          step_count: 4,
+          adapter_name: "Build → test → deploy",
+          layer_count: 4,
           markdown_doc: mockMarkdown,
         },
       ],

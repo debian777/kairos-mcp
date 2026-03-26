@@ -3,7 +3,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
-import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
+import { resolveAdapterNextLayer, resolveAdapterPreviousLayer } from '../services/adapter-navigation.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
@@ -52,7 +52,7 @@ async function expectedPreviousHash(
   if (!memory || getLayerIndex(memory) <= 1) {
     return GENESIS_HASH;
   }
-  const previous = await resolveChainPreviousStep(memory, qdrantService);
+  const previous = await resolveAdapterPreviousLayer(memory, qdrantService);
   if (!previous?.uuid) {
     return GENESIS_HASH;
   }
@@ -71,7 +71,7 @@ async function buildPostSubmissionView(params: {
   if (!currentMemory) {
     throw new Error('Layer not found while building forward response');
   }
-  const next = await resolveChainNextStep(currentMemory, qdrantService);
+  const next = await resolveAdapterNextLayer(currentMemory, qdrantService);
   if (!next?.uuid) {
     return buildForwardView(currentMemory, executionId, {
       final: true,

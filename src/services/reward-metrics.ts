@@ -67,13 +67,13 @@ export async function applyRewardMetrics(
         metricsUpdate['usageContext'] = feedback;
       }
       await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
-      await qdrantService.propagateRewardToChainHead(qdrantUuid, metricsUpdate);
+      await qdrantService.propagateRewardToAdapterHead(qdrantUuid, metricsUpdate);
       await redisCacheService.invalidateBeginCache();
 
       if (currentPoint?.payload) {
-        const { description_short, domain, task, type, tags } = currentPoint.payload;
+        const { label, domain, task, type, tags } = currentPoint.payload;
         const updatedQualityMetadata = modelStats.calculateStepQualityMetadata(
-          description_short || 'Knowledge step',
+          label || 'Knowledge step',
           domain || 'general',
           task || 'general',
           type || 'context',

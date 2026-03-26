@@ -93,7 +93,6 @@ Only after all steps.`;
         (c) =>
           c.role === 'match' &&
           ((c as { adapter_name?: string }).adapter_name === uniqueTitle ||
-            (c as { chain_label?: string }).chain_label === uniqueTitle ||
             (c.label && String(c.label).includes(uniqueTitle)))
       );
       if (ourChoice) {

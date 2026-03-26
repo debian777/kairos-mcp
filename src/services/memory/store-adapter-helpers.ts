@@ -9,7 +9,7 @@ import { buildAdapterUri, buildLayerUri } from '../../tools/kairos-uri.js';
 import { MAX_AUTO_SUFFIX_ATTEMPTS, nextAutoSlugCandidate } from '../../utils/protocol-slug.js';
 
 /**
- * Derives domain task type from label, text, and tags
+ * Derives domain task type from label, text, and tags.
  */
 export function deriveDomainTaskType(label: string, text: string, tags: string[]) {
   const lower = (s: string) => (s || '').toLowerCase();
@@ -28,14 +28,16 @@ export function deriveDomainTaskType(label: string, text: string, tags: string[]
 }
 
 /**
- * Checks for duplicate chain by chain UUID
+ * Checks for duplicate adapter by adapter UUID.
  */
-export async function checkDuplicateChain(
+export async function checkDuplicateAdapter(
   client: QdrantClient,
   collection: string,
-  chainUuid: string
+  adapterUuid: string
 ): Promise<{ points: any[] }> {
-  const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
+  const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+    must: [{ key: 'adapter.id', match: { value: adapterUuid } }]
+  });
   const dupReq = { filter, limit: 256, with_payload: true, with_vector: false } as any;
   logger.debug(`[Qdrant][scroll-dup] collection=${collection} req=${JSON.stringify(dupReq)}`);
   const dup = await client.scroll(collection, dupReq);
@@ -44,15 +46,15 @@ export async function checkDuplicateChain(
 }
 
 /**
- * Handles duplicate chain: either throws error or deletes existing chain
+ * Handles duplicate adapter: either throws error or deletes the existing adapter.
  */
-export async function handleDuplicateChain(
+export async function handleDuplicateAdapter(
   client: QdrantClient,
   collection: string,
-  chainUuid: string,
+  adapterUuid: string,
   forceUpdate: boolean
 ): Promise<void> {
-  const dup = await checkDuplicateChain(client, collection, chainUuid);
+  const dup = await checkDuplicateAdapter(client, collection, adapterUuid);
 
   if ((dup.points?.length || 0) > 0) {
     if (!forceUpdate) {
@@ -60,56 +62,55 @@ export async function handleDuplicateChain(
         label: (p.payload?.label as string) || 'Memory',
         uri: `kairos://mem/${String(p.id)}`
       }));
-      throw new KairosError('Duplicate memory chain', 'DUPLICATE_CHAIN', 409, { chain_id: chainUuid, items });
+      throw new KairosError('Duplicate adapter', 'DUPLICATE_ADAPTER', 409, { adapter_id: adapterUuid, items });
     }
-    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, { must: [{ key: 'chain.id', match: { value: chainUuid } }] });
+    const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
+      must: [{ key: 'adapter.id', match: { value: adapterUuid } }]
+    });
     const delReq = { filter } as any;
-    logger.debug(`[Qdrant][delete-chain] collection=${collection} req=${JSON.stringify(delReq)}`);
+    logger.debug(`[Qdrant][delete-adapter] collection=${collection} req=${JSON.stringify(delReq)}`);
     await client.delete(collection, delReq);
   }
 }
 
-/** Max length for embedded mint-similarity query (chain + first step). */
-const MINT_SIMILARITY_QUERY_MAX = 400;
+/** Max length for embedded mint-similarity query (adapter + first layer). */
+const ADAPTER_SIMILARITY_QUERY_MAX = 400;
 
 /**
- * Text for pre-mint similarity search: chain identity plus first step title.
- * Mandatory step headings match across protocols; chain title differentiates.
+ * Text for pre-mint similarity search: adapter identity plus first layer title.
+ * Mandatory layer headings match across protocols; adapter title differentiates.
  */
-export function buildMintSimilaritySearchQuery(chainTitle: string, stepTitle: string): string {
-  const c = chainTitle.trim();
-  const s = stepTitle.trim();
-  if (!c && !s) return 'Memory';
-  if (!s) return c.slice(0, MINT_SIMILARITY_QUERY_MAX);
-  if (!c) return s.slice(0, MINT_SIMILARITY_QUERY_MAX);
-  return `${c}\n${s}`.slice(0, MINT_SIMILARITY_QUERY_MAX);
+export function buildAdapterSimilaritySearchQuery(adapterTitle: string, layerTitle: string): string {
+  const a = adapterTitle.trim();
+  const l = layerTitle.trim();
+  if (!a && !l) return 'Memory';
+  if (!l) return a.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
+  if (!a) return l.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
+  return `${a}\n${l}`.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
 }
 
 /**
- * Similarity guard before mint: vector search on chain title + first step title (not step alone).
+ * Similarity guard before mint: vector search on adapter title + first layer title (not layer alone).
  * Set SIMILAR_MEMORY_THRESHOLD=1 in env to effectively disable.
  */
-export async function checkSimilarMemoryByTitle(
+export async function checkSimilarAdapterByTitle(
   methods: MemoryQdrantStoreMethods,
-  chainTitle: string,
-  stepTitle: string,
+  adapterTitle: string,
+  layerTitle: string,
   forceUpdate: boolean
 ): Promise<void> {
-  // Skip check if force update is enabled
   if (forceUpdate) {
     return;
   }
 
-  const label = buildMintSimilaritySearchQuery(chainTitle, stepTitle);
+  const label = buildAdapterSimilaritySearchQuery(adapterTitle, layerTitle);
 
-  // Search for existing memories with similar title
   const { memories, scores } = await methods.searchMemories(label, 10, false);
-  
+
   if (memories.length === 0 || scores.length === 0) {
     return;
   }
 
-  // Find the highest scoring match
   let bestMatch = memories[0]!;
   let bestScore = scores[0] ?? 0;
   for (let i = 1; i < memories.length; i++) {
@@ -120,7 +121,6 @@ export async function checkSimilarMemoryByTitle(
     }
   }
 
-  // If match is very high (>= threshold), inform about existing memory
   if (bestScore >= SIMILAR_MEMORY_THRESHOLD) {
     const adapterUri = bestMatch.adapter?.id ? buildAdapterUri(bestMatch.adapter.id) : buildLayerUri(bestMatch.memory_uuid);
     const layerUri = buildLayerUri(bestMatch.memory_uuid);
@@ -128,9 +128,9 @@ export async function checkSimilarMemoryByTitle(
       uri: layerUri,
       memory_uuid: bestMatch.memory_uuid,
       label: bestMatch.label,
-      chain_label: bestMatch.adapter?.name ?? bestMatch.chain?.label ?? null,
+      adapter_name: bestMatch.adapter?.name ?? null,
       score: bestScore,
-      total_steps: bestMatch.adapter?.layer_count ?? bestMatch.chain?.step_count ?? 1
+      layer_count: bestMatch.adapter?.layer_count ?? 1
     };
     const next_action = `call export with ${adapterUri} and format "markdown" to inspect the existing adapter, then either call train with force_update: true to replace it or revise the markdown and train a distinct adapter`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
@@ -155,8 +155,8 @@ export async function checkSimilarMemoryByTitle(
   }
 }
 
-/** Input for resolving a unique slug before chain upsert (after handleDuplicateChain). */
-export interface ProtocolSlugMintInput {
+/** Input for resolving a unique slug before adapter upsert (after handleDuplicateAdapter). */
+export interface AdapterSlugMintInput {
   slug: string;
   authorSupplied: boolean;
 }
@@ -178,26 +178,27 @@ async function scrollPointsWithSlug(
 }
 
 /**
- * Allocate a slug that does not collide with another chain in allowed spaces.
- * Author slugs: exact collision with a different chain → DUPLICATE_SLUG.
- * Auto slugs: append -2, -3, … until free.
+ * Allocate a slug that does not collide with another adapter in allowed spaces.
+ * Author slugs: exact collision with a different adapter -> DUPLICATE_SLUG.
+ * Auto slugs: append -2, -3, ... until free.
  */
-export async function allocateProtocolSlugForMint(
+export async function allocateAdapterSlugForMint(
   client: QdrantClient,
   collection: string,
-  input: ProtocolSlugMintInput,
-  newChainUuid: string
+  input: AdapterSlugMintInput,
+  newAdapterUuid: string
 ): Promise<string> {
   const { slug: baseSlug, authorSupplied } = input;
 
-  async function usedByOtherChain(candidate: string): Promise<{ otherChainId: string; sample_uri?: string } | null> {
+  async function usedByOtherAdapter(candidate: string): Promise<{ otherAdapterId: string; sample_uri?: string } | null> {
     const hits = await scrollPointsWithSlug(client, collection, candidate);
     for (const h of hits) {
-      const chainObj = h.payload['chain'] as { id?: string } | undefined;
-      const chainId = chainObj && typeof chainObj.id === 'string' ? chainObj.id : undefined;
-      if (chainId && chainId !== newChainUuid) {
+      const adapterId = typeof (h.payload['adapter'] as { id?: string } | undefined)?.id === 'string'
+        ? (h.payload['adapter'] as { id: string }).id
+        : undefined;
+      if (adapterId && adapterId !== newAdapterUuid) {
         return {
-          otherChainId: chainId,
+          otherAdapterId: adapterId,
           sample_uri: `kairos://mem/${String(h.id)}`
         };
       }
@@ -206,7 +207,7 @@ export async function allocateProtocolSlugForMint(
   }
 
   if (authorSupplied) {
-    const clash = await usedByOtherChain(baseSlug);
+    const clash = await usedByOtherAdapter(baseSlug);
     if (clash) {
       throw new KairosError(
         `Slug "${baseSlug}" is already used by another protocol in this space.`,
@@ -214,7 +215,7 @@ export async function allocateProtocolSlugForMint(
         409,
         {
           slug: baseSlug,
-          chain_id: clash.otherChainId,
+          adapter_id: clash.otherAdapterId,
           sample_uri: clash.sample_uri
         }
       );
@@ -224,7 +225,7 @@ export async function allocateProtocolSlugForMint(
 
   for (let attempt = 1; attempt <= MAX_AUTO_SUFFIX_ATTEMPTS; attempt++) {
     const candidate = nextAutoSlugCandidate(baseSlug, attempt);
-    const clash = await usedByOtherChain(candidate);
+    const clash = await usedByOtherAdapter(candidate);
     if (!clash) return candidate;
   }
 

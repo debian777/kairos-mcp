@@ -14,10 +14,15 @@ async function activateAdapters(query: string): Promise<ActivateOutput> {
   return (await res.json()) as ActivateOutput;
 }
 
+export function buildActivateQueryOptions(query: string, enabled: boolean) {
+  const normalizedQuery = query.trim();
+  return {
+    queryKey: ["activate", normalizedQuery] as const,
+    queryFn: () => activateAdapters(normalizedQuery),
+    enabled: enabled && normalizedQuery.length > 0,
+  };
+}
+
 export function useActivate(query: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ["activate", query],
-    queryFn: () => activateAdapters(query),
-    enabled: enabled && query.trim().length > 0,
-  });
+  return useQuery(buildActivateQueryOptions(query, enabled));
 }

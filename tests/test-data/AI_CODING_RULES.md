@@ -7,7 +7,7 @@ November 24, 2025
 
 It is the law for every agent that writes code.  
 Every change MUST follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST (foundational rule) and then sections 0-10 in exact order.
-Deviation = automatic failure rating on the entire chain.
+Deviation = automatic failure rating on the entire adapter run.
 
 Execute.
 
@@ -203,7 +203,7 @@ Optional body explaining what and why (not how).
 - **Summary** (required): imperative mood, lowercase, no period, max 72 chars
 - **Body** (optional): explain what and why, wrap at 72 chars
 - **Examples:**
-  - `feat(memory): add chain reconstruction from fragments`
+  - `feat(memory): add adapter reconstruction from fragments`
   - `fix(mcp-handler): resolve race condition in concurrent updates`
   - `docs(coding-rules): update git branch naming conventions`
   - `test(tools): add integration tests for train`

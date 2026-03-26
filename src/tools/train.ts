@@ -24,7 +24,7 @@ const TRAIN_ERROR_DETAIL_KEYS = new Set([
   'existing_memory',
   'similarity_score',
   'content_preview',
-  'chain_id',
+  'adapter_id',
   'items'
 ]);
 
@@ -39,10 +39,10 @@ function sanitizeTrainDetails(details?: Record<string, unknown>): Record<string,
 }
 
 function formatTrainErrorPayload(error: { code?: string; details?: Record<string, unknown>; message?: string }) {
-  const normalizedCode = error.code === 'DUPLICATE_KEY' ? 'DUPLICATE_CHAIN' : error.code;
-  if (normalizedCode === 'DUPLICATE_CHAIN') {
+  const normalizedCode = error.code === 'DUPLICATE_KEY' ? 'DUPLICATE_ADAPTER' : error.code;
+  if (normalizedCode === 'DUPLICATE_ADAPTER') {
     return {
-      error: 'DUPLICATE_CHAIN',
+      error: 'DUPLICATE_ADAPTER',
       message: 'Adapter with this label already exists. Use force_update: true to overwrite.',
       ...sanitizeTrainDetails(error.details)
     };
@@ -76,7 +76,7 @@ export async function executeTrain(
   const items = await Promise.all(
     result.items.map(async (item) => {
       const memory = await memoryStore.getMemory(item.memory_uuid);
-      const adapterId = memory?.adapter?.id ?? memory?.chain?.id ?? item.memory_uuid;
+      const adapterId = memory?.adapter?.id ?? item.memory_uuid;
       return {
         uri: buildLayerUri(item.memory_uuid),
         layer_uuid: item.memory_uuid,
@@ -173,7 +173,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
         if (err.code === 'SIMILAR_MEMORY_FOUND') {
           kairosTrainSimilarAdapterFound.inc({ transport: 'mcp', tenant_id: tenantId });
         }
-        if (err.code === 'DUPLICATE_CHAIN' || err.code === 'DUPLICATE_KEY' || err.code === 'SIMILAR_MEMORY_FOUND') {
+        if (err.code === 'DUPLICATE_ADAPTER' || err.code === 'DUPLICATE_KEY' || err.code === 'SIMILAR_MEMORY_FOUND') {
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           timer({ tool: toolName, status: 'error', tenant_id: tenantId });

@@ -241,6 +241,12 @@ function createFlatConfig(rootDir) {
         'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
       },
     },
+    {
+      files: ['src/http/http-server-config.ts'],
+      rules: {
+        'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
+      },
+    },
 
     // -------------------------------------------------------------------------
     // 3d. All **/*.md (forbidden strings; stub parser; max-lines off)

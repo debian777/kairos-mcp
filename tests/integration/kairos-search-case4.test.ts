@@ -77,7 +77,7 @@ describe('Kairos Search - CASE 4: NO RELEVANT RESULTS', () => {
       // Old fields must be absent
       expect(parsed.protocol_status).toBeUndefined();
       expect(parsed.start_here).toBeUndefined();
-      expect(parsed.chain_label).toBeUndefined();
+      expect(parsed.adapter_name).toBeUndefined();
       expect(parsed.total_steps).toBeUndefined();
       expect(parsed.best_match).toBeUndefined();
       expect(parsed.suggestion).toBeUndefined();

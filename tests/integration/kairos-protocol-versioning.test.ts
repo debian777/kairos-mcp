@@ -126,7 +126,7 @@ describe('Kairos protocol versioning', () => {
     expect(anyMatch).toHaveProperty('adapter_version');
   });
 
-  test('export includes adapter_version when chain has one', async () => {
+  test('export includes adapter_version when an adapter has one', async () => {
     const ts = Date.now();
     const title = `Dump Version ${ts}`;
     const md = protocolWithFrontmatter(title, '3.0.0');
@@ -159,7 +159,7 @@ describe('Kairos protocol versioning', () => {
     const createChoice = parsed.choices?.find((c: { role: string }) => c.role === 'create');
     expect(refineChoice).toBeDefined();
     expect(createChoice).toBeDefined();
-    // Footer rows mirror stored chain protocol_version (embedded boot mem); not tied to user matches.
+    // Footer rows mirror stored adapter protocol_version (embedded boot mem); not tied to user matches.
     expect(refineChoice).toHaveProperty('adapter_version');
     expect(createChoice).toHaveProperty('adapter_version');
     expect(typeof refineChoice!.adapter_version).toBe('string');

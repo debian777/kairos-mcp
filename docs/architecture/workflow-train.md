@@ -23,7 +23,7 @@ Fields:
 - `markdown_doc` — the markdown document to store (H1 = protocol, H2 =
   steps).
 - `llm_model_id` — LLM model ID used for embedding and storage context.
-- `force_update` — when `true`, overwrite an existing chain with the same
+- `force_update` — when `true`, overwrite an existing adapter with the same
   label. Otherwise duplicate and similarity checks apply.
 
 ## Success response schema
@@ -108,7 +108,7 @@ still show `"challenge"` in older examples; the runtime surface uses
 When both an older inline challenge block and a JSON block are present in a layer,
 the JSON block takes precedence.
 
-## Scenario 1: store new protocol chain
+## Scenario 1: store new protocol adapter
 
 The document is new. All steps are stored and URIs are returned.
 
@@ -169,12 +169,12 @@ Deploy to staging.
 ### AI behavior
 
 Use the returned URIs for search/begin or to inform the user. To run the
-protocol, call `activate` with a query matching the chain label, then
+protocol, call `activate` with a query matching the adapter label, then
 follow `next_action`.
 
-## Scenario 2: force_update overwrites existing chain
+## Scenario 2: force_update overwrites existing adapter
 
-A chain with the same label exists. Set `force_update: true` to replace it.
+An adapter with the same label exists. Set `force_update: true` to replace it.
 
 ### Input
 
@@ -197,24 +197,24 @@ Only use `force_update: true` after the user or agent has confirmed that
 the existing protocol must be replaced (for example, after using
 `export` to compare content).
 
-## Scenario 3: error — DUPLICATE_CHAIN
+## Scenario 3: error - `DUPLICATE_ADAPTER`
 
-The store detected an existing chain with the same identity and
+The store detected an existing adapter with the same identity and
 `force_update` was not set.
 
 ### Expected output (error body)
 
 ```json
 {
-  "error": "DUPLICATE_CHAIN",
-  "chain_id": "<uuid>",
+  "error": "DUPLICATE_ADAPTER",
+  "adapter_id": "<uuid>",
   "items": []
 }
 ```
 
 ### AI behavior
 
-Inform the user that a chain with this content already exists. Offer to
+Inform the user that an adapter with this content already exists. Offer to
 run it via **`activate`** / **`forward`**, or replace it with **`train`** and
 **`force_update: true`** after the user confirms.
 
@@ -233,9 +233,9 @@ and decide.
     "uri": "kairos://adapter/ccc33333-3333-3333-3333-333333333333",
     "memory_uuid": "ccc33333-3333-3333-3333-333333333333",
     "label": "Deploy Checklist",
-    "chain_label": "Deploy Checklist",
+    "adapter_name": "Deploy Checklist",
     "score": 0.92,
-    "total_steps": 2
+    "layer_count": 2
   },
   "similarity_score": 0.92,
   "message": "A very similar memory already exists with title \"Deploy Checklist\" (similarity: 92%). Verify it before overwriting.",

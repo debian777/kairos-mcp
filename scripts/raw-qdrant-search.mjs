@@ -5,7 +5,7 @@
  *
  * Usage (from repo root, .env with QDRANT_* and OPENAI_*):
  *   node -r dotenv/config scripts/raw-qdrant-search.mjs "get help refining your search"
- *   npm run prod:raw-qdrant-search -- "create new KAIROS protocol chain"
+ *   npm run prod:raw-qdrant-search -- "create new KAIROS adapter"
  */
 import 'dotenv/config';
 
@@ -73,10 +73,10 @@ async function main() {
   }
   for (const r of results) {
     const payload = r.payload || {};
-    const label = payload.label ?? payload.description_short ?? '—';
-    const chainLabel = payload.chain_label ?? payload.chain?.label ?? '—';
+    const label = payload.label ?? '—';
+    const adapterLabel = payload.adapter?.name ?? '—';
     const score = typeof r.score === 'number' ? r.score : '—';
-    console.log(`  ${String(score).padEnd(10)}  ${String(chainLabel).slice(0, 50).padEnd(50)}  ${String(label).slice(0, 24)}`);
+    console.log(`  ${String(score).padEnd(10)}  ${String(adapterLabel).slice(0, 50).padEnd(50)}  ${String(label).slice(0, 24)}`);
   }
   console.log('─'.repeat(80));
 }

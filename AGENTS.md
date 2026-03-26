@@ -5,8 +5,8 @@ codebase facts (paths, tool flow, tech stack) with maintainer workflow rules for
 agents operating in the repository.
 
 KAIROS MCP is a Model Context Protocol server for persistent memory and
-deterministic protocol-chain execution. It stores workflows as linked
-memory chains where each step carries a proof-of-work challenge. You
+deterministic adapter execution. It stores workflows as linked adapters
+whose layers can carry proof-of-work challenges. You
 execute a protocol by calling **`activate`** (semantic match), then
 **`forward`** for each layer’s contract (loop until `next_action` directs you
 to **`reward`**), then **`reward`** to finalize the run. Every hash, nonce,
@@ -43,7 +43,7 @@ files; they are authoritative.
 ## MUST ALWAYS (repo context)
 
 - Use Context7 when you need library/API documentation or setup steps.
-- Add a `challenge` JSON block to every verifiable step when minting.
+- Add a `contract` JSON block to every verifiable step when minting.
 - Use space names in tool parameters; the backend resolves to IDs.
 - Deploy to dev before testing: `npm run dev:deploy && npm run dev:test`.
 
@@ -56,10 +56,11 @@ files; they are authoritative.
 
 When minting (**`train`**) or editing (**`tune`**) adapter markdown:
 
-- Use H1 for the protocol chain title.
+- Use H1 for the adapter title.
 - Use H2 for each step label.
 - End every verifiable step with a trailing ` ```json ` block containing
-  `{"challenge": {...}}` (same shape as responses from **`forward`**).
+  `{"contract": {...}}` (same shape as step contracts consumed by
+  **`forward`**).
 - The opening \`\`\`json must be on its own line (line start). Blocks with
   text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
 - Add a `## Natural Language Triggers` section as the first H2.

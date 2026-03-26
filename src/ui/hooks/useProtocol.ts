@@ -20,7 +20,7 @@ async function fetchProtocol(uri: string): Promise<DumpOutput> {
     markdown_doc: output.content,
     uri: output.uri,
     label: output.adapter_name ?? "Adapter",
-    chain_label: output.adapter_name ?? null,
+    adapter_name: output.adapter_name ?? null,
     ...(output.adapter_version ? { protocol_version: output.adapter_version } : {}),
   };
 }

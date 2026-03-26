@@ -19,12 +19,10 @@ describe('Embedded MCP Resources', () => {
     }
   });
 
-  test('mcpResources.templates embeds the adapter markdown template', () => {
+  test('mcpResources.templates stays empty when no templates are registered', () => {
     expect(mcpResources).toHaveProperty('templates');
     expect(typeof mcpResources.templates).toBe('object');
-    expect(mcpResources.templates).toHaveProperty('kairos-memory');
-    expect(typeof (mcpResources.templates as Record<string, string>)['kairos-memory']).toBe('string');
-    expect((mcpResources.templates as Record<string, string>)['kairos-memory'].length).toBeGreaterThan(20);
+    expect(Object.keys(mcpResources.templates)).toHaveLength(0);
   });
 });
 

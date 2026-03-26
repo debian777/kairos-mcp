@@ -29,7 +29,7 @@ tailor the response to the **previous step's challenge type**:
 
 - **Where:** In `forward`, when building the `MISSING_PROOF` response
   (for example, in `ensurePreviousProofCompleted` or its caller), use the
-  **previous** step's `proof_of_work.type` and type-specific fields (for
+  **previous** step's `contract.type` and type-specific fields (for
   example, `user_input.prompt`) to build the `message` and an optional
   override for `next_action`.
 - **Stability:** Keep `error_code` as `MISSING_PROOF` for monitoring. Add

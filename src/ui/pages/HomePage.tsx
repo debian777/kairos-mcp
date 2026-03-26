@@ -77,7 +77,7 @@ export function HomePage() {
               {space.name}
             </span>
             <span className="block text-sm text-[var(--color-text-muted)] mt-1">
-              {isLoading ? "—" : t("home.stats.protocolCount", { count: space.chain_count })}
+              {isLoading ? "—" : t("home.stats.protocolCount", { count: space.adapter_count })}
             </span>
           </div>
         ))}

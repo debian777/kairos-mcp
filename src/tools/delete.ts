@@ -20,7 +20,7 @@ export async function executeDelete(
     try {
       const parsed = parseKairosUri(uri);
       if (parsed.kind === 'adapter') {
-        const layers = await qdrantService.getChainMemories(parsed.id);
+        const layers = await qdrantService.getAdapterLayers(parsed.id);
         for (const layer of layers) {
           await qdrantService.deleteMemory(layer.uuid);
           totalDeleted++;

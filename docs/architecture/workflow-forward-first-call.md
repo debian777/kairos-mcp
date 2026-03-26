@@ -51,8 +51,8 @@ when the contract requires them.
 No `solution` field on this call.
 
 You can also start with a stored slug URI such as
-`kairos://adapter/create-merge-request`. The server resolves it to the chain
-head before returning the current layer.
+`kairos://adapter/create-merge-request`. The server resolves it to the adapter
+entry layer before returning the current layer.
 
 ## AI behavior
 
@@ -73,7 +73,7 @@ layer** URI from the tool text, with optional **`?execution_id=`**.
 ## Non–step-1 entry (redirect)
 
 If you mistakenly pass a **layer** URI as the first call where the server
-expects the chain head, resolution behavior is defined in **`forward`** /
+expects the adapter entry layer, resolution behavior is defined in **`forward`** /
 store logic; always prefer the **adapter** URI from **`activate`**.
 
 ## Validation rules

@@ -57,7 +57,7 @@ async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: Qdr
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'adapter') {
     if (qdrantService) {
-      const layers = await qdrantService.getChainMemories(parsed.id);
+      const layers = await qdrantService.getAdapterLayers(parsed.id);
       const firstLayerId = layers[0]?.uuid;
       if (firstLayerId) {
         return { adapterId: parsed.id, layerId: firstLayerId };
@@ -160,7 +160,7 @@ export async function executeExport(
       content: toCurrentMarkdown(String(dump['markdown_doc'] ?? '')),
       item_count: 1,
       adapter_name: typeof dump['label'] === 'string' ? dump['label'] : null,
-      adapter_version: typeof dump['protocol_version'] === 'string' ? dump['protocol_version'] : null
+      adapter_version: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null
     };
   }
 

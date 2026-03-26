@@ -7,10 +7,10 @@ import { redisCacheService } from '../redis-cache.js';
 import { retrieveAccessiblePointById } from './memory-retrieval.js';
 
 /**
- * Resolve the chain head from a completion layer and propagate reward
+ * Resolve the adapter head from a completion layer and propagate reward
  * quality metrics so activation ranking can see the final outcome.
  */
-export async function propagateRewardToChainHead(
+export async function propagateRewardToAdapterHead(
   conn: QdrantConnection,
   stepPointId: string,
   metricsUpdate: Record<string, unknown>
@@ -28,26 +28,22 @@ export async function propagateRewardToChainHead(
       return null;
     }
 
-    const chainId =
-      (payload['chain'] as { id?: string } | undefined)?.id ??
-      (payload['memory_chain_id'] as string | undefined);
-    if (!chainId || typeof chainId !== 'string') {
-      logger.debug(`[reward-propagation] Step ${stepPointId} has no chain.id, skip propagation`);
+    const adapterId = (payload['adapter'] as { id?: string } | undefined)?.id;
+    if (!adapterId || typeof adapterId !== 'string') {
+      logger.debug(`[reward-propagation] Step ${stepPointId} has no adapter.id, skip propagation`);
       return null;
     }
 
-    const stepIndex =
-      (payload['chain'] as { step_index?: number } | undefined)?.step_index ??
-      (payload['chain_step_index'] as number | undefined);
-    if (stepIndex === 1) {
-      logger.debug(`[reward-propagation] Step ${stepPointId} is already the chain head, skip propagation`);
+    const layerIndex = (payload['adapter'] as { layer_index?: number } | undefined)?.layer_index;
+    if (layerIndex === 1) {
+      logger.debug(`[reward-propagation] Step ${stepPointId} is already the adapter head, skip propagation`);
       return null;
     }
 
     const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
       must: [
-        { key: 'chain.id', match: { value: chainId } },
-        { key: 'chain.step_index', match: { value: 1 } }
+        { key: 'adapter.id', match: { value: adapterId } },
+        { key: 'adapter.layer_index', match: { value: 1 } }
       ]
     });
 
@@ -60,20 +56,20 @@ export async function propagateRewardToChainHead(
 
     const points = scrollResult?.points ?? [];
     if (points.length === 0) {
-      logger.warn(`[reward-propagation] Chain head not found for chain ${chainId}, skip propagation`);
+      logger.warn(`[reward-propagation] Adapter head not found for adapter ${adapterId}, skip propagation`);
       return null;
     }
 
-    const chainHeadId = String((points[0] as { id: string | number }).id);
-    await updateQualityMetrics(conn, chainHeadId, metricsUpdate);
+    const adapterHeadId = String((points[0] as { id: string | number }).id);
+    await updateQualityMetrics(conn, adapterHeadId, metricsUpdate);
     try {
       await redisCacheService.invalidateBeginCache();
     } catch (cacheErr) {
       logger.warn(
-        `[reward-propagation] Cache invalidation failed after chain head update (chainHeadId=${chainHeadId}); reward succeeded: ${cacheErr instanceof Error ? cacheErr.message : String(cacheErr)}`
+        `[reward-propagation] Cache invalidation failed after adapter head update (adapterHeadId=${adapterHeadId}); reward succeeded: ${cacheErr instanceof Error ? cacheErr.message : String(cacheErr)}`
       );
     }
-    logger.info(`[reward-propagation] Updated chain head ${chainHeadId} for chain ${chainId}`);
-    return chainHeadId;
+    logger.info(`[reward-propagation] Updated adapter head ${adapterHeadId} for adapter ${adapterId}`);
+    return adapterHeadId;
   });
 }

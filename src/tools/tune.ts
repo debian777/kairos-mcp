@@ -6,6 +6,7 @@ import { executeUpdate } from './update.js';
 import { tuneInputSchema, tuneOutputSchema, type TuneInput, type TuneOutput } from './tune_schema.js';
 import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { buildTuneResultMessage } from './tune-messages.js';
 
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string): Promise<string> {
   const parsed = parseKairosUri(uri);
@@ -13,7 +14,7 @@ async function normalizeTuneUri(qdrantService: QdrantService, uri: string): Prom
     return `kairos://mem/${parsed.id}`;
   }
 
-  const layers = await qdrantService.getChainMemories(parsed.id);
+  const layers = await qdrantService.getAdapterLayers(parsed.id);
   const head = layers[0]?.uuid ?? parsed.id;
   return `kairos://mem/${head}`;
 }
@@ -27,11 +28,14 @@ export async function executeTune(qdrantService: QdrantService, input: TuneInput
   });
 
   return {
-    results: result.results.map((entry) => ({
-      uri: buildLayerUri(entry.uri.split('/').pop() ?? ''),
-      status: entry.status,
-      message: entry.message.replaceAll('memory', 'adapter layer')
-    })),
+    results: result.results.map((entry) => {
+      const layerUri = buildLayerUri(entry.uri.split('/').pop() ?? '');
+      return {
+        uri: layerUri,
+        status: entry.status,
+        message: buildTuneResultMessage(entry, layerUri)
+      };
+    }),
     total_updated: result.total_updated,
     total_failed: result.total_failed
   };

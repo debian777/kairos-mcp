@@ -155,7 +155,7 @@ export async function migrateVectorSpace(
       const payload = point.payload as any;
       // Re-embed the content to get new vector
       const textToEmbed = [
-        payload.description_full || '',
+        payload.text || '',
         payload.label || '',
         payload.text || '',
         `Tags: ${(payload.tags || []).join(', ')}`

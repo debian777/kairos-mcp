@@ -1,11 +1,11 @@
 /**
- * MISSING_PROOF fix: when the requested step has no proof_of_work, apply the solution to the previous step.
+ * MISSING_PROOF fix: when the requested step has no stored inference contract, apply the solution to the previous step.
  * Shared by the forward bridge and the older HTTP next route.
  */
 
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveChainPreviousStep } from '../services/chain-utils.js';
+import { resolveAdapterPreviousLayer } from '../services/adapter-navigation.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { handleProofSubmission, GENESIS_HASH, type ProofOfWorkSubmission, type HandleProofResult } from './next-pow-helpers.js';
@@ -22,7 +22,7 @@ export type TryApplyToPreviousResult =
   | { applied: false };
 
 /**
- * If the requested step has no proof_of_work and the previous step has required proof, validate and store
+ * If the requested step has no stored inference contract and the previous step has required proof, validate and store
  * the solution against the previous step. Returns { applied: true, outcome, prevMemory } when applied
  * (caller must then check ensurePreviousProofCompleted and build response), or { applied: false }.
  */
@@ -33,16 +33,16 @@ export async function tryApplySolutionToPreviousStep(
   qdrantService: QdrantService | undefined
 ): Promise<TryApplyToPreviousResult> {
   if (getInferenceContract(memory)) return { applied: false };
-  const prevInfo = await resolveChainPreviousStep(memory, qdrantService);
+  const prevInfo = await resolveAdapterPreviousLayer(memory, qdrantService);
   const prevMemory = prevInfo?.uuid ? await loadMemory(prevInfo.uuid) : null;
   const prevContract = prevMemory ? getInferenceContract(prevMemory) : undefined;
   if (!prevMemory || !prevContract?.required) return { applied: false };
 
-  const prevIsStep1 = !prevMemory.chain || prevMemory.chain.step_index <= 1;
+  const prevIsStep1 = !prevMemory.adapter || prevMemory.adapter.layer_index <= 1;
   const expectedPrevHash = prevIsStep1
     ? GENESIS_HASH
     : (await (async () => {
-        const previous = await resolveChainPreviousStep(prevMemory, qdrantService);
+        const previous = await resolveAdapterPreviousLayer(prevMemory, qdrantService);
         return previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       })()) ?? GENESIS_HASH;
 
@@ -55,7 +55,7 @@ export async function tryApplySolutionToPreviousStep(
 /**
  * PROOF_HASH_MISMATCH fix: when the client calls forward with the URI from next_action (the next
  * step), they are submitting the solution for the step we just showed (the previous step). If the
- * requested step has proof_of_work but the previous step has none stored yet and the solution type
+ * requested step has an inference contract but the previous step has none stored yet and the solution type
  * matches the previous step's challenge, apply the solution to the previous step and return applied.
  * This prevents PROOF_HASH_MISMATCH because we expect the hash from the previous response, not
  * the hash of the previous step (which is not stored yet).
@@ -67,7 +67,7 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
   qdrantService: QdrantService | undefined
 ): Promise<TryApplyToPreviousResult> {
   if (!getInferenceContract(requestedMemory)) return { applied: false };
-  const prevInfo = await resolveChainPreviousStep(requestedMemory, qdrantService);
+  const prevInfo = await resolveAdapterPreviousLayer(requestedMemory, qdrantService);
   if (!prevInfo?.uuid) return { applied: false };
   const prevMemory = await loadMemory(prevInfo.uuid);
   const prevContract = prevMemory ? getInferenceContract(prevMemory) : undefined;
@@ -80,11 +80,11 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
   const solutionType = solution.type || 'shell';
   if (solutionType !== requiredType) return { applied: false };
 
-  const prevIsStep1 = !prevMemory.chain || prevMemory.chain.step_index <= 1;
+  const prevIsStep1 = !prevMemory.adapter || prevMemory.adapter.layer_index <= 1;
   const expectedPrevHash = prevIsStep1
     ? GENESIS_HASH
     : (await (async () => {
-        const previous = await resolveChainPreviousStep(prevMemory, qdrantService);
+        const previous = await resolveAdapterPreviousLayer(prevMemory, qdrantService);
         return previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       })()) ?? GENESIS_HASH;
 
@@ -100,8 +100,8 @@ export async function ensurePreviousProofCompleted(
   qdrantService: QdrantService | undefined,
   executionId?: string
 ): Promise<PreviousProofBlock | null> {
-  if (!memory?.chain || memory.chain.step_index <= 1) return null;
-  const previous = await resolveChainPreviousStep(memory, qdrantService);
+  if (!memory?.adapter || memory.adapter.layer_index <= 1) return null;
+  const previous = await resolveAdapterPreviousLayer(memory, qdrantService);
   if (!previous?.uuid) return null;
   const prevMemory = await loadMemory(previous.uuid);
   const prevProof = prevMemory ? getInferenceContract(prevMemory) : undefined;

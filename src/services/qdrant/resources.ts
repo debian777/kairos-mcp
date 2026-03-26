@@ -50,12 +50,12 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
 
       const qdrantId = IDGenerator.buildQdrantId(kbUri);
 
-      logger.debug(`Generating embedding for item ${item.description_short}`);
-      const embeddingResult = await embeddingService.generateEmbedding(item.description_full);
+      logger.debug(`Generating embedding for item ${item.label}`);
+      const embeddingResult = await embeddingService.generateEmbedding(item.text);
       let embedding = embeddingResult.embedding;
       if (!Array.isArray(embedding) || embedding.length === 0) {
         const vectorSize = getEmbeddingDimension();
-        logger.warn(`upsertResources: embedding service returned empty vector for item ${item.description_short}. Falling back to zero vector of size ${vectorSize}`);
+        logger.warn(`upsertResources: embedding service returned empty vector for item ${item.label}. Falling back to zero vector of size ${vectorSize}`);
         embedding = Array(vectorSize).fill(0);
       }
 
@@ -86,8 +86,8 @@ export async function upsertResources(conn: QdrantConnection, items: UpsertResou
       const payload = {
         space_id: spaceId,
         uuid: payloadUuid,
-        description_short: item.description_short,
-        description_full: item.description_full,
+        label: item.label,
+        text: item.text,
         domain: item.domain,
         task: item.task,
         type: item.type || 'context',

@@ -10,16 +10,16 @@ import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
 import { parseFrontmatter } from '../../utils/frontmatter.js';
 import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
 import { KairosError } from '../../types/index.js';
-import { storeHeaderBasedChain } from './store-chain-header-handler.js';
-import { storeDefaultChain } from './store-chain-default-handler.js';
-import { checkSimilarMemoryByTitle } from './store-chain-helpers.js';
+import { storeHeaderBasedAdapter } from './store-adapter-header-handler.js';
+import { storeDefaultAdapter } from './store-adapter-default-handler.js';
+import { checkSimilarAdapterByTitle } from './store-adapter-helpers.js';
 
-export interface StoreChainOptions {
+export interface StoreAdapterOptions {
   forceUpdate?: boolean;
   protocolVersion?: string;
 }
 
-export class MemoryQdrantStoreChain {
+export class MemoryQdrantStoreAdapter {
   constructor(
     private client: QdrantClient,
     private collection: string,
@@ -27,105 +27,94 @@ export class MemoryQdrantStoreChain {
     private methods: MemoryQdrantStoreMethods
   ) {}
 
-  async storeChain(docs: string[], llmModelId: string, options: StoreChainOptions = {}): Promise<Memory[]> {
+  async storeAdapter(docs: string[], llmModelId: string, options: StoreAdapterOptions = {}): Promise<Memory[]> {
     const tenantId = getTenantId();
     const timer = memoryStoreDuration.startTimer({ tenant_id: tenantId });
-    
+
     try {
       if (!Array.isArray(docs) || docs.length === 0) {
         return [];
       }
 
-      // Normalize inputs: support both plain markdown strings and JSON-stringified markdown.
       const normalizedDocs = docs.map(normalizeMarkdownBlob);
       logger.debug(
-        `[MemoryQdrantStore] storeChain normalizedDocs lengths=${normalizedDocs.map(d => d?.length ?? 0).join(',')}`
+        `[MemoryQdrantStore] storeAdapter normalizedDocs lengths=${normalizedDocs.map(d => d?.length ?? 0).join(',')}`
       );
 
       const now = new Date();
-
-      // Docs to use for default path (each becomes a memory). Single-doc fallback uses frontmatter-stripped body.
       let docsForDefaultPath = normalizedDocs;
-
-      // Effective protocol version: explicit option, or (for single doc) parsed from frontmatter when we fall back to default chain.
       let effectiveProtocolVersion: string | undefined = options.protocolVersion;
-
       let parsedSingleDoc: ParsedFrontmatter | undefined;
 
-      // Special case: if we have a single doc, try header-based slicing first.
-      // Parse frontmatter for protocol_version; use body for chain building.
       if (normalizedDocs.length === 1) {
         const markdownDoc = normalizedDocs[0]!;
         const parsed = parseFrontmatter(markdownDoc);
         parsedSingleDoc = parsed;
-        const docForChain = parsed.body.length > 0 ? parsed.body : markdownDoc;
+        const docForAdapter = parsed.body.length > 0 ? parsed.body : markdownDoc;
         effectiveProtocolVersion = options.protocolVersion ?? parsed.version;
 
-        const headerChainMemories = this.methods.buildHeaderMemoryChain(docForChain, llmModelId, now);
+        const headerAdapterMemories = this.methods.buildHeaderMemoryAdapter(docForAdapter, llmModelId, now);
 
-        if (headerChainMemories.length > 0) {
+        if (headerAdapterMemories.length > 0) {
           if (effectiveProtocolVersion) {
-            for (const m of headerChainMemories) {
-              if (m.adapter) m.adapter.protocol_version = effectiveProtocolVersion;
-              if (m.chain) m.chain.protocol_version = effectiveProtocolVersion;
+            for (const memory of headerAdapterMemories) {
+              if (memory.adapter) memory.adapter.protocol_version = effectiveProtocolVersion;
             }
           }
-          const firstLabel = headerChainMemories[0]?.label || 'Knowledge Chain';
-          const explicitChainLabel = headerChainMemories[0]?.chain?.label;
-          const chainLabel =
-            explicitChainLabel && explicitChainLabel.trim().length > 0
-              ? explicitChainLabel.trim()
+          const firstLabel = headerAdapterMemories[0]?.label || 'Knowledge Adapter';
+          const explicitAdapterTitle = headerAdapterMemories[0]?.adapter?.name;
+          const adapterTitle =
+            explicitAdapterTitle && explicitAdapterTitle.trim().length > 0
+              ? explicitAdapterTitle.trim()
               : firstLabel.includes(':')
                 ? firstLabel.split(':')[0]!.trim()
                 : firstLabel.trim();
           const slugCand = resolveProtocolSlugCandidate(
-          parsedSingleDoc?.slugRaw !== undefined ? { slugRaw: parsedSingleDoc.slugRaw } : {},
-          chainLabel
-        );
+            parsedSingleDoc?.slugRaw !== undefined ? { slugRaw: parsedSingleDoc.slugRaw } : {},
+            adapterTitle
+          );
           if ('error' in slugCand) {
             throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
           }
 
-          const chainTitleForSimilarity = (
-            parsedSingleDoc?.title?.trim() || chainLabel
+          const adapterTitleForSimilarity = (
+            parsedSingleDoc?.title?.trim() || adapterTitle
           ).slice(0, 120);
-          const stepTitleForSimilarity = (headerChainMemories[0]?.label || '').trim().slice(0, 120);
-          await checkSimilarMemoryByTitle(
+          const layerTitleForSimilarity = (headerAdapterMemories[0]?.label || '').trim().slice(0, 120);
+          await checkSimilarAdapterByTitle(
             this.methods,
-            chainTitleForSimilarity,
-            stepTitleForSimilarity,
+            adapterTitleForSimilarity,
+            layerTitleForSimilarity,
             options.forceUpdate || false
           );
-          return await storeHeaderBasedChain(
+          return await storeHeaderBasedAdapter(
             this.client,
             this.collection,
             this.methods,
-            headerChainMemories,
+            headerAdapterMemories,
             llmModelId,
             options.forceUpdate || false,
             { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied }
           );
         }
-        // Fallback to single memory storage when header requirements aren't met; use body only (no frontmatter in stored text).
-        docsForDefaultPath = [docForChain];
-        logger.debug('[MemoryQdrantStore] Header-based chain failed, falling back to single memory storage');
+        docsForDefaultPath = [docForAdapter];
+        logger.debug('[MemoryQdrantStore] Header-based adapter parsing failed, falling back to single memory storage');
       }
 
       const doc0 = docsForDefaultPath[0]!;
       const struct0 = parseMarkdownStructure(doc0);
-      const chainTitleForSimilarity = (
+      const adapterTitleForSimilarity = (
         parsedSingleDoc?.title?.trim() || struct0.h1 || generateLabel(doc0)
       ).slice(0, 120);
-      const stepTitleForSimilarity = (struct0.h2Items[0] || '').slice(0, 120);
-      await checkSimilarMemoryByTitle(
+      const layerTitleForSimilarity = (struct0.h2Items[0] || '').slice(0, 120);
+      await checkSimilarAdapterByTitle(
         this.methods,
-        chainTitleForSimilarity,
-        stepTitleForSimilarity,
+        adapterTitleForSimilarity,
+        layerTitleForSimilarity,
         options.forceUpdate || false
       );
 
-      // Default behavior: each doc becomes a memory (pass effectiveProtocolVersion so single-doc frontmatter fallback keeps version)
-      return await storeDefaultChain(
+      return await storeDefaultAdapter(
         this.client,
         this.collection,
         this.methods,
@@ -138,7 +127,6 @@ export class MemoryQdrantStoreChain {
         parsedSingleDoc
       );
     } finally {
-      // End duration timer
       timer({ tenant_id: tenantId });
     }
   }

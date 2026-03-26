@@ -7,15 +7,6 @@ export interface AdapterInfo {
   activation_patterns?: string[];
 }
 
-export interface ChainInfo {
-  id: string;
-  label: string;
-  step_index: number;
-  step_count: number;
-  protocol_version?: string;
-  activation_patterns?: string[];
-}
-
 export interface TensorOutputSpec {
   name: string;
   type: string;
@@ -102,7 +93,7 @@ export interface ExecutionTrace {
 
 export interface Memory {
   memory_uuid: string;
-  /** Qdrant payload space when present (export / chain scroll scoping). */
+  /** Qdrant payload space when present (export / adapter scroll scoping). */
   space_id?: string;
   label: string;
   slug?: string;
@@ -112,13 +103,6 @@ export interface Memory {
   created_at: string;
   adapter?: AdapterInfo;
   inference_contract?: InferenceContractDefinition;
-  activation_patterns?: string[];
-  /**
-   * Transitional aliases kept for internal refactors only.
-   * Public surfaces must use adapter / inference_contract.
-   */
-  chain?: ChainInfo;
-  proof_of_work?: InferenceContractDefinition;
 }
 
 // Transitional alias kept to reduce churn while the internal codebase moves to adapter terminology.

@@ -9,7 +9,7 @@ export interface QdrantFilterMust {
 
 /**
  * Build a filter that restricts results to points whose space_id is in allowedSpaceIds.
- * Merges with existingFilter.must so callers can add domain, chain.id, etc.
+ * Merges with existingFilter.must so callers can add domain, adapter.id, etc.
  */
 export function buildSpaceFilter(
   allowedSpaceIds: string[],

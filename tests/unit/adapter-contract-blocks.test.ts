@@ -1,16 +1,16 @@
 /**
- * Unit tests for chain-builder-proof.ts: contract block parsing.
+ * Unit tests for adapter-contract-blocks.ts: contract block parsing.
  * Tests that only line-start ```json blocks are parsed as steps.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { findAllContractBlocks } from '../../src/services/memory/chain-builder-proof.js';
+import { findAllLayerContractBlocks } from '../../src/services/memory/adapter-contract-blocks.js';
 
 const ALLOWED = new Set(['shell', 'mcp', 'user_input', 'comment']);
 
-describe('chain-builder-proof', () => {
-  describe('findAllContractBlocks', () => {
+describe('adapter-contract-blocks', () => {
+  describe('findAllLayerContractBlocks', () => {
     test('finds contract block at line start (after newline)', () => {
       const content = `Some text
 \`\`\`json
@@ -18,7 +18,7 @@ describe('chain-builder-proof', () => {
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(1);
       expect(results[0]!.contract.type).toBe('comment');
       expect(results[0]!.start).toBeGreaterThan(0);
@@ -31,7 +31,7 @@ More text`;
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(1);
       expect(results[0]!.contract.type).toBe('shell');
       expect(results[0]!.start).toBe(0);
@@ -44,7 +44,7 @@ Example: \`\`\`json
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(0);
     });
 
@@ -59,11 +59,10 @@ Step 2 content
 \`\`\`
 Step 3 content`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(2);
       expect(results[0]!.contract.type).toBe('comment');
       expect(results[1]!.contract.type).toBe('shell');
-      // Verify indices are correct (second block starts after first ends)
       expect(results[1]!.start).toBeGreaterThan(results[0]!.end);
     });
 
@@ -79,7 +78,7 @@ Do something
 {"contract":{"type":"shell","shell":{"cmd":"echo done"},"required":true}}
 \`\`\``;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(1);
       expect(results[0]!.contract.type).toBe('shell');
     });
@@ -91,7 +90,7 @@ Do something
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(0);
     });
 
@@ -102,7 +101,7 @@ More text`;
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(0);
     });
 
@@ -113,7 +112,7 @@ More text`;
 \`\`\`
 More text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(0);
     });
 
@@ -124,13 +123,12 @@ More text`;
 \`\`\`
 Suffix text`;
 
-      const results = findAllContractBlocks(content);
+      const results = findAllLayerContractBlocks(content);
       expect(results).toHaveLength(1);
-      
-      // Verify the indices allow correct slicing
+
       const beforeBlock = content.slice(0, results[0]!.start);
       const afterBlock = content.slice(results[0]!.end);
-      
+
       expect(beforeBlock.trim()).toBe('Prefix text');
       expect(afterBlock.trim()).toBe('Suffix text');
     });
@@ -140,10 +138,10 @@ Suffix text`;
         join(process.cwd(), 'src/embed-docs/mem/00000000-0000-0000-0000-000000002001.md'),
         'utf8'
       );
-      const results = findAllContractBlocks(md);
+      const results = findAllLayerContractBlocks(md);
       expect(results).toHaveLength(5);
-      for (const r of results) {
-        expect(ALLOWED.has(String(r.contract.type))).toBe(true);
+      for (const result of results) {
+        expect(ALLOWED.has(String(result.contract.type))).toBe(true);
       }
     });
   });

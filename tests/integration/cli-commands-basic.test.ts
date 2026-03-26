@@ -106,7 +106,7 @@ describe('CLI Commands Basic --url Tests', () => {
     test('train uses --url parameter', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Use --force to handle case where chain already exists from previous test runs
+      // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} train --url ${BASE_URL} --force "${TEST_FILE}"`
       );
@@ -119,7 +119,7 @@ describe('CLI Commands Basic --url Tests', () => {
     test('train uses -u short form', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Use --force to handle case where chain already exists from previous test runs
+      // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} train -u ${BASE_URL} --force "${TEST_FILE}"`
       );
@@ -132,8 +132,8 @@ describe('CLI Commands Basic --url Tests', () => {
     test('train with --url and --force (updates existing)', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Test that --force works on existing chain
-      // Chain should already exist from previous tests, so this tests update path
+      // Test that --force works on an existing adapter
+      // The adapter should already exist from previous tests, so this covers the update path
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} train --url ${BASE_URL} --force "${TEST_FILE}"`
       );
@@ -141,14 +141,14 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('status');
-      // Should succeed even if chain already exists (force update)
+      // Should succeed even if the adapter already exists (force update)
       expect(result.status).toBe('stored');
     }, 30000);
 
     test('train with --url and --model', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Use --force to handle case where chain already exists from previous test runs
+      // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} train --url ${BASE_URL} --force --model "test-model" "${TEST_FILE}"`
       );

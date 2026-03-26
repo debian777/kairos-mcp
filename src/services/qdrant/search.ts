@@ -49,7 +49,7 @@ export async function searchMemory(conn: QdrantConnection, query: string, limit?
         return {
           id: result.id.toString(),
           description: payload.label || 'Memory',
-          content: typeof payload.text === 'string' ? payload.text : (payload.description_full || ''),
+          content: typeof payload.text === 'string' ? payload.text : '',
           confidence: result.score,
           relevance: result.score,
           domain: payload.domain || 'general',

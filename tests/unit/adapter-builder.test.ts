@@ -1,17 +1,17 @@
 import { CodeBlockProcessor } from '../../src/services/code-block-processor.js';
-import { buildHeaderMemoryChain } from '../../src/services/memory/chain-builder.js';
+import { buildHeaderMemoryAdapter } from '../../src/services/memory/adapter-builder.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 
-describe('buildHeaderMemoryChain', () => {
+describe('buildHeaderMemoryAdapter', () => {
   test('does not turn Reward Signal into an executable trailing layer', () => {
     const markdown = buildProofMarkdown('Two Step Adapter', [
       { heading: 'Step One', body: 'First body.', proofCmd: 'echo step1' },
       { heading: 'Step Two', body: 'Second body.', proofCmd: 'echo step2' }
     ]);
 
-    const memories = buildHeaderMemoryChain(
+    const memories = buildHeaderMemoryAdapter(
       markdown,
-      'test-chain-builder',
+      'test-adapter-builder',
       new Date('2026-03-23T00:00:00.000Z'),
       new CodeBlockProcessor()
     );

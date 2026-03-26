@@ -8,15 +8,10 @@ import { embeddingService } from '../embedding/service.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildActivationSearchFields } from './activation-search-fields.js';
-
-function normalizeStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter(
-        (item): item is string =>
-          typeof item === 'string' && item.trim().length > 0
-      )
-    : [];
-}
+import {
+  normalizeActivationPatternPayload,
+  normalizeActivationPatternStringArray,
+} from './activation-pattern-payload.js';
 
 export async function backfillActivationSearchVectors(
   client: QdrantClient,
@@ -49,38 +44,24 @@ export async function backfillActivationSearchVectors(
     const pending = points
       .map((point) => {
         const payload = (point.payload ?? {}) as any;
-        const adapter = (payload.adapter ?? {}) as any;
-        const chain = (payload.chain ?? {}) as any;
-        const payloadActivationPatterns = normalizeStringArray(
-          payload.activation_patterns
-        );
-        const adapterActivationPatterns = normalizeStringArray(
-          adapter.activation_patterns
-        );
-        const chainActivationPatterns = normalizeStringArray(
-          chain.activation_patterns
-        );
+        const normalizedPayload = normalizeActivationPatternPayload(payload as Record<string, unknown>);
+        const adapter = (normalizedPayload.payload['adapter'] ?? {}) as any;
         const fields = buildActivationSearchFields({
           adapterName:
             (typeof adapter.name === 'string' && adapter.name) ||
-            (typeof chain.label === 'string' && chain.label) ||
             (typeof payload.label === 'string' && payload.label) ||
             'Knowledge Adapter',
           label: typeof payload.label === 'string' ? payload.label : 'Memory',
           text: typeof payload.text === 'string' ? payload.text : '',
-          tags: normalizeStringArray(payload.tags),
-          activationPatterns:
-            payloadActivationPatterns.length > 0
-              ? payloadActivationPatterns
-              : adapterActivationPatterns.length > 0
-                ? adapterActivationPatterns
-                : chainActivationPatterns,
+          tags: normalizeActivationPatternStringArray(payload.tags),
+          activationPatterns: normalizedPayload.canonicalPatterns,
         });
         const vector =
           point.vector && typeof point.vector === 'object' && !Array.isArray(point.vector)
             ? (point.vector as Record<string, unknown>)
             : {};
         const payloadNeedsUpdate =
+          normalizedPayload.changed ||
           payload.adapter_name_text !== fields.adapterNameText ||
           payload.label_text !== fields.labelText ||
           payload.activation_patterns_text !==
@@ -97,7 +78,7 @@ export async function backfillActivationSearchVectors(
         ) {
           return null;
         }
-        return { point, payload, vector, fields };
+        return { point, payload, vector, fields, normalizedPayload: normalizedPayload.payload };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
@@ -108,7 +89,7 @@ export async function backfillActivationSearchVectors(
           fields.activationPatternDenseText,
         ])
       );
-      const updates = pending.map(({ point, payload, vector, fields }, index) => ({
+      const updates = pending.map(({ point, normalizedPayload, vector, fields }, index) => ({
         id: point.id,
         vector: {
           ...vector,
@@ -117,7 +98,7 @@ export async function backfillActivationSearchVectors(
             embeddingBatch.embeddings[index * 2 + 1]!,
         },
         payload: {
-          ...payload,
+          ...normalizedPayload,
           adapter_name_text: fields.adapterNameText,
           label_text: fields.labelText,
           activation_patterns_text: fields.activationPatternsText,

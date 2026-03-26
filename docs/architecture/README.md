@@ -48,7 +48,7 @@ Express deployment.
 ## Full execution walkthrough
 
 [Full execution workflow: activate through reward](workflow-full-execution.md)
-summarizes the current MCP tool chain, example calls, and links to embedded tool
+summarizes the current MCP tool flow, example calls, and links to embedded tool
 docs.
 
 ## Tool reference (current MCP surface)

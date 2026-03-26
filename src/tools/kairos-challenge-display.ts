@@ -27,7 +27,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
     } else {
       structuredLogger.warn(
         { event: 'invalid_stored_challenge_type', storedType: proof.type },
-        'Invalid proof_of_work.type in stored step; coercing to comment for MCP output schema compliance'
+        'Invalid stored contract type in adapter layer; coercing to comment for MCP output schema compliance'
       );
       proofType = 'comment';
     }

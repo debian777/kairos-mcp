@@ -6,6 +6,7 @@ import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
 import { toConfidencePercent } from "@/utils/confidence";
+import { browseAdaptersFromSpaces } from "@/utils/browse-adapters";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -16,7 +17,7 @@ const roleBadgeClass: Record<string, string> = {
 
 const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-/** Adapter URI prefix for chain_id from spaces browse results. */
+/** Adapter URI prefix for adapter_id from spaces browse results. */
 const PROTOCOL_URI_PREFIX = "kairos://adapter/";
 
 export function KairosPage() {
@@ -35,7 +36,7 @@ export function KairosPage() {
     isError: spacesError,
     error: spacesErrorDetail,
     refetch: refetchSpaces,
-  } = useSpaces(showBrowse, { includeChainTitles: true });
+  } = useSpaces(showBrowse, { includeAdapterTitles: true });
 
   useEffect(() => {
     const q = searchParams.get("q") ?? "";
@@ -64,29 +65,18 @@ export function KairosPage() {
     ? Math.max(...choices.map((c) => toConfidencePercent(c.activation_score)))
     : null;
 
-  const { browseChains, countsByLetter } = useMemo(() => {
-    const chains: Array<{ chain_id: string; title: string; step_count: number }> = [];
-    for (const space of spacesData?.spaces ?? []) {
-      for (const c of space.chains ?? []) {
-        chains.push({ chain_id: c.chain_id, title: c.title, step_count: c.step_count });
-      }
-    }
-    const byLetter: Record<string, number> = {};
-    for (const letter of A_Z) byLetter[letter] = 0;
-    for (const c of chains) {
-      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
-      if (A_Z.includes(first)) byLetter[first] = (byLetter[first] ?? 0) + 1;
-    }
-    return { browseChains: chains, countsByLetter: byLetter };
-  }, [spacesData?.spaces]);
+  const { browseAdapters, countsByLetter } = useMemo(
+    () => browseAdaptersFromSpaces(spacesData?.spaces),
+    [spacesData?.spaces]
+  );
 
-  const letterChains = useMemo(() => {
+  const letterAdapters = useMemo(() => {
     if (!expandedLetter) return [];
-    return browseChains.filter((c) => {
-      const first = (c.title ?? "").trim().charAt(0).toUpperCase();
+    return browseAdapters.filter((adapter) => {
+      const first = (adapter.title ?? "").trim().charAt(0).toUpperCase();
       return first === expandedLetter;
     });
-  }, [browseChains, expandedLetter]);
+  }, [browseAdapters, expandedLetter]);
 
   return (
     <div>
@@ -209,7 +199,7 @@ export function KairosPage() {
                   <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
                     {t("kairos.labelsStartingWith", { letter: expandedLetter })}
                   </h3>
-                  {letterChains.length === 0 ? (
+                  {letterAdapters.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
                   ) : (
                     <ul
@@ -217,17 +207,17 @@ export function KairosPage() {
                       role="list"
                       aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
                     >
-                      {letterChains.map((chain) => {
-                        const uri = `${PROTOCOL_URI_PREFIX}${chain.chain_id}`;
+                      {letterAdapters.map((adapter) => {
+                        const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
                         return (
                           <li
-                            key={chain.chain_id}
+                            key={adapter.adapter_id}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                           >
-                            <span className="font-medium text-[var(--color-text-heading)]">{chain.title}</span>
+                            <span className="font-medium text-[var(--color-text-heading)]">{adapter.title}</span>
                             <Link
                               to={`/protocols/${encodeURIComponent(uri)}`}
-                              aria-label={t("kairos.viewProtocol", { title: chain.title })}
+                              aria-label={t("kairos.viewProtocol", { title: adapter.title })}
                               className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                             >
                               {t("kairos.view")}

@@ -83,8 +83,8 @@ describe('Train (mint) basic functionality', () => {
     expect(response.status).toBe('stored');
   }, 20000); // Increase timeout for large document processing
 
-  test('train duplicate policy with label-based chain UUID and force_update', async () => {
-    // 1) Create timestamp for unique chain label; include required Activation Patterns and Reward Signal
+  test('train duplicate policy with label-based adapter UUID and force_update', async () => {
+    // 1) Create timestamp for a unique adapter label; include required Activation Patterns and Reward Signal
     const ts = Date.now().toString();
     const md = `# Unique Store ${ts}
 
@@ -122,7 +122,7 @@ Only after all steps.`;
     expect(Array.isArray(firstParsed.items)).toBe(true);
     expect(firstParsed.items.length).toBeGreaterThanOrEqual(1);
 
-    // 3) Second store (same H1) → error DUPLICATE_CHAIN
+    // 3) Second store (same H1) -> error DUPLICATE_ADAPTER
     const second = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
@@ -134,10 +134,10 @@ Only after all steps.`;
     expect(second.isError).toBe(true);
     expect(second.content).toBeDefined();
     const dupBody = JSON.parse(second.content[0].text);
-    // Second store without force_update: DUPLICATE_CHAIN or SIMILAR_MEMORY_FOUND (both indicate existing memory)
-    expect(['DUPLICATE_CHAIN', 'SIMILAR_MEMORY_FOUND']).toContain(dupBody.error);
-    if (dupBody.error === 'DUPLICATE_CHAIN') {
-      expect(dupBody.chain_id).toBeDefined();
+    // Second store without force_update: DUPLICATE_ADAPTER or SIMILAR_MEMORY_FOUND (both indicate existing memory)
+    expect(['DUPLICATE_ADAPTER', 'SIMILAR_MEMORY_FOUND']).toContain(dupBody.error);
+    if (dupBody.error === 'DUPLICATE_ADAPTER') {
+      expect(dupBody.adapter_id).toBeDefined();
       expect(Array.isArray(dupBody.items)).toBe(true);
       expect(dupBody.items.length).toBeGreaterThan(0);
     } else {
@@ -150,7 +150,7 @@ Only after all steps.`;
       }
     }
 
-    // 4) Third store with force_update → stored (overwrites prior chain)
+    // 4) Third store with force_update -> stored (overwrites prior adapter)
     const third = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
@@ -204,7 +204,7 @@ Only after all steps.`;
     expect(second.isError).toBe(true);
     expect(second.content).toBeDefined();
     const body = JSON.parse(second.content[0].text);
-    expect(['DUPLICATE_CHAIN', 'SIMILAR_MEMORY_FOUND']).toContain(body.error);
+    expect(['DUPLICATE_ADAPTER', 'SIMILAR_MEMORY_FOUND']).toContain(body.error);
 
     if (body.error === 'SIMILAR_MEMORY_FOUND') {
       expect(body.must_obey).toBe(true);
@@ -280,10 +280,10 @@ Only after all steps.`;
       throw new Error(`train failed: ${storeResponse.error} - ${storeResponse.message ?? ''}`);
     }
     expect(storeResponse.status).toBe('stored');
-    // PoW-based mint: each ```json challenge block defines a step; this doc has 2 blocks so expect >= 1 (chain stored)
+    // PoW-based mint: each ```json challenge block defines a layer; this doc has 2 blocks so expect >= 1 stored layer
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(1);
 
-    // Test that activate can find the chain (use semantic query from content)
+    // Test that activate can find the adapter (use semantic query from content)
     await new Promise((r) => setTimeout(r, 2000)); // Allow Qdrant indexing
     const searchResult = await mcpConnection.client.callTool({
       name: 'activate',

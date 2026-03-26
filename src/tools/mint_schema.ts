@@ -7,7 +7,7 @@ const memoryUriSchema = z
 export const mintInputSchema = z.object({
   markdown_doc: z.string().min(1).describe('Markdown document to store'),
   llm_model_id: z.string().min(1).describe('LLM model ID'),
-  force_update: z.boolean().optional().default(false).describe('Overwrite existing memory chain with the same label'),
+  force_update: z.boolean().optional().default(false).describe('Overwrite an existing adapter with the same label'),
   protocol_version: z.string().optional().describe('Protocol version (e.g. semver). Overrides or supplies version when document has no frontmatter.'),
   space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" (default) or group name to mint into that group space')
 });

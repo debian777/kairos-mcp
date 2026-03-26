@@ -3,24 +3,29 @@ import type { Memory } from '../types/memory.js';
 import { getAdapterInfo, getAdapterId } from './memory/memory-accessors.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 
-export interface ResolvedChainStep {
+export interface ResolvedAdapterLayer {
     uuid: string;
     label?: string;
-    step?: number;
-    count?: number;
+    layer_index?: number;
+    layer_count?: number;
 }
 
-async function getChainPoints(chainId: string, qdrantService?: any): Promise<any[]> {
+function pointLayerIndex(point: any): number {
+    const adapterLayerIndex = point?.payload?.adapter?.layer_index;
+    return typeof adapterLayerIndex === 'number' ? adapterLayerIndex : Number.MAX_SAFE_INTEGER;
+}
+
+async function getAdapterLayerPoints(adapterId: string, qdrantService?: any): Promise<any[]> {
     const svc = qdrantService || globalQdrantService;
-    if (!svc || typeof (svc as any).getChainMemories !== 'function') return [];
+    if (!svc || typeof (svc as any).getAdapterLayers !== 'function') return [];
     try {
-        return await (svc as any).getChainMemories(chainId);
+        return await (svc as any).getAdapterLayers(adapterId);
     } catch {
         return [];
     }
 }
 
-export async function resolveFirstStep(
+export async function resolveAdapterEntry(
     memory: Memory,
     qdrantService?: any
 ): Promise<{ uri: string; label: string } | undefined> {
@@ -31,80 +36,82 @@ export async function resolveFirstStep(
         return { uri: adapterUri, label: String(memory.label || 'Memory') };
     }
 
-    const points: any[] = await getChainPoints(adapter.id, qdrantService);
+    const points: any[] = await getAdapterLayerPoints(adapter.id, qdrantService);
     if (!Array.isArray(points) || points.length === 0) return { uri: adapterUri, label: String(memory.label || 'Memory') };
 
     const head = points
         .map(pt => ({
             uuid: (pt as any)?.uuid || (pt as any)?.id?.toString?.() || '',
             label: (pt as any)?.payload?.label || 'Memory',
-            step: (pt as any)?.payload?.chain?.step_index ?? Number.MAX_SAFE_INTEGER
+            layer_index: pointLayerIndex(pt)
         }))
-        .sort((a, b) => (a.step ?? Number.MAX_SAFE_INTEGER) - (b.step ?? Number.MAX_SAFE_INTEGER))[0];
+        .sort((a, b) => (a.layer_index ?? Number.MAX_SAFE_INTEGER) - (b.layer_index ?? Number.MAX_SAFE_INTEGER))[0];
 
     if (head && head.uuid) return { uri: adapterUri, label: String(head.label || memory.label || 'Memory') };
     return { uri: adapterUri, label: String(memory.label || 'Memory') };
 }
 
-export async function resolveChainFirstStep(
+export async function resolveAdapterFirstLayer(
     memory: Memory,
     qdrantService?: any
-): Promise<ResolvedChainStep | undefined> {
+): Promise<ResolvedAdapterLayer | undefined> {
     const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
-    const points: any[] = await getChainPoints(adapter.id, qdrantService);
+    const points: any[] = await getAdapterLayerPoints(adapter.id, qdrantService);
     if (!Array.isArray(points) || points.length === 0) return undefined;
     const first = points
         .map(pt => ({
             uuid: (pt as any)?.uuid || (pt as any)?.id?.toString?.() || '',
             label: (pt as any)?.payload?.label || undefined,
-            step: (pt as any)?.payload?.chain?.step_index ?? Number.MAX_SAFE_INTEGER
+            layer_index: pointLayerIndex(pt)
         }))
-        .find(p => p.step === 1);
+        .find(p => p.layer_index === 1);
     if (first && first.uuid) {
-        return { uuid: first.uuid, label: first.label, step: first.step, count: adapter.layer_count };
+        return { uuid: first.uuid, label: first.label, layer_index: first.layer_index, layer_count: adapter.layer_count };
     }
     return undefined;
 }
 
-export async function resolveChainNextStep(
+export async function resolveAdapterNextLayer(
     memory: Memory,
     qdrantService?: any
-): Promise<ResolvedChainStep | undefined> {
+): Promise<ResolvedAdapterLayer | undefined> {
     const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
-    const { id: chainId, layer_index: idx, layer_count: count } = adapter;
-    if (idx >= count) return undefined;
-    const points: any[] = await getChainPoints(chainId, qdrantService);
+    const { id: adapterId, layer_index: currentLayerIndex, layer_count: layerCount } = adapter;
+    if (currentLayerIndex >= layerCount) return undefined;
+    const points: any[] = await getAdapterLayerPoints(adapterId, qdrantService);
     if (!Array.isArray(points) || points.length === 0) return undefined;
     const next = points
         .map(pt => ({
             uuid: (pt as any)?.uuid || (pt as any)?.id?.toString?.() || '',
             label: (pt as any)?.payload?.label || undefined,
-            step: (pt as any)?.payload?.chain?.step_index ?? Number.MAX_SAFE_INTEGER
+            layer_index: pointLayerIndex(pt)
         }))
-        .find(p => p.step === idx + 1);
-    if (next && next.uuid) return { uuid: next.uuid, label: next.label, step: next.step, count };
+        .find(p => p.layer_index === currentLayerIndex + 1);
+    if (next && next.uuid) return { uuid: next.uuid, label: next.label, layer_index: next.layer_index, layer_count: layerCount };
     return undefined;
 }
 
-export async function resolveChainPreviousStep(
+export async function resolveAdapterPreviousLayer(
     memory: Memory,
     qdrantService?: any
-): Promise<ResolvedChainStep | undefined> {
+): Promise<ResolvedAdapterLayer | undefined> {
     const adapter = getAdapterInfo(memory);
     if (!adapter) return undefined;
-    const { id: chainId, layer_index: idx, layer_count: count } = adapter;
-    if (idx <= 1) return undefined;
-    const points: any[] = await getChainPoints(chainId, qdrantService);
+    const { id: adapterId, layer_index: currentLayerIndex, layer_count: layerCount } = adapter;
+    if (currentLayerIndex <= 1) return undefined;
+    const points: any[] = await getAdapterLayerPoints(adapterId, qdrantService);
     if (!Array.isArray(points) || points.length === 0) return undefined;
-    const prev = points
+    const previous = points
         .map(pt => ({
             uuid: (pt as any)?.uuid || (pt as any)?.id?.toString?.() || '',
             label: (pt as any)?.payload?.label || undefined,
-            step: (pt as any)?.payload?.chain?.step_index ?? Number.MAX_SAFE_INTEGER
+            layer_index: pointLayerIndex(pt)
         }))
-        .find(p => p.step === idx - 1);
-    if (prev && prev.uuid) return { uuid: prev.uuid, label: prev.label, step: prev.step, count };
+        .find(p => p.layer_index === currentLayerIndex - 1);
+    if (previous && previous.uuid) {
+        return { uuid: previous.uuid, label: previous.label, layer_index: previous.layer_index, layer_count: layerCount };
+    }
     return undefined;
 }

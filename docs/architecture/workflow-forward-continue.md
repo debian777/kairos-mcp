@@ -66,7 +66,7 @@ When **`next_action`** directs you to **`reward`**:
 {
   "uri": "kairos://layer/ccc33333-3333-3333-3333-333333333333?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   "outcome": "success",
-  "message": "All layers completed."
+  "feedback": "All layers completed."
 }
 ```
 

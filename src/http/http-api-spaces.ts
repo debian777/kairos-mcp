@@ -5,15 +5,15 @@ import { structuredLogger } from "../utils/structured-logger.js";
 
 /**
  * Set up API route for spaces (list spaces and adapter counts).
- * Request body may include include_chain_titles (boolean) to return adapters with title and layer_count per space.
+ * Request body may include include_adapter_titles (boolean) to return adapters with title and layer_count per space.
  */
 export function setupSpacesRoute(app: express.Express, memoryStore: MemoryQdrantStore): void {
   app.post("/api/spaces", async (req, res) => {
     try {
       structuredLogger.info("-> POST /api/spaces");
-      const body = (req.body ?? {}) as { include_chain_titles?: boolean };
-      const includeChainTitles = Boolean(body.include_chain_titles);
-      const payload = await executeSpaces(memoryStore, { include_chain_titles: includeChainTitles });
+      const body = (req.body ?? {}) as { include_adapter_titles?: boolean };
+      const includeAdapterTitles = Boolean(body.include_adapter_titles);
+      const payload = await executeSpaces(memoryStore, { include_adapter_titles: includeAdapterTitles });
       res.status(200).json(payload);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

@@ -33,54 +33,23 @@ export function pointToMemory(point: QdrantPointLike): Memory {
   const payloadAdapter: any =
     payload.adapter && typeof (payload.adapter as { id?: unknown }).id === 'string'
       ? payload.adapter
-      : payload.chain && typeof (payload.chain as { id?: unknown }).id === 'string'
-        ? {
-            id: payload.chain.id,
-            name: payload.chain.label,
-            layer_index: payload.chain.step_index,
-            layer_count: payload.chain.step_count,
-            protocol_version: payload.chain.protocol_version,
-            activation_patterns: payload.chain.activation_patterns,
-          }
-        : typeof payload.memory_chain_id === 'string'
-          ? {
-              id: payload.memory_chain_id,
-              name:
-                typeof payload.chain_label === 'string'
-                  ? payload.chain_label
-                  : 'Knowledge Adapter',
-              layer_index:
-                typeof payload.chain_step_index === 'number'
-                  ? payload.chain_step_index
-                  : 1,
-              layer_count:
-                typeof payload.chain_step_count === 'number'
-                  ? payload.chain_step_count
-                  : 1,
-            }
-          : null;
+      : null;
 
   if (payloadAdapter) {
-    const adapter = {
+    base.adapter = {
       id: payloadAdapter.id,
       name:
         typeof payloadAdapter.name === 'string'
           ? payloadAdapter.name
-          : typeof payloadAdapter.label === 'string'
-            ? payloadAdapter.label
-            : 'Knowledge Adapter',
+          : 'Knowledge Adapter',
       layer_index:
         typeof payloadAdapter.layer_index === 'number'
           ? payloadAdapter.layer_index
-          : typeof payloadAdapter.step_index === 'number'
-            ? payloadAdapter.step_index
-            : 1,
+          : 1,
       layer_count:
         typeof payloadAdapter.layer_count === 'number'
           ? payloadAdapter.layer_count
-          : typeof payloadAdapter.step_count === 'number'
-            ? payloadAdapter.step_count
-            : 1,
+          : 1,
       ...(typeof payloadAdapter.protocol_version === 'string' && {
         protocol_version: payloadAdapter.protocol_version,
       }),
@@ -88,30 +57,13 @@ export function pointToMemory(point: QdrantPointLike): Memory {
         activation_patterns: payloadAdapter.activation_patterns,
       }),
     };
-
-    base.adapter = adapter;
-    base.chain = {
-      id: adapter.id,
-      label: adapter.name,
-      step_index: adapter.layer_index,
-      step_count: adapter.layer_count,
-      ...(adapter.protocol_version && {
-        protocol_version: adapter.protocol_version,
-      }),
-      ...(adapter.activation_patterns && {
-        activation_patterns: adapter.activation_patterns,
-      }),
-    };
-    base.activation_patterns = adapter.activation_patterns ?? [];
   }
 
   const payloadContract: any =
     payload.inference_contract &&
     typeof payload.inference_contract === 'object'
       ? payload.inference_contract
-      : payload.proof_of_work && typeof payload.proof_of_work === 'object'
-        ? payload.proof_of_work
-        : null;
+      : null;
 
   if (payloadContract) {
     if (typeof payloadContract.cmd === 'string') {
@@ -127,7 +79,6 @@ export function pointToMemory(point: QdrantPointLike): Memory {
       base.inference_contract =
         payloadContract as unknown as InferenceContractDefinition;
     }
-    base.proof_of_work = base.inference_contract;
   }
 
   const pointSpaceId =

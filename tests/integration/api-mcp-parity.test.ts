@@ -46,14 +46,14 @@ describe('API-MCP parity: identical response shapes', () => {
 
       const mcpResult = await mcpConnection.client.callTool({
         name: 'spaces',
-        arguments: { include_chain_titles: false }
+        arguments: { include_adapter_titles: false }
       });
       const mcpParsed = parseMcpJson(mcpResult, 'spaces MCP');
 
       const httpRes = await httpFetch(`${API_BASE}/spaces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ include_chain_titles: false })
+        body: JSON.stringify({ include_adapter_titles: false })
       });
       expect(httpRes.ok).toBe(true);
       const httpParsed = (await httpRes.json()) as Record<string, unknown>;
@@ -136,7 +136,7 @@ describe('API-MCP parity: identical response shapes', () => {
       expect.hasAssertions();
       const mcpResult = await mcpConnection.client.callTool({
         name: 'spaces',
-        arguments: { include_chain_titles: false }
+        arguments: { include_adapter_titles: false }
       });
       const mcpParsed = parseMcpJson(mcpResult, 'spaces MCP');
       const parsed = spacesOutputSchema.safeParse(mcpParsed);

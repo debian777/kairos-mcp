@@ -90,7 +90,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     test('train uses KAIROS_API_URL environment variable', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Use --force to handle case where chain already exists from previous test runs
+      // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
         `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} train --force "${TEST_FILE}"`
       );

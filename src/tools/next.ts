@@ -6,7 +6,8 @@ export type NextInput = z.infer<typeof nextInputSchema>;
 export type NextOutput = z.infer<typeof nextOutputSchema>;
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { resolveChainNextStep, resolveChainPreviousStep } from '../services/chain-utils.js';
+import { resolveAdapterNextLayer, resolveAdapterPreviousLayer } from '../services/adapter-navigation.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
 import { redisCacheService } from '../services/redis-cache.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
@@ -89,7 +90,7 @@ export async function updateStepQuality(
     const qdrantUuid = memory.memory_uuid;
     const currentPoint = await qdrantService.retrieveById(qdrantUuid);
     const payload = currentPoint?.payload as Record<string, unknown> | undefined;
-    const description_short = (payload?.['description_short'] as string) || 'Knowledge step';
+    const label = (payload?.['label'] as string) || 'Knowledge step';
     const domain = (payload?.['domain'] as string) || 'general';
     const task = (payload?.['task'] as string) || 'general';
     const type = (payload?.['type'] as string) || 'context';
@@ -106,7 +107,7 @@ export async function updateStepQuality(
     await qdrantService.updateQualityMetrics(qdrantUuid, metricsUpdate);
 
     const updatedQualityMetadata = modelStats.calculateStepQualityMetadata(
-      description_short,
+      label,
       domain,
       task,
       type,
@@ -150,7 +151,8 @@ async function _executeNext(
 
   let submissionOutcome: HandleProofResult | undefined;
   if (memory) {
-    if (!memory.proof_of_work && solutionToUse) {
+    const memoryContract = getInferenceContract(memory);
+    if (!memoryContract && solutionToUse) {
       const prevResult = await tryApplySolutionToPreviousStep(
         memory,
         solutionToUse as ProofOfWorkSubmission,
@@ -172,7 +174,7 @@ async function _executeNext(
           await updateStepQuality(qdrantService, prevResult.prevMemory, 'success', tenantId);
         }
         if (!previousBlock) {
-          const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
+          const nextFromRequested = await resolveAdapterNextLayer(memory, qdrantService);
           const nextStepId = nextFromRequested?.uuid ?? null;
           const output = (await buildNextPayload(memory, requestedUri, nextStepId, undefined, executionId)) as NextOutput;
           if (prevResult.outcome.proofHash) output.proof_hash = prevResult.outcome.proofHash;
@@ -181,7 +183,7 @@ async function _executeNext(
       }
     }
 
-    if (memory.proof_of_work && solutionToUse) {
+    if (memoryContract && solutionToUse) {
       const prevResultWhenMatch = await tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
         memory,
         solutionToUse as ProofOfWorkSubmission,
@@ -196,22 +198,22 @@ async function _executeNext(
         if (qdrantService && !prevResultWhenMatch.outcome.alreadyRecorded) {
           await updateStepQuality(qdrantService, prevResultWhenMatch.prevMemory, 'success', tenantId);
         }
-        const nextFromRequested = await resolveChainNextStep(memory, qdrantService);
+        const nextFromRequested = await resolveAdapterNextLayer(memory, qdrantService);
         const nextStepId = nextFromRequested?.uuid ?? null;
         const nextMemory = nextFromRequested ? await loadMemoryWithCache(memoryStore, nextFromRequested.uuid) : null;
-        const challengeProof = nextMemory?.proof_of_work ?? memory.proof_of_work;
+        const challengeProof = (nextMemory ? getInferenceContract(nextMemory) : undefined) ?? memoryContract;
         const output = (await buildNextPayload(memory, requestedUri, nextStepId, challengeProof, executionId)) as NextOutput;
         if (prevResultWhenMatch.outcome.proofHash) output.proof_hash = prevResultWhenMatch.outcome.proofHash;
         return output;
       }
     }
 
-    const isStep1 = !memory.chain || memory.chain.step_index <= 1;
+    const isStep1 = !memory.adapter || memory.adapter.layer_index <= 1;
     let expectedPreviousHash: string;
     if (isStep1) {
       expectedPreviousHash = GENESIS_HASH;
     } else {
-      const previous = await resolveChainPreviousStep(memory, qdrantService);
+      const previous = await resolveAdapterPreviousLayer(memory, qdrantService);
       const prevHash = previous?.uuid ? await proofOfWorkStore.getProofHash(previous.uuid) : null;
       expectedPreviousHash = prevHash ?? GENESIS_HASH;
     }
@@ -253,12 +255,12 @@ async function _executeNext(
     }
   }
 
-  const nextStepInfo = memory ? await resolveChainNextStep(memory, qdrantService) : undefined;
+  const nextStepInfo = memory ? await resolveAdapterNextLayer(memory, qdrantService) : undefined;
   const nextMemory = nextStepInfo ? await loadMemoryWithCache(memoryStore, nextStepInfo.uuid) : null;
   const displayMemory = nextMemory ?? memory ?? null;
-  const challengeProof = nextMemory?.proof_of_work ?? memory?.proof_of_work;
+  const challengeProof = displayMemory ? getInferenceContract(displayMemory) : undefined;
   const displayUri = nextStepInfo ? buildLayerUri(nextStepInfo.uuid, executionId) : requestedUri;
-  const nextFromDisplay = displayMemory ? await resolveChainNextStep(displayMemory, qdrantService) : undefined;
+  const nextFromDisplay = displayMemory ? await resolveAdapterNextLayer(displayMemory, qdrantService) : undefined;
   const nextStepId = nextFromDisplay?.uuid ?? null;
   const output = (await buildNextPayload(displayMemory, displayUri, nextStepId, challengeProof, executionId)) as NextOutput;
   if (submissionOutcome?.proofHash) output.proof_hash = submissionOutcome.proofHash;

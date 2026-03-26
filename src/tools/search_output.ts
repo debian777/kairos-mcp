@@ -5,7 +5,7 @@
 
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveFirstStep } from '../services/chain-utils.js';
+import { resolveAdapterEntry } from '../services/adapter-navigation.js';
 import { getActivationPatterns, getAdapterId, getAdapterInfo, getAdapterName, getLayerCount } from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
 
@@ -15,18 +15,18 @@ export interface Candidate {
   uri: string;
   label: string;
   tags: string[];
-  total_steps: number;
+  layer_count: number;
 }
 
 export interface UnifiedChoice {
   uri: string;
   label: string;
-  chain_label: string | null;
+  adapter_name: string | null;
   score: number | null;
   role: 'match' | 'refine' | 'create';
   tags: string[];
   next_action: string;
-  protocol_version: string | null;
+  adapter_version: string | null;
   activation_patterns?: string[];
 }
 
@@ -51,7 +51,7 @@ export function createResults(
       uri: buildAdapterUri(getAdapterId(memory)),
       label: memory.label,
       tags: memory.tags || [],
-      total_steps: getLayerCount(memory)
+      layer_count: getLayerCount(memory)
     }))
     .filter((result) => result.score >= normalizedThreshold);
 }
@@ -60,7 +60,7 @@ export async function resolveHead(
   memory: Memory,
   qdrantService?: QdrantService
 ): Promise<{ uri: string; label: string }> {
-  const head = (await resolveFirstStep(memory, qdrantService)) ?? {
+  const head = (await resolveAdapterEntry(memory, qdrantService)) ?? {
     uri: buildAdapterUri(getAdapterId(memory)),
     label: memory.label
   };
@@ -72,9 +72,9 @@ export interface GenerateUnifiedOutputOpts {
   refiningNextAction: string;
   createUri: string;
   createNextAction: string;
-  /** Stored chain version for refine protocol (from Qdrant), when resolvable. */
+  /** Stored adapter version for refine protocol (from Qdrant), when resolvable. */
   refiningProtocolVersion?: string | null;
-  /** Stored chain version for create protocol (from Qdrant), when resolvable. */
+  /** Stored adapter version for create protocol (from Qdrant), when resolvable. */
   createProtocolVersion?: string | null;
 }
 
@@ -99,12 +99,12 @@ export async function generateUnifiedOutput(
     choices.push({
       uri: head.uri,
       label: head.label || result.label,
-      chain_label: getAdapterName(result.memory) || null,
+      adapter_name: getAdapterName(result.memory) || null,
       score: result.score,
       role: 'match',
       tags: result.tags,
       next_action: `call forward with ${head.uri} to execute this adapter`,
-      protocol_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
+      adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
       activation_patterns: getActivationPatterns(result.memory)
     });
   }
@@ -116,22 +116,22 @@ export async function generateUnifiedOutput(
       {
         uri: refiningUri,
         label: 'Get help refining your search',
-        chain_label: 'Run protocol to turn vague user request into a better search query',
+        adapter_name: 'Run adapter to turn vague user request into a better search query',
         score: null,
         role: 'refine',
         tags: ['meta', 'refine'],
         next_action: refiningNextAction,
-        protocol_version: refiningProtocolVersion
+        adapter_version: refiningProtocolVersion
       },
       {
         uri: createUri,
         label: 'Create New KAIROS adapter',
-        chain_label: 'Create New KAIROS adapter',
+        adapter_name: 'Create New KAIROS adapter',
         score: null,
         role: 'create',
         tags: ['meta', 'creation'],
         next_action: createNextAction,
-        protocol_version: createProtocolVersion
+        adapter_version: createProtocolVersion
       }
     );
   }

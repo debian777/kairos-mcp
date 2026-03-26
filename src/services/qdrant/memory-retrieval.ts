@@ -107,8 +107,8 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
     const payload = result.payload;
     return {
       id: result.uuid,
-      description_short: payload.label || payload.description_short || '',
-      description_full: payload.text || payload.description_full || '',
+      label: payload.label || '',
+      text: payload.text || '',
       domain: payload.domain || '',
       task: payload.task || '',
       type: payload.type || 'context',
@@ -128,26 +128,8 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
         ...(Array.isArray(payload.adapter.activation_patterns) && {
           activation_patterns: payload.adapter.activation_patterns
         })
-      } : payload.chain ? {
-        id: payload.chain.id,
-        name: payload.chain.label,
-        layer_index: payload.chain.step_index,
-        layer_count: payload.chain.step_count,
-        ...(typeof payload.chain.protocol_version === 'string' && {
-          protocol_version: payload.chain.protocol_version
-        }),
-        ...(Array.isArray(payload.chain.activation_patterns) && {
-          activation_patterns: payload.chain.activation_patterns
-        })
       } : undefined,
-      chain: payload.chain ? {
-        id: payload.chain.id,
-        label: payload.chain.label,
-        step_index: payload.chain.step_index,
-        step_count: payload.chain.step_count
-      } : undefined,
-      inference_contract: payload.inference_contract ?? payload.proof_of_work,
-      proof_of_work: payload.inference_contract ?? payload.proof_of_work,
+      inference_contract: payload.inference_contract,
       embedding: [],
       access_count: payload.quality_metrics?.retrievalCount || 0,
       last_accessed: new Date(payload.updated_at || payload.created_at || Date.now()),
@@ -160,9 +142,9 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
   });
 }
 
-export async function getChainMemories(
+export async function getAdapterLayers(
   conn: QdrantConnection,
-  chainId: string,
+  adapterId: string,
   allowedSpaceIdsOverride?: string[]
 ): Promise<Array<{ uuid: string; payload: any }>> {
   return conn.executeWithReconnect(async () => {
@@ -172,7 +154,7 @@ export async function getChainMemories(
       allowedSpaceIdsOverride && allowedSpaceIdsOverride.length > 0
         ? allowedSpaceIdsOverride
         : getSearchSpaceIds();
-    const filter = buildAdapterSiblingScrollFilter(spaceIds, chainId);
+    const filter = buildAdapterSiblingScrollFilter(spaceIds, adapterId);
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,
@@ -188,14 +170,10 @@ export async function getChainMemories(
     results.sort((a, b) => {
       const ai = typeof a.payload?.adapter?.layer_index === 'number'
         ? a.payload.adapter.layer_index
-        : typeof a.payload?.chain?.step_index === 'number'
-          ? a.payload.chain.step_index
-          : 0;
+        : 0;
       const bi = typeof b.payload?.adapter?.layer_index === 'number'
         ? b.payload.adapter.layer_index
-        : typeof b.payload?.chain?.step_index === 'number'
-          ? b.payload.chain.step_index
-          : 0;
+        : 0;
       return ai - bi;
     });
 
@@ -204,9 +182,9 @@ export async function getChainMemories(
 }
 
 /**
- * Find step-1 memory UUID for a protocol slug (exact match), scoped to searchable spaces.
+ * Find the first adapter layer UUID for a protocol slug (exact match), scoped to searchable spaces.
  * Paginates scroll so matches are not truncated at a small limit.
- * If the slug maps to more than one chain, prefers the default write space; otherwise throws.
+ * If the slug maps to more than one adapter, prefers the default write space; otherwise throws.
  */
 export async function findFirstStepMemoryUuidBySlug(
   conn: QdrantConnection,
@@ -218,7 +196,7 @@ export async function findFirstStepMemoryUuidBySlug(
     const filter = buildSpaceFilter(getSearchSpaceIds(), {
       must: [
         { key: 'slug', match: { value: normalized } },
-        { key: 'chain.step_index', match: { value: 1 } }
+        { key: 'adapter.layer_index', match: { value: 1 } }
       ]
     });
 
@@ -241,15 +219,16 @@ export async function findFirstStepMemoryUuidBySlug(
 
     allPts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
 
-    const byChainId = new Map<string, any>();
+    const byAdapterId = new Map<string, any>();
     for (const p of allPts) {
-      const chainObj = p.payload?.chain as { id?: string } | undefined;
-      const chainId =
-        chainObj?.id && typeof chainObj.id === 'string' ? chainObj.id : `__orphan_${String(p.id)}`;
-      if (!byChainId.has(chainId)) byChainId.set(chainId, p);
+      const adapterId =
+        typeof p.payload?.adapter?.id === 'string'
+          ? p.payload.adapter.id
+          : `__orphan_${String(p.id)}`;
+      if (!byAdapterId.has(adapterId)) byAdapterId.set(adapterId, p);
     }
 
-    const unique = [...byChainId.values()];
+    const unique = [...byAdapterId.values()];
     if (unique.length === 1) {
       return String(unique[0]!.id);
     }
@@ -273,7 +252,7 @@ export async function findFirstStepMemoryUuidBySlug(
         409,
         {
           key: normalized,
-          chain_count: inDefault.length,
+          adapter_count: inDefault.length,
           must_obey: true,
           next_action: activateNextAction
         }

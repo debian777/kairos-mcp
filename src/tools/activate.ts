@@ -28,20 +28,20 @@ async function mapSearchToActivate(
         return {
           uri: adapterUri,
           label: choice.label,
-          adapter_name: choice.chain_label,
+          adapter_name: choice.adapter_name,
           activation_score: choice.score,
           role: choice.role,
           tags: choice.tags,
           next_action: choice.role === 'create'
             ? 'call train with adapter markdown to register a new adapter'
             : `call forward with ${adapterUri} to execute the refine adapter`,
-          adapter_version: choice.protocol_version,
+          adapter_version: choice.adapter_version,
           activation_patterns: []
         };
       }
 
       const adapterUri = choice.uri;
-      const adapterLabel = choice.chain_label ?? choice.label;
+      const adapterLabel = choice.adapter_name ?? choice.label;
       return {
         uri: adapterUri,
         label: adapterLabel,
@@ -50,7 +50,7 @@ async function mapSearchToActivate(
         role: choice.role,
         tags: choice.tags,
         next_action: `call forward with ${adapterUri} to execute this adapter`,
-        adapter_version: choice.protocol_version,
+        adapter_version: choice.adapter_version,
         activation_patterns: choice.activation_patterns ?? []
       };
     })

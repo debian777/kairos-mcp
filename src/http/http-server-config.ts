@@ -35,12 +35,13 @@ export function createRateLimiter(options: {
     limit: number;
     message: string;
 }) {
-    const expressRateLimitPriorHeadersKey = ['leg', 'acy', 'He', 'aders'].join('');
     return rateLimit({
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
-        [expressRateLimitPriorHeadersKey]: false,
+        // Keep the upstream option name literal here for readability.
+        // eslint config allowlists this file for the prior-era wording rule.
+        legacyHeaders: false,
         identifier: options.identifier,
         message: {
             error: 'RATE_LIMITED',

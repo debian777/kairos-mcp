@@ -125,7 +125,7 @@ uses the older unnamed vector, migration runs in four steps.
 
 3. **Migrate data**  
    `migrateVectorSpace()` scrolls through points that have the old vector,
-   re-embeds text (description_full, label, text, tags) with the current
+   re-embeds text (`text`, `label`, and `tags`) with the current
    embedding service, and upserts points with the new vector name. Batch
    size is 64. Points without embeddable content are skipped.
 

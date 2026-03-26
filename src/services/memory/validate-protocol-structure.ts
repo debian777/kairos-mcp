@@ -5,7 +5,7 @@
  * contract) and validates each H1 section when multiple adapters are present.
  */
 
-import { findAllContractBlocks, hasPlainFenceContractBlock } from './chain-builder-proof.js';
+import { findAllLayerContractBlocks, hasPlainFenceLayerContractBlock } from './adapter-contract-blocks.js';
 
 export const CREATION_PROTOCOL_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
 
@@ -141,11 +141,11 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
     }
   }
 
-  if (hasPlainFenceContractBlock(markdownDoc)) {
+  if (hasPlainFenceLayerContractBlock(markdownDoc)) {
     missing.push(MIXED_CONTRACT_FENCES);
   }
 
-  const contractBlocks = findAllContractBlocks(markdownDoc);
+  const contractBlocks = findAllLayerContractBlocks(markdownDoc);
   if (contractBlocks.length === 0) {
     missing.push(MISSING_CONTRACT_BLOCK);
   }

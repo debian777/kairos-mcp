@@ -7,11 +7,25 @@ const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
 const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
 
-function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(url, {
-    ...init,
-    headers: { ...getAuthHeaders(), ...(init.headers as Record<string, string>) }
-  });
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRateLimitRetry(url: string, init: RequestInit = {}, attempts = 3): Promise<Response> {
+  let lastResponse: Response | null = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const response = await fetch(url, {
+      ...init,
+      headers: { ...getAuthHeaders(), ...(init.headers as Record<string, string>) }
+    });
+    if (response.status !== 429 || attempt === attempts) {
+      return response;
+    }
+    lastResponse = response;
+    const retryAfterSeconds = Number(response.headers.get('Retry-After') ?? '1');
+    await sleep(Number.isFinite(retryAfterSeconds) ? retryAfterSeconds * 1000 : 1000);
+  }
+  return lastResponse as Response;
 }
 
 function qdrantHeaders(): Record<string, string> {
@@ -19,7 +33,7 @@ function qdrantHeaders(): Record<string, string> {
 }
 
 function postMcp(body: object): Promise<Response> {
-  return fetch(`${BASE_URL}/mcp`, {
+  return fetchWithRateLimitRetry(`${BASE_URL}/mcp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,7 +86,7 @@ async function setPointSlug(pointId: string, slug: string): Promise<void> {
 }
 
 async function trainProtocol(title: string, slug: string, body: string): Promise<string> {
-  const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+  const trainRes = await fetchWithRateLimitRetry(`${API_BASE}/train/raw?force=true`, {
     method: 'POST',
     headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
     body: buildProtocolMarkdown(title, slug, body)
@@ -134,7 +148,7 @@ describe('MCP forward slug error guidance', () => {
       next_action?: string;
       must_obey?: boolean;
       key?: string;
-      chain_count?: number;
+      adapter_count?: number;
     };
 
     expect(body.jsonrpc).toBe('2.0');
@@ -144,7 +158,7 @@ describe('MCP forward slug error guidance', () => {
     expect(errorPayload.error_code).toBe('PROTOCOL_KEY_AMBIGUOUS');
     expect(errorPayload.must_obey).toBe(true);
     expect(errorPayload.key).toBe(targetSlug);
-    expect(errorPayload.chain_count).toBe(2);
+    expect(errorPayload.adapter_count).toBe(2);
     expect(typeof errorPayload.next_action).toBe('string');
     expect(errorPayload.next_action).toMatch(/activate/i);
   }, 30000);

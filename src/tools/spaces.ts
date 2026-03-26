@@ -1,6 +1,6 @@
 /**
  * List the agent's available spaces with human-readable names,
- * chain counts per space, and optionally chain titles and step counts.
+ * adapter counts per space, and optionally adapter titles and layer counts.
  */
 
 import type { MemoryQdrantStore } from '../services/memory/store.js';
@@ -16,16 +16,16 @@ import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
 const DEFAULT_TOOL_NAME = 'spaces';
 const SCROLL_LIMIT = 2000;
 
-interface ChainInfo {
-  chain_id: string;
+interface AdapterInfo {
+  adapter_id: string;
   title: string;
-  step_count: number;
+  layer_count: number;
 }
 
 export interface SpaceInfo {
   name: string;
-  chain_count: number;
-  chains?: ChainInfo[];
+  adapter_count: number;
+  adapters?: AdapterInfo[];
 }
 
 function dedupeSpaceIds(ids: string[]): string[] {
@@ -63,57 +63,62 @@ async function scrollSpace(
 function buildSpaceInfo(
   spaceId: string,
   points: Array<{ id: string; payload?: Record<string, unknown> }>,
-  includeChainTitles: boolean
+  includeAdapterTitles: boolean
 ): SpaceInfo {
   const name = spaceIdToDisplayName(spaceId);
-  const byChain = new Map<string, Array<{ id: string; payload?: Record<string, unknown> }>>();
+  const byAdapter = new Map<string, Array<{ id: string; payload?: Record<string, unknown> }>>();
 
   for (const point of points) {
     const payload = point.payload ?? {};
-    const chainObject = payload['chain'] as { id?: string } | undefined;
-    const chainId = chainObject?.id ?? point.id;
-    const key = typeof chainId === 'string' ? chainId : String(chainId);
-    if (!byChain.has(key)) byChain.set(key, []);
-    byChain.get(key)!.push(point);
+    const adapterObject = payload['adapter'] as { id?: string } | undefined;
+    const adapterId = adapterObject?.id ?? point.id;
+    const key = typeof adapterId === 'string' ? adapterId : String(adapterId);
+    if (!byAdapter.has(key)) byAdapter.set(key, []);
+    byAdapter.get(key)!.push(point);
   }
 
-  const chainCount = byChain.size;
-  const chains: ChainInfo[] = [];
+  const adapterCount = byAdapter.size;
+  const adapters: AdapterInfo[] = [];
 
-  if (includeChainTitles) {
-    for (const [, chainPoints] of byChain) {
-      const first = chainPoints[0];
+  if (includeAdapterTitles) {
+    for (const [, adapterPoints] of byAdapter) {
+      const first = adapterPoints[0];
       const payload = first?.payload ?? {};
-      const chain = payload['chain'] as { id?: string; label?: string } | undefined;
-      const title = (chain?.label ?? payload['label'] ?? 'Untitled') as string;
-      const chainId = chain?.id ?? first?.id ?? '';
-      chains.push({
-        chain_id: String(chainId),
+      const adapter = payload['adapter'] as
+        | { id?: string; name?: string; layer_count?: number }
+        | undefined;
+      const title = (adapter?.name ?? payload['label'] ?? 'Untitled') as string;
+      const adapterId = adapter?.id ?? first?.id ?? '';
+      adapters.push({
+        adapter_id: String(adapterId),
         title: String(title),
-        step_count: chainPoints.length
+        layer_count:
+          typeof adapter?.layer_count === 'number'
+            ? adapter.layer_count
+            : adapterPoints.length
       });
     }
   }
 
-  return { name, chain_count: chainCount, ...(includeChainTitles ? { chains } : {}) };
+  return { name, adapter_count: adapterCount, ...(includeAdapterTitles ? { adapters } : {}) };
 }
 
 /**
- * List spaces and chain counts. Uses current request space context (set by auth middleware).
+ * List spaces and adapter counts. Uses current request space context (set by auth middleware).
  * Call from HTTP handlers or MCP tool.
  */
 export async function executeSpaces(
   memoryStore: MemoryQdrantStore,
-  options: { include_chain_titles?: boolean } = {}
+  options: { include_adapter_titles?: boolean } = {}
 ): Promise<{ spaces: SpaceInfo[] }> {
-  const includeChainTitles = options.include_chain_titles ?? false;
+  const includeAdapterTitles = options.include_adapter_titles ?? false;
   const spaceIds = getSpacesToReport();
   const { client, collection } = memoryStore.getQdrantAccess();
   const spaces: SpaceInfo[] = [];
 
   for (const spaceId of spaceIds) {
     const points = await scrollSpace(client, collection, spaceId);
-    spaces.push(buildSpaceInfo(spaceId, points, includeChainTitles));
+    spaces.push(buildSpaceInfo(spaceId, points, includeAdapterTitles));
   }
 
   return { spaces };
@@ -129,19 +134,19 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
   server.registerTool(
     toolName,
     {
-      title: 'List spaces and chain counts',
-      description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and chain counts. Optionally include chain titles and step counts per space.',
+      title: 'List spaces and adapter counts',
+      description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
       inputSchema: spacesInputSchema,
       outputSchema: spacesOutputSchema
     },
-    async (params: { include_chain_titles?: boolean }) => {
+    async (params: { include_adapter_titles?: boolean }) => {
       const tenantId = getTenantId();
       const inputSize = JSON.stringify(params ?? {}).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
       try {
-        const output = await executeSpaces(memoryStore, { include_chain_titles: params?.include_chain_titles ?? false });
+        const output = await executeSpaces(memoryStore, { include_adapter_titles: params?.include_adapter_titles ?? false });
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
         timer({ tool: toolName, status: 'success', tenant_id: tenantId });

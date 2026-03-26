@@ -1,7 +1,7 @@
 # Contributing to KAIROS MCP
 
 KAIROS MCP is an MCP server for persistent memory and deterministic
-protocol-chain execution. This document is the definitive contract for
+adapter execution. This document is the definitive contract for
 contributors: setup, workflow, code conventions, and PR requirements.
 
 ## Principles

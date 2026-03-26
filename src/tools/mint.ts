@@ -16,7 +16,7 @@ export class MintError extends Error {
 }
 
 /**
- * Shared execute: validate and store markdown chain. Used by MCP tool and HTTP route.
+ * Shared execute: validate and store adapter markdown. Used by MCP tool and HTTP route.
  * @param runStore Runs the store call (e.g. with space context). Signature: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
  */
 export async function executeMint(
@@ -33,7 +33,7 @@ export async function executeMint(
     });
   }
   const memories = await runStore(() =>
-    memoryStore.storeChain([input.markdown_doc], input.llm_model_id, {
+    memoryStore.storeAdapter([input.markdown_doc], input.llm_model_id, {
       forceUpdate: !!input.force_update,
       ...(input.protocol_version && { protocolVersion: input.protocol_version })
     })

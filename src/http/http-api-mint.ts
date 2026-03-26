@@ -19,7 +19,7 @@ const SAFE_MINT_DETAIL_KEYS = new Set([
   'similarity_score',
   'content_preview',
   'slug',
-  'chain_id',
+  'adapter_id',
   'sample_uri',
   'base_slug',
   'message'
@@ -113,11 +113,11 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         });
         return;
       }
-      if (err?.code === 'DUPLICATE_CHAIN' || err?.code === 'DUPLICATE_KEY') {
-        structuredLogger.warn(`✗ Duplicate chain: ${err.message}`);
+      if (err?.code === 'DUPLICATE_ADAPTER' || err?.code === 'DUPLICATE_KEY') {
+        structuredLogger.warn(`✗ Duplicate adapter: ${err.message}`);
         res.status(409).json({
-          error: 'DUPLICATE_CHAIN',
-          message: 'Memory chain with this label already exists. Use --force flag to overwrite.',
+          error: 'DUPLICATE_ADAPTER',
+          message: 'Adapter with this label already exists. Use --force flag to overwrite.',
           ...sanitizeMintDetails(err.details)
         });
         return;

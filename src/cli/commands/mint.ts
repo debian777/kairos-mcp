@@ -46,7 +46,7 @@ export function mintCommand(program: Command): void {
     .description('Register a new KAIROS adapter from markdown (file or directory of .md files)')
     .argument('<path>', 'Path to a markdown file or a directory of .md files')
     .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
-    .option('--force', 'Force update if a memory chain with the same label already exists')
+    .option('--force', 'Force update if an adapter with the same label already exists')
     .option('--recursive', 'When path is a directory, include nested .md files')
     .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
     .action(

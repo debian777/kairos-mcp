@@ -2,12 +2,12 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 /**
- * Integration tests for heading sanitization and multiple H1 chain support.
+ * Integration tests for heading sanitization and multiple H1 adapter support.
  * 
  * Tests:
  * - Heading sanitization removes STEP patterns and numbering from H2 headings
- * - Multiple H1 headings create separate memory chains
- * - Chain order remains correct regardless of user input format
+ * - Multiple H1 headings create separate adapters
+ * - Adapter layer order remains correct regardless of user input format
  */
 
 describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
@@ -90,7 +90,7 @@ Only after all steps.
     });
   });
 
-  test('creates separate chains for multiple H1 headings', async () => {
+  test('creates separate adapters for multiple H1 headings', async () => {
     const timestamp = Date.now();
     const markdown = `# First Protocol ${timestamp}
 
@@ -150,8 +150,8 @@ Only after all steps.
     expect(parsed.status).toBe('stored');
     expect(parsed.items).toBeDefined();
     
-    // Should have memories from all three chains
-    // Each H1 creates a separate chain with its H2 steps
+    // Should have memories from all three adapters
+    // Each H1 creates a separate adapter with its H2 steps
     // First Protocol: 1 H1 preamble + 2 H2 steps = 3 items
     // Second Protocol: 1 H1 preamble + 2 H2 steps = 3 items  
     // Third Protocol: 1 H1 preamble + 1 H2 step = 2 items
@@ -166,7 +166,7 @@ Only after all steps.
     const hasStepY = labels.some(l => l.includes('Step Y') || l === 'Step Y');
     const hasStep1 = labels.some(l => l.includes('Step 1') || l === 'Step 1');
 
-    // Verify we have items from at least 2 different protocols (proving separate chains)
+    // Verify we have items from at least 2 different protocols (proving separate adapters)
     const protocolSteps = [
       hasStepA || hasStepB,
       hasStepX || hasStepY,
@@ -181,11 +181,11 @@ Only after all steps.
     );
     expect(hasStepA || hasStepB).toBe(true); // First Protocol
     expect(hasStepX || hasStepY).toBe(true); // Second Protocol
-    expect(hasThirdProtocolStep || hasStep1 || protocolCount >= 2).toBe(true); // Third Protocol or at least 2 chains
+    expect(hasThirdProtocolStep || hasStep1 || protocolCount >= 2).toBe(true); // Third Protocol or at least 2 adapters
     expect(protocolCount).toBeGreaterThanOrEqual(2);
   });
 
-  test('handles mixed garbage headings and creates correct chain order', async () => {
+  test('handles mixed garbage headings and creates correct adapter layer order', async () => {
     const timestamp = Date.now();
     const markdown = `# AI CODING RULES ${timestamp}
 
@@ -314,21 +314,21 @@ Only after all steps.
     expect(hasFoo || labels.some(l => l.includes('Natural Language Triggers'))).toBe(true);
     expect(stepLabels.length).toBeGreaterThanOrEqual(3);
     
-    // Verify chain order is preserved - steps should be in document order
+    // Verify adapter layer order is preserved - steps should be in document order
     const items = parsed.items;
     if (items.length >= 3) {
-      // Check that items form a chain (have chain metadata)
-      const chainItems = items.filter(item => item.label && (
+      // Check that items form one adapter's layer sequence
+      const adapterItems = items.filter(item => item.label && (
         item.label.includes('Foo') || 
         item.label.includes('Bar') || 
         item.label.includes('Baz') || 
         item.label.includes('Normal Step')
       ));
       
-      expect(chainItems.length).toBeGreaterThanOrEqual(3);
+      expect(adapterItems.length).toBeGreaterThanOrEqual(3);
       
       // Verify no STEP patterns or numbers in final labels
-      chainItems.forEach(item => {
+      adapterItems.forEach(item => {
         expect(item.label).not.toMatch(/STEP\s*\d+/i);
         expect(item.label).not.toMatch(/^\d+[\s\.\)\-:—–\-·•]/);
       });

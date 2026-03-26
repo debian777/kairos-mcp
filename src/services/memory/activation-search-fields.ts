@@ -80,13 +80,13 @@ export function buildActivationSearchFields(params: {
 
 export function buildActivationSearchFieldsForMemory(memory: Pick<
   Memory,
-  'label' | 'text' | 'tags' | 'activation_patterns' | 'adapter' | 'chain'
+  'label' | 'text' | 'tags' | 'adapter' | 'memory_uuid'
 >): ActivationSearchFields {
   return buildActivationSearchFields({
-    adapterName: getAdapterName(memory as Memory),
+    adapterName: getAdapterName(memory),
     label: memory.label,
     text: memory.text,
     tags: memory.tags,
-    activationPatterns: getActivationPatterns(memory as Memory)
+    activationPatterns: getActivationPatterns(memory)
   });
 }

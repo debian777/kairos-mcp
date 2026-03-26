@@ -8,7 +8,7 @@ import { CodeBlockProcessor } from '../code-block-processor.js';
 import { redisCacheService } from '../redis-cache.js';
 import { embeddingService } from '../embedding/service.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
-import { buildHeaderMemoryChain as buildChain } from './chain-builder.js';
+import { buildHeaderMemoryAdapter as buildAdapter } from './adapter-builder.js';
 import {
   KAIROS_CREATION_PROTOCOL_UUID,
   KAIROS_REFINING_PROTOCOL_UUID,
@@ -280,7 +280,7 @@ export class MemoryQdrantStoreMethods {
     this.cacheLoaded = true;
   }
 
-  buildHeaderMemoryChain(markdownDoc: string, llmModelId: string, now: Date): Memory[] {
-    return buildChain(markdownDoc, llmModelId, now, this.codeBlockProcessor);
+  buildHeaderMemoryAdapter(markdownDoc: string, llmModelId: string, now: Date): Memory[] {
+    return buildAdapter(markdownDoc, llmModelId, now, this.codeBlockProcessor);
   }
 }

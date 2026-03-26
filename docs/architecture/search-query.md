@@ -55,8 +55,11 @@ flowchart LR
 4. **Cache:** A Redis cache key is built from the search query and group-collapse flag. On hit, the cached unified response is returned; no Qdrant call.
 5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses the (trimmed) search query for cache write and passes the same query to the vector layer.
 6. **Vector search:** Embedding + BM25 hybrid in Qdrant (see below). Results are adapter heads only (`adapter.layer_index === 1`), with exclusions applied in the Qdrant filter.
-7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
-8. **Response:** Search builds internal choice rows (chain metadata and
+7. **Candidate handling:** Results are deduplicated by adapter (prefer the
+   entry layer, then by score). Top N by score are kept; each is checked
+   against `SCORE_THRESHOLD`. Refine and create choices are appended when
+   needed (no match, or multiple matches, or single weak match).
+8. **Response:** Search builds internal choice rows (adapter metadata and
    normalized public confidence scores). The MCP **`activate`** handler maps
    them to **`choices`** with **`kairos://adapter/{uuid}`**,
    **`adapter_name`**, **`activation_score`**, **`adapter_version`**,
@@ -127,7 +130,7 @@ before it returns them.
   - `space_id` in `getSearchSpaceIds()`  
   - `adapter.layer_index` = 1 (adapter heads only)
 - **must_not:**  
-  - `has_id` = refine protocol UUID (`00000000-0000-0000-0000-000000002002`) so the built-in refine protocol never appears as a vector match. Creation protocol and copies in other spaces may be excluded by additional `has_id` or `chain.label` conditions; any remaining are filtered in code (e.g. `isRefineProtocol`) before returning.
+  - `has_id` = refine protocol UUID (`00000000-0000-0000-0000-000000002002`) so the built-in refine protocol never appears as a vector match. Creation protocol and copies in other spaces may be excluded by additional `has_id` or `adapter.name` conditions; any remaining are filtered in code (for example, `isRefineProtocol`) before returning.
 
 Fallback if the Query API fails: plain dense search with the same filter and rescore.
 
@@ -153,14 +156,14 @@ confidence before the response is returned:
 
 1. Points are mapped to memories and raw scores (Qdrant score only;
    reward-derived boost is already in the formula).
-2. Built-in refine protocol is excluded in the Qdrant filter by UUID; any remaining (e.g. duplicate in another space) are filtered out in code (`isRefineProtocol`) until exclusion is fully expressed in the Qdrant filter (e.g. by `chain.label`).
+2. Built-in refine protocol is excluded in the Qdrant filter by UUID; any remaining (for example, duplicates in another space) are filtered out in code (`isRefineProtocol`) until exclusion is fully expressed in the Qdrant filter (for example, by `adapter.name`).
 3. Sort by raw score descending, then by `memory_uuid` for tie-break; take up
    to `limit`.
 4. Optional fallback: if all results were filtered out but there were points, return up to `limit` with a default score (e.g. 0.5) so the UI still shows options.
 
 The store returns `{ memories, scores }`. The tool layer then:
 
-- Collapses by chain (best score per chain, prefer head).
+- Collapses by adapter (best score per adapter, prefer the entry layer).
 - Converts raw scores into public confidence with
   `raw_score / (raw_score + 0.5)`.
 - Applies `SCORE_THRESHOLD` (config, default 0.3) using the same monotonic

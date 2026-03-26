@@ -191,7 +191,7 @@ If you want agents to use KAIROS consistently, add a short repo rule or
 instruction such as:
 
 > KAIROS MCP is a Model Context Protocol server for persistent memory and
-> deterministic protocol-chain execution. Execute protocols in this order:
+> deterministic adapter execution. Execute protocols in this order:
 > **`activate`** → **`forward`** (loop per layer until `next_action` points to
 > **`reward`**) → **`reward`**. Echo all server-generated hashes, nonces, and
 > URIs exactly.

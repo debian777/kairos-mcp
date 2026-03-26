@@ -5,7 +5,8 @@
 
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveChainPreviousStep } from '../services/chain-utils.js';
+import { resolveAdapterPreviousLayer } from '../services/adapter-navigation.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { buildChallenge, GENESIS_HASH } from './next-pow-helpers.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
@@ -34,15 +35,15 @@ export async function buildMissingProofPayload(
   qdrantService: QdrantService | undefined,
   executionId?: string
 ): Promise<MissingProofPayload> {
-  const previous = await resolveChainPreviousStep(memory, qdrantService);
+  const previous = await resolveAdapterPreviousLayer(memory, qdrantService);
   const prevMemory = previous?.uuid ? await loadMemory(previous.uuid) : null;
   const prevUri = previous?.uuid ? buildLayerUri(previous.uuid, executionId) : requestedUri;
-  const isPrevStep1 = !prevMemory?.chain || prevMemory.chain.step_index <= 1;
-  const previousOfPrevious = prevMemory && !isPrevStep1 ? await resolveChainPreviousStep(prevMemory, qdrantService) : null;
+  const isPrevStep1 = !prevMemory?.adapter || prevMemory.adapter.layer_index <= 1;
+  const previousOfPrevious = prevMemory && !isPrevStep1 ? await resolveAdapterPreviousLayer(prevMemory, qdrantService) : null;
   const expectedPrevHash = isPrevStep1
     ? GENESIS_HASH
     : (previousOfPrevious?.uuid ? await proofOfWorkStore.getProofHash(previousOfPrevious.uuid) : null) ?? GENESIS_HASH;
-  let challenge = await buildChallenge(prevMemory, prevMemory?.proof_of_work);
+  let challenge = await buildChallenge(prevMemory, prevMemory ? getInferenceContract(prevMemory) : undefined);
   challenge = { ...challenge, proof_hash: expectedPrevHash };
   const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
   const retryCount = await proofOfWorkStore.incrementRetry(storedNonce ?? uuid);

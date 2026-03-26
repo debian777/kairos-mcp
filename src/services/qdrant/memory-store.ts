@@ -13,8 +13,8 @@ import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
  */
 export async function storeMemory(
   conn: QdrantConnection,
-  description_short: string,
-  description_full: string,
+  label: string,
+  text: string,
   domain: string,
   task: string,
   type: string = 'context',
@@ -59,8 +59,8 @@ export async function storeMemory(
       vector: { [`vs${embedding.length}`]: embedding },
       payload: {
         space_id: spaceId,
-        description_short,
-        description_full,
+        label,
+        text,
         domain,
         task,
         type,

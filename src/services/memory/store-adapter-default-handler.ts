@@ -9,7 +9,7 @@ import { IDGenerator } from '../id-generator.js';
 import { generateLabel, generateTags } from '../../utils/memory-store-utils.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
-import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
+import { memoryStore, memoryAdapterSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import {
   getActivationPatternVectorName,
@@ -18,10 +18,10 @@ import {
 } from '../../utils/qdrant-vector-types.js';
 import type { ParsedFrontmatter } from '../../utils/frontmatter.js';
 import {
-  allocateProtocolSlugForMint,
+  allocateAdapterSlugForMint,
   deriveDomainTaskType,
-  handleDuplicateChain
-} from './store-chain-helpers.js';
+  handleDuplicateAdapter
+} from './store-adapter-helpers.js';
 import { resolveProtocolSlugCandidate } from '../../utils/protocol-slug.js';
 import { KairosError } from '../../types/index.js';
 import type { CodeBlockProcessor } from '../code-block-processor.js';
@@ -29,9 +29,9 @@ import type { MemoryQdrantStoreMethods } from './store-methods.js';
 import { buildActivationSearchFieldsForMemory } from './activation-search-fields.js';
 
 /**
- * Handles default chain storage (one memory per document)
+ * Handles default adapter storage (one memory per document).
  */
-export async function storeDefaultChain(
+export async function storeDefaultAdapter(
   client: QdrantClient,
   collection: string,
   methods: MemoryQdrantStoreMethods,
@@ -56,12 +56,10 @@ export async function storeDefaultChain(
     return [];
   }
 
-  // Derive chain label from first doc and compute chain UUID
   const firstGeneratedLabel = generateLabel(processedDocs[0]!.original);
-  const chainUuid = IDGenerator.generateChainUUIDv5(firstGeneratedLabel);
+  const adapterUuid = IDGenerator.generateAdapterUUIDv5(firstGeneratedLabel);
 
-  // Handle duplicate chain
-  await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
+  await handleDuplicateAdapter(client, collection, adapterUuid, forceUpdate);
 
   const slugCand = resolveProtocolSlugCandidate(
     parsedFrontmatter?.slugRaw !== undefined ? { slugRaw: parsedFrontmatter.slugRaw } : {},
@@ -70,11 +68,11 @@ export async function storeDefaultChain(
   if ('error' in slugCand) {
     throw new KairosError(slugCand.message, 'INVALID_SLUG', 400, { message: slugCand.message });
   }
-  const protocolSlug = await allocateProtocolSlugForMint(
+  const protocolSlug = await allocateAdapterSlugForMint(
     client,
     collection,
     { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied },
-    chainUuid
+    adapterUuid
   );
 
   const vectorSize = getEmbeddingDimension();
@@ -87,32 +85,22 @@ export async function storeDefaultChain(
     const codeTags = processed.codeResult.allIdentifiers.slice(0, 5);
     const allTags = [...baseTags, ...codeTags];
 
-    const stepLabel = generateLabel(processed.original);
+    const layerLabel = generateLabel(processed.original);
     const adapter: NonNullable<Memory['adapter']> = {
-      id: chainUuid,
+      id: adapterUuid,
       name: firstGeneratedLabel,
       layer_index: index + 1,
       layer_count: normalizedDocs.length
     };
     if (protocolVersion) adapter.protocol_version = protocolVersion;
-    const chain: Memory['chain'] = {
-      id: adapter.id,
-      label: adapter.name,
-      step_index: adapter.layer_index,
-      step_count: adapter.layer_count,
-      ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
-      ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
-    };
     return {
       memory_uuid,
-      label: stepLabel,
+      label: layerLabel,
       tags: allTags,
       text: processed.enhanced,
       llm_model_id: llmModelId,
       created_at: now.toISOString(),
-      ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns }),
-      adapter,
-      chain
+      adapter
     };
   });
 
@@ -167,13 +155,12 @@ export async function storeDefaultChain(
     const fields = activationFields[index]!;
     const sparse = bm25Tokenizer.tokenize(fields.sparseText);
     const adapter = memory.adapter ?? {
-      id: memory.chain!.id,
-      name: memory.chain!.label,
-      layer_index: memory.chain!.step_index,
-      layer_count: memory.chain!.step_count,
-      ...(memory.chain!.protocol_version && { protocol_version: memory.chain!.protocol_version })
+      id: adapterUuid,
+      name: firstGeneratedLabel,
+      layer_index: index + 1,
+      layer_count: normalizedDocs.length
     };
-    const inferenceContract = memory.inference_contract ?? memory.proof_of_work;
+    const inferenceContract = memory.inference_contract;
     return ({
       id: memory.memory_uuid,
       vector: {
@@ -193,13 +180,11 @@ export async function storeDefaultChain(
         modified_at: memory.created_at,
         modified_by: actorId,
         slug: protocolSlug,
-        activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
         adapter_name_text: fields.adapterNameText,
         label_text: fields.labelText,
         activation_patterns_text: fields.activationPatternsText,
         tags_text: fields.tagsText,
         inference_contract: inferenceContract,
-        proof_of_work: inferenceContract,
         task,
         type,
         quality_metadata: {
@@ -211,14 +196,6 @@ export async function storeDefaultChain(
           name: adapter.name,
           layer_index: adapter.layer_index,
           layer_count: adapter.layer_count,
-          ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
-          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
-        },
-        chain: {
-          id: adapter.id,
-          label: adapter.name,
-          step_index: adapter.layer_index,
-          step_count: adapter.layer_count,
           ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
           ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
         }
@@ -255,7 +232,6 @@ export async function storeDefaultChain(
   await redisCacheService.invalidateAfterUpdate();
   methods.invalidateLocalCache();
 
-  // Update model statistics for each stored memory
   for (const memory of memories) {
     try {
       const ltags = (memory.tags || []).map(t => t.toLowerCase());
@@ -264,19 +240,15 @@ export async function storeDefaultChain(
       const type = /```/.test(memory.text) || ltags.includes('pattern') ? 'pattern' : (ltags.includes('rule') ? 'rule' : 'context');
       const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
       await modelStats.processContribution(memory.llm_model_id, score, memory.label);
-      
+
       const quality = score.quality;
       memoryStore.inc({ quality, tenant_id: tenantId });
-      
+
       if (memory.adapter) {
-        memoryChainSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
-      } else if (memory.chain) {
-        memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
+        memoryAdapterSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
       }
     } catch { }
   }
 
   return memories;
 }
-
-

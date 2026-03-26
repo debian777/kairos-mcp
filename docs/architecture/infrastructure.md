@@ -196,7 +196,7 @@ flowchart LR
 
         subgraph SERVICES["Service Layer"]
             MEM_SVC["MemoryQdrantStore
-            (chain CRUD)"]
+            (adapter CRUD)"]
             EMB_SVC["EmbeddingService
             (vector generation)"]
             POW_SVC["ProofOfWorkStore
@@ -296,7 +296,7 @@ Config: `maxmemory 512mb`, `allkeys-lru`, persistence via
 One collection holds every protocol step as a vector + payload point. The
 source default is `kairos` (`src/config.ts`), while the published runtime image
 sets `QDRANT_COLLECTION=kairos_memories` unless you override it with env.
-Within that collection, H1 headings become chain headers and H2 headings become
+Within that collection, H1 headings become adapter headers and H2 headings become
 steps.
 
 ```mermaid

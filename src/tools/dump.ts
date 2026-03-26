@@ -1,11 +1,12 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
+import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../utils/dump-markdown.js';
 import { slugifyFromTitle } from '../utils/protocol-slug.js';
 import { buildChallengeShapeForDisplay } from './next-pow-helpers.js';
-import { resolveChainFirstStep } from '../services/chain-utils.js';
+import { resolveAdapterFirstLayer } from '../services/adapter-navigation.js';
 import { redisCacheService } from '../services/redis-cache.js';
 
 function normalizeUri(value: string): { uuid: string; uri: string } {
@@ -34,17 +35,17 @@ function challengeBlock(proofOfWork: ProofOfWorkDefinition | undefined): string 
 
 function buildMarkdownDocSingle(memory: Memory): string {
   const body = extractMemoryBody(memory.text);
-  return body + challengeBlock(memory.proof_of_work);
+  return body + challengeBlock(getInferenceContract(memory));
 }
 
 function buildMarkdownDocProtocol(memories: Memory[]): string {
   if (memories.length === 0) return '';
-  const chainLabel = memories[0]!.chain?.label ?? memories[0]!.label ?? 'Protocol';
-  const parts: string[] = [`# ${chainLabel}`];
+  const adapterName = memories[0]!.adapter?.name ?? memories[0]!.label ?? 'Protocol';
+  const parts: string[] = [`# ${adapterName}`];
   for (const memory of memories) {
     const body = extractMemoryBody(memory.text);
     const bodyStripped = stripRedundantStepH2(body, memory.label);
-    parts.push(`## ${memory.label}\n\n${bodyStripped}${challengeBlock(memory.proof_of_work)}`);
+    parts.push(`## ${memory.label}\n\n${bodyStripped}${challengeBlock(getInferenceContract(memory))}`);
   }
   return parts.join('\n\n');
 }
@@ -64,9 +65,9 @@ export async function executeDump(
   const { uuid, uri: normalizedUri } = normalizeUri(uri);
 
   let memory = await loadMemory(memoryStore, uuid);
-  if (!memory && qdrantService && typeof qdrantService.getChainMemories === 'function') {
-    const chainPoints = await qdrantService.getChainMemories(uuid);
-    const firstUuid = chainPoints[0]?.uuid;
+  if (!memory && qdrantService && typeof qdrantService.getAdapterLayers === 'function') {
+    const adapterLayers = await qdrantService.getAdapterLayers(uuid);
+    const firstUuid = adapterLayers[0]?.uuid;
     if (firstUuid) memory = await loadMemory(memoryStore, firstUuid);
   }
   if (!memory) {
@@ -75,32 +76,32 @@ export async function executeDump(
     throw error;
   }
 
-  if (protocol && memory.chain) {
-    const firstStep = await resolveChainFirstStep(memory, qdrantService);
-    if (!firstStep?.uuid) {
+  if (protocol && memory.adapter) {
+    const firstLayer = await resolveAdapterFirstLayer(memory, qdrantService);
+    if (!firstLayer?.uuid) {
       return {
         markdown_doc: buildMarkdownDocSingle(memory),
         uri: normalizedUri,
         label: memory.label,
-        chain_label: memory.chain?.label ?? null,
-        step_count: 1,
-        ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version })
+        adapter_name: memory.adapter.name,
+        layer_count: 1,
+        ...(memory.adapter.protocol_version && { adapter_version: memory.adapter.protocol_version })
       };
     }
-    const chainId = memory.chain.id;
-    const chainLabel = memory.chain.label;
-    const stepCount = memory.chain.step_count;
-    const protocolVersion = memory.chain.protocol_version;
-    const points = qdrantService && typeof qdrantService.getChainMemories === 'function'
-      ? await qdrantService.getChainMemories(chainId, memory.space_id ? [memory.space_id] : undefined)
+    const chainId = memory.adapter.id;
+    const chainLabel = memory.adapter.name;
+    const stepCount = memory.adapter.layer_count;
+    const protocolVersion = memory.adapter.protocol_version;
+    const points = qdrantService && typeof qdrantService.getAdapterLayers === 'function'
+      ? await qdrantService.getAdapterLayers(chainId, memory.space_id ? [memory.space_id] : undefined)
       : [];
     const memories: Memory[] = [];
     for (const point of points) {
       const currentMemory = await loadMemory(memoryStore, point.uuid);
       if (currentMemory) memories.push(currentMemory);
     }
-    memories.sort((left, right) => (left.chain?.step_index ?? 0) - (right.chain?.step_index ?? 0));
-    const headUri = `kairos://mem/${firstStep.uuid}`;
+    memories.sort((left, right) => (left.adapter?.layer_index ?? 0) - (right.adapter?.layer_index ?? 0));
+    const headUri = `kairos://mem/${firstLayer.uuid}`;
     const headSlug = memories[0]?.slug?.trim();
     const slugForExport = headSlug && headSlug.length > 0 ? headSlug : slugifyFromTitle(chainLabel);
     const markdownBody = buildMarkdownDocProtocol(memories);
@@ -109,10 +110,10 @@ export async function executeDump(
       markdown_doc,
       uri: headUri,
       label: chainLabel,
-      chain_label: chainLabel,
-      step_count: stepCount,
+      adapter_name: chainLabel,
+      layer_count: stepCount,
       slug: slugForExport,
-      ...(protocolVersion && { protocol_version: protocolVersion })
+      ...(protocolVersion && { adapter_version: protocolVersion })
     };
   }
 
@@ -120,18 +121,18 @@ export async function executeDump(
     markdown_doc: buildMarkdownDocSingle(memory),
     uri: normalizedUri,
     label: memory.label,
-    chain_label: memory.chain?.label ?? null
+    adapter_name: memory.adapter?.name ?? null
   };
-  if (memory.chain) {
+  if (memory.adapter) {
     output['position'] = {
-      step_index: memory.chain.step_index,
-      step_count: memory.chain.step_count
+      layer_index: memory.adapter.layer_index,
+      layer_count: memory.adapter.layer_count
     };
-    if (memory.chain.protocol_version) {
-      output['protocol_version'] = memory.chain.protocol_version;
+    if (memory.adapter.protocol_version) {
+      output['adapter_version'] = memory.adapter.protocol_version;
     }
   }
-  const challenge = buildChallengeShapeForDisplay(memory.proof_of_work);
+  const challenge = buildChallengeShapeForDisplay(getInferenceContract(memory));
   if (challenge && Object.keys(challenge).length > 0) {
     output['challenge'] = challenge;
   }

@@ -3,7 +3,7 @@ import type { Memory, TensorValue } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { getAdapterId, getInferenceContract, getLayerIndex } from '../services/memory/memory-accessors.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { resolveChainNextStep } from '../services/chain-utils.js';
+import { resolveAdapterNextLayer } from '../services/adapter-navigation.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
@@ -101,7 +101,7 @@ export async function handleTensorForward(
 
   const tensorIn = await forwardRuntimeStore.requireTensorInputs(executionId, contract.tensor.required_inputs);
   if (!evaluateCondition(contract.tensor.condition, tensorIn)) {
-    const next = await resolveChainNextStep(memory, qdrantService);
+    const next = await resolveAdapterNextLayer(memory, qdrantService);
     if (!next?.uuid) {
       return buildForwardView(memory, executionId, {
         final: true,
@@ -153,7 +153,7 @@ export async function handleTensorForward(
     solution.tensor
   );
 
-  const next = await resolveChainNextStep(memory, qdrantService);
+  const next = await resolveAdapterNextLayer(memory, qdrantService);
   if (!next?.uuid) {
     return buildForwardView(memory, executionId, {
       final: true,

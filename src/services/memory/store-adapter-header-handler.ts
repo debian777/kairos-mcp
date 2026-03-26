@@ -7,7 +7,7 @@ import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { IDGenerator } from '../id-generator.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
-import { memoryStore, memoryChainSize } from '../metrics/memory-metrics.js';
+import { memoryStore, memoryAdapterSize } from '../metrics/memory-metrics.js';
 import { getTenantId, getSpaceContext } from '../../utils/tenant-context.js';
 import {
   getActivationPatternVectorName,
@@ -15,46 +15,44 @@ import {
   getPrimaryVectorName
 } from '../../utils/qdrant-vector-types.js';
 import {
-  allocateProtocolSlugForMint,
+  allocateAdapterSlugForMint,
   deriveDomainTaskType,
-  handleDuplicateChain,
-  type ProtocolSlugMintInput
-} from './store-chain-helpers.js';
+  handleDuplicateAdapter,
+  type AdapterSlugMintInput
+} from './store-adapter-helpers.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 import { buildActivationSearchFieldsForMemory } from './activation-search-fields.js';
 
 /**
- * Handles header-based chain storage (H1/H2 sections)
+ * Handles header-based adapter storage (H1/H2 sections).
  */
-export async function storeHeaderBasedChain(
+export async function storeHeaderBasedAdapter(
   client: QdrantClient,
   collection: string,
   methods: MemoryQdrantStoreMethods,
-  headerChainMemories: Memory[],
+  headerAdapterMemories: Memory[],
   llmModelId: string,
   forceUpdate: boolean,
-  slugInput: ProtocolSlugMintInput
+  slugInput: AdapterSlugMintInput
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
-  // Determine chain label and deterministic v5 chain UUID
-  const firstLabel = headerChainMemories[0]?.label || 'Knowledge Chain';
-  const explicitChainLabel = headerChainMemories[0]?.adapter?.name ?? headerChainMemories[0]?.chain?.label;
-  const chainLabel = (explicitChainLabel && explicitChainLabel.trim().length > 0)
-    ? explicitChainLabel.trim()
+  const firstLabel = headerAdapterMemories[0]?.label || 'Knowledge Adapter';
+  const explicitAdapterTitle = headerAdapterMemories[0]?.adapter?.name;
+  const adapterTitle = (explicitAdapterTitle && explicitAdapterTitle.trim().length > 0)
+    ? explicitAdapterTitle.trim()
     : (firstLabel.includes(':') ? firstLabel.split(':')[0]!.trim() : firstLabel.trim());
-  const chainUuid = IDGenerator.generateChainUUIDv5(chainLabel);
+  const adapterUuid = IDGenerator.generateAdapterUUIDv5(adapterTitle);
 
-  // Handle duplicate chain
-  await handleDuplicateChain(client, collection, chainUuid, forceUpdate);
+  await handleDuplicateAdapter(client, collection, adapterUuid, forceUpdate);
 
-  const protocolSlug = await allocateProtocolSlugForMint(client, collection, slugInput, chainUuid);
+  const protocolSlug = await allocateAdapterSlugForMint(client, collection, slugInput, adapterUuid);
 
   const vectorSize = getEmbeddingDimension();
   const primaryVectorName = getPrimaryVectorName(vectorSize);
   const titleVectorName = getAdapterTitleVectorName(vectorSize);
   const activationPatternVectorName = getActivationPatternVectorName(vectorSize);
-  const activationFields = headerChainMemories.map((memory) => buildActivationSearchFieldsForMemory(memory));
+  const activationFields = headerAdapterMemories.map((memory) => buildActivationSearchFieldsForMemory(memory));
   let primaryVectors: number[][];
   let titleVectors: number[][];
   let activationPatternVectors: number[][];
@@ -67,33 +65,33 @@ export async function storeHeaderBasedChain(
       ])
     );
     const embeddings = batch.embeddings;
-    const wrongCount = embeddings.length !== headerChainMemories.length * 3;
+    const wrongCount = embeddings.length !== headerAdapterMemories.length * 3;
     const wrongDim = embeddings.some(v => !Array.isArray(v) || v.length !== vectorSize);
     if (wrongCount || wrongDim) {
       logger.warn(
-        `[MemoryQdrantStore] Embedding shape mismatch for header-based chain (count=${embeddings.length}/${headerChainMemories.length * 3}, dimOK=${!wrongDim}). Falling back to zero vectors.`
+        `[MemoryQdrantStore] Embedding shape mismatch for header-based adapter (count=${embeddings.length}/${headerAdapterMemories.length * 3}, dimOK=${!wrongDim}). Falling back to zero vectors.`
       );
-      primaryVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
-      titleVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
-      activationPatternVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+      primaryVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
+      titleVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
+      activationPatternVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
     } else {
-      primaryVectors = headerChainMemories.map((_, index) => embeddings[index * 3]!);
-      titleVectors = headerChainMemories.map((_, index) => embeddings[index * 3 + 1]!);
-      activationPatternVectors = headerChainMemories.map((_, index) => embeddings[index * 3 + 2]!);
+      primaryVectors = headerAdapterMemories.map((_, index) => embeddings[index * 3]!);
+      titleVectors = headerAdapterMemories.map((_, index) => embeddings[index * 3 + 1]!);
+      activationPatternVectors = headerAdapterMemories.map((_, index) => embeddings[index * 3 + 2]!);
     }
   } catch (err) {
-    logger.error('[MemoryQdrantStore] Failed to generate embeddings for header-based chain; falling back to zero vectors', err);
-    primaryVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
-    titleVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
-    activationPatternVectors = headerChainMemories.map(() => Array(vectorSize).fill(0));
+    logger.error('[MemoryQdrantStore] Failed to generate embeddings for header-based adapter; falling back to zero vectors', err);
+    primaryVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
+    titleVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
+    activationPatternVectors = headerAdapterMemories.map(() => Array(vectorSize).fill(0));
   }
 
-  const chainStepCount = headerChainMemories.length;
+  const layerCount = headerAdapterMemories.length;
   const context = getSpaceContext();
   const spaceId = context.defaultWriteSpaceId;
   const actorId = context.userId || 'system';
 
-  const points = headerChainMemories.map((memory, i) => {
+  const points = headerAdapterMemories.map((memory, i) => {
     const dtt = deriveDomainTaskType(memory.label, memory.text, memory.tags);
     const qualityMetadata = modelStats.calculateStepQualityMetadata(
       memory.label,
@@ -105,14 +103,12 @@ export async function storeHeaderBasedChain(
     const fields = activationFields[i]!;
     const sparse = bm25Tokenizer.tokenize(fields.sparseText);
     const adapter = memory.adapter ?? {
-      id: chainUuid,
-      name: chainLabel,
+      id: adapterUuid,
+      name: adapterTitle,
       layer_index: i + 1,
-      layer_count: chainStepCount,
-      ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version }),
-      ...(memory.activation_patterns && { activation_patterns: memory.activation_patterns })
+      layer_count: layerCount
     };
-    const inferenceContract = memory.inference_contract ?? memory.proof_of_work;
+    const inferenceContract = memory.inference_contract;
     return ({
       id: memory.memory_uuid,
       vector: {
@@ -131,13 +127,11 @@ export async function storeHeaderBasedChain(
         created_by: actorId,
         modified_at: memory.created_at,
         modified_by: actorId,
-        activation_patterns: memory.activation_patterns ?? adapter.activation_patterns ?? [],
         adapter_name_text: fields.adapterNameText,
         label_text: fields.labelText,
         activation_patterns_text: fields.activationPatternsText,
         tags_text: fields.tagsText,
         inference_contract: inferenceContract,
-        proof_of_work: inferenceContract,
         task: dtt.task,
         type: dtt.type,
         quality_metadata: {
@@ -145,19 +139,12 @@ export async function storeHeaderBasedChain(
           step_quality: qualityMetadata.step_quality
         },
         adapter: {
-          id: chainUuid,
-          name: chainLabel,
+          id: adapterUuid,
+          name: adapterTitle,
           layer_index: i + 1,
-          layer_count: chainStepCount,
+          layer_count: layerCount,
           ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
           ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
-        },
-        chain: {
-          id: chainUuid,
-          label: chainLabel,
-          step_index: i + 1,
-          step_count: chainStepCount,
-          ...(memory.chain?.protocol_version && { protocol_version: memory.chain.protocol_version })
         },
         slug: protocolSlug
       }
@@ -167,7 +154,7 @@ export async function storeHeaderBasedChain(
   logger.tool(
     'memory-qdrant-store',
     'upsert',
-    `mode=h1-h2 sections=${headerChainMemories.length} collection=${collection} points=${points.length}`
+    `mode=h1-h2 sections=${headerAdapterMemories.length} collection=${collection} points=${points.length}`
   );
   logger.debug(
     `[Qdrant][upsert] collection=${collection} points=${points.length} payload=${JSON.stringify({ points })}`
@@ -190,28 +177,23 @@ export async function storeHeaderBasedChain(
     }
   }
 
-  // Publish cache invalidation
   await redisCacheService.invalidateAfterUpdate();
   methods.invalidateLocalCache();
 
-  // Update model statistics for each stored step
-  for (const memory of headerChainMemories) {
+  for (const memory of headerAdapterMemories) {
     try {
       const { task, type } = deriveDomainTaskType(memory.label, memory.text, memory.tags);
       const score = modelStats.calculateQualityScore(memory.label, task, type, memory.tags);
       await modelStats.processContribution(memory.llm_model_id, score, memory.label);
-      
+
       const quality = score.quality;
       memoryStore.inc({ quality, tenant_id: tenantId });
-      
+
       if (memory.adapter) {
-        memoryChainSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
-      } else if (memory.chain) {
-        memoryChainSize.observe({ tenant_id: tenantId }, memory.chain.step_count);
+        memoryAdapterSize.observe({ tenant_id: tenantId }, memory.adapter.layer_count);
       }
     } catch { }
   }
 
-  return headerChainMemories;
+  return headerAdapterMemories;
 }
-

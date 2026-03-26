@@ -46,7 +46,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       ])
     ];
 
-    // Store all protocols (each with unique H1 = unique chain; force_update bypasses similarity in shared dev collection)
+    // Store all protocols (each with a unique H1 = unique adapter; force_update bypasses similarity in the shared dev collection)
     for (const protocol of protocols) {
       const storeResult = await mcpConnection.client.callTool({
         name: 'train',

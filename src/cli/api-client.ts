@@ -28,11 +28,16 @@ export class ApiClient {
         this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
     }
 
+    private async sleep(ms: number): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {},
         isRetryAfterLogin = false,
-        preLoginIfTokenMissing = true
+        preLoginIfTokenMissing = true,
+        rateLimitRetryCount = 0
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultHeaders: Record<string, string> = {
@@ -68,6 +73,15 @@ export class ApiClient {
             throw err;
         }
         clearTimeout(timeoutId);
+
+        if (response.status === 429 && rateLimitRetryCount < 2) {
+            const retryAfterSeconds = Number(response.headers.get('Retry-After') ?? '1');
+            const retryDelayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+                ? retryAfterSeconds * 1000
+                : 1000;
+            await this.sleep(retryDelayMs);
+            return this.request<T>(endpoint, options, isRetryAfterLogin, preLoginIfTokenMissing, rateLimitRetryCount + 1);
+        }
 
         const data = await response.json().catch(() => {
             throw new Error(`Failed to parse response from ${url}`);

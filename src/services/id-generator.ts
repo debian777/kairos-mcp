@@ -40,10 +40,10 @@ export class IDGenerator {
 
     /**
     /**
-     * Generate a deterministic memory chain UUID (v5) from a label
+     * Generate a deterministic adapter UUID (v5) from a label
      * Label is normalized (trim, collapse spaces, lower-case)
      */
-    static generateChainUUIDv5(label: string): string {
+    static generateAdapterUUIDv5(label: string): string {
         const normalized = (label || '').trim().replace(/\s+/g, ' ').toLowerCase();
         return uuidv5(normalized, KAIROS_NAMESPACE);
     }

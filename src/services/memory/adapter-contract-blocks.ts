@@ -10,7 +10,7 @@ const ANY_JSON_BLOCK_REGEX = /(^|\n)(```json\s*\n([\s\S]*?)```)/gm;
 /** Match plain ``` (no json) fenced blocks at line start. Used to reject mixed-fence docs. */
 const ANY_PLAIN_FENCE_REGEX = /(^|\n)(```(?!json)\s*\n([\s\S]*?)```)/gm;
 
-export interface ContractBlockMatch {
+export interface LayerContractBlockMatch {
   /** Start index of the opening ``` in content. */
   start: number;
   /** End index (after closing ```) in content. */
@@ -48,20 +48,16 @@ function parseContractBlock(rawJson: string): InferenceContractDefinition | null
  * Find all contract boundaries in content: each ```json block with
  * {"contract": ...}. Layers are defined by these boundaries, not by H2 headings.
  */
-export function findAllContractBlocks(content: string): ContractBlockMatch[] {
-  const results: ContractBlockMatch[] = [];
+export function findAllLayerContractBlocks(content: string): LayerContractBlockMatch[] {
+  const results: LayerContractBlockMatch[] = [];
   let match: RegExpExecArray | null;
   ANY_JSON_BLOCK_REGEX.lastIndex = 0;
   while ((match = ANY_JSON_BLOCK_REGEX.exec(content)) !== null) {
-    // match[1] = (^|\n) - the line start prefix
-    // match[2] = the full block (```...```)
-    // match[3] = the block content (JSON)
     const blockContent = match[3]!.trim();
     const contract = parseContractBlock(blockContent);
     if (!contract) {
       continue;
     }
-    // Calculate start/end: start is the opening ``` position (after the line-start prefix)
     const lineStartPrefixLength = match[1]!.length;
     const blockStart = match.index! + lineStartPrefixLength;
     const blockLength = match[2]!.length;
@@ -80,7 +76,7 @@ export function findAllContractBlocks(content: string): ContractBlockMatch[] {
  * "at least one ```json contract" but layer parsing would ignore the plain
  * blocks, minting fewer layers than the doc implies.
  */
-export function hasPlainFenceContractBlock(content: string): boolean {
+export function hasPlainFenceLayerContractBlock(content: string): boolean {
   let match: RegExpExecArray | null;
   ANY_PLAIN_FENCE_REGEX.lastIndex = 0;
   while ((match = ANY_PLAIN_FENCE_REGEX.exec(content)) !== null) {
@@ -106,7 +102,7 @@ function extractTrailingContractBlock(content: string): { cleaned: string; contr
   if (!contract) {
     return null;
   }
-  const prefixLen = (match[1]?.length ?? 0);
+  const prefixLen = match[1]?.length ?? 0;
   const cleaned = content.slice(0, match.index! + prefixLen).trim();
   return { cleaned, contract };
 }
@@ -118,5 +114,3 @@ export function extractInferenceContract(content: string): { cleaned: string; co
   }
   return { cleaned: content.trim() };
 }
-
-// Transitional aliases kept while the internal codebase moves to adapter-oriented naming.

@@ -6,6 +6,10 @@ const SLUG_PATTERN = '[a-z0-9]+(?:-[a-z0-9]+)*';
 
 const UUID_REGEX = new RegExp(`^${UUID_PATTERN}$`, 'i');
 const ADAPTER_URI_BODY_REGEX = /^kairos:\/\/adapter\/([^/?#]+)$/i;
+export const ADAPTER_UUID_URI_REGEX = new RegExp(
+  `^kairos://adapter/(${UUID_PATTERN})$`,
+  'i'
+);
 export const ADAPTER_URI_INPUT_REGEX = new RegExp(
   `^kairos://adapter/(${UUID_PATTERN}|${SLUG_PATTERN})$`,
   'i'

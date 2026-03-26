@@ -1,5 +1,5 @@
 /**
- * Integration tests: reward propagation to chain head and attest-based score boost.
+ * Integration tests: reward propagation to the adapter head and attest-based score boost.
  * Uses the current tools: train, forward, reward, activate.
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
@@ -25,7 +25,6 @@ describe('reward scoring: propagation and score boost', () => {
       uri: string;
       label: string;
       adapter_name?: string | null;
-      chain_label?: string | null;
       activation_score?: number | null;
       score?: number | null;
       role: string;
@@ -46,7 +45,6 @@ describe('reward scoring: propagation and score boost', () => {
   function getScoreForChain(
     parsed: {
       choices: Array<{
-        chain_label?: string | null;
         label?: string;
         adapter_name?: string | null;
         activation_score?: number | null;
@@ -57,7 +55,7 @@ describe('reward scoring: propagation and score boost', () => {
     chainLabel: string
   ): number | null {
     const matches = parsed.choices.filter((c) => c.role === 'match');
-    const effective = (c: (typeof matches)[0]) => c.chain_label ?? c.label ?? c.adapter_name ?? '';
+    const effective = (c: (typeof matches)[0]) => c.adapter_name ?? c.label ?? '';
     const exact = matches.find((c) => effective(c) === chainLabel);
     const byInclude =
       exact ?? matches.find((c) => effective(c).includes(chainLabel) || chainLabel.includes(effective(c)));
@@ -153,8 +151,8 @@ describe('reward scoring: propagation and score boost', () => {
       const msg = `Minted protocol "${chainLabel}" not in activate results (0 matches). Ensure dev server is running and train/activate use the same space.`;
       throw new Error(msg);
     }
-    const matchSummary = matchChoicesBefore.slice(0, 5).map((c: { label?: string; chain_label?: string; adapter_name?: string | null }) =>
-      String(c.adapter_name ?? c.chain_label ?? c.label ?? '?')
+    const matchSummary = matchChoicesBefore.slice(0, 5).map((c: { label?: string; adapter_name?: string | null }) =>
+      String(c.adapter_name ?? c.label ?? '?')
     );
 
     for (let i = 0; i < MIN_ATTEST_RUNS; i++) {

@@ -124,7 +124,7 @@ describe('Metrics Operational Tests', () => {
     
     expect(metrics).toContain('kairos_memory_store_total');
     expect(metrics).toContain('kairos_memory_store_duration_seconds');
-    expect(metrics).toContain('kairos_memory_chain_size');
+    expect(metrics).toContain('kairos_memory_adapter_size');
   });
 
   test('qdrant metrics are present', async () => {
