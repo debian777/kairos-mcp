@@ -12,7 +12,7 @@ description: >-
   how to perform a specific operation. If no protocol exists, KAIROS offers to
   create one.
 metadata:
-  version: "4.0.0-beta.1"
+  version: "4.0.0-pre.0"
   author: kairos-mcp
 allowed-tools: activate forward reward train tune export delete spaces
 ---
