@@ -116,7 +116,7 @@ export function ProtocolEditPage() {
     setSaving(true);
     try {
       if (isNew) {
-        const res = await apiFetch("/api/kairos_mint/raw", {
+        const res = await apiFetch("/api/train/raw", {
           method: "POST",
           headers: { "Content-Type": "text/markdown" },
           body: markdown,
@@ -130,7 +130,7 @@ export function ProtocolEditPage() {
         if (firstUri) navigate(`/protocols/${encodeURIComponent(firstUri)}`);
         else navigate("/");
       } else {
-        const res = await apiFetch("/api/kairos_update", {
+        const res = await apiFetch("/api/tune", {
           method: "POST",
           body: JSON.stringify({ uris: [decodedUri], markdown_doc: [markdown] }),
         });

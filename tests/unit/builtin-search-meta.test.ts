@@ -17,7 +17,7 @@ function mem(partial: Partial<Memory> & Pick<Memory, 'memory_uuid'>): Memory {
 }
 
 describe('memoryIsBuiltinSearchFooterProtocol', () => {
-  it('detects refine head and chain members', () => {
+  it('detects refine head and adapter layers', () => {
     expect(
       memoryIsBuiltinSearchFooterProtocol(
         mem({ memory_uuid: KAIROS_REFINING_PROTOCOL_UUID })
@@ -25,12 +25,15 @@ describe('memoryIsBuiltinSearchFooterProtocol', () => {
     ).toBe(true);
     expect(
       memoryIsBuiltinSearchFooterProtocol(
-        mem({ memory_uuid: 'other-uuid', chain: { id: KAIROS_REFINING_PROTOCOL_UUID, label: 'L', step_index: 2, step_count: 3 } })
+        mem({
+          memory_uuid: 'other-uuid',
+          adapter: { id: KAIROS_REFINING_PROTOCOL_UUID, name: 'L', layer_index: 2, layer_count: 3 }
+        })
       )
     ).toBe(true);
   });
 
-  it('detects creation head and chain members', () => {
+  it('detects creation head and adapter layers', () => {
     expect(
       memoryIsBuiltinSearchFooterProtocol(
         mem({ memory_uuid: KAIROS_CREATION_PROTOCOL_UUID })
@@ -38,7 +41,10 @@ describe('memoryIsBuiltinSearchFooterProtocol', () => {
     ).toBe(true);
     expect(
       memoryIsBuiltinSearchFooterProtocol(
-        mem({ memory_uuid: 'step-2', chain: { id: KAIROS_CREATION_PROTOCOL_UUID, label: 'L', step_index: 2, step_count: 5 } })
+        mem({
+          memory_uuid: 'step-2',
+          adapter: { id: KAIROS_CREATION_PROTOCOL_UUID, name: 'L', layer_index: 2, layer_count: 5 }
+        })
       )
     ).toBe(true);
   });
@@ -53,7 +59,7 @@ describe('memoryIsBuiltinSearchFooterProtocol', () => {
       memoryIsBuiltinSearchFooterProtocol(
         mem({
           memory_uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-          chain: { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', label: 'C', step_index: 1, step_count: 1 }
+          adapter: { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', name: 'C', layer_index: 1, layer_count: 1 }
         })
       )
     ).toBe(false);

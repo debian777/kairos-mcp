@@ -117,7 +117,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       try {
       // Use storeChain to handle parsing, embeddings, and force update logic.
       // Always forceUpdate on storeChain so a prior boot (e.g. old step-1 UUID before filename change)
-      // does not leave a same-label chain that blocks minting the canonical file UUID (DUPLICATE_CHAIN / DUPLICATE_SLUG).
+      // does not leave a same-label adapter that blocks minting the canonical file UUID (DUPLICATE_ADAPTER / DUPLICATE_SLUG).
       // Per-file skip when target UUID already exists (below) still avoids re-embedding on normal restarts.
         if (options.force) {
           try {
@@ -138,10 +138,10 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           }
         }
 
-        const memories = await memoryStore.storeChain([markdownContent], llmModelId, { forceUpdate: true });
+        const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, { forceUpdate: true });
 
         if (memories.length > 0) {
-          // Only the first step is remapped to the file UUID; other steps of the same chain keep server-generated IDs.
+          // Only the first step is remapped to the file UUID; other layers of the same adapter keep server-generated IDs.
           const storedMemory = memories[0]!;
           if (storedMemory.memory_uuid !== targetUuid) {
             const { client, collection } = memoryStore.getQdrantAccess();

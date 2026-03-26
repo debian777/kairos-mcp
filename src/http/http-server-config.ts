@@ -29,7 +29,7 @@ const HELMET_CSP = {
   }
 } as const;
 
-function createRateLimiter(options: {
+export function createRateLimiter(options: {
     identifier: string;
     windowMs: number;
     limit: number;
@@ -39,6 +39,8 @@ function createRateLimiter(options: {
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
+        // Keep the upstream option name literal here for readability.
+        // eslint config allowlists this file for the prior-era wording rule.
         legacyHeaders: false,
         identifier: options.identifier,
         message: {

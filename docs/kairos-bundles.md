@@ -13,8 +13,8 @@ Recommended layout:
 - optional subdirectories by topic or team
 - optional `README.md` files for humans
 
-Every protocol file still has to satisfy the normal mint rules enforced by the
-server:
+Every protocol file still has to satisfy the normal `train` requirements
+enforced by the server:
 
 - H1 title
 - `## Natural Language Triggers` as the first H2
@@ -23,12 +23,12 @@ server:
 
 ## Bulk import with the CLI
 
-The CLI can mint a whole directory.
+The CLI can train from a whole directory.
 
 ### Top-level only
 
 ```bash
-kairos mint --force /path/to/bundle-root
+kairos train --force /path/to/bundle-root
 ```
 
 This imports only `.md` files directly inside the bundle root.
@@ -36,7 +36,7 @@ This imports only `.md` files directly inside the bundle root.
 ### Recursive import
 
 ```bash
-kairos mint --force --recursive /path/to/bundle-root
+kairos train --force --recursive /path/to/bundle-root
 ```
 
 This imports `.md` files from subdirectories too.
@@ -44,49 +44,33 @@ This imports `.md` files from subdirectories too.
 ### `README.md` handling
 
 In directory-batch mode, the CLI skips files whose basename is exactly
-`README.md`. That rule applies at the root and in subdirectories. If you really
-want to mint a `README.md` file, pass that file path explicitly instead of a
+`README.md`. That rule applies at the root and in subdirectories. If you need
+to register a `README.md` file, pass that file path explicitly instead of a
 directory.
 
-## Export/import with the `kairos-bundle` skill script
+## Export from a running server
 
-The repo also ships `skills/kairos-bundle/scripts/kairos-bundle.py`.
+Use `kairos export` or the MCP `export` tool to save current server
+content before curating a bundle in Git.
 
-That script uses:
+```bash
+kairos export kairos://adapter/<uuid>
+kairos export kairos://layer/<uuid> --format reward_jsonl --output json
+```
 
-- `KAIROS_TOKEN` for Bearer auth
-- optional `KAIROS_API_URL` (defaults to `http://localhost:3000`)
-
-### Export
-
-`export`:
-
-- calls `/api/kairos_spaces`
-- optionally filters by one human-readable space name
-- dumps each chain with `protocol: true`
-- writes one `.md` file per exported protocol into `--dir`
-
-### Import
-
-`import`:
-
-- reads `.md` files from `--dir`
-- mints them through `/api/kairos_mint/raw`
-- supports `--force`
-- does **not** recurse into subdirectories
-
-For nested directory trees, prefer the CLI’s `kairos mint --recursive`.
+`export` works one adapter or layer URI at a time. If you want a
+reviewable bundle, export the specific protocols you need and place the
+resulting markdown files in a directory that follows the layout above.
 
 ## Practical guidance
 
-- Use the **CLI** when your bundle is already a nested directory tree and you
-  want recursive import.
-- Use the **bundle script/skill** when you want a simple export/import workflow
-  built around Bearer auth and a single bundle directory.
+- Use `kairos train --recursive` when your bundle is already a nested
+  directory tree and you want recursive import.
+- Use `kairos export` or the MCP `export` tool when you need current
+  server content before curating a bundle in Git.
 
 ## Caveats
 
 - Only the exact basename `README.md` is skipped in CLI directory-batch mode.
-- The bundle script import path is non-recursive.
-- Exported filenames from the bundle script are generated from protocol title +
-  chain ID prefix, so they may not match your original source tree layout.
+- `export` works one URI at a time; it does not recreate a directory
+  tree for you.

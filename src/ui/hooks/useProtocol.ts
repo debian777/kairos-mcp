@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { DumpOutput } from "../../tools/kairos_dump_schema.js";
+import type { ExportOutput } from "../../tools/export_schema.js";
+import type { DumpOutput } from "../../tools/dump_schema.js";
 
 async function fetchProtocol(uri: string): Promise<DumpOutput> {
-  const res = await apiFetch("/api/kairos_dump", {
+  const res = await apiFetch("/api/export", {
     method: "POST",
-    body: JSON.stringify({ uri, protocol: true }),
+    body: JSON.stringify({ uri, format: "markdown" }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -14,7 +15,14 @@ async function fetchProtocol(uri: string): Promise<DumpOutput> {
     e.statusCode = res.status;
     throw e;
   }
-  return res.json();
+  const output = (await res.json()) as ExportOutput;
+  return {
+    markdown_doc: output.content,
+    uri: output.uri,
+    label: output.adapter_name ?? "Adapter",
+    adapter_name: output.adapter_name ?? null,
+    ...(output.adapter_version ? { protocol_version: output.adapter_version } : {}),
+  };
 }
 
 export function useProtocol(uri: string | undefined, enabled: boolean) {
@@ -59,7 +67,7 @@ export interface ProtocolFormState {
   completionMarkdown: string;
 }
 
-/** Parse markdown_doc into title, steps (label + challenge type + body), triggers, completion. */
+/** Parse markdown_doc into title, steps (label + contract type + body), activation patterns, and reward signal. */
 export function parseProtocolMarkdown(md: string): {
   title: string;
   steps: ParsedStep[];
@@ -81,9 +89,9 @@ export function parseProtocolMarkdown(md: string): {
     const firstLine = block.split("\n")[0] ?? "";
     const heading = firstLine.trim();
     const body = block.slice(firstLine.length).replace(/^\n+/, "").trim();
-    if (heading.toLowerCase().includes("natural language trigger")) {
+    if (heading.toLowerCase().includes("activation pattern") || heading.toLowerCase().includes("natural language trigger")) {
       triggers = body.replace(/\n```json[\s\S]*?```/g, "").trim();
-    } else if (heading.toLowerCase().includes("completion rule")) {
+    } else if (heading.toLowerCase().includes("reward signal") || heading.toLowerCase().includes("completion rule")) {
       completion = body.replace(/\n```json[\s\S]*?```/g, "").trim();
     } else {
       const jsonMatch = body.match(/```json\s*([\s\S]*?)```/);
@@ -92,7 +100,7 @@ export function parseProtocolMarkdown(md: string): {
       if (jsonMatch) {
         try {
           const obj = JSON.parse(jsonMatch[1]!.trim());
-          const challenge = obj?.challenge ?? obj;
+          const challenge = obj?.contract ?? obj?.challenge ?? obj;
           if (challenge?.type) type = String(challenge.type);
           if (type === "shell") {
             const cmd = challenge?.shell?.cmd ?? challenge?.cmd;
@@ -108,6 +116,10 @@ export function parseProtocolMarkdown(md: string): {
           } else if (type === "user_input") {
             const prompt = challenge?.user_input?.prompt;
             summary = prompt ? `User input: ${String(prompt)}` : "User input";
+          } else if (type === "tensor") {
+            const name = challenge?.tensor?.output?.name;
+            const outputType = challenge?.tensor?.output?.type;
+            summary = name ? `Tensor: ${String(name)}${outputType ? ` (${String(outputType)})` : ""}` : "Tensor";
           } else if (type === "comment") {
             const min = challenge?.comment?.min_length;
             summary = min ? `Comment: min ${Number(min)} chars` : "Comment";
@@ -136,7 +148,7 @@ export function parseProtocolMarkdownToForm(md: string): ProtocolFormState {
     if (jsonMatch) {
       try {
         const obj = JSON.parse(jsonMatch[1]!.trim());
-        const challenge = obj?.challenge ?? obj;
+        const challenge = obj?.contract ?? obj?.challenge ?? obj;
         if (challenge?.type && ["shell", "mcp", "user_input", "comment"].includes(String(challenge.type))) {
           type = challenge.type as StepFormState["type"];
           stepState.type = type;
@@ -174,7 +186,7 @@ export function buildMarkdownFromForm(state: ProtocolFormState): string {
   const lines: string[] = [];
   lines.push(`# ${state.protocolLabel.trim() || "Protocol"}`);
   lines.push("");
-  lines.push("## Natural language triggers");
+  lines.push("## Activation Patterns");
   lines.push("");
   lines.push(state.triggersMarkdown.trim() || "Describe when this protocol should run.");
   lines.push("");
@@ -201,12 +213,12 @@ export function buildMarkdownFromForm(state: ProtocolFormState): string {
     else if (step.type === "comment") challenge.comment = { min_length: step.comment?.min_length ?? 10 };
     lines.push("");
     lines.push("```json");
-    lines.push(JSON.stringify({ challenge }, null, 2));
+    lines.push(JSON.stringify({ contract: challenge }, null, 2));
     lines.push("```");
     lines.push("");
   }
-  lines.push("## Completion rule");
+  lines.push("## Reward Signal");
   lines.push("");
-  lines.push(state.completionMarkdown.trim() || "When is this protocol considered complete?");
+  lines.push(state.completionMarkdown.trim() || "Describe how this adapter should be rewarded when it completes.");
   return lines.join("\n");
 }

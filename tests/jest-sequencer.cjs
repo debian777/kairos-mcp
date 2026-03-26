@@ -1,21 +1,21 @@
 /**
- * Jest test sequencer: run mint/update tests before v2-kairos-search (which depends on them).
+ * Jest test sequencer: run mint/update tests before v4-kairos-activate (which depends on them).
  */
 const path = require('path');
 const TestSequencer = require('@jest/test-sequencer').default;
 
 class CustomSequencer extends TestSequencer {
   sort(tests) {
-    const v2SearchPath = path.join(__dirname, 'integration', 'v2-kairos-search.test.ts');
+    const v4ActivatePath = path.join(__dirname, 'integration', 'v4-kairos-activate.test.ts');
     return [...tests].sort((a, b) => {
-      const aIsMintOrUpdate = /(mint|update)/i.test(a.path) && !/v2-kairos-search/.test(a.path);
-      const bIsMintOrUpdate = /(mint|update)/i.test(b.path) && !/v2-kairos-search/.test(b.path);
-      const aIsV2Search = a.path === v2SearchPath || a.path.endsWith('v2-kairos-search.test.ts');
-      const bIsV2Search = b.path === v2SearchPath || b.path.endsWith('v2-kairos-search.test.ts');
-      if (aIsV2Search && bIsMintOrUpdate) return 1;
-      if (bIsV2Search && aIsMintOrUpdate) return -1;
-      if (aIsV2Search && !bIsV2Search) return 1;
-      if (bIsV2Search && !aIsV2Search) return -1;
+      const aIsMintOrUpdate = /(mint|update)/i.test(a.path) && !/v4-kairos-activate/.test(a.path);
+      const bIsMintOrUpdate = /(mint|update)/i.test(b.path) && !/v4-kairos-activate/.test(b.path);
+      const aIsV4Activate = a.path === v4ActivatePath || a.path.endsWith('v4-kairos-activate.test.ts');
+      const bIsV4Activate = b.path === v4ActivatePath || b.path.endsWith('v4-kairos-activate.test.ts');
+      if (aIsV4Activate && bIsMintOrUpdate) return 1;
+      if (bIsV4Activate && aIsMintOrUpdate) return -1;
+      if (aIsV4Activate && !bIsV4Activate) return 1;
+      if (bIsV4Activate && !aIsV4Activate) return -1;
       return 0;
     });
   }

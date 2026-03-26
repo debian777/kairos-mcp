@@ -76,7 +76,7 @@ async function getEmbedding(text) {
 }
 
 function buildFilter() {
-  const must = [{ key: 'chain.step_index', match: { value: 1 } }];
+  const must = [{ key: 'adapter.layer_index', match: { value: 1 } }];
   const searchSpaceIds = process.env.SEARCH_SPACE_IDS ? process.env.SEARCH_SPACE_IDS.split(',').map((s) => s.trim()).filter(Boolean) : null;
   if (searchSpaceIds?.length) {
     must.unshift({ key: 'space_id', match: { any: searchSpaceIds } });
@@ -151,7 +151,7 @@ async function main() {
       formula: {
         sum: [
           '$score',
-          { mult: [TITLE_BOOST, { key: 'chain.label', match: { text: queryTrimmed } }] },
+          { mult: [TITLE_BOOST, { key: 'adapter_name_text', match: { text: queryTrimmed } }] },
           'attest_boost'
         ]
       },
@@ -162,7 +162,7 @@ async function main() {
   };
 
   const points = await runQueryApi(body);
-  console.log('\nScore    chain.label (truncated)                    attest_boost');
+  console.log('\nScore    adapter.name (truncated)                   attest_boost');
   console.log('─'.repeat(80));
   if (points.length === 0) {
     console.log('(no results)');
@@ -171,9 +171,9 @@ async function main() {
   for (const p of points) {
     const score = typeof p.score === 'number' ? p.score.toFixed(4) : '—';
     const payload = p.payload || {};
-    const chainLabel = payload.chain?.label ?? payload.chain_label ?? '—';
+    const adapterLabel = payload.adapter?.name ?? '—';
     const attestBoost = payload.attest_boost != null ? Number(payload.attest_boost).toFixed(4) : '—';
-    console.log(`  ${String(score).padEnd(8)}  ${String(chainLabel).slice(0, 44).padEnd(44)}  ${attestBoost}`);
+    console.log(`  ${String(score).padEnd(8)}  ${String(adapterLabel).slice(0, 44).padEnd(44)}  ${attestBoost}`);
   }
   console.log('─'.repeat(80));
   if (points.length > 0) console.log(`Total: ${points.length} point(s)`);

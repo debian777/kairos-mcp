@@ -12,7 +12,7 @@ to end.
 - `request_id` from logs, client reports, or monitoring alerts.
 - Time window in UTC.
 - Tenant or space identifier when available.
-- Suspected operation such as `kairos_mint`, `kairos_search`, or `kairos_update`.
+- Suspected operation such as `train`, `activate`, `forward`, `reward`, or `tune`.
 
 ## Severity and ownership
 
@@ -95,7 +95,7 @@ preservation.
 
 1. Correlate request logs, audit logs, and tool responses by `request_id`.
 2. Verify `space_id` filters and tenant mapping for all touched records.
-3. Confirm no unauthorized content appears in `kairos_dump` or search responses.
+3. Confirm no unauthorized content appears in `export` or search responses.
 4. Escalate to sev-1 if leakage is confirmed.
 
 ## Communications and closure

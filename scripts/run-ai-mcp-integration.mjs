@@ -1,18 +1,37 @@
 #!/usr/bin/env node
 /**
- * AI–MCP integration: run protocols on KAIROS (kairos-dev).
- * Implements skills/kairos-dev/ai-mcp-integration.md:
- * - Import each protocol from docs/examples/protocol-example-*.md via POST /api/kairos_mint/raw
- * - Search, begin, next (loop) until next_action says kairos_attest
- * - Write one report per protocol under reports/<run-id>/<protocol-folder>/report.md
+ * AI-MCP integration: run example adapters against a KAIROS dev server.
+ * - Store each example markdown document via POST /api/train/raw
+ * - Activate the best match, then forward through each layer
+ * - Finalize with reward when the run completes
+ * - Write one report per example under reports/<run-id>/<protocol-folder>/report.md
  *
  * Usage: node scripts/run-ai-mcp-integration.mjs
  * Env:   KAIROS_BASE_URL (default http://localhost:3300), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
+ *
+ * Auth (when the dev server has Keycloak / AUTH_ENABLED): same bearer as Jest integration tests —
+ * either `.test-auth-env.dev.json` in the repo root (written by globalSetup when you run
+ * AUTH_ENABLED=true npm run dev:test after deploy), or override with env KAIROS_INTEGRATION_BEARER
+ * (raw JWT string, no Bearer prefix).
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  integrationReportSection,
+  writeIntegrationReportFile
+} from './ai-mcp-integration-report-utils.mjs';
+import { buildAuthHeaders, loadIntegrationBearer } from './ai-mcp-integration-auth-utils.mjs';
+import {
+  buildActivateResponseProof,
+  buildForwardResponseProof,
+  buildRequestProof,
+  buildRewardResponseProof,
+  buildTrainResponseProof,
+  classifySolutionType,
+  classifyUriKind
+} from './ai-mcp-integration-proof-utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -30,9 +49,20 @@ function defaultRunId() {
   const s = String(d.getSeconds()).padStart(2, '0');
   return `workflow-${Y}-${M}-${D}-${h}${m}${s}`;
 }
-const RUN_ID = process.env.RUN_ID || defaultRunId();
+/** RUN_ID from env must stay within reports/ (no path segments). */
+function resolveRunId() {
+  const fromEnv = process.env.RUN_ID;
+  if (!fromEnv) return defaultRunId();
+  if (!/^[a-zA-Z0-9._-]+$/.test(fromEnv) || fromEnv.length > 200) {
+    throw new Error('RUN_ID must be alphanumeric plus ._- only and length <= 200');
+  }
+  return fromEnv;
+}
+const RUN_ID = resolveRunId();
 
-const KAIROS_URI_REGEX = /kairos:\/\/mem\/[a-f0-9-]+/gi;
+const INTEGRATION_BEARER = loadIntegrationBearer(ROOT);
+
+const KAIROS_URI_REGEX = /kairos:\/\/(?:adapter|layer|mem)\/[a-f0-9-]+(?:\?execution_id=[a-f0-9-]+)?/gi;
 
 function extractUriFromNextAction(nextAction) {
   if (!nextAction || typeof nextAction !== 'string') return null;
@@ -40,21 +70,31 @@ function extractUriFromNextAction(nextAction) {
   return m ? m[0] : null;
 }
 
-function buildSolution(challenge, proofHashFromPrevious) {
-  const type = challenge?.type || 'comment';
-  const nonce = challenge?.nonce;
-  const proof_hash = challenge?.proof_hash ?? proofHashFromPrevious;
-  const base = { nonce, proof_hash }.filter(([, v]) => v != null);
-  const withProof = (sol) => ({ ...sol, ...base });
+function buildSolution(contract, proofHashFromPrevious) {
+  const type = contract?.type || 'comment';
+  const nonce = contract?.nonce;
+  const proof_hash = contract?.proof_hash ?? proofHashFromPrevious;
+  const base = {};
+  if (nonce != null) base.nonce = nonce;
+  if (proof_hash != null) base.proof_hash = proof_hash;
+  const withProof = (solution) => ({ ...solution, ...base });
 
   switch (type) {
+    case 'tensor':
+      return withProof({
+        type: 'tensor',
+        tensor: {
+          name: contract?.tensor?.output?.name || 'integration_output',
+          value: 'ok'
+        }
+      });
     case 'user_input':
       return withProof({
         type: 'user_input',
         user_input: { confirmation: 'Yes, approved.' }
       });
     case 'comment': {
-      const minLen = challenge?.comment?.min_length ?? 50;
+      const minLen = contract?.comment?.min_length ?? 50;
       let text = 'Summary of steps completed for this protocol run.';
       if (text.length < minLen) text = text.padEnd(minLen, ' ');
       return withProof({
@@ -71,7 +111,7 @@ function buildSolution(challenge, proofHashFromPrevious) {
       return withProof({
         type: 'mcp',
         mcp: {
-          tool_name: challenge?.mcp?.tool_name || 'kairos_search',
+          tool_name: contract?.mcp?.tool_name || 'activate',
           result: 'ok',
           success: true
         }
@@ -84,11 +124,11 @@ function buildSolution(challenge, proofHashFromPrevious) {
   }
 }
 
-async function mint(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force = true) {
-  const url = `${baseUrl}/api/kairos_mint/raw?llm_model_id=${encodeURIComponent(llmModelId)}&force=${force}`;
+async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force = true) {
+  const url = `${baseUrl}/api/train/raw?llm_model_id=${encodeURIComponent(llmModelId)}&force=${force}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/markdown' },
+    headers: { 'Content-Type': 'text/markdown', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: markdown
   });
   const body = await res.text();
@@ -101,137 +141,163 @@ async function mint(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force 
   return { status: res.status, data };
 }
 
-async function search(baseUrl, query) {
-  const res = await fetch(`${baseUrl}/api/kairos_search`, {
+async function activate(baseUrl, query) {
+  const res = await fetch(`${baseUrl}/api/activate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
     body: JSON.stringify({ query })
   });
   const data = await res.json();
   return { status: res.status, data };
 }
 
-async function begin(baseUrl, uri) {
-  const res = await fetch(`${baseUrl}/api/kairos_begin`, {
+async function forward(baseUrl, uri, solution) {
+  const res = await fetch(`${baseUrl}/api/forward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uri })
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
+    body: JSON.stringify(solution === undefined ? { uri } : { uri, solution })
   });
   const data = await res.json();
   return { status: res.status, data };
 }
 
-async function next(baseUrl, uri, solution) {
-  const res = await fetch(`${baseUrl}/api/kairos_next`, {
+async function reward(baseUrl, uri, outcome = 'success', feedback = 'Integration run completed successfully.') {
+  const res = await fetch(`${baseUrl}/api/reward`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uri, solution })
+    headers: { 'Content-Type': 'application/json', ...buildAuthHeaders(INTEGRATION_BEARER) },
+    body: JSON.stringify({ uri, outcome, feedback })
   });
   const data = await res.json();
   return { status: res.status, data };
 }
 
-function searchQueryFromMarkdown(markdown) {
+function activationQueryFromMarkdown(markdown) {
   const firstLine = markdown.split('\n').find((l) => l.startsWith('#'));
   if (firstLine) {
     return firstLine.replace(/^#\s*/, '').trim();
   }
-  return 'Example protocol';
+  return 'Example adapter';
 }
 
-function getFirstMatchUri(searchData) {
-  const choices = searchData?.choices;
+function getFirstMatchUri(activateData) {
+  const choices = activateData?.choices;
   if (!Array.isArray(choices)) return null;
   const match = choices.find((c) => c.role === 'match');
   return match?.uri ?? choices[0]?.uri ?? null;
 }
 
-function section(title, request, response) {
-  return `### ${title}\n\n**Request:**\n\n\`\`\`json\n${JSON.stringify(request, null, 2)}\n\`\`\`\n\n**Response:**\n\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\`\n\n`;
-}
-
 async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   const steps = [];
-  let proofHashFromPrevious = undefined;
+  let proofHashFromPrevious;
 
-  const mintRes = await mint(baseUrl, markdown);
+  const trainRes = await train(baseUrl, markdown);
   steps.push({
-    title: 'Import (kairos_mint)',
-    what: 'Minted protocol markdown via POST /api/kairos_mint/raw.',
-    request: { body: '(raw markdown)', query: 'llm_model_id=ai-mcp-integration&force=true' },
-    response: mintRes.data
+    title: 'Train',
+    what: 'Stored adapter markdown via POST /api/train/raw.',
+    request: buildRequestProof('/api/train/raw', Boolean(INTEGRATION_BEARER), {
+      markdown_source: 'local_file',
+      markdown_bytes: Buffer.byteLength(markdown, 'utf8'),
+      llm_model_id: 'ai-mcp-integration',
+      force_update: true
+    }),
+    response: buildTrainResponseProof(trainRes.status, trainRes.data)
   });
 
-  if (mintRes.status !== 200 || mintRes.data.error) {
+  if (trainRes.status !== 200 || trainRes.data.error) {
     const report = [
       `# ${protocolName}\n\n`,
-      '## Import\n\n',
-      section('Mint', steps[0].request, steps[0].response),
-      'Workflow stopped: mint failed or returned error.\n'
+      '## Train\n\n',
+      integrationReportSection('Train', steps[0].request, steps[0].response),
+      'Workflow stopped: train failed or returned an error.\n'
     ].join('');
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, report, 'utf8');
+    writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
     return;
   }
 
-  const searchQuery = searchQueryFromMarkdown(markdown);
-  const searchRes = await search(baseUrl, searchQuery);
+  const activationQuery = activationQueryFromMarkdown(markdown);
+  const activateRes = await activate(baseUrl, activationQuery);
   steps.push({
-    title: 'Search',
-    what: `Searched with query "${searchQuery}" to find the chain.`,
-    request: { query: searchQuery },
-    response: searchRes.data
+    title: 'Activate',
+    what: 'Activated to find the best matching adapter.',
+    request: buildRequestProof('/api/activate', Boolean(INTEGRATION_BEARER), {
+      query_source: 'markdown_heading',
+      query_bytes: Buffer.byteLength(activationQuery, 'utf8')
+    }),
+    response: buildActivateResponseProof(activateRes.status, activateRes.data)
   });
 
-  const beginUri = getFirstMatchUri(searchRes.data);
-  if (!beginUri) {
+  const adapterUri = getFirstMatchUri(activateRes.data);
+  if (!adapterUri) {
     const report = [
       `# ${protocolName}\n\n`,
-      steps.map((s) => `## ${s.title}\n\n${section(s.title, s.request, s.response)}`).join(''),
-      'Workflow stopped: no match from search.\n'
+      steps.map((s) => `## ${s.title}\n\n${integrationReportSection(s.title, s.request, s.response)}`).join(''),
+      'Workflow stopped: activate returned no runnable choice.\n'
     ].join('');
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    fs.writeFileSync(reportPath, report, 'utf8');
+    writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
     return;
   }
 
-  let beginRes = await begin(baseUrl, beginUri);
+  let forwardRes = await forward(baseUrl, adapterUri);
   steps.push({
-    title: 'Begin',
-    what: `Called kairos_begin with chain head URI to load step 1.`,
-    request: { uri: beginUri },
-    response: beginRes.data
+    title: 'Forward (start)',
+    what: 'Started adapter execution with the selected adapter URI.',
+    request: buildRequestProof('/api/forward', Boolean(INTEGRATION_BEARER), {
+      uri_kind: classifyUriKind(adapterUri),
+      has_solution: false
+    }),
+    response: buildForwardResponseProof(forwardRes.status, forwardRes.data)
   });
 
-  let nextUri = extractUriFromNextAction(beginRes.data?.next_action);
   let stepIndex = 1;
-  while (nextUri) {
-    const challenge = beginRes.data?.challenge;
-    proofHashFromPrevious = challenge?.proof_hash ?? beginRes.data?.proof_hash ?? proofHashFromPrevious;
-    const solution = buildSolution(challenge, proofHashFromPrevious);
+  while (forwardRes.data?.current_layer?.uri && !String(forwardRes.data?.next_action || '').includes('call reward')) {
+    const contract = forwardRes.data?.contract;
+    proofHashFromPrevious = contract?.proof_hash ?? forwardRes.data?.proof_hash ?? proofHashFromPrevious;
+    const solution = buildSolution(contract, proofHashFromPrevious);
+    const layerUri = forwardRes.data.current_layer.uri;
 
-    const nextRes = await next(baseUrl, nextUri, solution);
+    const nextRes = await forward(baseUrl, layerUri, solution);
     steps.push({
-      title: `Next (step ${stepIndex + 1})`,
-      what: `Submitted solution for step ${stepIndex} (${challenge?.type || 'unknown'}); advancing to next step.`,
-      request: { uri: nextUri, solution },
-      response: nextRes.data
+      title: `Forward (layer ${stepIndex})`,
+      what: `Submitted a solution for layer ${stepIndex}.`,
+      request: buildRequestProof('/api/forward', Boolean(INTEGRATION_BEARER), {
+        uri_kind: classifyUriKind(layerUri),
+        has_solution: true,
+        solution_type: classifySolutionType(solution?.type),
+        has_nonce: typeof solution?.nonce === 'string',
+        has_proof_hash: typeof solution?.proof_hash === 'string'
+      }),
+      response: buildForwardResponseProof(nextRes.status, nextRes.data)
     });
     if (nextRes.data?.error_code) break;
-    if (nextRes.data?.next_action?.includes('kairos_attest')) break;
-    beginRes = { data: nextRes.data };
-    nextUri = extractUriFromNextAction(nextRes.data?.next_action);
+    proofHashFromPrevious = nextRes.data?.proof_hash ?? proofHashFromPrevious;
+    forwardRes = nextRes;
     stepIndex++;
+  }
+
+  const rewardUri = extractUriFromNextAction(forwardRes.data?.next_action) ?? forwardRes.data?.current_layer?.uri ?? null;
+  if (!forwardRes.data?.error_code && rewardUri && String(forwardRes.data?.next_action || '').includes('call reward')) {
+    const rewardRes = await reward(baseUrl, rewardUri);
+    steps.push({
+      title: 'Reward',
+      what: 'Finalized the adapter execution with reward.',
+      request: buildRequestProof('/api/reward', Boolean(INTEGRATION_BEARER), {
+        uri_kind: classifyUriKind(rewardUri),
+        outcome: 'success',
+        feedback_bytes: Buffer.byteLength('Integration run completed successfully.', 'utf8')
+      }),
+      response: buildRewardResponseProof(rewardRes.status, rewardRes.data)
+    });
   }
 
   const report = [
     `# ${protocolName}\n\n`,
-    'Flow: Import → Search → Begin → Next (until completion).\n\n',
-    ...steps.map((s) => `## ${s.title}\n\n${s.what}\n\n${section(s.title, s.request, s.response)}`)
+    'Flow: Train → Activate → Forward (loop) → Reward.\n\n',
+    ...steps.map(
+      (s) => `## ${s.title}\n\n${s.what}\n\n${integrationReportSection(s.title, s.request, s.response)}`
+    )
   ].join('');
 
-  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, report, 'utf8');
+  writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
 }
 
 function listProtocolFiles() {
@@ -252,6 +318,14 @@ function listProtocolFiles() {
 
 async function main() {
   console.log(`KAIROS_BASE_URL=${BASE_URL} RUN_ID=${RUN_ID}`);
+  if (INTEGRATION_BEARER) {
+    const src = process.env.KAIROS_INTEGRATION_BEARER?.trim() ? 'KAIROS_INTEGRATION_BEARER' : '.test-auth-env.dev.json';
+    console.log(`Auth: Bearer from ${src}`);
+  } else {
+    console.warn(
+      'Auth: no bearer token. With AUTH_ENABLED, use .test-auth-env.dev.json (e.g. AUTH_ENABLED=true npm run dev:test after deploy) or set KAIROS_INTEGRATION_BEARER.'
+    );
+  }
   const protocols = listProtocolFiles();
   console.log(`Protocols: ${protocols.map((p) => p.name).join(', ')}`);
 

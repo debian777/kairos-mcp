@@ -1,27 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
-export interface ChainInfo {
-  chain_id: string;
+export interface AdapterSummary {
+  adapter_id: string;
   title: string;
-  step_count: number;
+  layer_count: number;
 }
 
 export interface SpaceInfo {
   name: string;
-  chain_count: number;
-  chains?: ChainInfo[];
+  adapter_count: number;
+  adapters?: AdapterSummary[];
 }
 
 export interface UseSpacesOptions {
-  includeChainTitles?: boolean;
+  includeAdapterTitles?: boolean;
 }
 
 async function fetchSpaces(options: UseSpacesOptions = {}): Promise<{ spaces: SpaceInfo[] }> {
-  const res = await apiFetch("/api/kairos_spaces", {
+  const res = await apiFetch("/api/spaces", {
     method: "POST",
     body: JSON.stringify({
-      include_chain_titles: options.includeChainTitles ?? false,
+      include_adapter_titles: options.includeAdapterTitles ?? false,
     }),
   });
   if (!res.ok) {
@@ -34,9 +34,9 @@ async function fetchSpaces(options: UseSpacesOptions = {}): Promise<{ spaces: Sp
 }
 
 export function useSpaces(enabled = true, options: UseSpacesOptions = {}) {
-  const includeChainTitles = options.includeChainTitles ?? false;
+  const includeAdapterTitles = options.includeAdapterTitles ?? false;
   return useQuery({
-    queryKey: ["spaces", { includeChainTitles }],
+    queryKey: ["spaces", { includeAdapterTitles }],
     queryFn: () => fetchSpaces(options),
     enabled,
   });

@@ -42,17 +42,17 @@ export function validatePayload(payload: any): void {
   if (!payload || typeof payload !== 'object') {
     throw new KairosError('Payload must be a valid object', 'INVALID_PAYLOAD_STRUCTURE', 400);
   }
-  const requiredFields = ['description_short', 'description_full', 'domain', 'task', 'type'];
+  const requiredFields = ['label', 'text', 'domain', 'task', 'type'];
   for (const field of requiredFields) {
     if (!(field in payload)) {
       throw new KairosError(`Missing required field: ${field}`, 'MISSING_REQUIRED_FIELD', 400, { missingField: field });
     }
   }
-  if (typeof payload.description_short !== 'string' || payload.description_short.trim() === '') {
-    throw new KairosError('description_short must be a non-empty string', 'INVALID_FIELD_TYPE', 400);
+  if (typeof payload.label !== 'string' || payload.label.trim() === '') {
+    throw new KairosError('label must be a non-empty string', 'INVALID_FIELD_TYPE', 400);
   }
-  if (typeof payload.description_full !== 'string' || payload.description_full.trim() === '') {
-    throw new KairosError('description_full must be a non-empty string', 'INVALID_FIELD_TYPE', 400);
+  if (typeof payload.text !== 'string' || payload.text.trim() === '') {
+    throw new KairosError('text must be a non-empty string', 'INVALID_FIELD_TYPE', 400);
   }
   if (typeof payload.domain !== 'string' || payload.domain.trim() === '') {
     throw new KairosError('domain must be a non-empty string', 'INVALID_FIELD_TYPE', 400);

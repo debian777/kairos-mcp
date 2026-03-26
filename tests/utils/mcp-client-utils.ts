@@ -7,7 +7,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { waitForHealthCheck } from './health-check.js';
-import { getTestAuthBaseUrl, getTestBearerToken } from './auth-headers.js';
+import {
+  getMcpTestBearerToken,
+  getTestAuthBaseUrl,
+  refreshTestAuthToken,
+  serverRequiresAuth
+} from './auth-headers.js';
 
 /** Base URL of the app (same server for MCP and health). From MCP_URL env or getTestAuthBaseUrl() (e.g. .test-auth-env.json when auth server runs). */
 const BASE_URL = process.env.MCP_URL
@@ -15,6 +20,42 @@ const BASE_URL = process.env.MCP_URL
   : getTestAuthBaseUrl().replace(/\/$/, '');
 const MCP_URL = `${BASE_URL}/mcp`;
 const HEALTH_URL = process.env.HEALTH_URL || `${BASE_URL}/health`;
+
+async function buildAuthHeaders(headersInit?: HeadersInit): Promise<Headers> {
+  const headers = new Headers(headersInit);
+  if (!serverRequiresAuth()) {
+    return headers;
+  }
+  if (!getMcpTestBearerToken()) {
+    await refreshTestAuthToken();
+  }
+  const token = getMcpTestBearerToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return headers;
+}
+
+async function authedFetch(input: URL | RequestInfo, init?: RequestInit): Promise<Response> {
+  const firstResponse = await fetch(input, {
+    ...init,
+    headers: await buildAuthHeaders(init?.headers)
+  });
+  if (!serverRequiresAuth() || firstResponse.status !== 401) {
+    return firstResponse;
+  }
+
+  await firstResponse.body?.cancel().catch(() => undefined);
+  const refreshed = await refreshTestAuthToken();
+  if (!refreshed) {
+    return firstResponse;
+  }
+
+  return fetch(input, {
+    ...init,
+    headers: await buildAuthHeaders(init?.headers)
+  });
+}
 
 // McpConnection JSDoc typedef (converted from TypeScript interface)
 /**
@@ -41,11 +82,8 @@ export async function createMcpConnection() {
     version: '1.0.0'
   });
 
-  const token = getTestBearerToken();
   const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), {
-    requestInit: token
-      ? { headers: new Headers({ Authorization: `Bearer ${token}` }) }
-      : undefined
+    fetch: authedFetch
   });
   await client.connect(transport);
 

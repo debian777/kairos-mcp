@@ -27,11 +27,11 @@ describe('CLI Commands Environment & Error Tests', () => {
   }, 60000);
 
   describe('CLI via npm script', () => {
-    test('npm run cli -- search with --url returns choices when server is up', async () => {
+    test('npm run cli -- activate with --url returns choices when server is up', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
       const { stdout } = await execAsync(
-        `npm run cli --silent -- --url ${BASE_URL} search "test query"`,
+        `npm run cli --silent -- --url ${BASE_URL} activate "test query"`,
         { timeout: 20000 }
       );
       const result = JSON.parse(stdout.trim());
@@ -41,11 +41,11 @@ describe('CLI Commands Environment & Error Tests', () => {
   });
 
   describe('KAIROS_API_URL environment variable', () => {
-    test('search uses KAIROS_API_URL environment variable', async () => {
+    test('activate uses KAIROS_API_URL environment variable', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} search "test query"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} activate "test query"`
       );
 
       expect(stderr).toBe('');
@@ -56,15 +56,15 @@ describe('CLI Commands Environment & Error Tests', () => {
       expect(result).toHaveProperty('choices');
     }, 30000);
 
-    test('begin uses KAIROS_API_URL environment variable with URI', async () => {
+    test('forward uses KAIROS_API_URL environment variable with URI', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Mint test protocol then search to get a valid URI (no longer rely on built-in mem docs)
+      // Train test protocol then activate to get a valid URI (no longer rely on built-in mem docs)
       await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} mint --force "${TEST_FILE}"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} train --force "${TEST_FILE}"`
       );
       const searchResult = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} search "Minimal CLI Test Document"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} activate "Minimal CLI Test Document"`
       );
       const searchData = JSON.parse(searchResult.stdout);
       // V2: extract URI from choices array (first match)
@@ -75,7 +75,7 @@ describe('CLI Commands Environment & Error Tests', () => {
       expect(uri).toBeDefined();
 
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} begin "${uri}"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} forward "${uri}"`
       );
 
       expect(stderr).toBe('');
@@ -83,15 +83,16 @@ describe('CLI Commands Environment & Error Tests', () => {
       // V2: next_action replaces protocol_status
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('next_action');
-      expect(result).toHaveProperty('current_step');
+      expect(result).toHaveProperty('contract');
+      expect(result.current_layer).toBeDefined();
     }, 30000);
 
-    test('mint uses KAIROS_API_URL environment variable', async () => {
+    test('train uses KAIROS_API_URL environment variable', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
-      // Use --force to handle case where chain already exists from previous test runs
+      // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} mint --force "${TEST_FILE}"`
+        `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} train --force "${TEST_FILE}"`
       );
 
       expect(stderr).toBe('');
@@ -104,7 +105,7 @@ describe('CLI Commands Environment & Error Tests', () => {
 
       // Set env var to wrong URL, but --url should override
       const { stdout, stderr } = await execAsync(
-        `KAIROS_API_URL=http://wrong-url:9999 node ${CLI_PATH} search --url ${BASE_URL} "test query"`
+        `KAIROS_API_URL=http://wrong-url:9999 node ${CLI_PATH} activate --url ${BASE_URL} "test query"`
       );
 
       expect(stderr).toBe('');
@@ -117,12 +118,12 @@ describe('CLI Commands Environment & Error Tests', () => {
   });
 
   describe('Auth required (no token)', () => {
-    test('search without token fails with auth message when server requires auth', async () => {
+    test('activate without token fails with auth message when server requires auth', async () => {
       if (!serverAvailable || !serverRequiresAuth()) return;
 
       try {
         await execAsyncNoAuth(
-          `node ${CLI_PATH} search --url ${BASE_URL} "test query"`,
+          `node ${CLI_PATH} activate --url ${BASE_URL} "test query"`,
           { timeout: 15000 }
         );
         expect('CLI should have exited with auth error').toBe(false);
@@ -134,12 +135,12 @@ describe('CLI Commands Environment & Error Tests', () => {
       }
     }, 20000);
 
-    test('search with invalid token in config fails with auth message when server requires auth', async () => {
+    test('activate with invalid token in config fails with auth message when server requires auth', async () => {
       if (!serverAvailable || !serverRequiresAuth()) return;
 
       try {
         await execAsyncWithConfig(
-          `node ${CLI_PATH} search --url ${BASE_URL} "test query"`,
+          `node ${CLI_PATH} activate --url ${BASE_URL} "test query"`,
           { KAIROS_API_URL: BASE_URL, bearerToken: 'invalid-token' },
           { timeout: 15000 }
         );
@@ -156,39 +157,30 @@ describe('CLI Commands Environment & Error Tests', () => {
   });
 
   describe('Error handling with --url', () => {
-    test('search fails with invalid --url', async () => {
+    test('activate fails with invalid --url', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
       await expect(
-        execAsync(`node ${CLI_PATH} search --url http://invalid-url:9999 "test query"`)
+        execAsync(`node ${CLI_PATH} activate --url http://invalid-url:9999 "test query"`)
       ).rejects.toThrow();
     }, 30000);
 
-    test('begin fails with invalid --url', async () => {
+    test('forward fails with invalid --url', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
       // URI can be any; we are asserting the client rejects when server URL is invalid
       await expect(
         execAsync(
-          `node ${CLI_PATH} begin --url http://invalid-url:9999 "kairos://mem/00000000-0000-0000-0000-000000000000"`
+          `node ${CLI_PATH} forward --url http://invalid-url:9999 "kairos://adapter/00000000-0000-0000-0000-000000000000"`
         )
       ).rejects.toThrow();
     }, 30000);
 
-    test('mint fails with invalid --url', async () => {
+    test('train fails with invalid --url', async () => {
       if (!serverAvailable || !cliLoggedIn) return;
 
       await expect(
-        execAsync(`node ${CLI_PATH} mint --url http://invalid-url:9999 "${TEST_FILE}"`)
-      ).rejects.toThrow();
-    }, 30000);
-
-    test('next fails with invalid --url', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
-
-      const testUri = 'kairos://mem/00000000-0000-0000-0000-000000000000';
-      await expect(
-        execAsync(`node ${CLI_PATH} next --url http://invalid-url:9999 "${testUri}"`)
+        execAsync(`node ${CLI_PATH} train --url http://invalid-url:9999 "${TEST_FILE}"`)
       ).rejects.toThrow();
     }, 30000);
   });

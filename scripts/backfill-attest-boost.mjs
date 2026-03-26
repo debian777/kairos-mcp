@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-time backfill: set attest_boost on all chain heads (step_index === 1) from current quality_metrics.
+ * One-time backfill: set attest_boost on all adapter entry layers (layer_index === 1) from current quality_metrics.
  * Run after moving attest scoring into Qdrant formula so existing points participate.
  *
  * Usage (from repo root, .env with QDRANT_*):
@@ -24,11 +24,11 @@ function computeAttestBoost(successCount, failureCount) {
   return Math.min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX);
 }
 
-async function scrollChainHeads(offset = null) {
+async function scrollAdapterEntryLayers(offset = null) {
   const url = `${QDRANT_URL}/collections/${encodeURIComponent(QDRANT_COLLECTION)}/points/scroll`;
   const body = {
     filter: {
-      must: [{ key: 'chain.step_index', match: { value: 1 } }]
+      must: [{ key: 'adapter.layer_index', match: { value: 1 } }]
     },
     with_payload: true,
     with_vector: true,
@@ -63,11 +63,11 @@ async function main() {
     console.error('Missing QDRANT_URL or QDRANT_API_KEY. Set in .env');
     process.exit(1);
   }
-  console.log('Backfilling attest_boost for chain heads in', QDRANT_COLLECTION);
+  console.log('Backfilling attest_boost for adapter entry layers in', QDRANT_COLLECTION);
   let offset = null;
   let total = 0;
   do {
-    const { points, next } = await scrollChainHeads(offset);
+    const { points, next } = await scrollAdapterEntryLayers(offset);
     if (points.length === 0) break;
     const toUpsert = points.map((p) => {
       const qm = p.payload?.quality_metrics ?? {};
@@ -81,7 +81,7 @@ async function main() {
     console.log('  upserted', toUpsert.length, 'points (total', total, ')');
     offset = next;
   } while (offset != null);
-  console.log('Done. Backfilled attest_boost on', total, 'chain heads.');
+  console.log('Done. Backfilled attest_boost on', total, 'adapter entry layers.');
 }
 
 main().catch((err) => {

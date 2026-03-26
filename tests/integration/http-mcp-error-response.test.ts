@@ -41,7 +41,7 @@ describe('MCP 500 error response shape', () => {
         jsonrpc: '2.0',
         id: id,
         method: 'tools/call',
-        params: { name: 'kairos_search', arguments: { query: 'test' } }
+        params: { name: 'activate', arguments: { query: 'test' } }
       });
 
     const responses = await Promise.all([req(1), req(2), req(3), req(4)]);

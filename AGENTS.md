@@ -5,12 +5,12 @@ codebase facts (paths, tool flow, tech stack) with maintainer workflow rules for
 agents operating in the repository.
 
 KAIROS MCP is a Model Context Protocol server for persistent memory and
-deterministic protocol-chain execution. It stores workflows as linked
-memory chains where each step carries a proof-of-work challenge. You
-execute a protocol by searching for a match, beginning the run, solving
-each challenge via `kairos_next`, and attesting completion. Every hash,
-nonce, and identifier is server-generated; echo them verbatim — never
-compute them.
+deterministic adapter execution. It stores workflows as linked adapters
+whose layers can carry proof-of-work challenges. You
+execute a protocol by calling **`activate`** (semantic match), then
+**`forward`** for each layer’s contract (loop until `next_action` directs you
+to **`reward`**), then **`reward`** to finalize the run. Every hash, nonce,
+and identifier is server-generated; echo them verbatim — never compute them.
 
 ## Architecture
 
@@ -30,14 +30,20 @@ compute them.
 
 ## Protocol execution model
 
-Execute every protocol in this order: **`kairos_search`** → **`kairos_begin`** → **`kairos_next`** (loop until `next_action` directs to attest) → **`kairos_attest`**. Follow each tool's `next_action` and `must_obey` exactly.
+Execute every adapter run in this order: **`activate`** → **`forward`** (loop
+per layer until `next_action` directs you to **`reward`**) → **`reward`**.
+Follow each tool's `next_action` and `must_obey` exactly.
 
-**Authority:** The tool descriptions in `src/embed-docs/tools/` for `kairos_search`, `kairos_begin`, `kairos_next`, and `kairos_attest` contain all execution rules (when to call search, challenge types, nonce and proof_hash echoing, error handling). Read those tool descriptions; they are authoritative.
+**Authority:** The tool descriptions in `src/embed-docs/tools/` for
+**`activate`**, **`forward`**, **`reward`**, plus **`train`**, **`tune`**,
+**`export`**, **`delete`**, and **`spaces`**, contain all execution rules
+(challenge types, nonce and `proof_hash` echoing, error handling). Read those
+files; they are authoritative.
 
 ## MUST ALWAYS (repo context)
 
 - Use Context7 when you need library/API documentation or setup steps.
-- Add a `challenge` JSON block to every verifiable step when minting.
+- Add a `contract` JSON block to every verifiable step when minting.
 - Use space names in tool parameters; the backend resolves to IDs.
 - Deploy to dev before testing: `npm run dev:deploy && npm run dev:test`.
 
@@ -48,12 +54,13 @@ Execute every protocol in this order: **`kairos_search`** → **`kairos_begin`**
 
 ## Minting and editing protocols
 
-When minting (`kairos_mint`) or editing (`kairos_update`) a protocol:
+When minting (**`train`**) or editing (**`tune`**) adapter markdown:
 
-- Use H1 for the protocol chain title.
+- Use H1 for the adapter title.
 - Use H2 for each step label.
 - End every verifiable step with a trailing ` ```json ` block containing
-  `{"challenge": {...}}` (same shape as `kairos_begin`/`kairos_next`).
+  `{"contract": {...}}` (same shape as step contracts consumed by
+  **`forward`**).
 - The opening \`\`\`json must be on its own line (line start). Blocks with
   text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
 - Add a `## Natural Language Triggers` section as the first H2.
@@ -77,6 +84,21 @@ server before treating a change as production-ready.
 
 Validate all code changes in dev before promoting to live. Deploy: `npm run dev:deploy && npm run dev:test`
 
+## Runtime authority split
+
+**CRITICAL:** Agents are connected to a real KAIROS MCP server at runtime.
+Use the version shown at connect, the connected server's tool list, and the
+connected server's tool descriptions as the authority for MCP calls.
+
+When the connected MCP surface differs from this worktree:
+
+- For actual MCP calls, follow the connected server's runtime contract.
+- For code changes in this repo, implement the target behavior described by
+  this branch's source, tests, and embedded docs.
+- If runtime and worktree differ, call out the mismatch before proceeding.
+- Do not use the current branch name as protocol authority. Branch names are a
+  hint only.
+
 ## Context7 usage
 
 Call Context7 MCP tools whenever you need library/API documentation.
@@ -90,3 +112,24 @@ For MCP work, search Context7 for:
 Apply [CONTRIBUTING.md § Agent-facing design
 principles](CONTRIBUTING.md#agent-facing-design-principles) when
 designing or reviewing MCP tools, agent-facing APIs, or tool schemas.
+
+## ESLint: `kairos-forbidden-text` (and related hits)
+
+When `kairos-forbidden-text/no-forbidden-kairos-text` fails in `src/`, `scripts/`, `tests/`, or `src/embed-docs/**/*.md`:
+
+### Must always
+
+- Remove obsolete branches, compatibility shims, and parallel implementations; keep **one** supported code path.
+- **Reword** comments, strings, and identifiers with neutral terms (e.g. older format, transitional, compat, format migration).
+- Preserve explanations that help the next reader; **do not** delete documentation **only** to clear the violation.
+- Re-run lint on touched files before you stop.
+
+### Must never
+
+- Strip whole comments or docstrings **only** to silence the rule.
+- Re-add identifiers enumerated in `eslint/plugins/kairos-forbidden-text.cjs` (disallowed bearer-token env vars and retired MCP tool names).
+- Use other wording or phrases flagged in that plugin (see its in-source list and messages).
+
+### Override
+
+If the user message contains **[OVERRIDE]** anywhere, ignore this section and follow the user’s instructions exactly.

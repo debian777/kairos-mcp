@@ -27,7 +27,7 @@ describe('Adversarial and robustness inputs', () => {
 
   test('rejects oversized JSON body (>1MB)', async () => {
     expect.hasAssertions();
-    const response = await apiFetch(`${API_BASE}/kairos_search`, {
+    const response = await apiFetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: 'x'.repeat(1_150_000) })
@@ -40,7 +40,7 @@ describe('Adversarial and robustness inputs', () => {
 
   test('handles oversized embedding input attempts (>8K chars) safely', async () => {
     expect.hasAssertions();
-    const response = await apiFetch(`${API_BASE}/kairos_search`, {
+    const response = await apiFetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: 'z'.repeat(9_000) })
@@ -52,7 +52,7 @@ describe('Adversarial and robustness inputs', () => {
 
   test('handles prototype pollution keys without crashing', async () => {
     expect.hasAssertions();
-    const response = await apiFetch(`${API_BASE}/kairos_search`, {
+    const response = await apiFetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -69,7 +69,7 @@ describe('Adversarial and robustness inputs', () => {
   test('handles regex DoS style payloads without latency-related crash', async () => {
     expect.hasAssertions();
     const evilRegexPayload = '(a+)+$'.repeat(1500);
-    const response = await apiFetch(`${API_BASE}/kairos_search`, {
+    const response = await apiFetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: evilRegexPayload })
@@ -82,10 +82,10 @@ describe('Adversarial and robustness inputs', () => {
   test('cross-tenant UUID probing does not return protocol content', async () => {
     expect.hasAssertions();
     const probeUuid = '00000000-0000-0000-0000-000000000000';
-    const response = await apiFetch(`${API_BASE}/kairos_dump`, {
+    const response = await apiFetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uri: `kairos://mem/${probeUuid}` })
+      body: JSON.stringify({ uri: `kairos://layer/${probeUuid}`, format: 'markdown' })
     });
 
     expectNoServerCrash(response);
@@ -113,14 +113,14 @@ describe('Adversarial and robustness inputs', () => {
       'Payload includes null-byte \\u0000 and unicode 🧪 𝄞 測試 for parser robustness.',
       '',
       '```json',
-      '{"challenge":{"type":"comment","description":"Edge-case content accepted safely"}}',
+      '{"contract":{"type":"comment","description":"Edge-case content accepted safely"}}',
       '```',
       '',
       '## Completion Rule',
       'Done.'
     ].join('\n');
 
-    const response = await apiFetch(`${API_BASE}/kairos_mint/raw?force=true`, {
+    const response = await apiFetch(`${API_BASE}/train/raw?force=true`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/markdown' },
       body: markdown
@@ -151,7 +151,7 @@ describe('Adversarial and robustness inputs', () => {
   test('handles SQL and NoSQL injection patterns safely', async () => {
     expect.hasAssertions();
     const injectionProbe = `' OR 1=1 -- {"$ne":null} {"$where":"return true"} UNION SELECT * FROM users`;
-    const response = await apiFetch(`${API_BASE}/kairos_search`, {
+    const response = await apiFetch(`${API_BASE}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: injectionProbe })

@@ -11,10 +11,12 @@ name: Integration
 
 on:
   pull_request:
-    branches: [main]
+    # Base branches: include ci/** so PRs into integration lines get the same gate as main/v4.
+    branches: [main, v4, "ci/**"]
   merge_group:
   push:
-    branches: [main]
+    # Integration + Release tag (workflow_run) must run on beta/integration branches or beta never auto-tags.
+    branches: [main, v4, "ci/**"]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -225,6 +227,8 @@ jobs:
           HEALTH_CHECK_ATTEMPTS: 15
           KEYCLOAK_INTERNAL_URL: http://localhost:8080
           QDRANT_SNAPSHOT_DIR: var/snapshots
+          # Default HTTP /api limit (100/min) is exceeded by the full integration suite on one runner IP.
+          HTTP_RATE_LIMIT_MAX: 10000
         run: |
           mkdir -p var/log var/snapshots
           npm run dev:start:installed > var/log/kairos.log 2>&1 &

@@ -1,9 +1,20 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { logger } from '../../utils/structured-logger.js';
 import type { VectorDescriptorMap } from '../../utils/qdrant-vector-types.js';
-import { getVectorDescriptors, createQdrantCollection, getCollectionVectorConfig, addVectorsToCollection, migrateVectorSpace, removeVectorFromCollection, countPointsWithVector, getVectorSize } from '../../utils/qdrant-utils.js';
+import {
+  getVectorDescriptors,
+  createQdrantCollection,
+  getCollectionVectorConfig,
+  addVectorsToCollection,
+  migrateVectorSpace,
+  removeVectorFromCollection,
+  countPointsWithVector,
+  getVectorSize,
+  getPrimaryVectorName
+} from '../../utils/qdrant-utils.js';
 import { embeddingService } from '../embedding/service.js';
 import { tokenizeToSparse } from '../embedding/bm25-tokenizer.js';
+import { backfillActivationSearchVectors } from './activation-search-backfill.js';
 
 const BM25_MIGRATION_BATCH_SIZE = 256;
 const BM25_MIGRATION_TEMP_SUFFIX = '_bm25_mig';
@@ -153,7 +164,7 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
     const exists = names.includes(collection);
     const vectorDescriptors = getVectorDescriptors();
     const currentDim = Object.values(vectorDescriptors)[0]?.size ?? getVectorSize();
-    const currentVectorName = `vs${currentDim}`;
+    const currentVectorName = getPrimaryVectorName(currentDim);
 
     if (!exists) {
       logger.info(
@@ -176,38 +187,66 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
       let existingDim: number | null = null;
 
       if (typeof collectionConfig === 'number') {
-        // Legacy single vector
+        // Older single-vector layout
         existingDim = collectionConfig;
         existingVectorName = `vs${existingDim}`;
-        logger.info(`[MemoryQdrantStore] Detected legacy single vector collection with size ${existingDim}, will migrate to named vector ${existingVectorName}`);
+        logger.info(`[MemoryQdrantStore] Detected older single-vector collection with size ${existingDim}, will migrate to named vector ${existingVectorName}`);
       } else {
         // Named vectors
-        const vectorNames = Object.keys(collectionConfig);
-        if (vectorNames.length === 1) {
+        const namedConfig = collectionConfig as Record<string, { size?: number }>;
+        const vectorNames = Object.keys(namedConfig);
+        const currentPrimaryConfig = namedConfig[currentVectorName];
+        if (currentPrimaryConfig?.size) {
+          existingVectorName = currentVectorName;
+          existingDim = currentPrimaryConfig.size;
+          if (vectorNames.length > 1) {
+            logger.info(`[MemoryQdrantStore] Collection already has named vectors: ${vectorNames.join(', ')}`);
+          }
+        } else if (vectorNames.length > 0) {
+          if (vectorNames.length > 1) {
+            logger.warn(`[MemoryQdrantStore] Collection has named vectors without current primary ${currentVectorName}: ${vectorNames.join(', ')}`);
+          }
           existingVectorName = vectorNames[0]!;
-          existingDim = (collectionConfig as any)[existingVectorName]?.size || null;
-        } else if (vectorNames.length > 1) {
-          logger.warn(`[MemoryQdrantStore] Collection has multiple vectors: ${vectorNames.join(', ')}. Migration may be complex.`);
-          // For now, assume the first one is the active one
-          existingVectorName = vectorNames[0]!;
-          existingDim = (collectionConfig as any)[existingVectorName]?.size || null;
+          existingDim = namedConfig[existingVectorName]?.size || null;
         }
       }
 
-      if (existingDim === currentDim && existingVectorName === currentVectorName) {
+      const missingNamedVectors =
+        typeof collectionConfig === 'number'
+          ? vectorDescriptors
+          : Object.fromEntries(
+              Object.entries(vectorDescriptors).filter(
+                ([vectorName]) => !(vectorName in collectionConfig)
+              )
+            );
+
+      if (
+        typeof collectionConfig !== 'number' &&
+        existingDim === currentDim &&
+        existingVectorName === currentVectorName
+      ) {
         logger.info(
           `[MemoryQdrantStore] Collection "${collection}" already exists with correct vector ${currentVectorName} (size ${currentDim})`
         );
+        if (Object.keys(missingNamedVectors).length > 0) {
+          logger.info(
+            `[MemoryQdrantStore] Adding missing named vectors: ${Object.keys(missingNamedVectors).join(', ')}`
+          );
+          await addVectorsToCollection(client, collection, missingNamedVectors);
+        }
       } else {
-        logger.info(`[MemoryQdrantStore] Dimension change detected: ${existingDim} -> ${currentDim}. Starting migration. existingVector=${existingVectorName} currentVector=${currentVectorName}`);
+        logger.info(`[MemoryQdrantStore] Vector migration required. existingDim=${existingDim} currentDim=${currentDim} existingVector=${existingVectorName} currentVector=${currentVectorName}`);
+        const sourceVectorIsRequired =
+          existingVectorName != null &&
+          Object.prototype.hasOwnProperty.call(vectorDescriptors, existingVectorName);
 
-        // Step 1: If legacy, convert to named vector by adding the named version
+        // Step 1: If the collection uses the older layout, add the named version
         if (typeof collectionConfig === 'number') {
-          // For legacy, we need to add the named vector first
-          logger.info(`[MemoryQdrantStore] Step 1: Adding named vector ${existingVectorName} to legacy collection`);
+          // For the older layout, add the named vector first.
+          logger.info(`[MemoryQdrantStore] Step 1: Adding named vector ${existingVectorName} to collection with the older layout`);
           try {
             await addVectorsToCollection(client, collection, { [existingVectorName!]: { size: existingDim!, distance: 'Cosine', on_disk: true } });
-            logger.info(`[MemoryQdrantStore] Step 1 complete: Added named vector ${existingVectorName} to legacy collection`);
+            logger.info(`[MemoryQdrantStore] Step 1 complete: Added named vector ${existingVectorName} to collection with the older layout`);
           } catch (err) {
             logger.error(`[MemoryQdrantStore] Step 1 failed: could not add named vector ${existingVectorName} to ${collection}: ${String(err)}`);
             throw err;
@@ -238,11 +277,15 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
             logger.info(`[MemoryQdrantStore] Post-migration: points with ${currentVectorName}=${newCount}`);
             // Simple check: if newCount >= oldCount, attempt to remove old vector
             if (newCount >= oldCount) {
-              logger.info(`[MemoryQdrantStore] Precondition satisfied: ${newCount} >= ${oldCount}. Attempting to remove old vector ${existingVectorName}`);
-              try {
-                await removeVectorFromCollection(client, collection, existingVectorName);
-              } catch (remErr) {
-                logger.warn(`[MemoryQdrantStore] removeVectorFromCollection failed: ${String(remErr)}`);
+              if (sourceVectorIsRequired) {
+                logger.info(`[MemoryQdrantStore] Preserving required vector ${existingVectorName}; no removal needed after migration`);
+              } else {
+                logger.info(`[MemoryQdrantStore] Precondition satisfied: ${newCount} >= ${oldCount}. Attempting to remove old vector ${existingVectorName}`);
+                try {
+                  await removeVectorFromCollection(client, collection, existingVectorName);
+                } catch (remErr) {
+                  logger.warn(`[MemoryQdrantStore] removeVectorFromCollection failed: ${String(remErr)}`);
+                }
               }
             } else {
               logger.warn(`[MemoryQdrantStore] Precondition failed: ${newCount} < ${oldCount}. Not removing old vector ${existingVectorName}`);
@@ -254,12 +297,16 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
           }
 
           // Step 4: Attempt to remove old vector (may not be supported)
-          logger.info(`[MemoryQdrantStore] Step 4: Attempting to remove old vector ${existingVectorName} from collection ${collection}`);
-          try {
-            await removeVectorFromCollection(client, collection, existingVectorName);
-            logger.info(`[MemoryQdrantStore] Step 4 complete: Removed old vector ${existingVectorName}`);
-          } catch (err) {
-            logger.warn(`[MemoryQdrantStore] Step 4 warning: ${String(err)}`);
+          if (sourceVectorIsRequired) {
+            logger.info(`[MemoryQdrantStore] Step 4 skipped: preserving required vector ${existingVectorName}`);
+          } else {
+            logger.info(`[MemoryQdrantStore] Step 4: Attempting to remove old vector ${existingVectorName} from collection ${collection}`);
+            try {
+              await removeVectorFromCollection(client, collection, existingVectorName);
+              logger.info(`[MemoryQdrantStore] Step 4 complete: Removed old vector ${existingVectorName}`);
+            } catch (err) {
+              logger.warn(`[MemoryQdrantStore] Step 4 warning: ${String(err)}`);
+            }
           }
         }
         logger.info(`[MemoryQdrantStore] Migration complete for collection "${collection}" - status=SUCCESS`);
@@ -267,6 +314,7 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
 
       // Ensure bm25 sparse vector config (idempotent; required for hybrid search). Uses recreation if updateCollection not supported.
       await ensureBm25SparseConfig(client, collection, currentVectorName, vectorDescriptors);
+      await backfillActivationSearchVectors(client, collection, currentDim);
     }
   } catch (error) {
     logger.error(

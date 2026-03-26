@@ -8,7 +8,7 @@ import * as resources from './resources.js';
 import * as search from './search.js';
 import * as protocol from './protocol.js';
 import * as listing from './listing.js';
-import * as attestPropagation from './attest-propagation.js';
+import * as rewardPropagation from './reward-propagation.js';
 import { UpsertResourceItem, UpsertResourceResult } from './types.js';
 import { logger } from '../../utils/structured-logger.js';
 import { getQdrantUrl, QDRANT_API_KEY, getQdrantCollection } from '../../config.js';
@@ -49,8 +49,8 @@ export class QdrantService {
   }
 
   storeMemory(
-    description_short: string,
-    description_full: string,
+    label: string,
+    text: string,
     domain: string,
     task: string,
     type?: string,
@@ -59,7 +59,7 @@ export class QdrantService {
     protocol?: { step: number; total: number; enforcement: 'sequential' | 'flexible'; skip_allowed: boolean; title?: string; memory_uuid?: string },
     uuid?: string
   ) {
-    return store.storeMemory(this.conn, description_short, description_full, domain, task, type, tags, embedding, protocol, uuid);
+    return store.storeMemory(this.conn, label, text, domain, task, type, tags, embedding, protocol, uuid);
   }
 
   upsertResources(items: UpsertResourceItem[]): Promise<UpsertResourceResult[]> {
@@ -74,11 +74,11 @@ export class QdrantService {
     return retrieval.getMemoryByUUID(this.conn, uuid);
   }
 
-  getChainMemories(chainId: string, extraSpaceIds?: string[]) {
-    return retrieval.getChainMemories(this.conn, chainId, extraSpaceIds);
+  getAdapterLayers(adapterId: string, extraSpaceIds?: string[]) {
+    return retrieval.getAdapterLayers(this.conn, adapterId, extraSpaceIds);
   }
 
-  /** Exact slug lookup: first step UUID of the protocol chain, or null. */
+  /** Exact slug lookup: first layer UUID of the protocol adapter, or null. */
   findFirstStepMemoryUuidBySlug(slug: string) {
     return retrieval.findFirstStepMemoryUuidBySlug(this.conn, slug);
   }
@@ -103,9 +103,9 @@ export class QdrantService {
     return quality.updateQualityMetadata(this.conn, id, qualityMetadata);
   }
 
-  /** Propagate attest metrics from completion step to chain head so search can see them. */
-  propagateAttestToChainHead(stepPointId: string, metricsUpdate: Record<string, unknown>): Promise<string | null> {
-    return attestPropagation.propagateAttestToChainHead(this.conn, stepPointId, metricsUpdate);
+  /** Propagate reward metrics from the completion layer to the adapter head. */
+  propagateRewardToAdapterHead(stepPointId: string, metricsUpdate: Record<string, unknown>): Promise<string | null> {
+    return rewardPropagation.propagateRewardToAdapterHead(this.conn, stepPointId, metricsUpdate);
   }
 
   trackPendingValidation(id: string, modelId: string, protocolStep?: number) {

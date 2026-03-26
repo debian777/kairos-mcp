@@ -1,12 +1,15 @@
 import getRawBody from 'raw-body';
 import express from 'express';
-import { kairosMintSimilarMemoryFound } from '../services/metrics/mcp-metrics.js';
+import { kairosTrainSimilarAdapterFound } from '../services/metrics/mcp-metrics.js';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { executeMint, MintError } from '../tools/kairos_mint.js';
-import { KairosError } from '../types/index.js';
-import { mintInputSchema } from '../tools/kairos_mint_schema.js';
+import { MintError } from '../tools/mint.js';
+import { executeTrain } from '../tools/train.js';
+import { trainInputSchema } from '../tools/train_schema.js';
 import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
+import { buildAdapterUri } from '../tools/kairos-uri.js';
+import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import { KairosError } from '../types/index.js';
 
 const SAFE_MINT_DETAIL_KEYS = new Set([
   'missing',
@@ -16,7 +19,7 @@ const SAFE_MINT_DETAIL_KEYS = new Set([
   'similarity_score',
   'content_preview',
   'slug',
-  'chain_id',
+  'adapter_id',
   'sample_uri',
   'base_slug',
   'message'
@@ -32,12 +35,17 @@ function sanitizeMintDetails(details?: Record<string, unknown>): Record<string, 
   return output;
 }
 
+function creationAdapterUri(): string {
+  const uuid = CREATION_PROTOCOL_URI.split('/').pop() ?? '';
+  return buildAdapterUri(uuid);
+}
+
 /**
  * Set up API route for raw markdown ingestion.
  * Builds MintInput from raw body + query/headers and returns executeMint result only (no metadata).
  */
 export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantStore) {
-  app.post('/api/kairos_mint/raw', async (req, res) => {
+  app.post('/api/train/raw', async (req, res) => {
     try {
       const contentLength = req.headers['content-length'] ? parseInt(req.headers['content-length'], 10) : null;
       const rawBody = await getRawBody(req, {
@@ -61,7 +69,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       const protocol_version = (req.query['protocol_version'] as string) || (req.headers['x-protocol-version'] as string) || undefined;
 
       const bodyInput = { markdown_doc: markdown, llm_model_id, force_update, ...(protocol_version && { protocol_version }) };
-      const parsed = mintInputSchema.safeParse(bodyInput);
+      const parsed = trainInputSchema.safeParse(bodyInput);
       if (!parsed.success) {
         const first = parsed.error.flatten().fieldErrors;
         const msg = Object.keys(first).length
@@ -73,8 +81,8 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         return;
       }
 
-      structuredLogger.info(`→ POST /api/kairos_mint/raw (${markdown.length} bytes, model: ${parsed.data.llm_model_id}, force: ${parsed.data.force_update})`);
-      const result = await executeMint(memoryStore, parsed.data, (fn) => fn());
+      structuredLogger.info(`→ POST /api/train/raw (${markdown.length} bytes, model: ${parsed.data.llm_model_id}, force: ${parsed.data.force_update})`);
+      const result = await executeTrain(memoryStore, parsed.data, (fn) => fn());
       res.status(200).json(result);
     } catch (error) {
       const err = error as { code?: string; details?: Record<string, unknown>; message?: string; status?: number; statusCode?: number; type?: string };
@@ -88,8 +96,9 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       if (error instanceof MintError) {
         res.status(400).json({
           error: error.code,
-          message: error.message,
-          ...sanitizeMintDetails(error.details)
+          message: error.message.replaceAll('Protocol', 'Adapter').replaceAll('protocol', 'adapter'),
+          ...sanitizeMintDetails(error.details),
+          next_action: `call forward with ${creationAdapterUri()} to open the guided adapter creation flow`
         });
         return;
       }
@@ -104,17 +113,17 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
         });
         return;
       }
-      if (err?.code === 'DUPLICATE_CHAIN' || err?.code === 'DUPLICATE_KEY') {
-        structuredLogger.warn(`✗ Duplicate chain: ${err.message}`);
+      if (err?.code === 'DUPLICATE_ADAPTER' || err?.code === 'DUPLICATE_KEY') {
+        structuredLogger.warn(`✗ Duplicate adapter: ${err.message}`);
         res.status(409).json({
-          error: 'DUPLICATE_CHAIN',
-          message: 'Memory chain with this label already exists. Use --force flag to overwrite.',
+          error: 'DUPLICATE_ADAPTER',
+          message: 'Adapter with this label already exists. Use --force flag to overwrite.',
           ...sanitizeMintDetails(err.details)
         });
         return;
       }
       if (err?.code === 'SIMILAR_MEMORY_FOUND') {
-        kairosMintSimilarMemoryFound.inc({ transport: 'http', tenant_id: 'http' });
+        kairosTrainSimilarAdapterFound.inc({ transport: 'http', tenant_id: 'http' });
         structuredLogger.warn(`✗ Similar memory found: ${err.message}`);
         const d = err.details || {};
         res.status(409).json({
@@ -131,7 +140,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       structuredLogger.error('✗ Store failed', error);
       res.status(500).json({
         error: 'STORE_FAILED',
-        message: 'Failed to store markdown'
+        message: 'Failed to store adapter markdown'
       });
     }
   });

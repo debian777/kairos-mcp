@@ -11,11 +11,11 @@ import {
 } from '../../src/tools/shell-challenge-invocation.js';
 
 describe('buildShellChallengeArgv', () => {
-  test('legacy bash -c without args', () => {
+  test('default bash -c without args', () => {
     expect(buildShellChallengeArgv({ cmd: 'echo hi' })).toEqual(['bash', '-c', 'echo hi']);
   });
 
-  test('legacy bash -c with args uses --', () => {
+  test('default bash -c with args uses --', () => {
     expect(buildShellChallengeArgv({ cmd: 'echo "$1"', args: ['a', 'b'] })).toEqual([
       'bash',
       '-c',
@@ -26,7 +26,7 @@ describe('buildShellChallengeArgv', () => {
     ]);
   });
 
-  test('explicit bash same as legacy', () => {
+  test('explicit bash same as default bash -c path', () => {
     expect(buildShellChallengeArgv({ interpreter: 'bash', cmd: 'true' })).toEqual(['bash', '-c', 'true']);
   });
 

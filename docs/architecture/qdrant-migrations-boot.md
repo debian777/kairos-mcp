@@ -88,7 +88,7 @@ The code reads the current vector config via `getCollectionVectorConfig()`.
 It then:
 
 1. **Reconcile vector name and dimension**
-   - If the collection has a single unnamed vector (legacy), it is treated
+   - If the collection has a single unnamed vector (older), it is treated
      as `vs{existingDim}`.
    - If the **current** dimension or vector name differs from what the
      app expects (`vs{currentDim}`), a **dimension migration** runs (see
@@ -111,9 +111,9 @@ dimension and BM25, they no-op.
 ## Dimension migration (dense vector size or name change)
 
 When the existing collection has a different dense vector size or still
-uses the legacy unnamed vector, migration runs in four steps.
+uses the older unnamed vector, migration runs in four steps.
 
-1. **Legacy → named vector (if needed)**  
+1. **Older → named vector (if needed)**  
    If the collection has a single unnamed vector, the code adds a named
    vector with the same size (e.g. `vs1024`) via `addVectorsToCollection`.
    If the server does not support adding vectors, a recreation-based path
@@ -125,7 +125,7 @@ uses the legacy unnamed vector, migration runs in four steps.
 
 3. **Migrate data**  
    `migrateVectorSpace()` scrolls through points that have the old vector,
-   re-embeds text (description_full, label, text, tags) with the current
+   re-embeds text (`text`, `label`, and `tags`) with the current
    embedding service, and upserts points with the new vector name. Batch
    size is 64. Points without embeddable content are skipped.
 

@@ -8,6 +8,7 @@ import { setWwwAuthenticate } from './http-auth-middleware.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
+import { KairosError } from '../types/index.js';
 
 const MAX_CONCURRENT = resolveMaxConcurrentRequests(MAX_CONCURRENT_MCP_REQUESTS_RAW);
 
@@ -34,8 +35,35 @@ setInterval(() => {
 /** Current number of in-flight MCP requests; used for backpressure (503 when over limit). */
 let concurrentMcpRequests = 0;
 
+function sanitizeMcpErrorDetails(details: unknown): Record<string, unknown> {
+  if (!details || typeof details !== 'object') {
+    return {};
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(details)) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
 /** Help text and error_code for clients; never expose internal error details. */
-function mcpErrorToHelp(error: unknown): { message: string; error_code: string; retry_hint: string } {
+function mcpErrorToHelp(
+  error: unknown
+): { message: string; error_code: string; retry_hint: string; details?: Record<string, unknown> } {
+  if (error instanceof KairosError) {
+    const details = sanitizeMcpErrorDetails(error.details);
+    const nextAction = typeof details['next_action'] === 'string' ? details['next_action'] : undefined;
+    return {
+      message: error.message,
+      error_code: typeof error.code === 'string' && error.code.length > 0
+        ? error.code
+        : 'SERVER_ERROR',
+      retry_hint: nextAction ?? 'Adjust the request and retry.',
+      ...(Object.keys(details).length > 0 ? { details } : {})
+    };
+  }
+
   const msg = error instanceof Error ? error.message : String(error);
   // Defensive: should not trigger with per-request servers; kept as safety net.
   if (msg.includes('Already connected to a transport')) {
@@ -267,7 +295,11 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                     error: {
                         code: -32603,
                         message: help.message,
-                        data: { error_code: help.error_code, retry_hint: help.retry_hint }
+                        data: {
+                          error_code: help.error_code,
+                          retry_hint: help.retry_hint,
+                          ...(help.details ?? {})
+                        }
                     },
                     id: requestId === 'unknown' ? null : requestId
                 });

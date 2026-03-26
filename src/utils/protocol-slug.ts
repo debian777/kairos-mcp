@@ -2,7 +2,7 @@
  * Protocol slug: deterministic routing key (exact match in Qdrant), distinct from fuzzy title search.
  */
 
-/** Max length aligned with `normalizeAuthorSlug` and `kairos_begin` key schema. */
+/** Max length aligned with `normalizeAuthorSlug` and protocol key routing. */
 export const MAX_PROTOCOL_SLUG_LENGTH = 200;
 
 /** Strict slug pattern: lowercase, digits, single hyphens between segments. */
@@ -21,7 +21,7 @@ function clampSlugLength(s: string, maxLen: number): string {
 
 /**
  * Derive a slug from an H1-style title: lowercase, alnum + hyphens, no leading/trailing hyphen.
- * Capped at {@link MAX_PROTOCOL_SLUG_LENGTH} so auto slugs stay routable via `kairos_begin(key)`.
+ * Capped at {@link MAX_PROTOCOL_SLUG_LENGTH} so auto slugs stay routable via protocol key lookup.
  */
 export function slugifyFromTitle(h1: string): string {
   const s = (h1 || '')

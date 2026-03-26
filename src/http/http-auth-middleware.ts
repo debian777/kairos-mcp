@@ -4,6 +4,7 @@
  * When AUTH_MODE=oidc_bearer, Bearer tokens are validated (issuer, audience, exp); req.auth is set from session or validated Bearer.
  */
 import type { Request, Response, NextFunction } from 'express';
+import { METHODS } from 'node:http';
 import crypto from 'crypto';
 import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
 import { utf8toString } from '@exodus/bytes/utf8.js';
@@ -26,6 +27,7 @@ export type { AuthPayload };
 
 const SESSION_COOKIE_NAME = 'kairos_session';
 const STATE_TTL_MS = 600_000; // 10 min
+const KNOWN_HTTP_METHODS = new Set<string>(METHODS);
 
 interface StateEntry {
   codeVerifier: string;
@@ -114,6 +116,20 @@ function hasBearer(req: Request): boolean {
   return getBearerToken(req) !== null;
 }
 
+/** Escape RFC 7230 quoted-string content for WWW-Authenticate (backslashes and DQUOTE). */
+function escapeWwwAuthenticateQuotedValue(value: string): string {
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n\x00]/g, ' ');
+}
+
+/** True only when the verb is a real HTTP method and GET (avoids odd client verbs in auth branches). */
+function isRecognizedGetRequest(req: Request): boolean {
+  const method = req.method;
+  return typeof method === 'string' && KNOWN_HTTP_METHODS.has(method) && method === 'GET';
+}
+
 /** Paths that require auth when AUTH_ENABLED: /api, /api/*, /mcp, and /ui (SPA). */
 function isProtectedPath(path: string): boolean {
   return (
@@ -132,7 +148,9 @@ function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_descriptio
   const parts = [`Bearer realm="mcp"`, `resource_metadata="${resourceMetadataUrl}"`, 'scope="openid"'];
   if (opts?.error) {
     parts.unshift(`error="${opts.error}"`);
-    if (opts.error_description) parts.push(`error_description="${opts.error_description.replace(/"/g, '\\"')}"`);
+    if (opts.error_description) {
+      parts.push(`error_description="${escapeWwwAuthenticateQuotedValue(opts.error_description)}"`);
+    }
   }
   return parts.join(', ');
 }
@@ -199,6 +217,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
+  // codeql[js/user-controlled-bypass]: Bearer is an alternate auth path; token is validated or rejected against configured issuer and audience.
   if (hasBearerReq) {
     if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
       structuredLogger.info(
@@ -265,7 +284,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // MCP client must receive 401 + WWW-Authenticate to show "Needs authentication" / Connect.
   // Redirect (302) would prevent discovery; always return 401 for /mcp.
   const isMcp = req.path === '/mcp';
-  if (req.method === 'GET' && !isMcp) {
+  // codeql[js/user-controlled-bypass]: Redirect only when method is GET and listed in node:http METHODS; any other verb gets 401 JSON.
+  if (isRecognizedGetRequest(req) && !isMcp) {
     structuredLogger.info(`[auth] 302 ${req.method} ${req.path} redirect to login`);
     res.redirect(302, loginUrl(state, codeChallenge));
     return;

@@ -23,9 +23,9 @@ export const memoryStoreDuration = new Histogram({
   registers: [register]
 });
 
-export const memoryChainSize = new Histogram({
-  name: 'kairos_memory_chain_size',
-  help: 'Number of steps in stored memory chains',
+export const memoryAdapterSize = new Histogram({
+  name: 'kairos_memory_adapter_size',
+  help: 'Number of layers in stored adapters',
   labelNames: ['tenant_id'],
   buckets: [1, 2, 3, 4, 5, 10, 15, 20, 25, 50],
   registers: [register]

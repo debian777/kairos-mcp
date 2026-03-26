@@ -7,7 +7,7 @@ November 24, 2025
 
 It is the law for every agent that writes code.  
 Every change MUST follow CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST (foundational rule) and then sections 0-10 in exact order.
-Deviation = automatic failure rating on the entire chain.
+Deviation = automatic failure rating on the entire adapter run.
 
 Execute.
 
@@ -27,7 +27,7 @@ Run when user says "AI coding rules" or "coding rules".
 - Avoid ambiguous or implicit requirements
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## CHECK LOCAL DOCUMENTATION FOR BUILD, DEPLOY, AND TEST
@@ -54,7 +54,7 @@ This rule applies to ALL subsequent numbered sections that require Build, Deploy
 Proof of work: rg -n "Build|Deploy|Test" README.md
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## ESTABLISH BASELINE
@@ -79,7 +79,7 @@ Proof of work: stat `reports/tests/baseline-<timestamp>.log`
 If baseline has any failures ← STOP and escalate to human. Do not proceed.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## CREATE ISOLATED BRANCH
@@ -102,7 +102,7 @@ No work ever happens on main or any shared branch.
 Proof of work: git rev-parse --abbrev-ref HEAD | grep -v main
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## WRITE A 3': BULLET PLAN
@@ -113,7 +113,7 @@ Post the plan. Wait for acknowledgment if scope is unclear.
 Proof of work: post the exact 3' bullet plan in the log before coding.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## REPRODUCE OR SPECIFY TARGET BEHAVIOR
@@ -126,7 +126,7 @@ No implementation before the test exists or failure is proven.
 Proof of work: capture failing test output or repro steps in `reports/tests/repro-<timestamp>.log`.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## MINIMAL IMPLEMENTATION
@@ -137,7 +137,7 @@ Touch only planned files. Keep existing style. No unrelated cleanups.
 Proof of work: run `git diff --stat` to prove the surface stayed minimal.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## RUN FULL TEST SUITE
@@ -161,7 +161,7 @@ If any test fails → return to REPRODUCE OR SPECIFY TARGET BEHAVIOR or MINIMAL 
 Proof of work: `tail -n 20 reports/tests/test-<timestamp>.log` showing all suites/tests passed.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## HYGIENE
@@ -171,7 +171,7 @@ Run linters/formatters. Remove debug prints. Scan for secrets. No dead code.
 Proof of work: `npm run lint -- --max-warnings=0` and archive the final summary.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## SINGLE FOCUSED COMMIT (EVIDENCE)
@@ -203,10 +203,10 @@ Optional body explaining what and why (not how).
 - **Summary** (required): imperative mood, lowercase, no period, max 72 chars
 - **Body** (optional): explain what and why, wrap at 72 chars
 - **Examples:**
-  - `feat(memory): add chain reconstruction from fragments`
+  - `feat(memory): add adapter reconstruction from fragments`
   - `fix(mcp-handler): resolve race condition in concurrent updates`
   - `docs(coding-rules): update git branch naming conventions`
-  - `test(tools): add integration tests for kairos_mint`
+  - `test(tools): add integration tests for train`
 
 **Proof of work logging:**
 
@@ -229,7 +229,7 @@ No commit is valid without a corresponding green test log in temporary files.
 Proof of work: `git show --stat HEAD` linked to the matching test log.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## FINAL VERIFICATION (VALIDATION)
@@ -262,7 +262,7 @@ If any item fails → return to the numbered section that failed.
 Proof of work: record the commit hash + test log path inside the implementation log.
 
 ```json
-{"challenge": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
+{"contract": {"type": "comment", "comment": {"min_length": 1}, "required": true}}
 ```
 
 ## HANDOFF

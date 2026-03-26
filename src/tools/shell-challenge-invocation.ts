@@ -83,7 +83,7 @@ function hasScriptCarrierE(flags: string[] | undefined): boolean {
 }
 
 /**
- * argv for the challenge. Legacy: no interpreter or bash → bash -c cmd [-- args].
+ * argv for the challenge. Default path: no interpreter or bash → bash -c cmd [-- args].
  */
 export function buildShellChallengeArgv(shell: ShellChallengeFields): string[] {
   const cmd = shell.cmd ?? '';

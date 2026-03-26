@@ -1,7 +1,7 @@
 export interface UpsertResourceItem {
   uuid?: string | undefined;
-  description_short: string;
-  description_full: string;
+  label: string;
+  text: string;
   domain: string;
   task: string;
   type?: 'context' | 'rule' | 'snippet' | 'pattern';

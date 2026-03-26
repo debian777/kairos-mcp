@@ -25,7 +25,7 @@ Run when user says "${title}".
 Basic setup.
 
 \`\`\`json
-{"challenge":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
 ## Completion Rule
@@ -53,7 +53,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'a-first.md'), minimalProtocolMd(`CLI Batch A ${ts}`), 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -85,7 +85,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'nested', 'deep.md'), minimalProtocolMd(`CLI Rec Deep ${ts}`), 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force --recursive "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force --recursive "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -117,7 +117,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'nested', 'README.md'), '# Nested readme\n', 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force --recursive "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force --recursive "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -146,7 +146,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'README.md'), '# Human docs\n', 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -171,7 +171,7 @@ describe('CLI mint directory batch', () => {
       writeFileSync(join(dir, 'nested', 'skip.md'), minimalProtocolMd(`CLI Flat Skip ${ts}`), 'utf-8');
 
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} mint --url ${BASE_URL} --force "${dir}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${dir}"`,
         { timeout: 120000 }
       );
 
@@ -191,7 +191,7 @@ describe('CLI mint directory batch', () => {
     const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-empty-'));
     try {
       try {
-        await execAsync(`node ${CLI_PATH} mint --url ${BASE_URL} "${dir}"`, { timeout: 30000 });
+        await execAsync(`node ${CLI_PATH} train --url ${BASE_URL} "${dir}"`, { timeout: 30000 });
         expect(true).toBe(false);
       } catch (e: unknown) {
         const err = e as { code?: number; stderr?: string };

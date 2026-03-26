@@ -2,16 +2,16 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SolutionForm } from "@/components/run/SolutionForm";
-import type { Challenge } from "@/lib/kairosRunTypes";
+import type { RunContract } from "@/lib/runToolTypes";
 
 describe("SolutionForm", () => {
   it("renders shell challenge fields and submits with exit_code, stdout, stderr", async () => {
     const onSubmit = vi.fn();
-    const challenge: Challenge = {
+    const contract: RunContract = {
       type: "shell",
       shell: { cmd: "npm test" },
     };
-    render(<SolutionForm challenge={challenge} onSubmit={onSubmit} />);
+    render(<SolutionForm contract={contract} onSubmit={onSubmit} />);
     expect(screen.getByLabelText("run.shell.exitCode")).toBeInTheDocument();
     expect(screen.getByLabelText("run.shell.stdout")).toBeInTheDocument();
     expect(screen.getByLabelText("run.shell.stderr")).toBeInTheDocument();
@@ -30,12 +30,12 @@ describe("SolutionForm", () => {
 
   it("renders mcp challenge fields and submits with result", async () => {
     const onSubmit = vi.fn();
-    const challenge: Challenge = {
+    const contract: RunContract = {
       type: "mcp",
-      mcp: { tool_name: "kairos_search" },
+      mcp: { tool_name: "activate" },
     };
-    render(<SolutionForm challenge={challenge} onSubmit={onSubmit} />);
-    expect(screen.getByText("kairos_search")).toBeInTheDocument();
+    render(<SolutionForm contract={contract} onSubmit={onSubmit} />);
+    expect(screen.getByText("activate")).toBeInTheDocument();
     const resultArea = screen.getByLabelText("run.mcp.result");
     fireEvent.change(resultArea, { target: { value: '{"ok": true}' } });
     fireEvent.submit(screen.getByRole("form", { name: "run.solutionFormLabel" }));
@@ -43,7 +43,7 @@ describe("SolutionForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       type: "mcp",
       mcp: {
-        tool_name: "kairos_search",
+        tool_name: "activate",
         result: { ok: true },
         success: true,
       },
@@ -52,11 +52,11 @@ describe("SolutionForm", () => {
 
   it("renders user_input challenge fields and submits confirmation", async () => {
     const onSubmit = vi.fn();
-    const challenge: Challenge = {
+    const contract: RunContract = {
       type: "user_input",
       user_input: { prompt: "Proceed?" },
     };
-    render(<SolutionForm challenge={challenge} onSubmit={onSubmit} />);
+    render(<SolutionForm contract={contract} onSubmit={onSubmit} />);
     expect(screen.getByText("Proceed?")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("run.userInput.confirmation"), "Yes");
     fireEvent.submit(screen.getByRole("form", { name: "run.solutionFormLabel" }));
@@ -71,11 +71,11 @@ describe("SolutionForm", () => {
 
   it("renders comment challenge and submit disabled until min length", async () => {
     const onSubmit = vi.fn();
-    const challenge: Challenge = {
+    const contract: RunContract = {
       type: "comment",
       comment: { min_length: 10 },
     };
-    render(<SolutionForm challenge={challenge} onSubmit={onSubmit} />);
+    render(<SolutionForm contract={contract} onSubmit={onSubmit} />);
     expect(screen.getByLabelText("run.comment.text")).toBeInTheDocument();
     const submitBtn = screen.getByRole("button", { name: "run.submitStep" });
     expect(submitBtn).toBeDisabled();
@@ -95,8 +95,8 @@ describe("SolutionForm", () => {
   });
 
   it("submit button is disabled when disabled prop is true", () => {
-    const challenge: Challenge = { type: "comment", comment: { min_length: 2 } };
-    render(<SolutionForm challenge={challenge} onSubmit={vi.fn()} disabled />);
+    const contract: RunContract = { type: "comment", comment: { min_length: 2 } };
+    render(<SolutionForm contract={contract} onSubmit={vi.fn()} disabled />);
     const textarea = screen.getByLabelText("run.comment.text");
     fireEvent.change(textarea, { target: { value: "ab" } });
     expect(screen.getByRole("button", { name: "run.submitStep" })).toBeDisabled();

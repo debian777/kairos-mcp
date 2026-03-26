@@ -15,21 +15,21 @@ guessing.
 
 ## Challenge-type-specific recovery
 
-When `kairos_next` returns `MISSING_PROOF` (previous step not proven),
+When `forward` returns `MISSING_PROOF` (previous step not proven),
 tailor the response to the **previous step's challenge type**:
 
 | Type | Risk | What to put in message / next_action |
 |------|------|--------------------------------------|
-| **user_input** | Agent infers or invents confirmation instead of asking the user. | Tell the agent: you must obtain the user's actual reply. Include the exact prompt: "Ask the user: «prompt»". Then: "Call kairos_next with `solution.user_input.confirmation` set to their reply. Do not infer or invent." Embed the retry URI in `next_action`. |
+| **user_input** | Agent infers or invents confirmation instead of asking the user. | Tell the agent: you must obtain the user's actual reply. Include the exact prompt: "Ask the user: «prompt»". Then: "Call forward with `solution.user_input.confirmation` set to their reply. Do not infer or invent." Embed the retry URI in `next_action`. |
 | **shell** | Agent fabricates `exit_code`/`stdout`. | "Execute «cmd» and report the result before continuing." Keep embedding the command. |
-| **mcp** | Agent invents tool result. | "Call the MCP tool «tool_name» and report its real result, then call kairos_next with `solution.mcp` (success and result). Do not fabricate." |
-| **comment** | Agent pastes unrelated text or writes too little. | "Write a genuine summary of what was done (min N characters) and call kairos_next with `solution.comment.text`. Do not paste unrelated text." |
+| **mcp** | Agent invents tool result. | "Call the MCP tool «tool_name» and report its real result, then call forward with `solution.mcp` (success and result). Do not fabricate." |
+| **comment** | Agent pastes unrelated text or writes too little. | "Write a genuine summary of what was done (min N characters) and call forward with `solution.comment.text`. Do not paste unrelated text." |
 
 ## Implementation notes
 
-- **Where:** In `kairos_next`, when building the `MISSING_PROOF` response
+- **Where:** In `forward`, when building the `MISSING_PROOF` response
   (for example, in `ensurePreviousProofCompleted` or its caller), use the
-  **previous** step's `proof_of_work.type` and type-specific fields (for
+  **previous** step's `contract.type` and type-specific fields (for
   example, `user_input.prompt`) to build the `message` and an optional
   override for `next_action`.
 - **Stability:** Keep `error_code` as `MISSING_PROOF` for monitoring. Add
@@ -52,5 +52,5 @@ When adding a new proof type:
 
 - [CONTRIBUTING.md — Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles)
   (errors teach; `next_action` in errors)
-- [kairos_next workflow](workflow-kairos-next.md) — error codes and
+- [forward workflow](workflow-forward-continue.md) — error codes and
   recovery paths

@@ -20,7 +20,7 @@ flowchart LR
   subgraph in["Inputs"]
     A([New standard])
     B([Team policy])
-    C([Legacy modules])
+    C([Older modules])
   end
   subgraph kairos["KAIROS workflow"]
     D[Run procedure]

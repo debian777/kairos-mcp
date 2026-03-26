@@ -17,7 +17,7 @@ describe('Kairos Mint AI_CODING_RULES.md Import', () => {
   });
 
   function expectValidJsonResult(result) {
-    return parseMcpJson(result, '[kairos_mint AI_CODING_RULES] raw MCP result');
+    return parseMcpJson(result, '[train AI_CODING_RULES] raw MCP result');
   }
 
   test('import: AI_CODING_RULES.md', async () => {
@@ -25,7 +25,7 @@ describe('Kairos Mint AI_CODING_RULES.md Import', () => {
     const content = readFileSync(filePath, 'utf-8');
 
     const result = await mcpConnection.client.callTool({
-      name: 'kairos_mint',
+      name: 'train',
       arguments: {
         markdown_doc: content,
         llm_model_id: 'minimax/minimax-m2:free',

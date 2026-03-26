@@ -93,15 +93,14 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
             service: 'KAIROS API',
             version: getBuildVersion(),
             endpoints: {
-                kairos_search: 'POST /api/kairos_search',
-                kairos_begin: 'POST /api/kairos_begin',
-                kairos_next: 'POST /api/kairos_next',
-                kairos_attest: 'POST /api/kairos_attest',
-                kairos_mint: 'POST /api/kairos_mint/raw',
-                kairos_update: 'POST /api/kairos_update',
-                kairos_delete: 'POST /api/kairos_delete',
-                kairos_dump: 'POST /api/kairos_dump',
-                kairos_spaces: 'POST /api/kairos_spaces'
+                activate: 'POST /api/activate',
+                forward: 'POST /api/forward',
+                reward: 'POST /api/reward',
+                train: 'POST /api/train/raw',
+                tune: 'POST /api/tune',
+                delete: 'POST /api/delete',
+                export: 'POST /api/export',
+                spaces: 'POST /api/spaces'
             }
         };
         if (AUTH_ENABLED) {
