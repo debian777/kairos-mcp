@@ -13,6 +13,7 @@
 import pino from 'pino';
 import type { Request, Response } from 'express';
 import { createWriteStream, type WriteStream } from 'node:fs';
+import { buildAuditLine } from './audit-log-events.js';
 import { getBaseLogger } from './log-core.js';
 import { AUDIT_LOG_FILE, LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE } from '../config.js';
 
@@ -109,24 +110,11 @@ function sanitizeBindingsForAudit(bindings: Record<string, unknown>): SafeAuditR
   return (safe !== null && typeof safe === 'object' && !Array.isArray(safe)) ? safe as SafeAuditRecord : {};
 }
 
-/** Build audit line only from sanitized message and bindings + server-controlled fields (for CodeQL: no raw untrusted input). */
-function buildAuditLine(
-  level: 'info' | 'warn' | 'error',
-  safeMsg: string,
-  safeBindings: SafeAuditRecord
-): string {
-  const time = new Date().toISOString();
-  return `${JSON.stringify({ time, level, msg: safeMsg, ...safeBindings })}\n`;
-}
-
-function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', message: string, bindings: SafeAuditRecord): void {
+function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', bindings: SafeAuditRecord): void {
   if (!auditLogStream) return;
-  const category = typeof bindings['category'] === 'string' ? bindings['category'] : '';
-  if (!category.startsWith('audit.')) return;
   try {
-    const safeMsg = sanitizeLogMessage(message);
-    const line = buildAuditLine(level, safeMsg, bindings);
-    if (Buffer.byteLength(line, 'utf8') <= MAX_AUDIT_LINE_BYTES) auditLogStream.write(line);
+    const line = buildAuditLine(level, bindings);
+    if (line && Buffer.byteLength(line, 'utf8') <= MAX_AUDIT_LINE_BYTES) auditLogStream.write(line);
   } catch {
     // Never fail request path because audit side-stream write fails.
   }
@@ -148,7 +136,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
   });
   baseLogger.info(
     startBindings as Record<string, unknown>,
-    sanitizeLogMessage(`${req.method} ${req.url}`)
+    sanitizeLogMessage(`${req.method} ${req.url}`).replace(/\n|\r/g, ' ')
   );
 
   res.on('finish', () => {
@@ -167,7 +155,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
     });
     (baseLogger as pino.Logger)[methodName](
       finishBindings as Record<string, unknown>,
-      sanitizeLogMessage(`${req.method} ${req.url} -> ${statusCode}`)
+      sanitizeLogMessage(`${req.method} ${req.url} -> ${statusCode}`).replace(/\n|\r/g, ' ')
     );
   });
 
@@ -204,15 +192,15 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
 
   return {
     debug(message: string): void {
-      pinoInstance.debug(message);
+      pinoInstance.debug(sanitizeLogMessage(message).replace(/\n|\r/g, ' '));
     },
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'info' });
-        const safeMsg = sanitizeLogMessage(msgOrBindings);
+        const safeMsg = sanitizeLogMessage(msgOrBindings).replace(/\n|\r/g, ' ');
         pinoInstance.info(bindings, safeMsg);
-        maybeWriteAuditLine('info', safeMsg, bindings);
+        maybeWriteAuditLine('info', bindings);
       } else {
         const existingCategory = typeof msgOrBindings['category'] === 'string'
           ? msgOrBindings['category']
@@ -221,18 +209,18 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           ? { ...msgOrBindings }
           : { ...msgOrBindings, category: 'info' };
         const bindings = sanitizeBindingsForAudit(rawBindings);
-        const finalMessage = sanitizeLogMessage(message ?? '');
+        const finalMessage = sanitizeLogMessage(message ?? '').replace(/\n|\r/g, ' ');
         pinoInstance.info(bindings, finalMessage);
-        maybeWriteAuditLine('info', finalMessage, bindings);
+        maybeWriteAuditLine('info', bindings);
       }
     },
 
     warn(msgOrBindings: string | Record<string, unknown>, message?: string): void {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'warning' });
-        const safeMsg = sanitizeLogMessage(msgOrBindings);
+        const safeMsg = sanitizeLogMessage(msgOrBindings).replace(/\n|\r/g, ' ');
         pinoInstance.warn(bindings, safeMsg);
-        maybeWriteAuditLine('warn', safeMsg, bindings);
+        maybeWriteAuditLine('warn', bindings);
         return;
       }
       const existingCategory = typeof msgOrBindings['category'] === 'string'
@@ -242,9 +230,9 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
         ? { ...msgOrBindings }
         : { ...msgOrBindings, category: 'warning' };
       const bindings = sanitizeBindingsForAudit(rawBindings);
-      const finalMessage = sanitizeLogMessage(message ?? '');
+      const finalMessage = sanitizeLogMessage(message ?? '').replace(/\n|\r/g, ' ');
       pinoInstance.warn(bindings, finalMessage);
-      maybeWriteAuditLine('warn', finalMessage, bindings);
+      maybeWriteAuditLine('warn', bindings);
     },
 
     error(message: string, error?: Error | unknown, options?: ErrorLogOptions): void {
@@ -262,35 +250,39 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           : error;
       }
       const bindings = sanitizeBindingsForAudit(rawBindings);
-      const safeMessage = sanitizeLogMessage(message);
+      const safeMessage = sanitizeLogMessage(message).replace(/\n|\r/g, ' ');
       pinoInstance.error(bindings, safeMessage);
-      maybeWriteAuditLine('error', safeMessage, bindings);
+      maybeWriteAuditLine('error', bindings);
     },
 
     tool(toolName: string, operation: ToolOperation, details: string): void {
-      const msg = `[${toolName}] ${operation.toUpperCase()} ${details}`;
-      pinoInstance.info({
+      const msg = sanitizeLogMessage(`[${toolName}] ${operation.toUpperCase()} ${details}`).replace(/\n|\r/g, ' ');
+      const bindings = sanitizeBindingsForAudit({
         tool: toolName,
         operation: operation.toUpperCase(),
         details,
         category: 'tool_operation'
-      }, msg);
+      });
+      pinoInstance.info(bindings, msg);
     },
 
     success(operation: string, details: string): void {
+      const bindings = sanitizeBindingsForAudit({ operation, details, category: 'success' });
+      const msg = sanitizeLogMessage(`[${operation}] ${details}`).replace(/\n|\r/g, ' ');
       pinoInstance.info(
-        { operation, details, category: 'success' },
-        `[${operation}] ${details}`
+        bindings,
+        msg
       );
     },
 
     requestTimeout(operation: string, timeoutMs: number): void {
-      pinoInstance.error({
+      const bindings = sanitizeBindingsForAudit({
         operation,
         timeoutMs,
         category: 'timeout',
         note: 'Client did not receive response'
-      }, 'Request timeout');
+      });
+      pinoInstance.error(bindings, 'Request timeout');
     },
 
     getTransportType(): 'stdio' | 'http' {

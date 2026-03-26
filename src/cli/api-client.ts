@@ -31,14 +31,15 @@ export class ApiClient {
     private async request<T>(
         endpoint: string,
         options: RequestInit = {},
-        isRetryAfterLogin = false
+        isRetryAfterLogin = false,
+        preLoginIfTokenMissing = true
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
         let bearer = (await readConfig(this.baseUrl)).bearerToken;
-        if (!bearer && this.openInBrowser && !isRetryAfterLogin) {
+        if (!bearer && preLoginIfTokenMissing && this.openInBrowser && !isRetryAfterLogin) {
             const ok = await loginWithBrowser(this.baseUrl);
             if (ok) return this.request(endpoint, options, true);
         }
@@ -112,14 +113,9 @@ export class ApiClient {
         options?: { llmModelId?: string; force?: boolean },
         isRetryAfterLogin = false
     ): Promise<TrainOutput> {
-        const url = `${this.baseUrl}/api/train/raw`;
         const headers: Record<string, string> = {
             'Content-Type': 'text/markdown',
         };
-        const bearer = (await readConfig(this.baseUrl)).bearerToken;
-        if (bearer) {
-            headers['Authorization'] = `Bearer ${bearer}`;
-        }
 
         if (options?.llmModelId) {
             headers['x-llm-model-id'] = options.llmModelId;
@@ -129,35 +125,11 @@ export class ApiClient {
             headers['x-force-update'] = 'true';
         }
 
-        const response = await fetch(url, {
+        return this.request<TrainOutput>('/api/train/raw', {
             method: 'POST',
             headers,
             body: markdown,
-        });
-
-        const data = await response.json().catch(() => {
-            throw new Error(`Failed to parse response from ${url}`);
-        }) as TrainOutput & { message?: string; error?: string; login_url?: string };
-
-        if (!response.ok) {
-            const msg = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
-            if (response.status === 401) {
-                if (this.openInBrowser && !isRetryAfterLogin) {
-                    const ok = await loginWithBrowser(this.baseUrl);
-                    if (ok) return this.train(markdown, options, true);
-                }
-                if (data.login_url) {
-                    throw new AuthRequiredError(
-                        `${msg}\n\nLog in at:\n${data.login_url}`,
-                        data.login_url
-                    );
-                }
-                throw new Error(msg);
-            }
-            throw new Error(msg);
-        }
-
-        return data as TrainOutput;
+        }, isRetryAfterLogin, false);
     }
 
     async tune(uris: string[], markdownDoc?: SafeMarkdownUpload[], updates?: Record<string, unknown>): Promise<TuneOutput> {

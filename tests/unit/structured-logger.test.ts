@@ -84,15 +84,21 @@ describe('sanitizeBindingsForAudit', () => {
 });
 
 describe('buildAuditLine', () => {
-  test('serializes only safe audit bindings', () => {
-    const line = buildAuditLine('info', 'safe message', {
-      category: 'audit.test',
-      details: { nested: 'x y' }
+  test('serializes only coarse allowlisted audit events', () => {
+    const line = buildAuditLine('info', {
+      category: 'audit.embedding',
+      stage: 'provider',
+      status: 'error',
+      tenant_id: 'tenant-1',
+      request_id: 'req-1',
+      error_message: 'upstream failed'
     });
-    expect(line).toContain('"msg":"safe message"');
-    expect(line).toContain('"category":"audit.test"');
-    expect(line).toContain('"nested":"x y"');
-    expect(line.endsWith('\n')).toBe(true);
+    expect(line).toContain('"category":"audit.embedding"');
+    expect(line).toContain('"event":"embedding_provider_error"');
+    expect(line).not.toContain('tenant-1');
+    expect(line).not.toContain('req-1');
+    expect(line).not.toContain('upstream failed');
+    expect(line?.endsWith('\n')).toBe(true);
   });
 });
 
