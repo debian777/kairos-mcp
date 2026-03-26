@@ -29,7 +29,7 @@ const HELMET_CSP = {
   }
 } as const;
 
-function createRateLimiter(options: {
+export function createRateLimiter(options: {
     identifier: string;
     windowMs: number;
     limit: number;
