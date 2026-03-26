@@ -9,6 +9,7 @@ const DMAX = 14;
 const SMAX = 16_384;
 const AMAX = 250;
 const KMAX = 100;
+const MAX_REPORT_BYTES = 4 * 1024 * 1024;
 
 export function snapshotForIntegrationReport(value, depth = 0, seen = new WeakSet()) {
   if (depth > DMAX) return '[max depth]';
@@ -49,15 +50,25 @@ export function integrationReportSection(title, request, response) {
   return `### ${title}\n\n**Request:**\n\n\`\`\`json\n${JSON.stringify(safeRequest, null, 2)}\n\`\`\`\n\n**Response:**\n\n\`\`\`json\n${JSON.stringify(safeResponse, null, 2)}\n\`\`\`\n\n`;
 }
 
-function ensurePathInsideReportsDir(filePath, reportsDir) {
+function resolveSafeReportPath(filePath, reportsDir) {
   const resolvedFile = path.resolve(filePath);
   const resolvedRoot = path.resolve(reportsDir);
   const rel = path.relative(resolvedRoot, resolvedFile);
   if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error('Report path must stay under reports/');
+  return resolvedFile;
+}
+
+function boundedReportBuffer(utf8Content) {
+  const buf = Buffer.from(utf8Content, 'utf8');
+  if (buf.length <= MAX_REPORT_BYTES) return buf;
+  return Buffer.concat([
+    buf.subarray(0, MAX_REPORT_BYTES),
+    Buffer.from('\n\n…[report truncated]\n', 'utf8')
+  ]);
 }
 
 export function writeIntegrationReportFile(reportPath, utf8Content, reportsDir) {
-  ensurePathInsideReportsDir(reportPath, reportsDir);
-  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, utf8Content, 'utf8');
+  const safePath = resolveSafeReportPath(reportPath, reportsDir);
+  fs.mkdirSync(path.dirname(safePath), { recursive: true });
+  fs.writeFileSync(safePath, boundedReportBuffer(utf8Content));
 }
