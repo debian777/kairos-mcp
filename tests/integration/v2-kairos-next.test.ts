@@ -110,6 +110,60 @@ describe('v10-forward continuation response schema', () => {
     }
   });
 
+  test('continue: current layer contract proof_hash is accepted on the next forward call', async () => {
+    const ts = Date.now();
+    const items = await trainThreeStepProtocol(`V2Next Contract ProofHash ${ts}`);
+    const thirdLayerId = layerIdFromUri(items[2].uri);
+
+    const openResult = await mcpConnection.client.callTool({
+      name: 'forward',
+      arguments: { uri: items[0].adapter_uri }
+    });
+    const openPayload = parseMcpJson(openResult, 'v10-forward contract-proof-hash open');
+    const firstProofHash = openPayload.contract?.proof_hash || openPayload.contract?.genesis_hash;
+
+    expect(typeof firstProofHash).toBe('string');
+
+    const step2Result = await mcpConnection.client.callTool({
+      name: 'forward',
+      arguments: {
+        uri: openPayload.current_layer.uri,
+        solution: {
+          type: 'shell',
+          nonce: openPayload.contract?.nonce,
+          proof_hash: firstProofHash,
+          shell: { exit_code: 0, stdout: 'step1', stderr: '', duration_seconds: 0.1 }
+        }
+      }
+    });
+    const step2Payload = parseMcpJson(step2Result, 'v10-forward contract-proof-hash step2');
+    const step2ContractProofHash = step2Payload.contract?.proof_hash;
+
+    withRawOnFail({ step2Result, step2Payload }, () => {
+      expect(step2Payload.proof_hash).toBeDefined();
+      expect(step2ContractProofHash).toBe(step2Payload.proof_hash);
+    });
+
+    const step3Result = await mcpConnection.client.callTool({
+      name: 'forward',
+      arguments: {
+        uri: step2Payload.current_layer.uri,
+        solution: {
+          type: 'shell',
+          nonce: step2Payload.contract?.nonce,
+          proof_hash: step2ContractProofHash,
+          shell: { exit_code: 0, stdout: 'step2', stderr: '', duration_seconds: 0.1 }
+        }
+      }
+    });
+    const step3Payload = parseMcpJson(step3Result, 'v10-forward contract-proof-hash step3');
+
+    withRawOnFail({ step3Result, step3Payload }, () => {
+      expect(step3Payload.error_code).toBeUndefined();
+      expect(layerIdFromUri(step3Payload.current_layer.uri)).toBe(thirdLayerId);
+    });
+  });
+
   test('completed (last step): next_action directs to reward', async () => {
     const ts = Date.now();
     const items = await trainThreeStepProtocol(`V2Next Completed ${ts}`);

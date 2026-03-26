@@ -98,11 +98,15 @@ export async function loadMemoryForParsedUri(
 
 async function buildContractResponse(
   memory: Memory,
-  executionId: string
+  executionId: string,
+  proofHash?: string
 ): Promise<{ contract: ForwardOutput['contract']; tensorIn?: Record<string, unknown> }> {
   const storedContract = normalizeContract(memory);
   if (!storedContract) {
     const fallback = await buildChallenge(memory, undefined);
+    if (proofHash) {
+      fallback.proof_hash = proofHash;
+    }
     return { contract: fallback };
   }
 
@@ -123,6 +127,9 @@ async function buildContractResponse(
   }
 
   const challenge = await buildChallenge(memory, storedContract);
+  if (proofHash) {
+    challenge.proof_hash = proofHash;
+  }
   return { contract: challenge };
 }
 
@@ -154,7 +161,7 @@ export async function buildForwardView(
     ? { contract: options.contractOverride, tensorIn: options.tensorInOverride }
     : options?.final
       ? { contract: finalContract(), tensorIn: undefined }
-      : await buildContractResponse(memory, executionId);
+      : await buildContractResponse(memory, executionId, options?.proofHash);
   const layer = currentLayer(memory, executionId);
   const final = options?.final === true;
 
