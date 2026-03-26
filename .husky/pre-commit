@@ -46,7 +46,7 @@ fi
 # Validate skills (Agent Skills spec) when any file under skills/ is staged.
 # Requires skills-ref: pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
 if echo "$staged" | grep -q '^skills/'; then
-  npm run lint:skills || exit 1
+  npm run lint:skills >&2 || exit 1
 fi
 #npm run build || exit 1
 # Git: lint-related paths differ from HEAD (staged and/or unstaged). Informational only — does not block commit.
@@ -70,6 +70,6 @@ if [ -n "$lint_git_paths" ]; then
   echo >&2 "  Pre-commit still allows this commit; humans must verify the diff."
   echo >&2 ""
 fi
-drop_staged_missing_blobs
-npm run lint || exit 1
-drop_staged_missing_blobs
+# drop_staged_missing_blobs
+npm run lint >&2 || exit 1
+# drop_staged_missing_blobs
