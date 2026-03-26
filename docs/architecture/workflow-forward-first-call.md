@@ -1,7 +1,8 @@
 # Forward: first call (adapter URI)
 
 > **There is no separate “begin” tool.** To load the first layer of an adapter
-> run, call **`forward`** once with a **`kairos://adapter/{uuid}`** from
+> run, call **`forward`** once with a **`kairos://adapter/{uuid}`** or
+> **`kairos://adapter/{slug}`** from
 > **`activate`** and **omit** `solution`. See
 > [`forward.md`](../../src/embed-docs/tools/forward.md).
 
@@ -49,6 +50,10 @@ when the contract requires them.
 
 No `solution` field on this call.
 
+You can also start with a stored slug URI such as
+`kairos://adapter/create-merge-request`. The server resolves it to the chain
+head before returning the current layer.
+
 ## AI behavior
 
 1. `must_obey: true` → follow **`next_action`**.
@@ -73,7 +78,8 @@ store logic; always prefer the **adapter** URI from **`activate`**.
 
 ## Validation rules
 
-1. First call uses **`kairos://adapter/{uuid}`** only; omit **`solution`**.
+1. First call uses **`kairos://adapter/{uuid}`** or
+   **`kairos://adapter/{slug}`**; omit **`solution`**.
 2. **`contract`** is always present; **`current_layer`** may be null in edge
    cases—obey **`next_action`** regardless.
 3. **`next_action`** is authoritative for the next tool invocation.

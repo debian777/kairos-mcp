@@ -24,7 +24,7 @@ import {
 } from './next-previous-step.js';
 import { updateStepQuality } from './next.js';
 import { forwardInputSchema, forwardOutputSchema, type ForwardInput, type ForwardOutput } from './forward_schema.js';
-import { buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
+import { buildAdapterUri, buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import {
   buildForwardView,
   buildCurrentLayerView,
@@ -32,7 +32,9 @@ import {
   mapLayerPayloadToForwardView,
   mapProofSolution,
 } from './forward-view.js';
+import { formatForwardToolError } from './forward-tool-error.js';
 import { appendExecutionTrace, handleTensorForward, solutionToTensorValue } from './forward-trace.js';
+import { KairosError } from '../types/index.js';
 
 interface RegisterForwardOptions {
   toolName?: string;
@@ -93,10 +95,10 @@ export async function executeForward(
   qdrantService: QdrantService | undefined,
   input: ForwardInput
 ): Promise<ForwardOutput> {
-  const parsed = parseKairosUri(input.uri);
+  const parsed = parseKairosUriOrThrow(input.uri);
   const memory = await loadMemoryForParsedUri(memoryStore, qdrantService, parsed);
   if (!memory) {
-    throw new Error('Layer or adapter not found');
+    throw new KairosError('Layer or adapter not found', 'NOT_FOUND', 404);
   }
 
   const adapterId = getAdapterId(memory);
@@ -336,6 +338,9 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        if (error instanceof KairosError) {
+          return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify(formatForwardToolError(error)) }] };
+        }
         throw error;
       }
     }

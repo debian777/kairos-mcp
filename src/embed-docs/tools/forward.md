@@ -2,7 +2,9 @@ Run an **adapter** layer-by-layer. Each layer exposes a **contract** (what to sa
 
 **URI**
 
-- `kairos://adapter/{uuid}` — start a **new** execution (server assigns `execution_id`).
+- `kairos://adapter/{uuid}` or `kairos://adapter/{slug}` — start a **new**
+  execution (server assigns `execution_id`). Slug adapter URIs resolve to the
+  chain head before execution starts.
 - `kairos://layer/{uuid}` or `kairos://layer/{uuid}?execution_id={uuid}` — continue the same run; reuse `execution_id` from the last response when the layer URI includes it.
 
 **Input**

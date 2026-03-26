@@ -77,7 +77,6 @@ function createFlatConfig(rootDir) {
         '**/argocd/**',
         '**/.kilocodeignore',
         '**/*.disabled',
-        '**/*.sh',
         '**/*.py',
         '**/__pycache__/**',
         '**/*.pyc',
@@ -248,6 +247,42 @@ function createFlatConfig(rootDir) {
     // -------------------------------------------------------------------------
     {
       files: ['**/*.md'],
+      languageOptions: {
+        parser: markdownPlainTextParser,
+        parserOptions: {
+          project: null,
+        },
+      },
+      plugins: {
+        'kairos-forbidden-text': kairosForbiddenTextPlugin,
+      },
+      rules: {
+        'max-lines': 'off',
+        'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // 3da. All shell scripts (stub parser; no code rules)
+    // -------------------------------------------------------------------------
+    {
+      files: ['**/*.sh'],
+      languageOptions: {
+        parser: markdownPlainTextParser,
+        parserOptions: {
+          project: null,
+        },
+      },
+      rules: {
+        'max-lines': 'off',
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // 3db. Shell scripts in scripts/ (forbidden strings; stub parser)
+    // -------------------------------------------------------------------------
+    {
+      files: ['scripts/**/*.sh'],
       languageOptions: {
         parser: markdownPlainTextParser,
         parserOptions: {

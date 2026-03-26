@@ -22,11 +22,12 @@ describe('v4-forward first-call response schema', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  async function trainTwoStepProtocol(label: string) {
-    const doc = buildProofMarkdown(label, [
+  async function trainTwoStepProtocol(label: string, slug?: string) {
+    const frontmatter = slug ? `---\nslug: ${slug}\n---\n\n` : '';
+    const doc = `${frontmatter}${buildProofMarkdown(label, [
       { heading: 'Step One', body: `First body for ${label}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second body for ${label}.`, proofCmd: 'echo step2' }
-    ]);
+    ])}`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
@@ -77,6 +78,26 @@ describe('v4-forward first-call response schema', () => {
       expect(parsed.must_obey).toBe(true);
       expect(parsed.current_layer).toBeDefined();
       expect(layerIdFromUri(parsed.current_layer.uri)).not.toBe(firstLayerId);
+    });
+  });
+
+  test('opening with adapter slug URI starts execution at the head layer', async () => {
+    const ts = Date.now();
+    const slug = `v4-forward-first-call-slug-${ts}`;
+    const items = await trainTwoStepProtocol(`V4ForwardFirstCall Slug ${ts}`, slug);
+    const firstLayerId = layerIdFromUri(items[0].uri);
+
+    const call = { name: 'forward', arguments: { uri: `kairos://adapter/${slug}` } };
+    const result = await mcpConnection.client.callTool(call);
+    const parsed = parseMcpJson(result, 'v4-forward first-call slug');
+
+    withRawOnFail({ call, result }, () => {
+      expect(parsed.must_obey).toBe(true);
+      expect(parsed.current_layer).toBeDefined();
+      expect(layerIdFromUri(parsed.current_layer.uri)).toBe(firstLayerId);
+      expect(parsed.contract).toBeDefined();
+      expect(typeof parsed.next_action).toBe('string');
+      expect(parsed.next_action.toLowerCase()).toContain('forward');
     });
   });
 

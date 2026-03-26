@@ -257,6 +257,10 @@ export async function findFirstStepMemoryUuidBySlug(
     const defaultWrite = getSpaceContext().defaultWriteSpaceId;
     const spaceOf = (p: any) => String(p.payload?.space_id ?? KAIROS_APP_SPACE_ID);
     const inDefault = unique.filter((p) => spaceOf(p) === defaultWrite);
+    const activateNextAction =
+      'Call activate with the user intent to find the correct protocol, or use the exact adapter URI.';
+    const crossSpaceNextAction =
+      `${activateNextAction} If you work across spaces, narrow the active space first.`;
 
     if (inDefault.length === 1) {
       return String(inDefault[0]!.id);
@@ -267,7 +271,12 @@ export async function findFirstStepMemoryUuidBySlug(
         `Protocol slug "${normalized}" matches more than one protocol in your default space.`,
         'PROTOCOL_KEY_AMBIGUOUS',
         409,
-        { key: normalized, chain_count: inDefault.length }
+        {
+          key: normalized,
+          chain_count: inDefault.length,
+          must_obey: true,
+          next_action: activateNextAction
+        }
       );
     }
 
@@ -278,8 +287,7 @@ export async function findFirstStepMemoryUuidBySlug(
       {
         key: normalized,
         must_obey: true,
-        next_action:
-          'Use forward with the URI for the specific protocol, or work in a single target space.',
+        next_action: crossSpaceNextAction,
         spaces: [...new Set(unique.map((p) => spaceOf(p)))]
       }
     );

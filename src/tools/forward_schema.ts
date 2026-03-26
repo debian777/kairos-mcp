@@ -1,15 +1,13 @@
 import { z } from 'zod';
+import { ADAPTER_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
+  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid} or kairos://adapter/{slug}');
 
 const layerUriSchema = z
   .string()
-  .regex(
-    /^kairos:\/\/layer\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i,
-    'must match kairos://layer/{uuid}[?execution_id={uuid}]'
-  );
+  .regex(LAYER_URI_INPUT_REGEX, 'must match kairos://layer/{uuid}[?execution_id={uuid}]');
 
 const forwardUriSchema = z.union([adapterUriSchema, layerUriSchema]);
 

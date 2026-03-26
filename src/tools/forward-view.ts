@@ -87,6 +87,14 @@ export async function loadMemoryForParsedUri(
     throw new Error('Adapter resolution requires qdrantService');
   }
 
+  if (parsed.idKind === 'slug') {
+    const firstLayerId = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
+    if (!firstLayerId) {
+      return null;
+    }
+    return memoryStore.getMemory(firstLayerId);
+  }
+
   const layers = await qdrantService.getChainMemories(parsed.id);
   const firstLayer = layers[0]?.uuid;
   if (firstLayer) {

@@ -9,6 +9,7 @@
 // Banned wording: drop obsolete code/shims; rephrase comments (older format, transitional, compat)—never strip useful docs just to silence a hit.
 const KAIROS_FORBIDDEN_LEGACY_REFERENCE_NAMES = [
   'KAIROS_BEARER_TOKEN',
+  'kairos_begin',
   'kairos_attest',
   'kairos_delete',
   'kairos_dump',
