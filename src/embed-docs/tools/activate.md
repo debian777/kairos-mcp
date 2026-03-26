@@ -12,7 +12,7 @@ Rank stored **adapters** for the user’s intent and return URIs you must use ne
 
 **Roles**
 
-- `match` — `activation_score` 0.0–1.0; that choice’s `next_action` tells you to **`forward`** with its adapter URI.
+- `match` — `activation_score` is a normalized 0.0–1.0 confidence score; that choice’s `next_action` tells you to **`forward`** with its adapter URI.
 - `refine` — guided help to improve the query; **`forward`** the refine adapter URI from the choice.
 - `create` — no stored adapter; **`train`** new adapter markdown (creation flow).
 

@@ -8,9 +8,13 @@ is processed end-to-end and how scoring and filtering work. For response
 shape and scenarios, see [activate](../../src/embed-docs/tools/activate.md)
 and the companion [activate workflow](workflow-activate.md) page.
 
-## Principle: scoring in Qdrant, not in the app
+## Principle: rank in Qdrant, expose bounded confidence in the app
 
-We **fully rely on Qdrant for scoring**. All search logic (ranking, filtering, score shape) belongs in Qdrant. Adjust scores by **modifying the query and the Qdrant request** (e.g. filter, formula, prefetch, or payload fields used in the formula), **not by post-processing in the app**. The app should pass through Qdrant’s scores and result set; any exception (e.g. a temporary app-side boost) should be documented and treated as technical debt until it is moved into Qdrant.
+Qdrant remains the source of truth for ranking and candidate selection. The app
+uses Qdrant's raw score to sort results, apply the configured match threshold,
+and decide which adapters stay in the candidate set. Before those scores are
+returned to agents or the UI, the app converts them into a bounded public
+confidence value so `score` and `activation_score` always stay in `0.0-1.0`.
 
 ## Role in KAIROS
 
@@ -52,7 +56,12 @@ flowchart LR
 5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses the (trimmed) search query for cache write and passes the same query to the vector layer.
 6. **Vector search:** Embedding + BM25 hybrid in Qdrant (see below). Results are adapter heads only (`adapter.layer_index === 1`), with exclusions applied in the Qdrant filter.
 7. **Candidate handling:** Results are deduplicated by chain (prefer chain head, then by score). Top N by score are kept; each is checked against `SCORE_THRESHOLD`. Refine and create choices are appended when needed (no match, or multiple matches, or single weak match).
-8. **Response:** Search builds internal choice rows (chain metadata and scores). The MCP **`activate`** handler maps them to **`choices`** with **`kairos://adapter/{uuid}`**, **`adapter_name`**, **`activation_score`**, **`adapter_version`**, **`role`**, **`tags`**, and **`next_action`** (see [activate_schema.ts](../../src/tools/activate_schema.ts)).
+8. **Response:** Search builds internal choice rows (chain metadata and
+   normalized public confidence scores). The MCP **`activate`** handler maps
+   them to **`choices`** with **`kairos://adapter/{uuid}`**,
+   **`adapter_name`**, **`activation_score`**, **`adapter_version`**,
+   **`role`**, **`tags`**, and **`next_action`** (see
+   [activate_schema.ts](../../src/tools/activate_schema.ts)).
 
 Implementations: [src/tools/search.ts](../../src/tools/search.ts) and [src/tools/activate.ts](../../src/tools/activate.ts) (MCP **`activate`**), vector layer in [store-methods.ts](../../src/services/memory/store-methods.ts).
 
@@ -108,7 +117,9 @@ the fused score:
   quality metrics are updated); adapters with better observed reward history
   rank slightly higher when relevance is otherwise similar.
 
-Per the principle above, all scoring is expressed in Qdrant (formula, filter, prefetch); the app does not modify scores after the query.
+Per the principle above, Qdrant determines raw ranking. The app keeps that
+ordering, but it converts raw scores into bounded public confidence values
+before it returns them.
 
 ### Filter
 
@@ -130,27 +141,34 @@ the point payload. The current payload field name is `attest_boost`.
 
 `attest_boost = min(ATTEST_BOOST_MAX * successRatio * confidence, ATTEST_BOOST_MAX)` when `runs >= MIN_ATTEST_RUNS`, else `0`, with `confidence = min(runs / RUNS_FULL_CONFIDENCE, 1)`.
 
-The search formula in Qdrant includes this payload field as a summand, so all
-ranking stays in Qdrant; the app does not modify scores after the query.
+The search formula in Qdrant includes this payload field as a summand, so raw
+ranking stays in Qdrant before the app derives bounded public confidence.
 Config: `MIN_ATTEST_RUNS`, `RUNS_FULL_CONFIDENCE`, `ATTEST_BOOST_MAX` in
 [config](../../src/config.ts).
 
 ## Result path after Qdrant
 
-Consistent with the principle: the app should not change scores or drop results that Qdrant returned; any such logic belongs in the query (filter/formula). Current behaviour:
+Current behavior keeps Qdrant as the ranking authority, then normalizes public
+confidence before the response is returned:
 
-1. Points are mapped to memories and scores (Qdrant score only; reward-derived
-   boost is already in the formula).
+1. Points are mapped to memories and raw scores (Qdrant score only;
+   reward-derived boost is already in the formula).
 2. Built-in refine protocol is excluded in the Qdrant filter by UUID; any remaining (e.g. duplicate in another space) are filtered out in code (`isRefineProtocol`) until exclusion is fully expressed in the Qdrant filter (e.g. by `chain.label`).
-3. Sort by score descending, then by `memory_uuid` for tie-break; take up to `limit`.
+3. Sort by raw score descending, then by `memory_uuid` for tie-break; take up
+   to `limit`.
 4. Optional fallback: if all results were filtered out but there were points, return up to `limit` with a default score (e.g. 0.5) so the UI still shows options.
 
 The store returns `{ memories, scores }`. The tool layer then:
 
 - Collapses by chain (best score per chain, prefer head).
-- Applies `SCORE_THRESHOLD` (config, default 0.3).
+- Converts raw scores into public confidence with
+  `raw_score / (raw_score + 0.5)`.
+- Applies `SCORE_THRESHOLD` (config, default 0.3) using the same monotonic
+  transform, so match inclusion stays aligned with the raw threshold.
 - Builds match choices with per-choice `next_action`.
-- Appends refine and create choices when there is no single strong match (e.g. 0 or >1 match, or 1 match with score &lt; 0.5).
+- Appends refine and create choices when there is no single strong match (for
+  example, 0 or more than 1 match, or 1 match with confidence score below
+  `0.5`).
 
 ## Cache
 
@@ -163,7 +181,7 @@ The store returns `{ memories, scores }`. The tool layer then:
 
 | Env / config | Purpose |
 |--------------|--------|
-| `SCORE_THRESHOLD` | Minimum score for a result to appear as a match (default 0.3). |
+| `SCORE_THRESHOLD` | Minimum raw Qdrant score for a result to appear as a match (default 0.3). The same threshold is normalized before public scores are returned. |
 | `KAIROS_ENABLE_GROUP_COLLAPSE` | When true, first search uses collapse; fallback without collapse if few chains. |
 | `MIN_ATTEST_RUNS`, `RUNS_FULL_CONFIDENCE`, `ATTEST_BOOST_MAX` | Used when writing the reward-derived Qdrant boost payload. |
 | `KAIROS_APP_SPACE_ID` | System space ID included in search scope. |

@@ -5,6 +5,7 @@ import { useActivate } from "@/hooks/useActivate";
 import { useSpaces } from "@/hooks/useSpaces";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
+import { toConfidencePercent } from "@/utils/confidence";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -59,10 +60,9 @@ export function KairosPage() {
       const bs = b.activation_score ?? -1;
       return bs - as;
     });
-  const topScore =
-    choices.length > 0
-      ? Math.max(...choices.map((c) => (c.activation_score != null ? c.activation_score * 100 : 0)))
-      : null;
+  const topScore = choices.length > 0
+    ? Math.max(...choices.map((c) => toConfidencePercent(c.activation_score)))
+    : null;
 
   const { browseChains, countsByLetter } = useMemo(() => {
     const chains: Array<{ chain_id: string; title: string; step_count: number }> = [];
@@ -289,7 +289,7 @@ export function KairosPage() {
                       </span>
                       <div className="text-sm text-[var(--color-text-muted)] mt-1">
                         {choice.adapter_name ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
-                        {choice.activation_score != null && ` · ${t("kairos.score")}: ${Math.round(choice.activation_score * 100)}%`}
+                        {choice.activation_score != null && ` · ${t("kairos.score")}: ${toConfidencePercent(choice.activation_score)}%`}
                         {choice.adapter_version && ` · ${t("kairos.version")}: ${choice.adapter_version}`}
                       </div>
                       <span

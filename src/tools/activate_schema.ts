@@ -26,7 +26,7 @@ export const activateOutputSchema = z.object({
     uri: adapterUriSchema,
     label: z.string().describe('Display label for the adapter choice'),
     adapter_name: z.string().nullable().describe('Adapter title when this choice maps to a stored adapter'),
-    activation_score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
+    activation_score: z.number().min(0).max(1).nullable().describe('Normalized 0.0-1.0 confidence for matches, null for refine/create'),
     role: z.enum(['match', 'refine', 'create']),
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice, typically a forward call'),

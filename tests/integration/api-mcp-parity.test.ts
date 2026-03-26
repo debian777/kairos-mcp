@@ -166,6 +166,18 @@ describe('API-MCP parity: identical response shapes', () => {
       expect(parsed.success).toBe(true);
     });
 
+    test('activate: HTTP response parses against activateOutputSchema', async () => {
+      expect.hasAssertions();
+      const httpRes = await httpFetch(`${API_BASE}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'SchemaConformance' })
+      });
+      const httpParsed = (await httpRes.json()) as Record<string, unknown>;
+      const parsed = activateOutputSchema.safeParse(httpParsed);
+      expect(parsed.success).toBe(true);
+    });
+
     test('export: MCP response parses against exportOutputSchema', async () => {
       expect.hasAssertions();
       const mcpResult = await mcpConnection.client.callTool({

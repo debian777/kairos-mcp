@@ -31,6 +31,12 @@ interface BaselineFile {
 
 const FIXED_QUERIES = ['ScoreBaseline'];
 
+function expectConfidenceMessageWithinBounds(message: string) {
+  const match = message.match(/top confidence: (\d+)%/i);
+  if (!match) return;
+  expect(Number(match[1])).toBeLessThanOrEqual(100);
+}
+
 function buildBaselineFromParsed(parsed: {
   choices: Array<{ label: string; score?: number | null; activation_score?: number | null; role: string }>;
 }): BaselineQueryResult {
@@ -83,6 +89,14 @@ describe('activate score baseline and verification', () => {
       const results: Record<string, BaselineQueryResult> = {};
       for (const q of FIXED_QUERIES) {
         const parsed = await search(q);
+        const matchChoices = parsed.choices.filter((c: { role: string }) => c.role === 'match');
+        expectConfidenceMessageWithinBounds(parsed.message);
+        for (const choice of matchChoices) {
+          const score = choice.activation_score ?? choice.score;
+          expect(typeof score).toBe('number');
+          expect(score).toBeGreaterThanOrEqual(0);
+          expect(score).toBeLessThanOrEqual(1);
+        }
         results[q] = buildBaselineFromParsed(parsed);
       }
 

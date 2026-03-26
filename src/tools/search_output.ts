@@ -30,20 +30,30 @@ export interface UnifiedChoice {
   activation_patterns?: string[];
 }
 
+const PUBLIC_SCORE_PIVOT = 0.5;
+
+export function normalizePublicSearchScore(score: number | null | undefined): number {
+  if (typeof score !== 'number' || !Number.isFinite(score) || score <= 0) {
+    return 0;
+  }
+  return score / (score + PUBLIC_SCORE_PIVOT);
+}
+
 export function createResults(
   headCandidates: Array<{ memory: Memory; score: number }>,
   scoreThreshold: number
 ): Candidate[] {
+  const normalizedThreshold = normalizePublicSearchScore(scoreThreshold);
   return headCandidates
     .map(({ memory, score }) => ({
       memory,
-      score,
+      score: normalizePublicSearchScore(score),
       uri: buildAdapterUri(getAdapterId(memory)),
       label: memory.label,
       tags: memory.tags || [],
       total_steps: getLayerCount(memory)
     }))
-    .filter((result) => result.score >= scoreThreshold);
+    .filter((result) => result.score >= normalizedThreshold);
 }
 
 export async function resolveHead(
@@ -99,7 +109,7 @@ export async function generateUnifiedOutput(
     });
   }
 
-  const RELEVANT_SCORE = 0.5;
+  const RELEVANT_SCORE = normalizePublicSearchScore(0.5);
   const singleMatchNotRelevant = matchCount === 1 && (choices[0]?.score ?? 0) < RELEVANT_SCORE;
   if (matchCount !== 1 || singleMatchNotRelevant) {
     choices.push(

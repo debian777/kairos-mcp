@@ -28,7 +28,7 @@ export const searchOutputSchema = z.object({
     uri: choiceUriSchema,
     label: z.string(),
     chain_label: z.string().nullable(),
-    score: z.number().nullable().describe('0.0-1.0 for matches, null for refine/create'),
+    score: z.number().min(0).max(1).nullable().describe('Normalized 0.0-1.0 confidence for matches, null for refine/create'),
     role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice.'),

@@ -12,6 +12,12 @@ import { getTestSpaceId } from '../utils/auth-headers.js';
 describe('v10-activate unified response schema', () => {
   let mcpConnection;
 
+  function expectConfidenceMessageWithinBounds(message: string) {
+    const match = message.match(/top confidence: (\d+)%/i);
+    if (!match) return;
+    expect(Number(match[1])).toBeLessThanOrEqual(100);
+  }
+
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
   }, 30000);
@@ -49,6 +55,7 @@ describe('v10-activate unified response schema', () => {
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
       expect(typeof parsed.message).toBe('string');
+      expectConfidenceMessageWithinBounds(parsed.message);
       expect(typeof parsed.next_action).toBe('string');
       expect(
         parsed.next_action.includes("choice's next_action") ||
@@ -69,6 +76,8 @@ describe('v10-activate unified response schema', () => {
       expect(['match', 'refine', 'create']).toContain(choice.role);
       if (choice.role === 'match') {
         expect(typeof choice.activation_score).toBe('number');
+        expect(choice.activation_score).toBeGreaterThanOrEqual(0);
+        expect(choice.activation_score).toBeLessThanOrEqual(1);
       } else {
         expect(choice.activation_score === null).toBe(true);
       }
@@ -152,8 +161,13 @@ describe('v10-activate unified response schema', () => {
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
+      expectConfidenceMessageWithinBounds(parsed.message);
       const matches = parsed.choices.filter((c: { role: string }) => c.role === 'match');
       expect(matches.length).toBeGreaterThanOrEqual(2);
+      for (const match of matches) {
+        expect(match.activation_score).toBeGreaterThanOrEqual(0);
+        expect(match.activation_score).toBeLessThanOrEqual(1);
+      }
 
       const refineChoice = parsed.choices.find((c: { role: string }) => c.role === 'refine');
       const createChoice = parsed.choices.find((c: { role: string }) => c.role === 'create');
@@ -187,6 +201,10 @@ describe('v10-activate unified response schema', () => {
         expect(choice).toHaveProperty('tags');
         if (isNewFormat) expect(choice).toHaveProperty('next_action');
         expect(['match', 'refine', 'create']).toContain(choice.role);
+        if (choice.role === 'match') {
+          expect(choice.activation_score).toBeGreaterThanOrEqual(0);
+          expect(choice.activation_score).toBeLessThanOrEqual(1);
+        }
       }
     });
   }, 45000);
