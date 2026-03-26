@@ -13,8 +13,8 @@ Recommended layout:
 - optional subdirectories by topic or team
 - optional `README.md` files for humans
 
-Every protocol file still has to satisfy the normal mint rules enforced by the
-server:
+Every protocol file still has to satisfy the normal `train` requirements
+enforced by the server:
 
 - H1 title
 - `## Natural Language Triggers` as the first H2
@@ -23,12 +23,12 @@ server:
 
 ## Bulk import with the CLI
 
-The CLI can mint a whole directory.
+The CLI can train from a whole directory.
 
 ### Top-level only
 
 ```bash
-kairos mint --force /path/to/bundle-root
+kairos train --force /path/to/bundle-root
 ```
 
 This imports only `.md` files directly inside the bundle root.
@@ -36,7 +36,7 @@ This imports only `.md` files directly inside the bundle root.
 ### Recursive import
 
 ```bash
-kairos mint --force --recursive /path/to/bundle-root
+kairos train --force --recursive /path/to/bundle-root
 ```
 
 This imports `.md` files from subdirectories too.
@@ -44,8 +44,8 @@ This imports `.md` files from subdirectories too.
 ### `README.md` handling
 
 In directory-batch mode, the CLI skips files whose basename is exactly
-`README.md`. That rule applies at the root and in subdirectories. If you really
-want to mint a `README.md` file, pass that file path explicitly instead of a
+`README.md`. That rule applies at the root and in subdirectories. If you need
+to register a `README.md` file, pass that file path explicitly instead of a
 directory.
 
 ## Export from a running server
