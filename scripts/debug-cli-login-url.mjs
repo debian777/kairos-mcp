@@ -5,10 +5,14 @@
  * If Keycloak logs show no login attempts, the browser may be hitting a URL
  * it cannot reach (e.g. http://keycloak:8080/... from the host).
  *
- * Usage: node scripts/debug-cli-login-url.mjs [KAIROS_API_URL]
- * Example: KAIROS_API_URL=http://localhost:3300 node scripts/debug-cli-login-url.mjs
+ * Usage: node scripts/debug-cli-login-url.mjs [baseUrl]
+ * Example: KAIROS_API_URL=http://localhost:3301 node scripts/debug-cli-login-url.mjs
+ * If no arg: uses KAIROS_API_URL / KAIROS_BASE_URL / .env PORT (see scripts/dev-app-base-url.mjs).
  */
-const baseUrl = (process.env.KAIROS_API_URL || 'http://localhost:3300').replace(/\/$/, '');
+import { resolveKairosAppBaseUrl } from './dev-app-base-url.mjs';
+
+const argOverride = process.argv[2]?.trim();
+const baseUrl = (argOverride || resolveKairosAppBaseUrl()).replace(/\/$/, '');
 const wellKnownUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
 
 async function main() {

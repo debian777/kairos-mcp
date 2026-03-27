@@ -7,7 +7,7 @@
  * - Write one report per example under reports/<run-id>/<protocol-folder>/report.md
  *
  * Usage: node scripts/run-ai-mcp-integration.mjs
- * Env:   KAIROS_BASE_URL (default http://localhost:3300), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
+ * Env:   KAIROS_BASE_URL (else KAIROS_API_URL / .env PORT; default port 3300 matches run-env dev), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
  *
  * Auth (when the dev server has Keycloak / AUTH_ENABLED): same bearer as Jest integration tests —
  * either `.test-auth-env.dev.json` in the repo root (written by globalSetup when you run
@@ -32,13 +32,14 @@ import {
   classifySolutionType,
   classifyUriKind
 } from './ai-mcp-integration-proof-utils.mjs';
+import { resolveKairosAppBaseUrl } from './dev-app-base-url.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const EXAMPLES_DIR = path.join(ROOT, 'docs', 'examples');
 const REPORTS_DIR = path.join(ROOT, 'reports');
 
-const BASE_URL = process.env.KAIROS_BASE_URL || 'http://localhost:3300';
+const BASE_URL = resolveKairosAppBaseUrl();
 function defaultRunId() {
   const d = new Date();
   const Y = d.getFullYear();

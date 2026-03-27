@@ -1,7 +1,11 @@
 import path from "node:path";
+import { config as loadDotenv } from "dotenv";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { getUiImportMetaEnvDefine } from "./scripts/vite-ui-env-define.js";
+
+loadDotenv({ path: path.resolve(__dirname, ".env") });
+const kairosBackend = `http://localhost:${process.env.PORT?.trim() || "3300"}`;
 
 export default defineConfig({
   root: "src/ui",
@@ -39,8 +43,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: "http://localhost:3300", changeOrigin: true },
-      "/ui": { target: "http://localhost:3300", changeOrigin: true },
+      "/api": { target: kairosBackend, changeOrigin: true },
+      "/ui": { target: kairosBackend, changeOrigin: true },
     },
   },
 });

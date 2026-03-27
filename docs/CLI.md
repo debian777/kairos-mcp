@@ -236,7 +236,7 @@ kairos train ./protocols --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready on port `3300`:
+After the local dev server is ready (port from `.env` `PORT`, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready
@@ -283,7 +283,7 @@ kairos login --token <bearer-token>
 ### A stored token is not being used
 
 Remember that tokens are stored per normalized API base URL. A token for
-`http://localhost:3300` is different from a token for `http://localhost:3000`.
+one host/port pair (for example `http://localhost:3300`) is different from a token for another (for example `http://localhost:3000`).
 
 ## Related docs
 
