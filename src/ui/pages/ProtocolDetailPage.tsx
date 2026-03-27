@@ -91,6 +91,11 @@ export function ProtocolDetailPage() {
           <span className="sr-only">{t("protocol.uri")}: </span>
           <code className="text-xs bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded break-all">{data.uri}</code>
           <span className="ml-2">· {t("protocol.readOnly")}</span>
+          {data.space_name != null && data.space_name.length > 0 ? (
+            <span className="ml-2 block w-full sm:inline sm:w-auto">
+              · {t("protocol.spaceLabel")}: {data.space_name}
+            </span>
+          ) : null}
         </p>
         <CopyButton
           value={data.uri}

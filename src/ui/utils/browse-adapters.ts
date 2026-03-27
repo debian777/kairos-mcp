@@ -3,27 +3,36 @@ import type { AdapterSummary, SpaceInfo } from "@/hooks/useSpaces";
 /** Letters used for browse-by-label buckets (must match title's first character rule). */
 export const BROWSE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("") as readonly string[];
 
+export interface AdapterBrowseRow extends AdapterSummary {
+  space_name: string;
+  space_type: SpaceInfo["type"];
+}
+
+type FlatRow = AdapterBrowseRow;
+
 /**
  * Flatten adapters from all spaces, dedupe by non-empty `adapter_id` (prefer higher `layer_count`),
  * then compute per-letter counts from deduped titles.
  */
 export function browseAdaptersFromSpaces(spaces: SpaceInfo[] | undefined): {
-  browseAdapters: AdapterSummary[];
+  browseAdapters: AdapterBrowseRow[];
   countsByLetter: Record<string, number>;
 } {
-  const flat: AdapterSummary[] = [];
+  const flat: FlatRow[] = [];
   for (const space of spaces ?? []) {
     for (const adapter of space.adapters ?? []) {
       flat.push({
         adapter_id: adapter.adapter_id,
         title: adapter.title,
-        layer_count: adapter.layer_count
+        layer_count: adapter.layer_count,
+        space_name: space.name,
+        space_type: space.type
       });
     }
   }
 
-  const byId = new Map<string, AdapterSummary>();
-  const withoutId: AdapterSummary[] = [];
+  const byId = new Map<string, FlatRow>();
+  const withoutId: FlatRow[] = [];
   for (const adapter of flat) {
     const id = (adapter.adapter_id ?? "").trim();
     if (!id) {

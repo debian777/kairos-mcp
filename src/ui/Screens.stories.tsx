@@ -19,15 +19,15 @@ export default meta;
 type Story = StoryObj<typeof AppRoutes>;
 
 const mockSpaces = [
-  { name: "Personal", adapter_count: 3 },
-  { name: "Kairos app", adapter_count: 12 },
+  { name: "Personal", space_id: "user:mock:sub", type: "personal" as const, adapter_count: 3 },
+  { name: "Kairos app", space_id: "space:kairos-app", type: "app" as const, adapter_count: 12 },
 ];
 
 /** Home — overview, search form, space protocol counts, CTA to KAIROS (mockup 01). */
 export const Home: Story = {
   parameters: {
     initialEntry: "/",
-    queryData: [[["spaces"], { spaces: mockSpaces }]],
+    queryData: [[["spaces", { includeAdapterTitles: false }], { spaces: mockSpaces }]],
   },
 };
 
@@ -36,9 +36,22 @@ export const HomeLoadingSpaces: Story = {
   parameters: { initialEntry: "/" },
 };
 
+const mockSpacesKairosBrowse = [
+  {
+    name: "Personal",
+    space_id: "user:mock:sub",
+    type: "personal" as const,
+    adapter_count: 1,
+    adapters: [{ adapter_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", title: "Alpha workflow", layer_count: 2 }],
+  },
+];
+
 /** KAIROS — search and results (mockup 07). Empty state until a query is run. */
 export const Kairos: Story = {
-  parameters: { initialEntry: "/kairos" },
+  parameters: {
+    initialEntry: "/kairos",
+    queryData: [[["spaces", { includeAdapterTitles: true }], { spaces: mockSpacesKairosBrowse }]],
+  },
 };
 
 /** KAIROS with results — seeded activate response. */
@@ -46,8 +59,9 @@ export const KairosWithResults: Story = {
   parameters: {
     initialEntry: "/kairos?q=deploy",
     queryData: [
+      [["spaces", { includeAdapterTitles: false }], { spaces: mockSpaces }],
       [
-        ["activate", "deploy"],
+        ["activate", "deploy", null, null],
         {
           must_obey: true,
           message: "Pick one choice and follow that choice's next_action.",
@@ -63,6 +77,7 @@ export const KairosWithResults: Story = {
               next_action: "call forward with kairos://adapter/11111111-1111-1111-1111-111111111111 to execute this adapter",
               adapter_version: "1.0.0",
               activation_patterns: [],
+              space_name: "Personal",
             },
             {
               uri: "kairos://adapter/22222222-2222-2222-2222-222222222222",

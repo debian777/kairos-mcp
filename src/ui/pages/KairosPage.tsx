@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useActivate } from "@/hooks/useActivate";
 import { useSpaces } from "@/hooks/useSpaces";
+import { SpaceSelect } from "@/components/SpaceSelect";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
 import { toConfidencePercent } from "@/utils/confidence";
 import { browseAdaptersFromSpaces } from "@/utils/browse-adapters";
+import { KairosActivateResultsSection, KairosBrowseByLetterSection } from "@/pages/kairos-page-sections";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -15,20 +17,21 @@ const roleBadgeClass: Record<string, string> = {
   create: "bg-[#fef3c7] text-[#92400e]",
 };
 
-const A_Z = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
-/** Adapter URI prefix for adapter_id from spaces browse results. */
-const PROTOCOL_URI_PREFIX = "kairos://adapter/";
-
 export function KairosPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
+  const initialSpace = searchParams.get("space") ?? "";
   const [query, setQuery] = useState(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [activateSpace, setActivateSpace] = useState(initialSpace);
+  const [submittedSpace, setSubmittedSpace] = useState(initialSpace);
   const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useActivate(submittedQuery, !!submittedQuery);
+  const activateScope = submittedSpace.trim();
+  const { data, isLoading, isError, error, refetch } = useActivate(submittedQuery, !!submittedQuery, {
+    ...(activateScope ? { space: activateScope } : {}),
+  });
   const showBrowse = !submittedQuery;
   const {
     data: spacesData,
@@ -36,18 +39,25 @@ export function KairosPage() {
     isError: spacesError,
     error: spacesErrorDetail,
     refetch: refetchSpaces,
-  } = useSpaces(showBrowse, { includeAdapterTitles: true });
+  } = useSpaces(true, { includeAdapterTitles: showBrowse });
 
   useEffect(() => {
     const q = searchParams.get("q") ?? "";
+    const sp = searchParams.get("space") ?? "";
     setQuery(q);
     setSubmittedQuery(q);
+    setActivateSpace(sp);
+    setSubmittedSpace(sp);
   }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittedQuery(query);
-    setSearchParams(query ? { q: query } : {}, { replace: true });
+    setSubmittedSpace(activateSpace);
+    const next: Record<string, string> = {};
+    if (query.trim()) next.q = query.trim();
+    if (activateSpace.trim()) next.space = activateSpace.trim();
+    setSearchParams(next, { replace: true });
   };
 
   const choicesRaw = data?.choices ?? [];
@@ -114,6 +124,23 @@ export function KairosPage() {
         <p id="kairos-search-hint" className="text-sm text-[var(--color-text-muted)] mt-2">
           {t("kairos.searchHint")}
         </p>
+        <div className="mt-4 max-w-md">
+          <label
+            htmlFor="kairos-activate-space"
+            className="block text-sm font-medium text-[var(--color-text-heading)] mb-2"
+          >
+            {t("kairos.scopeSpaceLabel")}
+          </label>
+          <SpaceSelect
+            id="kairos-activate-space"
+            spaces={spacesData?.spaces}
+            value={activateSpace}
+            onChange={setActivateSpace}
+            includeAllOption
+            disabled={spacesLoading}
+            aria-describedby="kairos-search-hint"
+          />
+        </div>
         <button
           type="submit"
           className="mt-3 min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
@@ -156,80 +183,14 @@ export function KairosPage() {
       {!isLoading && !isError && !(showBrowse && spacesError) && (
         <>
           {!submittedQuery ? (
-            <section aria-labelledby="browse-by-label-heading">
-              <h2 id="browse-by-label-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-3">
-                {t("kairos.browseByLabel")}
-              </h2>
-              <p className="text-sm text-[var(--color-text-muted)] mb-4">
-                {t("kairos.browseByLetterHint")}
-              </p>
-              {!spacesLoading && (
-              <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
-                {A_Z.map((letter) => {
-                  const count = countsByLetter[letter] ?? 0;
-                  return (
-                    <button
-                      key={letter}
-                      type="button"
-                      onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
-                      aria-expanded={expandedLetter === letter}
-                      aria-controls={`browse-letter-panel-${letter}`}
-                      aria-pressed={expandedLetter === letter}
-                      aria-label={t("kairos.letterCount", { letter, count })}
-                      className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
-                        expandedLetter === letter
-                          ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
-                          : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
-                      }`}
-                    >
-                      {letter}: {count}
-                    </button>
-                  );
-                })}
-              </div>
-              )}
-              {expandedLetter && !spacesLoading && (
-                <div
-                  id={`browse-letter-panel-${expandedLetter}`}
-                  role="region"
-                  aria-labelledby="browse-letter-panel-heading"
-                  aria-live="polite"
-                  className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
-                >
-                  <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
-                    {t("kairos.labelsStartingWith", { letter: expandedLetter })}
-                  </h3>
-                  {letterAdapters.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
-                  ) : (
-                    <ul
-                      className="list-none p-0 m-0 space-y-2"
-                      role="list"
-                      aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
-                    >
-                      {letterAdapters.map((adapter) => {
-                        const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
-                        return (
-                          <li
-                            key={adapter.adapter_id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
-                          >
-                            <span className="font-medium text-[var(--color-text-heading)]">{adapter.title}</span>
-                            <Link
-                              to={`/protocols/${encodeURIComponent(uri)}`}
-                              aria-label={t("kairos.viewProtocol", { title: adapter.title })}
-                              className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                            >
-                              {t("kairos.view")}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </section>
+            <KairosBrowseByLetterSection
+              t={t}
+              spacesLoading={spacesLoading}
+              countsByLetter={countsByLetter}
+              letterAdapters={letterAdapters}
+              expandedLetter={expandedLetter}
+              setExpandedLetter={setExpandedLetter}
+            />
           ) : choices.length === 0 ? (
             <div
               className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6"
@@ -253,85 +214,12 @@ export function KairosPage() {
               </div>
             </div>
           ) : submittedQuery ? (
-            <>
-              {choices.length > 0 && (
-                <p
-                  id="kairos-results-summary"
-                  className="text-sm text-[var(--color-text-muted)] mb-4"
-                  aria-live="polite"
-                  role="status"
-                >
-                  {t("kairos.foundMatches", {
-                    count: choices.length,
-                    top: topScore != null ? Math.round(topScore) : 0,
-                  })}
-                </p>
-              )}
-              <ul className="list-none p-0 m-0 space-y-2" role="list" aria-label={t("kairos.resultsLabel")}>
-                {choices.map((choice) => (
-                  <li
-                    key={choice.uri}
-                    className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5 flex justify-between items-start gap-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium text-[var(--color-text-heading)] block">
-                        {choice.label}
-                      </span>
-                      <div className="text-sm text-[var(--color-text-muted)] mt-1">
-                        {choice.adapter_name ?? (choice.role === "refine" ? t("kairos.refineMeta") : choice.role === "create" ? t("kairos.createMeta") : "")}
-                        {choice.activation_score != null && ` · ${t("kairos.score")}: ${toConfidencePercent(choice.activation_score)}%`}
-                        {choice.adapter_version && ` · ${t("kairos.version")}: ${choice.adapter_version}`}
-                      </div>
-                      <span
-                        className={`inline-block mt-1 text-xs uppercase tracking-wide px-2 py-0.5 rounded ${roleBadgeClass[choice.role] ?? "bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}
-                        aria-label={`Role: ${choice.role}`}
-                      >
-                        {choice.role}
-                      </span>
-                      {choice.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2" aria-label={t("kairos.tagsLabel")}>
-                          {choice.tags.slice(0, 8).map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-block text-xs px-2 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)]"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0">
-                      {choice.role === "match" && (
-                        <Link
-                          to={`/protocols/${encodeURIComponent(choice.uri)}`}
-                          aria-label={t("kairos.viewProtocol", { title: choice.label })}
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                        >
-                          {t("kairos.view")}
-                        </Link>
-                      )}
-                      {choice.role === "refine" && (
-                        <Link
-                          to={`/protocols/${encodeURIComponent(choice.uri)}`}
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                        >
-                          {t("kairos.refineSearch")}
-                        </Link>
-                      )}
-                      {choice.role === "create" && (
-                        <Link
-                          to="/protocols/new"
-                          className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                        >
-                          {t("kairos.createNew")}
-                        </Link>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
+            <KairosActivateResultsSection
+              t={t}
+              choices={choices}
+              topScore={topScore}
+              roleBadgeClass={roleBadgeClass}
+            />
           ) : null}
         </>
       )}

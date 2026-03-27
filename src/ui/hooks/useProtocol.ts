@@ -1,9 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type { ExportOutput } from "../../tools/export_schema.js";
-import type { DumpOutput } from "../../tools/dump_schema.js";
 
-async function fetchProtocol(uri: string): Promise<DumpOutput> {
+/** Protocol editor / detail payload from markdown export. */
+export interface ProtocolQueryData {
+  markdown_doc: string;
+  uri: string;
+  label: string;
+  adapter_name: string | null;
+  protocol_version?: string;
+  space_id?: string | null;
+  space_name?: string | null;
+  space_type?: "personal" | "group" | "app" | "other";
+}
+
+async function fetchProtocol(uri: string): Promise<ProtocolQueryData> {
   const res = await apiFetch("/api/export", {
     method: "POST",
     body: JSON.stringify({ uri, format: "markdown" }),
@@ -22,6 +33,9 @@ async function fetchProtocol(uri: string): Promise<DumpOutput> {
     label: output.adapter_name ?? "Adapter",
     adapter_name: output.adapter_name ?? null,
     ...(output.adapter_version ? { protocol_version: output.adapter_version } : {}),
+    ...(output.space_id !== undefined && { space_id: output.space_id }),
+    ...(output.space_name !== undefined && { space_name: output.space_name }),
+    ...(output.space_type !== undefined && { space_type: output.space_type })
   };
 }
 
