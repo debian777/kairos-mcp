@@ -10,6 +10,7 @@ import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context
 import { buildSpaceFilter } from '../utils/space-filter.js';
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
+import { KAIROS_SPACES_UI_URI } from '../mcp-apps/kairos-ui-constants.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
 import { renderSpacesWidgetHtml } from '../mcp-apps/spaces-widget-html.js';
@@ -148,7 +149,13 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
       title: 'List spaces and adapter counts',
       description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
       inputSchema: spacesInputSchema,
-      outputSchema: spacesOutputSchema
+      outputSchema: spacesOutputSchema,
+      _meta: {
+        ui: {
+          resourceUri: KAIROS_SPACES_UI_URI,
+          visibility: ['model', 'app']
+        }
+      }
     },
     async (params: { include_adapter_titles?: boolean; include_widget_html?: boolean }) => {
       const tenantId = getTenantId();

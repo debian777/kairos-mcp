@@ -116,7 +116,13 @@ export const forwardOutputSchema = z.object({
   slug_disambiguation_note: z
     .string()
     .optional()
-    .describe('When forward started from a slug that matched multiple adapters, explains which was chosen')
+    .describe('When forward started from a slug that matched multiple adapters, explains which was chosen'),
+  /** Human-readable space for the current layer (when payload carries space_id). */
+  activation_space_name: z.string().optional(),
+  /** Adapter title for the run (activator / H1). */
+  context_adapter_name: z.string().optional(),
+  /** Current step label (H2). */
+  current_layer_label: z.string().optional()
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

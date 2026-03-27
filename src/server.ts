@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ServerCapabilities } from '@modelcontextprotocol/sdk/types.js';
 import { structuredLogger } from './utils/structured-logger.js';
 import { registerDocsResources } from './resources/docs-resources.js';
 import { registerPromptResources } from './resources/prompt-resources.js';
@@ -10,6 +11,9 @@ import { LOG_LEVEL, LOG_FORMAT, TRANSPORT_TYPE, getQdrantUrl, getQdrantCollectio
 import { getEmbeddingDimension } from './services/embedding/config.js';
 // removed: debug tools (kb_version, kb_cache_stats)
 import { registerDeleteTool } from './tools/delete.js';
+import { kairosServerUiCapabilityBlock } from './mcp-apps/kairos-server-ui-capability.js';
+import { registerForwardUiResources } from './mcp-apps/register-forward-ui-resources.js';
+import { registerSpacesUiResources } from './mcp-apps/register-spaces-ui-resources.js';
 import { registerSpacesTool } from './tools/spaces.js';
 import { registerActivateTool } from './tools/activate.js';
 import { registerForwardTool } from './tools/forward-register.js';
@@ -29,8 +33,9 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
             capabilities: {
                 tools: {},
                 resources: {},
-                prompts: {}
-            }
+                prompts: {},
+                ...kairosServerUiCapabilityBlock
+            } as ServerCapabilities
         }
     );
 
@@ -43,6 +48,8 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerDeleteTool(server, 'delete');
     registerExportTool(server, memoryStore, { qdrantService });
     registerSpacesTool(server, memoryStore, { toolName: 'spaces' });
+    registerSpacesUiResources(server);
+    registerForwardUiResources(server);
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

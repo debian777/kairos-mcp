@@ -3,6 +3,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { KAIROS_FORWARD_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { forwardInputSchema, forwardOutputSchema } from './forward_schema.js';
 import { executeForward } from './forward.js';
 import { formatForwardToolError } from './forward-tool-error.js';
@@ -23,7 +24,8 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
       title: 'Run adapter forward pass',
       description: getToolDoc('forward') || 'Run the first or next adapter layer. Omitting solution starts a new execution.',
       inputSchema: forwardInputSchema,
-      outputSchema: forwardOutputSchema
+      outputSchema: forwardOutputSchema,
+      _meta: KAIROS_FORWARD_TOOL_UI_META
     },
     async (params: unknown) => {
       const tenantId = getTenantId();
