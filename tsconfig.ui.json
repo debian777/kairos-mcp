@@ -18,6 +18,6 @@
       "@/*": ["./src/ui/*"]
     }
   },
-  "include": ["src/ui/**/*"],
+  "include": ["src/ui/**/*", "src/me-response.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -69,6 +69,25 @@ describe('Auth (Keycloak + kairos-tester)', () => {
     expect(data.endpoints).toHaveProperty('activate');
   }, 60000);
 
+  test('authenticated GET /api/me returns structured user JSON (or skip when auth off)', async () => {
+    const res = await fetch(`${API_BASE}/me`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      expect([200, 401]).toContain(res.status);
+      return;
+    }
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as Record<string, unknown>;
+    expect(typeof data.sub).toBe('string');
+    expect(data.sub!.toString().length).toBeGreaterThan(0);
+    expect(Array.isArray(data.groups)).toBe(true);
+    expect(typeof data.realm).toBe('string');
+    expect(data.account_kind === 'local' || data.account_kind === 'sso').toBe(true);
+    expect(typeof data.account_label).toBe('string');
+  }, 60000);
+
   test('authenticated POST /api/activate returns 200 or structured error', async () => {
     const res = await fetch(`${API_BASE}/activate`, {
       method: 'POST',

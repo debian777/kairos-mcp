@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import type { MeResponse } from "../../me-response.js";
 
-export interface MeResponse {
-  sub: string;
-  name?: string;
-  email?: string;
-}
+export type { MeResponse };
 
 async function fetchMe(): Promise<MeResponse> {
   const res = await apiFetch("/api/me");
