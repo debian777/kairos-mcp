@@ -1,6 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AppRoutes } from "@/App";
 
+/** Story seed shape for /api/me; align with `MeResponse` in src/me-response.ts when changing fields. */
+type MeStorySeed = {
+  sub: string;
+  preferred_username?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  email?: string;
+  email_verified?: boolean;
+  groups: string[];
+  realm: string;
+  group_ids?: string[];
+  identity_provider?: string;
+  account_kind: "local" | "sso";
+  account_label: string;
+};
+
 /**
  * **1:1 mockups.** Each story renders the same Layout + page as the live app at the given route.
  * Use these as the design surface; changes here are the implementation.
@@ -108,16 +125,43 @@ export const KairosWithResults: Story = {
   },
 };
 
-/** Account — identity card, sign-out (mockup 05). Signed-in state. */
+const meLocal: MeStorySeed = {
+  sub: "user-1",
+  preferred_username: "jsmith",
+  name: "Jane Smith",
+  email: "jane.smith@example.com",
+  email_verified: true,
+  groups: ["kairos-users", "developers"],
+  realm: "kairos-dev",
+  account_kind: "local",
+  account_label: "Local",
+};
+
+/** Account — identity card, sign-out (mockup 05). Signed-in state (local realm user). */
 export const Account: Story = {
   parameters: {
     initialEntry: "/account",
-    queryData: [
-      [
-        ["me"],
-        { sub: "user-1", name: "Jane Smith", email: "jane.smith@example.com" },
-      ],
-    ],
+    queryData: [[["me"], meLocal]],
+  },
+};
+
+const meSso: MeStorySeed = {
+  sub: "federated-42",
+  preferred_username: "jane@gmail.com",
+  name: "Jane Smith",
+  email: "jane.smith@example.com",
+  groups: ["kairos-users"],
+  realm: "kairos-dev",
+  identity_provider: "google",
+  account_kind: "sso",
+  account_label: "Google (SSO)",
+};
+
+/** Account — SSO user (federated IdP). */
+export const AccountSso: Story = {
+  parameters: {
+    initialEntry: "/account",
+    queryData: [[["me"], meSso]],
   },
 };
 

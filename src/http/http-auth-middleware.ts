@@ -49,7 +49,7 @@ function buildLoginUrl(state: string, codeChallenge: string): string {
     client_id: KEYCLOAK_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'openid',
+    scope: 'openid profile email',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
@@ -89,6 +89,15 @@ function getSessionPayload(req: Request): AuthPayload | null {
       realm?: string;
       group_ids?: string[];
       exp?: number;
+      preferred_username?: string;
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      email?: string;
+      email_verified?: boolean;
+      identity_provider?: string;
+      account_kind?: string;
+      account_label?: string;
     };
     if (payload.exp && payload.exp < Date.now() / 1000) return null;
     const sub = typeof payload.sub === 'string' ? payload.sub : '';
@@ -100,6 +109,18 @@ function getSessionPayload(req: Request): AuthPayload | null {
       : undefined;
     const result: AuthPayload = { sub, groups, realm };
     if (group_ids && group_ids.length > 0) result.group_ids = group_ids;
+    if (typeof payload.preferred_username === 'string' && payload.preferred_username.length > 0)
+      result.preferred_username = payload.preferred_username;
+    if (typeof payload.name === 'string' && payload.name.length > 0) result.name = payload.name;
+    if (typeof payload.given_name === 'string' && payload.given_name.length > 0) result.given_name = payload.given_name;
+    if (typeof payload.family_name === 'string' && payload.family_name.length > 0) result.family_name = payload.family_name;
+    if (typeof payload.email === 'string' && payload.email.length > 0) result.email = payload.email;
+    if (payload.email_verified === true || payload.email_verified === false) result.email_verified = payload.email_verified;
+    if (typeof payload.identity_provider === 'string' && payload.identity_provider.length > 0)
+      result.identity_provider = payload.identity_provider;
+    if (payload.account_kind === 'local' || payload.account_kind === 'sso') result.account_kind = payload.account_kind;
+    if (typeof payload.account_label === 'string' && payload.account_label.length > 0)
+      result.account_label = payload.account_label;
     return result;
   } catch {
     return null;
@@ -145,7 +166,11 @@ function isProtectedPath(path: string): boolean {
 function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_description?: string }): string {
   if (!AUTH_CALLBACK_BASE_URL) return '';
   const resourceMetadataUrl = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/.well-known/oauth-protected-resource`;
-  const parts = [`Bearer realm="mcp"`, `resource_metadata="${resourceMetadataUrl}"`, 'scope="openid"'];
+  const parts = [
+    `Bearer realm="mcp"`,
+    `resource_metadata="${resourceMetadataUrl}"`,
+    'scope="openid profile email"'
+  ];
   if (opts?.error) {
     parts.unshift(`error="${opts.error}"`);
     if (opts.error_description) {

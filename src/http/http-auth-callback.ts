@@ -4,8 +4,8 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
-import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
-import { utf8fromString, utf8toString } from '@exodus/bytes/utf8.js';
+import { toBase64url } from '@exodus/bytes/base64.js';
+import { utf8fromString } from '@exodus/bytes/utf8.js';
 import {
   AUTH_ENABLED,
   KEYCLOAK_URL,
@@ -18,25 +18,18 @@ import {
 } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { getStateStore, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
+import { decodeJwtPayloadSegment, mergeCallbackTokenPayloads, type MergedCallbackClaims } from './oidc-profile-claims.js';
 
-function signSession(payload: {
-  sub: string;
-  groups: string[];
-  realm: string;
-  group_ids?: string[];
-  exp: number;
-}): string {
+function signSession(
+  payload: MergedCallbackClaims & {
+    exp: number;
+  }
+): string {
   const payloadB64 = toBase64url(utf8fromString(JSON.stringify(payload)));
   const sig = toBase64url(
     new Uint8Array(crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest())
   );
   return `${payloadB64}.${sig}`;
-}
-
-function realmFromIssuer(iss: string): string {
-  const match = /\/realms\/([^/]+)/.exec(iss);
-  const segment = match?.[1] ?? iss.split('/').filter(Boolean).pop();
-  return typeof segment === 'string' ? segment : 'default';
 }
 
 const AUTH_SUCCESS_HTML = `<!DOCTYPE html>
@@ -159,61 +152,38 @@ export function setupAuthCallback(app: express.Express): void {
       return;
     }
     const tokens = (await tokenRes.json()) as { id_token?: string; access_token?: string };
-    const idToken = tokens.id_token;
-    const accessToken = tokens.access_token;
-    const tokenToDecode = idToken ?? accessToken;
-    if (!tokenToDecode || typeof tokenToDecode !== 'string') {
+    const idToken = typeof tokens.id_token === 'string' ? tokens.id_token : undefined;
+    const accessToken = typeof tokens.access_token === 'string' ? tokens.access_token : undefined;
+    if (!idToken && !accessToken) {
       structuredLogger.info('Auth callback: no id_token or access_token in response');
       res.redirect(302, '/?error=no_tokens');
       return;
     }
-    let sub: string | null = null;
-    let groups: string[] = [];
-    let realm = KEYCLOAK_REALM;
-    let group_ids: string[] | undefined;
-    try {
-      const segment = tokenToDecode.split('.')[1];
-      const payload = segment
-        ? (JSON.parse(utf8toString(fromBase64url(segment))) as {
-            sub?: string;
-            iss?: string;
-            groups?: string[];
-            group_ids?: string[];
-            realm_access?: { roles?: string[] };
-          })
-        : null;
-      if (!payload || typeof payload.sub !== 'string' || payload.sub.length === 0) {
-        structuredLogger.info('Auth callback: could not extract sub from token');
-        res.redirect(302, '/?error=invalid_token_sub');
-        return;
-      }
-      sub = payload.sub;
-      if (Array.isArray(payload.groups)) groups = payload.groups.filter((g): g is string => typeof g === 'string');
-      else if (payload.realm_access && Array.isArray(payload.realm_access.roles))
-        groups = payload.realm_access.roles.filter((r): r is string => typeof r === 'string');
-      if (typeof payload.iss === 'string') realm = realmFromIssuer(payload.iss);
-      const g = payload.group_ids;
-      if (Array.isArray(g)) {
-        const ids = g.filter((x): x is string => typeof x === 'string' && x.length > 0);
-        if (ids.length > 0) group_ids = ids;
-      }
-    } catch {
+    const idPayload = idToken ? decodeJwtPayloadSegment(idToken) : null;
+    const accessPayload = accessToken ? decodeJwtPayloadSegment(accessToken) : null;
+    if (idPayload === null && accessPayload === null) {
       structuredLogger.info('Auth callback: token payload parse failed');
       res.redirect(302, '/?error=invalid_token_payload');
       return;
     }
-    if (sub === null) {
-      res.redirect(302, '/?error=invalid_token_sub');
+    const mergedResult = mergeCallbackTokenPayloads({
+      idPayload,
+      accessPayload,
+      fallbackRealm: KEYCLOAK_REALM
+    });
+    if (!mergedResult.ok) {
+      structuredLogger.info(`Auth callback: merge failed ${mergedResult.error}`);
+      const err =
+        mergedResult.error === 'mismatched_sub' ? 'mismatched_token_sub' : 'invalid_token_sub';
+      res.redirect(302, `/?error=${err}`);
       return;
     }
+    const { merged } = mergedResult;
     const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
-    const sessionPayload: { sub: string; groups: string[]; realm: string; group_ids?: string[]; exp: number } = {
-      sub,
-      groups,
-      realm,
+    const sessionPayload: MergedCallbackClaims & { exp: number } = {
+      ...merged,
       exp
     };
-    if (group_ids && group_ids.length > 0) sessionPayload.group_ids = group_ids;
     const cookieValue = signSession(sessionPayload);
     res.setHeader('Set-Cookie', [
       `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}${useSecureCookie ? '; Secure' : ''}`

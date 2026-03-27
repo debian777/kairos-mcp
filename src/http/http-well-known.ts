@@ -22,7 +22,7 @@ function buildProtectedResourceMetadata(): Record<string, unknown> {
   const metadata: Record<string, unknown> = {
     resource,
     authorization_servers: issuer ? [issuer] : [],
-    scopes_supported: ['openid'],
+    scopes_supported: ['openid', 'profile', 'email'],
     bearer_methods_supported: ['header'],
     resource_name: 'KAIROS MCP'
   };

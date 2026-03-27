@@ -103,8 +103,16 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: TypeScript, Knip, UI tests (parallel)
+      - name: TypeScript, Knip, UI tests, Storybook build (parallel)
         run: node scripts/run-parallel-checks-ci.mjs
+
+      - name: Upload Storybook static (PR artifact)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-static
+          path: storybook-static/
+          if-no-files-found: ignore
 
   verify-integration:
     name: Infra + dev deploy + integration tests (AUTH on)
