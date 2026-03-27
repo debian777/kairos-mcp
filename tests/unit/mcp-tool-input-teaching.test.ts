@@ -1,8 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
-import { forwardInputSchema } from '../../src/tools/forward_schema.js';
+import { forwardInputSchema, forwardMcpWireInputSchema } from '../../src/tools/forward_schema.js';
 import { buildMcpInputTeachingPayload } from '../../src/tools/mcp-tool-input-teaching.js';
 
 describe('mcp-tool-input-teaching', () => {
+  test('forward MCP wire schema accepts empty object so handler can teach', () => {
+    const wire = forwardMcpWireInputSchema.safeParse({});
+    expect(wire.success).toBe(true);
+  });
+
   test('forward missing uri includes next_action and INVALID_TOOL_INPUT', () => {
     const parsed = forwardInputSchema.safeParse({});
     expect(parsed.success).toBe(false);

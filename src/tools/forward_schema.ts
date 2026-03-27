@@ -102,11 +102,15 @@ export const forwardInputSchema = z.object({
  * Wire registration schema for the MCP `forward` tool. The SDK only emits `tools/list` JSON Schema
  * for plain object Zod types; a `z.union` used for loose parsing yields empty `properties`.
  * The handler still validates with {@link forwardInputSchema} and returns teaching payloads on failure.
+ * `uri` is optional on the wire schema so `{}` and other malformed payloads reach the handler instead of
+ * failing in the MCP SDK with a generic validation error.
  */
-export const forwardMcpWireInputSchema = z.object({
-  uri: z.any(),
-  solution: z.any().optional()
-});
+export const forwardMcpWireInputSchema = z
+  .object({
+    uri: z.any().optional(),
+    solution: z.any().optional()
+  })
+  .passthrough();
 
 export const forwardOutputSchema = z.object({
   must_obey: z.boolean(),
