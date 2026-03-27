@@ -8,6 +8,7 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
 import { parseKairosUri } from './kairos-uri.js';
+import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
 import type { RewardRecord, TensorValue } from '../types/memory.js';
 
@@ -153,6 +154,19 @@ export async function executeExport(
       uri: `kairos://mem/${layerId}`,
       protocol: true
     });
+    const headMemory = await memoryStore.getMemory(layerId);
+    const sid = typeof headMemory?.space_id === 'string' ? headMemory.space_id.trim() : '';
+    const spaceFields =
+      sid.length > 0
+        ? {
+            space_id: sid,
+            space_name: spaceIdToDisplayName(sid),
+            space_type: spaceKindFromSpaceId(sid)
+          }
+        : {
+            space_id: null,
+            space_name: null
+          };
     return {
       uri: input.uri,
       format: input.format,
@@ -160,7 +174,8 @@ export async function executeExport(
       content: toCurrentMarkdown(String(dump['markdown_doc'] ?? '')),
       item_count: 1,
       adapter_name: typeof dump['label'] === 'string' ? dump['label'] : null,
-      adapter_version: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null
+      adapter_version: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null,
+      ...spaceFields
     };
   }
 

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useSpaces } from "@/hooks/useSpaces";
+import { SpaceTypeBadge } from "@/components/SpaceSelect";
 
 /**
  * Home page per mockup 01-home-search: overview, activation query form
@@ -70,13 +71,14 @@ export function HomePage() {
         ) : null}
         {spaces.map((space) => (
           <div
-            key={space.name}
+            key={space.space_id}
             className="min-w-[7rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
           >
-            <span className="block font-semibold text-[var(--color-text-heading)]">
-              {space.name}
-            </span>
-            <span className="block text-sm text-[var(--color-text-muted)] mt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-[var(--color-text-heading)]">{space.name}</span>
+              <SpaceTypeBadge type={space.type} />
+            </div>
+            <span className="block text-sm text-[var(--color-text-muted)] mt-2">
               {isLoading ? "—" : t("home.stats.protocolCount", { count: space.adapter_count })}
             </span>
           </div>

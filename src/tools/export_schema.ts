@@ -25,6 +25,8 @@ export const exportInputSchema = z.object({
   include_reward: z.boolean().optional().default(true).describe('Include reward fields when present')
 });
 
+const spaceTypeSchema = z.enum(['personal', 'group', 'app', 'other']);
+
 export const exportOutputSchema = z.object({
   uri: adapterOrLayerUriSchema,
   format: exportFormatSchema,
@@ -32,7 +34,11 @@ export const exportOutputSchema = z.object({
   content: z.string(),
   item_count: z.number().optional(),
   adapter_name: z.string().nullable().optional(),
-  adapter_version: z.string().nullable().optional()
+  adapter_version: z.string().nullable().optional(),
+  /** Present for markdown adapter exports when the layer payload includes space_id. */
+  space_id: z.string().nullable().optional(),
+  space_name: z.string().nullable().optional(),
+  space_type: spaceTypeSchema.optional()
 }).strict();
 
 export type ExportInput = z.infer<typeof exportInputSchema>;

@@ -96,7 +96,7 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
                 activate: 'POST /api/activate',
                 forward: 'POST /api/forward',
                 reward: 'POST /api/reward',
-                train: 'POST /api/train/raw',
+                train: 'POST /api/train (JSON) or POST /api/train/raw (markdown body)',
                 tune: 'POST /api/tune',
                 delete: 'POST /api/delete',
                 export: 'POST /api/export',

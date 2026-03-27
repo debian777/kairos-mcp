@@ -12,6 +12,8 @@ import {
 } from "@/hooks/useProtocol";
 import { apiFetch } from "@/lib/api";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { useSpaces } from "@/hooks/useSpaces";
+import { SpaceSelect } from "@/components/SpaceSelect";
 
 const markdownSchema = z
   .string()
@@ -28,6 +30,8 @@ const DEFAULT_STEP: StepFormState = {
 };
 
 const CHALLENGE_TYPE_KEYS: StepFormState["type"][] = ["shell", "mcp", "user_input", "comment"];
+
+const SOURCE_ADAPTER_URI_RE = /^kairos:\/\/adapter\/[0-9a-f-]{36}$/i;
 
 export function ProtocolEditPage() {
   const { t } = useTranslation();
@@ -48,6 +52,31 @@ export function ProtocolEditPage() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialSpaceIdRef = useRef<string>("");
+  const [targetSpace, setTargetSpace] = useState("");
+  const [moveSpace, setMoveSpace] = useState("");
+  const [forkSourceUri, setForkSourceUri] = useState("");
+
+  const { data: spacesData, isLoading: spacesLoading } = useSpaces(true, {});
+
+  useEffect(() => {
+    if (!isNew) return;
+    setTargetSpace("");
+    setForkSourceUri("");
+  }, [isNew]);
+
+  useEffect(() => {
+    if (!isNew) return;
+    const p = spacesData?.spaces?.find((s) => s.type === "personal");
+    setTargetSpace((prev) => (prev === "" && p ? p.space_id : prev));
+  }, [isNew, spacesData?.spaces]);
+
+  useEffect(() => {
+    if (isNew || !data) return;
+    const sid = typeof data.space_id === "string" ? data.space_id.trim() : "";
+    initialSpaceIdRef.current = sid;
+    setMoveSpace(sid);
+  }, [isNew, data]);
 
   useEffect(() => {
     if (data?.markdown_doc) {
@@ -113,26 +142,51 @@ export function ProtocolEditPage() {
       setValidationError(parsed.error.errors[0]?.message ?? "Invalid");
       return;
     }
+    const fork = forkSourceUri.trim();
+    if (fork && !SOURCE_ADAPTER_URI_RE.test(fork)) {
+      setValidationError(t("protocolEdit.forkUriInvalid"));
+      return;
+    }
     setSaving(true);
     try {
       if (isNew) {
-        const res = await apiFetch("/api/train/raw", {
+        const spaceParam = targetSpace.trim() || "personal";
+        const res = await apiFetch("/api/train", {
           method: "POST",
-          headers: { "Content-Type": "text/markdown" },
-          body: markdown,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markdown_doc: markdown,
+            llm_model_id: "kairos-ui",
+            force_update: false,
+            space: spaceParam,
+            ...(fork ? { source_adapter_uri: fork } : {}),
+          }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error((err as { message?: string }).message ?? res.statusText);
         }
-        const json = await res.json();
-        const firstUri = (json as { items?: { uri?: string }[] }).items?.[0]?.uri;
-        if (firstUri) navigate(`/protocols/${encodeURIComponent(firstUri)}`);
+        const json = (await res.json()) as {
+          items?: { uri?: string; adapter_uri?: string }[];
+        };
+        const adapterUri = json.items?.[0]?.adapter_uri;
+        const layerUri = json.items?.[0]?.uri;
+        if (adapterUri) navigate(`/protocols/${encodeURIComponent(adapterUri)}`);
+        else if (layerUri) navigate(`/protocols/${encodeURIComponent(layerUri)}`);
         else navigate("/");
       } else {
+        const initial = initialSpaceIdRef.current.trim();
+        const nextSpace = moveSpace.trim();
+        const tunePayload: Record<string, unknown> = {
+          uris: [decodedUri!],
+          markdown_doc: [markdown],
+        };
+        if (nextSpace && nextSpace !== initial) {
+          tunePayload.space = nextSpace;
+        }
         const res = await apiFetch("/api/tune", {
           method: "POST",
-          body: JSON.stringify({ uris: [decodedUri], markdown_doc: [markdown] }),
+          body: JSON.stringify(tunePayload),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -178,6 +232,64 @@ export function ProtocolEditPage() {
         {pageTitle}
       </h1>
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.hint")}</p>
+
+      <div className="mb-8 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5 space-y-5">
+        {isNew ? (
+          <>
+            <div>
+              <label
+                htmlFor="protocol-target-space"
+                className="mb-2 block font-medium text-[var(--color-text-heading)]"
+              >
+                {t("protocolEdit.targetSpaceLabel")}
+              </label>
+              <SpaceSelect
+                id="protocol-target-space"
+                spaces={spacesData?.spaces}
+                value={targetSpace}
+                onChange={setTargetSpace}
+                disabled={spacesLoading}
+              />
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.targetSpaceHint")}</p>
+            </div>
+            <div>
+              <label
+                htmlFor="protocol-fork-source"
+                className="mb-2 block font-medium text-[var(--color-text-heading)]"
+              >
+                {t("protocolEdit.forkSourceLabel")}
+              </label>
+              <input
+                id="protocol-fork-source"
+                type="text"
+                value={forkSourceUri}
+                onChange={(e) => setForkSourceUri(e.target.value)}
+                placeholder={t("protocolEdit.forkSourcePlaceholder")}
+                autoComplete="off"
+                className="min-h-[44px] w-full max-w-2xl rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+              />
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.forkSourceHint")}</p>
+            </div>
+          </>
+        ) : (
+          <div>
+            <label
+              htmlFor="protocol-move-space"
+              className="mb-2 block font-medium text-[var(--color-text-heading)]"
+            >
+              {t("protocolEdit.moveSpaceLabel")}
+            </label>
+            <SpaceSelect
+              id="protocol-move-space"
+              spaces={spacesData?.spaces}
+              value={moveSpace}
+              onChange={setMoveSpace}
+              disabled={spacesLoading}
+            />
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">{t("protocolEdit.moveSpaceHint")}</p>
+          </div>
+        )}
+      </div>
 
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5">
         <div>
