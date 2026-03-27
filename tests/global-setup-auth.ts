@@ -13,6 +13,13 @@ import {
   useExistingKeycloakFromEnv
 } from './utils/keycloak-container';
 
+/** Same as src/http/bearer-validate realmFromIssuer (globalSetup cannot import src — runs before ts-jest ESM hooks). */
+function realmFromIssuer(iss: string): string {
+  const match = /\/realms\/([^/]+)/.exec(iss);
+  const segment = match?.[1] ?? iss.split('/').filter(Boolean).pop();
+  return typeof segment === 'string' ? segment : 'default';
+}
+
 /** Env suffix for test auth file (e.g. .test-auth-env.dev.json). */
 function getEnvSuffix(): string {
   return 'dev';
@@ -25,20 +32,20 @@ function getAuthStateFile(root: string): string {
   return join(root, `.test-auth-state.${getEnvSuffix()}.json`);
 }
 
-/** Decode JWT payload (no verify) to get space for kairos-tester: user:realm:sub */
+/**
+ * Decode JWT payload (no verify) to build personal space id user:realm:sub.
+ * Realm must match bearer-validate (issuer URL), not a stray JWT `realm` claim, or activate/train space params fail resolution.
+ */
 function spaceIdFromToken(token: string): string | undefined {
   try {
     const parts = token.split('.');
     if (parts.length < 2) return undefined;
-    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string; realm?: string; iss?: string };
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string; iss?: string };
     const sub = payload.sub;
     if (!sub || typeof sub !== 'string') return undefined;
-    let realm = payload.realm;
-    if (!realm && typeof payload.iss === 'string') {
-      const m = payload.iss.match(/\/realms\/([^/]+)/);
-      realm = m ? m[1] : 'default';
-    }
-    realm = realm ?? 'default';
+    const iss = typeof payload.iss === 'string' ? payload.iss : '';
+    if (!iss) return undefined;
+    const realm = realmFromIssuer(iss);
     return `user:${realm}:${sub}`;
   } catch {
     return undefined;

@@ -19,6 +19,11 @@ export interface SpaceContext {
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
   requestId?: string;
+  /**
+   * When set (e.g. activate/search space parameter), vector search uses exactly these IDs — no implicit merge of Kairos app.
+   * Writes should still use defaultWriteSpaceId when the scope is read-only (app space).
+   */
+  activateSpaceScope?: string[];
 }
 
 /** Sentinel for "no context" when restoring after runWithSpaceContextAsync (enterWith does not accept undefined). */
@@ -108,6 +113,10 @@ export function getRequestIdFromStorage(): string {
  */
 export function getSearchSpaceIds(): string[] {
   const ctx = getSpaceContextFromStorage();
+  const scope = ctx.activateSpaceScope;
+  if (scope && scope.length > 0) {
+    return [...scope];
+  }
   const allowed = ctx.allowedSpaceIds;
   if (allowed.includes(KAIROS_APP_SPACE_ID)) return [...allowed];
   return [...allowed, KAIROS_APP_SPACE_ID];
@@ -122,18 +131,21 @@ export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefine
   const trimmed = spaceParam.trim();
   if (!trimmed) return fn();
   const ctx = getSpaceContextFromStorage();
-  const resolved = resolveSpaceParamForContext(ctx, trimmed);
+  const searchableBeforeNarrow = getSearchSpaceIds();
+  const resolved = resolveSpaceParamForContext(ctx, trimmed, { allowReadOnlyAppSearchScope: true });
   if (!resolved.ok) {
     throw new Error(resolved.message);
   }
   const spaceId = resolved.spaceId;
-  if (!ctx.allowedSpaceIds.includes(spaceId)) {
+  if (!searchableBeforeNarrow.includes(spaceId)) {
     throw new Error('Requested space is not in your allowed spaces');
   }
+  const readOnlyAppScope = spaceId === KAIROS_APP_SPACE_ID;
   const narrowed: SpaceContext = {
     ...ctx,
     allowedSpaceIds: [spaceId],
-    defaultWriteSpaceId: spaceId
+    defaultWriteSpaceId: readOnlyAppScope ? ctx.defaultWriteSpaceId : spaceId,
+    activateSpaceScope: [spaceId]
   };
   return runWithSpaceContextAsync(narrowed, fn);
 }

@@ -8,6 +8,8 @@ export interface ForwardExecutionMeta {
   adapter_id: string;
   adapter_uri: string;
   activation_query?: string;
+  /** When forward started from an ambiguous slug URI, echoed on forward responses for this run. */
+  slug_disambiguation_note?: string;
   merge_depth: number;
   created_at: string;
 }

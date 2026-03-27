@@ -74,13 +74,19 @@ export function mapProofSolution(solution: ForwardSolution): ProofOfWorkSubmissi
   };
 }
 
+export type LoadMemoryForParsedUriResult = {
+  memory: Memory | null;
+  slug_disambiguation_note?: string;
+};
+
 export async function loadMemoryForParsedUri(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
   parsed: ReturnType<typeof parseKairosUri>
-): Promise<Memory | null> {
+): Promise<LoadMemoryForParsedUriResult> {
   if (parsed.kind === 'layer') {
-    return memoryStore.getMemory(parsed.id);
+    const memory = await memoryStore.getMemory(parsed.id);
+    return { memory };
   }
 
   if (!qdrantService) {
@@ -88,20 +94,26 @@ export async function loadMemoryForParsedUri(
   }
 
   if (parsed.idKind === 'slug') {
-    const firstLayerId = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
-    if (!firstLayerId) {
-      return null;
+    const outcome = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
+    if (!outcome.layerUuid) {
+      return { memory: null };
     }
-    return memoryStore.getMemory(firstLayerId);
+    const memory = await memoryStore.getMemory(outcome.layerUuid);
+    return {
+      memory,
+      ...(outcome.disambiguation_note ? { slug_disambiguation_note: outcome.disambiguation_note } : {})
+    };
   }
 
   const layers = await qdrantService.getAdapterLayers(parsed.id);
   const firstLayer = layers[0]?.uuid;
   if (firstLayer) {
-    return memoryStore.getMemory(firstLayer);
+    const memory = await memoryStore.getMemory(firstLayer);
+    return { memory };
   }
 
-  return memoryStore.getMemory(parsed.id);
+  const memory = await memoryStore.getMemory(parsed.id);
+  return { memory };
 }
 
 async function buildContractResponse(
@@ -158,6 +170,8 @@ export type BuildForwardViewOptions = {
   mustObey?: boolean;
   contractOverride?: ForwardOutput['contract'];
   tensorInOverride?: Record<string, unknown>;
+  /** When set, included in output (overrides execution meta note for this view). */
+  slugDisambiguationNote?: string;
 };
 
 export async function buildForwardView(
@@ -173,6 +187,9 @@ export async function buildForwardView(
   const layer = currentLayer(memory, executionId);
   const final = options?.final === true;
 
+  const meta = await forwardRuntimeStore.getExecution(executionId);
+  const slugNote = options?.slugDisambiguationNote ?? meta?.slug_disambiguation_note;
+
   return {
     must_obey: options?.mustObey ?? true,
     current_layer: layer,
@@ -185,7 +202,8 @@ export async function buildForwardView(
     ...(options?.proofHash && { proof_hash: options.proofHash }),
     ...(options?.message && { message: options.message }),
     ...(options?.errorCode && { error_code: options.errorCode }),
-    ...(options?.retryCount !== undefined && { retry_count: options.retryCount })
+    ...(options?.retryCount !== undefined && { retry_count: options.retryCount }),
+    ...(slugNote ? { slug_disambiguation_note: slugNote } : {})
   };
 }
 

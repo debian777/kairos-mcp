@@ -23,8 +23,14 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "redirectUris": [
+        "http://localhost:3000/auth/callback",
+        "http://127.0.0.1:3000/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ]
     },
     {
       "clientId": "kairos-cli",

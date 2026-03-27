@@ -1,12 +1,10 @@
 import crypto from 'node:crypto';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { resolveAdapterNextLayer, resolveAdapterPreviousLayer } from '../services/adapter-navigation.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
-import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getAdapterId, getInferenceContract, getLayerIndex } from '../services/memory/memory-accessors.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import {
@@ -23,7 +21,7 @@ import {
   tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious
 } from './next-previous-step.js';
 import { updateStepQuality } from './next.js';
-import { forwardInputSchema, forwardOutputSchema, type ForwardInput, type ForwardOutput } from './forward_schema.js';
+import { type ForwardInput, type ForwardOutput } from './forward_schema.js';
 import { buildAdapterUri, buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import {
   buildForwardView,
@@ -32,14 +30,8 @@ import {
   mapLayerPayloadToForwardView,
   mapProofSolution,
 } from './forward-view.js';
-import { formatForwardToolError } from './forward-tool-error.js';
 import { appendExecutionTrace, handleTensorForward, solutionToTensorValue } from './forward-trace.js';
 import { KairosError } from '../types/index.js';
-
-interface RegisterForwardOptions {
-  toolName?: string;
-  qdrantService?: QdrantService;
-}
 
 async function loadLayer(memoryStore: MemoryQdrantStore, layerId: string | undefined): Promise<Awaited<ReturnType<MemoryQdrantStore['getMemory']>>> {
   return layerId ? memoryStore.getMemory(layerId) : null;
@@ -96,7 +88,8 @@ export async function executeForward(
   input: ForwardInput
 ): Promise<ForwardOutput> {
   const parsed = parseKairosUriOrThrow(input.uri);
-  const memory = await loadMemoryForParsedUri(memoryStore, qdrantService, parsed);
+  const loaded = await loadMemoryForParsedUri(memoryStore, qdrantService, parsed);
+  const memory = loaded.memory;
   if (!memory) {
     throw new KairosError('Layer or adapter not found', 'NOT_FOUND', 404);
   }
@@ -111,7 +104,10 @@ export async function executeForward(
       adapter_id: adapterId,
       adapter_uri: adapterUri,
       merge_depth: 0,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      ...(loaded.slug_disambiguation_note
+        ? { slug_disambiguation_note: loaded.slug_disambiguation_note }
+        : {})
     });
     await executionTraceStore.startExecution({
       executionId,
@@ -305,44 +301,4 @@ export async function executeForward(
     qdrantService,
     ...(submissionOutcome.proofHash ? { proofHash: submissionOutcome.proofHash } : {})
   });
-}
-
-export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterForwardOptions = {}) {
-  const toolName = options.toolName || 'forward';
-  const qdrantService = options.qdrantService;
-
-  server.registerTool(
-    toolName,
-    {
-      title: 'Run adapter forward pass',
-      description: getToolDoc('forward') || 'Run the first or next adapter layer. Omitting solution starts a new execution.',
-      inputSchema: forwardInputSchema,
-      outputSchema: forwardOutputSchema
-    },
-    async (params: unknown) => {
-      const tenantId = getTenantId();
-      mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
-      const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
-
-      try {
-        const input = forwardInputSchema.parse(params);
-        const output = await executeForward(server, memoryStore, qdrantService, input);
-        mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
-        timer({ tool: toolName, status: 'success', tenant_id: tenantId });
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output) }],
-          structuredContent: output
-        };
-      } catch (error) {
-        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
-        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
-        if (error instanceof KairosError) {
-          return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify(formatForwardToolError(error)) }] };
-        }
-        throw error;
-      }
-    }
-  );
 }

@@ -129,8 +129,13 @@ export async function createClient(
     clientId: CLIENT_ID,
     publicClient: true,
     directAccessGrantsEnabled: true,
-    redirectUris: ['http://localhost:3300/auth/callback', 'http://localhost:3300/*', 'http://localhost:3500/auth/callback', 'http://localhost:3500/*'],
-    webOrigins: ['http://localhost:3300', 'http://localhost:3500'],
+    redirectUris: [
+      'http://localhost:3300/auth/callback',
+      'http://localhost:3301/auth/callback',
+      'http://localhost:3300/*',
+      'http://localhost:3301/*'
+    ],
+    webOrigins: ['http://localhost:3300', 'http://localhost:3301'],
     enabled: true
   };
   const res = await fetch(url, {

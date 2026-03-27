@@ -115,6 +115,10 @@ When **KAIROS** is connected as an MCP server (for example **Cursor** →
 Installed MCP Servers → **KAIROS**), run stored workflows in this order:
 
 1. `**activate`** — use the user’s intent as `query` (or a short phrase).
+   Optional `space` / `space_id` narrows search (same forms as **`train`** /
+   **`tune`**). Match rows include **`space_name`**. Use **`spaces`** to list
+   allowed spaces; **`train`** + `source_adapter_uri` forks into another space;
+   **`tune`** + `space` moves an adapter.
 2. `**forward**` — first call with the **adapter** URI from the chosen
   `next_action` and **no** `solution`; then call again with each **layer**
    URI and a `solution` matching `contract.type` until `next_action` points

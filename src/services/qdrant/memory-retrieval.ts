@@ -4,7 +4,7 @@ import { qdrantOperations, qdrantOperationDuration } from '../metrics/qdrant-met
 import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { buildAdapterSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
-import { KairosError } from '../../types/index.js';
+import { structuredLogger } from '../../utils/structured-logger.js';
 
 /**
  * Retrieval helpers
@@ -181,18 +181,26 @@ export async function getAdapterLayers(
   });
 }
 
+/** Result of resolving an adapter slug to an entry-layer point id. */
+export interface SlugResolveOutcome {
+  layerUuid: string | null;
+  /** Present when multiple adapters shared the slug; client should prefer explicit adapter URIs. */
+  disambiguation_note?: string;
+}
+
 /**
  * Find the first adapter layer UUID for a protocol slug (exact match), scoped to searchable spaces.
  * Paginates scroll so matches are not truncated at a small limit.
- * If the slug maps to more than one adapter, prefers the default write space; otherwise throws.
+ * If the slug maps to more than one adapter, picks deterministically: default write space first, then
+ * lowest point id; logs and returns a disambiguation_note instead of failing the request.
  */
 export async function findFirstStepMemoryUuidBySlug(
   conn: QdrantConnection,
   slug: string
-): Promise<string | null> {
+): Promise<SlugResolveOutcome> {
   return conn.executeWithReconnect(async () => {
     const normalized = (slug || '').trim().toLowerCase();
-    if (!normalized) return null;
+    if (!normalized) return { layerUuid: null };
     const filter = buildSpaceFilter(getSearchSpaceIds(), {
       must: [
         { key: 'slug', match: { value: normalized } },
@@ -215,7 +223,7 @@ export async function findFirstStepMemoryUuidBySlug(
       offset = page.next_page_offset;
     } while (offset);
 
-    if (allPts.length === 0) return null;
+    if (allPts.length === 0) return { layerUuid: null };
 
     allPts.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
 
@@ -230,45 +238,25 @@ export async function findFirstStepMemoryUuidBySlug(
 
     const unique = [...byAdapterId.values()];
     if (unique.length === 1) {
-      return String(unique[0]!.id);
+      return { layerUuid: String(unique[0]!.id) };
     }
 
     const defaultWrite = getSpaceContext().defaultWriteSpaceId;
     const spaceOf = (p: any) => String(p.payload?.space_id ?? KAIROS_APP_SPACE_ID);
-    const inDefault = unique.filter((p) => spaceOf(p) === defaultWrite);
-    const activateNextAction =
-      'Call activate with the user intent to find the correct protocol, or use the exact adapter URI.';
-    const crossSpaceNextAction =
-      `${activateNextAction} If you work across spaces, narrow the active space first.`;
-
-    if (inDefault.length === 1) {
-      return String(inDefault[0]!.id);
-    }
-
-    if (inDefault.length > 1) {
-      throw new KairosError(
-        `Protocol slug "${normalized}" matches more than one protocol in your default space.`,
-        'PROTOCOL_KEY_AMBIGUOUS',
-        409,
-        {
-          key: normalized,
-          adapter_count: inDefault.length,
-          must_obey: true,
-          next_action: activateNextAction
-        }
-      );
-    }
-
-    throw new KairosError(
-      `Protocol slug "${normalized}" matches protocols in multiple spaces; use a URI or narrow the active space.`,
-      'PROTOCOL_KEY_AMBIGUOUS',
-      409,
-      {
-        key: normalized,
-        must_obey: true,
-        next_action: crossSpaceNextAction,
-        spaces: [...new Set(unique.map((p) => spaceOf(p)))]
-      }
-    );
+    const sorted = [...unique].sort((a: any, b: any) => {
+      const aDef = spaceOf(a) === defaultWrite ? 0 : 1;
+      const bDef = spaceOf(b) === defaultWrite ? 0 : 1;
+      if (aDef !== bDef) return aDef - bDef;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    const winner = sorted[0]!;
+    const chosenId = String(winner.id);
+    const adapterHint =
+      typeof winner.payload?.adapter?.id === 'string'
+        ? winner.payload.adapter.id
+        : chosenId;
+    const note = `Slug "${normalized}" matched ${unique.length} adapters; selected one deterministically (default write space preferred, then stable id). Prefer an explicit adapter URI such as kairos://adapter/${adapterHint} to avoid ambiguity.`;
+    structuredLogger.warn(`[slug-resolve] ${note}`);
+    return { layerUuid: chosenId, disambiguation_note: note };
   });
 }

@@ -107,7 +107,7 @@ describe('MCP forward slug error guidance', () => {
     });
   }, 60000);
 
-  test('returns actionable guidance for an ambiguous adapter slug URI', async () => {
+  test('resolves ambiguous adapter slug via MCP and includes slug_disambiguation_note', async () => {
     expect.hasAssertions();
 
     const targetSlug = `forward-mcp-ambiguous-${Date.now()}`;
@@ -139,27 +139,21 @@ describe('MCP forward slug error guidance', () => {
       id?: number | null;
     };
 
-    const errorText = body.result?.content?.[0]?.text;
-    expect(typeof errorText).toBe('string');
-    const errorPayload = JSON.parse(errorText as string) as {
-      error?: string;
-      error_code?: string;
-      message?: string;
-      next_action?: string;
+    const text = body.result?.content?.[0]?.text;
+    expect(typeof text).toBe('string');
+    const payload = JSON.parse(text as string) as {
       must_obey?: boolean;
-      key?: string;
-      adapter_count?: number;
+      slug_disambiguation_note?: string;
+      current_layer?: { uri?: string };
+      contract?: { type?: string };
     };
 
     expect(body.jsonrpc).toBe('2.0');
-    expect(body.result?.isError).toBe(true);
-    expect(errorPayload.message).toMatch(/matches more than one protocol/i);
-    expect(errorPayload.error).toBe('PROTOCOL_KEY_AMBIGUOUS');
-    expect(errorPayload.error_code).toBe('PROTOCOL_KEY_AMBIGUOUS');
-    expect(errorPayload.must_obey).toBe(true);
-    expect(errorPayload.key).toBe(targetSlug);
-    expect(errorPayload.adapter_count).toBe(2);
-    expect(typeof errorPayload.next_action).toBe('string');
-    expect(errorPayload.next_action).toMatch(/activate/i);
+    expect(body.result?.isError).not.toBe(true);
+    expect(payload.must_obey).toBe(true);
+    expect(typeof payload.slug_disambiguation_note).toBe('string');
+    expect(payload.slug_disambiguation_note).toMatch(new RegExp(targetSlug, 'i'));
+    expect(payload.slug_disambiguation_note).toMatch(/kairos:\/\/adapter\//i);
+    expect(payload.current_layer?.uri).toMatch(/^kairos:\/\/layer\//);
   }, 30000);
 });

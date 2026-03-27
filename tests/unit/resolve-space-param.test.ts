@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { KAIROS_APP_SPACE_ID } from '../../src/config.js';
 import { resolveSpaceParamForContext } from '../../src/utils/resolve-space-param.js';
 import type { SpaceContext } from '../../src/utils/tenant-context.js';
 
@@ -47,5 +48,30 @@ describe('resolveSpaceParamForContext', () => {
     const r = resolveSpaceParamForContext(c, 'nope');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('SPACE_NOT_FOUND');
+  });
+
+  it('rejects Kairos app as writable target by default', () => {
+    const c = ctx({
+      allowedSpaceIds: ['user:r:sub1'],
+      defaultWriteSpaceId: 'user:r:sub1'
+    });
+    const r = resolveSpaceParamForContext(c, 'Kairos app');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('SPACE_READ_ONLY');
+  });
+
+  it('resolves Kairos app for activate/search when flag is set', () => {
+    const c = ctx({
+      allowedSpaceIds: ['user:r:sub1'],
+      defaultWriteSpaceId: 'user:r:sub1'
+    });
+    expect(resolveSpaceParamForContext(c, 'Kairos app', { allowReadOnlyAppSearchScope: true })).toEqual({
+      ok: true,
+      spaceId: KAIROS_APP_SPACE_ID
+    });
+    expect(resolveSpaceParamForContext(c, KAIROS_APP_SPACE_ID, { allowReadOnlyAppSearchScope: true })).toEqual({
+      ok: true,
+      spaceId: KAIROS_APP_SPACE_ID
+    });
   });
 });

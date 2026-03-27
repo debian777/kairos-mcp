@@ -12,7 +12,7 @@ import { getEmbeddingDimension } from './services/embedding/config.js';
 import { registerDeleteTool } from './tools/delete.js';
 import { registerSpacesTool } from './tools/spaces.js';
 import { registerActivateTool } from './tools/activate.js';
-import { registerForwardTool } from './tools/forward.js';
+import { registerForwardTool } from './tools/forward-register.js';
 import { registerTrainTool } from './tools/train.js';
 import { registerRewardTool } from './tools/reward.js';
 import { registerTuneTool } from './tools/tune.js';
