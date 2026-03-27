@@ -1,4 +1,5 @@
 import type { Preview } from "@storybook/react-vite";
+import { StrictMode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import "../src/ui/i18n";
@@ -23,11 +24,13 @@ const preview: Preview = {
       queryData?.forEach(([key, data]) => queryClient.setQueryData(key, data));
       const initialEntry = (context.parameters.initialEntry as string) ?? "/";
       return (
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={[initialEntry]} initialIndex={0}>
-            <Story />
-          </MemoryRouter>
-        </QueryClientProvider>
+        <StrictMode>
+          <QueryClientProvider client={queryClient}>
+            <MemoryRouter basename="/ui" initialEntries={[initialEntry]} initialIndex={0}>
+              <Story />
+            </MemoryRouter>
+          </QueryClientProvider>
+        </StrictMode>
       );
     },
   ],

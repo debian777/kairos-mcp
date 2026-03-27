@@ -1,7 +1,7 @@
 import type { InferenceContractDefinition, Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getAdapterName, getInferenceContract } from '../services/memory/memory-accessors.js';
+import { getAdapterName, getInferenceContract, getLayerCount, getLayerIndex } from '../services/memory/memory-accessors.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
@@ -18,16 +18,22 @@ export function buildForwardUiSummary(memory: Memory): {
   activation_space_name?: string;
   context_adapter_name?: string;
   current_layer_label?: string;
+  adapter_layer_index?: number;
+  adapter_layer_count?: number;
 } {
   const activation_space_name = memory.space_id ? spaceIdToDisplayName(memory.space_id) : undefined;
   const adapterTitle = getAdapterName(memory)?.trim();
   const context_adapter_name = adapterTitle || undefined;
   const layerLabel = memory.label?.trim();
   const current_layer_label = layerLabel || undefined;
+  const adapter_layer_index = getLayerIndex(memory);
+  const adapter_layer_count = getLayerCount(memory);
   return {
     ...(activation_space_name ? { activation_space_name } : {}),
     ...(context_adapter_name ? { context_adapter_name } : {}),
-    ...(current_layer_label ? { current_layer_label } : {})
+    ...(current_layer_label ? { current_layer_label } : {}),
+    adapter_layer_index,
+    adapter_layer_count
   };
 }
 

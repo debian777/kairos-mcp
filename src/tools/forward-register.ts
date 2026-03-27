@@ -4,11 +4,10 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { KAIROS_FORWARD_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
-import { forwardInputSchema, forwardOutputSchema } from './forward_schema.js';
+import { forwardInputSchema, forwardMcpWireInputSchema, forwardOutputSchema } from './forward_schema.js';
 import { executeForward } from './forward.js';
 import { formatForwardToolError } from './forward-tool-error.js';
 import { KairosError } from '../types/index.js';
-import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 export interface RegisterForwardOptions {
@@ -25,7 +24,7 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
     {
       title: 'Run adapter forward pass',
       description: getToolDoc('forward') || 'Run the first or next adapter layer. Omitting solution starts a new execution.',
-      inputSchema: mcpLooseToolInput(forwardInputSchema),
+      inputSchema: forwardMcpWireInputSchema,
       outputSchema: forwardOutputSchema,
       _meta: KAIROS_FORWARD_TOOL_UI_META
     },

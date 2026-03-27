@@ -16,11 +16,11 @@ export function RunsPage() {
           <p className="text-[var(--color-text-muted)]">{t("runs.empty")}</p>
         </div>
       ) : (
-        <ul className="list-none p-0 m-0 space-y-2" aria-label={t("runs.listLabel")}>
+        <ul className="list-none p-0 m-0 space-y-3" aria-label={t("runs.listLabel")}>
           {sessions.map((s) => (
             <li
               key={s.id}
-              className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 flex items-start justify-between gap-4"
+              className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0">
                 <div className="font-medium text-[var(--color-text-heading)] truncate">{s.adapter_uri}</div>

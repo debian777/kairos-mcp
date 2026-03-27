@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ChallengePayload } from "@/components/ChallengeCard";
 import { apiFetch } from "@/lib/api";
 import type { ExportOutput } from "../../tools/export_schema.js";
 
@@ -53,6 +54,8 @@ export interface ParsedStep {
   summary: string;
   /** Raw section body (for expand/copy). */
   body: string;
+  /** Contract fields for {@link ChallengeCard} on protocol detail. */
+  challengePayload?: ChallengePayload;
 }
 
 /** Per-step form state for the protocol editor. */
@@ -111,6 +114,7 @@ export function parseProtocolMarkdown(md: string): {
       const jsonMatch = body.match(/```json\s*([\s\S]*?)```/);
       let type = "comment";
       let summary = "Comment";
+      let challengePayload: ChallengePayload | undefined;
       if (jsonMatch) {
         try {
           const obj = JSON.parse(jsonMatch[1]!.trim());
@@ -124,12 +128,15 @@ export function parseProtocolMarkdown(md: string): {
                 ? `Shell (${interp}): ${String(cmd).slice(0, 60)}${String(cmd).length > 60 ? "…" : ""}`
                 : `Shell: ${String(cmd).slice(0, 80)}${String(cmd).length > 80 ? "…" : ""}`
               : "Shell";
+            if (cmd) challengePayload = { cmd: String(cmd) };
           } else if (type === "mcp") {
             const tool = challenge?.mcp?.tool_name;
             summary = tool ? `MCP: ${String(tool)}` : "MCP";
+            if (tool) challengePayload = { tool_name: String(tool) };
           } else if (type === "user_input") {
             const prompt = challenge?.user_input?.prompt;
             summary = prompt ? `User input: ${String(prompt)}` : "User input";
+            if (prompt) challengePayload = { prompt: String(prompt) };
           } else if (type === "tensor") {
             const name = challenge?.tensor?.output?.name;
             const outputType = challenge?.tensor?.output?.type;
@@ -137,6 +144,7 @@ export function parseProtocolMarkdown(md: string): {
           } else if (type === "comment") {
             const min = challenge?.comment?.min_length;
             summary = min ? `Comment: min ${Number(min)} chars` : "Comment";
+            if (min != null && !Number.isNaN(Number(min))) challengePayload = { min_length: Number(min) };
           } else {
             summary = String(type);
           }
@@ -145,7 +153,7 @@ export function parseProtocolMarkdown(md: string): {
         }
       }
       if (!summary) summary = String(type);
-      steps.push({ label: heading, type, summary, body });
+      steps.push({ label: heading, type, summary, body, challengePayload });
     }
   }
   return { title, steps, triggers, completion };

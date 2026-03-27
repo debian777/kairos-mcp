@@ -13,5 +13,11 @@ describe('buildForwardWidgetHtml', () => {
     expect(html).toContain('data-theme');
     expect(html).toContain('html.dark');
     expect(html).toContain("classList.add('dark')");
+    expect(html).toContain('id="header-title"');
+    expect(html).toContain('id="progress-segments"');
+    expect(html).toContain('id="step-text"');
+    expect(html).not.toContain('status-pill');
+    expect(html).toContain('formatStepTitle');
+    expect(html).toContain('renderProgress');
   });
 });

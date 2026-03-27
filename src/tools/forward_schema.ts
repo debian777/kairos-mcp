@@ -98,6 +98,16 @@ export const forwardInputSchema = z.object({
   solution: forwardSolutionSchema.optional().describe('Layer solution; omit to start a new forward execution')
 });
 
+/**
+ * Wire registration schema for the MCP `forward` tool. The SDK only emits `tools/list` JSON Schema
+ * for plain object Zod types; a `z.union` used for loose parsing yields empty `properties`.
+ * The handler still validates with {@link forwardInputSchema} and returns teaching payloads on failure.
+ */
+export const forwardMcpWireInputSchema = z.object({
+  uri: z.any(),
+  solution: z.any().optional()
+});
+
 export const forwardOutputSchema = z.object({
   must_obey: z.boolean(),
   current_layer: z.object({
@@ -122,7 +132,11 @@ export const forwardOutputSchema = z.object({
   /** Adapter title for the run (activator / H1). */
   context_adapter_name: z.string().optional(),
   /** Current step label (H2). */
-  current_layer_label: z.string().optional()
+  current_layer_label: z.string().optional(),
+  /** 1-based index of this layer in the adapter (widget progress). */
+  adapter_layer_index: z.number().int().positive().optional(),
+  /** Total layers in the adapter (widget progress). */
+  adapter_layer_count: z.number().int().positive().optional()
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

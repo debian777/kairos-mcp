@@ -14,7 +14,7 @@ Run an **adapter** layer-by-layer. Each layer exposes a **contract** (what to sa
 - `uri` — adapter or layer URI as above.
 - `solution` — omit on the **first** call for a run to load the current layer and contract only. For later calls, supply a solution whose `type` matches `contract.type`.
 
-**Output:** `must_obey`, `current_layer` (markdown body), `contract` (includes `type`: `tensor` | `shell` | `mcp` | `user_input` | `comment`; for proof layers, echo server `nonce` / `proof_hash` in the solution when present), optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`, optional `slug_disambiguation_note` when a slug URI matched multiple adapters, error fields on retry paths.
+**Output:** `must_obey`, `current_layer` (markdown body), `contract` (includes `type`: `tensor` | `shell` | `mcp` | `user_input` | `comment`; for proof layers, echo server `nonce` / `proof_hash` in the solution when present), optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`, optional `slug_disambiguation_note` when a slug URI matched multiple adapters, optional `activation_space_name`, `context_adapter_name`, `current_layer_label`, `adapter_layer_index`, `adapter_layer_count` (widget progress), error fields on retry paths.
 
 **Flow**
 

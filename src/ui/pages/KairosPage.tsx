@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 import { SearchResultsSkeleton } from "@/components/SearchResultsSkeleton";
 import { toConfidencePercent } from "@/utils/confidence";
 import { browseAdaptersFromSpaces } from "@/utils/browse-adapters";
-import { KairosActivateResultsSection, KairosBrowseByLetterSection } from "@/pages/kairos-page-sections";
+import { KairosActivateResultsSection, KairosBrowseByLabelSection } from "@/pages/kairos-page-sections";
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
@@ -26,8 +26,6 @@ export function KairosPage() {
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [activateSpace, setActivateSpace] = useState(initialSpace);
   const [submittedSpace, setSubmittedSpace] = useState(initialSpace);
-  const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
-
   const activateScope = submittedSpace.trim();
   const { data, isLoading, isError, error, refetch } = useActivate(submittedQuery, !!submittedQuery, {
     ...(activateScope ? { space: activateScope } : {}),
@@ -75,25 +73,14 @@ export function KairosPage() {
     ? Math.max(...choices.map((c) => toConfidencePercent(c.activation_score)))
     : null;
 
-  const { browseAdapters, countsByLetter } = useMemo(
-    () => browseAdaptersFromSpaces(spacesData?.spaces),
-    [spacesData?.spaces]
-  );
-
-  const letterAdapters = useMemo(() => {
-    if (!expandedLetter) return [];
-    return browseAdapters.filter((adapter) => {
-      const first = (adapter.title ?? "").trim().charAt(0).toUpperCase();
-      return first === expandedLetter;
-    });
-  }, [browseAdapters, expandedLetter]);
+  const { browseAdapters } = useMemo(() => browseAdaptersFromSpaces(spacesData?.spaces), [spacesData?.spaces]);
 
   return (
     <div>
       <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">
         {t("kairos.title")}
       </h1>
-      <p className="text-sm text-[var(--color-text-muted)] mb-8">
+      <p className="text-sm text-[var(--color-text-muted)] mb-6">
         {t("kairos.searchHint")}
       </p>
 
@@ -101,53 +88,55 @@ export function KairosPage() {
         <h2 id="browse-search-label" className="sr-only">
           {t("kairos.searchLabel")}
         </h2>
-      <form
-        onSubmit={handleSubmit}
-        className="mb-6 max-w-xl"
-        aria-label={t("kairos.searchLabel")}
-      >
-        <label
-          htmlFor="kairos-search-query"
-          className="block font-medium text-[var(--color-text-heading)] mb-2"
-        >
-          {t("kairos.searchLabel")}
-        </label>
-        <input
-          id="kairos-search-query"
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("kairos.searchPlaceholder")}
-          aria-describedby="kairos-search-hint"
-          className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-        />
-        <p id="kairos-search-hint" className="text-sm text-[var(--color-text-muted)] mt-2">
-          {t("kairos.searchHint")}
-        </p>
-        <div className="mt-4 max-w-md">
+        <form onSubmit={handleSubmit} aria-label={t("kairos.searchLabel")}>
           <label
-            htmlFor="kairos-activate-space"
-            className="block text-sm font-medium text-[var(--color-text-heading)] mb-2"
+            htmlFor="kairos-search-query"
+            className="block font-medium text-[var(--color-text-heading)] mb-2"
           >
-            {t("kairos.scopeSpaceLabel")}
+            {t("kairos.searchLabel")}
           </label>
-          <SpaceSelect
-            id="kairos-activate-space"
-            spaces={spacesData?.spaces}
-            value={activateSpace}
-            onChange={setActivateSpace}
-            includeAllOption
-            disabled={spacesLoading}
-            aria-describedby="kairos-search-hint"
-          />
-        </div>
-        <button
-          type="submit"
-          className="mt-3 min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-        >
-          {t("kairos.search")}
-        </button>
-      </form>
+          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end mb-4">
+            <div>
+              <input
+                id="kairos-search-query"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("kairos.searchPlaceholder")}
+                aria-describedby="kairos-search-hint"
+                className="w-full min-h-[44px] px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text)] bg-[var(--color-surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+              />
+              <p id="kairos-search-hint" className="text-sm text-[var(--color-text-muted)] mt-2">
+                {t("kairos.searchHintShort")}
+              </p>
+            </div>
+            <div className="flex md:pb-0 pb-0">
+              <button
+                type="submit"
+                className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white border-0 cursor-pointer hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+              >
+                {t("kairos.search")}
+              </button>
+            </div>
+          </div>
+          <div className="max-w-md mb-6">
+            <label
+              htmlFor="kairos-activate-space"
+              className="block text-sm font-medium text-[var(--color-text-heading)] mb-2"
+            >
+              {t("kairos.scopeSpaceLabel")}
+            </label>
+            <SpaceSelect
+              id="kairos-activate-space"
+              spaces={spacesData?.spaces}
+              value={activateSpace}
+              onChange={setActivateSpace}
+              includeAllOption
+              disabled={spacesLoading}
+              aria-describedby="kairos-search-hint"
+            />
+          </div>
+        </form>
       </section>
 
       {isError && (
@@ -183,14 +172,7 @@ export function KairosPage() {
       {!isLoading && !isError && !(showBrowse && spacesError) && (
         <>
           {!submittedQuery ? (
-            <KairosBrowseByLetterSection
-              t={t}
-              spacesLoading={spacesLoading}
-              countsByLetter={countsByLetter}
-              letterAdapters={letterAdapters}
-              expandedLetter={expandedLetter}
-              setExpandedLetter={setExpandedLetter}
-            />
+            <KairosBrowseByLabelSection t={t} spacesLoading={spacesLoading} browseAdapters={browseAdapters} />
           ) : choices.length === 0 ? (
             <div
               className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6"
