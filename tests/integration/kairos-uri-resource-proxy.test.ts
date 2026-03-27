@@ -60,6 +60,23 @@ describe('MCP Tools and Resources', () => {
     }
   }, 30000);
 
+  test('prompts/list and prompts/get expose the embedded contextual prompt', async () => {
+    const prompts = await mcp.client.listPrompts();
+    const contextualPrompt = prompts.prompts.find((prompt: { name: string }) => prompt.name === 'contextual-prompt');
+
+    expect(contextualPrompt).toBeDefined();
+    expect(contextualPrompt?.title).toBe('Contextual Prompt');
+
+    const prompt = await mcp.client.getPrompt({ name: 'contextual-prompt' });
+    const firstMessage = prompt.messages[0];
+
+    expect(firstMessage).toBeDefined();
+    expect(firstMessage?.content.type).toBe('text');
+    expect(firstMessage?.content.text).toBe(
+      (mcpResources.prompts as Record<string, string>)['contextual-prompt']
+    );
+  }, 30000);
+
   test('resources/list returns registered resources', async () => {
     const resources = await mcp.client.listResources();
     expect(Array.isArray(resources.resources)).toBe(true);
