@@ -4,7 +4,8 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
-import { handleApiError } from '../auth-error.js';
+import { handleApiError, isBrowserDisabled } from '../auth-error.js';
+import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
 
 export function activateCommand(program: Command): void {
@@ -14,11 +15,11 @@ export function activateCommand(program: Command): void {
         .argument('<query...>', 'Search query (multiple words allowed)')
         .action(async (query: string[]) => {
             try {
-                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 const response = await client.activate(query.join(' '));
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, !program.opts()['noBrowser']);
+                handleApiError(error, !isBrowserDisabled());
             }
         });
 }

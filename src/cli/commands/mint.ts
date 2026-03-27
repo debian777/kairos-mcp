@@ -6,7 +6,8 @@ import { Command } from 'commander';
 import { readdirSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
 import { ApiClient } from '../api-client.js';
-import { handleApiError } from '../auth-error.js';
+import { handleApiError, isBrowserDisabled } from '../auth-error.js';
+import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
 import { readMarkdownUploadFromFile } from '../upload-guards.js';
 
@@ -62,7 +63,7 @@ export function mintCommand(program: Command): void {
             process.exit(1);
           }
 
-          const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+          const client = new ApiClient(getResolvedApiBaseFromProgram(program));
           const trainOptions: { llmModelId?: string; force?: boolean } = {};
           if (options.model) trainOptions.llmModelId = options.model;
           if (options.force) trainOptions.force = options.force;
@@ -121,7 +122,7 @@ export function mintCommand(program: Command): void {
             writeError(`File not found: ${target}`);
             process.exit(1);
           }
-          handleApiError(error, !program.opts()['noBrowser']);
+          handleApiError(error, !isBrowserDisabled());
         }
       }
     );

@@ -10,7 +10,7 @@ import { exportCommand } from './commands/export.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { tokenCommand } from './commands/token.js';
-import { getApiUrl } from './config.js';
+import { getCliApiUrlDefault } from './config.js';
 
 const loadPackageJson = createRequire(import.meta.url);
 const { version } = loadPackageJson('../../package.json') as { version: string };
@@ -31,15 +31,15 @@ export function createProgram(): Command {
     .name('kairos')
     .description('CLI tool for interacting with KAIROS REST API')
     .version(version)
-    .option('-u, --url <url>', 'KAIROS API base URL', getApiUrl())
+    .option('-u, --url <url>', 'KAIROS API base URL', getCliApiUrlDefault())
     .option('--no-browser', 'do not open browser when auth is required (e.g. in tests or scripts)')
-    .hook('preAction', (thisCommand) => {
-      // Store the URL and no-browser options for use in commands (subcommands receive their own opts)
-      const opts = thisCommand.opts();
-      if (opts['url']) {
-        process.env['KAIROS_API_URL'] = opts['url'];
+    .hook('preAction', (_thisCommand, actionCommand) => {
+      // optsWithGlobals merges root --url / --no-browser for nested commands (e.g. kairos --url … train …).
+      const opts = actionCommand.optsWithGlobals() as { url?: string; browser?: boolean };
+      if (opts.url) {
+        process.env['KAIROS_API_URL'] = opts.url;
       }
-      if ((opts as { browser?: boolean }).browser === false) {
+      if (opts.browser === false) {
         process.env['KAIROS_NO_BROWSER'] = '1';
       }
     });

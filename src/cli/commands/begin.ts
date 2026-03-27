@@ -4,7 +4,8 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
-import { handleApiError } from '../auth-error.js';
+import { handleApiError, isBrowserDisabled } from '../auth-error.js';
+import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
 
 export function forwardCommand(program: Command): void {
@@ -15,12 +16,12 @@ export function forwardCommand(program: Command): void {
         .option('--solution <json>', 'Forward solution as JSON string')
         .action(async (uri: string, options: { solution?: string }) => {
             try {
-                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 const solution = options.solution ? JSON.parse(options.solution) : undefined;
                 const response = await client.forward(uri, solution);
                 writeJson(response);
             } catch (error) {
-                handleApiError(error, !program.opts()['noBrowser']);
+                handleApiError(error, !isBrowserDisabled());
             }
         });
 }

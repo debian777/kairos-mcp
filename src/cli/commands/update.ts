@@ -4,7 +4,8 @@
 
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
-import { handleApiError } from '../auth-error.js';
+import { handleApiError, isBrowserDisabled } from '../auth-error.js';
+import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
 import { readMarkdownUploadFromFile, type SafeMarkdownUpload } from '../upload-guards.js';
 
@@ -22,7 +23,7 @@ export function updateCommand(program: Command): void {
             options: { file?: string; files?: string[]; updates?: string; allowSensitiveUpload?: boolean }
         ) => {
             try {
-                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 let markdownDoc: SafeMarkdownUpload[] | undefined;
                 let updates: Record<string, any> | undefined;
 
@@ -65,7 +66,7 @@ export function updateCommand(program: Command): void {
                     writeError('File not found');
                     process.exit(1);
                 }
-                handleApiError(error, !program.opts()['noBrowser']);
+                handleApiError(error, !isBrowserDisabled());
             }
         });
 }
