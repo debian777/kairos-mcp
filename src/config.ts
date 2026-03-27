@@ -92,7 +92,8 @@ export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_C
 export const HTTP_JSON_BODY_LIMIT = getEnvString('HTTP_JSON_BODY_LIMIT', '1mb');
 export const HTTP_MINT_RAW_BODY_LIMIT = getEnvString('HTTP_MINT_RAW_BODY_LIMIT', '2mb');
 export const HTTP_RATE_LIMIT_WINDOW_MS = getEnvInt('HTTP_RATE_LIMIT_WINDOW_MS', 60_000);
-export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 100);
+/** Per-window cap for general HTTP /api traffic. Default is high enough for the full local integration suite on one client; override via HTTP_RATE_LIMIT_MAX for stricter production. */
+export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 10_000);
 export const AUTH_RATE_LIMIT_WINDOW_MS = getEnvInt('AUTH_RATE_LIMIT_WINDOW_MS', 60_000);
 export const AUTH_RATE_LIMIT_MAX = getEnvInt('AUTH_RATE_LIMIT_MAX', 10);
 export const MCP_RATE_LIMIT_WINDOW_MS = getEnvInt('MCP_RATE_LIMIT_WINDOW_MS', 60_000);

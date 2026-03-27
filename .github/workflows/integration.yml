@@ -227,8 +227,6 @@ jobs:
           HEALTH_CHECK_ATTEMPTS: 15
           KEYCLOAK_INTERNAL_URL: http://localhost:8080
           QDRANT_SNAPSHOT_DIR: var/snapshots
-          # Default HTTP /api limit (100/min) is exceeded by the full integration suite on one runner IP.
-          HTTP_RATE_LIMIT_MAX: 10000
         run: |
           mkdir -p var/log var/snapshots
           npm run dev:start:installed > var/log/kairos.log 2>&1 &
