@@ -14,6 +14,18 @@ in the root [README](../README.md).
 If your server is running elsewhere, replace `http://localhost:3000` with your
 actual base URL.
 
+## Install modes
+
+You can connect in two ways:
+
+1. **Manual MCP JSON** — add a streamable HTTP server under `mcpServers` in
+   Cursor (see [Manual config](#manual-config)). This does not use Cursor plugin
+   packaging; the small icon next to a tool run is usually generic host chrome.
+2. **Local Cursor plugin** — install the bundled plugin under
+   `integrations/cursor/plugin` (see [Cursor plugin bundle](#cursor-plugin-bundle-branded-tool-row)).
+   The manifest includes a `logo` path so Cursor can show KAIROS branding on
+   the tool row while requests still go to the same HTTP MCP URL you configure.
+
 ## One-click install
 
 The following Cursor deeplink pre-fills a local HTTP MCP server (current tool
@@ -48,6 +60,22 @@ Open **Settings → MCP → Edit config** in Cursor and add:
 
 `alwaysAllow` is optional, but without it Cursor may prompt before running each
 tool.
+
+## Cursor plugin bundle (branded tool row)
+
+For a **plugin-packaged** install with a manifest `logo`, use the directory
+`integrations/cursor/plugin` in this repository. It contains:
+
+- `.cursor-plugin/plugin.json` — plugin metadata and `logo: "assets/logo.svg"`
+- `assets/logo.svg` — same artwork as `logo/kaiiros-mcp.svg`
+- `mcp/mcp.json` — `mcpServers` block (defaults to `http://localhost:3300/mcp`,
+  matching the common local dev port in `.cursor/mcp.json` examples in this
+  repo)
+
+Point Cursor at that folder per [Cursor plugin
+building](https://cursor.com/docs/plugins/building). Edit `mcp/mcp.json` if
+your server URL or port differs. Step-by-step notes live in
+`integrations/cursor/plugin/README.md`.
 
 ## In-chat widgets (MCP Apps) and alternate HTML profile
 
@@ -104,9 +132,11 @@ the same calls still return full structured content on the wire.
 
 The small logo next to a tool run in chat is **host chrome** (Cursor or a
 bundled MCP plugin), not something the streamable HTTP MCP wire defines. A plain
-`mcp.json` entry usually does not add a custom icon; marketplace or extension
-packaging does. For KAIROS artwork you can reuse `logo/kaiiros-mcp.svg` in your
-own connector or docs.
+user `mcp.json` entry usually does not add a custom icon. To get the KAIROS mark
+on the tool row, install the **local Cursor plugin** under
+`integrations/cursor/plugin` (see [Cursor plugin bundle](#cursor-plugin-bundle-branded-tool-row)).
+You can still reuse `logo/kaiiros-mcp.svg` in your own connector assets or docs
+if you maintain a custom package.
 
 ## Auth-enabled servers
 
