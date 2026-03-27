@@ -8,6 +8,7 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { AUTH_ENABLED, KAIROS_APP_SPACE_ID } from '../config.js';
+import { resolveSpaceParamForContext } from './resolve-space-param.js';
 
 /** Sentinel space when AUTH is on but no auth context (strict isolation; not shared with tenants). */
 export const NO_AUTH_SPACE_ID = 'space:no-auth';
@@ -18,6 +19,11 @@ export interface SpaceContext {
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
   requestId?: string;
+  /**
+   * When set (e.g. activate/search space parameter), vector search uses exactly these IDs — no implicit merge of Kairos app.
+   * Writes should still use defaultWriteSpaceId when the scope is read-only (app space).
+   */
+  activateSpaceScope?: string[];
 }
 
 /** Sentinel for "no context" when restoring after runWithSpaceContextAsync (enterWith does not accept undefined). */
@@ -107,6 +113,10 @@ export function getRequestIdFromStorage(): string {
  */
 export function getSearchSpaceIds(): string[] {
   const ctx = getSpaceContextFromStorage();
+  const scope = ctx.activateSpaceScope;
+  if (scope && scope.length > 0) {
+    return [...scope];
+  }
   const allowed = ctx.allowedSpaceIds;
   if (allowed.includes(KAIROS_APP_SPACE_ID)) return [...allowed];
   return [...allowed, KAIROS_APP_SPACE_ID];
@@ -118,14 +128,24 @@ export function getSearchSpaceIds(): string[] {
  */
 export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefined, fn: () => Promise<T>): Promise<T> {
   if (!spaceParam || typeof spaceParam !== 'string') return fn();
+  const trimmed = spaceParam.trim();
+  if (!trimmed) return fn();
   const ctx = getSpaceContextFromStorage();
-  if (!ctx.allowedSpaceIds.includes(spaceParam)) {
+  const searchableBeforeNarrow = getSearchSpaceIds();
+  const resolved = resolveSpaceParamForContext(ctx, trimmed, { allowReadOnlyAppSearchScope: true });
+  if (!resolved.ok) {
+    throw new Error(resolved.message);
+  }
+  const spaceId = resolved.spaceId;
+  if (!searchableBeforeNarrow.includes(spaceId)) {
     throw new Error('Requested space is not in your allowed spaces');
   }
+  const readOnlyAppScope = spaceId === KAIROS_APP_SPACE_ID;
   const narrowed: SpaceContext = {
     ...ctx,
-    allowedSpaceIds: [spaceParam],
-    defaultWriteSpaceId: spaceParam
+    allowedSpaceIds: [spaceId],
+    defaultWriteSpaceId: readOnlyAppScope ? ctx.defaultWriteSpaceId : spaceId,
+    activateSpaceScope: [spaceId]
   };
   return runWithSpaceContextAsync(narrowed, fn);
 }

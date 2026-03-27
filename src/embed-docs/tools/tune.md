@@ -5,6 +5,7 @@ Update existing **adapter** content in place.
 - `uris` — non-empty list of `kairos://adapter/{uuid}` and/or `kairos://layer/{uuid}` targets.
 - `markdown_doc` (optional) — parallel array of full markdown bodies (preferred for text changes).
 - `updates` (optional) — advanced field map; prefer `markdown_doc` for ordinary edits.
+- `space` (optional) — `"personal"` or a group name: reassign **all layers** of each targeted adapter to that space. You can use **`space` alone** (move only) or combine with `markdown_doc` / `updates` (edit then move). Adapter URI moves every layer; layer URI moves that layer only.
 
 **Output:** `results` with per-URI `status` (`updated` | `error`) and `message`, plus totals.
 

@@ -112,7 +112,11 @@ export const forwardOutputSchema = z.object({
   execution_id: z.string().optional(),
   message: z.string().optional(),
   error_code: z.string().optional(),
-  retry_count: z.number().optional()
+  retry_count: z.number().optional(),
+  slug_disambiguation_note: z
+    .string()
+    .optional()
+    .describe('When forward started from a slug that matched multiple adapters, explains which was chosen')
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

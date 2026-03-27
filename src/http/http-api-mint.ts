@@ -2,6 +2,7 @@ import getRawBody from 'raw-body';
 import express from 'express';
 import { kairosTrainSimilarAdapterFound } from '../services/metrics/mcp-metrics.js';
 import { MemoryQdrantStore } from '../services/memory/store.js';
+import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { MintError } from '../tools/mint.js';
 import { executeTrain } from '../tools/train.js';
@@ -44,7 +45,11 @@ function creationAdapterUri(): string {
  * Set up API route for raw markdown ingestion.
  * Builds MintInput from raw body + query/headers and returns executeMint result only (no metadata).
  */
-export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantStore) {
+export function setupMintRoute(
+  app: express.Express,
+  memoryStore: MemoryQdrantStore,
+  qdrantService?: QdrantService
+) {
   app.post('/api/train/raw', async (req, res) => {
     try {
       const contentLength = req.headers['content-length'] ? parseInt(req.headers['content-length'], 10) : null;
@@ -82,7 +87,7 @@ export function setupMintRoute(app: express.Express, memoryStore: MemoryQdrantSt
       }
 
       structuredLogger.info(`→ POST /api/train/raw (${markdown.length} bytes, model: ${parsed.data.llm_model_id}, force: ${parsed.data.force_update})`);
-      const result = await executeTrain(memoryStore, parsed.data, (fn) => fn());
+      const result = await executeTrain(memoryStore, parsed.data, (fn) => fn(), qdrantService);
       res.status(200).json(result);
     } catch (error) {
       const err = error as { code?: string; details?: Record<string, unknown>; message?: string; status?: number; statusCode?: number; type?: string };

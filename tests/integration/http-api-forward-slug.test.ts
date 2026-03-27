@@ -118,7 +118,7 @@ describe('HTTP forward slug entry', () => {
     expect(data).toHaveProperty('message', 'Layer or adapter not found');
   }, 30000);
 
-  test('returns actionable guidance for an ambiguous adapter slug URI', async () => {
+  test('resolves ambiguous adapter slug deterministically and returns disambiguation note', async () => {
     expect.hasAssertions();
 
     const targetSlug = `forward-http-ambiguous-${Date.now()}`;
@@ -134,13 +134,14 @@ describe('HTTP forward slug entry', () => {
       body: JSON.stringify({ uri: `kairos://adapter/${targetSlug}` })
     });
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toHaveProperty('error', 'PROTOCOL_KEY_AMBIGUOUS');
     expect(data).toHaveProperty('must_obey', true);
-    expect(data).toHaveProperty('key', targetSlug);
-    expect(data).toHaveProperty('adapter_count', 2);
-    expect(typeof data.next_action).toBe('string');
-    expect(String(data.next_action)).toMatch(/activate/i);
+    expect(data).toHaveProperty('current_layer');
+    expect(data.current_layer.uri).toMatch(/^kairos:\/\/layer\//);
+    expect(data).toHaveProperty('contract');
+    expect(typeof data.slug_disambiguation_note).toBe('string');
+    expect(String(data.slug_disambiguation_note)).toMatch(new RegExp(targetSlug, 'i'));
+    expect(String(data.slug_disambiguation_note)).toMatch(/kairos:\/\/adapter\//i);
   }, 30000);
 });

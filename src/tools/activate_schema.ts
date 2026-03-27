@@ -7,7 +7,10 @@ const adapterUriSchema = z
 
 export const activateInputSchema = z.object({
   query: z.string().min(1).describe('Activation query used to find the best matching adapter'),
-  space: z.string().optional().describe('Scope results to this space name if available to the caller'),
+  space: z
+    .string()
+    .optional()
+    .describe('Scope results to this space: "personal", a group name, "Group: …", or your space id'),
   space_id: z.string().optional().describe('Alias for space'),
   max_choices: z
     .number()
@@ -31,7 +34,11 @@ export const activateOutputSchema = z.object({
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice, typically a forward call'),
     adapter_version: z.string().nullable().describe('Stored adapter version when present'),
-    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter')
+    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter'),
+    space_name: z
+      .string()
+      .nullable()
+      .describe('Human-readable space where the adapter is stored; null for refine/create choices')
   }))
 }).strict();
 

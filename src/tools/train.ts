@@ -1,8 +1,10 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
+import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
-import { KAIROS_APP_SPACE_DISPLAY_NAME } from '../utils/space-display.js';
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
+import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 import { executeMint, MintError } from './mint.js';
+import { executeDump } from './dump.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { trainInputSchema, trainOutputSchema, type TrainInput, type TrainOutput } from './train_schema.js';
@@ -10,6 +12,7 @@ import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolE
 
 interface RegisterTrainOptions {
   toolName?: string;
+  qdrantService?: QdrantService;
 }
 
 function creationAdapterUri(): string {
@@ -67,12 +70,65 @@ function formatTrainErrorPayload(error: { code?: string; details?: Record<string
   };
 }
 
+async function resolveMarkdownForTrain(
+  memoryStore: MemoryQdrantStore,
+  qdrantService: QdrantService | undefined,
+  input: TrainInput
+): Promise<string> {
+  const fromInput = typeof input.markdown_doc === 'string' ? input.markdown_doc.trim() : '';
+  const sourceUri = input.source_adapter_uri?.trim();
+  if (!sourceUri) {
+    return fromInput;
+  }
+  if (!qdrantService) {
+    throw new MintError(
+      'SOURCE_ADAPTER_UNAVAILABLE',
+      'Forking from source_adapter_uri requires the adapter store; try again or pass markdown_doc only.',
+      { must_obey: true }
+    );
+  }
+  const adapterMatch = /^kairos:\/\/adapter\/([0-9a-f-]{36})$/i.exec(sourceUri);
+  if (!adapterMatch?.[1]) {
+    throw new MintError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid}', {
+      must_obey: true
+    });
+  }
+  const adapterId = adapterMatch[1]!;
+  const layers = await qdrantService.getAdapterLayers(adapterId);
+  const headUuid = layers[0]?.uuid ?? adapterId;
+  const dump = await executeDump(memoryStore, qdrantService, {
+    uri: `kairos://mem/${headUuid}`,
+    protocol: true
+  });
+  const dumped = typeof dump['markdown_doc'] === 'string' ? dump['markdown_doc'].trim() : '';
+  if (!dumped) {
+    throw new MintError('SOURCE_EXPORT_EMPTY', 'Could not export markdown from the source adapter.', {
+      must_obey: true
+    });
+  }
+  return fromInput.length > 0 ? fromInput : dumped;
+}
+
 export async function executeTrain(
   memoryStore: MemoryQdrantStore,
   input: TrainInput,
-  runStore: <T>(fn: () => Promise<T>) => Promise<T>
+  runStore: <T>(fn: () => Promise<T>) => Promise<T>,
+  qdrantService?: QdrantService
 ): Promise<TrainOutput> {
-  const result = await executeMint(memoryStore, input as any, runStore as any);
+  const markdownDoc = await resolveMarkdownForTrain(memoryStore, qdrantService, input);
+  if (!markdownDoc || markdownDoc.length < 1) {
+    throw new MintError('MARKDOWN_REQUIRED', 'Provide markdown_doc and/or source_adapter_uri.', {
+      must_obey: true
+    });
+  }
+  const mintPayload = {
+    markdown_doc: markdownDoc,
+    llm_model_id: input.llm_model_id,
+    force_update: input.force_update,
+    ...(input.protocol_version !== undefined && { protocol_version: input.protocol_version }),
+    ...(input.space !== undefined && { space: input.space })
+  };
+  const result = await executeMint(memoryStore, mintPayload as any, runStore as any);
   const items = await Promise.all(
     result.items.map(async (item) => {
       const memory = await memoryStore.getMemory(item.memory_uuid);
@@ -94,6 +150,7 @@ export async function executeTrain(
 
 export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterTrainOptions = {}) {
   const toolName = options.toolName || 'train';
+  const qdrantService = options.qdrantService;
 
   server.registerTool(
     toolName,
@@ -112,26 +169,16 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
 
       if ((params as any)?.space === undefined || rawSpace === '' || spaceParam === 'personal') {
         resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
-      } else if (spaceParam === KAIROS_APP_SPACE_DISPLAY_NAME.toLowerCase()) {
-        const msg = `Cannot train into "${KAIROS_APP_SPACE_DISPLAY_NAME}"; it is read-only. Use "personal" or a group name.`;
-        return {
-          isError: true,
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: 'SPACE_READ_ONLY', message: msg }) }]
-        };
       } else {
-        const groupName = rawSpace.startsWith('Group: ') ? rawSpace.slice(7).trim() : rawSpace;
-        const match = ctx.allowedSpaceIds.find((id) => {
-          if (id === groupName) return true;
-          if (id.startsWith('group:') && id.split(':').pop() === groupName) return true;
-          return false;
-        });
-        if (!match) {
+        const r = resolveSpaceParamForContext(ctx, rawSpace);
+        if (!r.ok) {
+          const errKey = r.code === 'SPACE_READ_ONLY' ? 'SPACE_READ_ONLY' : 'SPACE_NOT_FOUND';
           return {
             isError: true,
-            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'SPACE_NOT_FOUND', message: `Group or space "${groupName}" not found.` }) }]
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: errKey, message: r.message }) }]
           };
         }
-        resolvedSpaceId = match;
+        resolvedSpaceId = r.spaceId;
       }
 
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
@@ -144,7 +191,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
 
       try {
         const input = trainInputSchema.parse(params);
-        const output = await executeTrain(memoryStore, input, (fn) => runWithSpaceContextAsync(narrowedContext, fn));
+        const output = await executeTrain(memoryStore, input, (fn) => runWithSpaceContextAsync(narrowedContext, fn), qdrantService);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
         timer({ tool: toolName, status: 'success', tenant_id: tenantId });

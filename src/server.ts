@@ -12,7 +12,7 @@ import { getEmbeddingDimension } from './services/embedding/config.js';
 import { registerDeleteTool } from './tools/delete.js';
 import { registerSpacesTool } from './tools/spaces.js';
 import { registerActivateTool } from './tools/activate.js';
-import { registerForwardTool } from './tools/forward.js';
+import { registerForwardTool } from './tools/forward-register.js';
 import { registerTrainTool } from './tools/train.js';
 import { registerRewardTool } from './tools/reward.js';
 import { registerTuneTool } from './tools/tune.js';
@@ -37,7 +37,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     // Register the current MCP tools.
     registerActivateTool(server, memoryStore, { qdrantService });
     registerForwardTool(server, memoryStore, { qdrantService });
-    registerTrainTool(server, memoryStore);
+    registerTrainTool(server, memoryStore, { qdrantService });
     registerRewardTool(server, qdrantService);
     registerTuneTool(server);
     registerDeleteTool(server, 'delete');

@@ -5,7 +5,7 @@
 import { Command } from 'commander';
 import { createServer } from 'http';
 import { createHash, randomBytes } from 'crypto';
-import { getApiUrl } from '../config.js';
+import { getCliApiUrlDefault } from '../config.js';
 
 /** Hardcoded OIDC client_id for CLI; realm must have this client with redirect URIs allowing http://localhost:* */
 const KAIROS_CLI_CLIENT_ID = 'kairos-cli';
@@ -19,7 +19,7 @@ function escapeHtml(s: string): string {
 }
 
 import { openBrowser } from '../auth-error.js';
-import { getDefaultApiUrlFromFile, readConfig, writeConfig, normalizeApiUrl } from '../config-file.js';
+import { readConfig, writeConfig, normalizeApiUrl } from '../config-file.js';
 import { getToken, isKeyringAvailable } from '../keyring.js';
 import { writeError, writeStdout, writeStderr } from '../output.js';
 
@@ -33,9 +33,9 @@ async function getTokenStorageHint(baseUrl: string, token: string): Promise<stri
     return 'Token in config file.';
 }
 
-/** Resolve current API base URL (env, then config default, then getApiUrl()). Exported for logout. */
+/** Resolve current API base URL (same order as docs: env after preAction sync, then config file, then default). Exported for logout. */
 export function getBaseUrl(): string {
-    return (process.env['KAIROS_API_URL'] || getDefaultApiUrlFromFile() || getApiUrl()).replace(/\/$/, '');
+    return getCliApiUrlDefault().replace(/\/$/, '');
 }
 
 /** Check if token is valid (GET /api/me). Used by login to skip relogin and by ApiClient. */

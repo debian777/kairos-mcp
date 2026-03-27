@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
-import { handleApiError } from '../auth-error.js';
+import { handleApiError, isBrowserDisabled } from '../auth-error.js';
+import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson, writeMarkdown } from '../output.js';
 
 export function exportCommand(program: Command): void {
@@ -16,7 +17,7 @@ export function exportCommand(program: Command): void {
         .option('--output <mode>', 'text to print raw exported content, json to print full response', 'text')
         .action(async (uri: string, options: { format?: string; output?: string }) => {
             try {
-                const client = new ApiClient(undefined, !program.opts()['noBrowser']);
+                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 const response = await client.export(
                     uri,
                     (
@@ -34,7 +35,7 @@ export function exportCommand(program: Command): void {
                     writeMarkdown(response.content);
                 }
             } catch (error) {
-                handleApiError(error, !program.opts()['noBrowser']);
+                handleApiError(error, !isBrowserDisabled());
             }
         });
 }

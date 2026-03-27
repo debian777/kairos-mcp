@@ -9,7 +9,10 @@ const choiceUriSchema = adapterUriSchema;
 
 export const searchInputSchema = z.object({
   query: z.string().min(1).describe('Search query for adapter matches'),
-  space: z.string().optional().describe('Scope results to this space (must be in your allowed spaces)'),
+  space: z
+    .string()
+    .optional()
+    .describe('Scope results to this space: "personal", a group name, "Group: …", or your space id'),
   space_id: z.string().optional().describe('Alias for space'),
   max_choices: z
     .number()
@@ -33,7 +36,11 @@ export const searchOutputSchema = z.object({
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice.'),
     adapter_version: z.string().nullable().describe('Stored adapter version (for example, semver) for match choices; null for refine/create. Compare with bundled adapter metadata to decide if re-mint is needed.'),
-    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter')
+    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter'),
+    space_name: z
+      .string()
+      .nullable()
+      .describe('Human-readable space for stored adapters (Personal, Group: …, Kairos app); null for refine/create')
   })).describe('Options: match(es) first, then refine (if present), then create (if present).')
 }).strict();
 

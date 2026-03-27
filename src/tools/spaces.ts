@@ -8,10 +8,11 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { buildSpaceFilter } from '../utils/space-filter.js';
-import { spaceIdToDisplayName } from '../utils/space-display.js';
+import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
+import { renderSpacesWidgetHtml } from '../mcp-apps/spaces-widget-html.js';
 
 const DEFAULT_TOOL_NAME = 'spaces';
 const SCROLL_LIMIT = 2000;
@@ -24,6 +25,8 @@ interface AdapterInfo {
 
 export interface SpaceInfo {
   name: string;
+  space_id: string;
+  type: 'personal' | 'group' | 'app' | 'other';
   adapter_count: number;
   adapters?: AdapterInfo[];
 }
@@ -100,7 +103,15 @@ function buildSpaceInfo(
     }
   }
 
-  return { name, adapter_count: adapterCount, ...(includeAdapterTitles ? { adapters } : {}) };
+  const kind = spaceKindFromSpaceId(spaceId);
+  const type: SpaceInfo['type'] = kind === 'other' ? 'other' : kind;
+  return {
+    name,
+    space_id: spaceId,
+    type,
+    adapter_count: adapterCount,
+    ...(includeAdapterTitles ? { adapters } : {})
+  };
 }
 
 /**
@@ -139,19 +150,26 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
       inputSchema: spacesInputSchema,
       outputSchema: spacesOutputSchema
     },
-    async (params: { include_adapter_titles?: boolean }) => {
+    async (params: { include_adapter_titles?: boolean; include_widget_html?: boolean }) => {
       const tenantId = getTenantId();
       const inputSize = JSON.stringify(params ?? {}).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
       try {
-        const output = await executeSpaces(memoryStore, { include_adapter_titles: params?.include_adapter_titles ?? false });
+        const wantWidget = params?.include_widget_html ?? false;
+        const includeTitles = wantWidget || (params?.include_adapter_titles ?? false);
+        const output = await executeSpaces(memoryStore, { include_adapter_titles: includeTitles });
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
-        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);
+        const jsonText = JSON.stringify(output);
+        mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, jsonText.length);
         timer({ tool: toolName, status: 'success', tenant_id: tenantId });
+        const content: Array<{ type: 'text'; text: string }> = [{ type: 'text' as const, text: jsonText }];
+        if (wantWidget) {
+          content.push({ type: 'text' as const, text: renderSpacesWidgetHtml(output.spaces) });
+        }
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output) }],
+          content,
           structuredContent: output
         };
       } catch (error) {

@@ -7,6 +7,7 @@ import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
+import { rewriteLoginUrlRedirectToApiBase } from './rewrite-login-url.js';
 import { normalizeAndValidateApiBaseUrl, type SafeMarkdownUpload } from './upload-guards.js';
 import type { ActivateOutput } from '../tools/activate_schema.js';
 import type { ForwardOutput } from '../tools/forward_schema.js';
@@ -21,9 +22,14 @@ export class ApiClient {
     private openInBrowser: boolean;
 
     constructor(baseUrl?: string, openInBrowser?: boolean) {
-        // Precedence: env, then parameter, then config file (sync URL only), then default. openInBrowser true = auto-login on 401 or no token
+        // Precedence: explicit parameter (from global --url), then env, then config file, then default.
+        const explicit = baseUrl?.trim();
         const configUrl = getDefaultApiUrlFromFile();
-        const resolvedBaseUrl = process.env['KAIROS_API_URL'] || baseUrl || configUrl || getApiUrl();
+        const resolvedBaseUrl =
+            explicit ||
+            (process.env['KAIROS_API_URL'] || '').trim() ||
+            configUrl ||
+            getApiUrl();
         this.baseUrl = normalizeAndValidateApiBaseUrl(resolvedBaseUrl);
         this.openInBrowser = !isBrowserDisabled() && (openInBrowser !== false);
     }
@@ -96,10 +102,8 @@ export class ApiClient {
                     if (ok) return this.request(endpoint, options, true);
                 }
                 if (errorData.login_url) {
-                    throw new AuthRequiredError(
-                        `${msg}\n\nLog in at:\n${errorData.login_url}`,
-                        errorData.login_url
-                    );
+                    const loginUrl = rewriteLoginUrlRedirectToApiBase(errorData.login_url, this.baseUrl);
+                    throw new AuthRequiredError(`${msg}\n\nLog in at:\n${loginUrl}`, loginUrl);
                 }
                 throw new Error(msg);
             }

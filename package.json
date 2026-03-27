@@ -37,7 +37,7 @@
   ],
   "scripts": {
     "cli": "node dist/cli/index.js",
-    "cli:dev": "KAIROS_API_URL=http://localhost:3300 node dist/cli/index.js",
+    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${PORT:-3300}}\" && exec node dist/cli/index.js \"$@\"' _",
     "dev:cli-ready": "./scripts/dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/run-env.sh build",
@@ -47,7 +47,7 @@
     "dev:redis-cli": "ENV=dev ./scripts/run-env.sh redis-cli",
     "dev:restart": "ENV=dev ./scripts/run-env.sh restart",
     "dev:start": "ENV=dev ./scripts/run-env.sh start",
-    "dev:start:installed": "DOTENV_CONFIG_PATH=.env PORT=3300 node -r dotenv/config node_modules/@debian777/kairos-mcp/dist/index.js",
+    "dev:start:installed": "DOTENV_CONFIG_PATH=.env node -r dotenv/config node_modules/@debian777/kairos-mcp/dist/index.js",
     "dev:status": "ENV=dev ./scripts/run-env.sh status",
     "dev:stop": "ENV=dev ./scripts/run-env.sh stop",
     "dev:test": "ENV=dev ./scripts/run-env.sh test",

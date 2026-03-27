@@ -9,6 +9,8 @@ Keycloak startup --import-realm (would conflict with existing realms). Reads rea
 from scripts/keycloak/import relative to repo root (works regardless of CWD).
 
 1. Realms: create minimal if missing, then always merge and PUT config from import/*.json (idempotent).
+   **kairos-mcp** `redirectUris` / `webOrigins` are then pushed again via **PUT …/clients/{id}**
+   because realm-level PUT does not reliably update existing clients (redirect list would stay stale).
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
 3. OIDC scope `openid` for dynamic registration: ensure a realm Client Scope named `openid`
    exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
@@ -20,6 +22,14 @@ Identity providers (e.g. Google) are not in realm JSON; configure via configure-
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
 TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
+AUTH_CALLBACK_BASE_URL (optional) — for **kairos-dev** **kairos-mcp**, adds that origin/callback
+if not already covered by the port range (Keycloak has no native port-range wildcard).
+
+KAIROS_DEV_APP_PORT_MIN / KAIROS_DEV_APP_PORT_MAX (optional, defaults 3300 / 3301) — inclusive range;
+the script expands **kairos-mcp** `redirectUris` and `webOrigins` for `localhost` and `127.0.0.1`
+per port (max span 256 ports). Import JSON lists 3300–3301 as documentation; applied config
+comes from these env vars when you run this script.
+
 Loaded from .env.
 
 Usage:
@@ -59,6 +69,85 @@ REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),
     ("kairos-prod", "kairos-prod-realm.json"),
 ]
+
+# Keycloak has no redirect_uri port-range syntax; we emit one URI per port. Cap list growth.
+_DEV_APP_PORT_RANGE_MAX_SPAN = 256
+
+
+def _parse_port_env(env: dict, key: str, default: int) -> int:
+    raw = (env.get(key) or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw, 10)
+    except ValueError:
+        sys.exit(f"{key} must be an integer, got {raw!r}")
+    if not 1 <= value <= 65535:
+        sys.exit(f"{key} must be between 1 and 65535, got {value}")
+    return value
+
+
+def dev_app_port_bounds(env: dict) -> tuple[int, int]:
+    """Inclusive bounds for dev app HTTP ports (localhost + 127.0.0.1)."""
+    lo = _parse_port_env(env, "KAIROS_DEV_APP_PORT_MIN", 3300)
+    hi = _parse_port_env(env, "KAIROS_DEV_APP_PORT_MAX", 3301)
+    if lo > hi:
+        lo, hi = hi, lo
+    if hi - lo > _DEV_APP_PORT_RANGE_MAX_SPAN:
+        sys.exit(
+            f"KAIROS_DEV_APP_PORT span too large ({hi - lo} > {_DEV_APP_PORT_RANGE_MAX_SPAN}); "
+            "narrow MIN/MAX or edit kairos-mcp in Keycloak Admin UI."
+        )
+    return lo, hi
+
+
+def build_kairos_mcp_dev_redirect_lists(env: dict) -> tuple[list[str], list[str]]:
+    """
+    Build redirectUris and webOrigins for kairos-mcp (dev) from port range + optional callback base.
+    """
+    lo, hi = dev_app_port_bounds(env)
+    redirect_uris: list[str] = []
+    web_origins: list[str] = []
+    for port in range(lo, hi + 1):
+        redirect_uris.extend(
+            (
+                f"http://localhost:{port}/auth/callback",
+                f"http://127.0.0.1:{port}/auth/callback",
+            )
+        )
+        web_origins.extend((f"http://localhost:{port}", f"http://127.0.0.1:{port}"))
+
+    base = (env.get("AUTH_CALLBACK_BASE_URL") or "").strip().rstrip("/")
+    if base.startswith(("http://", "https://")):
+        callback = f"{base}/auth/callback"
+        if callback not in redirect_uris:
+            redirect_uris.append(callback)
+        if base not in web_origins:
+            web_origins.append(base)
+
+    return redirect_uris, web_origins
+
+
+def apply_kairos_mcp_dev_client_urls(desired: dict, env: dict, realm_name: str) -> None:
+    """
+    Replace kairos-mcp redirectUris/webOrigins for kairos-dev with range-expanded lists.
+    Verification uses the same helper so dump matches expected after apply.
+    """
+    if realm_name != "kairos-dev":
+        return
+    redirect_uris, web_origins = build_kairos_mcp_dev_redirect_lists(env)
+    for client in desired.get("clients") or []:
+        if client.get("clientId") != "kairos-mcp":
+            continue
+        client["redirectUris"] = redirect_uris
+        client["webOrigins"] = web_origins
+        break
+
+
+def load_desired_realm(path: Path, env: dict, realm_name: str) -> dict:
+    desired = json.loads(path.read_text())
+    apply_kairos_mcp_dev_client_urls(desired, env, realm_name)
+    return desired
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -182,6 +271,52 @@ def get_realm_clients(base_url: str, realm_name: str, token: str) -> list[dict]:
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"List clients {realm_name} failed: {e.code} {body}")
+
+
+def push_kairos_mcp_redirect_config(
+    base_url: str, realm_name: str, desired: dict, token: str
+) -> None:
+    """
+    Apply kairos-mcp redirectUris and webOrigins from desired realm JSON via Clients Admin API.
+    Keycloak often ignores client redirect list updates embedded in PUT /admin/realms/{realm}.
+    """
+    mcp_desired = next(
+        (c for c in desired.get("clients") or [] if c.get("clientId") == "kairos-mcp"),
+        None,
+    )
+    if not mcp_desired:
+        return
+    ru = mcp_desired.get("redirectUris")
+    wo = mcp_desired.get("webOrigins")
+    if ru is None and wo is None:
+        return
+
+    clients = get_realm_clients(base_url, realm_name, token)
+    existing = next((c for c in clients if c.get("clientId") == "kairos-mcp"), None)
+    if not existing or not existing.get("id"):
+        print(f"  WARNING: kairos-mcp not found in {realm_name}; skip redirect push.", file=sys.stderr)
+        return
+
+    internal_id = existing["id"]
+    patch = dict(existing)
+    if ru is not None:
+        patch["redirectUris"] = list(ru)
+    if wo is not None:
+        patch["webOrigins"] = list(wo)
+
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/{internal_id}"
+    payload = json.dumps(patch).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="PUT")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"PUT kairos-mcp client in {realm_name} failed: {e.code} {body}")
+
+    n = len(patch.get("redirectUris") or [])
+    print(f"  kairos-mcp redirect URIs set via Clients API ({realm_name}, {n} URIs).")
 
 
 def create_realm_client(base_url: str, realm_name: str, client_payload: dict, token: str) -> None:
@@ -670,7 +805,7 @@ def _compare_expected_actual(realm_name: str, expected: dict, actual_dump: dict)
     return diffs
 
 
-def verify_realms_after_update(base_url: str, token: str, import_dir: Path) -> list[str]:
+def verify_realms_after_update(base_url: str, token: str, import_dir: Path, env: dict) -> list[str]:
     """
     Dump each realm from Keycloak after update and compare with import JSON.
     Returns list of diff messages; empty means dump matches expected.
@@ -680,7 +815,7 @@ def verify_realms_after_update(base_url: str, token: str, import_dir: Path) -> l
         path = import_dir / filename
         if not path.is_file():
             continue
-        expected = json.loads(path.read_text())
+        expected = load_desired_realm(path, env, realm_name)
         actual_dump = _dump_realm_for_compare(base_url, realm_name, token)
         all_diffs.extend(_compare_expected_actual(realm_name, expected, actual_dump))
     return all_diffs
@@ -711,7 +846,7 @@ def main() -> int:
             create_realm_minimal(base_url, token, realm_name)
             print(f"Created realm {realm_name} (defaults).")
         current = get_realm_full(base_url, realm_name, token)
-        desired = json.loads(path.read_text())
+        desired = load_desired_realm(path, env, realm_name)
         merged = _merge_realm(current, desired)
         update_realm(base_url, realm_name, merged, token)
         print(f"Updated realm {realm_name}.")
@@ -724,6 +859,8 @@ def main() -> int:
             create_realm_client(base_url, realm_name, d_client, token)
             print(f"  Created client {cid} in {realm_name}.")
             existing_ids.add(cid)
+
+        push_kairos_mcp_redirect_config(base_url, realm_name, desired, token)
 
     # 2. Set trusted hosts per realm (dev / prod)
     for realm_name, _ in REALM_FILES:
@@ -743,7 +880,7 @@ def main() -> int:
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
 
     # 6. Verify: dump from Keycloak and compare with import
-    verify_errors = verify_realms_after_update(base_url, token, import_dir)
+    verify_errors = verify_realms_after_update(base_url, token, import_dir, env)
     if verify_errors:
         print("Verification failed (dump vs import):", file=sys.stderr)
         for msg in verify_errors:
