@@ -5,8 +5,9 @@
 
 import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
-import { getDefaultApiUrlFromFile, readConfig } from './config-file.js';
+import { getDefaultApiUrlFromFile, readConfig, writeConfig } from './config-file.js';
 import { loginWithBrowser } from './commands/login.js';
+import { jwtExpiresInSeconds, refreshAccessToken } from './oauth-refresh.js';
 import { rewriteLoginUrlRedirectToApiBase } from './rewrite-login-url.js';
 import { normalizeAndValidateApiBaseUrl, type SafeMarkdownUpload } from './upload-guards.js';
 import type { ActivateOutput } from '../tools/activate_schema.js';
@@ -17,9 +18,13 @@ import type { TuneOutput } from '../tools/tune_schema.js';
 import type { ExportOutput } from '../tools/export_schema.js';
 import type { DeleteOutput } from '../tools/delete_schema.js';
 
+const PROACTIVE_REFRESH_SKEW_SEC = 60;
+
 export class ApiClient {
     private baseUrl: string;
     private openInBrowser: boolean;
+    /** Coalesces concurrent refresh_token exchanges for this client instance. */
+    private refreshInFlight: Promise<boolean> | null = null;
 
     constructor(baseUrl?: string, openInBrowser?: boolean) {
         // Precedence: explicit parameter (from global --url), then env, then config file, then default.
@@ -38,10 +43,34 @@ export class ApiClient {
         await new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    private runRefreshWithSingleflight(refreshToken: string): Promise<boolean> {
+        if (this.refreshInFlight) return this.refreshInFlight;
+        const p = (async (): Promise<boolean> => {
+            try {
+                const result = await refreshAccessToken(this.baseUrl, refreshToken);
+                if (!result) return false;
+                const nextRefresh = result.refresh_token ?? refreshToken;
+                await writeConfig({
+                    apiUrl: this.baseUrl,
+                    bearerToken: result.access_token,
+                    refreshToken: nextRefresh,
+                });
+                return true;
+            } catch {
+                return false;
+            } finally {
+                this.refreshInFlight = null;
+            }
+        })();
+        this.refreshInFlight = p;
+        return p;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {},
         isRetryAfterLogin = false,
+        isRetryAfterRefresh = false,
         preLoginIfTokenMissing = true,
         rateLimitRetryCount = 0
     ): Promise<T> {
@@ -49,10 +78,19 @@ export class ApiClient {
         const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
-        let bearer = (await readConfig(this.baseUrl)).bearerToken;
+        let cfg = await readConfig(this.baseUrl);
+        let bearer = cfg.bearerToken;
+        if (cfg.refreshToken && bearer && !isRetryAfterRefresh) {
+            const left = jwtExpiresInSeconds(bearer);
+            if (left !== null && left <= PROACTIVE_REFRESH_SKEW_SEC) {
+                await this.runRefreshWithSingleflight(cfg.refreshToken);
+                cfg = await readConfig(this.baseUrl);
+                bearer = cfg.bearerToken;
+            }
+        }
         if (!bearer && preLoginIfTokenMissing && this.openInBrowser && !isRetryAfterLogin) {
             const ok = await loginWithBrowser(this.baseUrl);
-            if (ok) return this.request(endpoint, options, true);
+            if (ok) return this.request(endpoint, options, true, false, preLoginIfTokenMissing, rateLimitRetryCount);
         }
         if (bearer) {
             defaultHeaders['Authorization'] = `Bearer ${bearer}`;
@@ -86,7 +124,14 @@ export class ApiClient {
                 ? retryAfterSeconds * 1000
                 : 1000;
             await this.sleep(retryDelayMs);
-            return this.request<T>(endpoint, options, isRetryAfterLogin, preLoginIfTokenMissing, rateLimitRetryCount + 1);
+            return this.request<T>(
+                endpoint,
+                options,
+                isRetryAfterLogin,
+                isRetryAfterRefresh,
+                preLoginIfTokenMissing,
+                rateLimitRetryCount + 1
+            );
         }
 
         const data = await response.json().catch(() => {
@@ -97,9 +142,32 @@ export class ApiClient {
             const errorData = data as { message?: string; error?: string; login_url?: string };
             const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
             if (response.status === 401) {
+                const cfg401 = await readConfig(this.baseUrl);
+                if (!isRetryAfterRefresh && cfg401.refreshToken) {
+                    const refreshed = await this.runRefreshWithSingleflight(cfg401.refreshToken);
+                    if (refreshed) {
+                        return this.request<T>(
+                            endpoint,
+                            options,
+                            isRetryAfterLogin,
+                            true,
+                            preLoginIfTokenMissing,
+                            rateLimitRetryCount
+                        );
+                    }
+                }
                 if (this.openInBrowser && !isRetryAfterLogin) {
                     const ok = await loginWithBrowser(this.baseUrl);
-                    if (ok) return this.request(endpoint, options, true);
+                    if (ok) {
+                        return this.request<T>(
+                            endpoint,
+                            options,
+                            true,
+                            false,
+                            preLoginIfTokenMissing,
+                            rateLimitRetryCount
+                        );
+                    }
                 }
                 if (errorData.login_url) {
                     const loginUrl = rewriteLoginUrlRedirectToApiBase(errorData.login_url, this.baseUrl);
@@ -143,11 +211,17 @@ export class ApiClient {
             headers['x-force-update'] = 'true';
         }
 
-        return this.request<TrainOutput>('/api/train/raw', {
-            method: 'POST',
-            headers,
-            body: markdown,
-        }, isRetryAfterLogin, false);
+        return this.request<TrainOutput>(
+            '/api/train/raw',
+            {
+                method: 'POST',
+                headers,
+                body: markdown,
+            },
+            isRetryAfterLogin,
+            false,
+            false
+        );
     }
 
     async tune(uris: string[], markdownDoc?: SafeMarkdownUpload[], updates?: Record<string, unknown>): Promise<TuneOutput> {

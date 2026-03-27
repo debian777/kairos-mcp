@@ -41,6 +41,11 @@ beyond localhost.
 localhost.
 - Keep dependencies up to date to receive security patches.
 - Ensure the `data/` directory is not publicly accessible.
+- When using **AUTH_ENABLED** with a browser session cookie, keep
+  **`SESSION_MAX_AGE_SEC`** in line with your IdP’s maximum SSO session for that
+  environment (see [Authentication overview](docs/architecture/auth-overview.md))
+  so cookie lifetime does not exceed what the IdP will honour for refresh and
+  re-authentication.
 
 ## Threat model and incident response
 

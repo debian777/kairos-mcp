@@ -10,6 +10,13 @@ import { createRequire } from 'module';
 const requireMod = createRequire(import.meta.url);
 const SERVICE = 'kairos-cli';
 
+/** Distinct keyring account for refresh tokens (normalized API URL + suffix). */
+const REFRESH_ACCOUNT_SUFFIX = '::refresh';
+
+function refreshAccount(account: string): string {
+    return `${account}${REFRESH_ACCOUNT_SUFFIX}`;
+}
+
 type KeytarModule = {
     getPassword: (service: string, account: string) => Promise<string | null>;
     setPassword: (service: string, account: string, password: string) => Promise<void>;
@@ -73,6 +80,39 @@ export async function deleteToken(account: string): Promise<boolean> {
     if (!mod) return false;
     try {
         await mod.deletePassword(SERVICE, account);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function getRefreshToken(account: string): Promise<string | null> {
+    const mod = loadKeyring();
+    if (!mod) return null;
+    try {
+        const password = await mod.getPassword(SERVICE, refreshAccount(account));
+        return password ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export async function setRefreshToken(account: string, token: string): Promise<boolean> {
+    const mod = loadKeyring();
+    if (!mod) return false;
+    try {
+        await mod.setPassword(SERVICE, refreshAccount(account), token);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function deleteRefreshToken(account: string): Promise<boolean> {
+    const mod = loadKeyring();
+    if (!mod) return false;
+    try {
+        await mod.deletePassword(SERVICE, refreshAccount(account));
         return true;
     } catch {
         return false;

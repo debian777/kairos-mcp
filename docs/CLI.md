@@ -51,8 +51,18 @@ otherwise from the paths above. Bearer tokens are **not** read from process
 environment variables; use `kairos login` and the shared config file.
 
 **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`).
-The CLI writes the token (and API URL) to the keyring or, on fallback, to that
+The CLI writes tokens (and API URL) to the keyring or, on fallback, to that
 config file so MCP hosts can use it too.
+
+**Refresh tokens:** After **browser PKCE** login, the CLI also stores a refresh
+token when the IdP returns one (same keyring / file rules as the access token,
+with a separate keyring entry). On **401**, the CLI refreshes the access token
+before opening the browser again. If the JWT access token is within about **60
+seconds** of expiry, the CLI refreshes proactively to reduce spurious 401s.
+
+**`kairos login --token`:** Stores **only** the access token you pass; any
+previously stored refresh token is **cleared**, so later 401 handling will use
+browser login (unless you run full PKCE login again).
 
 Token storage behavior is:
 
@@ -94,7 +104,8 @@ kairos login
 kairos login --token <bearer-token>
 ```
 
-This validates the token with `GET /api/me` before storing it.
+This validates the token with `GET /api/me` before storing it. It does **not**
+obtain or store a refresh token.
 
 ### Logout and token inspection
 
@@ -105,7 +116,7 @@ kairos token --validate
 kairos token --login
 ```
 
-- `logout` clears the stored token for the current API URL
+- `logout` clears the stored access and refresh credentials for the current API URL
 - `token` prints the stored token to stdout
 - `token --validate` checks it with `GET /api/me`
 - `token --login` performs browser login first if no token exists
