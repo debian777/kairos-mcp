@@ -3,6 +3,8 @@
  * /.well-known/oauth-protected-resource, then POST refresh_token + client_id.
  */
 
+import { tryNormalizeHttpUrlForFetch } from './safe-http-url.js';
+
 /** Hardcoded OIDC client_id for CLI (same as login command). */
 export const KAIROS_CLI_CLIENT_ID = 'kairos-cli';
 
@@ -25,24 +27,27 @@ export async function fetchOAuthProtectedResourceMetadata(
     baseUrl: string,
     fetchImpl: typeof fetch = fetch
 ): Promise<OAuthEndpoints | null> {
-    const root = baseUrl.replace(/\/$/, '');
+    const root = tryNormalizeHttpUrlForFetch(baseUrl);
+    if (!root) return null;
     const wellKnownUrl = `${root}/.well-known/oauth-protected-resource`;
-    // codeql[js/file-access-to-http]: CLI uses configured API base URL for Kairos requests by design.
+    // codeql[js/file-access-to-http]: outbound URL is derived from tryNormalizeHttpUrlForFetch(baseUrl), not raw config text.
     const wkRes = await fetchImpl(wellKnownUrl);
     if (!wkRes.ok) return null;
     const meta = (await wkRes.json()) as OAuthProtectedResourceMeta;
+    const fromDirectAuth = tryNormalizeHttpUrlForFetch(meta.authorization_endpoint?.trim());
+    const fromDirectToken = tryNormalizeHttpUrlForFetch(meta.token_endpoint?.trim());
+    const server0 = meta.authorization_servers?.[0]?.trim();
+    const serverRoot = server0 ? tryNormalizeHttpUrlForFetch(server0.replace(/\/$/, '')) : null;
     const authEndpoint =
-        meta.authorization_endpoint?.trim() ||
-        (meta.authorization_servers?.[0]
-            ? `${meta.authorization_servers[0].replace(/\/$/, '')}/protocol/openid-connect/auth`
-            : '');
+        fromDirectAuth ||
+        (serverRoot ? `${serverRoot}/protocol/openid-connect/auth` : '');
     const tokenEndpoint =
-        meta.token_endpoint?.trim() ||
-        (meta.authorization_servers?.[0]
-            ? `${meta.authorization_servers[0].replace(/\/$/, '')}/protocol/openid-connect/token`
-            : '');
-    if (!authEndpoint || !tokenEndpoint) return null;
-    return { authEndpoint, tokenEndpoint };
+        fromDirectToken ||
+        (serverRoot ? `${serverRoot}/protocol/openid-connect/token` : '');
+    const authNorm = tryNormalizeHttpUrlForFetch(authEndpoint);
+    const tokenNorm = tryNormalizeHttpUrlForFetch(tokenEndpoint);
+    if (!authNorm || !tokenNorm) return null;
+    return { authEndpoint: authNorm, tokenEndpoint: tokenNorm };
 }
 
 export interface RefreshTokenResult {

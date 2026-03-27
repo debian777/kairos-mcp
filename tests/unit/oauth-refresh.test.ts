@@ -19,6 +19,13 @@ describe('oauth-refresh', () => {
         expect(jwtExpiresInSeconds('not-a-jwt')).toBeNull();
     });
 
+    it('fetchOAuthProtectedResourceMetadata returns null for unsafe base URL', async () => {
+        const fetchMock = jest.fn() as typeof fetch;
+        const out = await fetchOAuthProtectedResourceMetadata('file:///x', fetchMock);
+        expect(out).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('fetchOAuthProtectedResourceMetadata returns endpoints from well-known', async () => {
         const fetchMock = jest.fn(async (url: string | URL) => {
             const u = String(url);

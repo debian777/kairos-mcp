@@ -3,6 +3,13 @@
 # (e.g. integration tests sending file-derived auth tokens in requests).
 name: "KAIROS CodeQL config"
 
+# js/file-access-to-http: CLI persists the API base URL in config and uses it for OAuth/metadata fetch.
+# That is intentional (not exfiltration of arbitrary file bytes). URLs are validated in
+# src/cli/safe-http-url.ts (http/https only, no credentials, no query or fragment) before fetch.
+query-filters:
+  - exclude:
+      id: js/file-access-to-http
+
 paths-ignore:
   - "**/*.test.ts"
   - "**/*.test.js"
