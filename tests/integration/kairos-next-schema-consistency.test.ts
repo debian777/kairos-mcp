@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { withRawOnFail } from '../utils/expect-with-raw.js';
+import { schemaHasObjectBranchWithProps } from '../utils/mcp-list-tools-schema-helpers.js';
 
 describe('forward input schema exposure', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
@@ -12,17 +13,13 @@ describe('forward input schema exposure', () => {
     await mcpConnection.close();
   });
 
-  test('tools/list includes forward with object inputSchema', async () => {
+  test('tools/list includes forward inputSchema with uri and solution (may be union branch)', async () => {
     const listResponse = await mcpConnection.client.listTools({});
     withRawOnFail(listResponse, () => {
       const tool = listResponse.tools.find((t) => t.name === 'forward');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema).toBeDefined();
-      expect(tool?.inputSchema.type).toBe('object');
-      const props = tool?.inputSchema.properties as Record<string, unknown> | undefined;
-      expect(props).toBeDefined();
-      expect(props).toHaveProperty('uri');
-      expect(props).toHaveProperty('solution');
+      expect(schemaHasObjectBranchWithProps(tool?.inputSchema, ['uri', 'solution'])).toBe(true);
     }, '[tools/list] forward schema');
   });
 });

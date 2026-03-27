@@ -1,7 +1,8 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 
 /**
- * Kairos Mint integration tests (validation and error handling).
+ * Integration tests for the **`train`** tool: validation and error handling when
+ * registering adapters from markdown.
  *
  * Goals:
  * - Verify error handling for invalid inputs.
@@ -9,7 +10,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Kairos Mint Validation', () => {
+describe('Train tool validation', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -132,7 +133,7 @@ Only after all steps.`;
       }
     });
 
-    // Empty markdown_doc should fail Zod validation on the server side.
+    // Empty markdown_doc fails strict train input validation; handler returns INVALID_TOOL_INPUT JSON (not SDK-only text).
     expect(result).toBeDefined();
     expect(result.isError).toBe(true);
     expect(result.content).toBeDefined();
