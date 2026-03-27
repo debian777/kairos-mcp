@@ -139,6 +139,9 @@ Only after all steps.`;
     expect(result.content[0].type).toBe('text');
     expect(result.content[0].text).toContain('Input validation error');
     expect(result.content[0].text).toContain('markdown_doc');
+    const emptyMdBody = JSON.parse(result.content[0].text);
+    expect(emptyMdBody.error).toBe('INVALID_TOOL_INPUT');
+    expect(emptyMdBody.next_action).toBeDefined();
   });
 
   test('train validates required parameters', async () => {
@@ -152,6 +155,7 @@ Only after all steps.`;
     expect(result1.isError).toBe(true);
     expect(result1.content[0].text).toContain('Input validation error');
     expect(result1.content[0].text).toContain('markdown_doc');
+    expect(JSON.parse(result1.content[0].text).error).toBe('INVALID_TOOL_INPUT');
 
     // Test missing llm_model_id
     const result2 = await mcpConnection.client.callTool({
@@ -163,6 +167,7 @@ Only after all steps.`;
     expect(result2.isError).toBe(true);
     expect(result2.content[0].text).toContain('Input validation error');
     expect(result2.content[0].text).toContain('llm_model_id');
+    expect(JSON.parse(result2.content[0].text).error).toBe('INVALID_TOOL_INPUT');
 
     // Test empty llm_model_id
     const result3 = await mcpConnection.client.callTool({
@@ -175,5 +180,6 @@ Only after all steps.`;
     expect(result3.isError).toBe(true);
     expect(result3.content[0].text).toContain('Input validation error');
     expect(result3.content[0].text).toContain('llm_model_id');
+    expect(JSON.parse(result3.content[0].text).error).toBe('INVALID_TOOL_INPUT');
   });
 });

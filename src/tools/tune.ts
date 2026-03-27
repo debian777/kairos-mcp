@@ -8,6 +8,8 @@ import { tuneInputSchema, tuneOutputSchema, type TuneInput, type TuneOutput } fr
 import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { buildTuneResultMessage } from './tune-messages.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string): Promise<string> {
   const parsed = parseKairosUri(uri);
@@ -150,7 +152,7 @@ export function registerTuneTool(server: any, toolName = 'tune') {
     {
       title: 'Update adapter content',
       description: getToolDoc('tune') || 'Update adapter layer content.',
-      inputSchema: tuneInputSchema,
+      inputSchema: mcpLooseToolInput(tuneInputSchema),
       outputSchema: tuneOutputSchema
     },
     async (params: unknown) => {
@@ -158,8 +160,16 @@ export function registerTuneTool(server: any, toolName = 'tune') {
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = tuneInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('tune', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = tuneInputSchema.parse(params);
         const result = await executeTune(qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(result).length);

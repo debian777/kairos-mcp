@@ -8,6 +8,8 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
 import { parseKairosUri } from './kairos-uri.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
 import type { RewardRecord, TensorValue } from '../types/memory.js';
@@ -293,7 +295,7 @@ export function registerExportTool(server: any, memoryStore: MemoryQdrantStore, 
     {
       title: 'Export adapter or training data',
       description: getToolDoc('export') || 'Export adapter markdown or training datasets.',
-      inputSchema: exportInputSchema,
+      inputSchema: mcpLooseToolInput(exportInputSchema),
       outputSchema: exportOutputSchema
     },
     async (params: unknown) => {
@@ -301,8 +303,16 @@ export function registerExportTool(server: any, memoryStore: MemoryQdrantStore, 
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = exportInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('export', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = exportInputSchema.parse(params);
         const output = await executeExport(memoryStore, qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);

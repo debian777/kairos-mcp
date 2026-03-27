@@ -5,6 +5,8 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { getTenantId } from '../utils/tenant-context.js';
 import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './delete_schema.js';
 import { parseKairosUri } from './kairos-uri.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 /** Shared execute: delete memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeDelete(
@@ -64,7 +66,7 @@ export function registerDeleteTool(server: any, toolName = 'delete') {
     {
       title: 'Delete KAIROS adapter resource',
       description: getToolDoc('delete'),
-      inputSchema: deleteInputSchema,
+      inputSchema: mcpLooseToolInput(deleteInputSchema),
       outputSchema: deleteOutputSchema
     },
     async (params: unknown) => {
@@ -73,8 +75,16 @@ export function registerDeleteTool(server: any, toolName = 'delete') {
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = deleteInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('delete', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = deleteInputSchema.parse(params);
         const result = await executeDelete(qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(result).length);
