@@ -5,7 +5,7 @@
 # Targets:
 #   runtime (default) — npm registry install (Release / publish-container).
 #   runtime-ci — same layers after install, but package from .ci/docker/package.tgz (Integration workflow).
-FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS base
+FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f76f7dbfef023 AS base
 
 VOLUME /snapshots
 
