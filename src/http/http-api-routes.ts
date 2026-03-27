@@ -23,7 +23,7 @@ export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
     setupMeRoute(app);
     setupSpacesRoute(app, memoryStore);
-    setupMintRoute(app, memoryStore);
+    setupMintRoute(app, memoryStore, qdrantService);
     setupSnapshotRoute(app, qdrantService);
     setupActivateRoute(app, memoryStore, qdrantService); // /api/activate
     setupForwardRoute(app, memoryStore, qdrantService); // /api/forward

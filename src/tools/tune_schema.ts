@@ -15,7 +15,11 @@ export const tuneInputSchema = z
   .object({
     uris: z.array(tuneUriSchema).nonempty().describe('Non-empty array of adapter or layer URIs to update'),
     markdown_doc: z.array(z.string().min(1)).optional().describe('Updated adapter markdown bodies'),
-    updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes')
+    updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes'),
+    space: z
+      .union([z.literal('personal'), z.string()])
+      .optional()
+      .describe('Move all layers of each target adapter to this space ("personal" or group name), optionally after content updates')
   })
   .superRefine((value, ctx) => {
     if (value.markdown_doc && value.markdown_doc.length !== value.uris.length) {
@@ -25,11 +29,12 @@ export const tuneInputSchema = z
         message: 'markdown_doc must have the same number of entries as uris'
       });
     }
-    if (!value.markdown_doc && !value.updates) {
+    const hasSpace = typeof value.space === 'string' && value.space.trim().length > 0;
+    if (!value.markdown_doc && !value.updates && !hasSpace) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['markdown_doc'],
-        message: 'Provide markdown_doc or updates'
+        message: 'Provide markdown_doc, updates, or space'
       });
     }
   });

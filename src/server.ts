@@ -37,7 +37,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     // Register the current MCP tools.
     registerActivateTool(server, memoryStore, { qdrantService });
     registerForwardTool(server, memoryStore, { qdrantService });
-    registerTrainTool(server, memoryStore);
+    registerTrainTool(server, memoryStore, { qdrantService });
     registerRewardTool(server, qdrantService);
     registerTuneTool(server);
     registerDeleteTool(server, 'delete');

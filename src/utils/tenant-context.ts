@@ -8,6 +8,7 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { AUTH_ENABLED, KAIROS_APP_SPACE_ID } from '../config.js';
+import { resolveSpaceParamForContext } from './resolve-space-param.js';
 
 /** Sentinel space when AUTH is on but no auth context (strict isolation; not shared with tenants). */
 export const NO_AUTH_SPACE_ID = 'space:no-auth';
@@ -118,14 +119,21 @@ export function getSearchSpaceIds(): string[] {
  */
 export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefined, fn: () => Promise<T>): Promise<T> {
   if (!spaceParam || typeof spaceParam !== 'string') return fn();
+  const trimmed = spaceParam.trim();
+  if (!trimmed) return fn();
   const ctx = getSpaceContextFromStorage();
-  if (!ctx.allowedSpaceIds.includes(spaceParam)) {
+  const resolved = resolveSpaceParamForContext(ctx, trimmed);
+  if (!resolved.ok) {
+    throw new Error(resolved.message);
+  }
+  const spaceId = resolved.spaceId;
+  if (!ctx.allowedSpaceIds.includes(spaceId)) {
     throw new Error('Requested space is not in your allowed spaces');
   }
   const narrowed: SpaceContext = {
     ...ctx,
-    allowedSpaceIds: [spaceParam],
-    defaultWriteSpaceId: spaceParam
+    allowedSpaceIds: [spaceId],
+    defaultWriteSpaceId: spaceId
   };
   return runWithSpaceContextAsync(narrowed, fn);
 }

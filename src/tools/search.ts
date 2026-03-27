@@ -1,7 +1,12 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { redisCacheService } from '../services/redis-cache.js';
-import { getRequestIdFromStorage, getTenantId, getSpaceIdFromStorage } from '../utils/tenant-context.js';
+import {
+  getRequestIdFromStorage,
+  getTenantId,
+  getSpaceIdFromStorage,
+  getSpaceContextFromStorage
+} from '../utils/tenant-context.js';
 import type { Memory } from '../types/memory.js';
 import {
   SCORE_THRESHOLD,
@@ -43,6 +48,8 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const SCORE_TIE_EPS = 1e-9;
+
 function addCandidate(
   candidateMap: Map<string, { memory: Memory; score: number }>,
   memory: Memory,
@@ -52,6 +59,7 @@ function addCandidate(
   const key = memory.adapter?.id || memory.memory_uuid;
   const existing = candidateMap.get(key);
   const incomingIsHead = memory.adapter?.layer_index === 1;
+  const defaultWrite = getSpaceContextFromStorage().defaultWriteSpaceId;
   if (!existing) {
     candidateMap.set(key, { memory, score });
     return;
@@ -61,8 +69,19 @@ function addCandidate(
     candidateMap.set(key, { memory, score });
     return;
   }
-  if (incomingIsHead === existingIsHead && score > existing.score) {
+  if (!incomingIsHead && existingIsHead) {
+    return;
+  }
+  if (score > existing.score + SCORE_TIE_EPS) {
     candidateMap.set(key, { memory, score });
+    return;
+  }
+  if (Math.abs(score - existing.score) <= SCORE_TIE_EPS) {
+    const incomingPersonal = memory.space_id === defaultWrite;
+    const existingPersonal = existing.memory.space_id === defaultWrite;
+    if (incomingPersonal && !existingPersonal) {
+      candidateMap.set(key, { memory, score });
+    }
   }
 }
 
@@ -123,7 +142,14 @@ async function doSearch(
     KAIROS_ENABLE_GROUP_COLLAPSE,
     effectiveLimit
   );
-  let headCandidates = Array.from(candidateMap.values()).sort((a, b) => b.score - a.score);
+  const defaultWriteForSort = getSpaceContextFromStorage().defaultWriteSpaceId;
+  let headCandidates = Array.from(candidateMap.values()).sort((a, b) => {
+    const byScore = b.score - a.score;
+    if (Math.abs(byScore) > SCORE_TIE_EPS) return byScore;
+    const aPersonal = a.memory.space_id === defaultWriteForSort ? 1 : 0;
+    const bPersonal = b.memory.space_id === defaultWriteForSort ? 1 : 0;
+    return bPersonal - aPersonal;
+  });
   if (headCandidates.length > effectiveLimit) {
     headCandidates = headCandidates.slice(0, effectiveLimit);
   }
@@ -165,7 +191,7 @@ export async function executeSearch(
 
   const runWithCache = async (): Promise<SearchOutput> => {
     const effectiveSpaceId = spaceParam ?? getSpaceIdFromStorage();
-    const cacheKey = `activate:v4:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+    const cacheKey = `activate:v5:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
 
     const cachedResult = await redisCacheService.get(cacheKey);
     if (cachedResult) {

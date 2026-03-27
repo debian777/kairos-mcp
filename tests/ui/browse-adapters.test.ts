@@ -7,11 +7,15 @@ describe("browseAdaptersFromSpaces", () => {
     const spaces: SpaceInfo[] = [
       {
         name: "Personal",
+        space_id: "user:r:u1",
+        type: "personal",
         adapter_count: 1,
         adapters: [{ adapter_id: "abc", title: "Create New", layer_count: 2 }],
       },
       {
         name: "App",
+        space_id: "space:kairos-app",
+        type: "app",
         adapter_count: 1,
         adapters: [{ adapter_id: "abc", title: "Create New", layer_count: 5 }],
       },
@@ -26,6 +30,8 @@ describe("browseAdaptersFromSpaces", () => {
     const spaces: SpaceInfo[] = [
       {
         name: "A",
+        space_id: "group:r:g1",
+        type: "group",
         adapter_count: 2,
         adapters: [
           { adapter_id: "id-1", title: "Same Title", layer_count: 1 },
@@ -42,6 +48,8 @@ describe("browseAdaptersFromSpaces", () => {
     const spaces: SpaceInfo[] = [
       {
         name: "X",
+        space_id: "space:x",
+        type: "other",
         adapter_count: 2,
         adapters: [
           { adapter_id: "", title: "Alpha", layer_count: 1 },

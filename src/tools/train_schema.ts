@@ -8,13 +8,36 @@ const adapterUriSchema = z
   .string()
   .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
 
-export const trainInputSchema = z.object({
-  markdown_doc: z.string().min(1).describe('Adapter markdown document to register'),
-  llm_model_id: z.string().min(1).describe('LLM model ID'),
-  force_update: z.boolean().optional().default(false).describe('Overwrite an existing adapter with the same label'),
-  protocol_version: z.string().optional().describe('Adapter version (for example, semver)'),
-  space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" or a group name')
-});
+const sourceAdapterUriSchema = z
+  .string()
+  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}')
+  .describe('Optional fork source: export markdown from this adapter, then mint into target space');
+
+export const trainInputSchema = z
+  .object({
+    markdown_doc: z
+      .string()
+      .optional()
+      .describe('Adapter markdown to register; optional when source_adapter_uri supplies content'),
+    llm_model_id: z.string().min(1).describe('LLM model ID'),
+    force_update: z.boolean().optional().default(false).describe('Overwrite an existing adapter with the same label'),
+    protocol_version: z.string().optional().describe('Adapter version (for example, semver)'),
+    space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" or a group name'),
+    source_adapter_uri: sourceAdapterUriSchema.optional().describe(
+      'Fork from an existing adapter (personal/group copy); optional markdown_doc overrides exported body'
+    )
+  })
+  .superRefine((value, ctx) => {
+    const md = typeof value.markdown_doc === 'string' ? value.markdown_doc.trim() : '';
+    const src = typeof value.source_adapter_uri === 'string' ? value.source_adapter_uri.trim() : '';
+    if (md.length === 0 && !src) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['markdown_doc'],
+        message: 'Provide markdown_doc and/or source_adapter_uri'
+      });
+    }
+  });
 
 export const trainOutputSchema = z.object({
   items: z.array(z.object({

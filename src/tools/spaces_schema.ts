@@ -12,6 +12,8 @@ const adapterInfoSchema = z.object({
 
 const spaceInfoSchema = z.object({
   name: z.string(),
+  space_id: z.string(),
+  type: z.enum(['personal', 'group', 'app', 'other']),
   adapter_count: z.number(),
   adapters: z.array(adapterInfoSchema).optional()
 });

@@ -11,6 +11,16 @@ export const KAIROS_APP_SPACE_DISPLAY_NAME = 'Kairos app';
  * Map a space_id to a human-readable name for tool outputs and agent-facing responses.
  * user:realm:sub → "Personal"; group:realm:ref → "Group: ref"; space:kairos-app → "Kairos app".
  */
+export function spaceKindFromSpaceId(spaceId: string): 'personal' | 'group' | 'app' | 'other' {
+  if (!spaceId || typeof spaceId !== 'string') return 'other';
+  if (spaceId === KAIROS_APP_SPACE_ID) return 'app';
+  const parts = spaceId.split(':');
+  if (parts[0] === 'user') return 'personal';
+  if (parts[0] === 'group') return 'group';
+  if (parts[0] === 'space') return 'other';
+  return 'other';
+}
+
 export function spaceIdToDisplayName(spaceId: string): string {
   if (!spaceId || typeof spaceId !== 'string') return 'Unknown';
   if (spaceId === KAIROS_APP_SPACE_ID) return KAIROS_APP_SPACE_DISPLAY_NAME;

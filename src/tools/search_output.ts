@@ -8,6 +8,8 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveAdapterEntry } from '../services/adapter-navigation.js';
 import { getActivationPatterns, getAdapterId, getAdapterInfo, getAdapterName, getLayerCount } from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
+import { spaceIdToDisplayName } from '../utils/space-display.js';
+import { KAIROS_APP_SPACE_ID } from '../config.js';
 
 export interface Candidate {
   memory: Memory;
@@ -28,6 +30,8 @@ export interface UnifiedChoice {
   next_action: string;
   adapter_version: string | null;
   activation_patterns?: string[];
+  /** Display name of the space where the adapter is stored (match rows only). */
+  space_name: string | null;
 }
 
 const PUBLIC_SCORE_PIVOT = 0.5;
@@ -96,6 +100,7 @@ export async function generateUnifiedOutput(
 
   for (const result of results) {
     const head = await resolveHead(result.memory, qdrantService);
+    const sid = result.memory.space_id ?? KAIROS_APP_SPACE_ID;
     choices.push({
       uri: head.uri,
       label: head.label || result.label,
@@ -105,7 +110,8 @@ export async function generateUnifiedOutput(
       tags: result.tags,
       next_action: `call forward with ${head.uri} to execute this adapter`,
       adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
-      activation_patterns: getActivationPatterns(result.memory)
+      activation_patterns: getActivationPatterns(result.memory),
+      space_name: spaceIdToDisplayName(sid)
     });
   }
 
@@ -121,7 +127,8 @@ export async function generateUnifiedOutput(
         role: 'refine',
         tags: ['meta', 'refine'],
         next_action: refiningNextAction,
-        adapter_version: refiningProtocolVersion
+        adapter_version: refiningProtocolVersion,
+        space_name: null
       },
       {
         uri: createUri,
@@ -131,7 +138,8 @@ export async function generateUnifiedOutput(
         role: 'create',
         tags: ['meta', 'creation'],
         next_action: createNextAction,
-        adapter_version: createProtocolVersion
+        adapter_version: createProtocolVersion,
+        space_name: null
       }
     );
   }

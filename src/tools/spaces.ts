@@ -8,7 +8,7 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { buildSpaceFilter } from '../utils/space-filter.js';
-import { spaceIdToDisplayName } from '../utils/space-display.js';
+import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
@@ -24,6 +24,8 @@ interface AdapterInfo {
 
 export interface SpaceInfo {
   name: string;
+  space_id: string;
+  type: 'personal' | 'group' | 'app' | 'other';
   adapter_count: number;
   adapters?: AdapterInfo[];
 }
@@ -100,7 +102,15 @@ function buildSpaceInfo(
     }
   }
 
-  return { name, adapter_count: adapterCount, ...(includeAdapterTitles ? { adapters } : {}) };
+  const kind = spaceKindFromSpaceId(spaceId);
+  const type: SpaceInfo['type'] = kind === 'other' ? 'other' : kind;
+  return {
+    name,
+    space_id: spaceId,
+    type,
+    adapter_count: adapterCount,
+    ...(includeAdapterTitles ? { adapters } : {})
+  };
 }
 
 /**

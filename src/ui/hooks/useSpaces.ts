@@ -9,6 +9,8 @@ export interface AdapterSummary {
 
 export interface SpaceInfo {
   name: string;
+  space_id: string;
+  type: "personal" | "group" | "app" | "other";
   adapter_count: number;
   adapters?: AdapterSummary[];
 }

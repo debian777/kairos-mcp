@@ -36,7 +36,8 @@ async function mapSearchToActivate(
             ? 'call train with adapter markdown to register a new adapter'
             : `call forward with ${adapterUri} to execute the refine adapter`,
           adapter_version: choice.adapter_version,
-          activation_patterns: []
+          activation_patterns: [],
+          space_name: choice.space_name ?? null
         };
       }
 
@@ -51,7 +52,8 @@ async function mapSearchToActivate(
         tags: choice.tags,
         next_action: `call forward with ${adapterUri} to execute this adapter`,
         adapter_version: choice.adapter_version,
-        activation_patterns: choice.activation_patterns ?? []
+        activation_patterns: choice.activation_patterns ?? [],
+        space_name: choice.space_name ?? null
       };
     })
   );
