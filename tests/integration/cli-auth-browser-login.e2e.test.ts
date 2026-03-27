@@ -283,7 +283,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
 
     const logoutResult = await runCli(`--url ${BASE_URL} logout`);
     expect(logoutResult.code).toBe(0);
-    expect(logoutResult.stdout).toMatch(/Token cleared/i);
+    expect(logoutResult.stdout).toMatch(/Credentials cleared|Token cleared/i);
 
     const tokenAfter = await runCli(`--url ${BASE_URL} token`);
     expect(tokenAfter.code).not.toBe(0);

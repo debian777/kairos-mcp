@@ -1,8 +1,8 @@
 /**
  * CLI config file: token and API URL storage (XDG-compliant, user-only readable).
  * Supports multiple environments keyed by KAIROS_API_URL (normalized, no trailing slash).
- * When keyring is available, bearer tokens are stored in the OS keyring; the config file
- * holds only defaultUrl and environment keys. When keyring is unavailable, tokens are
+ * When keyring is available, bearer and refresh tokens are stored in the OS keyring; the config file
+ * holds only defaultUrl and environment keys. When keyring is unavailable, secrets are
  * stored in the file (with a one-time warning).
  *
  * New format:
@@ -10,87 +10,29 @@
  * Older single-env shape: { "KAIROS_API_URL": "...", "bearerToken": "..." } — migrated on first write.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
-import { homedir, platform } from 'os';
-import { getToken, setToken, deleteToken, isKeyringAvailable } from './keyring.js';
-import { writeStderr } from './output.js';
+import {
+    getRefreshToken,
+    getToken,
+    isKeyringAvailable,
+    setRefreshToken,
+    setToken,
+} from './keyring.js';
+import {
+    type ConfigFileShape,
+    getConfigPath,
+    isSingleEnvFlatConfig,
+    normalizeApiUrl,
+    parseConfigFile,
+    writeConfigShape,
+} from './config-file-internals.js';
+export { writeConfig, type WriteConfigInput } from './config-file-write.js';
+export { normalizeApiUrl, getConfigDir, getConfigPath } from './config-file-internals.js';
 
 export interface CliConfig {
     apiUrl?: string;
     bearerToken?: string;
-}
-
-/** Normalize base URL for use as config key (no trailing slash). */
-export function normalizeApiUrl(url: string): string {
-    return url.replace(/\/$/, '');
-}
-
-const CONFIG_DIR_NAME = 'kairos';
-const CONFIG_FILE_NAME = 'config.json';
-
-let fallbackWarned = false;
-
-function warnFallbackOnce(): void {
-    if (!fallbackWarned) {
-        fallbackWarned = true;
-        writeStderr('Keyring unavailable; storing token in config file.');
-    }
-}
-
-interface EnvironmentEntry {
-    bearerToken?: string;
-}
-
-interface ConfigFileShape {
-    defaultUrl?: string;
-    environments?: Record<string, EnvironmentEntry>;
-    // Older top-level keys (migrated on write)
-    KAIROS_API_URL?: string;
-    bearerToken?: string;
-}
-
-function isSingleEnvFlatConfig(parsed: ConfigFileShape): boolean {
-    return (
-        parsed.environments === undefined &&
-        (parsed.KAIROS_API_URL !== undefined || parsed.bearerToken !== undefined)
-    );
-}
-
-function parseConfigFile(path: string): ConfigFileShape | null {
-    if (!existsSync(path)) return null;
-    try {
-        const raw = readFileSync(path, 'utf-8');
-        return JSON.parse(raw) as ConfigFileShape;
-    } catch {
-        return null;
-    }
-}
-
-function writeConfigShape(shape: ConfigFileShape): void {
-    const dir = getConfigDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const path = getConfigPath();
-    writeFileSync(path, JSON.stringify(shape, null, 2), { mode: 0o600 });
-}
-
-/**
- * Config directory: XDG_CONFIG_HOME/kairos on Unix; %APPDATA%\kairos on Windows.
- */
-export function getConfigDir(): string {
-    if (platform() === 'win32') {
-        const appData = process.env['APPDATA'] || join(homedir(), 'AppData', 'Roaming');
-        return join(appData, CONFIG_DIR_NAME);
-    }
-    const base = process.env['XDG_CONFIG_HOME'] || join(homedir(), '.config');
-    return join(base, CONFIG_DIR_NAME);
-}
-
-/**
- * Full path to config file. Use this path for shared read/write so CLI and MCP hosts use the same file.
- */
-export function getConfigPath(): string {
-    return join(getConfigDir(), CONFIG_FILE_NAME);
+    /** Present after browser PKCE login when IdP issued a refresh_token; omitted for `login --token`. */
+    refreshToken?: string;
 }
 
 /**
@@ -121,6 +63,7 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
 
     let effectiveUrl: string | undefined;
     let tokenFromFile: string | undefined;
+    let refreshFromFile: string | undefined;
 
     if (isSingleEnvFlatConfig(parsed)) {
         const apiUrl = typeof parsed.KAIROS_API_URL === 'string' ? parsed.KAIROS_API_URL : undefined;
@@ -134,24 +77,30 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
                     const stored = await setToken(normalized, tokenFromFile);
                     if (stored) writeConfigShape({ defaultUrl: normalized, environments: {} });
                 }
+                const refreshFromKeyring = await getRefreshToken(normalized);
                 const out: CliConfig = {};
                 if (apiUrl) out.apiUrl = apiUrl;
                 if (token) out.bearerToken = token;
+                if (refreshFromKeyring) out.refreshToken = refreshFromKeyring;
                 return out;
             }
             effectiveUrl = normalized;
         } else {
-            effectiveUrl = apiUrl ?? '';
-            if (!effectiveUrl) return {};
-            const fromKeyring = await getToken(effectiveUrl);
+            const rawUrl = apiUrl ?? '';
+            if (!rawUrl) return {};
+            const urlNorm = normalizeApiUrl(rawUrl);
+            effectiveUrl = urlNorm;
+            const fromKeyring = await getToken(urlNorm);
             const token = fromKeyring ?? tokenFromFile;
             if (tokenFromFile && isKeyringAvailable()) {
-                const stored = await setToken(effectiveUrl, tokenFromFile);
-                if (stored) writeConfigShape({ defaultUrl: effectiveUrl, environments: {} });
+                const stored = await setToken(urlNorm, tokenFromFile);
+                if (stored) writeConfigShape({ defaultUrl: urlNorm, environments: {} });
             }
+            const refreshFromKeyring = await getRefreshToken(urlNorm);
             const out: CliConfig = {};
             if (apiUrl) out.apiUrl = apiUrl;
             if (token) out.bearerToken = token;
+            if (refreshFromKeyring) out.refreshToken = refreshFromKeyring;
             return out;
         }
     } else {
@@ -161,6 +110,7 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
         if (!effectiveUrl) return {};
         const entry = environments[effectiveUrl];
         tokenFromFile = entry && typeof entry.bearerToken === 'string' ? entry.bearerToken : undefined;
+        refreshFromFile = entry && typeof entry.refreshToken === 'string' ? entry.refreshToken : undefined;
     }
 
     if (!effectiveUrl) return {};
@@ -187,103 +137,31 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
         token = tokenFromFile ?? null;
     }
 
+    const fromKeyringR = await getRefreshToken(effectiveUrl);
+    let refreshTok = fromKeyringR;
+    if (!refreshTok && refreshFromFile && isKeyringAvailable()) {
+        const stored = await setRefreshToken(effectiveUrl, refreshFromFile);
+        refreshTok = refreshFromFile;
+        if (stored) {
+            const parsed2 = parseConfigFile(path);
+            if (parsed2 && !isSingleEnvFlatConfig(parsed2)) {
+                const envs = { ...(parsed2.environments ?? {}) };
+                const ent = envs[effectiveUrl];
+                if (ent) {
+                    delete ent.refreshToken;
+                    if (Object.keys(ent).length === 0) delete envs[effectiveUrl];
+                }
+                const next: ConfigFileShape =
+                    typeof parsed2.defaultUrl === 'string' ? { defaultUrl: parsed2.defaultUrl, environments: envs } : { environments: envs };
+                writeConfigShape(next);
+            }
+        }
+    } else if (!refreshTok) {
+        refreshTok = refreshFromFile ?? null;
+    }
+
     const out: CliConfig = { apiUrl: effectiveUrl as string };
     if (token) out.bearerToken = token;
+    if (refreshTok) out.refreshToken = refreshTok;
     return out;
-}
-
-/** Input for writeConfig: null for bearerToken means clear the token for that environment. */
-export type WriteConfigInput = {
-    apiUrl?: string;
-    bearerToken?: string | null;
-};
-
-/**
- * Write config (merge with existing). Pass bearerToken: null to clear the token for the given apiUrl.
- * When apiUrl is provided, that environment is updated and set as defaultUrl. Creates directory and sets file mode 0o600.
- * Token storage: OS keyring first; if keyring is unavailable or a keyring write fails, the token is written to the config file under XDG_CONFIG_HOME (or ~/.config/kairos / %APPDATA%\\kairos) with a one-time warning.
- */
-export async function writeConfig(partial: WriteConfigInput): Promise<void> {
-    const path = getConfigPath();
-    const parsed = parseConfigFile(path);
-
-    let defaultUrl: string | undefined;
-    let environments: Record<string, EnvironmentEntry>;
-
-    if (!parsed || isSingleEnvFlatConfig(parsed)) {
-        defaultUrl =
-            typeof parsed?.KAIROS_API_URL === 'string'
-                ? normalizeApiUrl(parsed.KAIROS_API_URL)
-                : undefined;
-        environments = {};
-        if (defaultUrl && typeof parsed?.bearerToken === 'string') {
-            environments[defaultUrl] = { bearerToken: parsed.bearerToken };
-        }
-    } else {
-        defaultUrl =
-            typeof parsed.defaultUrl === 'string' ? normalizeApiUrl(parsed.defaultUrl) : undefined;
-        environments = { ...(parsed.environments ?? {}) };
-    }
-
-    const partialUrl = partial.apiUrl !== undefined ? normalizeApiUrl(partial.apiUrl) : undefined;
-    const useKeyring = isKeyringAvailable();
-
-    if (partialUrl !== undefined) {
-        defaultUrl = partialUrl;
-        if (!environments[partialUrl]) environments[partialUrl] = {};
-        if (partial.bearerToken === null) {
-            if (useKeyring) await deleteToken(partialUrl);
-            delete environments[partialUrl].bearerToken;
-            const ent = environments[partialUrl];
-            if (ent && Object.keys(ent).length === 0) delete environments[partialUrl];
-        } else if (partial.bearerToken !== undefined) {
-            if (useKeyring) {
-                const stored = await setToken(partialUrl, partial.bearerToken);
-                if (stored) {
-                    delete environments[partialUrl].bearerToken;
-                    if (Object.keys(environments[partialUrl]).length === 0) delete environments[partialUrl];
-                } else {
-                    warnFallbackOnce();
-                    environments[partialUrl].bearerToken = partial.bearerToken;
-                }
-            } else {
-                warnFallbackOnce();
-                environments[partialUrl].bearerToken = partial.bearerToken;
-            }
-        }
-    } else if (partial.bearerToken === null && defaultUrl) {
-        if (useKeyring) await deleteToken(defaultUrl);
-        const ent = environments[defaultUrl];
-        if (ent) {
-            delete ent.bearerToken;
-            if (Object.keys(ent).length === 0) delete environments[defaultUrl];
-        }
-    } else if (partial.bearerToken !== undefined && partial.bearerToken !== null && defaultUrl) {
-        if (useKeyring) {
-            const stored = await setToken(defaultUrl, partial.bearerToken);
-            if (stored) {
-                const ent = environments[defaultUrl];
-                if (ent) {
-                    delete ent.bearerToken;
-                    if (Object.keys(ent).length === 0) delete environments[defaultUrl];
-                } else {
-                    environments[defaultUrl] = {};
-                }
-            } else {
-                warnFallbackOnce();
-                const ent = environments[defaultUrl] ?? {};
-                ent.bearerToken = partial.bearerToken;
-                environments[defaultUrl] = ent;
-            }
-        } else {
-            warnFallbackOnce();
-            const ent = environments[defaultUrl] ?? {};
-            ent.bearerToken = partial.bearerToken;
-            environments[defaultUrl] = ent;
-        }
-    }
-
-    const next: ConfigFileShape =
-        defaultUrl !== undefined ? { defaultUrl, environments } : { environments };
-    writeConfigShape(next);
 }

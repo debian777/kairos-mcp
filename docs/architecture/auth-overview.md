@@ -8,7 +8,14 @@ When **AUTH_ENABLED** is true, the KAIROS server requires authentication for `/a
 - **Unauthenticated requests:** GET (non-MCP) → 302 redirect to IdP; POST / MCP → **401** with JSON `{ error, message, login_url }` and `WWW-Authenticate` header (RFC 9728 / MCP discovery).
 - **Discovery:** `GET /.well-known/oauth-protected-resource` and `GET /.well-known/oauth-protected-resource/mcp` (no auth) return `authorization_servers`, `authorization_endpoint`, `token_endpoint`, `resource`, `authorization_request_parameters`, and `kairos_cli_client_id` so clients can build login URLs without hitting 401 first. In production, serve the app (and well-known) over HTTPS.
 
+**Session length alignment:** In each environment, the browser session cookie `Max-Age` (`SESSION_MAX_AGE_SEC` in server config) should match the IdP’s maximum SSO session for that deployment (see Keycloak realm `ssoSessionMaxLifespan` / `ssoSessionIdleTimeout` in repo imports). If the cookie outlives IdP SSO, users can keep a cookie while refresh and re-login flows fail.
+
 See [install/README.md](../install/README.md) and [install/google-auth-dev.md](../install/google-auth-dev.md) for enabling auth and configuring Keycloak.
+
+| Context | Typical session / token policy (examples) |
+|--------|----------------------------------------|
+| Local / dev Keycloak (repo imports) | Long SSO window (e.g. 7 days in current realm JSON); access token ~1 h; refresh until SSO ends |
+| Production with a different IdP | Follow that IdP’s policy (e.g. shorter org-wide SSO); align `SESSION_MAX_AGE_SEC` and realm settings with the same cap |
 
 ## API and MCP
 
@@ -32,14 +39,14 @@ All REST endpoints and POST `/mcp` use the same auth middleware. There is no sep
   1. **Try read:** Token from keyring first, otherwise from the shared config file. Bearer tokens are **not** read from process environment variables.  
   2. **If absent:** Perform auth (see below), then save the token for that API URL.
 - **CLI:** Reads from keyring when possible, otherwise from the shared config file. `kairos login` (browser PKCE or `--token`) writes the token back through the same storage abstraction. Other commands reuse that token and can trigger login on 401.
-- **MCP:** The host (for example Cursor) can reuse the same local config/keyring state, or direct the user to run `kairos login` first. If no token is present, the host can discover auth endpoints via the well-known protected-resource metadata and perform its own OAuth PKCE flow.
+- **MCP:** The host (for example Cursor) can reuse the same local config/keyring state, or direct the user to run `kairos login` first. If no token is present, the host can discover auth endpoints via the well-known protected-resource metadata and perform its own OAuth PKCE flow. Hosts that read the access token only once at startup will not pick up rotations from the CLI; long-lived integrations should re-read the shared config on each request or implement refresh equivalent to the CLI `ApiClient` (or periodically re-run `kairos login`).
 
 ## CLI
 
 - **Token source:** Keyring first, config-file fallback at `$XDG_CONFIG_HOME/kairos/config.json` (or `%APPDATA%\kairos\config.json` on Windows). Bearer tokens are **not** read from process environment variables.
-- **Login:** `kairos login --token <token>` validates the token with `GET /api/me` and stores it for the current API URL. `kairos login` (no flag) runs browser PKCE: the CLI uses the public client ID `kairos-cli`, discovers auth/token endpoints from well-known, binds a local callback port, and exchanges the code for an access token. The callback path includes a per-request token. **Requirement:** run `python3 scripts/configure-keycloak-realms.py` so the `kairos-cli` client exists in Keycloak with redirect URIs allowing `http://localhost:*/callback/*`. Tests use `kairos login --no-browser` to get the URL from stdout; port can be pinned via `KAIROS_LOGIN_CALLBACK_PORT` (see [CLI.md](../CLI.md)).
-- **Logout:** `kairos logout` clears the stored token for the current API URL.
-- **401 handling:** When auth is required, the CLI opens the browser by default (same PKCE flow as `kairos login`) and retries after storing the token. Use **`--no-browser`** to disable (e.g. in tests or scripts); then run `kairos login` and re-run the command.
-- **Token TTL:** The CLI stores only the **access token** (no refresh). Token lifetime is set by **Keycloak**, not by KAIROS. Our realm import sets **`accessTokenLifespan`** to **3600** seconds (1 hour) for `kairos-dev` and `kairos-prod`. If you see "one query then re-login", the realm may be using Keycloak’s default (e.g. 5 min) or a misconfigured value. Apply the realm config so the 1 h value is used: `python3 scripts/configure-keycloak-realms.py`. If you use an external Keycloak, set **Realm → Realm settings → Tokens → Access Token Lifespan** (or the equivalent in your setup) to the desired seconds.
+- **Login:** `kairos login --token <token>` validates the token with `GET /api/me` and stores **only** the access token (any stored refresh token is cleared). `kairos login` (no flag) runs browser PKCE: the CLI uses the public client ID `kairos-cli`, discovers auth/token endpoints from well-known, binds a local callback port, and exchanges the code for an access token and (when the IdP issues one) a **refresh token**. The callback path includes a per-request token. **Requirement:** run `python3 scripts/configure-keycloak-realms.py` so the `kairos-cli` client exists in Keycloak with redirect URIs allowing `http://localhost:*/callback/*`. Tests use `kairos login --no-browser` to get the URL from stdout; port can be pinned via `KAIROS_LOGIN_CALLBACK_PORT` (see [CLI.md](../CLI.md)).
+- **Logout:** `kairos logout` clears the stored access and refresh credentials for the current API URL.
+- **401 handling:** When the access token is rejected, the CLI tries a **refresh_token** grant first if a refresh token is stored; on success it retries the request once. If refresh fails or no refresh token exists, the CLI opens the browser by default (same PKCE flow as `kairos login`) and retries after storing new tokens. Use **`--no-browser`** to disable (e.g. in tests or scripts); then run `kairos login` and re-run the command.
+- **Token TTL:** Access token lifetime is set by **Keycloak** (or your IdP), not by KAIROS. Our realm import sets **`accessTokenLifespan`** to **3600** seconds (1 hour) for `kairos-dev` and `kairos-prod`. The CLI keeps the refresh token alongside the access token (browser login path) so long sessions do not require a browser on every access expiry. If you see frequent unexpected re-login, check realm token settings and apply `python3 scripts/configure-keycloak-realms.py`. For an external Keycloak, set **Realm → Realm settings → Tokens → Access Token Lifespan** (or the equivalent) as needed.
 
 See [CLI.md](../CLI.md) for full CLI usage and authentication.

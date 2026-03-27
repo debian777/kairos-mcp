@@ -7,9 +7,6 @@ import { createServer } from 'http';
 import { createHash, randomBytes } from 'crypto';
 import { getCliApiUrlDefault } from '../config.js';
 
-/** Hardcoded OIDC client_id for CLI; realm must have this client with redirect URIs allowing http://localhost:* */
-const KAIROS_CLI_CLIENT_ID = 'kairos-cli';
-
 function escapeHtml(s: string): string {
     return s
         .replace(/&/g, '&amp;')
@@ -21,6 +18,7 @@ function escapeHtml(s: string): string {
 import { openBrowser } from '../auth-error.js';
 import { readConfig, writeConfig, normalizeApiUrl } from '../config-file.js';
 import { getToken, isKeyringAvailable } from '../keyring.js';
+import { fetchOAuthProtectedResourceMetadata, KAIROS_CLI_CLIENT_ID } from '../oauth-refresh.js';
 import { writeError, writeStdout, writeStderr } from '../output.js';
 
 /** Describe where the current token is stored (no path). Used for "Already authenticated. Token …" message. */
@@ -57,16 +55,9 @@ async function loginWithToken(baseUrl: string, token: string): Promise<boolean> 
         writeError(body.message || `HTTP ${res.status}: token invalid or expired`);
         return false;
     }
-    await writeConfig({ apiUrl: baseUrl, bearerToken: token });
+    await writeConfig({ apiUrl: baseUrl, bearerToken: token, refreshToken: null });
     writeStdout('Token validated and stored.');
     return true;
-}
-
-interface WellKnownMeta {
-    authorization_servers?: string[];
-    authorization_endpoint?: string;
-    token_endpoint?: string;
-    kairos_cli_client_id?: string;
 }
 
 export interface LoginWithBrowserOptions {
@@ -76,28 +67,15 @@ export interface LoginWithBrowserOptions {
 
 /** Run browser PKCE login and store token. Exported for 401+--open retry from ApiClient. */
 export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrowserOptions): Promise<boolean> {
-    const wellKnownUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
     // codeql[js/file-access-to-http]: CLI uses configured API base URL (env or saved config) for Kairos requests by design.
-    const wkRes = await fetch(wellKnownUrl);
-    if (!wkRes.ok) {
-        writeError(`Server did not return auth metadata (GET ${wellKnownUrl} → ${wkRes.status}). Is auth enabled?`);
+    const endpoints = await fetchOAuthProtectedResourceMetadata(baseUrl);
+    if (!endpoints) {
+        const wellKnownUrl = `${baseUrl.replace(/\/$/, '')}/.well-known/oauth-protected-resource`;
+        writeError(`Server did not return auth metadata (GET ${wellKnownUrl}). Is auth enabled?`);
         return false;
     }
-    const meta = (await wkRes.json()) as WellKnownMeta;
-    // CLI uses hardcoded client_id (standalone); only auth/token endpoints come from server
+    const { authEndpoint, tokenEndpoint } = endpoints;
     const clientId = KAIROS_CLI_CLIENT_ID;
-
-    // Prefer endpoints from well-known; fallback to building from issuer.
-    const authEndpoint =
-        meta.authorization_endpoint?.trim() ||
-        (meta.authorization_servers?.[0] ? `${meta.authorization_servers[0].replace(/\/$/, '')}/protocol/openid-connect/auth` : '');
-    const tokenEndpoint =
-        meta.token_endpoint?.trim() ||
-        (meta.authorization_servers?.[0] ? `${meta.authorization_servers[0].replace(/\/$/, '')}/protocol/openid-connect/token` : '');
-    if (!authEndpoint || !tokenEndpoint) {
-        writeError('Server metadata has no authorization_endpoint/token_endpoint and no authorization_servers.');
-        return false;
-    }
 
     const codeVerifier = randomBytes(32).toString('base64url');
     const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url').replace(/=/g, '');
@@ -161,13 +139,21 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
                     resolve(false);
                     return;
                 }
-                const tokens = (await tokenRes.json()) as { access_token?: string };
+                const tokens = (await tokenRes.json()) as { access_token?: string; refresh_token?: string };
                 if (!tokens.access_token) {
                     writeError('No access_token in response.');
                     resolve(false);
                     return;
                 }
-                await writeConfig({ apiUrl: baseUrl, bearerToken: tokens.access_token });
+                const refreshTok =
+                    typeof tokens.refresh_token === 'string' && tokens.refresh_token.length > 0
+                        ? tokens.refresh_token
+                        : null;
+                await writeConfig({
+                    apiUrl: baseUrl,
+                    bearerToken: tokens.access_token,
+                    refreshToken: refreshTok,
+                });
                 writeStdout('Login successful. Token stored.');
                 resolve(true);
             } catch (e) {
