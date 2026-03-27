@@ -13,6 +13,8 @@ import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { KAIROS_SPACES_UI_URI } from '../mcp-apps/kairos-ui-constants.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { renderSpacesWidgetHtml } from '../mcp-apps/spaces-widget-html.js';
 
 const DEFAULT_TOOL_NAME = 'spaces';
@@ -148,7 +150,7 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
     {
       title: 'List spaces and adapter counts',
       description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
-      inputSchema: spacesInputSchema,
+      inputSchema: mcpLooseToolInput(spacesInputSchema),
       outputSchema: spacesOutputSchema,
       _meta: {
         ui: {
@@ -157,15 +159,24 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
         }
       }
     },
-    async (params: { include_adapter_titles?: boolean; include_widget_html?: boolean }) => {
+    async (params: unknown) => {
       const tenantId = getTenantId();
       const inputSize = JSON.stringify(params ?? {}).length;
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, inputSize);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = spacesInputSchema.safeParse(params ?? {});
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('spaces', parsedInput.error, params);
+      }
+      const paramsOk = parsedInput.data;
+
       try {
-        const wantWidget = params?.include_widget_html ?? false;
-        const includeTitles = wantWidget || (params?.include_adapter_titles ?? false);
+        const wantWidget = paramsOk.include_widget_html ?? false;
+        const includeTitles = wantWidget || (paramsOk.include_adapter_titles ?? false);
         const output = await executeSpaces(memoryStore, { include_adapter_titles: includeTitles });
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         const jsonText = JSON.stringify(output);

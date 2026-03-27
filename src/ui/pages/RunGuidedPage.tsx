@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { RunGuidedContent } from "@/components/run/RunGuidedContent";
+import { SurfaceCard } from "@/components/SurfaceCard";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { useForwardStart } from "@/hooks/useForwardStart";
 import { useForwardStep } from "@/hooks/useForwardStep";
@@ -170,9 +171,9 @@ export function RunGuidedPage() {
   return (
     <div>
       <h1 className="text-[var(--color-text-heading)] text-2xl font-semibold mb-1">{t("run.title")}</h1>
-      <p className="text-sm text-[var(--color-text-muted)] mb-4">
-        {t("run.adapterUri")}:{" "}
-        <span className="font-mono break-all">{decodedUri}</span>
+      <p className="mb-4 text-sm text-[var(--color-text-muted)]">{t("run.guidedIntro")}</p>
+      <p className="mb-4 text-sm text-[var(--color-text-muted)]">
+        {t("run.adapterUri")}: <span className="font-mono break-all">{decodedUri}</span>
       </p>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -194,10 +195,9 @@ export function RunGuidedPage() {
         )}
       </div>
 
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 mb-6">
-        <strong className="block text-[var(--color-text-heading)] mb-1">{t("run.safety.title")}</strong>
-        <p className="text-sm text-[var(--color-text-muted)]">{t("run.safety.copy")}</p>
-      </div>
+      <SurfaceCard className="mb-6" title={t("run.safety.title")}>
+        <p className="m-0 text-sm text-[var(--color-text-muted)]">{t("run.safety.copy")}</p>
+      </SurfaceCard>
 
       {forwardStart.isError && (
         <ErrorAlert

@@ -8,6 +8,8 @@ import { parseKairosUriOrThrow } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
 import { KairosError } from '../types/index.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 interface RegisterRewardOptions {
   toolName?: string;
@@ -109,7 +111,7 @@ export function registerRewardTool(server: any, qdrantService: QdrantService, op
     {
       title: 'Record adapter reward',
       description: getToolDoc('reward') || 'Attach a reward signal after adapter execution completes.',
-      inputSchema: rewardInputSchema,
+      inputSchema: mcpLooseToolInput(rewardInputSchema),
       outputSchema: rewardOutputSchema
     },
     async (params: unknown) => {
@@ -119,8 +121,16 @@ export function registerRewardTool(server: any, qdrantService: QdrantService, op
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = rewardInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('reward', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = rewardInputSchema.parse(params);
         const output = await executeReward(qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);

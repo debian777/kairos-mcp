@@ -32,10 +32,11 @@ describe("HomePage", () => {
     expect(document.querySelector('label[for="home-search-query"]')).toBeInTheDocument();
   });
 
-  it("renders stats row and CTA link to KAIROS", () => {
+  it("renders spaces section and links to Browse", () => {
     renderHomePage();
     expect(screen.getByLabelText("home.statsLabel")).toBeInTheDocument();
-    const kairosLink = screen.getByRole("link", { name: "nav.kairos" });
-    expect(kairosLink).toHaveAttribute("href", "/kairos");
+    const browseLink = screen.getByRole("link", { name: "home.goToBrowse" });
+    expect(browseLink).toHaveAttribute("href", "/kairos");
+    expect(screen.getByRole("link", { name: "home.cardBrowseCta" })).toHaveAttribute("href", "/kairos");
   });
 });

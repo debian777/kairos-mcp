@@ -29,13 +29,14 @@ const defaultProps = {
 };
 
 describe("RunGuidedContent", () => {
-  it("running state shows step, challenge, and solution form", () => {
+  it("running state shows progress, step, challenge, and solution form", () => {
     render(<RunGuidedContent {...defaultProps} run={baseRun} />);
-    expect(screen.getByRole("heading", { name: "run.currentLayer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "run.progressHeading" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "run.currentStepHeading" })).toBeInTheDocument();
     expect(screen.getByText("kairos://layer/11111111-1111-1111-1111-111111111111")).toBeInTheDocument();
     expect(screen.getByText("Step content")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "run.contract" })).toBeInTheDocument();
-    expect(screen.getByText("comment")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "run.challengeHeading" })).toBeInTheDocument();
+    expect(screen.getByText("Comment")).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "run.solutionFormLabel" })).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "run.reward.outcomeLabel" })).not.toBeInTheDocument();
   });

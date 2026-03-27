@@ -5,7 +5,10 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { CHALLENGE_TYPE_LABEL, ChallengeCard } from "@/components/ChallengeCard";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { SurfaceCard } from "@/components/SurfaceCard";
+import { StepFlowGraph } from "@/components/StepFlowGraph";
 
 const MOCK_URI = "kairos://mem/abc123";
 
@@ -44,20 +47,6 @@ const MOCK_STEPS = [
   },
 ];
 
-const TYPE_BADGE_CLASS: Record<string, string> = {
-  shell: "bg-[#fef3c7] text-[#92400e]",
-  mcp: "bg-[#dbeafe] text-[#1e40af]",
-  user_input: "bg-[#ede9fe] text-[#5b21b6]",
-  comment: "bg-[#e2e8f0] text-[#334155]",
-};
-
-const CHALLENGE_TYPE_LABEL: Record<string, string> = {
-  shell: "Shell command",
-  mcp: "MCP tool call",
-  user_input: "User input",
-  comment: "Comment",
-};
-
 function PrimaryButton({ children }: { children: string }) {
   return (
     <button
@@ -80,26 +69,6 @@ function SecondaryButton({ children }: { children: string }) {
   );
 }
 
-function SurfaceCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-      <div className="mb-3">
-        <h2 className="text-base font-semibold text-[var(--color-text-heading)]">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-[var(--color-text-muted)]">{subtitle}</p> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function FilterChip({ label, active = false }: { label: string; active?: boolean }) {
   return (
     <button
@@ -113,81 +82,6 @@ function FilterChip({ label, active = false }: { label: string; active?: boolean
     >
       {label}
     </button>
-  );
-}
-
-export function StepFlowGraphMock({
-  steps,
-  currentIndex,
-}: {
-  steps: { label: string }[];
-  currentIndex?: number;
-}) {
-  const nodes = ["Start", ...steps.map((s) => s.label), "Attest"];
-  return (
-    <div
-      className="flex flex-wrap items-center gap-1 py-3 px-4 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)]"
-      role="img"
-      aria-label={`Step flow: ${nodes.join(", ")}`}
-    >
-      {nodes.map((label, i) => {
-        const isStep = i > 0 && i <= steps.length;
-        const stepIndex = isStep ? i - 1 : undefined;
-        const isCurrent = stepIndex !== undefined && stepIndex === currentIndex;
-        return (
-          <div key={i} className="flex items-center gap-1">
-            {i > 0 && (
-              <span className="px-0.5 text-[var(--color-text-muted)]" aria-hidden>
-                →
-              </span>
-            )}
-            <span
-              className={`inline-flex min-h-[32px] items-center justify-center rounded-[var(--radius-sm)] px-3 text-sm font-medium ${
-                isCurrent
-                  ? "bg-[var(--color-primary)] text-white ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)]"
-                  : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]"
-              }`}
-            >
-              {label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function ChallengeCardMock({
-  type,
-  payload,
-}: {
-  type: string;
-  payload?: { cmd?: string; tool_name?: string; prompt?: string; min_length?: number };
-}) {
-  const label = CHALLENGE_TYPE_LABEL[type] ?? type;
-  return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <span
-          className={`inline-block rounded px-2 py-0.5 text-xs uppercase tracking-wide ${TYPE_BADGE_CLASS[type] ?? "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"}`}
-        >
-          {label}
-        </span>
-      </div>
-      {payload?.cmd && (
-        <div className="mt-2">
-          <div className="text-xs text-[var(--color-text-muted)]">Command</div>
-          <code className="mt-0.5 block break-all rounded bg-[var(--color-surface-elevated)] px-3 py-2 font-mono text-sm text-[var(--color-text)]">
-            {payload.cmd}
-          </code>
-        </div>
-      )}
-      {payload?.tool_name && <div className="mt-2 text-sm text-[var(--color-text)]">Tool: {payload.tool_name}</div>}
-      {payload?.prompt && <div className="mt-2 text-sm text-[var(--color-text)]">{payload.prompt}</div>}
-      {payload?.min_length != null && (
-        <div className="mt-2 text-sm text-[var(--color-text-muted)]">Min length: {payload.min_length} chars</div>
-      )}
-    </div>
   );
 }
 
@@ -641,7 +535,7 @@ export function ProtocolDetailTargetContent() {
         <h2 id="flow-heading" className="mb-2 text-lg font-semibold text-[var(--color-text-heading)]">
           Step flow
         </h2>
-        <StepFlowGraphMock steps={MOCK_STEPS.map((s) => ({ label: s.label }))} />
+        <StepFlowGraph steps={MOCK_STEPS.map((s) => ({ label: s.label }))} />
       </section>
 
       <section aria-labelledby="steps-heading" className="mb-6">
@@ -654,7 +548,7 @@ export function ProtocolDetailTargetContent() {
               <strong className="block text-[var(--color-text-heading)]">{i + 1}. {step.label}</strong>
               <div className="mt-1 text-sm text-[var(--color-text-muted)]">{step.summary}</div>
               <div className="mt-3">
-                <ChallengeCardMock type={step.type} payload={step.payload} />
+                <ChallengeCard type={step.type} payload={step.payload} />
               </div>
               <div className="mt-3 border-t border-[var(--color-border)] pt-3">
                 <RenderedContentMock

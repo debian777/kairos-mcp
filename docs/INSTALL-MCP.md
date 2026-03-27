@@ -122,8 +122,10 @@ match wherever the app listens (Docker quick start often uses port **3000**;
    `space` name if you scope activation). Pick a **`match`** choice from the
    response, then run **`forward`** with `{"uri": "<that choice’s adapter uri>"}`
    and no `solution` on the first call. The host should render
-   `ui://kairos/forward-result` with activator (adapter title), optional space
-   name, and current layer label from the structured result.
+   `ui://kairos/forward-result` with **KAIROS • Protocol:** and adapter title in
+   the header, **Running step:** plus `current_layer_label` in the panel, and
+   step index / total plus outlined progress segments in the footer from the
+   structured result.
 
 If the host only shows JSON, it may not implement MCP Apps HTML resources yet;
 the same calls still return full structured content on the wire.

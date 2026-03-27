@@ -7,6 +7,8 @@ import { getTenantId, runWithOptionalSpaceAsync } from '../utils/tenant-context.
 import { executeSearch } from './search.js';
 import { activateInputSchema, activateOutputSchema, type ActivateInput, type ActivateOutput } from './activate_schema.js';
 import { buildAdapterUri } from './kairos-uri.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -99,7 +101,7 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
     {
       title: 'Activate the best adapter',
       description: getToolDoc('activate') || 'Find the best adapter for the current input and return ranked activation choices.',
-      inputSchema: activateInputSchema,
+      inputSchema: mcpLooseToolInput(activateInputSchema),
       outputSchema: activateOutputSchema
     },
     async (params: unknown) => {
@@ -107,8 +109,16 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = activateInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('activate', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = activateInputSchema.parse(params);
         const output = await executeActivate(memoryStore, qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);

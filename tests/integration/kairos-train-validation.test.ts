@@ -1,7 +1,8 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 
 /**
- * Kairos Mint integration tests (validation and error handling).
+ * Integration tests for the **`train`** tool: validation and error handling when
+ * registering adapters from markdown.
  *
  * Goals:
  * - Verify error handling for invalid inputs.
@@ -9,7 +10,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Kairos Mint Validation', () => {
+describe('Train tool validation', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -132,13 +133,16 @@ Only after all steps.`;
       }
     });
 
-    // Empty markdown_doc should fail Zod validation on the server side.
+    // Empty markdown_doc fails strict train input validation; handler returns INVALID_TOOL_INPUT JSON (not SDK-only text).
     expect(result).toBeDefined();
     expect(result.isError).toBe(true);
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
     expect(result.content[0].text).toContain('Input validation error');
     expect(result.content[0].text).toContain('markdown_doc');
+    const emptyMdBody = JSON.parse(result.content[0].text);
+    expect(emptyMdBody.error).toBe('INVALID_TOOL_INPUT');
+    expect(emptyMdBody.next_action).toBeDefined();
   });
 
   test('train validates required parameters', async () => {
@@ -152,6 +156,7 @@ Only after all steps.`;
     expect(result1.isError).toBe(true);
     expect(result1.content[0].text).toContain('Input validation error');
     expect(result1.content[0].text).toContain('markdown_doc');
+    expect(JSON.parse(result1.content[0].text).error).toBe('INVALID_TOOL_INPUT');
 
     // Test missing llm_model_id
     const result2 = await mcpConnection.client.callTool({
@@ -163,6 +168,7 @@ Only after all steps.`;
     expect(result2.isError).toBe(true);
     expect(result2.content[0].text).toContain('Input validation error');
     expect(result2.content[0].text).toContain('llm_model_id');
+    expect(JSON.parse(result2.content[0].text).error).toBe('INVALID_TOOL_INPUT');
 
     // Test empty llm_model_id
     const result3 = await mcpConnection.client.callTool({
@@ -175,5 +181,6 @@ Only after all steps.`;
     expect(result3.isError).toBe(true);
     expect(result3.content[0].text).toContain('Input validation error');
     expect(result3.content[0].text).toContain('llm_model_id');
+    expect(JSON.parse(result3.content[0].text).error).toBe('INVALID_TOOL_INPUT');
   });
 });

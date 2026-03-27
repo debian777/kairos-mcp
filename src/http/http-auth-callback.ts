@@ -32,29 +32,6 @@ function signSession(
   return `${payloadB64}.${sig}`;
 }
 
-const AUTH_SUCCESS_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Authentication successful – KAIROS</title>
-  <style>
-    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; color: #e5e5e5; text-align: center; }
-    .box { padding: 2rem; max-width: 24rem; }
-    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
-    p { color: #a3a3a3; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>Authentication successful</h1>
-    <p>You can close this page and return to your MCP client.</p>
-    <p style="margin-top: 1rem;"><a href="/ui" style="color: #7dd3fc;">Open KAIROS UI</a></p>
-  </div>
-</body>
-</html>
-`;
-
 const AUTH_LOGGED_OUT_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -88,9 +65,9 @@ export function setupAuthCallback(app: express.Express): void {
     res.redirect(302, '/ui');
   });
 
+  /** Older callback target; redirect for bookmarks and docs that still link here. */
   app.get('/auth/success', (_req: Request, res: Response) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(AUTH_SUCCESS_HTML);
+    res.redirect(302, '/ui/');
   });
 
   app.get('/auth/logout', (_req: Request, res: Response) => {
@@ -188,6 +165,6 @@ export function setupAuthCallback(app: express.Express): void {
     res.setHeader('Set-Cookie', [
       `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}${useSecureCookie ? '; Secure' : ''}`
     ]);
-    res.redirect(302, '/auth/success');
+    res.redirect(302, '/ui/');
   });
 }

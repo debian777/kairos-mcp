@@ -9,6 +9,8 @@ import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-stru
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { trainInputSchema, trainOutputSchema, type TrainInput, type TrainOutput } from './train_schema.js';
 import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
+import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 interface RegisterTrainOptions {
   toolName?: string;
@@ -157,7 +159,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
     {
       title: 'Register a new adapter',
       description: getToolDoc('train') || 'Store a new adapter from markdown.',
-      inputSchema: trainInputSchema,
+      inputSchema: mcpLooseToolInput(trainInputSchema),
       outputSchema: trainOutputSchema
     },
     async (params: unknown) => {
@@ -189,8 +191,16 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
         defaultWriteSpaceId: resolvedSpaceId
       };
 
+      const parsedInput = trainInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('train', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = trainInputSchema.parse(params);
         const output = await executeTrain(memoryStore, input, (fn) => runWithSpaceContextAsync(narrowedContext, fn), qdrantService);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);

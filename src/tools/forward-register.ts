@@ -4,10 +4,11 @@ import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { KAIROS_FORWARD_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
-import { forwardInputSchema, forwardOutputSchema } from './forward_schema.js';
+import { forwardInputSchema, forwardMcpWireInputSchema, forwardOutputSchema } from './forward_schema.js';
 import { executeForward } from './forward.js';
 import { formatForwardToolError } from './forward-tool-error.js';
 import { KairosError } from '../types/index.js';
+import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
 export interface RegisterForwardOptions {
   toolName?: string;
@@ -23,7 +24,7 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
     {
       title: 'Run adapter forward pass',
       description: getToolDoc('forward') || 'Run the first or next adapter layer. Omitting solution starts a new execution.',
-      inputSchema: forwardInputSchema,
+      inputSchema: forwardMcpWireInputSchema,
       outputSchema: forwardOutputSchema,
       _meta: KAIROS_FORWARD_TOOL_UI_META
     },
@@ -32,8 +33,16 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
       mcpToolInputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(params).length);
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
 
+      const parsedInput = forwardInputSchema.safeParse(params);
+      if (!parsedInput.success) {
+        mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
+        timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        return mcpToolInputValidationErrorResult('forward', parsedInput.error, params);
+      }
+      const input = parsedInput.data;
+
       try {
-        const input = forwardInputSchema.parse(params);
         const output = await executeForward(server, memoryStore, qdrantService, input);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(output).length);

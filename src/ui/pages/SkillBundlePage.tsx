@@ -2,6 +2,16 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown } from "@/hooks/useProtocol";
+import { RichTextEditor } from "@/components/RichTextEditor";
+import { SurfaceCard } from "@/components/SurfaceCard";
+
+function chipClass(active: boolean) {
+  return `min-h-[44px] rounded-full px-4 text-sm font-medium ${
+    active
+      ? "bg-[var(--color-primary)] text-white"
+      : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]"
+  }`;
+}
 
 export function SkillBundlePage() {
   const { t } = useTranslation();
@@ -20,7 +30,10 @@ export function SkillBundlePage() {
     return (
       <div role="alert" className="rounded-[var(--radius-md)] bg-[var(--color-error-bg)] p-4 text-[var(--color-error)]">
         {error instanceof Error ? error.message : t("protocol.notFound")}
-        <Link to="/" className="mt-2 block text-[var(--color-primary)] underline hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2">
+        <Link
+          to="/"
+          className="mt-2 block text-[var(--color-primary)] underline hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+        >
           {t("notFound.goHome")}
         </Link>
       </div>
@@ -30,9 +43,11 @@ export function SkillBundlePage() {
   const { title } = parseProtocolMarkdown(data.markdown_doc);
   const displayName = skillName.trim() || title;
   const safeName = displayName.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "skill";
+  const folderSlug = `${safeName}-skill`;
 
   const handleDownload = () => {
-    const skillMd = `# ${displayName}\n\n${description.trim() || title}\n\n## When to use it\n\n${whenToUse.trim() || "Use when this protocol applies."}\n\n## Protocol\n\n${data.markdown_doc}`;
+    const refs = includeReferences ? "\n\n## References\n\nBundled protocol: see `references/KAIROS.md` in a full zip export.\n" : "";
+    const skillMd = `# ${displayName}\n\n${description.trim() || title}\n\n## When to use it\n\n${whenToUse.trim() || "Use when this protocol applies."}\n${refs}\n## Protocol\n\n${data.markdown_doc}`;
     const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -47,7 +62,7 @@ export function SkillBundlePage() {
       <h1 className="mb-1 text-2xl font-semibold text-[var(--color-text-heading)]">{t("skill.title")}</h1>
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">{t("skill.subtitle")}</p>
 
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.3fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className="space-y-4">
           <div>
             <label htmlFor="skill-name" className="mb-2 block font-medium text-[var(--color-text-heading)]">
@@ -62,44 +77,41 @@ export function SkillBundlePage() {
               className="min-h-[44px] w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
             />
           </div>
-          <div>
-            <label htmlFor="skill-desc" className="mb-2 block font-medium text-[var(--color-text-heading)]">
-              {t("skill.description")}
-            </label>
-            <textarea
-              id="skill-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={title}
-              rows={3}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="skill-when" className="mb-2 block font-medium text-[var(--color-text-heading)]">
-              {t("skill.whenToUse")}
-            </label>
-            <textarea
-              id="skill-when"
-              value={whenToUse}
-              onChange={(e) => setWhenToUse(e.target.value)}
-              placeholder="e.g. deploy and test, run tests before release"
-              rows={2}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="skill-refs"
-              type="checkbox"
-              checked={includeReferences}
-              onChange={(e) => setIncludeReferences(e.target.checked)}
-              className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)]"
-            />
-            <label htmlFor="skill-refs" className="text-sm text-[var(--color-text)]">
-              {t("skill.includeReferences")}
-            </label>
-          </div>
+
+          <RichTextEditor
+            label={t("skill.description")}
+            hint={t("skill.descriptionHint")}
+            value={description}
+            onChange={setDescription}
+            contentKey="skill-desc"
+          />
+
+          <RichTextEditor
+            label={t("skill.whenToUse")}
+            value={whenToUse}
+            onChange={setWhenToUse}
+            contentKey="skill-when"
+          />
+
+          <SurfaceCard title={t("skill.bundleContentsTitle")} subtitle={t("skill.bundleContentsSubtitle")}>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                aria-pressed={includeReferences}
+                onClick={() => setIncludeReferences((v) => !v)}
+                className={chipClass(includeReferences)}
+              >
+                {t("skill.includeReferences")}
+              </button>
+              <button type="button" disabled className={`${chipClass(false)} cursor-not-allowed opacity-50`} title={t("skill.comingSoon")}>
+                {t("skill.chipReadme")}
+              </button>
+              <button type="button" disabled className={`${chipClass(false)} cursor-not-allowed opacity-50`} title={t("skill.comingSoon")}>
+                {t("skill.chipPrompts")}
+              </button>
+            </div>
+          </SurfaceCard>
+
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -116,11 +128,31 @@ export function SkillBundlePage() {
             </Link>
           </div>
         </div>
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
-          <div className="text-sm font-medium text-[var(--color-text-heading)]">Bundle preview</div>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            {safeName}-skill.md (and optionally references/) will be included in the download. Full ZIP packaging can be added later.
-          </p>
+
+        <div className="space-y-4">
+          <SurfaceCard title={t("skill.bundlePreviewTitle")} subtitle={t("skill.bundlePreviewSubtitle")}>
+            <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 font-mono text-sm text-[var(--color-text)]">
+              {folderSlug}.zip
+              <br />
+              └── {folderSlug}/
+              <br />
+              &nbsp;&nbsp;&nbsp;&nbsp;├── Skill.md
+              <br />
+              {includeReferences ? (
+                <>
+                  &nbsp;&nbsp;&nbsp;&nbsp;└── references/
+                  <br />
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── KAIROS.md
+                </>
+              ) : (
+                <>&nbsp;&nbsp;&nbsp;&nbsp;└── (no references/)</>
+              )}
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard title={t("skill.whyExportTitle")} subtitle={t("skill.whyExportSubtitle")}>
+            <p className="m-0 text-sm text-[var(--color-text-muted)]">{t("skill.whyExportBody")}</p>
+          </SurfaceCard>
         </div>
       </div>
     </div>

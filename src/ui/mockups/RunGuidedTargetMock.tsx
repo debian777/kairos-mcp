@@ -2,7 +2,8 @@
  * Test Run (target) mock for Protocol UX Storybook. Used only by ProtocolUXMockups.stories.
  */
 
-import { ChallengeCardMock, StepFlowGraphMock } from "./ProtocolUXMockupContent";
+import { ChallengeCard } from "@/components/ChallengeCard";
+import { StepFlowGraph } from "@/components/StepFlowGraph";
 
 const MOCK_URI = "kairos://mem/abc123";
 const MOCK_STEPS = [
@@ -29,7 +30,7 @@ export function RunGuidedTargetContent() {
         <h2 id="run-flow-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">
           Progress
         </h2>
-        <StepFlowGraphMock
+        <StepFlowGraph
           steps={MOCK_STEPS.map((s) => ({ label: s.label }))}
           currentIndex={currentStepIndex}
         />
@@ -52,7 +53,7 @@ export function RunGuidedTargetContent() {
         <h2 id="run-challenge" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">
           Challenge
         </h2>
-        <ChallengeCardMock type="shell" payload={{ cmd: "npm test" }} />
+        <ChallengeCard type="shell" payload={{ cmd: "npm test" }} />
       </section>
       <section aria-labelledby="run-solution" className="mb-6">
         <h2 id="run-solution" className="text-lg font-semibold text-[var(--color-text-heading)] mb-2">

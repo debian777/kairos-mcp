@@ -67,7 +67,7 @@ Expected result:
 1. Keycloak shows a **Google** login option.
 2. After successful Google authentication, Keycloak redirects back to the
    KAIROS callback.
-3. The server redirects to `/auth/success` and sets the session cookie.
+3. The server sets the session cookie and redirects to `/ui/`.
 
 ## Troubleshooting
 

@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { withRawOnFail } from '../utils/expect-with-raw.js';
+import { isLikelyToolInputJsonSchema } from '../utils/mcp-list-tools-schema-helpers.js';
 
 describe('MCP Tools Listing', () => {
   let mcpConnection;
@@ -31,10 +32,7 @@ describe('MCP Tools Listing', () => {
         expect(tool).toHaveProperty('title');
         expect(typeof tool.title).toBe('string');
         expect(tool).toHaveProperty('inputSchema');
-        expect(tool.inputSchema).toHaveProperty('type');
-        expect(tool.inputSchema.type).toBe('object');
-        expect(tool.inputSchema).toHaveProperty('properties');
-        expect(typeof tool.inputSchema.properties).toBe('object');
+        expect(isLikelyToolInputJsonSchema(tool.inputSchema)).toBe(true);
       });
 
       const names = tools.map((t) => t.name);
