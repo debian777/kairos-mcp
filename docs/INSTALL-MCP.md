@@ -49,6 +49,34 @@ Open **Settings → MCP → Edit config** in Cursor and add:
 `alwaysAllow` is optional, but without it Cursor may prompt before running each
 tool.
 
+### MCP Apps (in-chat widget)
+
+Hosts that implement MCP Apps (SEP-1865) can render a small **KAIROS-branded
+HTML view** after the `spaces` tool runs. That surface is **server-controlled**
+(iframe + `ui://kairos/spaces-result`); the **tool-row icon** in the host UI is
+still **client-specific** and is not set by this protocol.
+
+### Cursor integration (plugin bundle)
+
+For Cursor’s plugin layout (manifest + `mcp.json`, optional marketplace
+submission), see **`integrations/cursor/plugin/`** (copy that folder for local install) and its README.
+
+### Reference: Atlassian MCP (logo vs MCP wire)
+
+The public [Atlassian MCP Server](https://github.com/atlassian/atlassian-mcp-server)
+plugin for Cursor uses:
+
+- **Remote MCP URL** in `.mcp.json` (e.g. `https://mcp.atlassian.com/v1/mcp`; calls
+  require OAuth — unauthenticated `initialize` returns `invalid_token`).
+- **Logo in the Cursor UI** from the **Cursor plugin manifest** (`.cursor-plugin/plugin.json`
+  field `logo` → `assets/logo.svg`), the same mechanism described in
+  [Cursor’s plugins reference](https://cursor.com/docs/reference/plugins.md).
+
+That tile/icon path is **not** part of MCP `initialize` or tool definitions. For
+parity with how Atlassian appears in the marketplace and plugin list, ship a
+logo via **`integrations/cursor/plugin/`** (or a published plugin), not only via MCP
+Apps HTML inside chat.
+
 ## Auth-enabled servers
 
 If `AUTH_ENABLED=true`, Cursor connects to the same `/mcp` URL, but the server

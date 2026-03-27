@@ -107,6 +107,40 @@ jobs:
           path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json
           if-no-files-found: error
 
+  claude-desktop-skills:
+    name: Package Claude Desktop skill zips
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          ref="${{ github.event.inputs.ref }}"
+          if [ -n "$ref" ]; then
+            echo "version=${ref#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build skill zips
+        run: |
+          chmod +x scripts/package-claude-desktop-skills.sh
+          scripts/package-claude-desktop-skills.sh "${{ steps.version.outputs.version }}"
+
+      - name: Upload Claude Desktop skill zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-desktop-skills
+          path: dist/claude-desktop-skills/*.zip
+          if-no-files-found: error
+
   publish-docker:
     name: Publish Docker image
     needs: publish-npm
@@ -208,7 +242,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [publish-npm, publish-docker]
+    needs: [publish-npm, publish-docker, claude-desktop-skills]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
     runs-on: ubuntu-latest
     env:
@@ -237,6 +271,12 @@ jobs:
         with:
           name: npm-sbom
 
+      - name: Download Claude Desktop skill zips
+        uses: actions/download-artifact@v8
+        with:
+          name: claude-desktop-skills
+          path: claude-desktop-skills
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -246,4 +286,6 @@ jobs:
           draft: false
           # Hyphenated tags (v*.*.*-*) must be pre-releases so "Latest" stays on last stable
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
-          files: npm-sbom/*.cdx.json
+          files: |
+            npm-sbom/*.cdx.json
+            claude-desktop-skills/*.zip

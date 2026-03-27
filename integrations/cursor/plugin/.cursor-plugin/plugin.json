@@ -1,0 +1,13 @@
+{
+  "name": "kairos-mcp",
+  "description": "KAIROS MCP over streamable HTTP — connect Cursor to your KAIROS deployment (URL and auth are environment-specific).",
+  "repository": "https://github.com/debian777/kairos-mcp",
+  "license": "MIT",
+  "author": {
+    "name": "Jakub Plichcinski",
+    "email": "kuba@xpl.pl"
+  },
+  "keywords": ["mcp", "kairos", "workflow", "memory"],
+  "logo": "assets/kairos-mcp.svg",
+  "mcpServers": "mcp/mcp.json"
+}

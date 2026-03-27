@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "KAIROS": {
+      "type": "streamable-http",
+      "url": "http://localhost:3000/mcp",
+      "alwaysAllow": [
+        "activate",
+        "forward",
+        "train",
+        "reward",
+        "tune",
+        "delete",
+        "export",
+        "spaces"
+      ]
+    }
+  }
+}
