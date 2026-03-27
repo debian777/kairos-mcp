@@ -3,6 +3,13 @@
  */
 import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
+import {
+  KAIROS_FORWARD_UI_SKYBRIDGE_URI,
+  KAIROS_FORWARD_UI_URI,
+  KAIROS_SPACES_UI_SKYBRIDGE_URI,
+  MCP_APP_HTML_MIME_TYPE,
+  SKYBRIDGE_HTML_MIME_TYPE
+} from '../../src/mcp-apps/kairos-ui-constants.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 
@@ -30,7 +37,7 @@ describe('MCP listOfferingsForUI', () => {
     }
   }, 60000);
 
-  test('returns embedded prompts (not empty) while tools/resources stay empty stubs', async () => {
+  test('returns spaces and forward tools plus ui:// resources and embedded prompts', async () => {
     if (!serverAvailable) return;
 
     const res = await postMcp({
@@ -49,17 +56,32 @@ describe('MCP listOfferingsForUI', () => {
     expect(body.id).toBe(1);
     expect(body.result).toBeDefined();
     expect(Array.isArray(body.result?.tools)).toBe(true);
-    expect(body.result?.tools).toHaveLength(0);
+    expect(Array.isArray(body.result?.prompts)).toBe(true);
     expect(Array.isArray(body.result?.resources)).toBe(true);
-    expect(body.result?.resources).toHaveLength(0);
+
+    const tools = body.result!.tools as Array<{ name?: string; _meta?: { ui?: { resourceUri?: string } } }>;
+    const spaces = tools.find((t) => t.name === 'spaces');
+    expect(spaces).toBeDefined();
+    expect(spaces?._meta?.ui?.resourceUri).toBe('ui://kairos/spaces-result');
+
+    const forwardTool = tools.find((t) => t.name === 'forward');
+    expect(forwardTool).toBeDefined();
+    expect(forwardTool?._meta?.ui?.resourceUri).toBe(KAIROS_FORWARD_UI_URI);
 
     const prompts = body.result!.prompts as Array<{ name?: string; title?: string; description?: string }>;
-    expect(Array.isArray(prompts)).toBe(true);
-    expect(prompts.length).toBeGreaterThan(0);
-
     const contextualPrompt = prompts.find((p) => p.name === 'contextual-prompt');
     expect(contextualPrompt).toBeDefined();
     expect(contextualPrompt?.title).toBe('Contextual Prompt');
     expect(contextualPrompt?.description).toBe('Prompt: Contextual Prompt');
+
+    const resources = body.result!.resources as Array<{ uri?: string; mimeType?: string }>;
+    expect(resources.some((r) => r.uri === 'ui://kairos/spaces-result')).toBe(true);
+    expect(resources.find((r) => r.uri === 'ui://kairos/spaces-result')?.mimeType).toBe(MCP_APP_HTML_MIME_TYPE);
+    expect(resources.some((r) => r.uri === KAIROS_SPACES_UI_SKYBRIDGE_URI)).toBe(true);
+    expect(resources.find((r) => r.uri === KAIROS_SPACES_UI_SKYBRIDGE_URI)?.mimeType).toBe(SKYBRIDGE_HTML_MIME_TYPE);
+    expect(resources.some((r) => r.uri === KAIROS_FORWARD_UI_URI)).toBe(true);
+    expect(resources.find((r) => r.uri === KAIROS_FORWARD_UI_URI)?.mimeType).toBe(MCP_APP_HTML_MIME_TYPE);
+    expect(resources.some((r) => r.uri === KAIROS_FORWARD_UI_SKYBRIDGE_URI)).toBe(true);
+    expect(resources.find((r) => r.uri === KAIROS_FORWARD_UI_SKYBRIDGE_URI)?.mimeType).toBe(SKYBRIDGE_HTML_MIME_TYPE);
   });
 });

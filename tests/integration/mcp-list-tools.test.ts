@@ -43,6 +43,12 @@ describe('MCP Tools Listing', () => {
       expect(names).toContain('activate');
       expect(names).toContain('forward');
       expect(names).toContain('export');
+
+      const spaces = tools.find((t) => t.name === 'spaces');
+      expect(spaces?._meta?.ui?.resourceUri).toBe('ui://kairos/spaces-result');
+
+      const forwardTool = tools.find((t) => t.name === 'forward');
+      expect(forwardTool?._meta?.ui?.resourceUri).toBe('ui://kairos/forward-result');
     }, 'tools/list raw response');
   });
 });

@@ -1,7 +1,8 @@
 import type { InferenceContractDefinition, Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getInferenceContract } from '../services/memory/memory-accessors.js';
+import { getAdapterName, getInferenceContract } from '../services/memory/memory-accessors.js';
+import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
@@ -10,6 +11,24 @@ import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 
 export function extractUuid(uri: string): string {
   return uri.split('/').pop()?.split('?')[0] ?? '';
+}
+
+/** Optional fields for MCP Apps widgets and clients; derived from the current layer memory. */
+export function buildForwardUiSummary(memory: Memory): {
+  activation_space_name?: string;
+  context_adapter_name?: string;
+  current_layer_label?: string;
+} {
+  const activation_space_name = memory.space_id ? spaceIdToDisplayName(memory.space_id) : undefined;
+  const adapterTitle = getAdapterName(memory)?.trim();
+  const context_adapter_name = adapterTitle || undefined;
+  const layerLabel = memory.label?.trim();
+  const current_layer_label = layerLabel || undefined;
+  return {
+    ...(activation_space_name ? { activation_space_name } : {}),
+    ...(context_adapter_name ? { context_adapter_name } : {}),
+    ...(current_layer_label ? { current_layer_label } : {})
+  };
 }
 
 export function buildCurrentLayerView(memory: Memory, uri: string) {
@@ -195,6 +214,7 @@ export async function buildForwardView(
     current_layer: layer,
     contract,
     ...(tensorIn && Object.keys(tensorIn).length > 0 ? { tensor_in: tensorIn } : {}),
+    ...buildForwardUiSummary(memory),
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
       : `call forward with ${layer.uri} and solution matching contract`,

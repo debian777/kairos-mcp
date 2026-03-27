@@ -6,7 +6,7 @@ import { LOG_LEVEL, AUTH_ENABLED, MAX_CONCURRENT_MCP_REQUESTS_RAW } from '../con
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
-import { listPromptOfferings } from '../resources/prompt-resources.js';
+import { buildListOfferingsForUIResult } from '../mcp-apps/list-offerings-for-ui.js';
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { KairosError } from '../types/index.js';
@@ -136,11 +136,7 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             }
             res.status(200).json({
                 jsonrpc: '2.0',
-                result: {
-                    tools: [],
-                    prompts: listPromptOfferings(),
-                    resources: []
-                },
+                result: buildListOfferingsForUIResult(),
                 id
             });
             return;

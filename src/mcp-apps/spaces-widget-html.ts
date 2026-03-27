@@ -27,7 +27,9 @@ const TYPE_LABEL: Record<SpacesWidgetSpaceRow['type'], string> = {
 };
 
 /**
- * Renders a compact table with type badges and expandable adapter lists when `adapters` are present.
+ * Renders a compact HTML table with type badges and expandable adapter lists when
+ * `adapters` are present. This remains available for hosts that still render
+ * HTML directly from tool content.
  */
 export function renderSpacesWidgetHtml(spaces: SpacesWidgetSpaceRow[]): string {
   const rows = spaces
@@ -41,7 +43,7 @@ export function renderSpacesWidgetHtml(spaces: SpacesWidgetSpaceRow[]): string {
           ? `<ul style="margin:0.35em 0 0 1.1em;padding:0;">${sp.adapters
               .map(
                 (a) =>
-                  `<li>${esc(a.title)} <span style="opacity:0.75">(${esc(a.adapter_id)}) — ${String(a.layer_count)} layers</span></li>`
+                  `<li>${esc(a.title)} <span style="opacity:0.75">(${esc(a.adapter_id)}) - ${String(a.layer_count)} layers</span></li>`
               )
               .join('')}</ul>`
           : '';

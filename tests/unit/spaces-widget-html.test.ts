@@ -1,4 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, test } from '@jest/globals';
+import { buildSpacesWidgetHtml } from '../../src/mcp-apps/spaces-mcp-app-widget-html.js';
 import { renderSpacesWidgetHtml } from '../../src/mcp-apps/spaces-widget-html.js';
 
 describe('renderSpacesWidgetHtml', () => {
@@ -31,5 +32,21 @@ describe('renderSpacesWidgetHtml', () => {
     expect(html).toMatch(/Personal|Group|App|Other/);
     expect(html).toContain('Demo');
     expect(html).toContain('details');
+  });
+});
+
+describe('buildSpacesWidgetHtml', () => {
+  test('includes MCP Apps handshake and tool-result handling', () => {
+    const html = buildSpacesWidgetHtml();
+    expect(html).toContain('ui/initialize');
+    expect(html).toContain('ui/notifications/initialized');
+    expect(html).toContain('ui/notifications/tool-result');
+    expect(html).toContain('renderSpacesTable');
+    expect(html).toContain('kairos-spaces-view');
+    expect(html).toContain('ui/notifications/host-context-changed');
+    expect(html).toContain('paintHostContext');
+    expect(html).toContain('data-theme');
+    expect(html).toContain('html.dark');
+    expect(html).toContain("classList.add('dark')");
   });
 });
