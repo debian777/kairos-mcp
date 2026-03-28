@@ -105,7 +105,6 @@ Storybook is the canonical review surface for component and screen work.
 It is used for:
 
 - screen stories that reflect the implemented app
-- target-design stories such as `ProtocolUXMockups.stories.tsx`
 - local design review without maintaining a second exported docs site
 
 There is no longer a generated `docs/design/mockups/` export. Design

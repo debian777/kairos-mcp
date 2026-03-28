@@ -162,10 +162,7 @@ function createFlatConfig(rootDir) {
     },
 
     {
-      files: [
-        'src/ui/pages/ProtocolEditPage.tsx',
-        'src/ui/mockups/ProtocolUXMockupContent.tsx',
-      ],
+      files: ['src/ui/pages/ProtocolEditPage.tsx'],
       rules: { 'max-lines': 'off' },
     },
 

@@ -19,7 +19,7 @@ type MeStorySeed = {
 };
 
 /**
- * **1:1 mockups.** Each story renders the same Layout + page as the live app at the given route.
+ * **Implemented screens.** Each story renders the same Layout + page as the live app at the given route.
  * Use these as the design surface; changes here are the implementation.
  *
  * Seed API data via `parameters.queryData` (React Query cache) when a page needs it.
