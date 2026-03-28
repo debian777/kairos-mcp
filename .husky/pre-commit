@@ -43,11 +43,8 @@ if [ "$count" -eq 2 ]; then
     exit 0
   fi
 fi
-# Validate skills (Agent Skills spec) when any file under skills/ is staged.
-# Requires skills-ref: pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
-if echo "$staged" | grep -q '^skills/'; then
-  npm run lint:skills >&2 || exit 1
-fi
+# Skills (Agent Skills spec) are validated via `npm run lint` (includes lint:skills).
+# Requires skills-ref for a strict check; see scripts/lint_skills.py when optional.
 #npm run build || exit 1
 # Git: lint-related paths differ from HEAD (staged and/or unstaged). Informational only — does not block commit.
 lint_git_paths=$(git diff --name-only HEAD -- eslint.config.cjs knip.config.ts eslint/ 2>/dev/null || true)

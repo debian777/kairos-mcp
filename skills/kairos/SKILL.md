@@ -1,29 +1,22 @@
 ---
 name: kairos
 description: >-
-  KAIROS action engine — ZERO DRIFT ENFORCEMENT EDITION.
-  Mandatory routing layer for ANY action, task, workflow or procedure.
+  KAIROS action engine — ZERO DRIFT ENFORCEMENT EDITION. 
+  Mandatory routing layer for ANY action, task, workflow or procedure. 
   AI agents MUST NOT ignore, bypass, partially execute or deviate from KAIROS MCP.
-  On action intent, activate is the first tool call before any implementation tools
-  (e.g. terminal commands that perform the task, edits that execute the workflow,
-  or other MCP tools that substitute for the protocol).
-  Trigger on ANY action intent: write, draft, compose, create, build, implement,
-  code, fix, debug, resolve, deploy, publish, migrate, configure, set up, install,
-  upgrade, update, edit, rewrite, refactor, improve, review, audit, check, validate,
-  test, standardize, automate, generate, report, plan, design, document, file,
-  submit, open, close, merge, push, commit, sync, clone, export, import, send,
-  notify, schedule, assign, prioritize, triage, do, perform, execute, handle,
-  run, process, complete, finish, start — or when user describes any procedure
-  or asks “how to” perform an operation. Out of scope: pure information questions
-  or read-only explanation with no execution intent (e.g. “what is X?” with no
-  request to do something). If no protocol exists, KAIROS offers to create one.
-  Zero drift: detect → activate → follow next_action exactly → reward → respond.
-  No other path allowed. If call_mcp_tool fails with a server id error, use the
-  workspace skill .cursor/skills/cursor-mcp-server-ids/SKILL.md to resolve the
-  Cursor agent-visible MCP server name vs .cursor/mcp.json keys.
+  Trigger on ANY action intent: write, draft, compose, create, build, implement, 
+  code, fix, debug, resolve, deploy, publish, migrate, configure, set up, install, 
+  upgrade, update, edit, rewrite, refactor, improve, review, audit, check, validate, 
+  test, standardize, automate, generate, report, plan, design, document, file, 
+  submit, open, close, merge, push, commit, sync, clone, export, import, send, 
+  notify, schedule, assign, prioritize, triage, do, perform, execute, handle, 
+  run, process, complete, finish, start — or when user describes any procedure 
+  or asks “how to” perform an operation. If no protocol exists, KAIROS offers 
+  to create one. Zero drift: detect → activate → follow next_action exactly → 
+  reward → respond. No other path allowed.
 
 metadata:
-  version: "4.0.0-pre.3"
+  version: "4.0.0-pre.2"
   author: kairos-mcp
 allowed-tools: activate forward reward train tune export delete spaces
 ---
