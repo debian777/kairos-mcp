@@ -12,9 +12,9 @@ import { KairosActivateResultsSection, KairosBrowseByLabelSection } from "@/page
 
 /** Role badge colors matching mockup 07 (match=green, refine=blue, create=amber). */
 const roleBadgeClass: Record<string, string> = {
-  match: "bg-[#dcfce7] text-[#166534]",
-  refine: "bg-[#dbeafe] text-[#1e40af]",
-  create: "bg-[#fef3c7] text-[#92400e]",
+  match: "bg-[var(--badge-match-bg)] text-[var(--badge-match-fg)]",
+  refine: "bg-[var(--badge-refine-bg)] text-[var(--badge-refine-fg)]",
+  create: "bg-[var(--badge-create-bg)] text-[var(--badge-create-fg)]",
 };
 
 export function KairosPage() {

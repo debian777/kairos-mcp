@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/ui/favicon.svg" />
     <title>KAIROS MCP</title>
+    <script>
+      (function () {
+        var storageKey = "kairos:ui:theme-preference";
+        var mediaQuery = "(prefers-color-scheme: dark)";
+        var root = document.documentElement;
+        var preference = "system";
+        try {
+          var stored = window.localStorage.getItem(storageKey);
+          if (stored === "light" || stored === "dark" || stored === "system") {
+            preference = stored;
+          }
+        } catch {
+          preference = "system";
+        }
+        var prefersDark =
+          typeof window.matchMedia === "function" && window.matchMedia(mediaQuery).matches;
+        var theme = preference === "system" ? (prefersDark ? "dark" : "light") : preference;
+        root.setAttribute("data-theme", theme);
+        root.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

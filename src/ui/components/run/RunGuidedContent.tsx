@@ -265,7 +265,7 @@ export function RunGuidedContent({
       )}
 
       {run.status === "completed" && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[#dcfce7] p-4 text-[#166534]">
+        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--status-success-bg)] p-4 text-[var(--status-success-fg)]">
           <strong className="block">{t("run.completed")}</strong>
           {run.last_message && <div className="mt-1 text-sm">{run.last_message}</div>}
         </div>

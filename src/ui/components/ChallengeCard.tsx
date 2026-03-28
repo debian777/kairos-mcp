@@ -1,8 +1,8 @@
 const TYPE_BADGE_CLASS: Record<string, string> = {
-  shell: "bg-[#fef3c7] text-[#92400e]",
-  mcp: "bg-[#dbeafe] text-[#1e40af]",
-  user_input: "bg-[#ede9fe] text-[#5b21b6]",
-  comment: "bg-[#e2e8f0] text-[#334155]",
+  shell: "bg-[var(--badge-shell-bg)] text-[var(--badge-shell-fg)]",
+  mcp: "bg-[var(--badge-mcp-bg)] text-[var(--badge-mcp-fg)]",
+  user_input: "bg-[var(--badge-user-input-bg)] text-[var(--badge-user-input-fg)]",
+  comment: "bg-[var(--badge-comment-bg)] text-[var(--badge-comment-fg)]",
 };
 
 /** Human-readable challenge names (editor mockups, previews). */

@@ -13,10 +13,10 @@ export interface SpaceSelectProps {
 }
 
 const typeBadgeClass: Record<SpaceInfo["type"], string> = {
-  personal: "bg-[#dcfce7] text-[#166534]",
-  group: "bg-[#dbeafe] text-[#1e40af]",
-  app: "bg-[#fef3c7] text-[#92400e]",
-  other: "bg-[var(--color-surface)] text-[var(--color-text-muted)]",
+  personal: "bg-[var(--badge-personal-bg)] text-[var(--badge-personal-fg)]",
+  group: "bg-[var(--badge-group-bg)] text-[var(--badge-group-fg)]",
+  app: "bg-[var(--badge-app-bg)] text-[var(--badge-app-fg)]",
+  other: "bg-[var(--badge-other-bg)] text-[var(--badge-other-fg)]",
 };
 
 export function SpaceSelect({

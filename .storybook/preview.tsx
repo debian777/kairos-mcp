@@ -4,13 +4,41 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import "../src/ui/i18n";
 import "../src/ui/index.css";
+import {
+  applyThemeToDocument,
+  isThemePreference,
+  ThemeProvider,
+  type ThemePreference,
+  resolveEffectiveTheme,
+} from "../src/ui/hooks/useThemePreference";
 
 /** Optional: [queryKey, data][] to seed React Query cache for this story. */
 type QueryDataEntry = [string[], unknown];
 
 const preview: Preview = {
+  globalTypes: {
+    theme: {
+      name: "Theme",
+      description: "UI theme preference",
+      defaultValue: "light",
+      toolbar: {
+        icon: "mirror",
+        items: [
+          { value: "light", title: "Light" },
+          { value: "dark", title: "Dark" },
+          { value: "system", title: "System" },
+        ],
+      },
+    },
+  },
   decorators: [
     (Story, context) => {
+      const globalTheme = context.globals.theme;
+      const preference: ThemePreference =
+        typeof globalTheme === "string" && isThemePreference(globalTheme) ? globalTheme : "light";
+      const effectiveTheme = resolveEffectiveTheme(preference, false);
+      applyThemeToDocument(effectiveTheme);
+
       const queryClient = new QueryClient({
         defaultOptions: {
           queries: {
@@ -26,9 +54,11 @@ const preview: Preview = {
       return (
         <StrictMode>
           <QueryClientProvider client={queryClient}>
-            <MemoryRouter basename="/ui" initialEntries={[initialEntry]} initialIndex={0}>
-              <Story />
-            </MemoryRouter>
+            <ThemeProvider>
+              <MemoryRouter basename="/ui" initialEntries={[initialEntry]} initialIndex={0}>
+                <Story />
+              </MemoryRouter>
+            </ThemeProvider>
           </QueryClientProvider>
         </StrictMode>
       );

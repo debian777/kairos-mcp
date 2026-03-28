@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppRoutes } from "@/App";
+import { ThemeProvider } from "@/hooks/useThemePreference";
 
 function renderApp(initialPath = "/") {
   const queryClient = new QueryClient({
@@ -10,9 +11,11 @@ function renderApp(initialPath = "/") {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialPath]} initialIndex={0}>
-        <AppRoutes />
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={[initialPath]} initialIndex={0}>
+          <AppRoutes />
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
