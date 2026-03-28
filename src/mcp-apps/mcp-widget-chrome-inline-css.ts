@@ -3,7 +3,7 @@
  * Forward-specific rules stay in {@link ./forward-widget-inline-css.ts}.
  */
 export const MCP_WIDGET_CHROME_INLINE_CSS = `
-    /* Color + type tokens — keep in sync with src/ui/theme/tokens.css */
+    /* Color + type tokens — keep in sync with src/ui/theme/tokens-theme-light.css (+ dark block if extended) */
     :root {
       --color-primary: #0d9488;
       --color-primary-hover: #0f766e;

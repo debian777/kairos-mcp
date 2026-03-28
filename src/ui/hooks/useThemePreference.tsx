@@ -1,8 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-export type ThemePreference = "light" | "dark" | "system";
-export type EffectiveTheme = "light" | "dark";
+/** Explicit UI themes (must match `html[data-theme="…"]` in `src/ui/theme/tokens-theme-*.css`). */
+export const UI_THEME_CHOICES = ["light", "dark"] as const;
+export type UiTheme = (typeof UI_THEME_CHOICES)[number];
+
+export type ThemePreference = UiTheme | "system";
+export type EffectiveTheme = UiTheme;
 
 export const THEME_PREFERENCE_STORAGE_KEY = "kairos:ui:theme-preference";
 export const THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
@@ -10,11 +14,18 @@ export const THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 const FALLBACK_THEME_PREFERENCE: ThemePreference = "system";
 
 export function isThemePreference(value: string | null): value is ThemePreference {
-  return value === "light" || value === "dark" || value === "system";
+  if (value === null) {
+    return false;
+  }
+  if (value === "system") {
+    return true;
+  }
+  return (UI_THEME_CHOICES as readonly string[]).includes(value);
 }
 
 export function resolveEffectiveTheme(preference: ThemePreference, prefersDark: boolean): EffectiveTheme {
   if (preference === "system") {
+    /* When matching the OS, use the default dark variant (v1). */
     return prefersDark ? "dark" : "light";
   }
   return preference;
@@ -45,7 +56,7 @@ export function applyThemeToDocument(theme: EffectiveTheme) {
   }
   const root = document.documentElement;
   root.setAttribute("data-theme", theme);
-  root.style.colorScheme = theme;
+  root.style.colorScheme = theme === "light" ? "light" : "dark";
 }
 
 export interface ThemePreferenceState {

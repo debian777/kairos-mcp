@@ -1,0 +1,46 @@
+/**
+ * Light theme — semantic colors on :root (default).
+ */
+
+:root {
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-primary-focus: #0d9488;
+  --color-secondary: #64748b;
+  --color-accent: #0ea5e9;
+  --color-text: #1e293b;
+  --color-text-heading: #0f172a;
+  --color-text-muted: #64748b;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-focus-ring: var(--color-primary);
+  --badge-shell-bg: #fef3c7;
+  --badge-shell-fg: #92400e;
+  --badge-mcp-bg: #dbeafe;
+  --badge-mcp-fg: #1e40af;
+  --badge-user-input-bg: #ede9fe;
+  --badge-user-input-fg: #5b21b6;
+  --badge-comment-bg: #e2e8f0;
+  --badge-comment-fg: #334155;
+  --badge-match-bg: #dcfce7;
+  --badge-match-fg: #166534;
+  --badge-refine-bg: #dbeafe;
+  --badge-refine-fg: #1e40af;
+  --badge-create-bg: #fef3c7;
+  --badge-create-fg: #92400e;
+  --badge-personal-bg: #dcfce7;
+  --badge-personal-fg: #166534;
+  --badge-group-bg: #dbeafe;
+  --badge-group-fg: #1e40af;
+  --badge-app-bg: #fef3c7;
+  --badge-app-fg: #92400e;
+  --badge-other-bg: #f1f5f9;
+  --badge-other-fg: #475569;
+  --status-success-bg: #dcfce7;
+  --status-success-fg: #166534;
+}

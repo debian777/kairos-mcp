@@ -2,9 +2,16 @@ import { useTranslation } from "react-i18next";
 import { useMe } from "@/hooks/useAuth";
 import type { MeResponse } from "@/hooks/useAuth";
 import {
+  UI_THEME_CHOICES,
   isThemePreference,
   useThemePreferenceContext,
+  type UiTheme,
 } from "@/hooks/useThemePreference";
+
+const ACCOUNT_THEME_LABEL_KEYS: Record<UiTheme, string> = {
+  light: "account.themeOptionLight",
+  dark: "account.themeOptionDark",
+};
 
 function displayName(data: MeResponse): string {
   if (data.name && data.name.trim().length > 0) return data.name;
@@ -69,8 +76,11 @@ export function AccountPage() {
             className="min-h-[44px] w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
           >
             <option value="system">{t("account.themeOptionSystem")}</option>
-            <option value="light">{t("account.themeOptionLight")}</option>
-            <option value="dark">{t("account.themeOptionDark")}</option>
+            {UI_THEME_CHOICES.map((themeId) => (
+              <option key={themeId} value={themeId}>
+                {t(ACCOUNT_THEME_LABEL_KEYS[themeId])}
+              </option>
+            ))}
           </select>
         </div>
         <div className="mb-4">

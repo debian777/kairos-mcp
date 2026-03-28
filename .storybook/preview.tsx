@@ -15,6 +15,25 @@ import {
 /** Optional: [queryKey, data][] to seed React Query cache for this story. */
 type QueryDataEntry = [string[], unknown];
 
+const UI_BASENAME = "/ui";
+
+/**
+ * `MemoryRouter` with `basename="/ui"` requires `initialEntries` pathnames to include that prefix
+ * (same as the real app under `/ui/*`). Stories pass route-relative paths like `/kairos`; normalize here.
+ */
+function memoryRouterInitialPath(entry: string): string {
+  const q = entry.indexOf("?");
+  const rawPath = q >= 0 ? entry.slice(0, q) : entry;
+  const search = q >= 0 ? entry.slice(q) : "";
+
+  if (rawPath === UI_BASENAME || rawPath.startsWith(`${UI_BASENAME}/`)) {
+    return entry;
+  }
+
+  const suffix = rawPath === "/" || rawPath === "" ? "/" : rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  return `${UI_BASENAME}${suffix}${search}`;
+}
+
 const preview: Preview = {
   globalTypes: {
     theme: {
@@ -50,7 +69,8 @@ const preview: Preview = {
       });
       const queryData = context.parameters.queryData as QueryDataEntry[] | undefined;
       queryData?.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      const initialEntry = (context.parameters.initialEntry as string) ?? "/";
+      const rawInitial = (context.parameters.initialEntry as string) ?? "/";
+      const initialEntry = memoryRouterInitialPath(rawInitial);
       return (
         <StrictMode>
           <QueryClientProvider client={queryClient}>
