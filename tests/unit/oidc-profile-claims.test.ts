@@ -1,5 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import {
+  applyOidcGroupsAllowlist,
   deriveAccountKindAndLabel,
   extractWhitelistedProfileFromPayload,
   mergeCallbackTokenPayloads,
@@ -96,6 +97,33 @@ describe("oidc-profile-claims", () => {
     if (!r.ok) return;
     expect(r.merged.sub).toBe("acc-only");
     expect(r.merged.groups).toEqual(["r"]);
+  });
+
+  test("applyOidcGroupsAllowlist with empty allowlist keeps no groups", () => {
+    expect(applyOidcGroupsAllowlist(["a", "b"], [])).toEqual([]);
+  });
+
+  test("applyOidcGroupsAllowlist intersects with names and slash paths", () => {
+    expect(applyOidcGroupsAllowlist(["/kairos-auditor", "other"], ["kairos-auditor"])).toEqual([
+      "/kairos-auditor",
+    ]);
+    expect(applyOidcGroupsAllowlist(["kairos-auditor"], ["/kairos-auditor"])).toEqual(["kairos-auditor"]);
+    expect(applyOidcGroupsAllowlist(["kairos-auditor", "x"], ["kairos-auditor", "y"])).toEqual([
+      "kairos-auditor",
+    ]);
+  });
+
+  test("applyOidcGroupsAllowlist prefix entries match path prefixes", () => {
+    expect(
+      applyOidcGroupsAllowlist(
+        ["/kairos-auditor", "/kairos-shares/kairos-operator", "/other/root"],
+        ["/kairos-shares/"]
+      )
+    ).toEqual(["/kairos-shares/kairos-operator"]);
+    expect(
+      applyOidcGroupsAllowlist(["/kairos-shares/kairos-operator"], ["kairos-shares/"])
+    ).toEqual(["/kairos-shares/kairos-operator"]);
+    expect(applyOidcGroupsAllowlist(["/kairos-shares"], ["/kairos-shares/"])).toEqual([]);
   });
 
   test("mergeCallbackTokenPayloads does not map realm_access roles into groups", () => {

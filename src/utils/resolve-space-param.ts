@@ -68,15 +68,24 @@ export function resolveSpaceParamForContext(
   ];
   const tl = trimmed.toLowerCase();
   for (const id of idsForDisplayMatch) {
-    if (spaceIdToDisplayName(id).toLowerCase() === tl) {
+    if (spaceIdToDisplayName(id, ctx.spaceNamesById).toLowerCase() === tl) {
       return { ok: true, spaceId: id };
     }
   }
 
   const groupName = trimmed.startsWith('Group: ') ? trimmed.slice(7).trim() : trimmed;
+  const groupPathForm = groupName.startsWith('/') ? groupName : `/${groupName}`;
+  const groupNameLower = groupName.toLowerCase();
+  const groupPathLower = groupPathForm.toLowerCase();
   const match = ctx.allowedSpaceIds.find((id) => {
     if (id === groupName || id === trimmed) return true;
-    if (id.startsWith('group:') && id.split(':').pop() === groupName) return true;
+    if (id.startsWith('group:')) {
+      const canonical = (ctx.spaceNamesById?.[id] ?? '').trim();
+      if (!canonical) return false;
+      const canonicalLower = canonical.toLowerCase();
+      if (canonicalLower === groupNameLower) return true;
+      if (canonicalLower === groupPathLower) return true;
+    }
     return false;
   });
   if (!match) {

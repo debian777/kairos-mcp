@@ -69,9 +69,10 @@ async function scrollSpace(
 function buildSpaceInfo(
   spaceId: string,
   points: Array<{ id: string; payload?: Record<string, unknown> }>,
-  includeAdapterTitles: boolean
+  includeAdapterTitles: boolean,
+  spaceNamesById: Record<string, string> | undefined
 ): SpaceInfo {
-  const name = spaceIdToDisplayName(spaceId);
+  const name = spaceIdToDisplayName(spaceId, spaceNamesById);
   const byAdapter = new Map<string, Array<{ id: string; payload?: Record<string, unknown> }>>();
 
   for (const point of points) {
@@ -126,13 +127,14 @@ export async function executeSpaces(
   options: { include_adapter_titles?: boolean } = {}
 ): Promise<{ spaces: SpaceInfo[] }> {
   const includeAdapterTitles = options.include_adapter_titles ?? false;
+  const ctx = getSpaceContextFromStorage();
   const spaceIds = getSpacesToReport();
   const { client, collection } = memoryStore.getQdrantAccess();
   const spaces: SpaceInfo[] = [];
 
   for (const spaceId of spaceIds) {
     const points = await scrollSpace(client, collection, spaceId);
-    spaces.push(buildSpaceInfo(spaceId, points, includeAdapterTitles));
+    spaces.push(buildSpaceInfo(spaceId, points, includeAdapterTitles, ctx.spaceNamesById));
   }
 
   return { spaces };

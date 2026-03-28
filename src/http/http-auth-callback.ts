@@ -14,11 +14,17 @@ import {
   KEYCLOAK_CLIENT_ID,
   AUTH_CALLBACK_BASE_URL,
   SESSION_SECRET,
-  SESSION_MAX_AGE_SEC
+  SESSION_MAX_AGE_SEC,
+  OIDC_GROUPS_ALLOWLIST
 } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { getStateStore, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
-import { decodeJwtPayloadSegment, mergeCallbackTokenPayloads, type MergedCallbackClaims } from './oidc-profile-claims.js';
+import {
+  applyOidcGroupsAllowlist,
+  decodeJwtPayloadSegment,
+  mergeCallbackTokenPayloads,
+  type MergedCallbackClaims
+} from './oidc-profile-claims.js';
 
 function signSession(
   payload: MergedCallbackClaims & {
@@ -133,6 +139,7 @@ export function setupAuthCallback(app: express.Express): void {
       return;
     }
     const { merged } = mergedResult;
+    merged.groups = applyOidcGroupsAllowlist(merged.groups, OIDC_GROUPS_ALLOWLIST);
     const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
     const sessionPayload: MergedCallbackClaims & { exp: number } = {
       ...merged,

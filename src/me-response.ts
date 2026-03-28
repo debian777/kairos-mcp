@@ -13,7 +13,6 @@ export interface MeResponse {
   email_verified?: boolean;
   groups: string[];
   realm: string;
-  group_ids?: string[];
   identity_provider?: string;
   account_kind: MeAccountKind;
   account_label: string;

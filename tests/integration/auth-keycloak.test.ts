@@ -7,9 +7,10 @@
  *   KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
  */
 
+import { OIDC_GROUPS_ALLOWLIST } from '../../src/config.js';
 import {
+  applyOidcGroupsAllowlist,
   decodeJwtPayloadSegment,
-  extractGroupIdsFromPayload,
   extractGroupsFromPayload
 } from '../../src/http/oidc-profile-claims.js';
 import {
@@ -98,14 +99,12 @@ describe('Auth (Keycloak + kairos-tester)', () => {
     expect(token).toBeDefined();
     const jwtPayload = decodeJwtPayloadSegment(token!);
     expect(jwtPayload).not.toBeNull();
-    const groupsFromKeycloak = extractGroupsFromPayload(jwtPayload!);
+    const groupsFromKeycloak = applyOidcGroupsAllowlist(
+      extractGroupsFromPayload(jwtPayload!),
+      OIDC_GROUPS_ALLOWLIST
+    );
     const meGroups = data.groups as string[];
     expect([...meGroups].sort()).toEqual([...groupsFromKeycloak].sort());
-    const idsFromToken = extractGroupIdsFromPayload(jwtPayload!);
-    if (idsFromToken !== undefined) {
-      expect(Array.isArray(data.group_ids)).toBe(true);
-      expect([...(data.group_ids as string[])].sort()).toEqual([...idsFromToken].sort());
-    }
     expect(typeof data.realm).toBe('string');
     expect(data.account_kind === 'local' || data.account_kind === 'sso').toBe(true);
     expect(typeof data.account_label).toBe('string');

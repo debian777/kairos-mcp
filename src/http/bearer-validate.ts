@@ -4,11 +4,11 @@
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { decodeJwt } from "jose/jwt/decode";
-import { KEYCLOAK_URL, KEYCLOAK_INTERNAL_URL } from "../config.js";
+import { KEYCLOAK_URL, KEYCLOAK_INTERNAL_URL, OIDC_GROUPS_ALLOWLIST } from "../config.js";
 import { structuredLogger } from "../utils/structured-logger.js";
 import {
+  applyOidcGroupsAllowlist,
   enrichAuthPayloadFromVerifiedJwt,
-  extractGroupIdsFromPayload,
   extractGroupsFromPayload,
   realmFromIssuer,
   type AccountKind
@@ -17,10 +17,10 @@ import {
 export interface AuthPayload {
   sub: string;
   groups: string[];
+  /** Raw issuer retained for deterministic space-id derivation across Keycloak hosts. */
+  iss: string;
   /** Realm from token issuer (e.g. kairos-dev) for space isolation. */
   realm: string;
-  /** Optional group UUIDs from token; when present used for space ID so renames are stable. */
-  group_ids?: string[];
   preferred_username?: string;
   name?: string;
   given_name?: string;
@@ -111,18 +111,18 @@ export async function validateBearerToken(
   const sub = typeof payload["sub"] === "string" ? payload["sub"] : "";
   if (!sub) return null;
   const iss = typeof payload["iss"] === "string" ? payload["iss"] : "";
+  if (!iss) return null;
   const realm = realmFromIssuer(iss);
-  const groups = extractGroupsFromPayload(payload);
-  const group_ids = extractGroupIdsFromPayload(payload);
+  const groups = applyOidcGroupsAllowlist(extractGroupsFromPayload(payload), OIDC_GROUPS_ALLOWLIST);
   const enrich = enrichAuthPayloadFromVerifiedJwt(payload);
   const result: AuthPayload = {
     sub,
     groups,
+    iss,
     realm,
     account_kind: enrich.account_kind,
     account_label: enrich.account_label,
   };
-  if (group_ids !== undefined) result.group_ids = group_ids;
   if (enrich.preferred_username !== undefined) result.preferred_username = enrich.preferred_username;
   if (enrich.name !== undefined) result.name = enrich.name;
   if (enrich.given_name !== undefined) result.given_name = enrich.given_name;

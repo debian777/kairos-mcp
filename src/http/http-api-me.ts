@@ -14,7 +14,6 @@ function buildMeResponse(auth: AuthPayload): MeResponse {
     account_kind,
     account_label,
   };
-  if (auth.group_ids !== undefined && auth.group_ids.length > 0) body.group_ids = auth.group_ids;
   if (auth.preferred_username !== undefined) body.preferred_username = auth.preferred_username;
   if (auth.name !== undefined) body.name = auth.name;
   if (auth.given_name !== undefined) body.given_name = auth.given_name;

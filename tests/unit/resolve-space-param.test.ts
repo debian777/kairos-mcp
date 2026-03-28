@@ -9,6 +9,7 @@ function ctx(partial: Partial<SpaceContext> & Pick<SpaceContext, 'allowedSpaceId
     groupIds: [],
     allowedSpaceIds: partial.allowedSpaceIds,
     defaultWriteSpaceId: partial.defaultWriteSpaceId,
+    spaceNamesById: partial.spaceNamesById,
     requestId: partial.requestId
   };
 }
@@ -16,34 +17,52 @@ function ctx(partial: Partial<SpaceContext> & Pick<SpaceContext, 'allowedSpaceId
 describe('resolveSpaceParamForContext', () => {
   it('maps personal to default write space', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1', 'group:r:team'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a', 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a',
+      spaceNamesById: { 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc': '/team' }
     });
-    expect(resolveSpaceParamForContext(c, 'personal')).toEqual({ ok: true, spaceId: 'user:r:sub1' });
-    expect(resolveSpaceParamForContext(c, 'Personal')).toEqual({ ok: true, spaceId: 'user:r:sub1' });
+    expect(resolveSpaceParamForContext(c, 'personal')).toEqual({
+      ok: true,
+      spaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'
+    });
+    expect(resolveSpaceParamForContext(c, 'Personal')).toEqual({
+      ok: true,
+      spaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'
+    });
   });
 
-  it('resolves group by short name', () => {
+  it('resolves group by canonical full path', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1', 'group:r:team'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a', 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a',
+      spaceNamesById: { 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc': '/kairos-shares/kairos-operator' }
     });
-    expect(resolveSpaceParamForContext(c, 'team')).toEqual({ ok: true, spaceId: 'group:r:team' });
-    expect(resolveSpaceParamForContext(c, 'Group: team')).toEqual({ ok: true, spaceId: 'group:r:team' });
+    expect(resolveSpaceParamForContext(c, '/kairos-shares/kairos-operator')).toEqual({
+      ok: true,
+      spaceId: 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'
+    });
+    expect(resolveSpaceParamForContext(c, 'Group: /kairos-shares/kairos-operator')).toEqual({
+      ok: true,
+      spaceId: 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'
+    });
   });
 
   it('accepts raw space id when allowed', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1', 'group:r:team'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a', 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a',
+      spaceNamesById: { 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc': '/team' }
     });
-    expect(resolveSpaceParamForContext(c, 'group:r:team')).toEqual({ ok: true, spaceId: 'group:r:team' });
+    expect(resolveSpaceParamForContext(c, 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc')).toEqual({
+      ok: true,
+      spaceId: 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'
+    });
   });
 
   it('rejects unknown group', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'
     });
     const r = resolveSpaceParamForContext(c, 'nope');
     expect(r.ok).toBe(false);
@@ -52,8 +71,8 @@ describe('resolveSpaceParamForContext', () => {
 
   it('rejects Kairos app as writable target by default', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'
     });
     const r = resolveSpaceParamForContext(c, 'Kairos app');
     expect(r.ok).toBe(false);
@@ -62,8 +81,8 @@ describe('resolveSpaceParamForContext', () => {
 
   it('resolves Kairos app for activate/search when flag is set', () => {
     const c = ctx({
-      allowedSpaceIds: ['user:r:sub1'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'],
+      defaultWriteSpaceId: 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a'
     });
     expect(resolveSpaceParamForContext(c, 'Kairos app', { allowReadOnlyAppSearchScope: true })).toEqual({
       ok: true,

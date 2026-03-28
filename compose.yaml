@@ -115,6 +115,7 @@ services:
       postgres:
         condition: service_healthy
     # Idempotent realm setup via scripts/configure-keycloak-realms.py only (npm run infra:up). Do not add --import-realm.
+    # Group mapper `full.path` is always applied by configure-keycloak-realms.py (not a Keycloak KC_* env var).
     command:
       - start-dev
     environment:

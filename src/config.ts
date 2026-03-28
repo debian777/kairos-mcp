@@ -128,6 +128,23 @@ export const AUTH_MODE = getEnvString('AUTH_MODE', '');
 export const AUTH_TRUSTED_ISSUERS_STRING = getEnvString('AUTH_TRUSTED_ISSUERS', '');
 /** Comma-separated list of allowed JWT audiences (e.g. kairos-mcp). Required when AUTH_MODE=oidc_bearer. */
 export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCES', '');
+/**
+ * Comma-separated group names (or /paths) allowed in the KAIROS auth session after OIDC.
+ * Only JWT `groups` entries that match any entry are kept:
+ * exact name or path (slash optional), or a **prefix** entry ending with `/` (e.g. `/kairos-shares/`
+ * keeps every group whose path starts with that prefix). Empty = keep no token groups (default deny).
+ * Keycloak still issues full membership in the JWT; this filter controls what KAIROS forwards internally.
+ */
+export const OIDC_GROUPS_ALLOWLIST: readonly string[] = (() => {
+  const raw = getEnvString('OIDC_GROUPS_ALLOWLIST', '').trim();
+  if (!raw) return Object.freeze([]);
+  return Object.freeze(
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+})();
 
 // Int configurations
 export const PORT = getEnvInt('PORT', 3000);

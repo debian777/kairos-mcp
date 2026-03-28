@@ -8,6 +8,7 @@ import { execSync } from 'child_process';
 import { writeFileSync, existsSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { config } from 'dotenv';
+import { v5 as uuidv5 } from 'uuid';
 import {
   startKeycloakWithTestUser,
   useExistingKeycloakFromEnv
@@ -18,6 +19,20 @@ function realmFromIssuer(iss: string): string {
   const match = /\/realms\/([^/]+)/.exec(iss);
   const segment = match?.[1] ?? iss.split('/').filter(Boolean).pop();
   return typeof segment === 'string' ? segment : 'default';
+}
+
+const SPACE_ID_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
+
+function normalizeRealmSlug(realm: string): string {
+  const raw = (realm || '').trim().toLowerCase();
+  const slug = raw.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'default';
+}
+
+function normalizeIssuer(iss: string, realmSlug: string): string {
+  const trimmed = (iss || '').trim();
+  if (!trimmed) return `realm:${realmSlug}`;
+  return trimmed.replace(/\/+$/, '');
 }
 
 /** Env suffix for test auth file (e.g. .test-auth-env.dev.json). */
@@ -33,7 +48,9 @@ function getAuthStateFile(root: string): string {
 }
 
 /**
- * Decode JWT payload (no verify) to build personal space id user:realm:sub.
+ * Decode JWT payload (no verify) to build personal space id in the same format
+ * as runtime tenant context:
+ * user:<realmSlug>:<uuidv5(iss + "\nuser\n" + sub)>
  * Realm must match bearer-validate (issuer URL), not a stray JWT `realm` claim, or activate/train space params fail resolution.
  */
 function spaceIdFromToken(token: string): string | undefined {
@@ -45,8 +62,10 @@ function spaceIdFromToken(token: string): string | undefined {
     if (!sub || typeof sub !== 'string') return undefined;
     const iss = typeof payload.iss === 'string' ? payload.iss : '';
     if (!iss) return undefined;
-    const realm = realmFromIssuer(iss);
-    return `user:${realm}:${sub}`;
+    const realmSlug = normalizeRealmSlug(realmFromIssuer(iss));
+    const issuerKey = normalizeIssuer(iss, realmSlug);
+    const personalUuid = uuidv5(`${issuerKey}\nuser\n${sub}`, SPACE_ID_NAMESPACE);
+    return `user:${realmSlug}:${personalUuid}`;
   } catch {
     return undefined;
   }

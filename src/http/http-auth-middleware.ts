@@ -17,8 +17,10 @@ import {
   SESSION_SECRET,
   AUTH_MODE,
   AUTH_TRUSTED_ISSUERS,
-  AUTH_ALLOWED_AUDIENCES
+  AUTH_ALLOWED_AUDIENCES,
+  OIDC_GROUPS_ALLOWLIST
 } from '../config.js';
+import { applyOidcGroupsAllowlist } from './oidc-profile-claims.js';
 import { validateBearerToken, type AuthPayload } from './bearer-validate.js';
 import { getSpaceContext, runWithSpaceContext, type SpaceContext } from '../utils/tenant-context.js';
 import { structuredLogger } from '../utils/structured-logger.js';
@@ -86,8 +88,8 @@ function getSessionPayload(req: Request): AuthPayload | null {
     const payload = JSON.parse(utf8toString(fromBase64url(payloadB64))) as {
       sub?: string;
       groups?: string[];
+      iss?: string;
       realm?: string;
-      group_ids?: string[];
       exp?: number;
       preferred_username?: string;
       name?: string;
@@ -102,13 +104,14 @@ function getSessionPayload(req: Request): AuthPayload | null {
     if (payload.exp && payload.exp < Date.now() / 1000) return null;
     const sub = typeof payload.sub === 'string' ? payload.sub : '';
     if (!sub) return null;
-    const groups = Array.isArray(payload.groups) ? payload.groups.filter((g): g is string => typeof g === 'string') : [];
+    const rawGroups = Array.isArray(payload.groups) ? payload.groups.filter((g): g is string => typeof g === 'string') : [];
+    const groups = applyOidcGroupsAllowlist(rawGroups, OIDC_GROUPS_ALLOWLIST);
     const realm = typeof payload.realm === 'string' ? payload.realm : 'default';
-    const group_ids = Array.isArray(payload.group_ids)
-      ? payload.group_ids.filter((g): g is string => typeof g === 'string' && g.length > 0)
-      : undefined;
-    const result: AuthPayload = { sub, groups, realm };
-    if (group_ids && group_ids.length > 0) result.group_ids = group_ids;
+    const iss =
+      typeof payload.iss === 'string' && payload.iss.length > 0
+        ? payload.iss
+        : `realm:${realm}`;
+    const result: AuthPayload = { sub, groups, realm, iss };
     if (typeof payload.preferred_username === 'string' && payload.preferred_username.length > 0)
       result.preferred_username = payload.preferred_username;
     if (typeof payload.name === 'string' && payload.name.length > 0) result.name = payload.name;
