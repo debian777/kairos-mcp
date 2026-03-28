@@ -7,6 +7,7 @@ const {
 } = require('./rules/shared-snippets.cjs');
 const { markdownPlainTextParser } = require('./parsers/markdown-plain-text.cjs');
 const { kairosForbiddenTextPlugin } = require('./plugins/kairos-forbidden-text.cjs');
+const { kairosCodeqlLineCommentsPlugin } = require('./plugins/kairos-codeql-line-comments.cjs');
 const { kairosMcpWidgetPlugin } = require('./plugins/kairos-mcp-widget.cjs');
 
 const tsParser = require('@typescript-eslint/parser');
@@ -191,6 +192,7 @@ function createFlatConfig(rootDir) {
       },
       plugins: {
         '@typescript-eslint': tsPlugin,
+        'kairos-codeql-comments': kairosCodeqlLineCommentsPlugin,
       },
       rules: {
         'max-lines': [
@@ -209,6 +211,7 @@ function createFlatConfig(rootDir) {
             caughtErrorsIgnorePattern: '^_',
           },
         ],
+        'kairos-codeql-comments/codeql-line-comment-integrity': 'error',
         ...NO_AUTH_ENABLED_OVERRIDE_RULE,
       },
     },

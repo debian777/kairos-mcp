@@ -151,6 +151,7 @@ test-*.js
 
 # Test files that might be created during development
 *.test.js
+!tests/unit/kairos-codeql-line-comments.rule.test.js
 *.test.cjs
 *.spec.js
 *.spec.cjs
