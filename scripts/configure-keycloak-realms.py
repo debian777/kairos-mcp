@@ -12,7 +12,8 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
    **kairos-mcp** `redirectUris` / `webOrigins` are then pushed again via **PUT …/clients/{id}**
    because realm-level PUT does not reliably update existing clients (redirect list would stay stale).
    **Groups:** realm PUT does not reliably create/re-parent groups. The script enforces
-   top-level **shared** and **kairos-shares** → **kairos-operator** nesting via Admin API.
+   top-level groups from import JSON, plus **shared** and **kairos-shares** →
+   **kairos-operator** nesting via Admin API.
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
 3. OIDC scope `openid` for dynamic registration: ensure a realm Client Scope named `openid`
    exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
@@ -1000,6 +1001,26 @@ def ensure_kairos_shares_operator_hierarchy(base_url: str, realm: str, token: st
     )
 
 
+def ensure_top_level_groups_from_import(
+    base_url: str, realm: str, desired_realm: dict, token: str
+) -> None:
+    """
+    Ensure top-level groups declared in import JSON exist in Keycloak.
+    Realm PUT may skip group creation on fresh realms.
+    """
+    wanted: list[str] = []
+    for entry in desired_realm.get("groups") or []:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        wanted.append(name)
+        create_top_level_group_if_missing(base_url, realm, name, token)
+    if wanted:
+        print(f"  Groups {realm}: ensured top-level {sorted(set(wanted))}")
+
+
 def ensure_shared_group(base_url: str, realm: str, token: str) -> None:
     """
     Ensure top-level /shared exists in every managed realm (idempotent).
@@ -1228,6 +1249,7 @@ def main() -> int:
 
     token = get_admin_token(base_url, admin_password)
     import_dir = root / "scripts" / "keycloak" / "import"
+    desired_by_realm: dict[str, dict] = {}
 
     # 1. Ensure realm exists (minimal create), then always apply config from file (idempotent)
     existing = list_realms(base_url, token)
@@ -1241,6 +1263,7 @@ def main() -> int:
             print(f"Created realm {realm_name} (defaults).")
         current = get_realm_full(base_url, realm_name, token)
         desired = load_desired_realm(path, env, realm_name)
+        desired_by_realm[realm_name] = desired
         merged = _merge_realm(current, desired)
         update_realm(base_url, realm_name, merged, token)
         print(f"Updated realm {realm_name}.")
@@ -1256,8 +1279,11 @@ def main() -> int:
 
         push_kairos_mcp_redirect_config(base_url, realm_name, desired, token)
 
-    # 1b. Realm PUT does not reliably create/move groups; enforce /shared and shares/operator via Admin API
+    # 1b. Realm PUT does not reliably create/move groups; enforce import top-level groups
+    # and then /shared plus shares/operator hierarchy via Admin API.
     for realm_name, _ in REALM_FILES:
+        desired = desired_by_realm.get(realm_name, {})
+        ensure_top_level_groups_from_import(base_url, realm_name, desired, token)
         ensure_shared_group(base_url, realm_name, token)
         ensure_kairos_shares_operator_hierarchy(base_url, realm_name, token)
 
