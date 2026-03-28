@@ -7,7 +7,19 @@
  *   KEYCLOAK_URL= AUTH_ENABLED=true npm run dev:test -- tests/integration/auth-keycloak.test.ts
  */
 
-import { getAuthHeaders, getTestAuthBaseUrl, hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
+import { OIDC_GROUPS_ALLOWLIST } from '../../src/config.js';
+import {
+  applyOidcGroupsAllowlist,
+  decodeJwtPayloadSegment,
+  extractGroupsFromPayload
+} from '../../src/http/oidc-profile-claims.js';
+import {
+  getAuthHeaders,
+  getMcpTestBearerToken,
+  getTestAuthBaseUrl,
+  hasAuthToken,
+  serverRequiresAuth
+} from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
@@ -83,6 +95,16 @@ describe('Auth (Keycloak + kairos-tester)', () => {
     expect(typeof data.sub).toBe('string');
     expect(data.sub!.toString().length).toBeGreaterThan(0);
     expect(Array.isArray(data.groups)).toBe(true);
+    const token = getMcpTestBearerToken();
+    expect(token).toBeDefined();
+    const jwtPayload = decodeJwtPayloadSegment(token!);
+    expect(jwtPayload).not.toBeNull();
+    const groupsFromKeycloak = applyOidcGroupsAllowlist(
+      extractGroupsFromPayload(jwtPayload!),
+      OIDC_GROUPS_ALLOWLIST
+    );
+    const meGroups = data.groups as string[];
+    expect([...meGroups].sort()).toEqual([...groupsFromKeycloak].sort());
     expect(typeof data.realm).toBe('string');
     expect(data.account_kind === 'local' || data.account_kind === 'sso').toBe(true);
     expect(typeof data.account_label).toBe('string');

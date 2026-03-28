@@ -9,7 +9,7 @@ export const KAIROS_APP_SPACE_DISPLAY_NAME = 'Kairos app';
 
 /**
  * Map a space_id to a human-readable name for tool outputs and agent-facing responses.
- * user:realm:sub → "Personal"; group:realm:ref → "Group: ref"; space:kairos-app → "Kairos app".
+ * user:*:* → "Personal"; group:*:* → "Group: /full/path"; space:kairos-app → "Kairos app".
  */
 export function spaceKindFromSpaceId(spaceId: string): 'personal' | 'group' | 'app' | 'other' {
   if (!spaceId || typeof spaceId !== 'string') return 'other';
@@ -21,12 +21,17 @@ export function spaceKindFromSpaceId(spaceId: string): 'personal' | 'group' | 'a
   return 'other';
 }
 
-export function spaceIdToDisplayName(spaceId: string): string {
+export function spaceIdToDisplayName(spaceId: string, namesById?: Record<string, string>): string {
   if (!spaceId || typeof spaceId !== 'string') return 'Unknown';
   if (spaceId === KAIROS_APP_SPACE_ID) return KAIROS_APP_SPACE_DISPLAY_NAME;
+  const mapped = namesById?.[spaceId];
+  if (mapped && mapped.trim().length > 0) {
+    if (spaceId.startsWith('group:')) return `Group: ${mapped}`;
+    return mapped;
+  }
   const parts = spaceId.split(':');
   if (parts[0] === 'user') return 'Personal';
-  if (parts[0] === 'group' && parts.length >= 3) return `Group: ${parts[2]!}`;
+  if (parts[0] === 'group') return 'Group';
   if (parts[0] === 'space' && parts.length >= 2) return parts.slice(1).join(':') || spaceId;
   return spaceId;
 }

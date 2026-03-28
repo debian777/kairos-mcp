@@ -2,7 +2,7 @@
 
 Realm JSONs in this directory are applied **idempotently** by **scripts/configure-keycloak-realms.py** via the Admin API. No Docker import mount; do not use Keycloak `--import-realm` (would conflict with existing realms).
 
-**Sub-realms only.** All realm configuration in this repo (Python scripts and Terraform) targets **sub-realms** (e.g. `kairos-dev`, `kairos-prod`). The **master** realm is used only for admin authentication (obtaining a token); no script modifies master.
+**Sub-realms only.** All realm configuration in this repo (import JSON + `configure-keycloak-realms.py`) targets **sub-realms** (e.g. `kairos-dev`, `kairos-prod`). The **master** realm is used only for admin authentication (obtaining a token); no script modifies master.
 
 ## Files
 
@@ -26,8 +26,44 @@ The script:
 3. **Client Scope `openid`:** creates a realm Client Scope named `openid` (if missing), adds it to **default optional client scopes**, and allowlists it on **Allowed Client Scopes** registration policies. MCP clients such as `mcp-remote` register with OAuth `scope: openid` (from protected-resource metadata); without this named scope, Keycloak rejects dynamic client registration with *Not permitted to use specified clientScope*.
 4. **Allowed client templates:** sets anonymous/authenticated registration policy allow lists (includes `openid` plus templates aligned with `kairos-cli` defaults).
 5. **Test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
+6. **JWT `groups` mapper** on clients **kairos-mcp** and **kairos-cli**: adds Keycloak’s **Group Membership** protocol mapper (claim `groups`, access + ID + userinfo + introspection). **`full.path` is always on** (full paths such as `/kairos-auditor`, `/kairos-shares/kairos-operator`); the script does not toggle it via env.
 
 Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
+
+## Claims used by KAIROS account and spaces
+
+KAIROS expects explicit token claims (not inferred fallbacks):
+
+- `identity_provider` (string) for account labeling (for example `google` -> `Google (SSO)` in `/ui/account`)
+- `groups` (array of strings) for group-derived spaces and account group display
+
+### Identity provider claim (Keycloak 26.5.x)
+
+For brokered login (Google/Okta/etc.), configure a **User Session Note** protocol mapper:
+
+- session note: `identity_provider`
+- token claim name: `identity_provider`
+- include in access token and/or ID token
+
+Without this mapper, KAIROS treats users as local account type because the claim is absent.
+
+### Groups claim (explicit memberships only)
+
+KAIROS reads only the JWT `groups` claim. It does **not** fallback to `realm_access.roles`.
+
+`configure-keycloak-realms.py` installs a **Group Membership** mapper named `kairos-oidc-groups` on **kairos-mcp** and **kairos-cli**. Keycloak’s mapper lists **every** realm group the user belongs to (you cannot whitelist individual groups in that mapper on current Keycloak).
+
+To **choose which groups KAIROS uses** (spaces, `/api/me`, session cookie) after the token is issued, set **`OIDC_GROUPS_ALLOWLIST`** in the app `.env` to a comma-separated list of full group **paths** or **path prefixes** ending with `/`.
+For example, `/shared/` matches `/shared/team-platform`.
+Leave the allowlist empty or unset to deny all group paths (default deny).
+
+KAIROS builds deterministic space ids at request time using the issuer and
+token claims:
+
+- Personal space: `user:<realmSlug>:<uuidv5(iss + "\\nuser\\n" + sub)>`
+- Group space: `group:<realmSlug>:<uuidv5(iss + "\\ngroup\\n" + fullPath)>`
+
+If you manage Keycloak manually, add the same style of **Group Membership** mapper yourself; keep the claim name `groups` so KAIROS can read it.
 
 ## Adding other users
 

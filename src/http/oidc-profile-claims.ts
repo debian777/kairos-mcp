@@ -39,8 +39,9 @@ export interface AccountLabels {
 export interface MergedCallbackClaims {
   sub: string;
   groups: string[];
+  /** Raw token issuer used for deterministic space-id derivation. */
+  iss: string;
   realm: string;
-  group_ids?: string[];
   preferred_username?: string;
   name?: string;
   given_name?: string;
@@ -73,16 +74,57 @@ export function realmFromIssuer(iss: string): string {
 export function extractGroupsFromPayload(payload: Record<string, unknown>): string[] {
   const g = payload["groups"];
   if (Array.isArray(g)) return g.filter((x): x is string => typeof x === "string");
-  const realm = payload["realm_access"] as { roles?: string[] } | undefined;
-  if (realm && Array.isArray(realm.roles)) return realm.roles.filter((x): x is string => typeof x === "string");
   return [];
 }
 
-export function extractGroupIdsFromPayload(payload: Record<string, unknown>): string[] | undefined {
-  const g = payload["group_ids"];
-  if (!Array.isArray(g)) return undefined;
-  const ids = g.filter((x): x is string => typeof x === "string" && x.length > 0);
-  return ids.length > 0 ? ids : undefined;
+function groupStringVariants(g: string): string[] {
+  const t = g.trim();
+  if (!t) return [];
+  return [t, t.replace(/^\//, ""), t.startsWith("/") ? t : `/${t}`];
+}
+
+/** Path form with a single leading slash (for prefix checks on full-path groups). */
+function groupPathForm(g: string): string {
+  const t = g.trim();
+  if (!t) return "";
+  return t.startsWith("/") ? t : `/${t.replace(/^\//, "")}`;
+}
+
+/**
+ * Keep only token groups that match an allowlist entry:
+ * - **Exact:** plain name or path (`kairos-auditor`, `/kairos-auditor`) — slash optional on either side.
+ * - **Prefix:** entry ends with `/` (e.g. `/kairos-shares/`) — keep any JWT group whose path form starts with that prefix (after normalizing a leading slash on the entry).
+ * - **Default deny:** empty allowlist keeps no groups.
+ * Keycloak's Group Membership mapper lists every group the user belongs to; use this on KAIROS
+ * to restrict which entries become session/API groups.
+ */
+export function applyOidcGroupsAllowlist(groups: string[], allowlist: readonly string[]): string[] {
+  if (allowlist.length === 0) return [];
+  const exact = new Set<string>();
+  const prefixes: string[] = [];
+  for (const e of allowlist) {
+    const t = e.trim();
+    if (!t) continue;
+    if (t.endsWith("/")) {
+      const p = t.startsWith("/") ? t : `/${t}`;
+      prefixes.push(p);
+      continue;
+    }
+    for (const v of groupStringVariants(t)) {
+      exact.add(v);
+    }
+  }
+  return groups.filter((g) => {
+    const variants = groupStringVariants(g);
+    if (variants.length === 0) return false;
+    if (variants.some((v) => exact.has(v))) return true;
+    const pathForm = groupPathForm(g);
+    if (!pathForm) return false;
+    for (const p of prefixes) {
+      if (pathForm.startsWith(p)) return true;
+    }
+    return false;
+  });
 }
 
 function pickNonEmptyString(payload: Record<string, unknown>, key: string): string | undefined {
@@ -125,7 +167,8 @@ export function deriveAccountKindAndLabel(identityProvider: string | undefined):
 /**
  * Merge id_token and access_token payloads after login:
  * — sub from id token when present; otherwise access. If both subs exist and differ, fail.
- * — groups / group_ids prefer access token (Keycloak often puts roles there); fallback to id.
+ * — groups prefer access token; fallback to id.
+ * — iss from id token when present; otherwise access; fallback to synthetic realm issuer.
  * — realm from id token iss, else access iss, else fallbackRealm.
  * — profile / email claims prefer id token; if id absent, fall back to access for CLI-style flows.
  */
@@ -153,12 +196,10 @@ export function mergeCallbackTokenPayloads(input: {
   const idGroups = idPayload ? extractGroupsFromPayload(idPayload) : [];
   const groups = accessGroups.length > 0 ? accessGroups : idGroups;
 
-  let group_ids = accessPayload ? extractGroupIdsFromPayload(accessPayload) : undefined;
-  if (group_ids === undefined && idPayload) group_ids = extractGroupIdsFromPayload(idPayload);
-
   let realm = fallbackRealm;
   const idIss = idPayload && typeof idPayload["iss"] === "string" ? idPayload["iss"] : "";
   const accessIss = accessPayload && typeof accessPayload["iss"] === "string" ? accessPayload["iss"] : "";
+  const iss = idIss.length > 0 ? idIss : accessIss.length > 0 ? accessIss : `realm:${fallbackRealm}`;
   if (idIss.length > 0) realm = realmFromIssuer(idIss);
   else if (accessIss.length > 0) realm = realmFromIssuer(accessIss);
 
@@ -174,11 +215,11 @@ export function mergeCallbackTokenPayloads(input: {
   const merged: MergedCallbackClaims = {
     sub,
     groups,
+    iss,
     realm,
     account_kind,
     account_label,
   };
-  if (group_ids !== undefined) merged.group_ids = group_ids;
   if (profile.preferred_username !== undefined) merged.preferred_username = profile.preferred_username;
   if (profile.name !== undefined) merged.name = profile.name;
   if (profile.given_name !== undefined) merged.given_name = profile.given_name;

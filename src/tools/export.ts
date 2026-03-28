@@ -3,7 +3,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { executionTraceStore, type TrainingPair } from '../services/execution-trace-store.js';
 import { getAdapterId } from '../services/memory/memory-accessors.js';
-import { getTenantId } from '../utils/tenant-context.js';
+import { getSpaceContextFromStorage, getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
@@ -158,11 +158,12 @@ export async function executeExport(
     });
     const headMemory = await memoryStore.getMemory(layerId);
     const sid = typeof headMemory?.space_id === 'string' ? headMemory.space_id.trim() : '';
+    const spaceNamesById = getSpaceContextFromStorage().spaceNamesById;
     const spaceFields =
       sid.length > 0
         ? {
             space_id: sid,
-            space_name: spaceIdToDisplayName(sid),
+            space_name: spaceIdToDisplayName(sid, spaceNamesById),
             space_type: spaceKindFromSpaceId(sid)
           }
         : {

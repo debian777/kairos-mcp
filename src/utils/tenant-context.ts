@@ -7,6 +7,7 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
+import { v5 as uuidv5 } from 'uuid';
 import { AUTH_ENABLED, KAIROS_APP_SPACE_ID } from '../config.js';
 import { resolveSpaceParamForContext } from './resolve-space-param.js';
 
@@ -18,6 +19,8 @@ export interface SpaceContext {
   groupIds: string[];
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
+  /** Human labels for currently allowed spaces (token/session-derived only). */
+  spaceNamesById?: Record<string, string>;
   requestId?: string;
   /**
    * When set (e.g. activate/search space parameter), vector search uses exactly these IDs — no implicit merge of Kairos app.
@@ -32,6 +35,7 @@ const NO_CONTEXT_SENTINEL: SpaceContext = {
   groupIds: [],
   allowedSpaceIds: [],
   defaultWriteSpaceId: '',
+  spaceNamesById: {},
   requestId: ''
 };
 
@@ -44,6 +48,7 @@ function defaultSpaceContext(): SpaceContext {
     groupIds: [],
     allowedSpaceIds: [spaceId],
     defaultWriteSpaceId: spaceId,
+    spaceNamesById: { [spaceId]: 'Kairos app' },
     requestId: ''
   };
 }
@@ -55,6 +60,7 @@ function noDefaultSpaceContext(): SpaceContext {
     groupIds: [],
     allowedSpaceIds: [],
     defaultWriteSpaceId: NO_AUTH_SPACE_ID,
+    spaceNamesById: {},
     requestId: ''
   };
 }
@@ -151,23 +157,62 @@ export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefine
 }
 
 /**
- * Build allowed space ids and default write space from auth payload (sub + groups + realm + optional group_ids).
- * Space IDs include realm for isolation across Keycloak realms; group ID is used when present so renames are stable.
+ * Build allowed spaces from JWT-derived auth (`sub`, `groups`, `realm`, `iss`).
+ * - Personal id: `user:{realm}:{uuidv5(iss + "\\nuser\\n" + sub)}`
+ * - Group id: `group:{realm}:{uuidv5(iss + "\\ngroup\\n" + fullPath)}`
+ * Group names shown by tools/UI are canonical Keycloak full paths from the token.
  */
+const SPACE_ID_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
+
+function normalizeRealmSlug(realm: string): string {
+  const raw = (realm || '').trim().toLowerCase();
+  const slug = raw.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'default';
+}
+
+function normalizeIssuer(iss: string, realm: string): string {
+  const trimmed = (iss || '').trim();
+  if (!trimmed) return `realm:${realm}`;
+  return trimmed.replace(/\/+$/, '');
+}
+
+function normalizeGroupFullPath(value: string): string {
+  const t = (value || '').trim();
+  if (!t) return '';
+  const withLeading = t.startsWith('/') ? t : `/${t}`;
+  return withLeading.replace(/\/+/g, '/');
+}
+
 function fromAuthPayload(
   sub: string,
   groupNames: string[],
   realm: string,
-  groupIds?: string[]
-): Pick<SpaceContext, 'allowedSpaceIds' | 'defaultWriteSpaceId'> {
-  const personal = `user:${realm}:${sub}`;
-  const groupSpaces = groupNames.map((name, i) => {
-    const ref = groupIds?.[i] ?? name;
-    return `group:${realm}:${ref}`;
-  });
+  iss: string
+): {
+  allowedSpaceIds: string[];
+  defaultWriteSpaceId: string;
+  spaceNamesById: Record<string, string>;
+} {
+  const realmSlug = normalizeRealmSlug(realm);
+  const issuerKey = normalizeIssuer(iss, realmSlug);
+  const personalUuid = uuidv5(`${issuerKey}\nuser\n${sub}`, SPACE_ID_NAMESPACE);
+  const personal = `user:${realmSlug}:${personalUuid}`;
+  const groupSpaces: string[] = [];
+  const spaceNamesById: Record<string, string> = { [personal]: 'Personal' };
+  const seen = new Set<string>();
+  for (const rawPath of groupNames) {
+    const fullPath = normalizeGroupFullPath(rawPath);
+    if (!fullPath) continue;
+    const groupUuid = uuidv5(`${issuerKey}\ngroup\n${fullPath}`, SPACE_ID_NAMESPACE);
+    const sid = `group:${realmSlug}:${groupUuid}`;
+    if (seen.has(sid)) continue;
+    seen.add(sid);
+    groupSpaces.push(sid);
+    spaceNamesById[sid] = fullPath;
+  }
   const allowedSpaceIds = [personal, ...groupSpaces];
   const defaultWriteSpaceId = personal;
-  return { allowedSpaceIds, defaultWriteSpaceId };
+  return { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById };
 }
 
 /**
@@ -177,7 +222,7 @@ function fromAuthPayload(
  * If no request is passed, falls back to AsyncLocalStorage (e.g. from runWithSpaceContext).
  */
 export function getSpaceContext(request?: {
-  auth?: { sub: string; groups: string[]; realm?: string; group_ids?: string[] };
+  auth?: { sub: string; groups: string[]; realm?: string; iss?: string };
   spaceContext?: SpaceContext;
   requestId?: string;
   headers?: { [key: string]: unknown };
@@ -195,17 +240,19 @@ export function getSpaceContext(request?: {
   const auth = request?.auth;
   if (!auth?.sub) return { ...noDefaultSpaceContext(), requestId };
   const realm = auth.realm ?? 'default';
-  const { allowedSpaceIds, defaultWriteSpaceId } = fromAuthPayload(
+  const iss = auth.iss ?? `realm:${realm}`;
+  const { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById } = fromAuthPayload(
     auth.sub,
     auth.groups ?? [],
     realm,
-    auth.group_ids
+    iss
   );
   return {
     userId: auth.sub,
     groupIds: auth.groups ?? [],
     allowedSpaceIds,
     defaultWriteSpaceId,
+    spaceNamesById,
     requestId
   };
 }

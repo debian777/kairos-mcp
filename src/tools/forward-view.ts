@@ -3,6 +3,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { getAdapterName, getInferenceContract, getLayerCount, getLayerIndex } from '../services/memory/memory-accessors.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
+import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
@@ -21,7 +22,9 @@ export function buildForwardUiSummary(memory: Memory): {
   adapter_layer_index?: number;
   adapter_layer_count?: number;
 } {
-  const activation_space_name = memory.space_id ? spaceIdToDisplayName(memory.space_id) : undefined;
+  const activation_space_name = memory.space_id
+    ? spaceIdToDisplayName(memory.space_id, getSpaceContextFromStorage().spaceNamesById)
+    : undefined;
   const adapterTitle = getAdapterName(memory)?.trim();
   const context_adapter_name = adapterTitle || undefined;
   const layerLabel = memory.label?.trim();

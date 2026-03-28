@@ -11,7 +11,11 @@
   "groups": [
     { "name": "kairos-admin" },
     { "name": "kairos-auditor" },
-    { "name": "kairos-operator" },
+    { "name": "shared" },
+    {
+      "name": "kairos-shares",
+      "subGroups": [{ "name": "kairos-operator" }]
+    },
     { "name": "kairos-team-platform" },
     { "name": "kairos-team-sre" }
   ],

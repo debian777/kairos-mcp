@@ -50,6 +50,24 @@ The CLI and MCP hosts share the same local config path:
 otherwise from the paths above. Bearer tokens are **not** read from process
 environment variables; use `kairos login` and the shared config file.
 
+When keyring storage is active, `config.json` keeps non-secret sentinels:
+
+```json
+{
+  "defaultUrl": "http://localhost:3300",
+  "environments": {
+    "http://localhost:3300": {
+      "bearerToken": "__KEYCHAIN__",
+      "refreshToken": "__KEYCHAIN__"
+    }
+  }
+}
+```
+
+The `__KEYCHAIN__` marker means the secret is stored in the OS keychain and
+must be resolved from there at runtime. The marker itself is never used as an
+HTTP bearer token.
+
 **If absent:** Run `kairos login` (browser PKCE or `kairos login --token <token>`).
 The CLI writes tokens (and API URL) to the keyring or, on fallback, to that
 config file so MCP hosts can use it too.
@@ -68,6 +86,10 @@ Token storage behavior is:
 
 1. **OS keyring first** when available
 2. **config-file fallback** when keyring access is unavailable or fails
+
+Copying `config.json` to another machine does not copy keychain secrets. A file
+that only contains `__KEYCHAIN__` entries will not authenticate unless matching
+keychain items exist on that machine.
 
 ### Login methods
 

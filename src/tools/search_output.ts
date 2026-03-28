@@ -9,6 +9,7 @@ import { resolveAdapterEntry } from '../services/adapter-navigation.js';
 import { getActivationPatterns, getAdapterId, getAdapterInfo, getAdapterName, getLayerCount } from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
+import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 
 export interface Candidate {
@@ -97,6 +98,7 @@ export async function generateUnifiedOutput(
   } = opts;
   const choices: UnifiedChoice[] = [];
   const matchCount = results.length;
+  const spaceNamesById = getSpaceContextFromStorage().spaceNamesById;
 
   for (const result of results) {
     const head = await resolveHead(result.memory, qdrantService);
@@ -111,7 +113,7 @@ export async function generateUnifiedOutput(
       next_action: `call forward with ${head.uri} to execute this adapter`,
       adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
       activation_patterns: getActivationPatterns(result.memory),
-      space_name: spaceIdToDisplayName(sid)
+      space_name: spaceIdToDisplayName(sid, spaceNamesById)
     });
   }
 

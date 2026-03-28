@@ -35,10 +35,11 @@ All REST endpoints and POST `/mcp` use the same auth middleware. There is no sep
 
 - **Config path:** `$XDG_CONFIG_HOME/kairos/config.json` (Unix) or `%APPDATA%\kairos\config.json` (Windows).
 - **Storage model:** OS keyring first when available; config-file fallback when keyring access is unavailable or fails.
+- **Sentinel placeholder:** When keyring storage succeeds, `config.json` keeps non-secret placeholders (`"__KEYCHAIN__"`) at `environments[<url>].bearerToken` / `refreshToken` so operators can see which URL has keychain-backed credentials. The placeholder is never used as an Authorization token.
 - **Contract:**  
   1. **Try read:** Token from keyring first, otherwise from the shared config file. Bearer tokens are **not** read from process environment variables.  
   2. **If absent:** Perform auth (see below), then save the token for that API URL.
-- **CLI:** Reads from keyring when possible, otherwise from the shared config file. `kairos login` (browser PKCE or `--token`) writes the token back through the same storage abstraction. Other commands reuse that token and can trigger login on 401.
+- **CLI:** Reads from keyring when possible, otherwise from the shared config file. `kairos login` (browser PKCE or `--token`) writes the token back through the same storage abstraction and persists `"__KEYCHAIN__"` placeholders when keychain storage is active. Other commands reuse that token and can trigger login on 401.
 - **MCP:** The host (for example Cursor) can reuse the same local config/keyring state, or direct the user to run `kairos login` first. If no token is present, the host can discover auth endpoints via the well-known protected-resource metadata and perform its own OAuth PKCE flow. Hosts that read the access token only once at startup will not pick up rotations from the CLI; long-lived integrations should re-read the shared config on each request or implement refresh equivalent to the CLI `ApiClient` (or periodically re-run `kairos login`).
 
 ## CLI

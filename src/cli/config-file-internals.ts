@@ -8,6 +8,7 @@ import { homedir, platform } from 'os';
 
 const CONFIG_DIR_NAME = 'kairos';
 const CONFIG_FILE_NAME = 'config.json';
+export const KEYCHAIN_TOKEN_PLACEHOLDER = '__KEYCHAIN__';
 
 export interface EnvironmentEntry {
     bearerToken?: string;
@@ -19,6 +20,11 @@ export interface ConfigFileShape {
     environments?: Record<string, EnvironmentEntry>;
     KAIROS_API_URL?: string;
     bearerToken?: string;
+    refreshToken?: string;
+}
+
+export function isKeychainTokenPlaceholder(value: unknown): value is typeof KEYCHAIN_TOKEN_PLACEHOLDER {
+    return value === KEYCHAIN_TOKEN_PLACEHOLDER;
 }
 
 export function normalizeApiUrl(url: string): string {
@@ -28,7 +34,11 @@ export function normalizeApiUrl(url: string): string {
 export function isSingleEnvFlatConfig(parsed: ConfigFileShape): boolean {
     return (
         parsed.environments === undefined &&
-        (parsed.KAIROS_API_URL !== undefined || parsed.bearerToken !== undefined)
+        (
+            parsed.KAIROS_API_URL !== undefined ||
+            parsed.bearerToken !== undefined ||
+            parsed.refreshToken !== undefined
+        )
     );
 }
 

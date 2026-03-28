@@ -268,7 +268,7 @@ start() {
     # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
     if [ "$ENV" = "dev" ]; then
         print_info "Ensuring Keycloak realm and kairos-cli client..."
-        if ( cd "$PROJECT_DIR" && python3 scripts/configure-keycloak-realms.py 2>/dev/null ); then
+        if ( cd "$PROJECT_DIR" && python3 scripts/configure-keycloak-realms.py ); then
             print_success "Keycloak realm configured (kairos-cli client ready for CLI login)"
         else
             print_warning "Keycloak realm config failed or Keycloak not reachable. If you use auth, run: python3 scripts/configure-keycloak-realms.py or npm run infra:up"

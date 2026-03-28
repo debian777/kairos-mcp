@@ -4,7 +4,6 @@
 // MCP Apps widgets (handshake + HTML shell): eslint/plugins/kairos-mcp-widget.cjs
 // Scope: src/, scripts/, tests/ code + **/*.md + context7.json (see eslint/flat-config.cjs)
 // Inline eslint-disable / file comments cannot change rules (linterOptions.noInlineConfig).
-// Storybook: eslint-plugin-storybook can be added via require() if needed.
 
 'use strict';
 

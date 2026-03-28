@@ -88,8 +88,6 @@ function createFlatConfig(rootDir) {
         '**/requirements.txt',
         '**/snapshots/**',
         '**/*.snapshot',
-        'storybook-static/**',
-        '.storybook/**',
         '**/*.html',
         '**/*.css',
         '**/*.tsbuildinfo',
@@ -100,6 +98,8 @@ function createFlatConfig(rootDir) {
         '**/*.svg',
         'logo/**',
         'logos/**',
+        // Local Storybook build output if present (Storybook removed from npm scripts; folder may remain on disk)
+        'storybook-static/**',
       ],
     },
 
@@ -162,10 +162,7 @@ function createFlatConfig(rootDir) {
     },
 
     {
-      files: [
-        'src/ui/pages/ProtocolEditPage.tsx',
-        'src/ui/mockups/ProtocolUXMockupContent.tsx',
-      ],
+      files: ['src/ui/pages/ProtocolEditPage.tsx'],
       rules: { 'max-lines': 'off' },
     },
 
