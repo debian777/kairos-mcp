@@ -100,9 +100,9 @@ export async function storeMemory(
     const upsertResult = await sanitizeAndUpsert(conn.client, conn.collectionName, [point]);
     logger.debug(`storeMemory: Upsert result for qdrantId ${qdrantId}: ${JSON.stringify(upsertResult)}`);
     
-    // Invalidate cache after creation (publishes invalidation events internally)
+    // Invalidate memory, search, and activate caches after creation (publishes invalidation events internally)
     await redisCacheService.invalidateMemoryCache(qdrantId);
-    await redisCacheService.invalidateSearchCache();
+    await redisCacheService.invalidateAfterUpdate();
     
     qdrantOperations.inc({ 
       operation: 'upsert', 

@@ -320,7 +320,7 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
       // Simulate what happens in memory-store.ts after storeMemory
       // Now invalidation methods handle publishing internally
       await redisCacheService.invalidateMemoryCache('test-uuid');
-      await redisCacheService.invalidateSearchCache();
+      await redisCacheService.invalidateAfterUpdate();
 
       // Wait for messages
       await new Promise(resolve => setTimeout(resolve, 300));

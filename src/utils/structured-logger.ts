@@ -175,6 +175,7 @@ export interface ErrorLogOptions {
 
 export interface StructuredLoggerApi {
   debug(message: string): void;
+  debug(bindings: Record<string, unknown>, message: string): void;
   info(message: string): void;
   info(bindings: Record<string, unknown>, message: string): void;
   warn(message: string): void;
@@ -194,8 +195,19 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
   const includeStack = LOG_LEVEL === 'debug' || process.env['NODE_ENV'] === 'development';
   return {
     // Keep free-form log text on one auditable sanitization path for every sink.
-    debug(message: string): void {
-      pinoInstance.debug(sanitizeLogMessage(message));
+    debug(msgOrBindings: string | Record<string, unknown>, message?: string): void {
+      if (typeof msgOrBindings === 'string') {
+        pinoInstance.debug(sanitizeLogMessage(msgOrBindings));
+        return;
+      }
+      const existingCategory = typeof msgOrBindings['category'] === 'string'
+        ? msgOrBindings['category']
+        : undefined;
+      const rawBindings = existingCategory
+        ? { ...msgOrBindings }
+        : { ...msgOrBindings, category: 'debug' };
+      const bindings = sanitizeBindingsForAudit(rawBindings);
+      pinoInstance.debug(bindings as Record<string, unknown>, sanitizeLogMessage(message ?? ''));
     },
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {

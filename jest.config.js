@@ -31,6 +31,8 @@ export default {
     },
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        // CJS-friendly stub: real `uuid` ships ESM-only entrypoints that break Jest without extra transforms.
+        '^uuid$': '<rootDir>/tests/mocks/uuid-stub.ts',
     },
     collectCoverageFrom: [
         'src/**/*.{ts,tsx}',

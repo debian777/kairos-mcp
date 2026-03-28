@@ -13,7 +13,8 @@ import {
   KAIROS_SEARCH_MAX_CHOICES,
   KAIROS_SEARCH_LIMIT_CAP,
   KAIROS_SEARCH_LIMIT_MIN,
-  KAIROS_ENABLE_GROUP_COLLAPSE
+  KAIROS_ENABLE_GROUP_COLLAPSE,
+  USE_REDIS
 } from '../config.js';
 import { createResults, generateUnifiedOutput } from './search_output.js';
 import { searchOutputSchema, type SearchInput, type SearchOutput } from './search_schema.js';
@@ -49,6 +50,9 @@ function escapeRegex(s: string): string {
 }
 
 const SCORE_TIE_EPS = 1e-9;
+
+/** TTL (seconds) for activate/search unified cache entries written to the key-value store. */
+const ACTIVATE_SEARCH_CACHE_TTL_SEC = 300;
 
 function addCandidate(
   candidateMap: Map<string, { memory: Memory; score: number }>,
@@ -192,14 +196,44 @@ export async function executeSearch(
   const runWithCache = async (): Promise<SearchOutput> => {
     const effectiveSpaceId = spaceParam ?? getSpaceIdFromStorage();
     const cacheKey = `activate:v5:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+    const tenantId = getTenantId();
+    const requestId = getRequestIdFromStorage();
+    const cacheDebugBase: Record<string, unknown> = {
+      component: 'activate_search_cache',
+      cache_backend: USE_REDIS ? 'redis' : 'memory',
+      cache_key_version: 'v5',
+      group_collapse: KAIROS_ENABLE_GROUP_COLLAPSE,
+      effective_limit: effectiveLimit,
+      normalized_query_len: searchQuery.length,
+      effective_space_id: effectiveSpaceId,
+      explicit_space_param: spaceParam != null,
+      tenant_id: tenantId,
+      request_id: requestId
+    };
 
     const cachedResult = await redisCacheService.get(cacheKey);
     if (cachedResult) {
+      structuredLogger.debug(
+        {
+          ...cacheDebugBase,
+          cache_lookup: 'hit',
+          configured_store_ttl_seconds: ACTIVATE_SEARCH_CACHE_TTL_SEC
+        },
+        'activate search cache hit'
+      );
       return searchOutputSchema.parse(JSON.parse(cachedResult)) as SearchOutput;
     }
 
     const result = await doSearch(memoryStore, qdrantService, searchQuery, effectiveLimit);
-    await redisCacheService.set(cacheKey, JSON.stringify(result), 300);
+    await redisCacheService.set(cacheKey, JSON.stringify(result), ACTIVATE_SEARCH_CACHE_TTL_SEC);
+    structuredLogger.debug(
+      {
+        ...cacheDebugBase,
+        cache_lookup: 'miss',
+        configured_store_ttl_seconds: ACTIVATE_SEARCH_CACHE_TTL_SEC
+      },
+      'activate search cache miss; stored'
+    );
     return result;
   };
 
