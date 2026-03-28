@@ -8,7 +8,7 @@ Rank stored **adapters** for the user’s intent and return URIs you must use ne
 - `space` / `space_id` (optional) — narrow search to one space: `"personal"`, a group name, optional `"Group: "` prefix, or your raw space id (same forms as **`train`** / **`tune`** `space`).
 - `max_choices` (optional) — cap on match rows returned.
 
-**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, and for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create), plus `message` and a global `next_action`.
+**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, and for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create), plus `message`, a global `next_action`, and `query` (echo of the input `query` for clients and MCP App UI).
 
 When several spaces contain similar adapters, the server prefers your **default write space** (usually **Personal**) on ties so a personal copy can override a group template.
 

@@ -7,6 +7,7 @@ const {
 } = require('./rules/shared-snippets.cjs');
 const { markdownPlainTextParser } = require('./parsers/markdown-plain-text.cjs');
 const { kairosForbiddenTextPlugin } = require('./plugins/kairos-forbidden-text.cjs');
+const { kairosMcpWidgetPlugin } = require('./plugins/kairos-mcp-widget.cjs');
 
 const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
@@ -245,6 +246,48 @@ function createFlatConfig(rootDir) {
       files: ['src/http/http-server-config.ts'],
       rules: {
         'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // 3cb. MCP Apps HTML widgets (src/mcp-apps): handshake + safe inline script + HTML shell
+    // -------------------------------------------------------------------------
+    {
+      files: ['src/mcp-apps/*-widget-inline-script.ts', 'src/mcp-apps/spaces-mcp-app-widget-html.ts'],
+      languageOptions: {
+        parser: tsParser,
+        parserOptions: {
+          tsconfigRootDir: rootDir,
+          project: ['./tsconfig.json', './tsconfig.tests.json'],
+        },
+      },
+      plugins: {
+        '@typescript-eslint': tsPlugin,
+        'kairos-mcp-widget': kairosMcpWidgetPlugin,
+      },
+      rules: {
+        'kairos-mcp-widget/handshake-and-safety': 'error',
+        'max-lines': [
+          'error',
+          { max: 420, skipBlankLines: false, skipComments: false },
+        ],
+      },
+    },
+    {
+      files: ['src/mcp-apps/*-widget-html.ts'],
+      languageOptions: {
+        parser: tsParser,
+        parserOptions: {
+          tsconfigRootDir: rootDir,
+          project: ['./tsconfig.json', './tsconfig.tests.json'],
+        },
+      },
+      plugins: {
+        '@typescript-eslint': tsPlugin,
+        'kairos-mcp-widget': kairosMcpWidgetPlugin,
+      },
+      rules: {
+        'kairos-mcp-widget/html-shell': 'error',
       },
     },
 

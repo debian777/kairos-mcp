@@ -1,7 +1,8 @@
 import { KAIROS_LOGO_SVG } from './kairos-logo-embedded.js';
+import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inject.js';
 
 /**
- * HTML5 MCP App for the `spaces` tool: Kairos mark + table/JSON for tool output.
+ * MCP Apps HTML fragment for `spaces` (mount root + style + script); host wraps a full document.
  *
  * Hosts (for example Cursor) expect the MCP Apps lifecycle: `ui/initialize`
  * request/response, then `ui/notifications/initialized`, before forwarding
@@ -14,13 +15,15 @@ import { KAIROS_LOGO_SVG } from './kairos-logo-embedded.js';
  */
 export function buildSpacesWidgetHtml(): string {
   const logo = KAIROS_LOGO_SVG.replaceAll('`', '&#96;');
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Your KAIROS spaces</title>
-  <style>
+  return substituteWidgetPresentationToken(`<div id="kairos-spaces-root">
+  <div class="brand">
+    ${logo}
+    <h1>KAIROS · Your spaces</h1>
+  </div>
+  <div id="out"><span class="waiting">Loading your spaces...</span></div>
+  <p class="hint">From the <code>spaces</code> tool: where your adapters live, and how many adapters each space holds. Use the space <strong>name</strong> in other tools when asked for a space, not a raw id.</p>
+</div>
+<style>
     html { font-family: var(--font-sans, system-ui, sans-serif); }
     html:not([data-theme]),
     html[data-theme="dark"],
@@ -92,22 +95,15 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="dark"] .lead,
     html.dark .lead { color: var(--color-text-secondary, #94a3b8); }
     html[data-theme="light"] .lead { color: var(--color-text-secondary, #64748b); }
-  </style>
-</head>
-<body>
-  <div class="brand">
-    ${logo}
-    <h1>KAIROS · Your spaces</h1>
-  </div>
-  <div id="out"><span class="waiting">Loading your spaces...</span></div>
-  <p class="hint">From the <code>spaces</code> tool: where your adapters live, and how many adapters each space holds. Use the space <strong>name</strong> in other tools when asked for a space, not a raw id.</p>
-  <script>
+</style>
+<script>
     (function () {
       var el = document.getElementById('out');
       var PROTO = '2026-01-26';
       var nextId = 1;
       var pending = {};
       var hostCtxState = {};
+      var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
       function mergeHostContextDelta(prev, delta) {
         var base = {};
@@ -230,6 +226,7 @@ export function buildSpacesWidgetHtml(): string {
       }
 
       function applyToolResult(p) {
+        if (PRESENTATION_ONLY) return;
         if (!p) return;
         if (p.isError) {
           showJson({ isError: true, content: p.content, message: p.message });
@@ -276,6 +273,17 @@ export function buildSpacesWidgetHtml(): string {
       });
 
       function boot() {
+        if (PRESENTATION_ONLY) {
+          if (el) {
+            el.replaceChildren();
+            var ph = document.createElement('span');
+            ph.className = 'waiting';
+            ph.textContent =
+              'Presentation-only: MCP bridge disabled (set KAIROS_MCP_WIDGET_PRESENTATION_ONLY=false for live data).';
+            el.appendChild(ph);
+          }
+          return;
+        }
         sendRequest('ui/initialize', {
           appInfo: { name: 'kairos-spaces-view', version: '1.0.0' },
           appCapabilities: {},
@@ -295,7 +303,5 @@ export function buildSpacesWidgetHtml(): string {
 
       boot();
     })();
-  </script>
-</body>
-</html>`;
+</script>`);
 }

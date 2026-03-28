@@ -18,12 +18,43 @@ export const KAIROS_FORWARD_UI_URI = 'ui://kairos/forward-result' as const;
 /** Same forward widget with Skybridge HTML MIME profile. */
 export const KAIROS_FORWARD_UI_SKYBRIDGE_URI = 'ui://open-ai/kairos/forward-result' as const;
 
+/** MCP Apps HTML resource for inline `activate` tool results (adapter choices). */
+export const KAIROS_ACTIVATE_UI_URI = 'ui://kairos/activate-result' as const;
+
+/** Same activate widget with Skybridge HTML MIME profile. */
+export const KAIROS_ACTIVATE_UI_SKYBRIDGE_URI = 'ui://open-ai/kairos/activate-result' as const;
+
+/**
+ * Flat `resourceUri` metadata key mirrored beside `_meta.ui.resourceUri` for hosts
+ * that expect the shape normalized by `@modelcontextprotocol/ext-apps` `registerAppTool`.
+ */
+export const KAIROS_UI_RESOURCE_URI_FLAT_META_KEY = 'ui/resourceUri' as const;
+
 /** `forward` tool: MCP Apps widget binding (tools/list + registerTool). */
 export const KAIROS_FORWARD_TOOL_UI_META = {
   ui: {
     resourceUri: KAIROS_FORWARD_UI_URI,
     visibility: ['model', 'app'] as const
-  }
+  },
+  [KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]: KAIROS_FORWARD_UI_URI
+} as const;
+
+/** `activate` tool: MCP Apps widget binding (tools/list + registerTool). */
+export const KAIROS_ACTIVATE_TOOL_UI_META = {
+  ui: {
+    resourceUri: KAIROS_ACTIVATE_UI_URI,
+    visibility: ['model', 'app'] as const
+  },
+  [KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]: KAIROS_ACTIVATE_UI_URI
+} as const;
+
+/** `spaces` tool: MCP Apps widget binding (tools/list + registerTool). */
+export const KAIROS_SPACES_TOOL_UI_META = {
+  ui: {
+    resourceUri: KAIROS_SPACES_UI_URI,
+    visibility: ['model', 'app'] as const
+  },
+  [KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]: KAIROS_SPACES_UI_URI
 } as const;
 
 /** SEP-1865 extension id (`io.modelcontextprotocol/ui`). */

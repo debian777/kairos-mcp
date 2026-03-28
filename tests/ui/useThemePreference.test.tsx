@@ -80,6 +80,7 @@ describe("theme preference resolver", () => {
     expect(isThemePreference("light")).toBe(true);
     expect(isThemePreference("dark")).toBe(true);
     expect(isThemePreference("system")).toBe(true);
+    expect(isThemePreference("dark-v2")).toBe(false);
     expect(isThemePreference("auto")).toBe(false);
     expect(isThemePreference(null)).toBe(false);
   });

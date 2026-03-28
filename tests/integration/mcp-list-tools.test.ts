@@ -1,6 +1,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { withRawOnFail } from '../utils/expect-with-raw.js';
 import { isLikelyToolInputJsonSchema } from '../utils/mcp-list-tools-schema-helpers.js';
+import { KAIROS_UI_RESOURCE_URI_FLAT_META_KEY } from '../../src/mcp-apps/kairos-ui-constants.js';
 
 describe('MCP Tools Listing', () => {
   let mcpConnection;
@@ -44,9 +45,21 @@ describe('MCP Tools Listing', () => {
 
       const spaces = tools.find((t) => t.name === 'spaces');
       expect(spaces?._meta?.ui?.resourceUri).toBe('ui://kairos/spaces-result');
+      expect(
+        (spaces?._meta as Record<string, unknown> | undefined)?.[KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]
+      ).toBe('ui://kairos/spaces-result');
 
       const forwardTool = tools.find((t) => t.name === 'forward');
       expect(forwardTool?._meta?.ui?.resourceUri).toBe('ui://kairos/forward-result');
+      expect(
+        (forwardTool?._meta as Record<string, unknown> | undefined)?.[KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]
+      ).toBe('ui://kairos/forward-result');
+
+      const activateTool = tools.find((t) => t.name === 'activate');
+      expect(activateTool?._meta?.ui?.resourceUri).toBe('ui://kairos/activate-result');
+      expect(
+        (activateTool?._meta as Record<string, unknown> | undefined)?.[KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]
+      ).toBe('ui://kairos/activate-result');
     }, 'tools/list raw response');
   });
 });

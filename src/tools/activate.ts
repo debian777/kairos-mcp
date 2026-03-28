@@ -9,6 +9,7 @@ import { activateInputSchema, activateOutputSchema, type ActivateInput, type Act
 import { buildAdapterUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -20,7 +21,8 @@ function extractUuid(uri: string): string {
 }
 
 async function mapSearchToActivate(
-  searchOutput: Awaited<ReturnType<typeof executeSearch>>
+  searchOutput: Awaited<ReturnType<typeof executeSearch>>,
+  query: string
 ): Promise<ActivateOutput> {
   const choices = await Promise.all(
     searchOutput.choices.map(async (choice) => {
@@ -66,6 +68,7 @@ async function mapSearchToActivate(
       .replaceAll('protocol', 'adapter')
       .replaceAll('Protocol', 'Adapter'),
     next_action: "Pick one choice and follow that choice's next_action.",
+    query,
     choices
   };
 }
@@ -86,7 +89,7 @@ export async function executeActivate(
       : undefined
   );
 
-  return mapSearchToActivate(searchOutput);
+  return mapSearchToActivate(searchOutput, input.query);
 }
 
 export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterActivateOptions = {}) {
@@ -102,7 +105,8 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
       title: 'Activate the best adapter',
       description: getToolDoc('activate') || 'Find the best adapter for the current input and return ranked activation choices.',
       inputSchema: mcpLooseToolInput(activateInputSchema),
-      outputSchema: activateOutputSchema
+      outputSchema: activateOutputSchema,
+      _meta: KAIROS_ACTIVATE_TOOL_UI_META
     },
     async (params: unknown) => {
       const tenantId = getTenantId();

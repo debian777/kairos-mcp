@@ -67,6 +67,17 @@ export async function tryApplySolutionToPreviousStepWhenSolutionMatchesPrevious(
   qdrantService: QdrantService | undefined
 ): Promise<TryApplyToPreviousResult> {
   if (!getInferenceContract(requestedMemory)) return { applied: false };
+  // Client is answering the *current* layer's minted challenge; do not route proof to previous step.
+  const nonceForRequested = requestedMemory.memory_uuid
+    ? await proofOfWorkStore.getNonce(requestedMemory.memory_uuid)
+    : null;
+  if (
+    solution.nonce != null &&
+    nonceForRequested != null &&
+    solution.nonce === nonceForRequested
+  ) {
+    return { applied: false };
+  }
   const prevInfo = await resolveAdapterPreviousLayer(requestedMemory, qdrantService);
   if (!prevInfo?.uuid) return { applied: false };
   const prevMemory = await loadMemory(prevInfo.uuid);

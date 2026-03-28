@@ -25,6 +25,8 @@ export const activateOutputSchema = z.object({
   must_obey: z.boolean().describe('Always true. Pick one adapter and follow next_action.'),
   message: z.string(),
   next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
+  /** Echo of the request query for MCP App / HTTP clients (human-facing headers). */
+  query: z.string().describe('Same string as the activate input query.'),
   choices: z.array(z.object({
     uri: adapterUriSchema,
     label: z.string().describe('Display label for the adapter choice'),

@@ -19,5 +19,7 @@ describe('buildForwardWidgetHtml', () => {
     expect(html).not.toContain('status-pill');
     expect(html).toContain('formatStepTitle');
     expect(html).toContain('renderProgress');
+    expect(html).toContain('kairos-forward-root');
+    expect(html).not.toContain('<!DOCTYPE html>');
   });
 });

@@ -55,6 +55,39 @@ flowchart LR
 The server generates challenge data (`nonce`, `proof_hash`, URIs); agents echo
 those values back exactly.
 
+## Protocol execution
+
+Authoritative behavior for agents is defined in the MCP tool resources under
+[`src/embed-docs/tools/`](src/embed-docs/tools/) (**`activate`**, **`forward`**,
+**`reward`**). This is an on-wire summary; follow each response’s `next_action`
+and `must_obey` fields in real runs.
+
+1. **`activate`** — Pass the user message or a short intent phrase as `query`.
+   From `choices`, pick **one** row and obey **that** row’s `next_action` (do not
+   mix in another URI). Typical roles: **`match`** (continue with **`forward`**
+   on the given adapter URI), **`refine`**, **`create`** (mint via **`train`**).
+
+2. **`forward`** — With the adapter URI from **`activate`**, call **`forward`**
+   and **omit** `solution` on the **first** call for that run. Read `contract`
+   and `next_action`. For each layer, call **`forward`** again using the **layer**
+   URI from the last response (add `?execution_id=...` when the server returns
+   it) and supply a `solution` whose `type` matches `contract.type`. Loop until
+   `next_action` tells you to call **`reward`**.
+
+3. **`reward`** — After the last layer, call **`reward`** with the **layer** URI
+   from **`forward`** (not the adapter URI unless the schema explicitly allows
+   it), `outcome` (`success` or `failure`), and optional evaluator fields per the
+   tool description.
+
+**Must always:** Obey `next_action` verbatim. Echo server-issued `nonce`,
+`proof_hash`, and URIs exactly.
+
+**Must never:** Invent URIs; skip layers; submit a solution whose type does not
+match `contract.type`.
+
+For a longer narrative, see
+[docs/architecture/workflow-full-execution.md](docs/architecture/workflow-full-execution.md).
+
 ## What runs in this repository
 
 The current codebase includes:
@@ -152,8 +185,27 @@ npm run infra:up
 npm run dev:deploy
 ```
 
+The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
+`scripts/run-env.sh`). The Docker minimal stack above defaults **3000** unless you
+set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
+URLs.
+
 See [docs/install/README.md](docs/install/README.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md) for the exact env variables and dev workflow.
+
+### Cursor MCP (`DEVELOPMENT_KAIROS`)
+
+This repository ships [`.cursor/mcp.json`](.cursor/mcp.json) with a **streamable
+HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
+`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `PORT=3300`).
+If you run the minimal Compose stack without overriding `PORT`, point MCP at
+`http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
+server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
+[AGENTS.md](AGENTS.md) and [docs/INSTALL-MCP.md](docs/INSTALL-MCP.md).
+
+When executing over MCP, follow **[Protocol execution](#protocol-execution)**
+above and each tool result’s `next_action`. The connected server’s tool
+descriptions are the runtime authority if they differ from this file.
 
 ## Installation options
 
@@ -259,7 +311,9 @@ docker compose -p kairos-mcp logs app-prod
 
 Also verify that required ports are free:
 
-- minimal stack: `3000`, `6333`, `9090`
+- minimal stack: app `3000` (or your `PORT`), Qdrant `6333`, metrics `9090` (or
+  your `METRICS_PORT`)
+- repo dev scripts: app often `3300`, metrics often `9390` (see `.env`)
 - full stack adds: `6379`, `5432`, `8080`, `9000`
 
 ### Health check returns `503`

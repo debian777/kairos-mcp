@@ -1,24 +1,15 @@
 import { KAIROS_LOGO_SVG } from './kairos-logo-embedded.js';
 import { FORWARD_WIDGET_INLINE_CSS } from './forward-widget-inline-css.js';
 import { FORWARD_WIDGET_INLINE_SCRIPT } from './forward-widget-inline-script.js';
+import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inject.js';
 
 /**
- * HTML5 MCP App for the `forward` tool: KAIROS • Protocol: … header, Running step: … body, progress footer.
- * Same MCP Apps lifecycle as {@link ./spaces-mcp-app-widget-html.ts}.
+ * MCP Apps HTML fragment for `forward` (mount root + style + script); host wraps a full document.
+ * Same lifecycle as {@link ./spaces-mcp-app-widget-html.ts}.
  */
 export function buildForwardWidgetHtml(): string {
   const logo = KAIROS_LOGO_SVG.replaceAll('`', '&#96;');
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Forward — KAIROS</title>
-  <style>
-${FORWARD_WIDGET_INLINE_CSS}
-  </style>
-</head>
-<body>
+  return `<div id="kairos-forward-root">
   <div class="brand">
     ${logo}
     <h1 id="header-title" class="header-title"><span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Protocol:</span></h1>
@@ -32,9 +23,11 @@ ${FORWARD_WIDGET_INLINE_CSS}
       <span id="step-text" class="step-label footer-step-count" role="status"></span>
     </div>
   </footer>
-  <script>
-${FORWARD_WIDGET_INLINE_SCRIPT}
-  </script>
-</body>
-</html>`;
+</div>
+<style>
+${FORWARD_WIDGET_INLINE_CSS}
+</style>
+<script>
+${substituteWidgetPresentationToken(FORWARD_WIDGET_INLINE_SCRIPT)}
+</script>`;
 }

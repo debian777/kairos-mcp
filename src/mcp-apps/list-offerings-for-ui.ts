@@ -8,12 +8,17 @@ import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-comp
 import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { listPromptOfferings } from '../resources/prompt-resources.js';
+import { activateInputSchema, activateOutputSchema } from '../tools/activate_schema.js';
 import { forwardInputSchema, forwardOutputSchema } from '../tools/forward_schema.js';
 import { spacesInputSchema, spacesOutputSchema } from '../tools/spaces_schema.js';
 import {
+  KAIROS_ACTIVATE_TOOL_UI_META,
+  KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
+  KAIROS_ACTIVATE_UI_URI,
   KAIROS_FORWARD_TOOL_UI_META,
   KAIROS_FORWARD_UI_SKYBRIDGE_URI,
   KAIROS_FORWARD_UI_URI,
+  KAIROS_SPACES_TOOL_UI_META,
   KAIROS_SPACES_UI_SKYBRIDGE_URI,
   KAIROS_SPACES_UI_URI,
   MCP_APP_HTML_MIME_TYPE,
@@ -22,8 +27,11 @@ import {
 
 const SPACES_TOOL_NAME = 'spaces';
 const FORWARD_TOOL_NAME = 'forward';
+const ACTIVATE_TOOL_NAME = 'activate';
 
-function zodToInputJsonSchema(schema: typeof spacesInputSchema | typeof forwardInputSchema): Record<string, unknown> {
+function zodToInputJsonSchema(
+  schema: typeof spacesInputSchema | typeof forwardInputSchema | typeof activateInputSchema
+): Record<string, unknown> {
   const obj = normalizeObjectSchema(schema);
   if (!obj) {
     return { type: 'object', properties: {} };
@@ -31,7 +39,9 @@ function zodToInputJsonSchema(schema: typeof spacesInputSchema | typeof forwardI
   return toJsonSchemaCompat(obj, { strictUnions: true, pipeStrategy: 'input' }) as Record<string, unknown>;
 }
 
-function zodToOutputJsonSchema(schema: typeof spacesOutputSchema | typeof forwardOutputSchema): Record<string, unknown> {
+function zodToOutputJsonSchema(
+  schema: typeof spacesOutputSchema | typeof forwardOutputSchema | typeof activateOutputSchema
+): Record<string, unknown> {
   const obj = normalizeObjectSchema(schema);
   if (!obj) {
     return { type: 'object', properties: {} };
@@ -49,12 +59,7 @@ export function buildSpacesToolOffering(): Record<string, unknown> {
       "List the agent's available spaces with human-readable names and adapter counts.",
     inputSchema: zodToInputJsonSchema(spacesInputSchema),
     outputSchema: zodToOutputJsonSchema(spacesOutputSchema),
-    _meta: {
-      ui: {
-        resourceUri: KAIROS_SPACES_UI_URI,
-        visibility: ['model', 'app']
-      }
-    }
+    _meta: KAIROS_SPACES_TOOL_UI_META
   };
 }
 
@@ -68,6 +73,50 @@ export function buildForwardToolOffering(): Record<string, unknown> {
     inputSchema: zodToInputJsonSchema(forwardInputSchema),
     outputSchema: zodToOutputJsonSchema(forwardOutputSchema),
     _meta: KAIROS_FORWARD_TOOL_UI_META
+  };
+}
+
+/** Tool entry for `activate` including MCP Apps widget metadata. */
+export function buildActivateToolOffering(): Record<string, unknown> {
+  return {
+    name: ACTIVATE_TOOL_NAME,
+    title: 'Activate the best adapter',
+    description:
+      getToolDoc('activate') ??
+      'Find the best adapter for the current input and return ranked activation choices.',
+    inputSchema: zodToInputJsonSchema(activateInputSchema),
+    outputSchema: zodToOutputJsonSchema(activateOutputSchema),
+    _meta: KAIROS_ACTIVATE_TOOL_UI_META
+  };
+}
+
+/** UI resource for the activate widget (mcp-app profile). */
+export function buildActivateUiResourceOffering(): Record<string, unknown> {
+  return {
+    uri: KAIROS_ACTIVATE_UI_URI,
+    name: 'KAIROS activate result',
+    description: 'Branded inline view for the activate tool (choices, roles, next_action).',
+    mimeType: MCP_APP_HTML_MIME_TYPE,
+    _meta: {
+      ui: {
+        prefersBorder: true
+      }
+    }
+  };
+}
+
+/** Activate widget with Skybridge MIME profile. */
+export function buildActivateSkybridgeResourceOffering(): Record<string, unknown> {
+  return {
+    uri: KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
+    name: 'KAIROS activate result (Skybridge profile)',
+    description: 'Same activate widget markup with text/html+skybridge.',
+    mimeType: SKYBRIDGE_HTML_MIME_TYPE,
+    _meta: {
+      ui: {
+        prefersBorder: true
+      }
+    }
   };
 }
 
@@ -137,13 +186,15 @@ export function buildListOfferingsForUIResult(): {
   resources: Record<string, unknown>[];
 } {
   return {
-    tools: [buildSpacesToolOffering(), buildForwardToolOffering()],
+    tools: [buildSpacesToolOffering(), buildForwardToolOffering(), buildActivateToolOffering()],
     prompts: listPromptOfferings(),
     resources: [
       buildSpacesUiResourceOffering(),
       buildSpacesSkybridgeResourceOffering(),
       buildForwardUiResourceOffering(),
-      buildForwardSkybridgeResourceOffering()
+      buildForwardSkybridgeResourceOffering(),
+      buildActivateUiResourceOffering(),
+      buildActivateSkybridgeResourceOffering()
     ]
   };
 }

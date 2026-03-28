@@ -10,6 +10,33 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
       var nextId = 1;
       var pending = {};
       var hostCtxState = {};
+      var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
+
+      window.addEventListener('message', function (ev) {
+        var d = ev.data;
+        if (!d || d.jsonrpc !== '2.0') return;
+        if (d.id != null && Object.prototype.hasOwnProperty.call(pending, d.id)) {
+          var h = pending[d.id];
+          delete pending[d.id];
+          if (d.error) h.reject(d.error);
+          else h.resolve(d.result);
+          return;
+        }
+        var m = d.method;
+        if (m === 'ui/notifications/host-context-changed' && d.params) {
+          hostCtxState = mergeHostContextDelta(hostCtxState, d.params);
+          paintHostContext(hostCtxState);
+          return;
+        }
+        if (m === 'ui/notifications/tool-result' && d.params) {
+          applyToolResult(d.params);
+          return;
+        }
+        if (m === 'notifications/tool-result' && d.params) {
+          applyToolResult(d.params);
+          return;
+        }
+      });
 
       function mergeHostContextDelta(prev, delta) {
         var base = {};
@@ -196,6 +223,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
       }
 
       function applyToolResult(p) {
+        if (PRESENTATION_ONLY) return;
         if (!p) return;
         if (p.isError) {
           showJson({ isError: true, content: p.content, message: p.message });
@@ -220,32 +248,20 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         showJson(p);
       }
 
-      window.addEventListener('message', function (ev) {
-        var d = ev.data;
-        if (!d || d.jsonrpc !== '2.0') return;
-        if (d.id != null && Object.prototype.hasOwnProperty.call(pending, d.id)) {
-          var h = pending[d.id];
-          delete pending[d.id];
-          if (d.error) h.reject(d.error);
-          else h.resolve(d.result);
-          return;
-        }
-        var m = d.method;
-        if (m === 'ui/notifications/host-context-changed' && d.params) {
-          hostCtxState = mergeHostContextDelta(hostCtxState, d.params);
-          paintHostContext(hostCtxState);
-          return;
-        }
-        if (m === 'ui/notifications/tool-result' && d.params) {
-          applyToolResult(d.params);
-          return;
-        }
-        if (m === 'notifications/tool-result' && d.params) {
-          applyToolResult(d.params);
-        }
-      });
-
       function boot() {
+        if (PRESENTATION_ONLY) {
+          resetChrome();
+          if (el) el.classList.remove('step-panel');
+          if (el) {
+            el.replaceChildren();
+            var ph = document.createElement('span');
+            ph.className = 'waiting';
+            ph.textContent =
+              'Presentation-only: MCP bridge disabled (set KAIROS_MCP_WIDGET_PRESENTATION_ONLY=false for live data).';
+            el.appendChild(ph);
+          }
+          return;
+        }
         sendRequest('ui/initialize', {
           appInfo: { name: 'kairos-forward-view', version: '1.0.0' },
           appCapabilities: {},

@@ -12,6 +12,7 @@ import { getEmbeddingDimension } from './services/embedding/config.js';
 // removed: debug tools (kb_version, kb_cache_stats)
 import { registerDeleteTool } from './tools/delete.js';
 import { kairosServerUiCapabilityBlock } from './mcp-apps/kairos-server-ui-capability.js';
+import { registerActivateUiResources } from './mcp-apps/register-activate-ui-resources.js';
 import { registerForwardUiResources } from './mcp-apps/register-forward-ui-resources.js';
 import { registerSpacesUiResources } from './mcp-apps/register-spaces-ui-resources.js';
 import { registerSpacesTool } from './tools/spaces.js';
@@ -50,6 +51,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerSpacesTool(server, memoryStore, { toolName: 'spaces' });
     registerSpacesUiResources(server);
     registerForwardUiResources(server);
+    registerActivateUiResources(server);
 
     // Register resources
     bootstrapEmptyResourceHandlers(server);

@@ -5,6 +5,7 @@ import { embeddingService } from '../services/embedding/service.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import type {
   BuildChallengeOptions,
   ElicitResult,
@@ -12,7 +13,6 @@ import type {
   HandleProofResult,
   ProofOfWorkSubmission
 } from './next-proof-types.js';
-
 export type {
   BuildChallengeOptions,
   ElicitResult,
@@ -223,6 +223,10 @@ export async function handleProofSubmission(
   if (memory.memory_uuid) {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     if (storedNonce != null && submission.nonce !== storedNonce) {
+      structuredLogger.getPinoLogger().debug(
+        { event: 'pow_nonce_mismatch', memory_uuid: memory.memory_uuid, submitted_nonce: submission.nonce ?? null, stored_nonce: storedNonce },
+        'pow: submitted nonce does not match store'
+      );
       return blocked('Nonce mismatch. Use the nonce from the current step challenge.', 'NONCE_MISMATCH');
     }
   }

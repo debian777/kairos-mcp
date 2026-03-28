@@ -83,6 +83,7 @@ export const KairosWithResults: Story = {
           must_obey: true,
           message: "Pick one choice and follow that choice's next_action.",
           next_action: "Pick one choice and follow that choice's next_action.",
+          query: "deploy",
           choices: [
             {
               uri: "kairos://adapter/11111111-1111-1111-1111-111111111111",
