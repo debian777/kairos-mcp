@@ -61,4 +61,21 @@ describe("createRichTextEditorExtensions markdown parse", () => {
       editor.destroy();
     }
   });
+
+  it("parses markdown headings into heading nodes", () => {
+    const editor = new Editor({
+      element: el,
+      extensions: createRichTextEditorExtensions(),
+      content: "## Section heading\n\nContent",
+      contentType: "markdown",
+    });
+    try {
+      const json = editor.getJSON();
+      const hasHeading = JSON.stringify(json).includes('"type":"heading"');
+      expect(hasHeading).toBe(true);
+      expect(editor.getText()).toContain("Section heading");
+    } finally {
+      editor.destroy();
+    }
+  });
 });

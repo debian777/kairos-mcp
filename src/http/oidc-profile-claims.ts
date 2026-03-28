@@ -73,8 +73,6 @@ export function realmFromIssuer(iss: string): string {
 export function extractGroupsFromPayload(payload: Record<string, unknown>): string[] {
   const g = payload["groups"];
   if (Array.isArray(g)) return g.filter((x): x is string => typeof x === "string");
-  const realm = payload["realm_access"] as { roles?: string[] } | undefined;
-  if (realm && Array.isArray(realm.roles)) return realm.roles.filter((x): x is string => typeof x === "string");
   return [];
 }
 
@@ -125,7 +123,7 @@ export function deriveAccountKindAndLabel(identityProvider: string | undefined):
 /**
  * Merge id_token and access_token payloads after login:
  * — sub from id token when present; otherwise access. If both subs exist and differ, fail.
- * — groups / group_ids prefer access token (Keycloak often puts roles there); fallback to id.
+ * — groups / group_ids prefer access token; fallback to id.
  * — realm from id token iss, else access iss, else fallbackRealm.
  * — profile / email claims prefer id token; if id absent, fall back to access for CLI-style flows.
  */

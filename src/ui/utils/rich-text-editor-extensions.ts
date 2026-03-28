@@ -7,7 +7,11 @@ import { Markdown } from "@tiptap/markdown";
 /** TipTap extensions for protocol step body (single source for editor + tests). */
 export function createRichTextEditorExtensions(): Extensions {
   return [
-    StarterKit.configure({ heading: false, link: false }),
+    StarterKit.configure({
+      link: false,
+      // Keep headings in schema so markdown parse does not degrade when fragments include ## / ###.
+      heading: { levels: [2, 3, 4] },
+    }),
     Link.configure({ openOnClick: false, autolink: false }),
     Table.configure({ resizable: false }),
     TableRow,

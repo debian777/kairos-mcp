@@ -48,7 +48,7 @@ describe("oidc-profile-claims", () => {
     const accessPayload = {
       sub: "same",
       iss: "http://k/realms/r1",
-      realm_access: { roles: ["role-a", "role-b"] },
+      groups: ["group-a", "group-b"],
     };
     const r = mergeCallbackTokenPayloads({
       idPayload,
@@ -58,7 +58,7 @@ describe("oidc-profile-claims", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.merged.sub).toBe("same");
-    expect(r.merged.groups).toEqual(["role-a", "role-b"]);
+    expect(r.merged.groups).toEqual(["group-a", "group-b"]);
     expect(r.merged.name).toBe("IdP Name");
     expect(r.merged.email).toBe("id@x");
     expect(r.merged.realm).toBe("r1");
@@ -89,12 +89,23 @@ describe("oidc-profile-claims", () => {
   test("mergeCallbackTokenPayloads uses access-only sub when no id token", () => {
     const r = mergeCallbackTokenPayloads({
       idPayload: null,
-      accessPayload: { sub: "acc-only", realm_access: { roles: ["r"] } },
+      accessPayload: { sub: "acc-only", groups: ["r"] },
       fallbackRealm: "fr",
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.merged.sub).toBe("acc-only");
     expect(r.merged.groups).toEqual(["r"]);
+  });
+
+  test("mergeCallbackTokenPayloads does not map realm_access roles into groups", () => {
+    const r = mergeCallbackTokenPayloads({
+      idPayload: null,
+      accessPayload: { sub: "acc-only", realm_access: { roles: ["offline_access"] } },
+      fallbackRealm: "fr",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.merged.groups).toEqual([]);
   });
 });

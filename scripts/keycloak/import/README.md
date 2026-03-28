@@ -29,6 +29,31 @@ The script:
 
 Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
 
+## Claims used by KAIROS account and spaces
+
+KAIROS expects explicit token claims (not inferred fallbacks):
+
+- `identity_provider` (string) for account labeling (for example `google` -> `Google (SSO)` in `/ui/account`)
+- `groups` (array of strings) for group-derived spaces and account group display
+
+### Identity provider claim (Keycloak 26.5.x)
+
+For brokered login (Google/Okta/etc.), configure a **User Session Note** protocol mapper:
+
+- session note: `identity_provider`
+- token claim name: `identity_provider`
+- include in access token and/or ID token
+
+Without this mapper, KAIROS treats users as local account type because the claim is absent.
+
+### Groups claim (explicit memberships only)
+
+KAIROS reads only the JWT `groups` claim. It does **not** fallback to `realm_access.roles`.
+Use a dedicated **Group Membership** mapper (or equivalent custom mapper) to emit `groups`.
+
+If you use claim filtering, ensure the final token still emits only the memberships you intend
+to grant as KAIROS group spaces.
+
 ## Adding other users
 
 For ad-hoc users (e.g. demo) with auto-generated password:

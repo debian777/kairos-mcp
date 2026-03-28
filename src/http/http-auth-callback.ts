@@ -32,28 +32,6 @@ function signSession(
   return `${payloadB64}.${sig}`;
 }
 
-const AUTH_LOGGED_OUT_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Logged out – KAIROS</title>
-  <style>
-    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; color: #e5e5e5; text-align: center; }
-    .box { padding: 2rem; max-width: 24rem; }
-    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
-    p { color: #a3a3a3; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>Session cleared</h1>
-    <p>You are logged out. You can close this page.</p>
-  </div>
-</body>
-</html>
-`;
-
 const useSecureCookie = AUTH_CALLBACK_BASE_URL.trim().toLowerCase().startsWith('https://');
 
 /** Cookie options must match those used when setting the session (Path=/) so the browser clears it. */
@@ -72,12 +50,11 @@ export function setupAuthCallback(app: express.Express): void {
 
   app.get('/auth/logout', (_req: Request, res: Response) => {
     res.clearCookie(SESSION_COOKIE_NAME, COOKIE_CLEAR_OPTIONS);
-    res.redirect(302, '/auth/logged-out');
+    res.redirect(302, '/ui/');
   });
 
   app.get('/auth/logged-out', (_req: Request, res: Response) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(AUTH_LOGGED_OUT_HTML);
+    res.redirect(302, '/ui/');
   });
 
   app.get('/auth/callback', async (req: Request, res: Response) => {

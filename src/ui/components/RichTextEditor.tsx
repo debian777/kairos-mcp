@@ -238,13 +238,13 @@ export function RichTextEditor({ value, onChange, label, hint, id, contentKey }:
     if (contentKey !== lastContentKeyRef.current) {
       lastContentKeyRef.current = contentKey;
       lastEmittedMarkdown.current = value;
-      editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
+      editor.commands.setContent(value, false, { contentType: "markdown" });
       return;
     }
 
     if (value !== lastEmittedMarkdown.current) {
       lastEmittedMarkdown.current = value;
-      editor.commands.setContent(value, false, { contentType: "markdown", preserveWhitespace: "full" });
+      editor.commands.setContent(value, false, { contentType: "markdown" });
     }
   }, [contentKey, value, editor]);
 
