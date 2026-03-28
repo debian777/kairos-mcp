@@ -16,7 +16,9 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
    exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
 4. Allowed client scopes (policies): whitelist client-scope templates for anonymous/authenticated
    registration (includes `openid` and kairos-cli default templates).
-5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in dev realm (for tests).
+5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in **kairos-dev**.
+6. Verify realm dump matches import JSON.
+7. Add test user to **kairos-auditor** last; **GET** user groups to confirm (so Admin UI matches).
 
 Identity providers (e.g. Google) are not in realm JSON; configure via configure-keycloak-google-idp.py.
 
@@ -679,6 +681,102 @@ def set_password(
         sys.exit(f"Set password failed: {e.code} {body}")
 
 
+def _find_group_id_by_name(groups: list[dict], name: str) -> str | None:
+    for g in groups:
+        if g.get("name") == name:
+            gid = g.get("id")
+            if isinstance(gid, str) and gid:
+                return gid
+        sub = g.get("subGroups")
+        if isinstance(sub, list):
+            found = _find_group_id_by_name(sub, name)
+            if found:
+                return found
+    return None
+
+
+def get_realm_group_id_by_name(
+    base_url: str, realm: str, group_name: str, token: str
+) -> str | None:
+    q = urllib.parse.urlencode({"briefRepresentation": "false", "max": "1000"})
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/groups?{q}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = json.loads(resp.read().decode())
+            if not isinstance(raw, list):
+                return None
+            return _find_group_id_by_name(raw, group_name)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET groups {realm} failed: {e.code} {body}")
+
+
+def list_user_groups(base_url: str, realm: str, user_id: str, token: str) -> list[dict]:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users/{user_id}/groups"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = json.loads(resp.read().decode())
+            return raw if isinstance(raw, list) else []
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET user groups {realm} user={user_id} failed: {e.code} {body}")
+
+
+def user_is_in_named_group(groups: list[dict], group_name: str) -> bool:
+    for g in groups:
+        if g.get("name") == group_name:
+            return True
+        sub = g.get("subGroups")
+        if isinstance(sub, list) and user_is_in_named_group(sub, group_name):
+            return True
+    return False
+
+
+def ensure_user_in_group(
+    base_url: str, realm: str, user_id: str, group_id: str, token: str
+) -> None:
+    """Idempotent: PUT membership (Keycloak accepts repeat)."""
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users/{user_id}/groups/{group_id}"
+    req = urllib.request.Request(url, method="PUT")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Add user to group failed: {e.code} {body}")
+
+
+def ensure_test_user_in_group(
+    base_url: str, realm: str, username: str, group_name: str, token: str
+) -> None:
+    """
+    Add test user to a realm group and verify via Admin API (GET user groups).
+    Fails the script if membership cannot be applied — do not print success without proof.
+    """
+    user_id = get_user_id(base_url, realm, username, token)
+    if not user_id:
+        sys.exit(
+            f"Test user {username!r} missing in {realm}; cannot assign group {group_name!r}."
+        )
+    group_id = get_realm_group_id_by_name(base_url, realm, group_name, token)
+    if not group_id:
+        sys.exit(
+            f"Group {group_name!r} missing in {realm}; import realm JSON or create the group first."
+        )
+    ensure_user_in_group(base_url, realm, user_id, group_id, token)
+    assigned = list_user_groups(base_url, realm, user_id, token)
+    if not user_is_in_named_group(assigned, group_name):
+        sys.exit(
+            f"Keycloak Admin API did not report {username!r} in {group_name!r} after PUT "
+            f"(user groups: {[g.get('name') for g in assigned]!r})."
+        )
+    print(f"  Test user {realm}: {username} -> group {group_name} (verified)")
+
+
 def ensure_test_user(
     base_url: str, realm: str, username: str, password: str, token: str
 ) -> None:
@@ -875,7 +973,7 @@ def main() -> int:
     for realm_name, _ in REALM_FILES:
         ensure_allowed_client_templates(base_url, realm_name, token)
 
-    # 5. Test user in dev only
+    # 5. Test user in dev only (password); group membership runs after verify (step 7)
     for realm_name in ("kairos-dev",):
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
 
@@ -887,6 +985,10 @@ def main() -> int:
             print(f"  - {msg}", file=sys.stderr)
         sys.exit(1)
     print("Verified: dump matches import.")
+
+    # 7. Test user group last (realm/clients verified); GET confirms membership for Admin UI / tokens
+    for realm_name in ("kairos-dev",):
+        ensure_test_user_in_group(base_url, realm_name, test_username, "kairos-auditor", token)
 
     print("Keycloak realms configured.")
     return 0

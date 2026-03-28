@@ -66,12 +66,7 @@
     "docker:build:dev": "docker build -f Dockerfile.dev -t debian777/kairos-mcp:dev .",
     "docker:push": "docker push debian777/kairos-mcp:latest && docker push debian777/kairos-mcp:$(node -p \"require('./package.json').version\")",
     "docker:publish": "npm run docker:build && npm run docker:push",
-    "ui:dev": "vite",
     "ui:build": "vite build",
-    "ui:preview": "vite preview",
-    "storybook": "npm run dev:restart && storybook dev -p 6006",
-    "storybook:with-deploy": "npm run dev:deploy && storybook dev -p 6006",
-    "storybook:build": "storybook build",
     "design:viewports": "node scripts/capture-viewports.mjs",
     "test:ui": "NODE_OPTIONS='--no-webstorage' vitest run --config vitest.config.ts",
     "test:ui:watch": "NODE_OPTIONS='--no-webstorage' vitest --config vitest.config.ts",
@@ -136,9 +131,6 @@
   "devDependencies": {
     "@jest/globals": "^30.2.0",
     "@jest/test-sequencer": "^30.2.0",
-    "@storybook/addon-docs": "10.3.3",
-    "@storybook/react": "10.3.3",
-    "@storybook/react-vite": "10.3.3",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
@@ -156,14 +148,12 @@
     "dotenv": "^17.3.1",
     "dotenv-cli": "^11.0.0",
     "eslint": "^10.0.2",
-    "eslint-plugin-storybook": "10.3.3",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jsdom": "^29.0.0",
     "knip": "^6.0.0",
     "pino-pretty": "^13.1.3",
     "playwright": "^1.49.0",
-    "storybook": "10.3.3",
     "tailwindcss": "^4.0.0",
     "testcontainers": "^11.12.0",
     "ts-jest": "^29.4.6",
@@ -177,9 +167,6 @@
     "node": ">=25.0.0"
   },
   "overrides": {
-    "@joshwooding/vite-plugin-react-docgen-typescript": {
-      "vite": "$vite"
-    },
     "path-to-regexp": "^8.4.0",
     "glob": "^13.0.0",
     "minimatch": "^10.2.3",

@@ -20,7 +20,7 @@ The current stack is:
 - `react-i18next` for translations
 - CSS design tokens in `src/ui/theme/tokens.css`
 - Tailwind utility classes in UI components
-- Storybook for component and screen review
+- Production UI is the Vite output (`npm run ui:build` → `dist/ui/`) served by Express
 
 ## Runtime boundary
 
@@ -50,7 +50,7 @@ client. `src/ui/App.tsx` owns the route tree and mounts the app under
 The current route set is:
 
 - `/` for `HomePage`
-- `/kairos` for protocol discovery
+- `/kairos` for protocol discovery (activation search plus A–Z browse-by-title over adapters; nav label “Browse”)
 - `/runs` for saved browser test runs
 - `/protocols/new` for protocol creation
 - `/protocols/:uri` for protocol detail
@@ -95,21 +95,15 @@ manual test run on the same device.
 This is a test and validation surface for humans. It does not replace
 the agent-first execution model documented elsewhere in this section.
 
-## Design system and Storybook
+## Design system
 
 Design tokens live in `src/ui/theme/tokens.css`, which defines colors,
 spacing, typography, radius, and global focus-visible behavior. The
 implementation uses those tokens directly inside Tailwind class strings.
 
-Storybook is the canonical review surface for component and screen work.
-It is used for:
-
-- screen stories that reflect the implemented app
-- local design review without maintaining a second exported docs site
-
-There is no longer a generated `docs/design/mockups/` export. Design
-reference stays in Storybook, while durable written guidance stays in
-`docs/design/`.
+Review and change the UI in `src/ui/` and validate with `npm run ui:build`
+and the running app at `/ui`. Durable written guidance stays in
+`docs/design/` where present.
 
 ## Why this architecture stays
 
@@ -118,7 +112,7 @@ This setup remains the right fit for the current product because it:
 - keeps auth and API traffic same-origin
 - preserves a clean separation between backend code and frontend code
 - supports interactive flows that are awkward in server-rendered HTML
-- works well with the existing React-based Storybook and design process
+- ships one static bundle aligned with the server, without a separate dev UI surface
 
 The main tradeoff is the frontend build step, but that is already part
 of the normal application build and is lower risk than maintaining a

@@ -1,12 +1,12 @@
 import path from "node:path";
-import { config as loadDotenv } from "dotenv";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { getUiImportMetaEnvDefine } from "./scripts/vite-ui-env-define.js";
 
-loadDotenv({ path: path.resolve(__dirname, ".env") });
-const kairosBackend = `http://localhost:${process.env.PORT?.trim() || "3300"}`;
-
+/**
+ * Production UI build only (`npm run ui:build`). No dev-server config: the
+ * shipped surface is Express + `dist/ui`, matching tag v3.4.0 layout.
+ */
 export default defineConfig({
   root: "src/ui",
   base: "/ui/",
@@ -38,13 +38,6 @@ export default defineConfig({
           ],
         },
       },
-    },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      "/api": { target: kairosBackend, changeOrigin: true },
-      "/ui": { target: kairosBackend, changeOrigin: true },
     },
   },
 });
