@@ -135,14 +135,13 @@ Done.`;
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
       // Activate HTTP response: exact top-level keys (canonical shape; no metadata in spec)
-      const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action'];
+      const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
       expect(Object.keys(data).sort()).toEqual([...canonicalSearchKeys].sort());
       expect(data.must_obey).toBe(true);
       expect(Array.isArray(data.choices)).toBe(true);
       expect(typeof data.message).toBe('string');
       expect(typeof data.next_action).toBe('string');
-      // Type checks
-      expect(typeof data.must_obey).toBe('boolean');
+      expect(data.query).toBe(query);
       if (data.metadata && typeof data.metadata === 'object' && data.metadata !== null && 'duration_ms' in data.metadata) {
         expect(typeof (data.metadata as { duration_ms?: number }).duration_ms).toBe('number');
       }

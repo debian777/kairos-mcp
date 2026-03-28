@@ -21,7 +21,8 @@ function extractUuid(uri: string): string {
 }
 
 async function mapSearchToActivate(
-  searchOutput: Awaited<ReturnType<typeof executeSearch>>
+  searchOutput: Awaited<ReturnType<typeof executeSearch>>,
+  query: string
 ): Promise<ActivateOutput> {
   const choices = await Promise.all(
     searchOutput.choices.map(async (choice) => {
@@ -67,6 +68,7 @@ async function mapSearchToActivate(
       .replaceAll('protocol', 'adapter')
       .replaceAll('Protocol', 'Adapter'),
     next_action: "Pick one choice and follow that choice's next_action.",
+    query,
     choices
   };
 }
@@ -87,7 +89,7 @@ export async function executeActivate(
       : undefined
   );
 
-  return mapSearchToActivate(searchOutput);
+  return mapSearchToActivate(searchOutput, input.query);
 }
 
 export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterActivateOptions = {}) {

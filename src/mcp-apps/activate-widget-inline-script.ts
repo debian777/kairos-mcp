@@ -8,6 +8,8 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
       var pending = {};
       var hostCtxState = {};
       var MAX_CHOICES = 40;
+      /** Omit last N choices in the panel only (tool JSON unchanged); typical refine/create footer. */
+      var WIDGET_DROP_LAST_CHOICES = 2;
       var BATCH = 10;
       var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
@@ -134,8 +136,29 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         });
       }
 
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function headerHtmlIdle() {
+        return '<span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-name muted">…</span>';
+      }
+
+      function headerHtmlWithQuery(q) {
+        var safe = escapeHtml(q && String(q).trim() ? String(q).trim() : '—');
+        return (
+          '<span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-name">' +
+          safe +
+          '</span>'
+        );
+      }
+
       function showJson(obj) {
-        if (headerTitle) headerTitle.textContent = 'KAIROS · Activate';
+        if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
         document.title = 'Activate — KAIROS';
         if (el) {
           var pre = document.createElement('pre');
@@ -171,8 +194,6 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           ? String(ch.adapter_name).trim() : '';
         var space = ch && ch.space_name != null && String(ch.space_name).trim()
           ? String(ch.space_name).trim() : '';
-        var uri = ch && ch.uri != null ? String(ch.uri) : '';
-        var nextA = ch && ch.next_action != null ? String(ch.next_action) : '';
         var row = document.createElement('div');
         row.className = 'choice-row';
         var pill = document.createElement('span');
@@ -201,45 +222,24 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           mp.textContent = meta.join(' · ');
           li.appendChild(mp);
         }
-        if (nextA) {
-          var np = document.createElement('p');
-          np.className = 'sub';
-          np.textContent = 'Next: ' + nextA;
-          li.appendChild(np);
-        }
-        if (uri) {
-          var up = document.createElement('p');
-          up.className = 'uri';
-          up.textContent = uri;
-          li.appendChild(up);
-        }
         return li;
       }
 
       function renderActivate(sc) {
         var total = sc.choices.length;
-        var list = total > MAX_CHOICES ? sc.choices.slice(0, MAX_CHOICES) : sc.choices;
+        var raw = total > MAX_CHOICES ? sc.choices.slice(0, MAX_CHOICES) : sc.choices;
         var capped = total > MAX_CHOICES;
+        var list =
+          raw.length > WIDGET_DROP_LAST_CHOICES
+            ? raw.slice(0, raw.length - WIDGET_DROP_LAST_CHOICES)
+            : raw;
         if (headerTitle) {
-          headerTitle.textContent = 'KAIROS · Activate (' + total + ' ' + (total === 1 ? 'choice' : 'choices') + ')';
+          headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
         }
-        document.title = 'Activate — KAIROS';
+        var qt = sc.query != null && String(sc.query).trim() ? String(sc.query).trim() : 'Activate';
+        document.title = qt.length > 48 ? qt.slice(0, 45) + '… — KAIROS' : qt + ' — KAIROS';
         if (!el) return;
         el.replaceChildren();
-
-        var msg = document.createElement('p');
-        msg.className = 'msg';
-        msg.textContent = sc.message;
-        el.appendChild(msg);
-
-        var nb = document.createElement('div');
-        nb.className = 'nextbox';
-        var nl = document.createElement('span');
-        nl.className = 'lbl';
-        nl.textContent = 'Global next_action';
-        nb.appendChild(nl);
-        nb.appendChild(document.createTextNode(sc.next_action));
-        el.appendChild(nb);
 
         var ul = document.createElement('ul');
         ul.className = 'choices-list';
@@ -295,6 +295,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
 
       function boot() {
         if (PRESENTATION_ONLY) {
+          if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             el.replaceChildren();
             var ph = document.createElement('span');
@@ -316,7 +317,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           }
           sendNotification('ui/notifications/initialized', {});
         }).catch(function (err) {
-          if (headerTitle) headerTitle.textContent = 'KAIROS · Activate';
+          if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             var msg = (err && err.message) ? err.message : String(err);
             el.replaceChildren();
