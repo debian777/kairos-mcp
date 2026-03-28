@@ -75,7 +75,7 @@ jobs:
         run: node scripts/run-with-github-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
 
       - name: Lint skills (skills-ref)
-        run: node scripts/run-with-github-summary.mjs "Lint skills (skills-ref)" -- python3 scripts/lint_skills.py
+        run: node scripts/run-with-github-summary.mjs "Lint skills (skills-ref)" -- npm run lint:skills
 
       - name: Install dependencies
         run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
