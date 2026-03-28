@@ -9,6 +9,7 @@ import { activateInputSchema, activateOutputSchema, type ActivateInput, type Act
 import { buildAdapterUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -102,7 +103,8 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
       title: 'Activate the best adapter',
       description: getToolDoc('activate') || 'Find the best adapter for the current input and return ranked activation choices.',
       inputSchema: mcpLooseToolInput(activateInputSchema),
-      outputSchema: activateOutputSchema
+      outputSchema: activateOutputSchema,
+      _meta: KAIROS_ACTIVATE_TOOL_UI_META
     },
     async (params: unknown) => {
       const tenantId = getTenantId();

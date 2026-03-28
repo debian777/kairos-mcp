@@ -99,6 +99,26 @@ When the connected MCP surface differs from this worktree:
 - Do not use the current branch name as protocol authority. Branch names are a
   hint only.
 
+## Cursor agent MCP server identifiers
+
+When using Cursor’s **agent MCP bridge** (`call_mcp_tool`), the **server**
+argument is **not** always the same string as the key in `.cursor/mcp.json`.
+
+- **Config key (human / `mcp.json`):** e.g. `DEVELOPMENT_KAIROS` for local dev
+  at `http://localhost:3300/mcp` (see `docs/INSTALL-MCP.md`).
+- **Agent-visible id:** Cursor typically prefixes that key with the workspace
+  context, e.g. `project-<n>-<workspace-folder-slug>-DEVELOPMENT_KAIROS`. With
+  this repository opened as the workspace root named `kairos-mcp`, a common
+  value is `project-0-kairos-mcp-DEVELOPMENT_KAIROS`.
+
+**If `call_mcp_tool` fails with “MCP server does not exist”**, read the error’s
+**Available servers** list (or check Cursor’s MCP panel) and use the entry that
+corresponds to your configured server — often the one ending in
+`-DEVELOPMENT_KAIROS` for local dev. Do not treat any single example string as
+portable across workspaces or Cursor versions.
+
+Repo-local detail: `.cursor/skills/cursor-mcp-server-ids/SKILL.md`.
+
 ## Context7 usage
 
 Call Context7 MCP tools whenever you need library/API documentation.

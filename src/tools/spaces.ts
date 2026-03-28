@@ -10,7 +10,7 @@ import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context
 import { buildSpaceFilter } from '../utils/space-filter.js';
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
-import { KAIROS_SPACES_UI_URI } from '../mcp-apps/kairos-ui-constants.js';
+import { KAIROS_SPACES_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
@@ -152,12 +152,7 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
       description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
       inputSchema: mcpLooseToolInput(spacesInputSchema),
       outputSchema: spacesOutputSchema,
-      _meta: {
-        ui: {
-          resourceUri: KAIROS_SPACES_UI_URI,
-          visibility: ['model', 'app']
-        }
-      }
+      _meta: KAIROS_SPACES_TOOL_UI_META
     },
     async (params: unknown) => {
       const tenantId = getTenantId();

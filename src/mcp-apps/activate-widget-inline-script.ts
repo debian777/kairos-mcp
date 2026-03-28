@@ -1,15 +1,14 @@
-/** Inline boot script for {@link ./forward-widget-html.ts} (MCP Apps HTML bundle). */
-export const FORWARD_WIDGET_INLINE_SCRIPT = `
+/** Inline boot script for {@link ./activate-widget-html.ts} (MCP Apps HTML bundle). */
+export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
     (function () {
       var el = document.getElementById('out');
       var headerTitle = document.getElementById('header-title');
-      var runFooter = document.getElementById('run-footer');
-      var stepText = document.getElementById('step-text');
-      var segHost = document.getElementById('progress-segments');
       var PROTO = '2026-01-26';
       var nextId = 1;
       var pending = {};
       var hostCtxState = {};
+      var MAX_CHOICES = 40;
+      var BATCH = 10;
       var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
       window.addEventListener('message', function (ev) {
@@ -79,11 +78,8 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         if (ctx.theme === 'light' || ctx.theme === 'dark') {
           document.documentElement.setAttribute('data-theme', ctx.theme);
           document.documentElement.style.colorScheme = ctx.theme;
-          if (ctx.theme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          if (ctx.theme === 'dark') document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
         }
         var st = ctx.styles;
         if (st && st.variables && typeof st.variables === 'object') {
@@ -131,95 +127,144 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         post({ jsonrpc: '2.0', method: method, params: params || {} });
       }
 
-      function escapeHtml(s) {
-        return String(s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
-      }
-
-      function headerHtmlIdle() {
-        return '<span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Protocol:</span>';
-      }
-
-      function headerHtmlWithProtocol(name) {
-        var safe = escapeHtml(name || 'Forward run');
-        return headerHtmlIdle() + ' <span class="ht-protocol-name">' + safe + '</span>';
-      }
-
-      function resetChrome() {
-        if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
-        if (runFooter) runFooter.hidden = true;
-        document.title = 'Forward — KAIROS';
+      function notifySize() {
+        requestAnimationFrame(function () {
+          var h = document.documentElement.scrollHeight;
+          sendNotification('ui/notifications/size-changed', { height: h });
+        });
       }
 
       function showJson(obj) {
-        resetChrome();
-        if (el) el.classList.remove('step-panel');
-        var pre = document.createElement('pre');
-        pre.className = 'raw';
-        try { pre.textContent = JSON.stringify(obj, null, 2); } catch (e) { pre.textContent = String(obj); }
-        el.replaceChildren(pre);
+        if (headerTitle) headerTitle.textContent = 'KAIROS · Activate';
+        document.title = 'Activate — KAIROS';
+        if (el) {
+          var pre = document.createElement('pre');
+          pre.className = 'raw';
+          try { pre.textContent = JSON.stringify(obj, null, 2); } catch (e) { pre.textContent = String(obj); }
+          el.replaceChildren(pre);
+        }
+        notifySize();
       }
 
-      function isForwardStructured(sc) {
+      function isActivateStructured(sc) {
         return sc && typeof sc === 'object' && typeof sc.must_obey === 'boolean' &&
-          sc.contract && typeof sc.contract === 'object' && typeof sc.contract.type === 'string' &&
-          typeof sc.next_action === 'string';
+          Array.isArray(sc.choices) && typeof sc.next_action === 'string' && typeof sc.message === 'string';
       }
 
-      function formatStepTitle(sc) {
-        var label = sc.current_layer_label != null && String(sc.current_layer_label).trim()
-          ? String(sc.current_layer_label).trim() : '';
-        if (!label) {
-          return '<p class="step-running"><span class="step-running-label">Running step:</span> <span class="muted">No title in this response</span></p>';
-        }
-        return '<p class="step-running"><span class="step-running-label">Running step:</span> <span class="step-running-name">' +
-          escapeHtml(label) + '</span></p>';
+      function normRole(r) {
+        var s = r && String(r);
+        if (s === 'match' || s === 'refine' || s === 'create') return s;
+        return 'match';
       }
 
-      function renderProgress(idx, cnt, hasIssue) {
-        if (!segHost || !stepText || !runFooter) return;
-        var i;
-        var n = typeof cnt === 'number' && cnt > 0 ? Math.floor(cnt) : 0;
-        var cur = typeof idx === 'number' && idx > 0 ? Math.floor(idx) : 1;
-        if (n < 1) {
-          runFooter.hidden = true;
-          return;
-        }
-        if (cur < 1) cur = 1;
-        if (cur > n) cur = n;
-        runFooter.hidden = false;
-        runFooter.classList.toggle('run-has-issue', !!hasIssue);
-        stepText.textContent = 'Step ' + cur + ' of ' + n;
-
-        segHost.replaceChildren();
-        for (i = 1; i <= n; i++) {
-          var seg = document.createElement('span');
-          seg.className = 'seg';
-          if (i < cur) seg.classList.add('seg-done');
-          else if (i === cur) seg.classList.add('seg-current');
-          else seg.classList.add('seg-pending');
-          segHost.appendChild(seg);
-        }
+      function scoreText(role, score) {
+        if (role !== 'match' || score == null || typeof score !== 'number') return '';
+        return String(Math.round(score * 1000) / 10) + '% match';
       }
 
-      function renderForward(sc) {
-        var adapterRaw = sc.context_adapter_name != null && String(sc.context_adapter_name).trim()
-          ? String(sc.context_adapter_name).trim() : '';
+      function buildChoiceEl(ch, index) {
+        var li = document.createElement('li');
+        li.className = 'choice';
+        var role = normRole(ch && ch.role);
+        var label = ch && ch.label != null ? String(ch.label) : 'Choice ' + (index + 1);
+        var adapterName = ch && ch.adapter_name != null && String(ch.adapter_name).trim()
+          ? String(ch.adapter_name).trim() : '';
+        var space = ch && ch.space_name != null && String(ch.space_name).trim()
+          ? String(ch.space_name).trim() : '';
+        var uri = ch && ch.uri != null ? String(ch.uri) : '';
+        var nextA = ch && ch.next_action != null ? String(ch.next_action) : '';
+        var row = document.createElement('div');
+        row.className = 'choice-row';
+        var pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.setAttribute('data-role', role);
+        pill.textContent = role;
+        row.appendChild(pill);
+        var title = document.createElement('span');
+        title.className = 'choice-title';
+        title.textContent = label;
+        row.appendChild(title);
+        var st = scoreText(role, ch && ch.activation_score);
+        if (st) {
+          var scEl = document.createElement('span');
+          scEl.className = 'choice-score';
+          scEl.textContent = st;
+          row.appendChild(scEl);
+        }
+        li.appendChild(row);
+        var meta = [];
+        if (adapterName && adapterName !== label) meta.push(adapterName);
+        if (space) meta.push('Space: ' + space);
+        if (meta.length) {
+          var mp = document.createElement('p');
+          mp.className = 'sub';
+          mp.textContent = meta.join(' · ');
+          li.appendChild(mp);
+        }
+        if (nextA) {
+          var np = document.createElement('p');
+          np.className = 'sub';
+          np.textContent = 'Next: ' + nextA;
+          li.appendChild(np);
+        }
+        if (uri) {
+          var up = document.createElement('p');
+          up.className = 'uri';
+          up.textContent = uri;
+          li.appendChild(up);
+        }
+        return li;
+      }
+
+      function renderActivate(sc) {
+        var total = sc.choices.length;
+        var list = total > MAX_CHOICES ? sc.choices.slice(0, MAX_CHOICES) : sc.choices;
+        var capped = total > MAX_CHOICES;
         if (headerTitle) {
-          headerTitle.innerHTML = headerHtmlWithProtocol(adapterRaw || 'Forward run');
+          headerTitle.textContent = 'KAIROS · Activate (' + total + ' ' + (total === 1 ? 'choice' : 'choices') + ')';
         }
-        document.title = (adapterRaw || 'Forward') + ' — KAIROS';
+        document.title = 'Activate — KAIROS';
+        if (!el) return;
+        el.replaceChildren();
 
-        if (el) el.classList.add('step-panel');
-        el.innerHTML = formatStepTitle(sc);
+        var msg = document.createElement('p');
+        msg.className = 'msg';
+        msg.textContent = sc.message;
+        el.appendChild(msg);
 
-        var idx = sc.adapter_layer_index;
-        var cnt = sc.adapter_layer_count;
-        var hasIssue = !!(sc.error_code || (typeof sc.retry_count === 'number' && sc.retry_count > 0));
-        renderProgress(idx, cnt, hasIssue);
+        var nb = document.createElement('div');
+        nb.className = 'nextbox';
+        var nl = document.createElement('span');
+        nl.className = 'lbl';
+        nl.textContent = 'Global next_action';
+        nb.appendChild(nl);
+        nb.appendChild(document.createTextNode(sc.next_action));
+        el.appendChild(nb);
+
+        var ul = document.createElement('ul');
+        ul.className = 'choices-list';
+        ul.setAttribute('role', 'list');
+        el.appendChild(ul);
+
+        var i = 0;
+        function pump() {
+          var end = Math.min(i + BATCH, list.length);
+          for (; i < end; i++) {
+            ul.appendChild(buildChoiceEl(list[i], i));
+          }
+          if (i < list.length) {
+            requestAnimationFrame(pump);
+          } else {
+            if (capped) {
+              var note = document.createElement('p');
+              note.className = 'cap-note';
+              note.textContent = 'Showing ' + MAX_CHOICES + ' of ' + total + ' choices.';
+              el.appendChild(note);
+            }
+            notifySize();
+          }
+        }
+        requestAnimationFrame(pump);
       }
 
       function applyToolResult(p) {
@@ -229,8 +274,8 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           showJson({ isError: true, content: p.content, message: p.message });
           return;
         }
-        if (p.structuredContent != null && isForwardStructured(p.structuredContent)) {
-          renderForward(p.structuredContent);
+        if (p.structuredContent != null && isActivateStructured(p.structuredContent)) {
+          renderActivate(p.structuredContent);
           return;
         }
         if (p.structuredContent != null) {
@@ -240,7 +285,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         if (p.content && p.content[0] && p.content[0].text) {
           try {
             var parsed = JSON.parse(p.content[0].text);
-            if (isForwardStructured(parsed)) renderForward(parsed);
+            if (isActivateStructured(parsed)) renderActivate(parsed);
             else showJson(parsed);
           } catch (e) { showJson(p.content[0].text); }
           return;
@@ -250,8 +295,6 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
 
       function boot() {
         if (PRESENTATION_ONLY) {
-          resetChrome();
-          if (el) el.classList.remove('step-panel');
           if (el) {
             el.replaceChildren();
             var ph = document.createElement('span');
@@ -263,7 +306,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           return;
         }
         sendRequest('ui/initialize', {
-          appInfo: { name: 'kairos-forward-view', version: '1.0.0' },
+          appInfo: { name: 'kairos-activate-view', version: '1.0.0' },
           appCapabilities: {},
           protocolVersion: PROTO
         }).then(function (result) {
@@ -273,11 +316,12 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           }
           sendNotification('ui/notifications/initialized', {});
         }).catch(function (err) {
-          resetChrome();
-          if (el) el.classList.remove('step-panel');
-          var msg = (err && err.message) ? err.message : String(err);
-          el.replaceChildren();
-          el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+          if (headerTitle) headerTitle.textContent = 'KAIROS · Activate';
+          if (el) {
+            var msg = (err && err.message) ? err.message : String(err);
+            el.replaceChildren();
+            el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+          }
         });
       }
 

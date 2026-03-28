@@ -99,6 +99,12 @@ export const AUTH_RATE_LIMIT_MAX = getEnvInt('AUTH_RATE_LIMIT_MAX', 10);
 export const MCP_RATE_LIMIT_WINDOW_MS = getEnvInt('MCP_RATE_LIMIT_WINDOW_MS', 60_000);
 export const MCP_RATE_LIMIT_MAX = getEnvInt('MCP_RATE_LIMIT_MAX', 1000);
 
+/**
+ * When true, served MCP App widget HTML skips `ui/initialize` / `initialized` and ignores
+ * tool-result notifications (static chrome only). Use to isolate host crashes tied to the bridge.
+ */
+export const KAIROS_MCP_WIDGET_PRESENTATION_ONLY = getEnvBoolean('KAIROS_MCP_WIDGET_PRESENTATION_ONLY', false);
+
 // Auth (Keycloak OIDC). One Keycloak per env: each env file sets KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID.
 // AUTH_ENABLED defaults to true. If it is explicitly set to true, missing auth env is a startup error.
 // If it is left unset and auth env is incomplete, the server stays fail-closed at request time.

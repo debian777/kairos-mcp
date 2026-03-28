@@ -4,6 +4,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import {
+  KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
   KAIROS_FORWARD_UI_SKYBRIDGE_URI,
   KAIROS_SPACES_UI_SKYBRIDGE_URI,
   MCP_APP_HTML_MIME_TYPE,
@@ -32,7 +33,7 @@ describe('MCP UI resource read (spaces widget)', () => {
       expect(c.uri).toBe('ui://kairos/spaces-result');
       expect(c.mimeType).toBe(MCP_APP_HTML_MIME_TYPE);
       expect(typeof c.text).toBe('string');
-      expect(c.text).toContain('<!DOCTYPE html>');
+      expect(c.text).toContain('kairos-spaces-root');
       expect(c.text).toContain('KAIROS');
       expect(c.text).toContain('ui/notifications/tool-result');
       expect(c.text).toContain('ui/initialize');
@@ -76,5 +77,29 @@ describe('MCP UI resource read (spaces widget)', () => {
       expect(c.mimeType).toBe(SKYBRIDGE_HTML_MIME_TYPE);
       expect(c.text).toContain('kairos-forward-view');
     }, 'resources/read forward skybridge');
+  });
+
+  test('resources/read ui://kairos/activate-result returns activate MCP App HTML', async () => {
+    const result = await mcpConnection.client.readResource({ uri: 'ui://kairos/activate-result' });
+    withRawOnFail(result, () => {
+      expect(result.contents?.length).toBeGreaterThan(0);
+      const c = result.contents![0];
+      expect(c.uri).toBe('ui://kairos/activate-result');
+      expect(c.mimeType).toBe(MCP_APP_HTML_MIME_TYPE);
+      expect(typeof c.text).toBe('string');
+      expect(c.text).toContain('kairos-activate-view');
+      expect(c.text).toContain('isActivateStructured');
+    }, 'resources/read activate widget');
+  });
+
+  test('resources/read activate Skybridge URI returns text/html+skybridge', async () => {
+    const result = await mcpConnection.client.readResource({ uri: KAIROS_ACTIVATE_UI_SKYBRIDGE_URI });
+    withRawOnFail(result, () => {
+      expect(result.contents?.length).toBeGreaterThan(0);
+      const c = result.contents![0];
+      expect(c.uri).toBe(KAIROS_ACTIVATE_UI_SKYBRIDGE_URI);
+      expect(c.mimeType).toBe(SKYBRIDGE_HTML_MIME_TYPE);
+      expect(c.text).toContain('kairos-activate-view');
+    }, 'resources/read activate skybridge');
   });
 });

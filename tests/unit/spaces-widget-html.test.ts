@@ -48,5 +48,7 @@ describe('buildSpacesWidgetHtml', () => {
     expect(html).toContain('data-theme');
     expect(html).toContain('html.dark');
     expect(html).toContain("classList.add('dark')");
+    expect(html).toContain('kairos-spaces-root');
+    expect(html).not.toContain('<!DOCTYPE html>');
   });
 });
