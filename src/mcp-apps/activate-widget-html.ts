@@ -10,9 +10,12 @@ import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inj
 export function buildActivateWidgetHtml(): string {
   const logo = KAIROS_LOGO_SVG.replaceAll('`', '&#96;');
   return `<div id="kairos-activate-root">
-  <div class="brand">
-    ${logo}
-    <h1 id="header-title" class="header-title"><span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-name muted">…</span></h1>
+  <div class="brand activate-brand-row">
+    <div class="activate-brand-left">
+      ${logo}
+      <h1 id="header-title" class="header-title"><span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-name muted">…</span></h1>
+    </div>
+    <div id="header-top-match" class="header-top-match" role="status" aria-live="polite" hidden></div>
   </div>
   <div id="out"><span class="waiting">Loading activation results…</span></div>
 </div>

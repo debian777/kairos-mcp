@@ -267,6 +267,10 @@ function createFlatConfig(rootDir) {
       },
       rules: {
         'kairos-mcp-widget/handshake-and-safety': 'error',
+        'max-lines': [
+          'error',
+          { max: 420, skipBlankLines: false, skipComments: false },
+        ],
       },
     },
     {

@@ -3,6 +3,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
     (function () {
       var el = document.getElementById('out');
       var headerTitle = document.getElementById('header-title');
+      var headerTopMatch = document.getElementById('header-top-match');
       var PROTO = '2026-01-26';
       var nextId = 1;
       var pending = {};
@@ -151,13 +152,50 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
       function headerHtmlWithQuery(q) {
         var safe = escapeHtml(q && String(q).trim() ? String(q).trim() : '—');
         return (
-          '<span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-name">' +
+          '<span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Activate • </span><span class="ht-protocol-label">query: </span><span class="ht-protocol-name">' +
           safe +
           '</span>'
         );
       }
 
+      function clearTopMatch() {
+        if (!headerTopMatch) return;
+        headerTopMatch.hidden = true;
+        headerTopMatch.removeAttribute('data-tier');
+        headerTopMatch.removeAttribute('aria-label');
+        headerTopMatch.innerHTML = '';
+      }
+
+      function paintTopMatch(list) {
+        if (!headerTopMatch) return;
+        var bestScore = -1;
+        var i;
+        for (i = 0; i < list.length; i++) {
+          var ch = list[i];
+          if (!ch || normRole(ch.role) !== 'match') continue;
+          var s = ch.activation_score;
+          if (s == null || typeof s !== 'number' || isNaN(s)) continue;
+          if (s > bestScore) bestScore = s;
+        }
+        if (bestScore < 0) {
+          clearTopMatch();
+          return;
+        }
+        var pct = Math.round(bestScore * 1000) / 10;
+        var tier = bestScore >= 0.8 ? '4' : bestScore >= 0.65 ? '3' : bestScore >= 0.5 ? '2' : '1';
+        headerTopMatch.hidden = false;
+        headerTopMatch.setAttribute('data-tier', tier);
+        headerTopMatch.setAttribute('aria-label', 'Top match ' + pct + ' percent');
+        headerTopMatch.innerHTML =
+          '<div class="header-top-match-inner">' +
+          '<span class="top-match-label">Top match</span>' +
+          '<span class="top-match-pct">' +
+          pct +
+          '%</span></div>';
+      }
+
       function showJson(obj) {
+        clearTopMatch();
         if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
         document.title = 'Activate — KAIROS';
         if (el) {
@@ -236,6 +274,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         if (headerTitle) {
           headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
         }
+        paintTopMatch(list);
         var qt = sc.query != null && String(sc.query).trim() ? String(sc.query).trim() : 'Activate';
         document.title = qt.length > 48 ? qt.slice(0, 45) + '… — KAIROS' : qt + ' — KAIROS';
         if (!el) return;
@@ -295,6 +334,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
 
       function boot() {
         if (PRESENTATION_ONLY) {
+          clearTopMatch();
           if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             el.replaceChildren();
@@ -317,6 +357,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           }
           sendNotification('ui/notifications/initialized', {});
         }).catch(function (err) {
+          clearTopMatch();
           if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             var msg = (err && err.message) ? err.message : String(err);

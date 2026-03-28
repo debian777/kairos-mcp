@@ -14,8 +14,11 @@ describe('buildActivateWidgetHtml', () => {
     expect(html).toContain('choices-list');
     expect(html).toContain('id="header-title"');
     expect(html).toContain('class="header-title"');
-    expect(html).toContain('class="brand"');
+    expect(html).toContain('activate-brand-row');
     expect(html).toContain('headerHtmlWithQuery');
+    expect(html).toContain('query: ');
+    expect(html).toContain('id="header-top-match"');
+    expect(html).toContain('paintTopMatch');
     expect(html).toContain('kairos-activate-root');
     expect(html).not.toContain('<!DOCTYPE html>');
   });
