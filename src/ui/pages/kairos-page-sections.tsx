@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { SpaceTypeBadge } from "@/components/SpaceSelect";
 import type { AdapterBrowseRow } from "@/utils/browse-adapters";
+import { BROWSE_LETTERS } from "@/utils/browse-adapters";
 import { toConfidencePercent } from "@/utils/confidence";
 import type { ActivateOutput } from "../../tools/activate_schema.js";
 
@@ -10,59 +11,110 @@ const PROTOCOL_URI_PREFIX = "kairos://adapter/";
 
 type Choice = ActivateOutput["choices"][number];
 
-/** Default Browse view: protocols sorted by label (matches Protocol UX Storybook target). */
+/** Default Browse view: A–Z letter blocks with counts; expand to list protocols for that letter. */
 export function KairosBrowseByLabelSection(props: {
   t: TFunction;
   spacesLoading: boolean;
   browseAdapters: AdapterBrowseRow[];
+  countsByLetter: Record<string, number>;
 }) {
-  const { t, spacesLoading, browseAdapters } = props;
-  const sorted = useMemo(
-    () =>
-      [...browseAdapters].sort((a, b) =>
-        (a.title ?? "").localeCompare(b.title ?? "", undefined, { sensitivity: "base" })
-      ),
-    [browseAdapters]
-  );
+  const { t, spacesLoading, browseAdapters, countsByLetter } = props;
+  const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
+
+  const adaptersForLetter = useMemo(() => {
+    if (!expandedLetter) return [];
+    return browseAdapters
+      .filter((a) => {
+        const first = (a.title ?? "").trim().charAt(0).toUpperCase();
+        return first === expandedLetter;
+      })
+      .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "", undefined, { sensitivity: "base" }));
+  }, [browseAdapters, expandedLetter]);
+
+  const hasAnyAdapter = browseAdapters.length > 0;
 
   return (
     <section aria-labelledby="browse-by-label-heading">
       <h2 id="browse-by-label-heading" className="text-lg font-semibold text-[var(--color-text-heading)] mb-3">
         {t("kairos.browseByLabel")}
       </h2>
-      <p className="text-sm text-[var(--color-text-muted)] mb-4">{t("kairos.browseFlatListHint")}</p>
-      {!spacesLoading && sorted.length === 0 ? (
+      <p className="text-sm text-[var(--color-text-muted)] mb-4">{t("kairos.browseByLetterHint")}</p>
+      {!spacesLoading && !hasAnyAdapter ? (
         <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.browseEmpty")}</p>
       ) : null}
-      {!spacesLoading && sorted.length > 0 ? (
-        <ul className="m-0 list-none space-y-2 p-0" role="list" aria-label={t("kairos.browseByLabel")}>
-          {sorted.map((adapter) => {
-            const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
+      {!spacesLoading && hasAnyAdapter ? (
+        <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("kairos.browseByLabel")}>
+          {BROWSE_LETTERS.map((letter) => {
+            const count = countsByLetter[letter] ?? 0;
             return (
-              <li
-                key={adapter.adapter_id}
-                className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 sm:flex-row sm:items-center sm:justify-between"
+              <button
+                key={letter}
+                type="button"
+                onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
+                aria-expanded={expandedLetter === letter}
+                aria-controls={`browse-letter-panel-${letter}`}
+                aria-pressed={expandedLetter === letter}
+                aria-label={t("kairos.letterCount", { letter, count })}
+                className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
+                  expandedLetter === letter
+                    ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
+                }`}
               >
-                <div className="min-w-0 flex flex-col gap-1">
-                  <span className="font-medium text-[var(--color-text-heading)]">{adapter.title}</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SpaceTypeBadge type={adapter.space_type} />
-                    <span className="text-xs text-[var(--color-text-muted)]">{adapter.space_name}</span>
-                  </div>
-                </div>
-                <div className="flex-shrink-0">
-                  <Link
-                    to={`/protocols/${encodeURIComponent(uri)}`}
-                    aria-label={t("kairos.viewProtocol", { title: adapter.title })}
-                    className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
-                  >
-                    {t("kairos.view")}
-                  </Link>
-                </div>
-              </li>
+                {letter}: {count}
+              </button>
             );
           })}
-        </ul>
+        </div>
+      ) : null}
+      {expandedLetter && !spacesLoading && hasAnyAdapter ? (
+        <div
+          id={`browse-letter-panel-${expandedLetter}`}
+          role="region"
+          aria-labelledby="browse-letter-panel-heading"
+          aria-live="polite"
+          className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
+        >
+          <h3 id="browse-letter-panel-heading" className="text-base font-semibold text-[var(--color-text-heading)] mb-3">
+            {t("kairos.labelsStartingWith", { letter: expandedLetter })}
+          </h3>
+          {adaptersForLetter.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-muted)]">{t("kairos.noLabelsForLetter")}</p>
+          ) : (
+            <ul
+              className="m-0 list-none space-y-2 p-0"
+              role="list"
+              aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
+            >
+              {adaptersForLetter.map((adapter) => {
+                const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
+                return (
+                  <li
+                    key={adapter.adapter_id}
+                    className="flex flex-col gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 flex flex-col gap-1">
+                      <span className="font-medium text-[var(--color-text-heading)]">{adapter.title}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <SpaceTypeBadge type={adapter.space_type} />
+                        <span className="text-xs text-[var(--color-text-muted)]">{adapter.space_name}</span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <Link
+                        to={`/protocols/${encodeURIComponent(uri)}`}
+                        aria-label={t("kairos.viewProtocol", { title: adapter.title })}
+                        className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+                      >
+                        {t("kairos.view")}
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       ) : null}
     </section>
   );
