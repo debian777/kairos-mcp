@@ -1,6 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { useMe } from "@/hooks/useAuth";
 import type { MeResponse } from "@/hooks/useAuth";
+import {
+  isThemePreference,
+  useThemePreferenceContext,
+} from "@/hooks/useThemePreference";
 
 function displayName(data: MeResponse): string {
   if (data.name && data.name.trim().length > 0) return data.name;
@@ -13,6 +17,7 @@ function displayName(data: MeResponse): string {
 export function AccountPage() {
   const { t } = useTranslation();
   const { data, isLoading, isError } = useMe();
+  const { preference, setPreference } = useThemePreferenceContext();
 
   if (isLoading) {
     return <p className="text-[var(--color-text-muted)]">{t("account.loading")}</p>;
@@ -44,6 +49,30 @@ export function AccountPage() {
         {t("account.intro")}
       </p>
       <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6">
+        <div className="mb-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <h2 className="mb-1 text-base font-semibold text-[var(--color-text-heading)]">
+            {t("account.themeTitle")}
+          </h2>
+          <p className="mb-3 text-sm text-[var(--color-text-muted)]">{t("account.themeDescription")}</p>
+          <label htmlFor="account-theme-preference" className="sr-only">
+            {t("account.themePreferenceLabel")}
+          </label>
+          <select
+            id="account-theme-preference"
+            value={preference}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (isThemePreference(next)) {
+                setPreference(next);
+              }
+            }}
+            className="min-h-[44px] w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+          >
+            <option value="system">{t("account.themeOptionSystem")}</option>
+            <option value="light">{t("account.themeOptionLight")}</option>
+            <option value="dark">{t("account.themeOptionDark")}</option>
+          </select>
+        </div>
         <div className="mb-4">
           <span className="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
             {t("account.name")}
