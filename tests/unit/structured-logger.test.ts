@@ -60,6 +60,13 @@ describe('sanitizeBindingsForAudit', () => {
     expect(out).toEqual({ top: 't', nested: { inner: 'i j' } });
   });
 
+  test('sanitizes binding keys that contain newlines or control characters', () => {
+    const out = sanitizeBindingsForAudit({ ['evil\nkey']: 'value', normal: 'ok' });
+    expect(out).not.toHaveProperty('evil\nkey');
+    expect(out['evil key']).toBe('value');
+    expect(out.normal).toBe('ok');
+  });
+
   test('leaves non-string primitives unchanged', () => {
     const out = sanitizeBindingsForAudit({
       n: 42,
