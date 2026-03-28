@@ -4,11 +4,12 @@
  */
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CHALLENGE_TYPE_LABEL, ChallengeCard } from "@/components/ChallengeCard";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { SurfaceCard } from "@/components/SurfaceCard";
 import { StepFlowGraph } from "@/components/StepFlowGraph";
+import { BROWSE_LETTERS } from "@/utils/browse-adapters";
 
 const MOCK_URI = "kairos://mem/abc123";
 
@@ -453,11 +454,30 @@ const MOCK_BROWSE_LABELS = [
 ];
 
 export function BrowseTargetContent() {
+  const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
+
+  const countsByLetter = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const letter of BROWSE_LETTERS) counts[letter] = 0;
+    for (const label of MOCK_BROWSE_LABELS) {
+      const first = label.trim().charAt(0).toUpperCase();
+      if (BROWSE_LETTERS.includes(first)) counts[first] = (counts[first] ?? 0) + 1;
+    }
+    return counts;
+  }, []);
+
+  const labelsForLetter = useMemo(() => {
+    if (!expandedLetter) return [];
+    return MOCK_BROWSE_LABELS.filter((label) => label.trim().charAt(0).toUpperCase() === expandedLetter).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+  }, [expandedLetter]);
+
   return (
     <div>
       <h1 className="mb-1 text-2xl font-semibold text-[var(--color-text-heading)]">Browse</h1>
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">
-        Search or browse by label. The default view lists protocols by their label.
+        Search or browse by label. Enter a query to find protocols.
       </p>
 
       <section className="mb-6" aria-labelledby="browse-search-label">
@@ -479,21 +499,60 @@ export function BrowseTargetContent() {
           Browse by label
         </h2>
         <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-          Protocols listed by label. This is the default view when you open Browse.
+          Click a letter to show protocols whose label starts with that letter.
         </p>
-        <ul className="m-0 list-none space-y-2 p-0" role="list" aria-label="Protocols by label">
-          {MOCK_BROWSE_LABELS.map((label) => (
-            <li
-              key={label}
-              className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <span className="font-medium text-[var(--color-text-heading)]">{label}</span>
-              <div className="flex-shrink-0">
-                <PrimaryButton>View</PrimaryButton>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Browse by first letter">
+          {BROWSE_LETTERS.map((letter) => {
+            const count = countsByLetter[letter] ?? 0;
+            return (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => setExpandedLetter((prev) => (prev === letter ? null : letter))}
+                aria-expanded={expandedLetter === letter}
+                aria-controls={`mock-browse-letter-panel-${letter}`}
+                aria-pressed={expandedLetter === letter}
+                aria-label={`Letter ${letter}, ${count} protocols`}
+                className={`min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 ${
+                  expandedLetter === letter
+                    ? "border-[var(--color-primary)] bg-[var(--color-surface-elevated)] text-[var(--color-primary)]"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
+                }`}
+              >
+                {letter}: {count}
+              </button>
+            );
+          })}
+        </div>
+        {expandedLetter ? (
+          <div
+            id={`mock-browse-letter-panel-${expandedLetter}`}
+            role="region"
+            aria-labelledby="mock-browse-letter-panel-heading"
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5"
+          >
+            <h3 id="mock-browse-letter-panel-heading" className="mb-3 text-base font-semibold text-[var(--color-text-heading)]">
+              Labels starting with {expandedLetter}
+            </h3>
+            {labelsForLetter.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-muted)]">No protocols starting with this letter.</p>
+            ) : (
+              <ul className="m-0 list-none space-y-2 p-0" role="list">
+                {labelsForLetter.map((label) => (
+                  <li
+                    key={label}
+                    className="flex flex-col gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="font-medium text-[var(--color-text-heading)]">{label}</span>
+                    <div className="flex-shrink-0">
+                      <PrimaryButton>View</PrimaryButton>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
       </section>
     </div>
   );

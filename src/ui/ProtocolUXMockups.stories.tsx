@@ -15,7 +15,7 @@ import {
 
 /**
  * **Protocol UX (Target) mockups.** Design reference for the next implementation phase.
- * These stories show the intended UI: simple browse-by-label discovery, rendered rich-text editing
+ * These stories show the intended UI: browse-by-letter discovery (A–Z blocks), rendered rich-text editing
  * with a real embedded Tiptap editor, explicit export actions, skill bundle preparation, and the
  * restored Test Run surfaces.
  *

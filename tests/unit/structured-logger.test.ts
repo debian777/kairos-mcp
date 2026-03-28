@@ -60,6 +60,13 @@ describe('sanitizeBindingsForAudit', () => {
     expect(out).toEqual({ top: 't', nested: { inner: 'i j' } });
   });
 
+  test('sanitizes binding keys that contain newlines or control characters', () => {
+    const out = sanitizeBindingsForAudit({ ['evil\nkey']: 'value', normal: 'ok' });
+    expect(out).not.toHaveProperty('evil\nkey');
+    expect(out['evil key']).toBe('value');
+    expect(out.normal).toBe('ok');
+  });
+
   test('leaves non-string primitives unchanged', () => {
     const out = sanitizeBindingsForAudit({
       n: 42,
@@ -153,6 +160,32 @@ describe('structuredLogger sink sanitization', () => {
     expect(bindings.http_url).toBe('http://evil.com path');
     expect(message).toBe('HTTP error');
     errorSpy.mockRestore();
+  });
+
+  test('debug with string message sanitizes message at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const debugSpy = jest.spyOn(pino, 'debug');
+
+    structuredLogger.debug('debug input\nforged\rline');
+
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    const [, message] = debugSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe('debug input forged line');
+    expect(message).toBe(sanitizeLogMessage('debug input\nforged\rline'));
+    debugSpy.mockRestore();
+  });
+
+  test('warn with string message sanitizes message at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const warnSpy = jest.spyOn(pino, 'warn');
+
+    structuredLogger.warn('warn input\nforged line');
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, message] = warnSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe('warn input forged line');
+    expect(message).toBe(sanitizeLogMessage('warn input\nforged line'));
+    warnSpy.mockRestore();
   });
 
   test('info with string message sanitizes message at sink', () => {

@@ -72,9 +72,9 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
       logger.debug(`updateMemoryByUUID: upsertPoint vector keys=${Object.keys(upsertPoint.vector || {}).join(',')}`);
       await sanitizeAndUpsert(conn.client, conn.collectionName, [upsertPoint]);
 
-      // Invalidate cache after update (publishes invalidation events internally)
+      // Invalidate memory, search, and activate caches after update (publishes invalidation events internally)
       await redisCacheService.invalidateMemoryCache(existingPoint.id);
-      await redisCacheService.invalidateSearchCache();
+      await redisCacheService.invalidateAfterUpdate();
 
       qdrantOperations.inc({
         operation: 'update',
@@ -173,9 +173,9 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
       logger.debug(`updateMemory: upsertPoint2 vector keys=${Object.keys(upsertPoint2.vector || {}).join(',')}`);
       await sanitizeAndUpsert(conn.client, conn.collectionName, [upsertPoint2]);
 
-      // Invalidate cache after update (publishes invalidation events internally)
+      // Invalidate memory, search, and activate caches after update (publishes invalidation events internally)
       await redisCacheService.invalidateMemoryCache(existingPoint.id);
-      await redisCacheService.invalidateSearchCache();
+      await redisCacheService.invalidateAfterUpdate();
 
       qdrantOperations.inc({
         operation: 'update',
@@ -209,9 +209,9 @@ export async function deleteMemory(conn: QdrantConnection, id: string): Promise<
       }
       await conn.client.delete(conn.collectionName, { points: [validatedId] });
       
-      // Invalidate cache after deletion (publishes invalidation events internally)
+      // Invalidate memory, search, and activate caches after deletion (publishes invalidation events internally)
       await redisCacheService.invalidateMemoryCache(validatedId);
-      await redisCacheService.invalidateSearchCache();
+      await redisCacheService.invalidateAfterUpdate();
       
       qdrantOperations.inc({ 
         operation: 'delete', 

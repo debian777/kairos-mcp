@@ -165,7 +165,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
               const { redisCacheService } = await import('../services/redis-cache.js');
               await redisCacheService.invalidateMemoryCache(storedMemory.memory_uuid);
               await redisCacheService.invalidateMemoryCache(targetUuid);
-              await redisCacheService.invalidateSearchCache();
+              await redisCacheService.invalidateAfterUpdate();
             }
           }
           injectedCount++;

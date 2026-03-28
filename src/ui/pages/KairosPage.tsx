@@ -73,7 +73,10 @@ export function KairosPage() {
     ? Math.max(...choices.map((c) => toConfidencePercent(c.activation_score)))
     : null;
 
-  const { browseAdapters } = useMemo(() => browseAdaptersFromSpaces(spacesData?.spaces), [spacesData?.spaces]);
+  const { browseAdapters, countsByLetter } = useMemo(
+    () => browseAdaptersFromSpaces(spacesData?.spaces),
+    [spacesData?.spaces]
+  );
 
   return (
     <div>
@@ -172,7 +175,12 @@ export function KairosPage() {
       {!isLoading && !isError && !(showBrowse && spacesError) && (
         <>
           {!submittedQuery ? (
-            <KairosBrowseByLabelSection t={t} spacesLoading={spacesLoading} browseAdapters={browseAdapters} />
+            <KairosBrowseByLabelSection
+              t={t}
+              spacesLoading={spacesLoading}
+              browseAdapters={browseAdapters}
+              countsByLetter={countsByLetter}
+            />
           ) : choices.length === 0 ? (
             <div
               className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-6"
