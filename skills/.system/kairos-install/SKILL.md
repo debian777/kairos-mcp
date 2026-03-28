@@ -1,24 +1,44 @@
 ---
 name: kairos-install
 description: >-
-  KAIROS first-time install with Ollama and the minimal Docker stack. Use
-  when the user wants to install KAIROS, set up the repo's minimal stack
-  (Ollama + app + Qdrant), or run KAIROS locally with Ollama embeddings.
-  Confirm each step with the user before executing.
+  KAIROS first-time install: user chooses OpenAI or Ollama embeddings, then
+  minimal Docker stack (app + Qdrant). Use when the user wants to install
+  KAIROS locally, set up compose from this repo, or configure embedding
+  backends. Confirm each step with the user before executing.
 ---
 
 # kairos-install
 
-Guide the user through installing Ollama and running the minimal KAIROS stack
-from this repo. **Confirm with the user before each step** that changes the
+Guide the user through running the minimal KAIROS stack from this repo
+(Qdrant + app). **Confirm with the user before each step** that changes the
 system or starts services.
 
 ## 1. Goal
 
-Confirm: install Ollama (local embeddings) and run the minimal KAIROS stack
-(Qdrant + app). If the user only wants one of these, adjust the steps.
+Confirm the user wants the **minimal** stack (see [docs/install/README.md](../../../docs/install/README.md)).
 
-## 2. Ollama
+**Ask which embedding backend they want:**
+
+- **OpenAI (cloud):** real `OPENAI_API_KEY`; no local Ollama.
+- **Ollama (local):** OpenAI-compatible endpoint on the host; typical model
+  `nomic-embed-text`.
+
+Follow only the matching section below (§2 or §3), then the shared steps.
+
+## 2. OpenAI (cloud)
+
+- **No Ollama** required for this path.
+- Start from `docs/install/env.example.minimal.txt` into `.env`. Set
+  `QDRANT_API_KEY` and a valid `OPENAI_API_KEY`. Omit `OPENAI_API_URL` unless
+  using a non-default API base (default is `https://api.openai.com`; see repo
+  config).
+- Optional: `OPENAI_EMBEDDING_MODEL` (default in app:
+  `text-embedding-3-small`).
+- **Verify key (optional):** After the user confirms, from the repo root with
+  `.env` loaded they can run `npm run dev:test-embedding-key` (see install
+  docs). Do not run without confirmation.
+
+## 3. Ollama (local)
 
 - **Check:** Is Ollama already installed and running? For example, run
   `ollama list` or check the install docs at https://ollama.com.
@@ -30,30 +50,12 @@ Confirm: install Ollama (local embeddings) and run the minimal KAIROS stack
   ollama pull nomic-embed-text
   ```
   (Confirm before running if the user did not already ask for it.)
+- **`.env`:** From `docs/install/env.example.minimal.txt`, set `QDRANT_API_KEY`
+  plus the Ollama variables below. Use the **base URL only** (no trailing
+  `/v1`).
 
-## 3. Working directory
-
-The user needs a directory that contains:
-- `compose.yaml`
-- `.env` with Ollama + minimal settings
-
-**Default — This repo root:** Use the repo root. `compose.yaml` is already
-there. Create `.env` from `docs/install/env.example.minimal.txt`.
-
-**Optional — Separate local directory:** If the user already has a separate
-directory with a copy of `compose.yaml`, use that instead.
-
-**Confirm with the user** which directory to use and that you may create or
-overwrite `.env` there.
-
-## 4. .env for Ollama + Docker
-
-Start from `docs/install/env.example.minimal.txt`, then ensure `.env` sets
-`QDRANT_API_KEY` plus the Ollama values below.
-
-If the app will run **in Docker Compose** and Ollama is on the **host** on
-**Mac or Windows**, use the host bridge URL (base URL only; no trailing
-`/v1`):
+If the app runs **in Docker Compose** and Ollama is on the **host** on
+**Mac or Windows**:
 
 ```env
 QDRANT_API_KEY=<local-dev-secret>
@@ -67,6 +69,22 @@ If the app runs on the host (for example `npm run dev:start`), use
 
 **Confirm** the `.env` path and whether the app will run in Docker Compose or
 on the host before setting `OPENAI_API_URL`.
+
+## 4. Working directory
+
+The user needs a directory that contains:
+
+- `compose.yaml`
+- `.env` with minimal settings (embedding variables differ by §2 vs §3 only)
+
+**Default — This repo root:** Use the repo root. `compose.yaml` is already
+there. Create `.env` from `docs/install/env.example.minimal.txt`.
+
+**Optional — Separate local directory:** If the user already has a separate
+directory with a copy of `compose.yaml`, use that instead.
+
+**Confirm with the user** which directory to use and that you may create or
+overwrite `.env` there.
 
 ## 5. Start the stack
 
@@ -88,13 +106,18 @@ curl http://localhost:3000/health
 ```
 
 If the app fails to start, check logs:
-`docker compose -p kairos-mcp logs app-prod`. A common cause is the app
-running in Docker while Ollama runs on the host and `OPENAI_API_URL` still
-points at `localhost` instead of
-`http://host.docker.internal:11434` on Mac or Windows.
+`docker compose -p kairos-mcp logs app-prod`.
+
+- **OpenAI:** embedding or auth errors often mean an invalid or missing
+  `OPENAI_API_KEY` (e.g. HTTP 401 from the embeddings API).
+- **Ollama:** a common mistake is the app running in Docker while Ollama runs
+  on the host and `OPENAI_API_URL` still points at `localhost` instead of
+  `http://host.docker.internal:11434` on Mac or Windows.
 
 ## Reference
 
+- KAIROS MCP on GitHub: https://github.com/debian777/kairos-mcp
+- Issues: https://github.com/debian777/kairos-mcp/issues
 - Full install options and env examples:
   [docs/install/README.md](../../../docs/install/README.md).
 - Main README quick start: [README.md](../../../README.md).
