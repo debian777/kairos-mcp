@@ -55,8 +55,8 @@ if (AUDIT_LOG_FILE) {
 /** Sanitize string for safe logging and audit write: neutralize line breaks first (CodeQL log-injection pattern), then other CTL. */
 function sanitizeLogMessage(s: string, maxLen = 32_768): string {
   if (typeof s !== 'string') return '';
-  const clipped = s.slice(0, maxLen).replace(/\n|\r/g, ' ');
-  const noCtl = clipped.replace(/[\t\x00-\x1f]/g, ' ');
+  const safe = s.replace(/[\r\n]/g, ' ').slice(0, maxLen);
+  const noCtl = safe.replace(/[\x00-\x1f]/g, ' ');
   return noCtl.replace(/\s+/g, ' ').trim() || '(empty)';
 }
 
@@ -155,8 +155,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
     user_agent: req.headers['user-agent'],
     request_id: requestId
   });
-  const startMessage = sanitizeLogMessage(`${req.method} ${req.url}`);
-  baseLogger.info(cloneSafeRecordForPino(startBindings), startMessage);
+  baseLogger.info(cloneSafeRecordForPino(startBindings), 'HTTP request received');
 
   res.on('finish', () => {
     const duration = Date.now() - start;
@@ -172,8 +171,7 @@ const httpLogger = (req: Request, res: Response, next: Function): void => {
       user_agent: req.headers['user-agent'],
       request_id: rid
     });
-    const finishMessage = sanitizeLogMessage(`${req.method} ${req.url} -> ${statusCode}`);
-    (baseLogger as pino.Logger)[methodName](cloneSafeRecordForPino(finishBindings), finishMessage);
+    (baseLogger as pino.Logger)[methodName](cloneSafeRecordForPino(finishBindings), 'HTTP request completed');
   });
 
   next();
@@ -213,7 +211,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'debug' });
         const safeMsg = sanitizeLogMessage(msgOrBindings);
-        pinoInstance.debug(cloneSafeRecordForPino(bindings), safeMsg);
+        pinoInstance.debug(cloneSafeRecordForPino(bindings), safeMsg.replace(/[\r\n]/g, ''));
         return;
       }
       const existingCategory = typeof msgOrBindings['category'] === 'string'
@@ -231,7 +229,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'info' });
         const safeMsg = sanitizeLogMessage(msgOrBindings);
-        pinoInstance.info(cloneSafeRecordForPino(bindings), safeMsg);
+        pinoInstance.info(cloneSafeRecordForPino(bindings), safeMsg.replace(/[\r\n]/g, ''));
         maybeWriteAuditLine('info', bindings);
       } else {
         const existingCategory = typeof msgOrBindings['category'] === 'string'
@@ -251,7 +249,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
       if (typeof msgOrBindings === 'string') {
         const bindings = sanitizeBindingsForAudit({ category: 'warning' });
         const safeMsg = sanitizeLogMessage(msgOrBindings);
-        pinoInstance.warn(cloneSafeRecordForPino(bindings), safeMsg);
+        pinoInstance.warn(cloneSafeRecordForPino(bindings), safeMsg.replace(/[\r\n]/g, ''));
         maybeWriteAuditLine('warn', bindings);
         return;
       }

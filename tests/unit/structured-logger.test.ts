@@ -162,6 +162,32 @@ describe('structuredLogger sink sanitization', () => {
     errorSpy.mockRestore();
   });
 
+  test('debug with string message sanitizes message at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const debugSpy = jest.spyOn(pino, 'debug');
+
+    structuredLogger.debug('debug input\nforged\rline');
+
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    const [, message] = debugSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe('debug input forged line');
+    expect(message).toBe(sanitizeLogMessage('debug input\nforged\rline'));
+    debugSpy.mockRestore();
+  });
+
+  test('warn with string message sanitizes message at sink', () => {
+    const pino = structuredLogger.getPinoLogger();
+    const warnSpy = jest.spyOn(pino, 'warn');
+
+    structuredLogger.warn('warn input\nforged line');
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const [, message] = warnSpy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe('warn input forged line');
+    expect(message).toBe(sanitizeLogMessage('warn input\nforged line'));
+    warnSpy.mockRestore();
+  });
+
   test('info with string message sanitizes message at sink', () => {
     const pino = structuredLogger.getPinoLogger();
     const infoSpy = jest.spyOn(pino, 'info');
