@@ -27,7 +27,7 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
 6. Verify realm dump matches import JSON.
 7. Add test user to **kairos-auditor** and **kairos-operator** last; **GET** user groups to confirm (so Admin UI matches).
 
-Identity providers (e.g. Google) are not in realm JSON; configure via configure-keycloak-google-idp.py.
+Identity providers (e.g. Google) are not in realm JSON; configure via deploy-configure-keycloak-google-idp.py.
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
 TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
@@ -46,8 +46,8 @@ comes from these env vars when you run this script.
 Loaded from .env.
 
 Usage:
-  python scripts/configure-keycloak-realms.py
-  KEYCLOAK_URL=http://keycloak:8080 python scripts/configure-keycloak-realms.py
+  python scripts/deploy-configure-keycloak-realms.py
+  KEYCLOAK_URL=http://keycloak:8080 python scripts/deploy-configure-keycloak-realms.py
 """
 
 from __future__ import annotations
@@ -619,7 +619,7 @@ def _merge_realm(current: dict, desired: dict) -> dict:
     merged["authenticationFlows"] = merged_flows
 
     # Identity providers: GET /admin/realms/{realm} does not return them; preserve by not sending
-    # (IdPs are managed separately via configure-keycloak-google-idp.py). Do not set merged["identityProviders"]
+    # (IdPs are managed separately via deploy-configure-keycloak-google-idp.py). Do not set merged["identityProviders"]
     # so Keycloak PUT does not overwrite/clear them (realm PUT can replace IdP list if we send it).
 
     return merged

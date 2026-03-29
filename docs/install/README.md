@@ -10,7 +10,7 @@ edit only the values you need.
 |------|----------|
 | `docs/install/env.example.minimal.txt` | Minimal Docker deployment: app + Qdrant only, `AUTH_ENABLED=false` |
 | `docs/install/env.example.fullstack.txt` | Local full stack: Redis, Postgres, Keycloak, auth enabled |
-| `scripts/env/.env.template` | Template used by `scripts/generate_dev_secrets.py` for dev/CI-style fullstack `.env` generation |
+| `scripts/env/.env.template` | Template used by `scripts/deploy-generate-dev-secrets.py` for dev/CI-style fullstack `.env` generation |
 
 ## Minimal setup
 
@@ -121,7 +121,7 @@ TEI_MODEL=Alibaba-NLP/gte-large-en-v1.5
 To create a fullstack-style `.env` with generated secrets:
 
 ```bash
-python3 scripts/generate_dev_secrets.py
+python3 scripts/deploy-generate-dev-secrets.py
 ```
 
 That script writes `.env` using `scripts/env/.env.template`.

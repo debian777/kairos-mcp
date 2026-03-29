@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copy .env* files from the main git worktree into the current workspace.
 # Use when working in a worktree that doesn't have its own .env files.
-# Usage: ./scripts/copy-env-from-main.sh
+# Usage: ./scripts/deploy-copy-env-from-main.sh
 
 set -euo pipefail
 

@@ -5,7 +5,7 @@ If skills_ref is not installed, the script will create/use repo .venv, install
 the dependency, and re-run. If auto-install is not possible, exit 0 with a hint.
 
 Usage (from repo root):
-  python3 scripts/lint_skills.py
+  python3 scripts/lint-agent-skills.py
 
 Exit: 0 if all valid or skipped (import error); 1 if any validation errors.
 """

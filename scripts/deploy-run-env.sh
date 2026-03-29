@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # kairos Environment Management Script
-# USAGE: ENV=dev|prod ./scripts/run-env.sh [build|start|stop|restart|status|test|logs|health|...]
+# USAGE: ENV=dev|prod ./scripts/deploy-run-env.sh [build|start|stop|restart|status|test|logs|health|...]
 #
 # Single .env for all; we do not manage prod from this repo (exception: Keycloak realm setup dev/prod).
 # - dev:  Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
@@ -63,8 +63,8 @@ LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
 # In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$ENV_FILE" ]; then
-    if [ -f "${PROJECT_DIR}/scripts/copy-env-from-main.sh" ]; then
-        "${PROJECT_DIR}/scripts/copy-env-from-main.sh" || true
+    if [ -f "${PROJECT_DIR}/scripts/deploy-copy-env-from-main.sh" ]; then
+        "${PROJECT_DIR}/scripts/deploy-copy-env-from-main.sh" || true
     fi
 fi
 
@@ -268,10 +268,10 @@ start() {
     # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
     if [ "$ENV" = "dev" ]; then
         print_info "Ensuring Keycloak realm and kairos-cli client..."
-        if ( cd "$PROJECT_DIR" && python3 scripts/configure-keycloak-realms.py ); then
+        if ( cd "$PROJECT_DIR" && python3 scripts/deploy-configure-keycloak-realms.py ); then
             print_success "Keycloak realm configured (kairos-cli client ready for CLI login)"
         else
-            print_warning "Keycloak realm config failed or Keycloak not reachable. If you use auth, run: python3 scripts/configure-keycloak-realms.py or npm run infra:up"
+            print_warning "Keycloak realm config failed or Keycloak not reachable. If you use auth, run: python3 scripts/deploy-configure-keycloak-realms.py or npm run infra:up"
         fi
     fi
 }
@@ -634,7 +634,7 @@ case "$cmd" in
     redis-cli)
         # Remaining args (if any) are forwarded as Redis CLI commands
         if [[ -z "$@" ]]; then
-            print_info "Example: ./scripts/run-env.sh redis-cli PING"
+            print_info "Example: ./scripts/deploy-run-env.sh redis-cli PING"
             print_info "Actual Command: redis-cli -u $(mask_url "${REDIS_URL:-redis://localhost:6379}") PING"
         else
             redis-cli -u "${REDIS_URL:-redis://localhost:6379}" "$@"

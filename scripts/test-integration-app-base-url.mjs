@@ -17,7 +17,7 @@ export function loadRepoEnv() {
 }
 
 /**
- * Precedence: KAIROS_BASE_URL, KAIROS_API_URL, else http://localhost:$PORT (PORT default 3300, same as run-env.sh dev).
+ * Precedence: KAIROS_BASE_URL, KAIROS_API_URL, else http://localhost:$PORT (PORT default 3300, same as deploy-run-env.sh dev).
  */
 export function resolveKairosAppBaseUrl() {
   loadRepoEnv();

@@ -41,10 +41,10 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
 
       - name: Build package (tgz)
-        run: node scripts/run-with-github-summary.mjs "Build package (tgz)" -- npm run build:tgz
+        run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
 
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
@@ -72,17 +72,17 @@ jobs:
           cache: "npm"
 
       - name: Check versions (mem = package.json, skills = last stable)
-        run: node scripts/run-with-github-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
+        run: node scripts/ci-github-step-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
 
       - name: Lint skills (skills-ref)
-        run: node scripts/run-with-github-summary.mjs "Lint skills (skills-ref)" -- npm run lint:skills
+        run: node scripts/ci-github-step-summary.mjs "Lint skills (skills-ref)" -- npm run lint:skills
 
       - name: Install dependencies
-        run: node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
 
       # ESLint: matches `npm run lint` / Husky pre-commit — disabled in CI for now.
       # - name: ESLint
-      #   run: node scripts/run-with-github-summary.mjs "ESLint" -- npm run lint
+      #   run: node scripts/ci-github-step-summary.mjs "ESLint" -- npm run lint
 
       # Avoid re-downloading ~280MB Chromium/headless-shell/ffmpeg when lockfile unchanged
       - name: Restore Playwright browsers cache
@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Playwright browsers
         id: playwright-install
-        run: node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+        run: node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
 
       - name: Save Playwright browsers cache
         uses: actions/cache/save@v5
@@ -104,7 +104,7 @@ jobs:
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript, Knip, UI tests (parallel)
-        run: node scripts/run-parallel-checks-ci.mjs
+        run: node scripts/ci-parallel-checks.mjs
 
   verify-integration:
     name: Infra + dev deploy + integration tests (AUTH on)
@@ -129,7 +129,7 @@ jobs:
       - name: "Generate .env (fullstack: infra + app + auth)"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scripts/run-with-github-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/generate_dev_secrets.py
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
 
       - name: Verify .env exists
         run: ls -la .env
@@ -152,7 +152,7 @@ jobs:
           ec=0
           docker compose -p kairos-mcp --env-file .env --profile fullstack up -d redis qdrant postgres keycloak &
           pid_compose=$!
-          node scripts/run-with-github-summary.mjs "Install dependencies" -- npm ci &
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
           pid_npm=$!
           wait $pid_compose || ec=1
           wait $pid_npm || ec=1
@@ -193,9 +193,9 @@ jobs:
         run: |
           set -euo pipefail
           ec=0
-          node scripts/run-with-github-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
           pid_pw=$!
-          bash scripts/wait-for-infra-ci.sh &
+          bash scripts/ci-wait-for-infra.sh &
           pid_wait=$!
           wait $pid_pw || ec=1
           wait $pid_wait || ec=1
@@ -209,12 +209,12 @@ jobs:
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: Configure Keycloak realms and test user
-        run: node scripts/run-with-github-summary.mjs "Configure Keycloak realms" -- python3 scripts/configure-keycloak-realms.py
+        run: node scripts/ci-github-step-summary.mjs "Configure Keycloak realms" -- python3 scripts/deploy-configure-keycloak-realms.py
 
       - name: Install package from tgz
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          node scripts/run-with-github-summary.mjs "Install package from tgz" -- \
+          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
             npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
 
       - name: Expose installed package dist for CLI tests
@@ -292,7 +292,7 @@ jobs:
           VERSION=$(jq -r .version package.json)
           mkdir -p .ci/docker
           cp "dist/debian777-kairos-mcp-${VERSION}.tgz" .ci/docker/package.tgz
-          node scripts/run-with-github-summary.mjs "Docker build (release-equivalent)" -- \
+          node scripts/ci-github-step-summary.mjs "Docker build (release-equivalent)" -- \
             docker build --target runtime-ci --build-arg "PACKAGE_VERSION=${VERSION}" -t kairos-mcp:release-ci .
 
       - name: Trivy container scan (same policy as Release)

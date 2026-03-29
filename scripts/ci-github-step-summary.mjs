@@ -4,10 +4,10 @@
  * Only writes when GITHUB_STEP_SUMMARY is set (GitHub Actions).
  *
  * Usage:
- *   node scripts/run-with-github-summary.mjs "Section title" -- <command> [args...]
+ *   node scripts/ci-github-step-summary.mjs "Section title" -- <command> [args...]
  *
  * Example:
- *   node scripts/run-with-github-summary.mjs "TypeScript check" -- npx tsc --noEmit
+ *   node scripts/ci-github-step-summary.mjs "TypeScript check" -- npx tsc --noEmit
  */
 import { spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -16,8 +16,8 @@ const argv = process.argv.slice(2);
 const sep = argv.indexOf('--');
 if (sep < 1 || sep === argv.length - 1) {
   console.error(
-    'Usage: node scripts/run-with-github-summary.mjs "Section title" -- <command> [args...]\n' +
-      'Example: node scripts/run-with-github-summary.mjs "Knip" -- npm run knip'
+    'Usage: node scripts/ci-github-step-summary.mjs "Section title" -- <command> [args...]\n' +
+      'Example: node scripts/ci-github-step-summary.mjs "Knip" -- npm run knip'
   );
   process.exit(2);
 }

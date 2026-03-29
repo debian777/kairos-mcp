@@ -6,9 +6,9 @@ for secrets (env var or generated).
 Source: scripts/env/.env.template (fullstack: infra + app + auth).
 
 Usage:
-  python scripts/generate_dev_secrets.py              # generate .env from template
-  python scripts/generate_dev_secrets.py --verify      # only validate existing .env
-  OPENAI_API_KEY=xxx python scripts/generate_dev_secrets.py
+  python scripts/deploy-generate-dev-secrets.py              # generate .env from template
+  python scripts/deploy-generate-dev-secrets.py --verify      # only validate existing .env
+  OPENAI_API_KEY=xxx python scripts/deploy-generate-dev-secrets.py
 """
 from __future__ import annotations
 

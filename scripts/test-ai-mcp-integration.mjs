@@ -6,8 +6,8 @@
  * - Finalize with reward when the run completes
  * - Write one report per example under reports/<run-id>/<protocol-folder>/report.md
  *
- * Usage: node scripts/run-ai-mcp-integration.mjs
- * Env:   KAIROS_BASE_URL (else KAIROS_API_URL / .env PORT; default port 3300 matches run-env dev), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
+ * Usage: node scripts/test-ai-mcp-integration.mjs
+ * Env:   KAIROS_BASE_URL (else KAIROS_API_URL / .env PORT; default port 3300 matches deploy-run-env.sh dev), RUN_ID (default workflow-YYYY-MM-DD-HHmmss)
  *
  * Auth (when the dev server has Keycloak / AUTH_ENABLED): same bearer as Jest integration tests —
  * either `.test-auth-env.dev.json` in the repo root (written by globalSetup when you run
@@ -21,8 +21,8 @@ import { fileURLToPath } from 'url';
 import {
   integrationReportSection,
   writeIntegrationReportFile
-} from './ai-mcp-integration-report-utils.mjs';
-import { buildAuthHeaders, loadIntegrationBearer } from './ai-mcp-integration-auth-utils.mjs';
+} from './test-ai-mcp-integration-report-utils.mjs';
+import { buildAuthHeaders, loadIntegrationBearer } from './test-ai-mcp-integration-auth-utils.mjs';
 import {
   buildActivateResponseProof,
   buildForwardResponseProof,
@@ -31,8 +31,8 @@ import {
   buildTrainResponseProof,
   classifySolutionType,
   classifyUriKind
-} from './ai-mcp-integration-proof-utils.mjs';
-import { resolveKairosAppBaseUrl } from './dev-app-base-url.mjs';
+} from './test-ai-mcp-integration-proof-utils.mjs';
+import { resolveKairosAppBaseUrl } from './test-integration-app-base-url.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');

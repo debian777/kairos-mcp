@@ -48,7 +48,7 @@ Then configure the Google identity provider in Keycloak:
 npm run dev:google-idp
 ```
 
-That command runs `scripts/configure-keycloak-google-idp.py`.
+That command runs `scripts/deploy-configure-keycloak-google-idp.py`.
 
 ## 4. Verify the login flow
 

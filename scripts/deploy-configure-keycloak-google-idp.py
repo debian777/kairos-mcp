@@ -3,12 +3,12 @@
 Create or update the Google Identity Provider in a Keycloak realm (e.g. kairos-dev).
 
 Reads KEYCLOAK_URL, KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_REALM, GOOGLE_CLIENT_ID,
-GOOGLE_CLIENT_SECRET from .env (same pattern as configure-keycloak-realms.py).
+GOOGLE_CLIENT_SECRET from .env (same pattern as deploy-configure-keycloak-realms.py).
 Keycloak must be running. Idempotent: if the Google IdP already exists, it is updated.
 
 Usage:
-  python3 scripts/configure-keycloak-google-idp.py
-  KEYCLOAK_URL=http://keycloak:8080 python3 scripts/configure-keycloak-google-idp.py
+  python3 scripts/deploy-configure-keycloak-google-idp.py
+  KEYCLOAK_URL=http://keycloak:8080 python3 scripts/deploy-configure-keycloak-google-idp.py
 """
 
 from __future__ import annotations
