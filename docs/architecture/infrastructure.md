@@ -331,7 +331,7 @@ erDiagram
 ## Embedding provider selection
 
 `EMBEDDING_PROVIDER` (default `auto`) determines the vector backend at
-both mint and search time.
+both train (store) and search time.
 
 ```mermaid
 flowchart TD

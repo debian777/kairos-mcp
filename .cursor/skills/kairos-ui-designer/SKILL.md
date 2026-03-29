@@ -151,7 +151,7 @@ Implementation maps to **`src/ui/pages/`**, **`src/ui/components/`**, hooks, i18
 
 **4. Protocol view** — Title, metadata (URI, read-only). Steps with labels and challenge types. Triggers section. Completion rule. “How to use”: one line + link (e.g. “Use in Cursor (MCP) or via CLI”). Actions: Edit, Duplicate, and any guided test entry the product exposes.
 
-**5. Protocol create/edit** — Create or edit; markdown + challenge blocks. Save, cancel, validation. Depends on backend mint/update APIs.
+**5. Protocol create/edit** — Create or edit; markdown + challenge blocks. Save, cancel, validation. Depends on backend train/tune APIs.
 
 **6. Runs / guided test** — As implemented (manual protocol run flow) when present in the app.
 

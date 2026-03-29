@@ -1,6 +1,6 @@
 # Example: MCP challenge
 
-Short protocol: one real step plus a final verification step. Requires the agent to call an MCP tool and report success. Ready to mint with `train`.
+Short protocol: one real step plus a final verification step. Requires the agent to call an MCP tool and report success. Ready to train with `train`.
 
 ## Natural Language Triggers
 

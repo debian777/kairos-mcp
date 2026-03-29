@@ -1,8 +1,8 @@
 # KAIROS protocol examples
 
-This folder contains **markdown protocols ready for minting** and a short reference for challenge types and solution shapes. These examples are the canonical source for **dev/qa workflow tests**: imports, activate + run, update layer, and update adapter.
+This folder contains **markdown adapters ready for `train`** and a short reference for challenge types and solution shapes. These examples are the canonical source for **dev/qa workflow tests**: imports, activate + run, update layer, and update adapter.
 
-## Mintable protocols
+## Example protocols
 
 Each file below is a complete protocol (H1 + H2 steps with ````json` challenge blocks). Every example ends with a **final step** with no challenge: "Show the output from [prior step(s)] to the user." Only reachable after all prior challenges are solved. The agent just shows the prior output to the user; no additional challenge to solve.
 
@@ -20,15 +20,15 @@ Each file below is a complete protocol (H1 + H2 steps with ````json` challenge b
 
 ## Use in dev/qa workflow tests
 
-- **Imports:** Train each mintable example via **`train`** (e.g. from integration tests or an agent). See [Workflow test README](../../tests/workflow-test/README.md).
+- **Imports:** Train each example below via **`train`** (e.g. from integration tests or an agent). See [Workflow test README](../../tests/workflow-test/README.md).
 - **Activate + run:** After training, use **`activate`** → pick a choice → **`forward`** (loop with `solution` per layer) until **`reward`** completes the run.
 - **Update layer / update adapter:** Use **`activate`** or an existing URI, **`export`** for content, then **`tune`** with edited `markdown_doc` (one layer or multiple URIs).
 
-When running **MCP-only** workflow tests (no shell, no filesystem except `reports/`), use only the MCP-only protocols above or protocols you mint that contain no shell step.
+When running **MCP-only** workflow tests (no shell, no filesystem except `reports/`), use only the MCP-only protocols above or protocols you train that contain no shell step.
 
 ## Reference
 
-- **[Challenge types](challenge-types.md)** — Table of mintable docs, how to mint, and solution shapes for `forward`.
+- **[Challenge types](challenge-types.md)** — Table of trainable example docs, how to train, and solution shapes for `forward`.
 
 ## Related docs
 

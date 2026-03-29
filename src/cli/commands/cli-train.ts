@@ -1,5 +1,5 @@
 /**
- * train command (single file or directory batch)
+ * CLI `train` command (single file or directory batch).
  */
 
 import { Command } from 'commander';
@@ -41,7 +41,7 @@ function listMarkdownFiles(dir: string, recursive: boolean): string[] {
   return out.sort((a, b) => relative(base, a).localeCompare(relative(base, b)));
 }
 
-export function mintCommand(program: Command): void {
+export function trainCliCommand(program: Command): void {
   program
     .command('train')
     .description('Register a new KAIROS adapter from markdown (file or directory of .md files)')

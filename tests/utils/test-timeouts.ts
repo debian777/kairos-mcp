@@ -3,7 +3,7 @@
  * Most clients timeout after 30s. Per-request timeout = roundUp(measuredResponseMs * 1.2).
  *
  * Baseline: train is observed <= ~5s (~5000 ms) end-to-end on the current stack (embedding + store).
- * An MCP call sitting near CLIENT_TIMEOUT_MS is therefore almost never “slow mint”—it is
+ * An MCP call sitting near CLIENT_TIMEOUT_MS is therefore almost never “slow train”—it is
  * usually a stalled /mcp session or server-side deadlock, not normal tool latency.
  */
 

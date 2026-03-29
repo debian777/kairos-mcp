@@ -3,7 +3,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-describe('Kairos mint accessibility', () => {
+describe('Kairos train accessibility', () => {
   let mcpConnection;
   const QUERY = 'AI CODING RULES';
 

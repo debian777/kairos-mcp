@@ -73,37 +73,33 @@ export async function handleDuplicateAdapter(
   }
 }
 
-/** Max length for embedded mint-similarity query (adapter + first layer). */
+/** Max length for train-time similarity search text (adapter title / H1 only). */
 const ADAPTER_SIMILARITY_QUERY_MAX = 400;
 
 /**
- * Text for pre-mint similarity search: adapter identity plus first layer title.
- * Mandatory layer headings match across protocols; adapter title differentiates.
+ * Text for pre-train similarity search: adapter title (H1) only — no layer/memory headings.
  */
-export function buildAdapterSimilaritySearchQuery(adapterTitle: string, layerTitle: string): string {
+export function buildAdapterSimilaritySearchQuery(adapterTitle: string): string {
   const a = adapterTitle.trim();
-  const l = layerTitle.trim();
-  if (!a && !l) return 'Memory';
-  if (!l) return a.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
-  if (!a) return l.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
-  return `${a}\n${l}`.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
+  if (!a) return 'Memory';
+  return a.slice(0, ADAPTER_SIMILARITY_QUERY_MAX);
 }
 
 /**
- * Similarity guard before mint: vector search on adapter title + first layer title (not layer alone).
+ * Similarity guard before train (store): hybrid/vector search on adapter title only.
  * Set SIMILAR_MEMORY_THRESHOLD=1 in env to effectively disable.
+ * With force_update: true, duplicate adapter id is handled by handleDuplicateAdapter (replace).
  */
 export async function checkSimilarAdapterByTitle(
   methods: MemoryQdrantStoreMethods,
   adapterTitle: string,
-  layerTitle: string,
   forceUpdate: boolean
 ): Promise<void> {
   if (forceUpdate) {
     return;
   }
 
-  const label = buildAdapterSimilaritySearchQuery(adapterTitle, layerTitle);
+  const label = buildAdapterSimilaritySearchQuery(adapterTitle);
 
   const { memories, scores } = await methods.searchMemories(label, 10, false);
 
@@ -132,11 +128,12 @@ export async function checkSimilarAdapterByTitle(
       score: bestScore,
       layer_count: bestMatch.adapter?.layer_count ?? 1
     };
-    const next_action = `call export with ${adapterUri} and format "markdown" to inspect the existing adapter, then either call train with force_update: true to replace it or revise the markdown and train a distinct adapter`;
+    const next_action = `call export with ${adapterUri} and format "markdown" to inspect the similar adapter. If your markdown uses the same adapter id, call train with force_update: true to replace that adapter; otherwise pick a distinct adapter title (H1)`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
 
+    const matchedAdapterName = bestMatch.adapter?.name ?? bestMatch.label;
     logger.warn(
-      `[MemoryQdrantStore] Similar memory found by title: "${label}" matches "${bestMatch.label}" with score ${bestScore.toFixed(3)}`
+      `[MemoryQdrantStore] Similar adapter title: query "${label}" ~ existing "${matchedAdapterName}" score ${bestScore.toFixed(3)}`
     );
 
     throw new KairosError(
@@ -146,7 +143,7 @@ export async function checkSimilarAdapterByTitle(
       {
         existing_memory: existingMemory,
         similarity_score: bestScore,
-        message: `A very similar memory already exists with title "${bestMatch.label}" (similarity: ${Math.round(bestScore * 100)}%). Verify it before overwriting.`,
+        message: `Adapter title similar to existing "${matchedAdapterName}" (${Math.round(bestScore * 100)}% match). Verify or use force_update: true with the same adapter id to replace.`,
         must_obey: true,
         next_action,
         content_preview

@@ -80,11 +80,9 @@ export class MemoryQdrantStoreAdapter {
           const adapterTitleForSimilarity = (
             parsedSingleDoc?.title?.trim() || adapterTitle
           ).slice(0, 120);
-          const layerTitleForSimilarity = (headerAdapterMemories[0]?.label || '').trim().slice(0, 120);
           await checkSimilarAdapterByTitle(
             this.methods,
             adapterTitleForSimilarity,
-            layerTitleForSimilarity,
             options.forceUpdate || false
           );
           return await storeHeaderBasedAdapter(
@@ -106,11 +104,9 @@ export class MemoryQdrantStoreAdapter {
       const adapterTitleForSimilarity = (
         parsedSingleDoc?.title?.trim() || struct0.h1 || generateLabel(doc0)
       ).slice(0, 120);
-      const layerTitleForSimilarity = (struct0.h2Items[0] || '').slice(0, 120);
       await checkSimilarAdapterByTitle(
         this.methods,
         adapterTitleForSimilarity,
-        layerTitleForSimilarity,
         options.forceUpdate || false
       );
 

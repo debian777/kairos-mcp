@@ -1,32 +1,32 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
-import type { MintInput, MintOutput } from './mint_schema.js';
+import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
 
-/** Thrown by executeMint on validation or store errors. */
-export class MintError extends Error {
+/** Thrown by executeTrainStore on validation or store errors. */
+export class TrainError extends Error {
   constructor(
     public code: string,
     message: string,
     public details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'MintError';
+    this.name = 'TrainError';
   }
 }
 
 /**
- * Shared execute: validate and store adapter markdown. Used by MCP tool and HTTP route.
- * @param runStore Runs the store call (e.g. with space context). Signature: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
+ * Low-level train step: validate protocol structure and persist adapter markdown.
+ * Used by MCP **`train`** and HTTP routes after optional fork resolution.
  */
-export async function executeMint(
+export async function executeTrainStore(
   memoryStore: MemoryQdrantStore,
-  input: MintInput,
+  input: TrainStoreInput,
   runStore: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
-): Promise<MintOutput> {
+): Promise<TrainStoreOutput> {
   const validation = validateProtocolStructure(input.markdown_doc);
   if (!validation.valid) {
-    throw new MintError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
+    throw new TrainError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
       missing: validation.missing,
       must_obey: true,
       next_action: `call forward with ${CREATION_PROTOCOL_URI} for guided adapter creation`

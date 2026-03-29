@@ -11,7 +11,7 @@ const adapterUriSchema = z
 const sourceAdapterUriSchema = z
   .string()
   .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}')
-  .describe('Optional fork source: export markdown from this adapter, then mint into target space');
+  .describe('Optional fork source: export markdown from this adapter, then train into target space');
 
 export const trainInputSchema = z
   .object({
@@ -53,3 +53,30 @@ export const trainOutputSchema = z.object({
 export type TrainInput = z.infer<typeof trainInputSchema>;
 export type TrainOutput = z.infer<typeof trainOutputSchema>;
 
+/** Internal: validated markdown + model for the low-level store step (after fork resolution). */
+const memoryUriSchema = z
+  .string()
+  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+
+export const trainStoreInputSchema = z.object({
+  markdown_doc: z.string().min(1).describe('Markdown document to store'),
+  llm_model_id: z.string().min(1).describe('LLM model ID'),
+  force_update: z.boolean().optional().default(false).describe('Overwrite an existing adapter with the same label'),
+  protocol_version: z.string().optional().describe('Protocol version (e.g. semver). Overrides or supplies version when document has no frontmatter.'),
+  space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" (default) or group name to train into that group space')
+});
+
+export const trainStoreOutputSchema = z.object({
+  items: z.array(
+    z.object({
+      uri: memoryUriSchema,
+      memory_uuid: z.string(),
+      label: z.string(),
+      tags: z.array(z.string())
+    })
+  ),
+  status: z.literal('stored')
+});
+
+export type TrainStoreInput = z.infer<typeof trainStoreInputSchema>;
+export type TrainStoreOutput = z.infer<typeof trainStoreOutputSchema>;

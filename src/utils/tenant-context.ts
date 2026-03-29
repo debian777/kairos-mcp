@@ -115,7 +115,7 @@ export function getRequestIdFromStorage(): string {
 
 /**
  * Space IDs to use for search only: allowedSpaceIds plus Kairos app space (deduped).
- * Writes (mint, update, delete) continue to use allowedSpaceIds only.
+ * Writes (train, tune, delete) continue to use allowedSpaceIds only.
  */
 export function getSearchSpaceIds(): string[] {
   const ctx = getSpaceContextFromStorage();

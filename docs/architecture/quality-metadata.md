@@ -21,7 +21,7 @@ on the payload stores quality tier or score.
 
 Quality metadata is set in five situations:
 
-1. **Initial store (adapter mint):** When a protocol adapter is stored,
+1. **Initial store (adapter train):** When a protocol adapter is stored,
    each layer payload is built with `quality_metadata` from
    `modelStats.calculateStepQualityMetadata(...)` using the layer's
    label, domain, task, type, and tags (no execution context yet).

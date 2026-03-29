@@ -3,7 +3,7 @@
 ## Natural Language Triggers
 
 - twelve step linear test protocol twelve layers
-- long sequential comment checkpoints unique mint 2026-03-27
+- long sequential comment checkpoints unique train 2026-03-27
 - MCP forward widget progress drill twelve checkpoints
 
 ## Step 01 — Checkpoint 01

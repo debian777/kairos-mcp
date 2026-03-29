@@ -32,7 +32,7 @@ describe('v4-forward first-call response schema', () => {
       name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
-    const parsed = parseMcpJson(storeResult, 'v4-forward first-call mint');
+    const parsed = parseMcpJson(storeResult, 'v4-forward first-call train');
     expect(parsed.status).toBe('stored');
     return parsed.items as Array<{ uri: string; adapter_uri: string }>;
   }
@@ -174,7 +174,7 @@ Only after all steps.`;
       name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
-    const stored = parseMcpJson(storeResult, 'v4-forward first-call single mint');
+    const stored = parseMcpJson(storeResult, 'v4-forward first-call single train');
     const uri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;
 
     const call = { name: 'forward', arguments: { uri } };

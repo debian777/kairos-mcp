@@ -250,7 +250,7 @@ and decide.
 1. `must_obey: true` — follow `next_action`: call **`export`** with the
    adapter or layer URI from `existing_memory.uri` and default **`format:
    markdown`** to retrieve serialized markdown in **`content`**.
-2. Compare the existing content with the intended mint payload.
+2. Compare the existing content with the intended train payload.
 3. Either call `train` with `force_update: true` to replace, or
    change the document (title or content) to make it distinct and call
    `train` again.
@@ -289,4 +289,4 @@ and do not claim success.
 - [tune workflow](workflow-tune.md) — update individual
   steps
 - [activate workflow](workflow-activate.md) — find existing
-  protocols before minting a duplicate
+  protocols before training a duplicate

@@ -3,7 +3,7 @@ import { kairosTrainSimilarAdapterFound } from '../services/metrics/mcp-metrics.
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { MintError } from '../tools/mint.js';
+import { TrainError } from '../tools/train-store.js';
 import { executeTrain } from '../tools/train.js';
 import { trainInputSchema } from '../tools/train_schema.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
@@ -75,7 +75,7 @@ export function setupTrainJsonRoute(
         statusCode?: number;
         type?: string;
       };
-      if (error instanceof MintError) {
+      if (error instanceof TrainError) {
         res.status(400).json({
           error: error.code,
           message: error.message.replaceAll('Protocol', 'Adapter').replaceAll('protocol', 'adapter'),

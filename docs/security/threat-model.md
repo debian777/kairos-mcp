@@ -69,9 +69,9 @@ execution.
 
 - **Mitigations in place**
   - Deterministic protocol execution flow (`search -> begin -> next -> attest`).
-  - Structured protocol validation during mint operations.
+  - Structured protocol validation during train (store) operations.
   - Explicit `must_obey` and `next_action` semantics in protocol output.
-  - Audit and incident runbook support for suspicious mint and update events.
+  - Audit and incident runbook support for suspicious train and update events.
 
 ### Cross-tenant data leakage
 
