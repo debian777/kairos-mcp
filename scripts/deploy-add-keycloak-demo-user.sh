@@ -3,8 +3,8 @@
 # Requires: Keycloak running (docker compose -p kairos-mcp --env-file .env --profile fullstack up -d).
 #
 # Usage:
-#   ./scripts/add-keycloak-demo-user.sh
-#   DEMO_PASSWORD=mysecret ./scripts/add-keycloak-demo-user.sh
+#   ./scripts/deploy-add-keycloak-demo-user.sh
+#   DEMO_PASSWORD=mysecret ./scripts/deploy-add-keycloak-demo-user.sh
 #
 # Reads KEYCLOAK_ADMIN_PASSWORD from .env. Creates user "demo" in kairos-dev
 # with password from DEMO_PASSWORD (default: demo).

@@ -12,8 +12,8 @@ export KEYCLOAK_URL
 if [ ! -f dist/cli/index.js ]; then
   npm run build
 fi
-if [ -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ] && [ -f scripts/configure-keycloak-realms.py ]; then
-  python3 scripts/configure-keycloak-realms.py
+if [ -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ] && [ -f scripts/deploy-configure-keycloak-realms.py ]; then
+  python3 scripts/deploy-configure-keycloak-realms.py
 fi
 echo "Complete login in the browser when it opens."
 npm run cli:dev -- login

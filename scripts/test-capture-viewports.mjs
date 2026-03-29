@@ -11,7 +11,7 @@ import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveKairosAppBaseUrl } from "./dev-app-base-url.mjs";
+import { resolveKairosAppBaseUrl } from "./test-integration-app-base-url.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..");

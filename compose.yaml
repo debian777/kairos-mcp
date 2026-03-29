@@ -80,7 +80,7 @@ services:
       retries: 3
     #   start_period: 3s
 
-  # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: python3 scripts/generate_dev_secrets.py --ci ---
+  # --- Postgres: Keycloak DB only (default Docker workflow via env). Regenerate: python3 scripts/deploy-generate-dev-secrets.py --ci ---
   postgres:
     profiles:
       - fullstack
@@ -114,8 +114,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # Idempotent realm setup via scripts/configure-keycloak-realms.py only (npm run infra:up). Do not add --import-realm.
-    # Group mapper `full.path` is always applied by configure-keycloak-realms.py (not a Keycloak KC_* env var).
+    # Idempotent realm setup via scripts/deploy-configure-keycloak-realms.py only (npm run infra:up). Do not add --import-realm.
+    # Group mapper `full.path` is always applied by deploy-configure-keycloak-realms.py (not a Keycloak KC_* env var).
     command:
       - start-dev
     environment:
@@ -131,7 +131,7 @@ services:
     ports:
       - "8080:8080"
       - "9000:9000"
-    # No bind mount: realm JSONs live in scripts/keycloak/import; use scripts/configure-keycloak-realms.py to create realms via API.
+    # No bind mount: realm JSONs live in scripts/keycloak/import; use scripts/deploy-configure-keycloak-realms.py to create realms via API.
     networks:
       - kairos-network
     restart: unless-stopped

@@ -7,7 +7,7 @@
  * - Default: update files to the appropriate target.
  * - --check: compare; exit 1 if any version differs from its target.
  *
- * Usage: node scripts/sync-skill-versions.mjs [--check]
+ * Usage: node scripts/build-sync-skill-versions.mjs [--check]
  */
 
 import { execSync } from 'node:child_process';

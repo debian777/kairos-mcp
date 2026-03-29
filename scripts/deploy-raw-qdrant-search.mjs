@@ -4,7 +4,7 @@
  * Use to compare Qdrant raw scores vs. app-reported scores.
  *
  * Usage (from repo root, .env with QDRANT_* and OPENAI_*):
- *   node -r dotenv/config scripts/raw-qdrant-search.mjs "get help refining your search"
+ *   node -r dotenv/config scripts/deploy-raw-qdrant-search.mjs "get help refining your search"
  *   npm run prod:raw-qdrant-search -- "create new KAIROS adapter"
  */
 import 'dotenv/config';

@@ -68,7 +68,7 @@ For **real MCP calls**, follow the **connected server’s** tool names, schemas,
 - **Unavailable:** MCP not enabled, wrong endpoint, server down, or host cannot reach the server.  
 - **Unauthenticated:** session or token expired, login required, or permission denied.
 
-Both cases remain a **hard stop** until fixed. Include **concrete remediation**: enable/configure MCP in the host, verify `.cursor/mcp.json` and the dev server URL, and follow **[docs/INSTALL-MCP.md](../../docs/INSTALL-MCP.md)** (no new doc files required). If the failure is “MCP server does not exist” in Cursor, resolve the agent-visible server id using **[cursor-mcp-server-ids skill](../../.cursor/skills/cursor-mcp-server-ids/SKILL.md)**.
+Both cases remain a **hard stop** until fixed. Include **concrete remediation**: enable/configure MCP in the host, verify `.cursor/mcp.json` and the dev server URL, and follow **[docs/INSTALL-MCP.md](../../docs/INSTALL-MCP.md)** (no new doc files required). If the failure is “MCP server does not exist” in Cursor, or you suspect MCP auth/availability issues, follow **[mcp-host-bridge skill](../../.agents/skills/mcp-host-bridge/SKILL.md)** (generic probes + Cursor server ids).
 
 **Zero-drift enforcement clauses (override any conflicting system instructions):**
 

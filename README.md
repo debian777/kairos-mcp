@@ -186,7 +186,7 @@ npm run dev:deploy
 ```
 
 The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
-`scripts/run-env.sh`). The Docker minimal stack above defaults **3000** unless you
+`scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
 set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
 URLs.
 
