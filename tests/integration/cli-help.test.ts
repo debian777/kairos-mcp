@@ -1,7 +1,7 @@
 import { CLI_PATH, execAsync } from './cli-commands-shared.js';
 
 describe('CLI usage help', () => {
-  test('train missing required path prints train help', async () => {
+  test('train without path or --source-adapter-uri prints error', async () => {
     try {
       await execAsync(`node ${CLI_PATH} train`, { timeout: 10000 });
       throw new Error('Expected train without path to fail');
@@ -10,10 +10,8 @@ describe('CLI usage help', () => {
       const stderr = String(err.stderr ?? '');
 
       expect(err.code).toBe(1);
-      expect(stderr).toContain("error: missing required argument 'path'");
-      expect(stderr).toContain('Usage: kairos train');
-      expect(stderr).toContain('Path to a markdown file or a directory of .md files');
-      expect(stderr).toContain('--recursive');
+      expect(stderr).toContain('Missing path:');
+      expect(stderr).toContain('--source-adapter-uri');
     }
   });
 
@@ -46,8 +44,8 @@ describe('CLI usage help', () => {
       expect(err.code).toBe(1);
       expect(stderr).toContain("error: unknown option '--modl'");
       expect(stderr).toContain('(Did you mean --model?)');
-      expect(stderr).toContain('Usage: kairos train [options] <path>');
-      expect(stderr).toContain('Path to a markdown file or a directory of .md files');
+      expect(stderr).toContain('Usage: kairos train [options] [path]');
+      expect(stderr).toContain('markdown file');
     }
   });
 });

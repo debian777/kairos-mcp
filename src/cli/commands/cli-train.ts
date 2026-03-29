@@ -45,17 +45,63 @@ export function trainCliCommand(program: Command): void {
   program
     .command('train')
     .description('Register a new KAIROS adapter from markdown (file or directory of .md files)')
-    .argument('<path>', 'Path to a markdown file or a directory of .md files')
+    .argument(
+      '[path]',
+      'Path to a markdown file or a directory of .md files (omit when using --source-adapter-uri)'
+    )
     .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
     .option('--force', 'Force update if an adapter with the same label already exists')
     .option('--recursive', 'When path is a directory, include nested .md files')
+    .option(
+      '--source-adapter-uri <uri>',
+      'Fork from an existing adapter via POST /api/train (requires --model); optional --space for target space'
+    )
+    .option('--space <space>', 'Target space for train or fork (personal or group display name)')
     .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
     .action(
       async (
-        target: string,
-        options: { model?: string; force?: boolean; recursive?: boolean; allowSensitiveUpload?: boolean }
+        target: string | undefined,
+        options: {
+          model?: string;
+          force?: boolean;
+          recursive?: boolean;
+          allowSensitiveUpload?: boolean;
+          sourceAdapterUri?: string;
+          space?: string;
+        }
       ) => {
         try {
+          const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+          const src = typeof options.sourceAdapterUri === 'string' ? options.sourceAdapterUri.trim() : '';
+          if (src.length > 0) {
+            if (target) {
+              writeError('Do not pass a path when using --source-adapter-uri');
+              process.exit(1);
+              return;
+            }
+            const model = options.model?.trim();
+            if (!model) {
+              writeError('--model is required when using --source-adapter-uri');
+              process.exit(1);
+              return;
+            }
+            const spaceOpt = typeof options.space === 'string' ? options.space.trim() : '';
+            const response = await client.trainJson({
+              llm_model_id: model,
+              force_update: Boolean(options.force),
+              source_adapter_uri: src,
+              ...(spaceOpt.length > 0 ? { space: spaceOpt } : {})
+            });
+            writeJson(response);
+            return;
+          }
+
+          if (!target) {
+            writeError('Missing path: provide a markdown file/directory or use --source-adapter-uri');
+            process.exit(1);
+            return;
+          }
+
           const abs = resolve(target);
           const st = statSync(abs, { throwIfNoEntry: false });
           if (!st) {
@@ -63,7 +109,6 @@ export function trainCliCommand(program: Command): void {
             process.exit(1);
           }
 
-          const client = new ApiClient(getResolvedApiBaseFromProgram(program));
           const trainOptions: { llmModelId?: string; force?: boolean } = {};
           if (options.model) trainOptions.llmModelId = options.model;
           if (options.force) trainOptions.force = options.force;

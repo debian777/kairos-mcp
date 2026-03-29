@@ -17,15 +17,32 @@ export function updateCommand(program: Command): void {
         .option('--file <file>', 'Path to markdown file to apply to all specified URIs')
         .option('--files <files...>', 'Paths to markdown files, one per URI (must match number of URIs)')
         .option('--updates <json>', 'Updates object as JSON string (alternative to --file/--files)')
+        .option(
+            '--space <space>',
+            'Move all layers of each target adapter to this space (e.g. personal or a group name). Use without --file for move-only.'
+        )
         .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
         .action(async (
             uris: string[],
-            options: { file?: string; files?: string[]; updates?: string; allowSensitiveUpload?: boolean }
+            options: {
+                file?: string;
+                files?: string[];
+                updates?: string;
+                space?: string;
+                allowSensitiveUpload?: boolean;
+            }
         ) => {
             try {
                 const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 let markdownDoc: SafeMarkdownUpload[] | undefined;
                 let updates: Record<string, any> | undefined;
+                const rawSpace = typeof options.space === 'string' ? options.space.trim() : '';
+
+                if (rawSpace.length > 0 && !options.file && !options.files && !options.updates) {
+                    const response = await client.tune(uris, { space: rawSpace });
+                    writeJson(response);
+                    return;
+                }
 
                 if (options.files) {
                     // Multiple files, one per URI
@@ -54,12 +71,20 @@ export function updateCommand(program: Command): void {
                         return;
                     }
                 } else {
-                    writeError('Must provide either --file or --updates');
+                    writeError('Must provide either --file, --updates, or --space alone for move-only');
                     process.exit(1);
                     return;
                 }
 
-                const response = await client.tune(uris, markdownDoc, updates);
+                const tuneOpts: {
+                    markdownDoc?: SafeMarkdownUpload[];
+                    updates?: Record<string, unknown>;
+                    space?: string;
+                } = {};
+                if (markdownDoc) tuneOpts.markdownDoc = markdownDoc;
+                if (updates) tuneOpts.updates = updates;
+                if (rawSpace.length > 0) tuneOpts.space = rawSpace;
+                const response = await client.tune(uris, tuneOpts);
                 writeJson(response);
             } catch (error) {
                 if (error instanceof Error && error.message.includes('ENOENT')) {

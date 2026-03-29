@@ -224,10 +224,38 @@ export class ApiClient {
         );
     }
 
-    async tune(uris: string[], markdownDoc?: SafeMarkdownUpload[], updates?: Record<string, unknown>): Promise<TuneOutput> {
+    async tune(
+        uris: string[],
+        opts?: {
+            markdownDoc?: SafeMarkdownUpload[];
+            updates?: Record<string, unknown>;
+            space?: string;
+        }
+    ): Promise<TuneOutput> {
+        const body: Record<string, unknown> = { uris };
+        if (opts?.markdownDoc) body['markdown_doc'] = opts.markdownDoc;
+        if (opts?.updates) body['updates'] = opts.updates;
+        const sp = typeof opts?.space === 'string' ? opts.space.trim() : '';
+        if (sp.length > 0) body['space'] = sp;
         return this.request<TuneOutput>('/api/tune', {
             method: 'POST',
-            body: JSON.stringify({ uris, markdown_doc: markdownDoc, updates }),
+            body: JSON.stringify(body),
+        });
+    }
+
+    /** JSON body train (space, source_adapter_uri fork, etc.); distinct from markdown POST /api/train/raw. */
+    async trainJson(body: {
+        llm_model_id: string;
+        force_update?: boolean;
+        space?: string;
+        source_adapter_uri?: string;
+        markdown_doc?: string;
+        protocol_version?: string;
+    }): Promise<TrainOutput> {
+        return this.request<TrainOutput>('/api/train', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
         });
     }
 
