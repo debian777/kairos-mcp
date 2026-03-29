@@ -29,7 +29,7 @@ skills/
     ├── kairos-bug-report/
     └── kairos-install/
         ├── SKILL.md
-        └── references/    # Spec-aligned: bundled mirrors of docs/ + REFERENCE-LINKS.md; refresh: npm run skills:sync-install-refs
+        └── references/    # Optional: link index for install docs (see references/README.md)
 ```
 
 `kairos` is the main everyday skill. `kairos-bug-report` and

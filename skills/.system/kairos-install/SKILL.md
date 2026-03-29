@@ -4,9 +4,8 @@ description: >-
   KAIROS first-time install: user chooses OpenAI or Ollama embeddings, then
   minimal Docker stack (app + Qdrant). Use when the user wants to install
   KAIROS locally, set up compose from this repo, or configure embedding
-  backends. Confirm each step with the user before executing. Canonical GitHub
-  doc URLs are in references/REFERENCE-LINKS.md; full-text mirrors live under
-  references/ (see references/README.md).
+  backends. Confirm each step with the user before executing. Canonical doc
+  URLs: [references/README.md](references/README.md).
 compatibility: >-
   Requires Docker and Docker Compose v2, a directory with compose.yaml (repo
   root or copy), and network access to pull images and optional embedding APIs.
@@ -21,9 +20,8 @@ system or starts services.
 **Canonical ordered procedure** (clone → `.env` → ports → **then** Compose):
 https://github.com/debian777/kairos-mcp/blob/main/docs/install/docker-compose-simple.md
 
-If you only have this skill folder, use **[references/README.md](references/README.md)**
-for bundled install docs, or **[references/REFERENCE-LINKS.md](references/REFERENCE-LINKS.md)**
-for the URL index (Agent Skills `references/` layout).
+If you only have this skill folder, open **[references/README.md](references/README.md)**
+for the install doc URL index.
 
 ## 1. Goal
 
@@ -160,8 +158,7 @@ If the app fails to start, check logs:
 
 ## Reference
 
-- **Bundled doc mirrors:** [references/README.md](references/README.md)
-- **URL index:** [references/REFERENCE-LINKS.md](references/REFERENCE-LINKS.md)
+- **Install doc URLs:** [references/README.md](references/README.md)
 - KAIROS MCP on GitHub: https://github.com/debian777/kairos-mcp
 - Issues: https://github.com/debian777/kairos-mcp/issues
 - Minimal Docker procedure (ordered): https://github.com/debian777/kairos-mcp/blob/main/docs/install/docker-compose-simple.md

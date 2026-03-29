@@ -40,7 +40,7 @@ flowchart LR
 | [env-and-secrets](env-and-secrets.md) | Variable list, `REDIS_URL`, TEI |
 | [CLI](../CLI.md) | `kairos` / `npx @debian777/kairos-mcp` |
 
-**Appendix:** [Google IdP + Keycloak (dev)](google-auth-dev.md)
+**Keycloak:** [Google IdP (dev)](../keycloak/google-auth-dev.md)
 
 ## Cursor and MCP
 

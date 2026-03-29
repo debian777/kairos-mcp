@@ -195,7 +195,7 @@ curl -sS "https://kairos.example.com/health"
 
 ## Google IdP
 
-[google-auth-dev.md](google-auth-dev.md) shows **kairos-dev**; prod → `kairos-prod` + `deploy-configure-keycloak-google-idp.py`.
+[Google IdP (dev)](../keycloak/google-auth-dev.md) covers **kairos-dev**; use **`kairos-prod`** and Keycloak Admin for production.
 
 ## Troubleshooting
 

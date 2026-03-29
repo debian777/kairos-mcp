@@ -74,4 +74,4 @@ TEI_MODEL=optional-model-id
 | `KEYCLOAK_INTERNAL_URL` | Server → Keycloak inside Docker |
 | `AUTH_CALLBACK_BASE_URL` | `/auth/callback` base |
 
-Google IdP: [google-auth-dev](google-auth-dev.md).
+Google IdP: [google-auth-dev](../keycloak/google-auth-dev.md).

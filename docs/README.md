@@ -18,6 +18,8 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
   app (default profile)
 - [Docker Compose — full stack](install/docker-compose-full-stack.md) — Redis,
   Postgres, Keycloak (`fullstack` profile)
+- [Keycloak — Google IdP (dev)](keycloak/google-auth-dev.md) — optional Google
+  sign-in on `kairos-dev`
 - [Cursor and MCP](install/README.md#cursor-and-mcp) — `mcp.json`, HTTP-only MCP
   (not stdio)
 - [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch

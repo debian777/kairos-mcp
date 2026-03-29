@@ -1,14 +1,14 @@
 # Appendix: Google sign-in for Keycloak (dev)
 
 This page is an **appendix** to the **full-stack Keycloak** setup. Complete
-[Docker Compose — full stack](docker-compose-full-stack.md) first. KAIROS still
+[Docker Compose — full stack](../install/docker-compose-full-stack.md) first. KAIROS still
 authenticates against Keycloak; Google is configured as an identity provider
 inside the `kairos-dev` realm.
 
 ## Prerequisites
 
-- Full-stack env and running Keycloak (see [install README](README.md) and
-  [Docker Compose — full stack](docker-compose-full-stack.md))
+- Full-stack env and running Keycloak (see [install README](../install/README.md) and
+  [Docker Compose — full stack](../install/docker-compose-full-stack.md))
 - Keycloak running locally (`npm run infra:up` or equivalent Compose)
 - Admin access to the local Keycloak realm
 - A Google OAuth client created in Google Cloud
@@ -44,13 +44,9 @@ Start the full local auth stack and configure realms:
 npm run infra:up
 ```
 
-Then configure the Google identity provider in Keycloak:
+In **Keycloak Admin Console** (realm **kairos-dev**): **Identity providers** → **Google** (or **OpenID Connect v1.0**). Set **Client ID** and **Client secret** from your Google OAuth client (same values as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env`). Save. Confirm the Google redirect URI in Google Cloud still matches **§1** above.
 
-```bash
-npm run dev:google-idp
-```
-
-That command runs `scripts/deploy-configure-keycloak-google-idp.py`.
+Use [Keycloak identity broker](https://www.keycloak.org/docs/latest/server_admin/#_identity_broker) if you need provider-specific options.
 
 ## 4. Verify the login flow
 
@@ -85,13 +81,7 @@ http://localhost:8080/realms/kairos-dev/broker/google/endpoint
 
 ### Keycloak does not show the Google button
 
-Re-run:
-
-```bash
-npm run dev:google-idp
-```
-
-Also verify that:
+Re-check the IdP in **Identity providers** (enabled, correct client ID/secret). Also verify that:
 
 - `GOOGLE_CLIENT_ID` is set
 - `GOOGLE_CLIENT_SECRET` is set
