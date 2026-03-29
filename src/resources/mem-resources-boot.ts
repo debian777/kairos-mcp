@@ -117,7 +117,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       try {
       // Use storeChain to handle parsing, embeddings, and force update logic.
       // Always forceUpdate on storeChain so a prior boot (e.g. old step-1 UUID before filename change)
-      // does not leave a same-label adapter that blocks minting the canonical file UUID (DUPLICATE_ADAPTER / DUPLICATE_SLUG).
+      // does not leave a same-label adapter that blocks training the canonical file UUID (DUPLICATE_ADAPTER / DUPLICATE_SLUG).
       // Per-file skip when target UUID already exists (below) still avoids re-embedding on normal restarts.
         if (options.force) {
           try {

@@ -104,7 +104,7 @@ describe('Qdrant storage verification', () => {
     }
   });
 
-  test('minted AI CODING RULES documents exist in Qdrant collection', async () => {
+  test('trained AI CODING RULES documents exist in Qdrant collection', async () => {
     await purgeExistingProtocols(QUERY);
     await new Promise(resolve => setTimeout(resolve, 2000));
 

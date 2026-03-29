@@ -1,13 +1,20 @@
+import type { Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { getToolDoc } from '../resources/embedded-mcp-resources.js';
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
-import { executeMint, MintError } from './mint.js';
+import { executeTrainStore, TrainError } from './train-store.js';
 import { executeDump } from './dump.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
-import { trainInputSchema, trainOutputSchema, type TrainInput, type TrainOutput } from './train_schema.js';
+import {
+  trainInputSchema,
+  trainOutputSchema,
+  type TrainInput,
+  type TrainOutput,
+  type TrainStoreInput
+} from './train_schema.js';
 import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
@@ -57,8 +64,8 @@ function formatTrainErrorPayload(error: { code?: string; details?: Record<string
     return {
       error: 'SIMILAR_MEMORY_FOUND',
       message: typeof details['next_action'] === 'string'
-        ? 'A very similar adapter already exists. Inspect it before replacing it.'
-        : 'A very similar adapter already exists.',
+        ? 'Adapter title is very similar to an existing one. Inspect the match; use force_update: true with the same adapter id to replace.'
+        : 'Adapter title is very similar to an existing one.',
       ...details
     };
   }
@@ -83,7 +90,7 @@ async function resolveMarkdownForTrain(
     return fromInput;
   }
   if (!qdrantService) {
-    throw new MintError(
+    throw new TrainError(
       'SOURCE_ADAPTER_UNAVAILABLE',
       'Forking from source_adapter_uri requires the adapter store; try again or pass markdown_doc only.',
       { must_obey: true }
@@ -91,7 +98,7 @@ async function resolveMarkdownForTrain(
   }
   const adapterMatch = /^kairos:\/\/adapter\/([0-9a-f-]{36})$/i.exec(sourceUri);
   if (!adapterMatch?.[1]) {
-    throw new MintError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid}', {
+    throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid}', {
       must_obey: true
     });
   }
@@ -104,7 +111,7 @@ async function resolveMarkdownForTrain(
   });
   const dumped = typeof dump['markdown_doc'] === 'string' ? dump['markdown_doc'].trim() : '';
   if (!dumped) {
-    throw new MintError('SOURCE_EXPORT_EMPTY', 'Could not export markdown from the source adapter.', {
+    throw new TrainError('SOURCE_EXPORT_EMPTY', 'Could not export markdown from the source adapter.', {
       must_obey: true
     });
   }
@@ -119,18 +126,22 @@ export async function executeTrain(
 ): Promise<TrainOutput> {
   const markdownDoc = await resolveMarkdownForTrain(memoryStore, qdrantService, input);
   if (!markdownDoc || markdownDoc.length < 1) {
-    throw new MintError('MARKDOWN_REQUIRED', 'Provide markdown_doc and/or source_adapter_uri.', {
+    throw new TrainError('MARKDOWN_REQUIRED', 'Provide markdown_doc and/or source_adapter_uri.', {
       must_obey: true
     });
   }
-  const mintPayload = {
+  const storePayload = {
     markdown_doc: markdownDoc,
     llm_model_id: input.llm_model_id,
     force_update: input.force_update,
     ...(input.protocol_version !== undefined && { protocol_version: input.protocol_version }),
     ...(input.space !== undefined && { space: input.space })
   };
-  const result = await executeMint(memoryStore, mintPayload as any, runStore as any);
+  const result = await executeTrainStore(
+    memoryStore,
+    storePayload as TrainStoreInput,
+    runStore as (fn: () => Promise<Memory[]>) => Promise<Memory[]>
+  );
   const items = await Promise.all(
     result.items.map(async (item) => {
       const memory = await memoryStore.getMemory(item.memory_uuid);
@@ -211,7 +222,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
         };
       } catch (error) {
         const err = error as { code?: string; details?: Record<string, unknown>; message?: string };
-        if (error instanceof MintError) {
+        if (error instanceof TrainError) {
           mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
           timer({ tool: toolName, status: 'error', tenant_id: tenantId });

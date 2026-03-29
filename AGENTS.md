@@ -43,7 +43,7 @@ files; they are authoritative.
 ## MUST ALWAYS (repo context)
 
 - Use Context7 when you need library/API documentation or setup steps.
-- Add a `contract` JSON block to every verifiable step when minting.
+- Add a `contract` JSON block to every verifiable step when authoring for **`train`**.
 - Use space names in tool parameters; the backend resolves to IDs.
 - Deploy to dev before testing: `npm run dev:deploy && npm run dev:test`.
 
@@ -52,9 +52,9 @@ files; they are authoritative.
 - Pass raw space IDs in tool parameters; use human-readable space names.
 - Promote code to live without full validation in dev.
 
-## Minting and editing protocols
+## Training and editing adapters
 
-When minting (**`train`**) or editing (**`tune`**) adapter markdown:
+When training (**`train`**) or editing (**`tune`**) adapter markdown:
 
 - Use H1 for the adapter title.
 - Use H2 for each step label.

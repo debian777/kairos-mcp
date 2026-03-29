@@ -100,7 +100,7 @@ describe('Adversarial and robustness inputs', () => {
     expect(body).not.toHaveProperty('description_full');
   }, 30000);
 
-  test('handles null bytes and unicode edge cases in mint body', async () => {
+  test('handles null bytes and unicode edge cases in train body', async () => {
     expect.hasAssertions();
     const uniqueTitle = `Adversarial Unicode ${Date.now()}`;
     const markdown = [

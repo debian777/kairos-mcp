@@ -10,7 +10,7 @@ codebase and configuration model.
   stdio server process in the main runtime entrypoint.
 - **Qdrant is always required.** Startup fails without a reachable
   `QDRANT_URL`.
-- **Embedding provider is always required.** Search and minting depend on a
+- **Embedding provider is always required.** Search and training (store) depend on a
   working embedding backend (OpenAI-compatible or TEI-compatible).
 - **Redis is optional, but the no-Redis path is in-process only.** When
   `REDIS_URL` is empty, caches and proof-of-work state live in the local memory

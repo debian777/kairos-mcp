@@ -2,7 +2,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 /**
- * Train (mint) integration tests (basic functionality).
+ * Train integration tests (basic functionality).
  *
  * Goals:
  * - Verify the happy-path JSON contract of the train tool.
@@ -10,7 +10,7 @@ import { parseMcpJson } from '../utils/expect-with-raw.js';
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Train (mint) basic functionality', () => {
+describe('Train basic functionality', () => {
   let mcpConnection;
 
   beforeAll(async () => {
@@ -280,7 +280,7 @@ Only after all steps.`;
       throw new Error(`train failed: ${storeResponse.error} - ${storeResponse.message ?? ''}`);
     }
     expect(storeResponse.status).toBe('stored');
-    // PoW-based mint: each ```json challenge block defines a layer; this doc has 2 blocks so expect >= 1 stored layer
+    // PoW-based train: each ```json challenge block defines a layer; this doc has 2 blocks so expect >= 1 stored layer
     expect(storeResponse.items.length).toBeGreaterThanOrEqual(1);
 
     // Test that activate can find the adapter (use semantic query from content)

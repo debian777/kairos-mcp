@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-shot: mint docs/examples/protocol-twelve-step-linear-test.md via local MCP train.
+ * One-shot: train docs/examples/protocol-twelve-step-linear-test.md via local MCP train.
  * Uses same auth as integration tests when AUTH_ENABLED.
  */
 import 'dotenv/config';

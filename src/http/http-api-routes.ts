@@ -1,7 +1,7 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { setupMintRoute } from './http-api-mint.js';
+import { setupTrainRawRoute } from './http-api-train-raw.js';
 import { setupTrainJsonRoute } from './http-api-train-json.js';
 import { setupSnapshotRoute } from './http-api-snapshot.js';
 import { setupActivateRoute } from './http-api-begin.js';
@@ -24,7 +24,7 @@ export function setupApiRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
     setupMeRoute(app);
     setupSpacesRoute(app, memoryStore);
-    setupMintRoute(app, memoryStore, qdrantService);
+    setupTrainRawRoute(app, memoryStore, qdrantService);
     setupTrainJsonRoute(app, memoryStore, qdrantService);
     setupSnapshotRoute(app, qdrantService);
     setupActivateRoute(app, memoryStore, qdrantService); // /api/activate

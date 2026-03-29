@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { createRequire } from 'module';
 import { activateCommand } from './commands/search.js';
 import { forwardCommand } from './commands/begin.js';
-import { mintCommand } from './commands/mint.js';
+import { trainCliCommand } from './commands/cli-train.js';
 import { updateCommand } from './commands/update.js';
 import { deleteCommand } from './commands/delete.js';
 import { rewardCommand } from './commands/attest.js';
@@ -47,7 +47,7 @@ export function createProgram(): Command {
   // Register commands for the current MCP tool surface.
   activateCommand(program); // activate
   forwardCommand(program); // forward
-  mintCommand(program); // train
+  trainCliCommand(program);
   updateCommand(program); // tune
   deleteCommand(program); // delete
   rewardCommand(program); // reward

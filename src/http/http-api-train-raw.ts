@@ -4,15 +4,15 @@ import { kairosTrainSimilarAdapterFound } from '../services/metrics/mcp-metrics.
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { MintError } from '../tools/mint.js';
+import { TrainError } from '../tools/train-store.js';
 import { executeTrain } from '../tools/train.js';
 import { trainInputSchema } from '../tools/train_schema.js';
-import { HTTP_MINT_RAW_BODY_LIMIT } from '../config.js';
+import { HTTP_TRAIN_RAW_BODY_LIMIT } from '../config.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { KairosError } from '../types/index.js';
 
-const SAFE_MINT_DETAIL_KEYS = new Set([
+const SAFE_TRAIN_RAW_DETAIL_KEYS = new Set([
   'missing',
   'must_obey',
   'next_action',
@@ -26,11 +26,11 @@ const SAFE_MINT_DETAIL_KEYS = new Set([
   'message'
 ]);
 
-function sanitizeMintDetails(details?: Record<string, unknown>): Record<string, unknown> {
+function sanitizeTrainRawDetails(details?: Record<string, unknown>): Record<string, unknown> {
   if (!details) return {};
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
-    if (!SAFE_MINT_DETAIL_KEYS.has(key)) continue;
+    if (!SAFE_TRAIN_RAW_DETAIL_KEYS.has(key)) continue;
     output[key] = value;
   }
   return output;
@@ -42,10 +42,9 @@ function creationAdapterUri(): string {
 }
 
 /**
- * Set up API route for raw markdown ingestion.
- * Builds MintInput from raw body + query/headers and returns executeMint result only (no metadata).
+ * POST /api/train/raw — raw markdown body; builds {@link TrainInput} from body + query/headers.
  */
-export function setupMintRoute(
+export function setupTrainRawRoute(
   app: express.Express,
   memoryStore: MemoryQdrantStore,
   qdrantService?: QdrantService
@@ -54,7 +53,7 @@ export function setupMintRoute(
     try {
       const contentLength = req.headers['content-length'] ? parseInt(req.headers['content-length'], 10) : null;
       const rawBody = await getRawBody(req, {
-        limit: HTTP_MINT_RAW_BODY_LIMIT,
+        limit: HTTP_TRAIN_RAW_BODY_LIMIT,
         encoding: 'utf8',
         ...(contentLength !== null && { length: contentLength })
       });
@@ -98,11 +97,11 @@ export function setupMintRoute(
         });
         return;
       }
-      if (error instanceof MintError) {
+      if (error instanceof TrainError) {
         res.status(400).json({
           error: error.code,
           message: error.message.replaceAll('Protocol', 'Adapter').replaceAll('protocol', 'adapter'),
-          ...sanitizeMintDetails(error.details),
+          ...sanitizeTrainRawDetails(error.details),
           next_action: `call forward with ${creationAdapterUri()} to open the guided adapter creation flow`
         });
         return;
@@ -110,11 +109,11 @@ export function setupMintRoute(
       if (error instanceof KairosError) {
         const status =
           error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
-        structuredLogger.warn(`✗ Mint KairosError ${error.code}: ${error.message}`);
+        structuredLogger.warn(`✗ Train raw KairosError ${error.code}: ${error.message}`);
         res.status(status).json({
           error: error.code,
           message: error.message,
-          ...sanitizeMintDetails(error.details as Record<string, unknown> | undefined)
+          ...sanitizeTrainRawDetails(error.details as Record<string, unknown> | undefined)
         });
         return;
       }
@@ -123,7 +122,7 @@ export function setupMintRoute(
         res.status(409).json({
           error: 'DUPLICATE_ADAPTER',
           message: 'Adapter with this label already exists. Use --force flag to overwrite.',
-          ...sanitizeMintDetails(err.details)
+          ...sanitizeTrainRawDetails(err.details)
         });
         return;
       }

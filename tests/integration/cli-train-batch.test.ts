@@ -1,5 +1,5 @@
 /**
- * CLI mint batch: directory and --recursive
+ * CLI train batch: directory and --recursive
  */
 
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs';
@@ -34,7 +34,7 @@ Done.
 `;
 }
 
-describe('CLI mint directory batch', () => {
+describe('CLI train directory batch', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
 
@@ -43,11 +43,11 @@ describe('CLI mint directory batch', () => {
     cliLoggedIn = await setupCliConfigWithLogin();
   }, 60000);
 
-  test('mint directory mints all root .md files and returns batch JSON', async () => {
+  test('train directory stores all root .md files and returns batch JSON', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
     const ts = Date.now();
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-batch-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-batch-'));
     try {
       writeFileSync(join(dir, 'z-second.md'), minimalProtocolMd(`CLI Batch Z ${ts}`), 'utf-8');
       writeFileSync(join(dir, 'a-first.md'), minimalProtocolMd(`CLI Batch A ${ts}`), 'utf-8');
@@ -74,11 +74,11 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
-  test('mint --recursive includes nested .md files', async () => {
+  test('train --recursive includes nested .md files', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
     const ts = Date.now();
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-rec-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-rec-'));
     try {
       mkdirSync(join(dir, 'nested'), { recursive: true });
       writeFileSync(join(dir, 'root.md'), minimalProtocolMd(`CLI Rec Root ${ts}`), 'utf-8');
@@ -104,11 +104,11 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
-  test('mint --recursive skips README.md at root and in subdirs', async () => {
+  test('train --recursive skips README.md at root and in subdirs', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
     const ts = Date.now();
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-readme-rec-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-readme-rec-'));
     try {
       mkdirSync(join(dir, 'nested'), { recursive: true });
       writeFileSync(join(dir, 'root.md'), minimalProtocolMd(`CLI ReadmeRec Root ${ts}`), 'utf-8');
@@ -136,11 +136,11 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
-  test('mint directory batch skips root README.md only', async () => {
+  test('train directory batch skips root README.md only', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
     const ts = Date.now();
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-readme-flat-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-readme-flat-'));
     try {
       writeFileSync(join(dir, 'a.md'), minimalProtocolMd(`CLI ReadmeFlat A ${ts}`), 'utf-8');
       writeFileSync(join(dir, 'README.md'), '# Human docs\n', 'utf-8');
@@ -160,11 +160,11 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
-  test('mint without --recursive skips nested .md', async () => {
+  test('train without --recursive skips nested .md', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
     const ts = Date.now();
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-flat-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-flat-'));
     try {
       mkdirSync(join(dir, 'nested'), { recursive: true });
       writeFileSync(join(dir, 'only-root.md'), minimalProtocolMd(`CLI Flat Root ${ts}`), 'utf-8');
@@ -185,10 +185,10 @@ describe('CLI mint directory batch', () => {
     }
   }, 120000);
 
-  test('mint empty directory exits with error', async () => {
+  test('train empty directory exits with error', async () => {
     if (!serverAvailable || !cliLoggedIn) return;
 
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-mint-empty-'));
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-empty-'));
     try {
       try {
         await execAsync(`node ${CLI_PATH} train --url ${BASE_URL} "${dir}"`, { timeout: 30000 });

@@ -1,8 +1,8 @@
-# KAIROS challenge types — mintable examples
+# KAIROS challenge types — trainable examples
 
-The documents in this folder are **real markdown protocols ready for minting**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"contract": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
+The documents in this folder are **real markdown adapters ready for `train`**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"contract": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
 
-## Mintable protocol documents
+## Example protocol documents
 
 | File | Challenge type(s) | Description |
 |------|------------------|-------------|
@@ -12,7 +12,7 @@ The documents in this folder are **real markdown protocols ready for minting**. 
 | [protocol-example-mcp.md](protocol-example-mcp.md) | mcp | Step 1: call an MCP tool and report success. Step 2: show output to user (no challenge). |
 | [protocol-example-all-types.md](protocol-example-all-types.md) | shell, mcp, user_input, comment | Steps 1–4: one per type. Step 5: show outputs to user (no challenge). |
 
-## How to mint
+## How to train
 
 1. Copy the full content of one of the protocol files above (or combine steps into your own document).
 2. Ensure each step ends with a single ` ```json ` block containing an object with a `challenge` key (see the examples).

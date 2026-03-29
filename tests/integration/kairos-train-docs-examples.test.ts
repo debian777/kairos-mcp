@@ -1,7 +1,7 @@
 /**
  * Kairos Mint integration tests for docs/examples (workflow test — imports scenario).
  *
- * Trains each mintable protocol from docs/examples/ via train. Used in dev/qa
+ * Trains each example protocol from docs/examples/ via train. Used in dev/qa
  * to validate that canonical examples can be imported; complements agent-driven
  * workflow tests in tests/workflow-test/.
  */

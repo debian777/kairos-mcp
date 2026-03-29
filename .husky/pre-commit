@@ -67,6 +67,6 @@ if [ -n "$lint_git_paths" ]; then
   echo >&2 "  Pre-commit still allows this commit; humans must verify the diff."
   echo >&2 ""
 fi
-# drop_staged_missing_blobs
+drop_staged_missing_blobs
 npm run lint >&2 || exit 1
-# drop_staged_missing_blobs
+drop_staged_missing_blobs
