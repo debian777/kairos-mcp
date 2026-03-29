@@ -34,14 +34,22 @@
         "http://localhost:3300/auth/callback",
         "http://localhost:3301/auth/callback",
         "http://127.0.0.1:3300/auth/callback",
-        "http://127.0.0.1:3301/auth/callback"
+        "http://127.0.0.1:3301/auth/callback",
+        "http://localhost:3300/auth/continue-signin",
+        "http://localhost:3301/auth/continue-signin",
+        "http://127.0.0.1:3300/auth/continue-signin",
+        "http://127.0.0.1:3301/auth/continue-signin"
       ],
       "webOrigins": [
         "http://localhost:3300",
         "http://localhost:3301",
         "http://127.0.0.1:3300",
         "http://127.0.0.1:3301"
-      ]
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3300/auth/continue-signin##http://localhost:3301/auth/continue-signin##http://127.0.0.1:3300/auth/continue-signin##http://127.0.0.1:3301/auth/continue-signin",
+        "logout.confirmation.enabled": "false"
+      }
     },
     {
       "clientId": "kairos-cli",

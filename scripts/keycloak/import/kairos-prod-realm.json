@@ -29,12 +29,18 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": [
         "http://localhost:3000/auth/callback",
-        "http://127.0.0.1:3000/auth/callback"
+        "http://127.0.0.1:3000/auth/callback",
+        "http://localhost:3000/auth/continue-signin",
+        "http://127.0.0.1:3000/auth/continue-signin"
       ],
       "webOrigins": [
         "http://localhost:3000",
         "http://127.0.0.1:3000"
-      ]
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/auth/continue-signin##http://127.0.0.1:3000/auth/continue-signin",
+        "logout.confirmation.enabled": "false"
+      }
     },
     {
       "clientId": "kairos-cli",

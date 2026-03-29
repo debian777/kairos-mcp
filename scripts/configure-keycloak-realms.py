@@ -118,18 +118,28 @@ def dev_app_port_bounds(env: dict) -> tuple[int, int]:
     return lo, hi
 
 
-def build_kairos_mcp_dev_redirect_lists(env: dict) -> tuple[list[str], list[str]]:
+def build_kairos_mcp_dev_redirect_lists(env: dict) -> tuple[list[str], list[str], str]:
     """
     Build redirectUris and webOrigins for kairos-mcp (dev) from port range + optional callback base.
+    Also returns post.logout.redirect.uris (##-separated) for OIDC RP-initiated logout → continue-signin.
     """
     lo, hi = dev_app_port_bounds(env)
     redirect_uris: list[str] = []
     web_origins: list[str] = []
+    post_logout: list[str] = []
     for port in range(lo, hi + 1):
         redirect_uris.extend(
             (
                 f"http://localhost:{port}/auth/callback",
                 f"http://127.0.0.1:{port}/auth/callback",
+                f"http://localhost:{port}/auth/continue-signin",
+                f"http://127.0.0.1:{port}/auth/continue-signin",
+            )
+        )
+        post_logout.extend(
+            (
+                f"http://localhost:{port}/auth/continue-signin",
+                f"http://127.0.0.1:{port}/auth/continue-signin",
             )
         )
         web_origins.extend((f"http://localhost:{port}", f"http://127.0.0.1:{port}"))
@@ -139,10 +149,16 @@ def build_kairos_mcp_dev_redirect_lists(env: dict) -> tuple[list[str], list[str]
         callback = f"{base}/auth/callback"
         if callback not in redirect_uris:
             redirect_uris.append(callback)
+        resume = f"{base}/auth/continue-signin"
+        if resume not in redirect_uris:
+            redirect_uris.append(resume)
+        if resume not in post_logout:
+            post_logout.append(resume)
         if base not in web_origins:
             web_origins.append(base)
 
-    return redirect_uris, web_origins
+    post_logout_uris = "##".join(post_logout)
+    return redirect_uris, web_origins, post_logout_uris
 
 
 def apply_kairos_mcp_dev_client_urls(desired: dict, env: dict, realm_name: str) -> None:
@@ -152,12 +168,16 @@ def apply_kairos_mcp_dev_client_urls(desired: dict, env: dict, realm_name: str) 
     """
     if realm_name != "kairos-dev":
         return
-    redirect_uris, web_origins = build_kairos_mcp_dev_redirect_lists(env)
+    redirect_uris, web_origins, post_logout_uris = build_kairos_mcp_dev_redirect_lists(env)
     for client in desired.get("clients") or []:
         if client.get("clientId") != "kairos-mcp":
             continue
         client["redirectUris"] = redirect_uris
         client["webOrigins"] = web_origins
+        attrs = dict(client.get("attributes") or {})
+        attrs["post.logout.redirect.uris"] = post_logout_uris
+        attrs["logout.confirmation.enabled"] = "false"
+        client["attributes"] = attrs
         break
 
 
@@ -320,6 +340,11 @@ def push_kairos_mcp_redirect_config(
         patch["redirectUris"] = list(ru)
     if wo is not None:
         patch["webOrigins"] = list(wo)
+    att = mcp_desired.get("attributes")
+    if isinstance(att, dict) and att:
+        merged = dict(patch.get("attributes") or {})
+        merged.update(att)
+        patch["attributes"] = merged
 
     url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/{internal_id}"
     payload = json.dumps(patch).encode("utf-8")

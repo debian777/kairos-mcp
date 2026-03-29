@@ -6,13 +6,11 @@
 import type { Request, Response, NextFunction } from 'express';
 import { METHODS } from 'node:http';
 import crypto from 'crypto';
+import { createOidcLoginUrlForApiResponse, redirectBrowserToOidcLogin } from './http-auth-oidc-redirect.js';
 import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
 import { utf8toString } from '@exodus/bytes/utf8.js';
 import {
   AUTH_ENABLED,
-  KEYCLOAK_URL,
-  KEYCLOAK_REALM,
-  KEYCLOAK_CLIENT_ID,
   AUTH_CALLBACK_BASE_URL,
   SESSION_SECRET,
   AUTH_MODE,
@@ -28,38 +26,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 export type { AuthPayload };
 
 const SESSION_COOKIE_NAME = 'kairos_session';
-const STATE_TTL_MS = 600_000; // 10 min
 const KNOWN_HTTP_METHODS = new Set<string>(METHODS);
-
-interface StateEntry {
-  codeVerifier: string;
-  createdAt: number;
-}
-const stateStore = new Map<string, StateEntry>();
-
-function pruneStateStore(): void {
-  const now = Date.now();
-  for (const [k, v] of stateStore.entries()) {
-    if (now - v.createdAt > STATE_TTL_MS) stateStore.delete(k);
-  }
-}
-
-function buildLoginUrl(state: string, codeChallenge: string): string {
-  const base = KEYCLOAK_URL.replace(/\/$/, '');
-  const redirectUri = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/auth/callback`;
-  const params = new URLSearchParams({
-    client_id: KEYCLOAK_CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'openid profile email',
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
-    // Force login page so a second browser gets a fresh login instead of SSO "already logged in" errors.
-    prompt: 'login'
-  });
-  return `${base}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth?${params.toString()}`;
-}
 
 function getSessionCookie(req: Request): string | null {
   const raw = req.get('cookie');
@@ -74,8 +41,8 @@ function hasValidSession(req: Request): boolean {
   return getSessionPayload(req) !== null;
 }
 
-/** Decode and verify session cookie; returns AuthPayload or null. */
-function getSessionPayload(req: Request): AuthPayload | null {
+/** Verify HMAC and parse session cookie JSON; does not check exp/sub. */
+function parseVerifiedSessionRecord(req: Request): Record<string, unknown> | null {
   const cookie = getSessionCookie(req);
   if (!cookie || !SESSION_SECRET) return null;
   try {
@@ -85,49 +52,63 @@ function getSessionPayload(req: Request): AuthPayload | null {
       new Uint8Array(crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest())
     );
     if (sig !== expectedSig) return null;
-    const payload = JSON.parse(utf8toString(fromBase64url(payloadB64))) as {
-      sub?: string;
-      groups?: string[];
-      iss?: string;
-      realm?: string;
-      exp?: number;
-      preferred_username?: string;
-      name?: string;
-      given_name?: string;
-      family_name?: string;
-      email?: string;
-      email_verified?: boolean;
-      identity_provider?: string;
-      account_kind?: string;
-      account_label?: string;
-    };
-    if (payload.exp && payload.exp < Date.now() / 1000) return null;
-    const sub = typeof payload.sub === 'string' ? payload.sub : '';
-    if (!sub) return null;
-    const rawGroups = Array.isArray(payload.groups) ? payload.groups.filter((g): g is string => typeof g === 'string') : [];
-    const groups = applyOidcGroupsAllowlist(rawGroups, OIDC_GROUPS_ALLOWLIST);
-    const realm = typeof payload.realm === 'string' ? payload.realm : 'default';
-    const iss =
-      typeof payload.iss === 'string' && payload.iss.length > 0
-        ? payload.iss
-        : `realm:${realm}`;
-    const result: AuthPayload = { sub, groups, realm, iss };
-    if (typeof payload.preferred_username === 'string' && payload.preferred_username.length > 0)
-      result.preferred_username = payload.preferred_username;
-    if (typeof payload.name === 'string' && payload.name.length > 0) result.name = payload.name;
-    if (typeof payload.given_name === 'string' && payload.given_name.length > 0) result.given_name = payload.given_name;
-    if (typeof payload.family_name === 'string' && payload.family_name.length > 0) result.family_name = payload.family_name;
-    if (typeof payload.email === 'string' && payload.email.length > 0) result.email = payload.email;
-    if (payload.email_verified === true || payload.email_verified === false) result.email_verified = payload.email_verified;
-    if (typeof payload.identity_provider === 'string' && payload.identity_provider.length > 0)
-      result.identity_provider = payload.identity_provider;
-    if (payload.account_kind === 'local' || payload.account_kind === 'sso') result.account_kind = payload.account_kind;
-    if (typeof payload.account_label === 'string' && payload.account_label.length > 0)
-      result.account_label = payload.account_label;
-    return result;
+    return JSON.parse(utf8toString(fromBase64url(payloadB64))) as Record<string, unknown>;
   } catch {
     return null;
   }
+}
+
+/**
+ * OIDC id_token from login callback, stored only in the httpOnly session cookie for RP-initiated logout
+ * (id_token_hint → Keycloak can skip the static logged-out confirmation screen when configured).
+ */
+export function peekOidcIdTokenHintFromSession(req: Request): string | null {
+  const payload = parseVerifiedSessionRecord(req);
+  if (!payload) return null;
+  const exp = payload['exp'];
+  if (typeof exp === 'number' && exp < Date.now() / 1000) return null;
+  const t = payload['oidc_id_token'];
+  return typeof t === 'string' && t.length > 0 ? t : null;
+}
+
+/** Decode and verify session cookie; returns AuthPayload or null. */
+function getSessionPayload(req: Request): AuthPayload | null {
+  const payload = parseVerifiedSessionRecord(req);
+  if (!payload) return null;
+  const exp = payload['exp'];
+  if (typeof exp === 'number' && exp < Date.now() / 1000) return null;
+  const sub = typeof payload['sub'] === 'string' ? payload['sub'] : '';
+  if (!sub) return null;
+  const rawGroups = Array.isArray(payload['groups'])
+    ? payload['groups'].filter((g): g is string => typeof g === 'string')
+    : [];
+  const groups = applyOidcGroupsAllowlist(rawGroups, OIDC_GROUPS_ALLOWLIST);
+  const realm = typeof payload['realm'] === 'string' ? payload['realm'] : 'default';
+  const issRaw = payload['iss'];
+  const iss =
+    typeof issRaw === 'string' && issRaw.length > 0
+      ? issRaw
+      : `realm:${realm}`;
+  const result: AuthPayload = { sub, groups, realm, iss };
+  const pu = payload['preferred_username'];
+  if (typeof pu === 'string' && pu.length > 0) result.preferred_username = pu;
+  const name = payload['name'];
+  if (typeof name === 'string' && name.length > 0) result.name = name;
+  const gn = payload['given_name'];
+  if (typeof gn === 'string' && gn.length > 0) result.given_name = gn;
+  const fn = payload['family_name'];
+  if (typeof fn === 'string' && fn.length > 0) result.family_name = fn;
+  const em = payload['email'];
+  if (typeof em === 'string' && em.length > 0) result.email = em;
+  const ev = payload['email_verified'];
+  if (ev === true || ev === false) result.email_verified = ev;
+  const idp = payload['identity_provider'];
+  if (typeof idp === 'string' && idp.length > 0) result.identity_provider = idp;
+  const ak = payload['account_kind'];
+  if (ak === 'local' || ak === 'sso') result.account_kind = ak;
+  const al = payload['account_label'];
+  if (typeof al === 'string' && al.length > 0) result.account_label = al;
+  return result;
 }
 
 function getBearerToken(req: Request): string | null {
@@ -302,22 +283,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  const loginUrl = (s: string, cc: string) => buildLoginUrl(s, cc);
-  const state = crypto.randomBytes(16).toString('base64url');
-  const codeVerifier = crypto.randomBytes(32).toString('base64url');
-  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url').replace(/=/g, '');
-  stateStore.set(state, { codeVerifier, createdAt: Date.now() });
-  pruneStateStore();
-
   // MCP client must receive 401 + WWW-Authenticate to show "Needs authentication" / Connect.
   // Redirect (302) would prevent discovery; always return 401 for /mcp.
   const isMcp = req.path === '/mcp';
   // codeql[js/user-controlled-bypass]: Redirect only when method is GET and listed in node:http METHODS; any other verb gets 401 JSON.
   if (isRecognizedGetRequest(req) && !isMcp) {
     structuredLogger.info(`[auth] 302 ${req.method} ${req.path} redirect to login`);
-    res.redirect(302, loginUrl(state, codeChallenge));
+    redirectBrowserToOidcLogin(res);
     return;
   }
+
+  const loginUrlForJson = createOidcLoginUrlForApiResponse();
+
   structuredLogger.info(
     `[auth] 401 ${req.method} ${req.path}${isMcp ? ' (announcing auth need for MCP client)' : ''}`
   );
@@ -325,12 +302,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   res.status(401).json({
     error: 'Unauthorized',
     message: 'Authentication required',
-    login_url: loginUrl(state, codeChallenge)
+    login_url: loginUrlForJson
   });
-}
-
-export function getStateStore(): Map<string, StateEntry> {
-  return stateStore;
 }
 
 export { SESSION_COOKIE_NAME };
