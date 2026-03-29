@@ -131,6 +131,13 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         post({ jsonrpc: '2.0', method: method, params: params || {} });
       }
 
+      function notifySize() {
+        requestAnimationFrame(function () {
+          var h = document.documentElement.scrollHeight;
+          sendNotification('ui/notifications/size-changed', { height: h });
+        });
+      }
+
       function escapeHtml(s) {
         return String(s)
           .replace(/&/g, '&amp;')
@@ -154,13 +161,110 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         document.title = 'Forward — KAIROS';
       }
 
-      function showJson(obj) {
+      function isErrorLike(obj) {
+        if (obj == null) return false;
+        if (typeof obj === 'string') return true;
+        if (typeof obj !== 'object') return false;
+        if (obj.isError === true) return true;
+        if (typeof obj.error === 'string' && obj.error.length > 0) return true;
+        if (obj.error_code != null && String(obj.error_code).length > 0) return true;
+        return false;
+      }
+
+      function primaryErrorMessage(obj) {
+        if (obj == null) return 'Something went wrong.';
+        if (typeof obj === 'string') {
+          var t = obj.trim();
+          return t || 'Something went wrong.';
+        }
+        if (typeof obj.message === 'string' && obj.message.trim()) return obj.message.trim();
+        return 'Something went wrong.';
+      }
+
+      function suggestNextStep(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
+        }
+        var err = obj.error;
+        var tool = obj.tool;
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
+          return 'Call forward with a solution whose type matches contract.type (for example shell, mcp, comment, user_input, or tensor) and include the matching fields. Omit solution only on the first forward after you start from an adapter URI.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
+          return 'Check activate arguments against the tool schema (for example query and optional space).';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
+          return 'Check train or tune arguments (adapter body, space name, and required fields) against the tool schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
+          return 'Check reward arguments: use the layer URI from forward, outcome, and any required fields.';
+        }
+        if (obj.isError === true) {
+          return 'Review the message above, then retry the last step. You can expand Technical details for the full payload.';
+        }
+        if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
+          return 'Follow next_action from this response when you retry.';
+        }
+        return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
+      }
+
+      function showRawJson(obj) {
         resetChrome();
         if (el) el.classList.remove('step-panel');
         var pre = document.createElement('pre');
         pre.className = 'raw';
         try { pre.textContent = JSON.stringify(obj, null, 2); } catch (e) { pre.textContent = String(obj); }
         el.replaceChildren(pre);
+        notifySize();
+      }
+
+      function renderHumanError(obj) {
+        resetChrome();
+        if (el) el.classList.remove('step-panel');
+        document.title = 'Error — KAIROS';
+        var wrap = document.createElement('div');
+        wrap.className = 'widget-error';
+        wrap.setAttribute('role', 'alert');
+        var h = document.createElement('p');
+        h.className = 'widget-error-title';
+        h.textContent = "Couldn't continue";
+        wrap.appendChild(h);
+        var msgEl = document.createElement('p');
+        msgEl.className = 'widget-error-msg';
+        msgEl.textContent = primaryErrorMessage(obj);
+        wrap.appendChild(msgEl);
+        var nextEl = document.createElement('p');
+        nextEl.className = 'widget-error-next';
+        var nextLbl = document.createElement('span');
+        nextLbl.className = 'widget-error-next-label';
+        nextLbl.textContent = 'What to try: ';
+        nextEl.appendChild(nextLbl);
+        nextEl.appendChild(document.createTextNode(suggestNextStep(obj)));
+        wrap.appendChild(nextEl);
+        var det = document.createElement('details');
+        det.className = 'widget-error-details';
+        var sum = document.createElement('summary');
+        sum.textContent = 'Technical details';
+        det.appendChild(sum);
+        var pre = document.createElement('pre');
+        pre.className = 'raw widget-error-raw';
+        try {
+          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+        } catch (e) {
+          pre.textContent = String(obj);
+        }
+        det.appendChild(pre);
+        wrap.appendChild(det);
+        el.replaceChildren(wrap);
+        notifySize();
+      }
+
+      function showJson(obj) {
+        if (isErrorLike(obj)) {
+          renderHumanError(obj);
+          return;
+        }
+        showRawJson(obj);
       }
 
       function isForwardStructured(sc) {
@@ -199,8 +303,10 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           var seg = document.createElement('span');
           seg.className = 'seg';
           if (i < cur) seg.classList.add('seg-done');
-          else if (i === cur) seg.classList.add('seg-current');
-          else seg.classList.add('seg-pending');
+          else if (i === cur) {
+            seg.classList.add('seg-current');
+            if (hasIssue) seg.classList.add('seg-issue');
+          } else seg.classList.add('seg-pending');
           segHost.appendChild(seg);
         }
       }
@@ -220,6 +326,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         var cnt = sc.adapter_layer_count;
         var hasIssue = !!(sc.error_code || (typeof sc.retry_count === 'number' && sc.retry_count > 0));
         renderProgress(idx, cnt, hasIssue);
+        notifySize();
       }
 
       function applyToolResult(p) {
@@ -276,8 +383,14 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           resetChrome();
           if (el) el.classList.remove('step-panel');
           var msg = (err && err.message) ? err.message : String(err);
-          el.replaceChildren();
-          el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+          if (el) {
+            renderHumanError({
+              isError: true,
+              message: 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.',
+              error: 'WIDGET_BOOT',
+              detail: String(err)
+            });
+          }
         });
       }
 

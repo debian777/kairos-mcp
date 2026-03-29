@@ -20,6 +20,11 @@ describe('buildForwardWidgetHtml', () => {
     expect(html).toContain('formatStepTitle');
     expect(html).toContain('renderProgress');
     expect(html).toContain('kairos-forward-root');
+    expect(html).toContain('renderHumanError');
+    expect(html).toContain('seg-issue');
+    expect(html).toContain('widget-error-title');
+    expect(html).toContain('Technical details');
+    expect(html).toContain('notifySize');
     expect(html).not.toContain('<!DOCTYPE html>');
   });
 });

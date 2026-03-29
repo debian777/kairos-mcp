@@ -221,8 +221,8 @@ compatibility. Do not remove the handshake even during debugging — use the
 
 ### `max-lines`
 
-Widget script files have a `max-lines` override in `eslint.config.cjs`
-(typically 350 lines). Keep scripts concise — extract shared logic into
+Widget script files have a `max-lines` override in `eslint/flat-config.cjs`
+(currently 520 lines). Keep scripts concise — extract shared logic into
 `mcp-widget-chrome-inline-css.ts` or new shared modules.
 
 ## Adding a new widget

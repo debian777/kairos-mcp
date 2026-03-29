@@ -194,7 +194,55 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           '%</span></div>';
       }
 
-      function showJson(obj) {
+      function isErrorLike(obj) {
+        if (obj == null) return false;
+        if (typeof obj === 'string') return true;
+        if (typeof obj !== 'object') return false;
+        if (obj.isError === true) return true;
+        if (typeof obj.error === 'string' && obj.error.length > 0) return true;
+        if (obj.error_code != null && String(obj.error_code).length > 0) return true;
+        return false;
+      }
+
+      function primaryErrorMessage(obj) {
+        if (obj == null) return 'Something went wrong.';
+        if (typeof obj === 'string') {
+          var t = obj.trim();
+          return t || 'Something went wrong.';
+        }
+        if (typeof obj.message === 'string' && obj.message.trim()) return obj.message.trim();
+        return 'Something went wrong.';
+      }
+
+      /** Keep in sync with forward-widget-inline-script suggestNextStep. */
+      function suggestNextStep(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
+        }
+        var err = obj.error;
+        var tool = obj.tool;
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
+          return 'Call forward with a solution whose type matches contract.type (for example shell, mcp, comment, user_input, or tensor) and include the matching fields. Omit solution only on the first forward after you start from an adapter URI.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
+          return 'Check activate arguments against the tool schema (for example query and optional space).';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
+          return 'Check train or tune arguments (adapter body, space name, and required fields) against the tool schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
+          return 'Check reward arguments: use the layer URI from forward, outcome, and any required fields.';
+        }
+        if (obj.isError === true) {
+          return 'Review the message above, then retry the last step. You can expand Technical details for the full payload.';
+        }
+        if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
+          return 'Follow next_action from this response when you retry.';
+        }
+        return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
+      }
+
+      function showRawJson(obj) {
         clearTopMatch();
         if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
         document.title = 'Activate — KAIROS';
@@ -205,6 +253,56 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           el.replaceChildren(pre);
         }
         notifySize();
+      }
+
+      function renderHumanError(obj) {
+        clearTopMatch();
+        if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
+        document.title = 'Error — KAIROS';
+        if (!el) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'widget-error';
+        wrap.setAttribute('role', 'alert');
+        var h = document.createElement('p');
+        h.className = 'widget-error-title';
+        h.textContent = "Couldn't continue";
+        wrap.appendChild(h);
+        var msgEl = document.createElement('p');
+        msgEl.className = 'widget-error-msg';
+        msgEl.textContent = primaryErrorMessage(obj);
+        wrap.appendChild(msgEl);
+        var nextEl = document.createElement('p');
+        nextEl.className = 'widget-error-next';
+        var nextLbl = document.createElement('span');
+        nextLbl.className = 'widget-error-next-label';
+        nextLbl.textContent = 'What to try: ';
+        nextEl.appendChild(nextLbl);
+        nextEl.appendChild(document.createTextNode(suggestNextStep(obj)));
+        wrap.appendChild(nextEl);
+        var det = document.createElement('details');
+        det.className = 'widget-error-details';
+        var sum = document.createElement('summary');
+        sum.textContent = 'Technical details';
+        det.appendChild(sum);
+        var pre = document.createElement('pre');
+        pre.className = 'raw widget-error-raw';
+        try {
+          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+        } catch (e) {
+          pre.textContent = String(obj);
+        }
+        det.appendChild(pre);
+        wrap.appendChild(det);
+        el.replaceChildren(wrap);
+        notifySize();
+      }
+
+      function showJson(obj) {
+        if (isErrorLike(obj)) {
+          renderHumanError(obj);
+          return;
+        }
+        showRawJson(obj);
       }
 
       function isActivateStructured(sc) {
@@ -376,8 +474,12 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             var msg = (err && err.message) ? err.message : String(err);
-            el.replaceChildren();
-            el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+            renderHumanError({
+              isError: true,
+              message: 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.',
+              error: 'WIDGET_BOOT',
+              detail: String(err)
+            });
           }
         });
       }
