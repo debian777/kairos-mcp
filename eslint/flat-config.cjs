@@ -84,7 +84,6 @@ function createFlatConfig(rootDir) {
         '**/*.pyc',
         '**/.cursorrules',
         '**/.cursor/**',
-        'docs/install/env.example.*.txt',
         '**/requirements.txt',
         '**/snapshots/**',
         '**/*.snapshot',

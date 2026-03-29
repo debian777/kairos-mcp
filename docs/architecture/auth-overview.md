@@ -10,7 +10,9 @@ When **AUTH_ENABLED** is true, the KAIROS server requires authentication for `/a
 
 **Session length alignment:** In each environment, the browser session cookie `Max-Age` (`SESSION_MAX_AGE_SEC` in server config) should match the IdP’s maximum SSO session for that deployment (see Keycloak realm `ssoSessionMaxLifespan` / `ssoSessionIdleTimeout` in repo imports). If the cookie outlives IdP SSO, users can keep a cookie while refresh and re-login flows fail.
 
-See [install/README.md](../install/README.md) and [install/google-auth-dev.md](../install/google-auth-dev.md) for enabling auth and configuring Keycloak.
+See [install/README.md](../install/README.md) and the Keycloak appendix
+[install/google-auth-dev.md](../install/google-auth-dev.md) for enabling auth,
+Keycloak, and optional Google IdP.
 
 | Context | Typical session / token policy (examples) |
 |--------|----------------------------------------|

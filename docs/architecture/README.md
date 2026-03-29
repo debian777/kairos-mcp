@@ -103,7 +103,7 @@ which Keycloak URL each party uses and how `KEYCLOAK_URL` vs
 - For setup and contribution workflow, see
   [CONTRIBUTING.md](../../CONTRIBUTING.md).
 - For CLI usage, see [CLI](../CLI.md).
-- For Cursor setup, see [Install KAIROS MCP in Cursor](../INSTALL-MCP.md).
+- For Cursor setup, see [Install MCP in Cursor](../install/cursor-mcp.md).
 - For agent-facing design doctrine, see
   [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles).
 - For protocol examples and challenge types, see

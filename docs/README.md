@@ -9,13 +9,22 @@ quick start.
 
 ## Getting started
 
-- [Install and environment](install/README.md) — minimal and fullstack env
-  files, embedding-provider setup, and auth-related variables
-- [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — configure Cursor to talk to
-  the HTTP MCP endpoint
-- [CLI reference](CLI.md) — commands, auth flow, config/keyring behavior, and
-  batch training
+All installation guides are under **[install/](install/README.md)**. Highlights:
+
+- [Install index](install/README.md) — entry point and diagram
+- [Environment variables and secrets](install/env-and-secrets.md) — `.env`,
+  embeddings, Redis URL, variable table
+- [Docker Compose — simple stack](install/docker-compose-simple.md) — Qdrant +
+  app (default profile)
+- [Docker Compose — full stack](install/docker-compose-full-stack.md) — Redis,
+  Postgres, Keycloak (`fullstack` profile)
+- [Install MCP in Cursor](install/cursor-mcp.md) — `mcp.json`, HTTP-only MCP (not
+  stdio)
+- [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch
+  training
 - [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
+
+Older bookmark paths `docs/INSTALL-*.md` redirect to the install folder.
 
 ## Architecture and behavior
 

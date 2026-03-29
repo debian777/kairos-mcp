@@ -105,7 +105,7 @@ When using Cursor’s **agent MCP bridge** (`call_mcp_tool`), the **server**
 argument is **not** always the same string as the key in `.cursor/mcp.json`.
 
 - **Config key (human / `mcp.json`):** e.g. `DEVELOPMENT_KAIROS` for local dev
-  at `http://localhost:3300/mcp` (see `docs/INSTALL-MCP.md`).
+  at `http://localhost:3300/mcp` (see `docs/install/cursor-mcp.md`).
 - **Agent-visible id:** Cursor prefixes or transforms the key. Examples:
   **`project-<n>-<workspace-folder-slug>-<key>`** for workspace-scoped MCP,
   **`user-<Name>`** for user-level servers (e.g. Context7), **`plugin-…`** for

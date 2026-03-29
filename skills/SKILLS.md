@@ -7,9 +7,10 @@ limited; protocols are unlimited). For **using** and installing skills, see
 
 ## References
 
+- **[Agent Skills specification](https://agentskills.io/specification)** — Canonical format: skill directory, `SKILL.md` YAML frontmatter (`name`, `description`, optional `license`, `compatibility`, `metadata`, `allowed-tools`), optional `scripts/`, **`references/`**, `assets/`, progressive disclosure, validation with **`skills-ref`**. The former Anthropic spec file now points here; see also [anthropics/skills](https://github.com/anthropics/skills).
+- **[Anthropic: Agent skills overview](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview)** — Product docs for skills in Claude agents.
 - **[skills CLI (vercel-labs/skills)](https://github.com/vercel-labs/skills)** — `npx skills add`, list, remove, init; discovery paths (`skills/`, `skills/.system/`, etc.); supported agents.
-- **[Agent Skills specification](https://agentskills.io/specification)** — Directory structure, `SKILL.md` format (frontmatter, body), optional `scripts/`, `references/`, `assets/`, progressive disclosure, validation with `skills-ref`.
-- **[Claude Code: Extend Claude with skills](https://code.claude.com/docs/en/skills)** — Where skills live (personal, project, plugin), frontmatter (e.g. `disable-model-invocation`, `context: fork`), arguments (`$ARGUMENTS`), dynamic context, subagents.
+- **[Claude Code: Extend Claude with skills](https://code.claude.com/docs/en/skills)** — Where skills live (personal, project, plugin), frontmatter (for example `disable-model-invocation`, `context: fork`), arguments (`$ARGUMENTS`), dynamic context, subagents.
 - **[The Agent Skills Directory (skills.sh)](https://skills.sh/)** — Discover and install skills with `npx skills add <owner/repo>`; supports Cursor, Claude Code, and other agents.
 
 ## Folder structure
@@ -27,6 +28,8 @@ skills/
 └── .system/               # Helper and setup skills (CLI discovery)
     ├── kairos-bug-report/
     └── kairos-install/
+        ├── SKILL.md
+        └── references/    # Spec-aligned: bundled mirrors of docs/ + REFERENCE-LINKS.md; refresh: npm run skills:sync-install-refs
 ```
 
 `kairos` is the main everyday skill. `kairos-bug-report` and
@@ -35,7 +38,8 @@ skills/
 **Per-skill layout (spec-aligned):**
 
 - **`SKILL.md`** — Required. YAML frontmatter (`name`, `description`) and markdown body. Optional: `argument-hint`, `allowed-tools`, `license`, `compatibility`, `metadata`.
-- **`references/`** — Optional. Docs loaded when needed.
+- **`references/`** — Optional. Extra Markdown loaded on demand; use paths like
+  `[guide](references/REFERENCE.md)` one level deep from `SKILL.md` (per spec).
 - **`scripts/`** — Optional. Runnable tooling the agent can invoke.
 - **`assets/`** — Optional. Templates, images.
 

@@ -320,8 +320,8 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 
 ## Related docs
 
-- [Install index](install/README.md)
-- [Environment variables and secrets](install/env-and-secrets.md)
-- [Install MCP in Cursor](install/cursor-mcp.md)
-- [Architecture](architecture/README.md)
-- [Protocol examples](examples/README.md)
+- [Install index](https://github.com/debian777/kairos-mcp/blob/main/docs/install/README.md)
+- [Environment variables and secrets](env-and-secrets.md)
+- [Install MCP in Cursor](cursor-mcp.md)
+- [Architecture](https://github.com/debian777/kairos-mcp/blob/main/docs/architecture/README.md)
+- [Protocol examples](https://github.com/debian777/kairos-mcp/blob/main/docs/examples/README.md)

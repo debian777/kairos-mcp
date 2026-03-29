@@ -164,13 +164,11 @@ maintainers explicitly choose to track them.
   ```bash
    npm ci
   ```
-4. Copy the example env file and configure required variables:
-  ```bash
-   cp docs/install/env.example.fullstack.txt .env
-   # Edit .env — set OPENAI_API_KEY (or TEI), QDRANT_API_KEY,
-   # REDIS_PASSWORD, SESSION_SECRET, KEYCLOAK_ADMIN_PASSWORD,
-   # and KEYCLOAK_DB_PASSWORD.
-  ```
+4. Create **`.env`** at the repository root from the template in
+   [docs/install/docker-compose-full-stack.md](docs/install/docker-compose-full-stack.md#3-environment-file),
+   then configure required variables (for example `OPENAI_API_KEY` or TEI,
+   `QDRANT_API_KEY`, `REDIS_PASSWORD`, `SESSION_SECRET`,
+   `KEYCLOAK_ADMIN_PASSWORD`, and `KEYCLOAK_DB_PASSWORD`).
 5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
   ```bash
    npm run infra:up
