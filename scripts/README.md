@@ -19,6 +19,21 @@ File names use a **prefix** so you can see which pipeline stage they belong to:
 
 `src/embed-docs/` is **not** under `scripts/`; it is the source tree the **`build-embed-docs`** step reads.
 
+## Language choice (Node, shell, Python)
+
+The repo is **Node-first** for automation, but not single-language. Use the runtime that matches cost and ownership.
+
+| Kind of script | Preferred runtime | Notes |
+|----------------|-------------------|--------|
+| **New logic** (parsing, HTTP, codegen, CI helpers) | **`.mjs` (ESM)** or **`.ts`** via `node` / `npx ts-node` | Default for anything non-trivial; matches Node ≥ 25 and repo lint habits. |
+| **CI glue** (`ci-*`) | **Node** | Keeps `$GITHUB_STEP_SUMMARY` and subprocess wrappers consistent ([`ci-github-step-summary.mjs`](ci-github-step-summary.mjs), [`ci-parallel-checks.mjs`](ci-parallel-checks.mjs)). |
+| **Dev/prod orchestrator** | **Shell** | [`deploy-run-env.sh`](deploy-run-env.sh) is intentionally bash: process/env/Docker/curl/jq wiring; a full port to Node would be a large project with little payoff unless you need e.g. Windows-first dev or a no-bash policy. |
+| **Thin wrappers** | **Shell** | Short scripts that only chain commands (e.g. [`env/create-env.sh`](env/create-env.sh)) are fine. |
+| **Keycloak + `.env` generation** | **Python** (today) | Admin REST and template fill ([`deploy-configure-keycloak-realms.py`](deploy-configure-keycloak-realms.py), [`deploy-generate-dev-secrets.py`](deploy-generate-dev-secrets.py), [`deploy-configure-keycloak-google-idp.py`](deploy-configure-keycloak-google-idp.py)). Migrate to Node only with parity checks and CI updates—not for purity alone. |
+| **Agent skills validation** | **Python** (today) | [`lint-agent-skills.py`](lint-agent-skills.py) uses the upstream **`skills_ref`** package (Agent Skills spec). There is no supported Node equivalent in-tree; keep Python until a JS validator exists or you vendor comparable checks. |
+
+**Do not** aim for zero shell or zero Python as a goal by itself. Reduce runtimes when it removes real friction (CI image size, contributor setup, review surface).
+
 ## Overview
 
 Most work flows through **npm scripts**, which call **`deploy-run-env.sh`** for dev/prod actions or **Node/Python** utilities for lint/build/test. **CI** uses **`ci-*`** helpers for `$GITHUB_STEP_SUMMARY`. Keycloak JSON under `keycloak/import/` is applied by **`deploy-configure-keycloak-realms.py`**.
