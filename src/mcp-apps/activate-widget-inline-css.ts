@@ -62,6 +62,27 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
     html.dark .pill[data-tier="1"] .pill-pct { color: #fcd34d; }
     .waiting { opacity: 0.9; font-style: italic; color: var(--color-text-muted); }
     .choices-list { list-style: none; margin: 0; padding: 0; }
+    .choices-list-more {
+      margin-top: 6px;
+      padding-top: 4px;
+    }
+    .activate-more-choices {
+      margin: 10px 0 0 0;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      padding: 6px 10px;
+    }
+    .activate-more-choices summary {
+      cursor: pointer;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      color: var(--color-text-muted);
+      user-select: none;
+    }
+    .activate-more-choices[open] summary {
+      margin-bottom: 4px;
+    }
     .choice {
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
@@ -142,17 +163,12 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       margin: 0;
       padding: 0;
     }
-    .widget-error-title {
-      margin: 0 0 8px 0;
-      font-size: 0.9375rem;
-      font-weight: 700;
-      color: var(--color-text-heading);
-    }
     .widget-error-msg {
       margin: 0 0 10px 0;
       font-size: var(--font-size-sm);
-      line-height: 1.5;
-      color: var(--color-text);
+      line-height: 1.45;
+      font-weight: 600;
+      color: var(--color-error);
     }
     .widget-error-next {
       margin: 0 0 14px 0;
@@ -183,7 +199,6 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       max-height: 240px;
       overflow: auto;
     }
-    .cap-note { font-size: 12px; font-style: italic; color: var(--color-text-muted); margin-top: 8px; }
 `.trim();
 
 export const ACTIVATE_WIDGET_INLINE_CSS = `${MCP_WIDGET_CHROME_INLINE_CSS}\n${ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS}`;

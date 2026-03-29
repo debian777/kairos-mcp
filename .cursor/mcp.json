@@ -1,8 +1,8 @@
 {
     "mcpServers": {
-      "DEVELOPMENT_KAIROS": {
+      "DEVELOPMENT_KAIROS_5": {
         "type": "streamable-http",
-        "url": "http://localhost:3300/mcp",
+        "url": "http://localhost:3305/mcp",
         "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
         "disabled": false,
         "disabledTools": []

@@ -8,9 +8,8 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
       var nextId = 1;
       var pending = {};
       var hostCtxState = {};
-      var MAX_CHOICES = 40;
-      /** Omit last N choices in the panel only (tool JSON unchanged); typical refine/create footer. */
-      var WIDGET_DROP_LAST_CHOICES = 2;
+      /** Top N visible in the main list; remaining choices live in a collapsed details block (error-panel style). */
+      var ACTIVATE_VISIBLE_CHOICES = 3;
       var BATCH = 10;
       var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
@@ -204,17 +203,39 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         return false;
       }
 
-      function primaryErrorMessage(obj) {
+      /** Short line for humans; full server text stays in Technical details JSON only. */
+      function shortHumanErrorMessage(obj) {
         if (obj == null) return 'Something went wrong.';
         if (typeof obj === 'string') {
-          var t = obj.trim();
-          return t || 'Something went wrong.';
+          var ts = obj.trim();
+          if (!ts) return 'Something went wrong.';
+          return ts.length > 90 ? ts.slice(0, 87) + '…' : ts;
         }
-        if (typeof obj.message === 'string' && obj.message.trim()) return obj.message.trim();
+        if (typeof obj !== 'object') return 'Something went wrong.';
+        if (typeof obj.error === 'string' && obj.error.length) {
+          if (obj.error === 'INVALID_TOOL_INPUT') return 'Invalid tool input.';
+          if (obj.error === 'WIDGET_BOOT') return 'Panel could not start.';
+          return 'Something went wrong.';
+        }
+        if (obj.isError === true) {
+          var m = typeof obj.message === 'string' ? obj.message.trim() : '';
+          if (m) {
+            if (m.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+            var dot = m.indexOf('. ');
+            if (dot > 0 && dot < 120) return m.slice(0, dot + 1);
+            return m.length > 90 ? m.slice(0, 87) + '…' : m;
+          }
+          return 'Something went wrong.';
+        }
+        if (typeof obj.message === 'string' && obj.message.trim()) {
+          var m2 = obj.message.trim();
+          if (m2.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+          return m2.length > 90 ? m2.slice(0, 87) + '…' : m2;
+        }
         return 'Something went wrong.';
       }
 
-      /** Keep in sync with forward-widget-inline-script suggestNextStep. */
+      /** Prefer server next_action; else compact fallback. Keep in sync with forward-widget-inline-script. */
       function suggestNextStep(obj) {
         if (obj == null || typeof obj !== 'object') {
           return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
@@ -222,24 +243,33 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         var err = obj.error;
         var tool = obj.tool;
         if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
-          return 'Call forward with a solution whose type matches contract.type (for example shell, mcp, comment, user_input, or tensor) and include the matching fields. Omit solution only on the first forward after you start from an adapter URI.';
+          return 'Match solution to contract.type, or omit solution on the first forward from an adapter URI.';
         }
         if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
-          return 'Check activate arguments against the tool schema (for example query and optional space).';
+          return 'Check query and optional space against the activate schema.';
         }
         if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
-          return 'Check train or tune arguments (adapter body, space name, and required fields) against the tool schema.';
+          return 'Check adapter body, space name, and required fields against the schema.';
         }
         if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
-          return 'Check reward arguments: use the layer URI from forward, outcome, and any required fields.';
+          return 'Use the layer URI from forward, outcome, and any required fields.';
         }
         if (obj.isError === true) {
-          return 'Review the message above, then retry the last step. You can expand Technical details for the full payload.';
+          return 'Retry the last step; expand Technical details if you need the raw payload.';
         }
         if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
           return 'Follow next_action from this response when you retry.';
         }
         return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
+      }
+
+      function agentInstructionText(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return suggestNextStep(obj);
+        }
+        var na = typeof obj.next_action === 'string' ? obj.next_action.trim() : '';
+        if (na) return na;
+        return suggestNextStep(obj);
       }
 
       function showRawJson(obj) {
@@ -263,21 +293,17 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         var wrap = document.createElement('div');
         wrap.className = 'widget-error';
         wrap.setAttribute('role', 'alert');
-        var h = document.createElement('p');
-        h.className = 'widget-error-title';
-        h.textContent = "Couldn't continue";
-        wrap.appendChild(h);
         var msgEl = document.createElement('p');
         msgEl.className = 'widget-error-msg';
-        msgEl.textContent = primaryErrorMessage(obj);
+        msgEl.textContent = shortHumanErrorMessage(obj);
         wrap.appendChild(msgEl);
         var nextEl = document.createElement('p');
         nextEl.className = 'widget-error-next';
         var nextLbl = document.createElement('span');
         nextLbl.className = 'widget-error-next-label';
-        nextLbl.textContent = 'What to try: ';
+        nextLbl.textContent = 'Your AI agent was asked to: ';
         nextEl.appendChild(nextLbl);
-        nextEl.appendChild(document.createTextNode(suggestNextStep(obj)));
+        nextEl.appendChild(document.createTextNode(agentInstructionText(obj)));
         wrap.appendChild(nextEl);
         var det = document.createElement('details');
         det.className = 'widget-error-details';
@@ -376,47 +402,51 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         return li;
       }
 
-      function renderActivate(sc) {
-        var total = sc.choices.length;
-        var raw = total > MAX_CHOICES ? sc.choices.slice(0, MAX_CHOICES) : sc.choices;
-        var capped = total > MAX_CHOICES;
-        var list =
-          raw.length > WIDGET_DROP_LAST_CHOICES
-            ? raw.slice(0, raw.length - WIDGET_DROP_LAST_CHOICES)
-            : raw;
-        if (headerTitle) {
-          headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
+      function appendChoicesBatched(slice, listEl, indexOffset, onDone) {
+        var i = 0;
+        function pump() {
+          var end = Math.min(i + BATCH, slice.length);
+          for (; i < end; i++) listEl.appendChild(buildChoiceEl(slice[i], indexOffset + i));
+          if (i < slice.length) requestAnimationFrame(pump);
+          else onDone();
         }
-        paintTopMatch(list);
+        if (!slice.length) onDone();
+        else requestAnimationFrame(pump);
+      }
+
+      function renderActivate(sc) {
+        var all = Array.isArray(sc.choices) ? sc.choices : [];
+        var visN = ACTIVATE_VISIBLE_CHOICES;
+        var vis = all.slice(0, visN);
+        var rest = all.slice(visN);
+        if (headerTitle) headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
+        paintTopMatch(all);
         var qt = sc.query != null && String(sc.query).trim() ? String(sc.query).trim() : 'Activate';
         document.title = qt.length > 48 ? qt.slice(0, 45) + '… — KAIROS' : qt + ' — KAIROS';
         if (!el) return;
         el.replaceChildren();
-
         var ul = document.createElement('ul');
         ul.className = 'choices-list';
         ul.setAttribute('role', 'list');
         el.appendChild(ul);
-
-        var i = 0;
-        function pump() {
-          var end = Math.min(i + BATCH, list.length);
-          for (; i < end; i++) {
-            ul.appendChild(buildChoiceEl(list[i], i));
-          }
-          if (i < list.length) {
-            requestAnimationFrame(pump);
-          } else {
-            if (capped) {
-              var note = document.createElement('p');
-              note.className = 'cap-note';
-              note.textContent = 'Showing ' + MAX_CHOICES + ' of ' + total + ' choices.';
-              el.appendChild(note);
-            }
+        appendChoicesBatched(vis, ul, 0, function () {
+          if (!rest.length) {
             notifySize();
+            return;
           }
-        }
-        requestAnimationFrame(pump);
+          var det = document.createElement('details');
+          det.className = 'activate-more-choices';
+          var sum = document.createElement('summary');
+          sum.textContent = 'More choices (' + rest.length + ')';
+          det.appendChild(sum);
+          var innerUl = document.createElement('ul');
+          innerUl.className = 'choices-list choices-list-more';
+          innerUl.setAttribute('role', 'list');
+          det.appendChild(innerUl);
+          el.appendChild(det);
+          det.addEventListener('toggle', notifySize);
+          appendChoicesBatched(rest, innerUl, visN, notifySize);
+        });
       }
 
       function applyToolResult(p) {

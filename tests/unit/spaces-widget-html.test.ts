@@ -49,6 +49,12 @@ describe('buildSpacesWidgetHtml', () => {
     expect(html).toContain('html.dark');
     expect(html).toContain("classList.add('dark')");
     expect(html).toContain('kairos-spaces-root');
+    expect(html).toContain('space-row-personal');
+    expect(html).toContain('space-display-name');
+    expect(html).toContain('space-type-badge--personal');
+    expect(html).toContain('Space name');
+    expect(html).toContain('Kind');
+    expect(html).toContain('spaceTypeKey');
     expect(html).not.toContain('<!DOCTYPE html>');
   });
 });
