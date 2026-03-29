@@ -38,8 +38,8 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
     }
     .run-footer {
       flex-shrink: 0;
-      margin-top: 10px;
-      padding-top: 8px;
+      margin-top: 6px;
+      padding-top: 6px;
       border-top: 1px solid var(--color-border);
     }
     .footer-row {
@@ -48,7 +48,7 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       flex-wrap: nowrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
     }
     .step-label {
       font-size: var(--font-size-xs);
@@ -72,14 +72,14 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
     }
     .progress-segments {
       display: flex;
-      gap: 4px;
+      gap: 3px;
       align-items: stretch;
       width: max-content;
     }
     .seg {
-      flex: 0 0 9px;
-      height: 7px;
-      border-radius: 4px;
+      flex: 0 0 8px;
+      height: 6px;
+      border-radius: 3px;
       box-sizing: border-box;
       border: 1px solid color-mix(in srgb, var(--color-text-muted) 45%, var(--color-border));
       transition: background 0.15s ease, border-color 0.15s ease;
@@ -117,14 +117,14 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       padding: 0;
     }
     .widget-error-msg {
-      margin: 0 0 10px 0;
+      margin: 0 0 6px 0;
       font-size: var(--font-size-sm);
       line-height: 1.45;
       font-weight: 600;
       color: var(--color-error);
     }
     .widget-error-next {
-      margin: 0 0 14px 0;
+      margin: 0 0 8px 0;
       font-size: var(--font-size-sm);
       line-height: 1.45;
       color: var(--color-text-muted);
@@ -138,7 +138,7 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       border-radius: var(--radius-md);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
-      padding: 6px 10px;
+      padding: 5px 8px;
     }
     .widget-error-details summary {
       cursor: pointer;
@@ -148,8 +148,8 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       user-select: none;
     }
     .widget-error-raw {
-      margin: 8px 0 0 0;
-      max-height: 240px;
+      margin: 6px 0 0 0;
+      max-height: 220px;
       overflow: auto;
     }
 `.trim();

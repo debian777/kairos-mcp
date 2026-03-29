@@ -45,9 +45,9 @@ export const MCP_WIDGET_CHROME_INLINE_CSS = `
       color: var(--color-text);
       background: var(--color-surface);
     }
-    body { margin: 0; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-shrink: 0; }
-    .brand svg { width: 48px; height: 48px; flex-shrink: 0; border-radius: 10px; }
+    body { margin: 0; padding: 8px; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-shrink: 0; }
+    .brand svg { width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; }
     h1.header-title {
       font-size: clamp(0.875rem, 2.4vw, 1.0625rem);
       font-weight: 600;
@@ -77,12 +77,12 @@ export const MCP_WIDGET_CHROME_INLINE_CSS = `
     }
     #out {
       margin: 0;
-      padding: 10px 12px 10px 14px;
+      padding: 8px 10px;
       border-radius: var(--radius-md);
       font-size: var(--font-size-sm);
       line-height: 1.5;
       overflow: auto;
-      max-height: min(360px, 70vh);
+      max-height: min(340px, 68vh);
       flex: 1;
       min-height: 0;
       background: var(--color-surface-elevated);

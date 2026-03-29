@@ -14,19 +14,46 @@ fi
 # Scan the full index, not only `git diff --cached`: IDE refresh during long ESLint can
 # inject phantoms that are not part of the staged diff but still break write-tree.
 drop_index_missing_blobs() {
-  git ls-files -s | while IFS= read -r line; do
+  # Two-phase: never mutate the index while streaming ls-files. Use -z so paths are
+  # NUL-delimited (newline-safe); line-based read can corrupt OIDs under sh -e / husky.
+  # Parse blob OID with shell only (no awk — minimal PATH).
+  tmp=$(mktemp) || exit 1
+  git ls-files -z -s | while IFS= read -r -d '' line || [ -n "$line" ]; do
     case "$line" in
       *"	"*) ;;
       *) continue ;;
     esac
     meta=${line%%	*}
     path=${line#*	}
-    sha=$(printf '%s\n' "$meta" | awk '{print $2}')
+    rest=${meta#* }
+    sha=${rest%% *}
     [ -n "$sha" ] && [ -n "$path" ] || continue
-    if ! git cat-file -e "$sha" 2>/dev/null; then
-      git rm --cached -f --ignore-unmatch -- "$path" >/dev/null 2>&1 || true
+    # During `git commit`, GIT_OBJECT_DIRECTORY may point at a quarantine dir that only
+    # holds new objects; cat-file would falsely report most blobs missing and strip the index.
+    if ! ( unset GIT_OBJECT_DIRECTORY; git cat-file -e "$sha" 2>/dev/null ); then
+      printf '%s\0' "$path" >>"$tmp"
     fi
   done
+  if [ -s "$tmp" ]; then
+    xargs -0 git rm --cached -f --ignore-unmatch -- <"$tmp" >/dev/null 2>&1 || true
+  fi
+  rm -f "$tmp"
+}
+
+# If blob checks fail broadly (broken ODB / worktree), do not leave a near-empty index —
+# that would record a commit that deletes the whole tree.
+assert_index_substantially_intact() {
+  idx=$(git ls-files 2>/dev/null | wc -l | tr -d ' ')
+  head_paths=$(git ls-tree -r HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
+  [ "$head_paths" -lt 50 ] 2>/dev/null && return 0
+  min_ok=$((head_paths * 85 / 100))
+  if [ "$idx" -lt "$min_ok" ] 2>/dev/null; then
+    echo >&2 ""
+    echo >&2 "  ERROR: pre-commit index cleanup left too few paths ($idx vs ~$head_paths on HEAD)."
+    echo >&2 "  Refusing commit. Try: git read-tree HEAD && re-stage, or fix the object database / worktree."
+    echo >&2 ""
+    exit 1
+  fi
 }
 
 staged=$(git diff --cached --name-only)
@@ -72,6 +99,16 @@ if [ -n "$lint_git_paths" ]; then
   echo >&2 "  Pre-commit still allows this commit; humans must verify the diff."
   echo >&2 ""
 fi
+# Before lint: drop phantom index entries (IDE races). After lint: repeat in case
+# ESLint window allowed new phantoms. cat-file checks must unset GIT_OBJECT_DIRECTORY
+# (git sets it during commit quarantine; otherwise almost every blob looks missing).
 drop_index_missing_blobs
-npm run lint >&2 || exit 1
+assert_index_substantially_intact
+# `git commit` exports GIT_INDEX_FILE (and related vars). lint:skills may run
+# `pip install git+https://...`; nested git must not see those or it can rewrite
+# this worktree's index. Parent shell keeps git's env for hook git commands.
+( unset GIT_INDEX_FILE GIT_DIR GIT_PREFIX GIT_OBJECT_DIRECTORY || true
+  npm run lint >&2
+) || exit 1
 drop_index_missing_blobs
+assert_index_substantially_intact

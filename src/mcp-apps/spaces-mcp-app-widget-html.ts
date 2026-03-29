@@ -35,9 +35,9 @@ export function buildSpacesWidgetHtml(): string {
       color: var(--color-text-primary, #1e293b);
       background: var(--color-background-primary, #ffffff);
     }
-    body { margin: 0; padding: 12px; box-sizing: border-box; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .brand svg { width: 48px; height: 48px; flex-shrink: 0; border-radius: 10px; }
+    body { margin: 0; padding: 8px; box-sizing: border-box; }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .brand svg { width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; }
     h1 { font-size: var(--font-heading-sm-size, 1rem); font-weight: 600; margin: 0; }
     html:not([data-theme]) #out,
     html[data-theme="dark"] #out,
@@ -51,11 +51,11 @@ export function buildSpacesWidgetHtml(): string {
     }
     #out {
       margin: 0;
-      padding: 10px;
+      padding: 8px;
       border-radius: 8px;
       font-size: var(--font-text-sm-size, 0.8125rem);
       overflow: auto;
-      max-height: min(360px, 70vh);
+      max-height: min(340px, 68vh);
     }
     #out pre.raw {
       margin: 0;
@@ -76,7 +76,7 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="light"] table.spaces td {
       border-bottom: 1px solid var(--color-border-secondary, #e2e8f0);
     }
-    table.spaces th, table.spaces td { text-align: left; padding: 6px 8px; }
+    table.spaces th, table.spaces td { text-align: left; padding: 4px 6px; }
     html:not([data-theme]) table.spaces th,
     html[data-theme="dark"] table.spaces th,
     html.dark table.spaces th { color: var(--color-text-secondary, #94a3b8); font-weight: 600; }
@@ -85,9 +85,9 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="dark"] .hint,
     html.dark .hint { color: var(--color-text-secondary, #94a3b8); }
     html[data-theme="light"] .hint { color: var(--color-text-secondary, #64748b); }
-    .hint { font-size: var(--font-text-xs-size, 0.75rem); margin-top: 8px; }
+    .hint { font-size: var(--font-text-xs-size, 0.75rem); margin-top: 5px; }
     .lead {
-      margin: 0 0 10px 0;
+      margin: 0 0 6px 0;
       line-height: 1.45;
       font-size: var(--font-text-sm-size, 0.8125rem);
     }
@@ -119,14 +119,14 @@ export function buildSpacesWidgetHtml(): string {
     }
     tr.space-row-personal td.space-name-td {
       box-shadow: inset 3px 0 0 0 var(--color-primary, #3b82f6);
-      padding-left: 10px;
+      padding-left: 8px;
     }
     .space-type-badge {
       display: inline-block;
       font-size: 0.75rem;
       font-weight: 700;
       letter-spacing: 0.02em;
-      padding: 4px 9px;
+      padding: 3px 7px;
       border-radius: 999px;
       border: 1px solid transparent;
       white-space: nowrap;
