@@ -3,7 +3,7 @@
 # Dependencies
 node_modules/
 
-# Python (skills-ref, lint_skills.py)
+# Python (skills-ref, lint-agent-skills.py)
 .venv/
 **/__pycache__/
 *.py[cod]

@@ -56,7 +56,7 @@ export default {
             statements: 99,
         },
     },
-    // Load .env.${ENV} first so test process has same vars as server (run-env.sh); then .env
+    // Load .env.${ENV} first so test process has same vars as server (deploy-run-env.sh); then .env
     setupFiles: ['<rootDir>/tests/env-loader.ts', 'dotenv/config'],
     // Global test setup runs before all tests
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],

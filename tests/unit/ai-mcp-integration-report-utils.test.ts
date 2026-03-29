@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { integrationReportSection, snapshotForIntegrationReport } from '../../scripts/ai-mcp-integration-report-utils.mjs';
+import { integrationReportSection, snapshotForIntegrationReport } from '../../scripts/test-ai-mcp-integration-report-utils.mjs';
 
 describe('ai-mcp integration report utils', () => {
   test('redacts obvious sensitive strings and strips URL query strings', () => {

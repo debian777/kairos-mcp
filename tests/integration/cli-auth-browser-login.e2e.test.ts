@@ -150,10 +150,10 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
   beforeAll(async () => {
     await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
 
-    const script = join(process.cwd(), 'scripts', 'configure-keycloak-realms.py');
+    const script = join(process.cwd(), 'scripts', 'deploy-configure-keycloak-realms.py');
     if (!existsSync(script)) {
       throw new Error(
-        'CLI auth E2E requires scripts/configure-keycloak-realms.py. kairos-cli client must exist in Keycloak.'
+        'CLI auth E2E requires scripts/deploy-configure-keycloak-realms.py. kairos-cli client must exist in Keycloak.'
       );
     }
     if (!process.env.KEYCLOAK_ADMIN_PASSWORD) {
@@ -176,7 +176,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
     if (!hasClient) {
       throw new Error(
         `kairos-cli client not found in Keycloak kairos-dev at ${keycloakUrl}. ` +
-          'Add kairos-cli to realm import or run configure-keycloak-realms.py.'
+          'Add kairos-cli to realm import or run deploy-configure-keycloak-realms.py.'
       );
     }
   }, 65000);
@@ -215,7 +215,7 @@ describeWhenAuth('CLI auth (browser login only, no --token)', () => {
       if (/Client not found|Invalid redirect uri|client not found/i.test(bodyText)) {
         await saveE2EDiagnostics(page, authUrl, new Error(`Keycloak error: ${bodyText.slice(0, 200)}`));
         throw new Error(
-          `Keycloak returned an error (see reports/). Ensure realm and kairos-cli client exist: KEYCLOAK_ADMIN_PASSWORD set and run: python3 scripts/configure-keycloak-realms.py`
+          `Keycloak returned an error (see reports/). Ensure realm and kairos-cli client exist: KEYCLOAK_ADMIN_PASSWORD set and run: python3 scripts/deploy-configure-keycloak-realms.py`
         );
       }
 

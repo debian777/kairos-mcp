@@ -1,5 +1,5 @@
 /**
- * Slug extraction and meta markdown collection for embed-docs.ts
+ * Slug extraction and meta markdown collection for build-embed-docs.ts
  */
 import * as fs from 'fs';
 import * as path from 'path';

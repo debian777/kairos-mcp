@@ -1,21 +1,21 @@
 # Keycloak realm import
 
-Realm JSONs in this directory are applied **idempotently** by **scripts/configure-keycloak-realms.py** via the Admin API. No Docker import mount; do not use Keycloak `--import-realm` (would conflict with existing realms).
+Realm JSONs in this directory are applied **idempotently** by **scripts/deploy-configure-keycloak-realms.py** via the Admin API. No Docker import mount; do not use Keycloak `--import-realm` (would conflict with existing realms).
 
-**Sub-realms only.** All realm configuration in this repo (import JSON + `configure-keycloak-realms.py`) targets **sub-realms** (e.g. `kairos-dev`, `kairos-prod`). The **master** realm is used only for admin authentication (obtaining a token); no script modifies master.
+**Sub-realms only.** All realm configuration in this repo (import JSON + `deploy-configure-keycloak-realms.py`) targets **sub-realms** (e.g. `kairos-dev`, `kairos-prod`). The **master** realm is used only for admin authentication (obtaining a token); no script modifies master.
 
 ## Files
 
 - **kairos-dev-realm.json** – Dev realm: `kairos-dev`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE). Browser SSO is kept; MCP clients should send `prompt=login` when building the auth URL (see `authorization_request_parameters` in `/.well-known/oauth-protected-resource`).
 - **kairos-prod-realm.json** – Prod realm: `kairos-prod`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE).
 
-## Idempotent configuration: `configure-keycloak-realms.py`
+## Idempotent configuration: `deploy-configure-keycloak-realms.py`
 
 Run when Keycloak is up (safe to re-run; merge/update, no duplicate realms):
 
 ```bash
 npm run infra:up
-# Or: python3 scripts/configure-keycloak-realms.py
+# Or: python3 scripts/deploy-configure-keycloak-realms.py
 # Optional: KEYCLOAK_URL=http://keycloak:8080
 ```
 
@@ -51,7 +51,7 @@ Without this mapper, KAIROS treats users as local account type because the claim
 
 KAIROS reads only the JWT `groups` claim. It does **not** fallback to `realm_access.roles`.
 
-`configure-keycloak-realms.py` installs a **Group Membership** mapper named `kairos-oidc-groups` on **kairos-mcp** and **kairos-cli**. Keycloak’s mapper lists **every** realm group the user belongs to (you cannot whitelist individual groups in that mapper on current Keycloak).
+`deploy-configure-keycloak-realms.py` installs a **Group Membership** mapper named `kairos-oidc-groups` on **kairos-mcp** and **kairos-cli**. Keycloak’s mapper lists **every** realm group the user belongs to (you cannot whitelist individual groups in that mapper on current Keycloak).
 
 To **choose which groups KAIROS uses** (spaces, `/api/me`, session cookie) after the token is issued, set **`OIDC_GROUPS_ALLOWLIST`** in the app `.env` to a comma-separated list of full group **paths** or **path prefixes** ending with `/`.
 For example, `/shared/` matches `/shared/team-platform`.
@@ -70,8 +70,8 @@ If you manage Keycloak manually, add the same style of **Group Membership** mapp
 For ad-hoc users (e.g. demo) with auto-generated password:
 
 ```bash
-python3 scripts/add-keycloak-user --realm kairos-dev --user demo
-# Or: scripts/add-keycloak-demo-user.sh
+python3 scripts/deploy-add-keycloak-user --realm kairos-dev --user demo
+# Or: scripts/deploy-add-keycloak-demo-user.sh
 ```
 
 ## MCP OAuth and multi-browser (already_logged_in)

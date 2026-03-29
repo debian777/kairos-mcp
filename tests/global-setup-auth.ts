@@ -123,9 +123,9 @@ function loadEnv(): void {
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
 }
 
-/** Run scripts/configure-keycloak-realms.py so realm and kairos-cli client exist (required for CLI auth E2E). */
+/** Run scripts/deploy-configure-keycloak-realms.py so realm and kairos-cli client exist (required for CLI auth E2E). */
 function configureKeycloakRealms(root: string): void {
-  const script = join(root, 'scripts', 'configure-keycloak-realms.py');
+  const script = join(root, 'scripts', 'deploy-configure-keycloak-realms.py');
   if (!existsSync(script)) return;
   const keycloakUrl = process.env.KEYCLOAK_URL ?? '';
   const hostReachable =
@@ -137,7 +137,7 @@ function configureKeycloakRealms(root: string): void {
     execSync(`python3 "${script}"`, { stdio: 'pipe', env, cwd: root });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`configure-keycloak-realms.py failed: ${msg}`);
+    throw new Error(`deploy-configure-keycloak-realms.py failed: ${msg}`);
   }
 }
 
