@@ -30,7 +30,10 @@ describe('buildForwardWidgetHtml', () => {
     expect(html).toContain('seg-issue');
     expect(html).toContain('--color-warning');
     expect(html).toContain('kairos-forward-root');
+    expect(html).toContain('normalizeForwardErrorState');
+    expect(html).toContain('renderForwardError');
     expect(html).toContain('renderHumanError');
+    expect(html).toContain('Fix tool input and retry');
     expect(html).toContain('shortHumanErrorMessage');
     expect(html).toContain('Your AI agent was asked to: ');
     expect(html).toContain('Technical details');

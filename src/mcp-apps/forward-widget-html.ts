@@ -1,6 +1,7 @@
 import { KAIROS_LOGO_SVG } from './kairos-logo-embedded.js';
 import { FORWARD_WIDGET_INLINE_CSS } from './forward-widget-inline-css.js';
 import { FORWARD_WIDGET_INLINE_SCRIPT } from './forward-widget-inline-script.js';
+import { minifyInlineWidgetHtml } from './widget-inline-minify.js';
 import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inject.js';
 
 /**
@@ -9,7 +10,7 @@ import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inj
  */
 export function buildForwardWidgetHtml(): string {
   const logo = KAIROS_LOGO_SVG.replaceAll('`', '&#96;');
-  return `<div id="kairos-forward-root">
+  return minifyInlineWidgetHtml(`<div id="kairos-forward-root">
   <div class="brand">
     ${logo}
     <h1 id="header-title" class="header-title"><span class="ht-brand">KAIROS</span><span class="ht-sep"> • </span><span class="ht-protocol-label">Protocol:</span></h1>
@@ -29,5 +30,5 @@ ${FORWARD_WIDGET_INLINE_CSS}
 </style>
 <script>
 ${substituteWidgetPresentationToken(FORWARD_WIDGET_INLINE_SCRIPT)}
-</script>`;
+</script>`);
 }

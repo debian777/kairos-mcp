@@ -27,10 +27,15 @@ describe('buildActivateWidgetHtml', () => {
     expect(html).toContain('choice-row-top');
     expect(html).toContain('choice-space');
     expect(html).toContain('#kairos-activate-root #out');
-    expect(html).toContain('renderHumanError');
-    expect(html).toContain('shortHumanErrorMessage');
-    expect(html).toContain('Your AI agent was asked to: ');
+    expect(html).toContain('summaryLineFromPayload');
+    expect(html).toContain('activate-json-details');
     expect(html).toContain('Technical details');
+    expect(html).toContain("showJson({ isError: true, content: p.content, message: p.message });");
+    expect(html).toContain("error: 'WIDGET_BOOT'");
+    expect(html).not.toContain('renderHumanError');
+    expect(html).not.toContain('shortHumanErrorMessage');
+    expect(html).not.toContain('Your AI agent was asked to: ');
+    expect(html).not.toContain('widget-error');
     expect(html).not.toContain('<!DOCTYPE html>');
   });
 });

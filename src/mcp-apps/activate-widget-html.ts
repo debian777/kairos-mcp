@@ -1,6 +1,7 @@
 import { KAIROS_LOGO_SVG } from './kairos-logo-embedded.js';
 import { ACTIVATE_WIDGET_INLINE_CSS } from './activate-widget-inline-css.js';
 import { ACTIVATE_WIDGET_INLINE_SCRIPT } from './activate-widget-inline-script.js';
+import { minifyInlineWidgetHtml } from './widget-inline-minify.js';
 import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inject.js';
 
 /**
@@ -9,7 +10,7 @@ import { substituteWidgetPresentationToken } from './mcp-widget-presentation-inj
  */
 export function buildActivateWidgetHtml(): string {
   const logo = KAIROS_LOGO_SVG.replaceAll('`', '&#96;');
-  return `<div id="kairos-activate-root">
+  return minifyInlineWidgetHtml(`<div id="kairos-activate-root">
   <div class="brand activate-brand-row">
     <div class="activate-brand-left">
       ${logo}
@@ -24,5 +25,5 @@ ${ACTIVATE_WIDGET_INLINE_CSS}
 </style>
 <script>
 ${substituteWidgetPresentationToken(ACTIVATE_WIDGET_INLINE_SCRIPT)}
-</script>`;
+</script>`);
 }
