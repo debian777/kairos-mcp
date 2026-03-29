@@ -131,6 +131,13 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         post({ jsonrpc: '2.0', method: method, params: params || {} });
       }
 
+      function notifySize() {
+        requestAnimationFrame(function () {
+          var h = document.documentElement.scrollHeight;
+          sendNotification('ui/notifications/size-changed', { height: h });
+        });
+      }
+
       function escapeHtml(s) {
         return String(s)
           .replace(/&/g, '&amp;')
@@ -154,13 +161,144 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         document.title = 'Forward — KAIROS';
       }
 
-      function showJson(obj) {
+      function isErrorLike(obj) {
+        if (obj == null) return false;
+        if (typeof obj === 'string') return true;
+        if (typeof obj !== 'object') return false;
+        if (obj.isError === true) return true;
+        if (typeof obj.error === 'string' && obj.error.length > 0) return true;
+        if (obj.error_code != null && String(obj.error_code).length > 0) return true;
+        return false;
+      }
+
+      /** Short line for humans; full server text stays in Technical details JSON only. */
+      function shortHumanErrorMessage(obj) {
+        if (obj == null) return 'Something went wrong.';
+        if (typeof obj === 'string') {
+          var ts = obj.trim();
+          if (!ts) return 'Something went wrong.';
+          return ts.length > 90 ? ts.slice(0, 87) + '…' : ts;
+        }
+        if (typeof obj !== 'object') return 'Something went wrong.';
+        if (typeof obj.error === 'string' && obj.error.length) {
+          if (obj.error === 'INVALID_TOOL_INPUT') return 'Invalid tool input.';
+          if (obj.error === 'WIDGET_BOOT') return 'Panel could not start.';
+          return 'Something went wrong.';
+        }
+        if (obj.isError === true) {
+          var m = typeof obj.message === 'string' ? obj.message.trim() : '';
+          if (m) {
+            if (m.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+            var dot = m.indexOf('. ');
+            if (dot > 0 && dot < 120) return m.slice(0, dot + 1);
+            return m.length > 90 ? m.slice(0, 87) + '…' : m;
+          }
+          return 'Something went wrong.';
+        }
+        if (typeof obj.message === 'string' && obj.message.trim()) {
+          var m2 = obj.message.trim();
+          if (m2.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+          return m2.length > 90 ? m2.slice(0, 87) + '…' : m2;
+        }
+        return 'Something went wrong.';
+      }
+
+      /** Prefer server next_action; else compact fallback. Keep in sync with activate-widget-inline-script. */
+      function suggestNextStep(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
+        }
+        var err = obj.error;
+        var tool = obj.tool;
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
+          return 'Match solution to contract.type, or omit solution on the first forward from an adapter URI.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
+          return 'Check query and optional space against the activate schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
+          return 'Check adapter body, space name, and required fields against the schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
+          return 'Use the layer URI from forward, outcome, and any required fields.';
+        }
+        if (obj.isError === true) {
+          return 'Retry the last step; expand Technical details if you need the raw payload.';
+        }
+        if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
+          return 'Follow next_action from this response when you retry.';
+        }
+        return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
+      }
+
+      function agentInstructionText(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return suggestNextStep(obj);
+        }
+        var na = typeof obj.next_action === 'string' ? obj.next_action.trim() : '';
+        if (na) return na;
+        return suggestNextStep(obj);
+      }
+
+      function showRawJson(obj) {
         resetChrome();
-        if (el) el.classList.remove('step-panel');
+        if (el) {
+          el.classList.remove('step-panel');
+          el.classList.remove('step-panel-error');
+        }
         var pre = document.createElement('pre');
         pre.className = 'raw';
         try { pre.textContent = JSON.stringify(obj, null, 2); } catch (e) { pre.textContent = String(obj); }
         el.replaceChildren(pre);
+        notifySize();
+      }
+
+      function renderHumanError(obj) {
+        resetChrome();
+        if (el) {
+          el.classList.add('step-panel');
+          el.classList.add('step-panel-error');
+        }
+        document.title = 'Error — KAIROS';
+        var wrap = document.createElement('div');
+        wrap.className = 'widget-error';
+        wrap.setAttribute('role', 'alert');
+        var msgEl = document.createElement('p');
+        msgEl.className = 'widget-error-msg';
+        msgEl.textContent = shortHumanErrorMessage(obj);
+        wrap.appendChild(msgEl);
+        var nextEl = document.createElement('p');
+        nextEl.className = 'widget-error-next';
+        var nextLbl = document.createElement('span');
+        nextLbl.className = 'widget-error-next-label';
+        nextLbl.textContent = 'Your AI agent was asked to: ';
+        nextEl.appendChild(nextLbl);
+        nextEl.appendChild(document.createTextNode(agentInstructionText(obj)));
+        wrap.appendChild(nextEl);
+        var det = document.createElement('details');
+        det.className = 'widget-error-details';
+        var sum = document.createElement('summary');
+        sum.textContent = 'Technical details';
+        det.appendChild(sum);
+        var pre = document.createElement('pre');
+        pre.className = 'raw widget-error-raw';
+        try {
+          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+        } catch (e) {
+          pre.textContent = String(obj);
+        }
+        det.appendChild(pre);
+        wrap.appendChild(det);
+        el.replaceChildren(wrap);
+        notifySize();
+      }
+
+      function showJson(obj) {
+        if (isErrorLike(obj)) {
+          renderHumanError(obj);
+          return;
+        }
+        showRawJson(obj);
       }
 
       function isForwardStructured(sc) {
@@ -169,38 +307,63 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           typeof sc.next_action === 'string';
       }
 
-      function formatStepTitle(sc) {
+      function isRewardNext(sc) {
+        var na = typeof sc.next_action === 'string' ? sc.next_action.trim() : '';
+        return /call\\s+reward\\b/i.test(na);
+      }
+
+      function formatStepTitle(sc, rewardReady, hasIssue) {
+        if (rewardReady) {
+          return '<p class="step-running step-reward-ready"><span class="step-running-label">Status:</span> ' +
+            '<span class="step-running-name">All steps complete</span></p>';
+        }
+        var runPrefix = hasIssue ? 'Retrying step:' : 'Running step:';
+        var pCls = 'step-running' + (hasIssue ? ' step-retrying' : '');
         var label = sc.current_layer_label != null && String(sc.current_layer_label).trim()
           ? String(sc.current_layer_label).trim() : '';
         if (!label) {
-          return '<p class="step-running"><span class="step-running-label">Running step:</span> <span class="muted">No title in this response</span></p>';
+          return '<p class="' + pCls + '"><span class="step-running-label">' + runPrefix + '</span> <span class="muted">No title in this response</span></p>';
         }
-        return '<p class="step-running"><span class="step-running-label">Running step:</span> <span class="step-running-name">' +
+        return '<p class="' + pCls + '"><span class="step-running-label">' + runPrefix + '</span> <span class="step-running-name">' +
           escapeHtml(label) + '</span></p>';
       }
 
-      function renderProgress(idx, cnt, hasIssue) {
+      function renderProgress(idx, cnt, hasIssue, rewardReady) {
         if (!segHost || !stepText || !runFooter) return;
         var i;
         var n = typeof cnt === 'number' && cnt > 0 ? Math.floor(cnt) : 0;
         var cur = typeof idx === 'number' && idx > 0 ? Math.floor(idx) : 1;
         if (n < 1) {
           runFooter.hidden = true;
+          stepText.classList.remove('footer-step-done');
           return;
         }
         if (cur < 1) cur = 1;
         if (cur > n) cur = n;
         runFooter.hidden = false;
         runFooter.classList.toggle('run-has-issue', !!hasIssue);
+        if (rewardReady && !hasIssue) {
+          stepText.textContent = 'Done';
+          stepText.classList.add('footer-step-done');
+          segHost.replaceChildren();
+          for (i = 1; i <= n; i++) {
+            var sdone = document.createElement('span');
+            sdone.className = 'seg seg-done';
+            segHost.appendChild(sdone);
+          }
+          return;
+        }
+        stepText.classList.remove('footer-step-done');
         stepText.textContent = 'Step ' + cur + ' of ' + n;
-
         segHost.replaceChildren();
         for (i = 1; i <= n; i++) {
           var seg = document.createElement('span');
           seg.className = 'seg';
           if (i < cur) seg.classList.add('seg-done');
-          else if (i === cur) seg.classList.add('seg-current');
-          else seg.classList.add('seg-pending');
+          else if (i === cur) {
+            seg.classList.add('seg-current');
+            if (hasIssue) seg.classList.add('seg-issue');
+          } else seg.classList.add('seg-pending');
           segHost.appendChild(seg);
         }
       }
@@ -213,13 +376,15 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         }
         document.title = (adapterRaw || 'Forward') + ' — KAIROS';
 
-        if (el) el.classList.add('step-panel');
-        el.innerHTML = formatStepTitle(sc);
-
-        var idx = sc.adapter_layer_index;
-        var cnt = sc.adapter_layer_count;
+        if (el) {
+          el.classList.add('step-panel');
+          el.classList.remove('step-panel-error');
+        }
         var hasIssue = !!(sc.error_code || (typeof sc.retry_count === 'number' && sc.retry_count > 0));
-        renderProgress(idx, cnt, hasIssue);
+        var rewardReady = isRewardNext(sc) && !hasIssue;
+        el.innerHTML = formatStepTitle(sc, rewardReady, hasIssue);
+        renderProgress(sc.adapter_layer_index, sc.adapter_layer_count, hasIssue, rewardReady);
+        notifySize();
       }
 
       function applyToolResult(p) {
@@ -251,7 +416,10 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
       function boot() {
         if (PRESENTATION_ONLY) {
           resetChrome();
-          if (el) el.classList.remove('step-panel');
+          if (el) {
+            el.classList.remove('step-panel');
+            el.classList.remove('step-panel-error');
+          }
           if (el) {
             el.replaceChildren();
             var ph = document.createElement('span');
@@ -274,10 +442,19 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           sendNotification('ui/notifications/initialized', {});
         }).catch(function (err) {
           resetChrome();
-          if (el) el.classList.remove('step-panel');
+          if (el) {
+            el.classList.remove('step-panel');
+            el.classList.remove('step-panel-error');
+          }
           var msg = (err && err.message) ? err.message : String(err);
-          el.replaceChildren();
-          el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+          if (el) {
+            renderHumanError({
+              isError: true,
+              message: 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.',
+              error: 'WIDGET_BOOT',
+              detail: String(err)
+            });
+          }
         });
       }
 

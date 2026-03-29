@@ -35,9 +35,9 @@ export function buildSpacesWidgetHtml(): string {
       color: var(--color-text-primary, #1e293b);
       background: var(--color-background-primary, #ffffff);
     }
-    body { margin: 0; padding: 12px; box-sizing: border-box; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .brand svg { width: 48px; height: 48px; flex-shrink: 0; border-radius: 10px; }
+    body { margin: 0; padding: 8px; box-sizing: border-box; }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .brand svg { width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; }
     h1 { font-size: var(--font-heading-sm-size, 1rem); font-weight: 600; margin: 0; }
     html:not([data-theme]) #out,
     html[data-theme="dark"] #out,
@@ -51,11 +51,11 @@ export function buildSpacesWidgetHtml(): string {
     }
     #out {
       margin: 0;
-      padding: 10px;
+      padding: 8px;
       border-radius: 8px;
       font-size: var(--font-text-sm-size, 0.8125rem);
       overflow: auto;
-      max-height: min(360px, 70vh);
+      max-height: min(340px, 68vh);
     }
     #out pre.raw {
       margin: 0;
@@ -76,7 +76,7 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="light"] table.spaces td {
       border-bottom: 1px solid var(--color-border-secondary, #e2e8f0);
     }
-    table.spaces th, table.spaces td { text-align: left; padding: 6px 8px; }
+    table.spaces th, table.spaces td { text-align: left; padding: 4px 6px; }
     html:not([data-theme]) table.spaces th,
     html[data-theme="dark"] table.spaces th,
     html.dark table.spaces th { color: var(--color-text-secondary, #94a3b8); font-weight: 600; }
@@ -85,9 +85,9 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="dark"] .hint,
     html.dark .hint { color: var(--color-text-secondary, #94a3b8); }
     html[data-theme="light"] .hint { color: var(--color-text-secondary, #64748b); }
-    .hint { font-size: var(--font-text-xs-size, 0.75rem); margin-top: 8px; }
+    .hint { font-size: var(--font-text-xs-size, 0.75rem); margin-top: 5px; }
     .lead {
-      margin: 0 0 10px 0;
+      margin: 0 0 6px 0;
       line-height: 1.45;
       font-size: var(--font-text-sm-size, 0.8125rem);
     }
@@ -95,6 +95,90 @@ export function buildSpacesWidgetHtml(): string {
     html[data-theme="dark"] .lead,
     html.dark .lead { color: var(--color-text-secondary, #94a3b8); }
     html[data-theme="light"] .lead { color: var(--color-text-secondary, #64748b); }
+    html:not([data-theme]) .lead strong,
+    html[data-theme="dark"] .lead strong,
+    html.dark .lead strong,
+    html[data-theme="light"] .lead strong {
+      color: var(--color-text-primary, inherit);
+      font-weight: 700;
+    }
+    td.space-name-td { vertical-align: middle; }
+    .space-display-name {
+      display: block;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.35;
+    }
+    html:not([data-theme]) .space-display-name,
+    html[data-theme="dark"] .space-display-name,
+    html.dark .space-display-name { color: var(--color-text-primary, #f1f5f9); }
+    html[data-theme="light"] .space-display-name { color: var(--color-text-primary, #0f172a); }
+    .space-display-name--personal {
+      font-size: 1.0625rem;
+    }
+    tr.space-row-personal td.space-name-td {
+      box-shadow: inset 3px 0 0 0 var(--color-primary, #3b82f6);
+      padding-left: 8px;
+    }
+    .space-type-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    html:not([data-theme]) .space-type-badge--personal,
+    html[data-theme="dark"] .space-type-badge--personal,
+    html.dark .space-type-badge--personal {
+      background: color-mix(in srgb, var(--color-primary, #3b82f6) 22%, var(--color-background-secondary, #1e293b));
+      border-color: color-mix(in srgb, var(--color-primary, #3b82f6) 50%, var(--color-border-secondary, #334155));
+      color: var(--color-text-primary, #e2e8f0);
+    }
+    html[data-theme="light"] .space-type-badge--personal {
+      background: color-mix(in srgb, var(--color-primary, #2563eb) 14%, var(--color-background-secondary, #f8fafc));
+      border-color: color-mix(in srgb, var(--color-primary, #2563eb) 40%, var(--color-border-secondary, #e2e8f0));
+      color: var(--color-text-primary, #0f172a);
+    }
+    html:not([data-theme]) .space-type-badge--group,
+    html[data-theme="dark"] .space-type-badge--group,
+    html.dark .space-type-badge--group {
+      background: color-mix(in srgb, var(--color-text-secondary, #94a3b8) 12%, var(--color-background-secondary, #1e293b));
+      border-color: var(--color-border-secondary, #334155);
+      color: var(--color-text-secondary, #cbd5e1);
+    }
+    html[data-theme="light"] .space-type-badge--group {
+      background: color-mix(in srgb, var(--color-text-secondary, #64748b) 10%, #fff);
+      border-color: var(--color-border-secondary, #e2e8f0);
+      color: var(--color-text-secondary, #475569);
+    }
+    html:not([data-theme]) .space-type-badge--app,
+    html[data-theme="dark"] .space-type-badge--app,
+    html.dark .space-type-badge--app {
+      background: color-mix(in srgb, var(--color-success, #22c55e) 16%, var(--color-background-secondary, #1e293b));
+      border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-secondary, #334155));
+      color: var(--color-text-primary, #e2e8f0);
+    }
+    html[data-theme="light"] .space-type-badge--app {
+      background: color-mix(in srgb, var(--color-success, #16a34a) 12%, #fff);
+      border-color: color-mix(in srgb, var(--color-success, #16a34a) 35%, var(--color-border-secondary, #e2e8f0));
+      color: var(--color-text-primary, #0f172a);
+    }
+    html:not([data-theme]) .space-type-badge--other,
+    html[data-theme="dark"] .space-type-badge--other,
+    html.dark .space-type-badge--other {
+      background: var(--color-background-secondary, #1e293b);
+      border-color: var(--color-border-secondary, #334155);
+      color: var(--color-text-secondary, #94a3b8);
+    }
+    html[data-theme="light"] .space-type-badge--other {
+      background: var(--color-background-secondary, #f8fafc);
+      border-color: var(--color-border-secondary, #e2e8f0);
+      color: var(--color-text-secondary, #64748b);
+    }
 </style>
 <script>
     (function () {
@@ -213,16 +297,34 @@ export function buildSpacesWidgetHtml(): string {
         el.replaceChildren(pre);
       }
 
+      function spaceTypeKey(t) {
+        var x = t != null ? String(t).trim().toLowerCase() : '';
+        if (x === 'personal' || x === 'group' || x === 'app' || x === 'other') return x;
+        return 'other';
+      }
+
+      function spaceTypeLabel(key) {
+        if (key === 'personal') return 'Personal';
+        if (key === 'group') return 'Group';
+        if (key === 'app') return 'App';
+        return 'Other';
+      }
+
       function renderSpacesTable(sc) {
         var spaces = (sc && sc.spaces) ? sc.spaces : [];
         var rows = spaces.map(function (s) {
           var name = escapeHtml(s.name != null ? s.name : '');
           var n = s.adapter_count != null ? String(s.adapter_count) : '0';
-          return '<tr><td>' + name + '</td><td>' + escapeHtml(n) + '</td></tr>';
+          var tk = spaceTypeKey(s.type);
+          var tlabel = escapeHtml(spaceTypeLabel(tk));
+          var rowCls = tk === 'personal' ? ' class="space-row-personal"' : '';
+          var nameCls = 'space-display-name' + (tk === 'personal' ? ' space-display-name--personal' : '');
+          return '<tr' + rowCls + '><td class="space-name-td"><span class="' + nameCls + '">' + name + '</span></td><td><span class="space-type-badge space-type-badge--' +
+            tk + '">' + tlabel + '</span></td><td>' + escapeHtml(n) + '</td></tr>';
         }).join('');
-        var lead = '<p class="lead" role="note">Each row is one space and the number of adapters stored there.</p>';
-        el.innerHTML = lead + '<table class="spaces" role="grid" aria-label="Spaces and adapter counts"><thead><tr><th>Space name</th><th>Adapter count</th></tr></thead><tbody>' +
-          (rows || '<tr><td colspan="2">No spaces are available for this session.</td></tr>') + '</tbody></table>';
+        var lead = '<p class="lead" role="note">Each row lists the <strong>space name</strong> (use this string in <code>activate</code>, <code>train</code>, and <code>tune</code>), its <strong>kind</strong>, and adapter count. The <strong>Personal</strong> space is usually your default writable space unless you target a group or app space.</p>';
+        el.innerHTML = lead + '<table class="spaces" role="grid" aria-label="Spaces and adapter counts"><thead><tr><th>Space name</th><th>Kind</th><th>Adapters</th></tr></thead><tbody>' +
+          (rows || '<tr><td colspan="3">No spaces are available for this session.</td></tr>') + '</tbody></table>';
       }
 
       function applyToolResult(p) {

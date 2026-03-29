@@ -8,9 +8,8 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
       var nextId = 1;
       var pending = {};
       var hostCtxState = {};
-      var MAX_CHOICES = 40;
-      /** Omit last N choices in the panel only (tool JSON unchanged); typical refine/create footer. */
-      var WIDGET_DROP_LAST_CHOICES = 2;
+      /** Top N visible in the main list; remaining choices live in a collapsed details block (error-panel style). */
+      var ACTIVATE_VISIBLE_CHOICES = 3;
       var BATCH = 10;
       var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
@@ -182,7 +181,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           return;
         }
         var pct = Math.round(bestScore * 1000) / 10;
-        var tier = bestScore >= 0.8 ? '4' : bestScore >= 0.65 ? '3' : bestScore >= 0.5 ? '2' : '1';
+        var tier = tierFromScore(bestScore);
         headerTopMatch.hidden = false;
         headerTopMatch.setAttribute('data-tier', tier);
         headerTopMatch.setAttribute('aria-label', 'Top match ' + pct + ' percent');
@@ -194,7 +193,86 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           '%</span></div>';
       }
 
-      function showJson(obj) {
+      function isErrorLike(obj) {
+        if (obj == null) return false;
+        if (typeof obj === 'string') return true;
+        if (typeof obj !== 'object') return false;
+        if (obj.isError === true) return true;
+        if (typeof obj.error === 'string' && obj.error.length > 0) return true;
+        if (obj.error_code != null && String(obj.error_code).length > 0) return true;
+        return false;
+      }
+
+      /** Short line for humans; full server text stays in Technical details JSON only. */
+      function shortHumanErrorMessage(obj) {
+        if (obj == null) return 'Something went wrong.';
+        if (typeof obj === 'string') {
+          var ts = obj.trim();
+          if (!ts) return 'Something went wrong.';
+          return ts.length > 90 ? ts.slice(0, 87) + '…' : ts;
+        }
+        if (typeof obj !== 'object') return 'Something went wrong.';
+        if (typeof obj.error === 'string' && obj.error.length) {
+          if (obj.error === 'INVALID_TOOL_INPUT') return 'Invalid tool input.';
+          if (obj.error === 'WIDGET_BOOT') return 'Panel could not start.';
+          return 'Something went wrong.';
+        }
+        if (obj.isError === true) {
+          var m = typeof obj.message === 'string' ? obj.message.trim() : '';
+          if (m) {
+            if (m.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+            var dot = m.indexOf('. ');
+            if (dot > 0 && dot < 120) return m.slice(0, dot + 1);
+            return m.length > 90 ? m.slice(0, 87) + '…' : m;
+          }
+          return 'Something went wrong.';
+        }
+        if (typeof obj.message === 'string' && obj.message.trim()) {
+          var m2 = obj.message.trim();
+          if (m2.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+          return m2.length > 90 ? m2.slice(0, 87) + '…' : m2;
+        }
+        return 'Something went wrong.';
+      }
+
+      /** Prefer server next_action; else compact fallback. Keep in sync with forward-widget-inline-script. */
+      function suggestNextStep(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
+        }
+        var err = obj.error;
+        var tool = obj.tool;
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
+          return 'Match solution to contract.type, or omit solution on the first forward from an adapter URI.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
+          return 'Check query and optional space against the activate schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
+          return 'Check adapter body, space name, and required fields against the schema.';
+        }
+        if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
+          return 'Use the layer URI from forward, outcome, and any required fields.';
+        }
+        if (obj.isError === true) {
+          return 'Retry the last step; expand Technical details if you need the raw payload.';
+        }
+        if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
+          return 'Follow next_action from this response when you retry.';
+        }
+        return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
+      }
+
+      function agentInstructionText(obj) {
+        if (obj == null || typeof obj !== 'object') {
+          return suggestNextStep(obj);
+        }
+        var na = typeof obj.next_action === 'string' ? obj.next_action.trim() : '';
+        if (na) return na;
+        return suggestNextStep(obj);
+      }
+
+      function showRawJson(obj) {
         clearTopMatch();
         if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
         document.title = 'Activate — KAIROS';
@@ -205,6 +283,52 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           el.replaceChildren(pre);
         }
         notifySize();
+      }
+
+      function renderHumanError(obj) {
+        clearTopMatch();
+        if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
+        document.title = 'Error — KAIROS';
+        if (!el) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'widget-error';
+        wrap.setAttribute('role', 'alert');
+        var msgEl = document.createElement('p');
+        msgEl.className = 'widget-error-msg';
+        msgEl.textContent = shortHumanErrorMessage(obj);
+        wrap.appendChild(msgEl);
+        var nextEl = document.createElement('p');
+        nextEl.className = 'widget-error-next';
+        var nextLbl = document.createElement('span');
+        nextLbl.className = 'widget-error-next-label';
+        nextLbl.textContent = 'Your AI agent was asked to: ';
+        nextEl.appendChild(nextLbl);
+        nextEl.appendChild(document.createTextNode(agentInstructionText(obj)));
+        wrap.appendChild(nextEl);
+        var det = document.createElement('details');
+        det.className = 'widget-error-details';
+        var sum = document.createElement('summary');
+        sum.textContent = 'Technical details';
+        det.appendChild(sum);
+        var pre = document.createElement('pre');
+        pre.className = 'raw widget-error-raw';
+        try {
+          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+        } catch (e) {
+          pre.textContent = String(obj);
+        }
+        det.appendChild(pre);
+        wrap.appendChild(det);
+        el.replaceChildren(wrap);
+        notifySize();
+      }
+
+      function showJson(obj) {
+        if (isErrorLike(obj)) {
+          renderHumanError(obj);
+          return;
+        }
+        showRawJson(obj);
       }
 
       function isActivateStructured(sc) {
@@ -218,9 +342,10 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         return 'match';
       }
 
-      function scoreText(role, score) {
-        if (role !== 'match' || score == null || typeof score !== 'number') return '';
-        return String(Math.round(score * 1000) / 10) + '% match';
+      /** Same tier breakpoints as header "Top match" (green → amber). */
+      function tierFromScore(score) {
+        if (score == null || typeof score !== 'number' || isNaN(score)) return null;
+        return score >= 0.8 ? '4' : score >= 0.65 ? '3' : score >= 0.5 ? '2' : '1';
       }
 
       function buildChoiceEl(ch, index) {
@@ -232,78 +357,96 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           ? String(ch.adapter_name).trim() : '';
         var space = ch && ch.space_name != null && String(ch.space_name).trim()
           ? String(ch.space_name).trim() : '';
+        var score = ch && ch.activation_score;
         var row = document.createElement('div');
-        row.className = 'choice-row';
+        row.className = 'choice-row choice-row-top';
         var pill = document.createElement('span');
         pill.className = 'pill';
         pill.setAttribute('data-role', role);
-        pill.textContent = role;
+        if (role === 'match' && score != null && typeof score === 'number' && !isNaN(score)) {
+          var tier = tierFromScore(score);
+          if (tier) pill.setAttribute('data-tier', tier);
+          var pct = Math.round(score * 1000) / 10;
+          var roleSpan = document.createElement('span');
+          roleSpan.className = 'pill-role';
+          roleSpan.textContent = role + ' ';
+          var pctSpan = document.createElement('span');
+          pctSpan.className = 'pill-pct';
+          pctSpan.textContent = pct + '%';
+          pill.appendChild(roleSpan);
+          pill.appendChild(pctSpan);
+        } else {
+          pill.textContent = role;
+        }
         row.appendChild(pill);
+        if (space) {
+          var spEl = document.createElement('span');
+          spEl.className = 'choice-space';
+          spEl.textContent = 'Space: ' + space;
+          row.appendChild(spEl);
+        }
+        li.appendChild(row);
+        var titleRow = document.createElement('div');
+        titleRow.className = 'choice-title-row';
         var title = document.createElement('span');
         title.className = 'choice-title';
         title.textContent = label;
-        row.appendChild(title);
-        var st = scoreText(role, ch && ch.activation_score);
-        if (st) {
-          var scEl = document.createElement('span');
-          scEl.className = 'choice-score';
-          scEl.textContent = st;
-          row.appendChild(scEl);
-        }
-        li.appendChild(row);
-        var meta = [];
-        if (adapterName && adapterName !== label) meta.push(adapterName);
-        if (space) meta.push('Space: ' + space);
-        if (meta.length) {
+        titleRow.appendChild(title);
+        li.appendChild(titleRow);
+        if (adapterName && adapterName !== label) {
           var mp = document.createElement('p');
           mp.className = 'sub';
-          mp.textContent = meta.join(' · ');
+          mp.textContent = adapterName;
           li.appendChild(mp);
         }
         return li;
       }
 
-      function renderActivate(sc) {
-        var total = sc.choices.length;
-        var raw = total > MAX_CHOICES ? sc.choices.slice(0, MAX_CHOICES) : sc.choices;
-        var capped = total > MAX_CHOICES;
-        var list =
-          raw.length > WIDGET_DROP_LAST_CHOICES
-            ? raw.slice(0, raw.length - WIDGET_DROP_LAST_CHOICES)
-            : raw;
-        if (headerTitle) {
-          headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
+      function appendChoicesBatched(slice, listEl, indexOffset, onDone) {
+        var i = 0;
+        function pump() {
+          var end = Math.min(i + BATCH, slice.length);
+          for (; i < end; i++) listEl.appendChild(buildChoiceEl(slice[i], indexOffset + i));
+          if (i < slice.length) requestAnimationFrame(pump);
+          else onDone();
         }
-        paintTopMatch(list);
+        if (!slice.length) onDone();
+        else requestAnimationFrame(pump);
+      }
+
+      function renderActivate(sc) {
+        var all = Array.isArray(sc.choices) ? sc.choices : [];
+        var visN = ACTIVATE_VISIBLE_CHOICES;
+        var vis = all.slice(0, visN);
+        var rest = all.slice(visN);
+        if (headerTitle) headerTitle.innerHTML = headerHtmlWithQuery(sc.query != null ? sc.query : '');
+        paintTopMatch(all);
         var qt = sc.query != null && String(sc.query).trim() ? String(sc.query).trim() : 'Activate';
         document.title = qt.length > 48 ? qt.slice(0, 45) + '… — KAIROS' : qt + ' — KAIROS';
         if (!el) return;
         el.replaceChildren();
-
         var ul = document.createElement('ul');
         ul.className = 'choices-list';
         ul.setAttribute('role', 'list');
         el.appendChild(ul);
-
-        var i = 0;
-        function pump() {
-          var end = Math.min(i + BATCH, list.length);
-          for (; i < end; i++) {
-            ul.appendChild(buildChoiceEl(list[i], i));
-          }
-          if (i < list.length) {
-            requestAnimationFrame(pump);
-          } else {
-            if (capped) {
-              var note = document.createElement('p');
-              note.className = 'cap-note';
-              note.textContent = 'Showing ' + MAX_CHOICES + ' of ' + total + ' choices.';
-              el.appendChild(note);
-            }
+        appendChoicesBatched(vis, ul, 0, function () {
+          if (!rest.length) {
             notifySize();
+            return;
           }
-        }
-        requestAnimationFrame(pump);
+          var det = document.createElement('details');
+          det.className = 'activate-more-choices';
+          var sum = document.createElement('summary');
+          sum.textContent = 'More choices (' + rest.length + ')';
+          det.appendChild(sum);
+          var innerUl = document.createElement('ul');
+          innerUl.className = 'choices-list choices-list-more';
+          innerUl.setAttribute('role', 'list');
+          det.appendChild(innerUl);
+          el.appendChild(det);
+          det.addEventListener('toggle', notifySize);
+          appendChoicesBatched(rest, innerUl, visN, notifySize);
+        });
       }
 
       function applyToolResult(p) {
@@ -361,8 +504,12 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             var msg = (err && err.message) ? err.message : String(err);
-            el.replaceChildren();
-            el.textContent = 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.';
+            renderHumanError({
+              isError: true,
+              message: 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.',
+              error: 'WIDGET_BOOT',
+              detail: String(err)
+            });
           }
         });
       }
