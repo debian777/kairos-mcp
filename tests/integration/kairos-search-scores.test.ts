@@ -2,7 +2,7 @@
  * Baseline and verification tests for activate (activation_score) vs. recorded baseline.
  * Per plan: (a) RECORD_BASELINE=1 runs fixed queries and writes tests/test-data/kairos-search-score-baseline.json.
  *           (b) Default run loads baseline and asserts top score >= baseline for each query.
- * Uses mint-in-test + fixed queries for deterministic dev. Run: npm run dev:deploy && npm run dev:test -- tests/integration/kairos-search-scores.test.ts
+ * Uses train-in-test + fixed queries for deterministic dev. Run: npm run dev:deploy && npm run dev:test -- tests/integration/kairos-search-scores.test.ts
  */
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -71,7 +71,7 @@ describe('activate score baseline and verification', () => {
     return parseMcpJson(result, 'activate scores');
   }
 
-  async function mintProtocol(title: string) {
+  async function trainProtocol(title: string) {
     const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
     await mcpConnection!.client.callTool({
       name: 'train',
@@ -83,7 +83,7 @@ describe('activate score baseline and verification', () => {
     RECORD_BASELINE ? 'record baseline: run fixed queries and write baseline file' : 'verify: scores meet or exceed baseline',
     async () => {
       const ts = Date.now();
-      await mintProtocol(`ScoreBaseline ${ts}`);
+      await trainProtocol(`ScoreBaseline ${ts}`);
       await new Promise((r) => setTimeout(r, 5000));
 
       const results: Record<string, BaselineQueryResult> = {};

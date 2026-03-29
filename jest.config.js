@@ -56,7 +56,7 @@ export default {
             statements: 99,
         },
     },
-    // Load .env.${ENV} first so test process has same vars as server (run-env.sh); then .env
+    // Load .env.${ENV} first so test process has same vars as server (deploy-run-env.sh); then .env
     setupFiles: ['<rootDir>/tests/env-loader.ts', 'dotenv/config'],
     // Global test setup runs before all tests
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
@@ -66,6 +66,6 @@ export default {
     globalTeardown: '<rootDir>/tests/global-teardown-auth.ts',
     // Global test timeout
     testTimeout: 10000,
-    // Run mint/update tests before v2-kairos-search (which depends on them)
+    // Run train/update tests before v2-kairos-search (which depends on them)
     testSequencer: '<rootDir>/tests/jest-sequencer.cjs',
 };

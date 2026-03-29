@@ -28,7 +28,7 @@ describe('HTTP REST API Endpoints', () => {
 When to run this test protocol.
 
 ## Step 1
-Content for HTTP API mint endpoint.
+Content for HTTP API train endpoint.
 
 \`\`\`json
 {"contract": {"type": "comment", "description": "Minimal step"}}

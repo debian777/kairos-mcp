@@ -5,7 +5,7 @@ describe('stripRedundantStepH2', () => {
     expect(stripRedundantStepH2('## Step A\n\nBody.', 'Step A')).toBe('Body.');
   });
 
-  test('strips first matching H2 when prose precedes it (mint label from first ## in segment)', () => {
+  test('strips first matching H2 when prose precedes it (train label from first ## in segment)', () => {
     const body = 'Read this first.\n\n## Do Thing\n\nThen act.';
     expect(stripRedundantStepH2(body, 'Do Thing')).toBe('Read this first.\n\nThen act.');
   });

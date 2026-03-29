@@ -1,6 +1,6 @@
 # Example: All challenge types
 
-One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to mint with `train`.
+One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to train with `train`.
 
 ## Natural Language Triggers
 

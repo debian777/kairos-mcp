@@ -46,7 +46,7 @@ describe('v4-forward continuation response schema', () => {
       name: 'train',
       arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-continue', force_update: true }
     });
-    const parsed = parseMcpJson(storeResult, 'v4-forward-continue mint');
+    const parsed = parseMcpJson(storeResult, 'v4-forward-continue train');
     expect(parsed.status).toBe('stored');
     return parsed.items as Array<{ uri: string; adapter_uri: string; layer_uuid: string }>;
   }

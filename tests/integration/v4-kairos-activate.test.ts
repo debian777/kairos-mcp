@@ -1,7 +1,7 @@
 /**
  * Activate tool response shape tests.
  * Tests use the actual space of kairos-tester (user:realm:sub from token); activate passes space_id
- * so train and activate run in the same scope and adapters minted are visible.
+ * so train and activate run in the same scope and adapters stored via train are visible.
  *
  * Depends on: train (and optionally tune). Run train integration tests first where sequenced.
  */

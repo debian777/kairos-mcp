@@ -8,7 +8,7 @@ documents that are injected into the Kairos app space at boot.
 | UUID | Slug | Purpose |
 |------|------|---------|
 | [2001](00000000-0000-0000-0000-000000002001.md) | `create-new-protocol` | Authoring adapter — gather requirements, draft protocol markdown |
-| [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | Review adapter — format review, stranger review, approval, mint |
+| [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | Review adapter — format review, stranger review, approval, train |
 | [2002](00000000-0000-0000-0000-000000002002.md) | `refine-search` | Refine search — improve a failed **activate** query |
 | [2005](00000000-0000-0000-0000-000000002005.md) | `phase-critic` | Phase boundary adversarial review — verify plan/implementation against artifacts and invariants |
 

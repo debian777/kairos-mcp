@@ -74,7 +74,7 @@ export function findAllLayerContractBlocks(content: string): LayerContractBlockM
  * Returns true if the document has any plain ``` (no "json") fenced block whose
  * content is valid JSON with a "contract" key. Such docs would pass
  * "at least one ```json contract" but layer parsing would ignore the plain
- * blocks, minting fewer layers than the doc implies.
+ * blocks, training (store) producing fewer layers than the doc implies.
  */
 export function hasPlainFenceLayerContractBlock(content: string): boolean {
   let match: RegExpExecArray | null;

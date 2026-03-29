@@ -1,6 +1,6 @@
 /**
  * Integration tests for mem boot injection.
- * Injection runs at server start (injectMemResourcesAtBoot). This test confirms mint at boot
+ * Injection runs at server start (injectMemResourcesAtBoot). This test confirms adapters loaded at boot
  * by calling spaces and asserting the Kairos app space (kairos_dev) has at least 2 adapters
  * (the two mem files in src/embed-docs/mem/). Uses normal MCP connection (auth when enabled).
  * Requires dev server (npm run dev:deploy).
@@ -23,7 +23,7 @@ describe('Mem boot injection', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  test('spaces shows Kairos app space with at least 2 adapters (mint at boot)', async () => {
+  test('spaces shows Kairos app space with at least 2 adapters (boot-injected mem)', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'spaces',
       arguments: { include_adapter_titles: true }

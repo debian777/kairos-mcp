@@ -53,7 +53,7 @@ export interface ResolvedProtocolSlug {
 
 /**
  * Resolve final slug candidate before uniqueness allocation.
- * Throws nothing; invalid explicit slug should be handled by caller (MintError).
+ * Throws nothing; invalid explicit slug should be handled by caller (TrainError).
  */
 export function resolveProtocolSlugCandidate(
   parsed: { slugRaw?: string },

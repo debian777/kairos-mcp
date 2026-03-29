@@ -1,6 +1,6 @@
 /**
- * YAML frontmatter for protocol dumps (round-trip with mint).
- * Slug and version values are constrained at mint time; kept single-line.
+ * YAML frontmatter for protocol dumps (round-trip with train).
+ * Slug and version values are constrained when storing via train; kept single-line.
  */
 export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: string): string {
   const s = (slug || '').trim();

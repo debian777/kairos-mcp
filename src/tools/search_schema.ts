@@ -35,7 +35,7 @@ export const searchOutputSchema = z.object({
     role: z.enum(['match', 'refine', 'create']).describe('match = search result, refine = search again, create = system action'),
     tags: z.array(z.string()),
     next_action: z.string().describe('Instruction for this choice.'),
-    adapter_version: z.string().nullable().describe('Stored adapter version (for example, semver) for match choices; null for refine/create. Compare with bundled adapter metadata to decide if re-mint is needed.'),
+    adapter_version: z.string().nullable().describe('Stored adapter version (for example, semver) for match choices; null for refine/create. Compare with bundled adapter metadata to decide if re-training is needed.'),
     activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter'),
     space_name: z
       .string()

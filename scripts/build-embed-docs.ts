@@ -1,0 +1,326 @@
+/**
+ * Embed MCP Resources Script
+ *
+ * Scans src/embed-docs/* recursively and embeds all directories
+ * into a structured TypeScript module for runtime access by the MCP server.
+ * Keys are extracted from filenames as-is (e.g., {key}.md -> key).
+ * 
+ * The script dynamically reflects the directory structure:
+ * - prompts/ -> mcpResources.prompts (flat)
+ * - tools/ -> mcpResources.tools (flat)
+ * - resources/ -> mcpResources.resources (nested structure)
+ * - templates/ -> mcpResources.templates (flat)
+ * - Any other top-level directory -> mcpResources.{dirname} (flat)
+ *
+ * Usage: npx ts-node scripts/build-embed-docs.ts
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { collectMetaBySlug } from './build-embed-docs-slug-meta.ts';
+
+// Logger shim for build-time embedding (avoid importing runtime logger)
+const logger = {
+  info: (...args) => console.log('[embed-docs]', ...args),
+  warn: (...args) => console.warn('[embed-docs]', ...args)
+};
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const baseDir = path.join(__dirname, '../src/embed-docs');
+const outputFile = path.join(__dirname, '../src/resources/embedded-mcp-resources.ts');
+
+/**
+ * Extract key from filename as-is (just remove .md extension)
+ */
+function extractKey(filePath: string): string {
+  return path.basename(filePath, '.md');
+}
+
+/**
+ * Read markdown file content
+ */
+function readMarkdown(filePath: string): string {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    logger.warn(`Failed to read ${filePath}: ${String(err)}`);
+    return '';
+  }
+}
+
+/**
+ * Recursively collect all markdown files from a directory into a flat object
+ * Keys are extracted from filenames as-is
+ */
+function collectDirFlat(dir: string, result: Record<string, string>): void {
+  if (!fs.existsSync(dir)) return;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      // Recurse into subdirectories
+      collectDirFlat(fullPath, result);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      const key = extractKey(entry.name);
+      const content = readMarkdown(fullPath);
+      result[key] = content;
+      logger.info(`Found: ${path.relative(baseDir, fullPath)} -> ${key}`);
+    }
+  }
+}
+
+/**
+ * Recursively collect resources preserving directory structure
+ * Subdirectories become nested objects
+ */
+function collectResourcesRecursive(dir: string, baseDir: string, result: Record<string, any>): void {
+  if (!fs.existsSync(dir)) return;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      // Create nested object for subdirectory
+      if (!result[entry.name]) {
+        result[entry.name] = {};
+      }
+      collectResourcesRecursive(fullPath, baseDir, result[entry.name]);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      const key = extractKey(entry.name);
+      const content = readMarkdown(fullPath);
+      result[key] = content;
+      logger.info(`Found resource: ${path.relative(baseDir, fullPath)} -> ${key}`);
+    }
+  }
+}
+
+function main() {
+  if (!fs.existsSync(baseDir)) {
+    logger.warn(`Base docs directory not found: ${baseDir}`);
+    return;
+  }
+
+  // Start with known categories
+  const mcpResources: Record<string, any> = {
+    prompts: {},
+    resources: {},
+    templates: {},
+    tools: {},
+    mem: {}, // Empty - mem files are read from filesystem at runtime
+    meta: {} // Protocol / policy markdown keyed by YAML slug (from mem/ then root *.md)
+  };
+
+  // Collect known categories with their specific logic
+  const promptsDir = path.join(baseDir, 'prompts');
+  if (fs.existsSync(promptsDir)) {
+    collectDirFlat(promptsDir, mcpResources.prompts);
+  }
+
+  const toolsDir = path.join(baseDir, 'tools');
+  if (fs.existsSync(toolsDir)) {
+    collectDirFlat(toolsDir, mcpResources.tools);
+  }
+
+  const resourcesDir = path.join(baseDir, 'resources');
+  if (fs.existsSync(resourcesDir)) {
+    collectResourcesRecursive(resourcesDir, baseDir, mcpResources.resources);
+  }
+
+  const templatesDir = path.join(baseDir, 'templates');
+  if (fs.existsSync(templatesDir)) {
+    collectDirFlat(templatesDir, mcpResources.templates);
+  }
+
+  const metaBySlug: Record<string, string> = {};
+  const memDirPath = path.join(baseDir, 'mem');
+  collectMetaBySlug(memDirPath, baseDir, metaBySlug, 'mem', readMarkdown, logger);
+  collectMetaBySlug(baseDir, baseDir, metaBySlug, 'root', readMarkdown, logger);
+  mcpResources.meta = metaBySlug;
+
+  // Discover any other top-level directories and add them as flat collections
+  // NOTE: mem/ directory is excluded - it's read from filesystem at runtime
+  const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+  const knownDirs = new Set(['prompts', 'tools', 'resources', 'templates', 'mem']);
+  
+  for (const entry of entries) {
+    if (entry.isDirectory() && !knownDirs.has(entry.name)) {
+      const dirPath = path.join(baseDir, entry.name);
+      mcpResources[entry.name] = {};
+      collectDirFlat(dirPath, mcpResources[entry.name]);
+      logger.info(`Discovered top-level directory: ${entry.name}`);
+    }
+  }
+  
+  // Note: mem/ directory is read from filesystem at runtime, not embedded
+  logger.info('Skipping mem/ directory (read from filesystem at runtime)');
+
+  const header = `/**
+ * AUTO-GENERATED FILE - DO NOT EDIT
+ *
+ * Generated by: scripts/build-embed-docs.ts
+ * Contains: MCP guide resources dynamically embedded at build time
+ * Structure reflects src/embed-docs/ directory structure
+ *
+ * To update: npm run build (or manually run ts-node scripts/build-embed-docs.ts)
+ */
+ 
+`;
+
+  // Generate getters for all top-level categories
+  const categoryNames = Object.keys(mcpResources);
+  const getters = categoryNames.map(cat => {
+    const camelName = cat.charAt(0).toUpperCase() + cat.slice(1);
+    return `/**
+ * Get ${cat} object
+ */
+export function get${camelName}(): Record<string, any> {
+  return mcpResources.${cat} || {};
+}`;
+  }).join('\n\n');
+
+  const body = `export const mcpResources = ${JSON.stringify(mcpResources, null, 2)};
+ 
+${getters}
+
+/**
+ * Get a prompt by key
+ */
+export function getPrompt(key: string): string | undefined {
+  const prompts = (mcpResources.prompts || {}) as Record<string, string>;
+  return prompts[key];
+}
+
+/**
+ * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.<uuid>')
+ */
+export function getResource(key: string): string | any | undefined {
+  const parts = key.split('.');
+  if (parts[0] === 'meta' && parts.length === 2) {
+    const meta = (mcpResources.meta || {}) as Record<string, string>;
+    return meta[parts[1]!];
+  }
+  const resources = (mcpResources.resources || {}) as Record<string, any>;
+  let current: any = resources;
+  for (const part of parts) {
+    if (current && typeof current === 'object') {
+      current = current[part];
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
+
+/**
+ * Meta protocol / policy markdown by slug (from frontmatter).
+ */
+export function getMetaDoc(slug: string): string | undefined {
+  const meta = (mcpResources.meta || {}) as Record<string, string>;
+  return meta[slug];
+}
+
+/**
+ * Get a template by key
+ */
+export function getTemplate(key: string): string | undefined {
+  const templates = (mcpResources.templates || {}) as Record<string, string>;
+  return templates[key];
+}
+
+/**
+ * Get a tool doc by key (e.g. 'forward')
+ */
+export function getToolDoc(key: string): string | undefined {
+  const tools = (mcpResources.tools || {}) as Record<string, string>;
+  return tools[key];
+}
+
+/**
+ * Get all available resource categories and names
+ */
+export function listResourceKeys(): Record<string, string[]> {
+  const prompts = Object.keys((mcpResources.prompts || {}) as Record<string, unknown>);
+  const resources = collectAllKeys((mcpResources.resources || {}) as Record<string, unknown>);
+  const templates = Object.keys((mcpResources.templates || {}) as Record<string, unknown>);
+  const tools = Object.keys((mcpResources.tools || {}) as Record<string, unknown>);
+  
+  const meta = Object.keys((mcpResources.meta || {}) as Record<string, unknown>);
+  const result: Record<string, string[]> = { prompts, resources, templates, tools, meta };
+  
+  // Add any other top-level categories
+  for (const [key, value] of Object.entries(mcpResources)) {
+    if (!['prompts', 'resources', 'templates', 'tools', 'meta'].includes(key)) {
+      if (typeof value === 'object' && value !== null) {
+        result[key] = Object.keys(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  return result;
+}
+
+function collectAllKeys(obj: any, prefix: string = '', keys: string[] = []): string[] {
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? \`\${prefix}.\${key}\` : key;
+    if (typeof value === 'string') {
+      keys.push(fullKey);
+    } else if (typeof value === 'object' && value !== null) {
+      collectAllKeys(value, fullKey, keys);
+    }
+  }
+  return keys;
+}
+`;
+
+  fs.writeFileSync(outputFile, header + body, 'utf8');
+  logger.info(`Embedded MCP docs from ${path.relative(process.cwd(), baseDir)} into ${path.relative(process.cwd(), outputFile)}`);
+  logger.info(`Discovered categories: ${categoryNames.join(', ')}`);
+  logger.info(`Generated getters: ${categoryNames.map(c => `get${c.charAt(0).toUpperCase() + c.slice(1)}()`).join(', ')}`);
+  
+  // Copy mem/ directory to dist/embed-docs/mem/ for runtime access
+  const memSourceDir = path.join(baseDir, 'mem');
+  const distDir = path.join(__dirname, '../dist');
+  const memDestDir = path.join(distDir, 'embed-docs', 'mem');
+  
+  if (fs.existsSync(memSourceDir)) {
+    // Ensure destination directory exists
+    fs.mkdirSync(memDestDir, { recursive: true });
+    
+    // Copy all .md files from mem/ to dist/embed-docs/mem/
+    const memFiles = fs.readdirSync(memSourceDir, { withFileTypes: true });
+    let copiedCount = 0;
+    const allowedMemNames = new Set<string>();
+    for (const entry of memFiles) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        allowedMemNames.add(entry.name);
+        const sourceFile = path.join(memSourceDir, entry.name);
+        const destFile = path.join(memDestDir, entry.name);
+        fs.copyFileSync(sourceFile, destFile);
+        copiedCount++;
+        logger.info(`Copied mem file: ${entry.name} -> ${path.relative(process.cwd(), destFile)}`);
+      }
+    }
+    if (fs.existsSync(memDestDir)) {
+      for (const entry of fs.readdirSync(memDestDir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name.endsWith('.md') && !allowedMemNames.has(entry.name)) {
+          fs.unlinkSync(path.join(memDestDir, entry.name));
+          logger.info(`Removed stale mem file from dist: ${entry.name}`);
+        }
+      }
+    }
+    logger.info(`Copied ${copiedCount} mem file(s) to ${path.relative(process.cwd(), memDestDir)}`);
+  } else {
+    logger.warn(`Mem source directory not found: ${memSourceDir}`);
+  }
+
+}
+
+main();

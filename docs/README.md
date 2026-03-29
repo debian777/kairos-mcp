@@ -14,7 +14,7 @@ quick start.
 - [Install KAIROS MCP in Cursor](INSTALL-MCP.md) — configure Cursor to talk to
   the HTTP MCP endpoint
 - [CLI reference](CLI.md) — commands, auth flow, config/keyring behavior, and
-  batch minting
+  batch training
 - [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
 
 ## Architecture and behavior
@@ -49,7 +49,7 @@ quick start.
 
 ## Examples and protocol authoring
 
-- [Protocol examples](examples/README.md) — mintable example protocols
+- [Protocol examples](examples/README.md) — trainable example adapters
 - [Challenge types](examples/challenge-types.md) — challenge/solution shapes
 
 ## Security and operations

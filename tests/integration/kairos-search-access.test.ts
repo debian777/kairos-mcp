@@ -125,7 +125,7 @@ describe('Kairos search accessibility', () => {
       expect(Array.isArray(searchPayload.choices)).toBe(true);
       expect(searchPayload.choices.length).toBeGreaterThanOrEqual(1);
 
-      // Check that at least one minted URI appears in the choices
+      // Check that at least one URI from train appears in the choices
       const choiceUris = (searchPayload.choices || []).map((choice: any) => (choice.uri || '').toLowerCase());
       const foundMintedUri = choiceUris.some((uri: string) => mintedUriSet.has(uri));
 

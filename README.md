@@ -65,7 +65,7 @@ and `must_obey` fields in real runs.
 1. **`activate`** — Pass the user message or a short intent phrase as `query`.
    From `choices`, pick **one** row and obey **that** row’s `next_action` (do not
    mix in another URI). Typical roles: **`match`** (continue with **`forward`**
-   on the given adapter URI), **`refine`**, **`create`** (mint via **`train`**).
+   on the given adapter URI), **`refine`**, **`create`** (register a new adapter with **`train`**).
 
 2. **`forward`** — With the adapter URI from **`activate`**, call **`forward`**
    and **omit** `solution` on the **first** call for that run. Read `contract`
@@ -186,7 +186,7 @@ npm run dev:deploy
 ```
 
 The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
-`scripts/run-env.sh`). The Docker minimal stack above defaults **3000** unless you
+`scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
 set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
 URLs.
 

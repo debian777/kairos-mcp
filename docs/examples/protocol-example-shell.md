@@ -1,6 +1,6 @@
 # Example: Shell challenge
 
-Short protocol: one real step plus a final verification step. Run a command to prove completion. Ready to mint with `train`.
+Short protocol: one real step plus a final verification step. Run a command to prove completion. Ready to train with `train`.
 
 ## Natural Language Triggers
 
