@@ -4,7 +4,6 @@
   "description": "MCP server for persistent memory and deterministic adapter execution for AI agents.",
   "folders": ["docs", "src/embed-docs"],
   "excludeFolders": ["node_modules", "dist", ".git", "reports", "tests"],
-  "excludeFiles": ["docs/install/env.example.*.txt"],
   "rules": [
     "Follow `next_action` exactly when `must_obey` is `true`. Finish the run with `reward` when directed before treating the task as complete.",
     "Echo server-generated `nonce` and `proof_hash` verbatim in solutions. Never compute hashes yourself.",

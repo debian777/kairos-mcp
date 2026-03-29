@@ -320,7 +320,8 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 
 ## Related docs
 
-- [Install and environment](install/README.md)
-- [Install KAIROS MCP in Cursor](INSTALL-MCP.md)
+- [Install index](install/README.md)
+- [Environment variables and secrets](install/env-and-secrets.md)
+- [Cursor and MCP](install/README.md#cursor-and-mcp)
 - [Architecture](architecture/README.md)
 - [Protocol examples](examples/README.md)

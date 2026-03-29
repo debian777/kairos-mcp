@@ -137,43 +137,37 @@ install it by name.
 Use this when you want the smallest working server deployment without the
 guided skill. The default Compose profile starts **Qdrant + app only**.
 
-1. Copy the minimal env example:
-
-   ```bash
-   cp docs/install/env.example.minimal.txt .env
-   ```
-
-2. Edit `.env` and set at least:
+1. Create **`.env`** at the repository root. Copy the template from
+   [Docker Compose — simple stack — Environment file](docs/install/docker-compose-simple.md#3-environment-file),
+   then set at least:
    - `QDRANT_API_KEY`
    - one embedding provider:
      - `OPENAI_API_KEY`, or
      - `OPENAI_API_URL` + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`, or
      - `TEI_BASE_URL` (+ optional `TEI_MODEL`)
 
-3. Start the stack:
+2. Start the stack:
 
    ```bash
    docker compose -p kairos-mcp up -d
    ```
 
-4. Verify the server:
+3. Verify the server:
 
    ```bash
    curl http://localhost:3000/health
    ```
 
-5. Open the UI or MCP endpoint:
+4. Open the UI or MCP endpoint:
    - UI: `http://localhost:3000/ui`
    - MCP: `http://localhost:3000/mcp`
    - Metrics: `http://localhost:9090/metrics`
 
-### Full stack (Redis + Postgres + Keycloak)
+### Optional `fullstack` Compose profile
 
-For local auth-enabled development, copy the fullstack env example and start
-the `fullstack` profile:
+Extra services (cache, DB, OIDC container) are **optional** and **not** covered as a step-by-step install in **`docs/install/`**. **Keycloak / IdP configuration is your responsibility.** See [Infrastructure](docs/architecture/infrastructure.md) and [`scripts/env/.env.template`](scripts/env/.env.template). Short [operator note](docs/install/docker-compose-full-stack.md).
 
 ```bash
-cp docs/install/env.example.fullstack.txt .env
 docker compose -p kairos-mcp --profile fullstack up -d
 ```
 
@@ -201,7 +195,7 @@ HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
 If you run the minimal Compose stack without overriding `PORT`, point MCP at
 `http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
 server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
-[AGENTS.md](AGENTS.md) and [docs/INSTALL-MCP.md](docs/INSTALL-MCP.md).
+[AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
 
 When executing over MCP, follow **[Protocol execution](#protocol-execution)**
 above and each tool result’s `next_action`. The connected server’s tool
@@ -212,8 +206,8 @@ descriptions are the runtime authority if they differ from this file.
 ### Run the server with Docker Compose
 
 Use the Compose quick start above. This repository ships `compose.yaml`,
-minimal and fullstack env examples, and the scripts used for local development
-and CI.
+inline **`.env`** templates in the install guides under `docs/install/`, and
+the scripts used for local development and CI.
 
 ### Install the CLI
 
@@ -293,7 +287,7 @@ More detail: [skills/README.md](skills/README.md)
 
 - [Documentation index](docs/README.md)
 - [Install and environment](docs/install/README.md)
-- [Install KAIROS MCP in Cursor](docs/INSTALL-MCP.md)
+- [Cursor and MCP](docs/install/README.md#cursor-and-mcp)
 - [CLI reference](docs/CLI.md)
 - [Architecture](docs/architecture/README.md)
 - [Protocol examples](docs/examples/README.md)

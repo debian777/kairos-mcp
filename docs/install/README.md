@@ -1,147 +1,135 @@
-# Install and environment
+# Install KAIROS
 
-KAIROS reads all runtime configuration from environment variables. For local
-work, copy one of the provided examples to `.env` at the repository root and
-edit only the values you need.
+`docs/install/` covers the supported installation flow for a local or
+self-managed KAIROS deployment. Start by confirming the local requirements,
+choose the embedding backend that determines your `.env` values, and then
+complete the simple stack. Use the CLI as the primary interface for
+authentication, verification, and day-to-day operations. Add MCP only when a
+host explicitly requires a streamable HTTP endpoint.
 
-## Choose an env example
+Follow this sequence:
 
-| File | Use case |
-|------|----------|
-| `docs/install/env.example.minimal.txt` | Minimal Docker deployment: app + Qdrant only, `AUTH_ENABLED=false` |
-| `docs/install/env.example.fullstack.txt` | Local full stack: Redis, Postgres, Keycloak, auth enabled |
-| `scripts/env/.env.template` | Template used by `scripts/deploy-generate-dev-secrets.py` for dev/CI-style fullstack `.env` generation |
+1. Review **[installation prerequisites](prerequisites.md#prerequisites)**.
+2. Choose an **[embedding backend](prerequisites.md#embedding-backend)** before
+   you populate `.env`.
+3. Complete **[Docker Compose — simple stack](docker-compose-simple.md)**, which
+   is the recommended installation path.
+4. Use **`kairos`** against the running server.
+5. Configure **MCP** only for hosts that need it.
 
-## Minimal setup
+If you need more supporting services, the repository also includes **[Docker
+Compose — full stack (advanced)](docker-compose-full-stack.md)** for
+operator-managed deployments.
 
-Use this when you want the default Docker stack from `compose.yaml`.
+## Flow
 
-```bash
-cp docs/install/env.example.minimal.txt .env
-docker compose -p kairos-mcp up -d
+This diagram summarizes the recommended order.
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+  subgraph p [1 Prerequisites]
+    D[Docker + working directory]
+    C[kairos CLI]
+  end
+  subgraph e [2 Embedding]
+    B[OpenAI / Ollama / TEI]
+  end
+  subgraph s [3 Install]
+    T[Simple stack]
+    V[".env + compose up + health"]
+  end
+  subgraph r [4 Use]
+    K[kairos CLI]
+    M[MCP if required]
+  end
+  D --> C
+  C --> B
+  B --> T
+  T --> V
+  V --> K
+  K --> M
+
+  classDef c1 fill:#0550ae,stroke:#0969da,color:#f0f6fc
+  classDef c2 fill:#116329,stroke:#1a7f37,color:#f0f6fc
+  classDef c3 fill:#6639ba,stroke:#8250df,color:#f0f6fc
+  class D,C c1
+  class B,T,V c2
+  class K,M c3
 ```
 
-Set at least:
+The pages in this directory serve distinct roles.
 
-- `QDRANT_API_KEY`
-- one embedding backend:
-  - `OPENAI_API_KEY`, or
-  - `OPENAI_API_URL` + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`, or
-  - `TEI_BASE_URL` (+ optional `TEI_MODEL`)
+| Doc | Use for |
+|-----|---------|
+| [prerequisites](prerequisites.md) | Local requirements and embedding backend selection before `.env` |
+| [docker-compose-simple](docker-compose-simple.md) | Recommended installation path: application + Qdrant |
+| [docker-compose-full-stack](docker-compose-full-stack.md) | Full stack (advanced) for operator-managed deployments |
 
-The minimal example pins `AUTH_ENABLED=false`, so the app starts without
-Keycloak or session/Bearer auth.
+## CLI
 
-## Fullstack setup
+Install the CLI first. It is the primary interface for authentication,
+verification, and operational commands.
 
-Use this when you want Redis, Postgres, Keycloak, and auth enabled locally.
-
-```bash
-cp docs/install/env.example.fullstack.txt .env
-docker compose -p kairos-mcp --profile fullstack up -d
+```sh
+npm install -g @debian777/kairos-mcp
+kairos --help
 ```
 
-Set these before starting:
+If you do not want a global installation, run the package with `npx`:
 
-- `QDRANT_API_KEY`
-- `REDIS_PASSWORD`
-- `SESSION_SECRET`
-- `KEYCLOAK_ADMIN_PASSWORD`
-- `KEYCLOAK_DB_PASSWORD`
-- an embedding backend (`OPENAI_API_KEY` or TEI settings)
-
-### `REDIS_URL` depends on where the app runs
-
-If the app runs **inside Docker Compose**, use the Redis service hostname:
-
-```env
-REDIS_URL=redis://:your-password@redis:6379
+```sh
+npx @debian777/kairos-mcp --help
 ```
 
-If the app runs **on the host** (for example `npm run dev:start`), use the
-host-mapped port:
+For URL selection, authentication, and the full command surface, see
+[CLI](../CLI.md).
 
-```env
-REDIS_URL=redis://:your-password@127.0.0.1:6379
+## Cursor and MCP
+
+Configure MCP only when your IDE or host needs a streamable HTTP endpoint. The
+CLI remains the primary interface even when MCP is enabled.
+
+The MCP URL uses the same host and port as `/health`, with `/mcp` appended.
+Local development often uses port `3300`; the Compose examples in this
+directory use port `3000`.
+
+```json
+{
+  "mcpServers": {
+    "KAIROS": {
+      "type": "streamable-http",
+      "url": "http://localhost:3000/mcp",
+      "alwaysAllow": [
+        "activate",
+        "forward",
+        "train",
+        "reward",
+        "tune",
+        "delete",
+        "export",
+        "spaces"
+      ]
+    }
+  }
+}
 ```
 
-## Embedding backends
-
-### OpenAI
-
-KAIROS uses the embeddings API only. A restricted API key is sufficient if it
-is allowed to call `/v1/embeddings`.
-
-To verify the key locally:
-
-```bash
-npm run dev:test-embedding-key
+```sh
+curl -sS "http://localhost:3000/health"
 ```
 
-### Ollama / OpenAI-compatible local endpoint
+- Discovery: `/.well-known/oauth-protected-resource`
+- Auth: [CLI](../CLI.md#authentication), [auth overview](../architecture/auth-overview.md)
+- Plugin: `integrations/cursor/plugin` often uses `http://localhost:3300/mcp`
+- Widgets: `spaces` and `forward` use MCP Apps on hosts that support them
 
-KAIROS expects the **base URL** only. Do not include `/v1`; the server appends
-`/v1/embeddings` itself.
+If MCP does not connect, verify the health URL first, confirm the host and
+port, and make sure the server has Qdrant plus a working embedding backend.
 
-| App location | `OPENAI_API_URL` |
-|--------------|------------------|
-| app on host | `http://localhost:11434` |
-| app in Docker, Ollama on host (Mac/Windows) | `http://host.docker.internal:11434` |
+## Index
 
-Typical Ollama settings:
+Use these links when you want broader context outside the install flow.
 
-```env
-OPENAI_API_URL=http://localhost:11434
-OPENAI_EMBEDDING_MODEL=nomic-embed-text
-OPENAI_API_KEY=ollama
-```
-
-You must have Ollama running and the model pulled:
-
-```bash
-ollama pull nomic-embed-text
-```
-
-Switching embedding backends can change vector dimension. On the next start,
-the server may migrate the Qdrant collection to the current vector layout.
-
-### TEI
-
-If you are using a TEI-compatible endpoint, set:
-
-```env
-TEI_BASE_URL=http://your-tei-host:8080
-TEI_MODEL=Alibaba-NLP/gte-large-en-v1.5
-```
-
-`TEI_MODEL` is optional if the server default is acceptable.
-
-## Generated dev secrets
-
-To create a fullstack-style `.env` with generated secrets:
-
-```bash
-python3 scripts/deploy-generate-dev-secrets.py
-```
-
-That script writes `.env` using `scripts/env/.env.template`.
-
-## Common env variables
-
-These are the most important runtime settings documented by `src/config.ts`:
-
-| Variable | Meaning |
-|----------|---------|
-| `PORT` | Main HTTP server port |
-| `METRICS_PORT` | Separate metrics server port |
-| `QDRANT_URL` | Qdrant base URL |
-| `QDRANT_API_KEY` | Qdrant API key |
-| `QDRANT_COLLECTION` | Default collection name when no current alias override is set |
-| `REDIS_URL` | Enables Redis-backed cache / proof-of-work state when non-empty |
-| `AUTH_ENABLED` | Enables auth enforcement for `/api`, `/mcp`, and `/ui` |
-| `KEYCLOAK_URL` | Public Keycloak base URL used for browser-facing auth flows |
-| `KEYCLOAK_INTERNAL_URL` | Optional internal Keycloak URL for server-side token exchange |
-| `AUTH_CALLBACK_BASE_URL` | Base URL used to build `/auth/callback` |
-
-For Google sign-in setup in the dev realm, see
-[Google sign-in (dev)](google-auth-dev.md).
+- [Documentation map](../README.md)
+- [Main README](../../README.md)

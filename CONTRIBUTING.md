@@ -164,14 +164,12 @@ maintainers explicitly choose to track them.
   ```bash
    npm ci
   ```
-4. Copy the example env file and configure required variables:
-  ```bash
-   cp docs/install/env.example.fullstack.txt .env
-   # Edit .env — set OPENAI_API_KEY (or TEI), QDRANT_API_KEY,
-   # REDIS_PASSWORD, SESSION_SECRET, KEYCLOAK_ADMIN_PASSWORD,
-   # and KEYCLOAK_DB_PASSWORD.
-  ```
-5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
+4. Create **`.env`** at the repository root from
+   [`scripts/env/.env.template`](scripts/env/.env.template), then set variables
+   for your dev stack (embeddings, Qdrant, Redis, session, and any IdP secrets you
+   use). **IdP setup is not part of `docs/install/`** — see
+   [Infrastructure](docs/architecture/infrastructure.md).
+5. Start infrastructure (Compose `fullstack` profile and helpers as needed):
   ```bash
    npm run infra:up
   ```
