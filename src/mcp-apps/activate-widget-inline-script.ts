@@ -182,7 +182,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           return;
         }
         var pct = Math.round(bestScore * 1000) / 10;
-        var tier = bestScore >= 0.8 ? '4' : bestScore >= 0.65 ? '3' : bestScore >= 0.5 ? '2' : '1';
+        var tier = tierFromScore(bestScore);
         headerTopMatch.hidden = false;
         headerTopMatch.setAttribute('data-tier', tier);
         headerTopMatch.setAttribute('aria-label', 'Top match ' + pct + ' percent');
@@ -218,9 +218,10 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         return 'match';
       }
 
-      function scoreText(role, score) {
-        if (role !== 'match' || score == null || typeof score !== 'number') return '';
-        return String(Math.round(score * 1000) / 10) + '% match';
+      /** Same tier breakpoints as header "Top match" (green → amber). */
+      function tierFromScore(score) {
+        if (score == null || typeof score !== 'number' || isNaN(score)) return null;
+        return score >= 0.8 ? '4' : score >= 0.65 ? '3' : score >= 0.5 ? '2' : '1';
       }
 
       function buildChoiceEl(ch, index) {
@@ -232,32 +233,46 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           ? String(ch.adapter_name).trim() : '';
         var space = ch && ch.space_name != null && String(ch.space_name).trim()
           ? String(ch.space_name).trim() : '';
+        var score = ch && ch.activation_score;
         var row = document.createElement('div');
-        row.className = 'choice-row';
+        row.className = 'choice-row choice-row-top';
         var pill = document.createElement('span');
         pill.className = 'pill';
         pill.setAttribute('data-role', role);
-        pill.textContent = role;
+        if (role === 'match' && score != null && typeof score === 'number' && !isNaN(score)) {
+          var tier = tierFromScore(score);
+          if (tier) pill.setAttribute('data-tier', tier);
+          var pct = Math.round(score * 1000) / 10;
+          var roleSpan = document.createElement('span');
+          roleSpan.className = 'pill-role';
+          roleSpan.textContent = role + ' ';
+          var pctSpan = document.createElement('span');
+          pctSpan.className = 'pill-pct';
+          pctSpan.textContent = pct + '%';
+          pill.appendChild(roleSpan);
+          pill.appendChild(pctSpan);
+        } else {
+          pill.textContent = role;
+        }
         row.appendChild(pill);
+        if (space) {
+          var spEl = document.createElement('span');
+          spEl.className = 'choice-space';
+          spEl.textContent = 'Space: ' + space;
+          row.appendChild(spEl);
+        }
+        li.appendChild(row);
+        var titleRow = document.createElement('div');
+        titleRow.className = 'choice-title-row';
         var title = document.createElement('span');
         title.className = 'choice-title';
         title.textContent = label;
-        row.appendChild(title);
-        var st = scoreText(role, ch && ch.activation_score);
-        if (st) {
-          var scEl = document.createElement('span');
-          scEl.className = 'choice-score';
-          scEl.textContent = st;
-          row.appendChild(scEl);
-        }
-        li.appendChild(row);
-        var meta = [];
-        if (adapterName && adapterName !== label) meta.push(adapterName);
-        if (space) meta.push('Space: ' + space);
-        if (meta.length) {
+        titleRow.appendChild(title);
+        li.appendChild(titleRow);
+        if (adapterName && adapterName !== label) {
           var mp = document.createElement('p');
           mp.className = 'sub';
-          mp.textContent = meta.join(' · ');
+          mp.textContent = adapterName;
           li.appendChild(mp);
         }
         return li;

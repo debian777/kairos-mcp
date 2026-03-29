@@ -20,6 +20,10 @@ describe('buildActivateWidgetHtml', () => {
     expect(html).toContain('id="header-top-match"');
     expect(html).toContain('paintTopMatch');
     expect(html).toContain('kairos-activate-root');
+    expect(html).toContain('tierFromScore');
+    expect(html).toContain('choice-row-top');
+    expect(html).toContain('choice-space');
+    expect(html).toContain('#kairos-activate-root #out');
     expect(html).not.toContain('<!DOCTYPE html>');
   });
 });

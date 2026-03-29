@@ -44,14 +44,22 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       letter-spacing: -0.015em;
       color: var(--color-text-muted);
     }
-    .header-top-match[data-tier="4"] .top-match-pct { color: #15803d; }
-    html.dark .header-top-match[data-tier="4"] .top-match-pct { color: #4ade80; }
-    .header-top-match[data-tier="3"] .top-match-pct { color: #16a34a; }
-    html.dark .header-top-match[data-tier="3"] .top-match-pct { color: #86efac; }
-    .header-top-match[data-tier="2"] .top-match-pct { color: #65a30d; }
-    html.dark .header-top-match[data-tier="2"] .top-match-pct { color: #bef264; }
-    .header-top-match[data-tier="1"] .top-match-pct { color: #ca8a04; }
-    html.dark .header-top-match[data-tier="1"] .top-match-pct { color: #fcd34d; }
+    .header-top-match[data-tier="4"] .top-match-pct,
+    .pill[data-tier="4"] .pill-pct { color: #15803d; }
+    html.dark .header-top-match[data-tier="4"] .top-match-pct,
+    html.dark .pill[data-tier="4"] .pill-pct { color: #4ade80; }
+    .header-top-match[data-tier="3"] .top-match-pct,
+    .pill[data-tier="3"] .pill-pct { color: #16a34a; }
+    html.dark .header-top-match[data-tier="3"] .top-match-pct,
+    html.dark .pill[data-tier="3"] .pill-pct { color: #86efac; }
+    .header-top-match[data-tier="2"] .top-match-pct,
+    .pill[data-tier="2"] .pill-pct { color: #65a30d; }
+    html.dark .header-top-match[data-tier="2"] .top-match-pct,
+    html.dark .pill[data-tier="2"] .pill-pct { color: #bef264; }
+    .header-top-match[data-tier="1"] .top-match-pct,
+    .pill[data-tier="1"] .pill-pct { color: #ca8a04; }
+    html.dark .header-top-match[data-tier="1"] .top-match-pct,
+    html.dark .pill[data-tier="1"] .pill-pct { color: #fcd34d; }
     .waiting { opacity: 0.9; font-style: italic; color: var(--color-text-muted); }
     .choices-list { list-style: none; margin: 0; padding: 0; }
     .choice {
@@ -61,7 +69,20 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       margin-bottom: 8px;
       background: var(--color-surface);
     }
+    /* Activate list: no inner scroll — host iframe resizes via ui/notifications/size-changed. */
+    #kairos-activate-root #out {
+      max-height: none;
+      overflow: visible;
+      flex: 0 1 auto;
+    }
     .choice-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; margin-bottom: 4px; }
+    .choice-row.choice-row-top {
+      flex-wrap: nowrap;
+      align-items: center;
+      width: 100%;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
     .pill {
       font-size: 10px;
       font-weight: 700;
@@ -70,6 +91,14 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       padding: 2px 7px;
       border-radius: 999px;
       border: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+    .pill .pill-pct {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .pill[data-role="match"][data-tier] .pill-role {
+      color: var(--color-text-muted);
     }
     .pill[data-role="match"] {
       background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface-elevated));
@@ -86,8 +115,28 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
       color: var(--color-warning);
     }
-    .choice-title { font-weight: 600; flex: 1; min-width: 0; color: var(--color-text-heading); }
-    .choice-score { font-size: 11px; color: var(--color-text-muted); }
+    .choice-space {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      text-align: right;
+      max-width: 55%;
+      min-width: 0;
+      word-break: break-word;
+      flex-shrink: 1;
+      line-height: 1.3;
+    }
+    .choice-title-row {
+      width: 100%;
+    }
+    .choice-title {
+      display: block;
+      width: 100%;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--color-text-heading);
+    }
     .sub { font-size: 12px; color: var(--color-text-muted); margin: 2px 0; word-break: break-word; }
     .cap-note { font-size: 12px; font-style: italic; color: var(--color-text-muted); margin-top: 8px; }
 `.trim();
