@@ -18,7 +18,12 @@ import {
   OIDC_GROUPS_ALLOWLIST
 } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { getStateStore, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
+import {
+  buildOidcEndSessionRedirectUrl,
+  getOidcStateStore,
+  redirectBrowserToOidcLogin
+} from './http-auth-oidc-redirect.js';
+import { peekOidcIdTokenHintFromSession, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
 import {
   applyOidcGroupsAllowlist,
   decodeJwtPayloadSegment,
@@ -43,6 +48,16 @@ const useSecureCookie = AUTH_CALLBACK_BASE_URL.trim().toLowerCase().startsWith('
 /** Cookie options must match those used when setting the session (Path=/) so the browser clears it. */
 const COOKIE_CLEAR_OPTIONS = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: useSecureCookie };
 
+/** Keycloak post_logout_redirect_uri target: immediately starts a new OIDC login (no logged-out landing in our app). */
+const AUTH_CONTINUE_SIGNIN_PATH = '/auth/continue-signin';
+
+function redirectContinueSignin(_req: Request, res: Response): void {
+  if (AUTH_ENABLED && redirectBrowserToOidcLogin(res)) {
+    return;
+  }
+  res.redirect(302, '/ui/');
+}
+
 export function setupAuthCallback(app: express.Express): void {
   // Base /auth: redirect to UI (browser) or 404 for API
   app.get('/auth', (_req: Request, res: Response) => {
@@ -54,14 +69,32 @@ export function setupAuthCallback(app: express.Express): void {
     res.redirect(302, '/ui/');
   });
 
-  app.get('/auth/logout', (_req: Request, res: Response) => {
+  /**
+   * Clear Kairos session, end Keycloak SSO (RP-initiated logout), then continue at continue-signin → OIDC login.
+   * id_token_hint (when present in session) avoids Keycloak static logged-out confirmation where supported.
+   */
+  app.get('/auth/logout', (req: Request, res: Response) => {
+    const idHint = peekOidcIdTokenHintFromSession(req);
     res.clearCookie(SESSION_COOKIE_NAME, COOKIE_CLEAR_OPTIONS);
+    const base = AUTH_CALLBACK_BASE_URL?.trim().replace(/\/$/, '');
+    if (AUTH_ENABLED && base) {
+      const resume = `${base}${AUTH_CONTINUE_SIGNIN_PATH}`;
+      const endSession = buildOidcEndSessionRedirectUrl(resume, idHint);
+      if (endSession) {
+        res.redirect(302, endSession);
+        return;
+      }
+    }
+    if (AUTH_ENABLED && redirectBrowserToOidcLogin(res)) {
+      return;
+    }
     res.redirect(302, '/ui/');
   });
 
-  app.get('/auth/logged-out', (_req: Request, res: Response) => {
-    res.redirect(302, '/ui/');
-  });
+  app.get(AUTH_CONTINUE_SIGNIN_PATH, redirectContinueSignin);
+
+  /** Optional IdP post-logout redirect target (same as continue-signin). */
+  app.get('/auth/logged-out', redirectContinueSignin);
 
   app.get('/auth/callback', async (req: Request, res: Response) => {
     if (!AUTH_ENABLED || !KEYCLOAK_URL || !SESSION_SECRET || !AUTH_CALLBACK_BASE_URL) {
@@ -76,7 +109,7 @@ export function setupAuthCallback(app: express.Express): void {
       res.redirect(302, '/?error=missing_code_or_state');
       return;
     }
-    const store = getStateStore();
+    const store = getOidcStateStore();
     const entry = store.get(state);
     store.delete(state);
     if (!entry) {
@@ -141,9 +174,10 @@ export function setupAuthCallback(app: express.Express): void {
     const { merged } = mergedResult;
     merged.groups = applyOidcGroupsAllowlist(merged.groups, OIDC_GROUPS_ALLOWLIST);
     const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
-    const sessionPayload: MergedCallbackClaims & { exp: number } = {
+    const sessionPayload: MergedCallbackClaims & { exp: number; oidc_id_token?: string } = {
       ...merged,
-      exp
+      exp,
+      ...(idToken ? { oidc_id_token: idToken } : {})
     };
     const cookieValue = signSession(sessionPayload);
     res.setHeader('Set-Cookie', [
