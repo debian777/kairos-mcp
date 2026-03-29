@@ -2,6 +2,7 @@
  * Activate MCP App styles: shared chrome ({@link ./mcp-widget-chrome-inline-css.ts}) + choice list.
  */
 import { MCP_WIDGET_CHROME_INLINE_CSS } from './mcp-widget-chrome-inline-css.js';
+import { minifyInlineWidgetCss } from './widget-inline-minify.js';
 
 const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
     .brand.activate-brand-row {
@@ -37,7 +38,6 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       letter-spacing: 0.02em;
       color: var(--color-text-muted);
     }
-    /* Same scale/weight as h1.header-title / .ht-brand; color = strength (green → amber). */
     .top-match-pct {
       font-size: clamp(0.875rem, 2.4vw, 1.0625rem);
       font-weight: 600;
@@ -90,7 +90,6 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       margin-bottom: 6px;
       background: var(--color-surface);
     }
-    /* Activate list: no inner scroll — host iframe resizes via ui/notifications/size-changed. */
     #kairos-activate-root #out {
       max-height: none;
       overflow: visible;
@@ -159,46 +158,30 @@ const ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS = `
       color: var(--color-text-heading);
     }
     .sub { font-size: 12px; color: var(--color-text-muted); margin: 2px 0; word-break: break-word; }
-    .widget-error {
-      margin: 0;
-      padding: 0;
-    }
-    .widget-error-msg {
+    .activate-json-summary {
       margin: 0 0 6px 0;
-      font-size: var(--font-size-sm);
-      line-height: 1.45;
-      font-weight: 600;
-      color: var(--color-error);
-    }
-    .widget-error-next {
-      margin: 0 0 8px 0;
-      font-size: var(--font-size-sm);
-      line-height: 1.45;
-      color: var(--color-text-muted);
-    }
-    .widget-error-next-label {
-      font-weight: 600;
       color: var(--color-text-heading);
     }
-    .widget-error-details {
+    .activate-json-details {
       margin: 0;
       border-radius: var(--radius-md);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       padding: 5px 8px;
     }
-    .widget-error-details summary {
+    .activate-json-details summary {
       cursor: pointer;
       font-size: var(--font-size-xs);
       font-weight: 600;
       color: var(--color-text-muted);
       user-select: none;
     }
-    .widget-error-raw {
+    .activate-json-raw {
       margin: 6px 0 0 0;
       max-height: 220px;
       overflow: auto;
     }
 `.trim();
 
-export const ACTIVATE_WIDGET_INLINE_CSS = `${MCP_WIDGET_CHROME_INLINE_CSS}\n${ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS}`;
+export const ACTIVATE_WIDGET_INLINE_CSS =
+  minifyInlineWidgetCss(MCP_WIDGET_CHROME_INLINE_CSS) + minifyInlineWidgetCss(ACTIVATE_WIDGET_SPECIFIC_INLINE_CSS);

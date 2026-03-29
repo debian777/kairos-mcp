@@ -1,16 +1,12 @@
 /** Inline boot script for {@link ./forward-widget-html.ts} (MCP Apps HTML bundle). */
-export const FORWARD_WIDGET_INLINE_SCRIPT = `
+import { minifyInlineWidgetScript } from './widget-inline-minify.js';
+
+export const FORWARD_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
     (function () {
-      var el = document.getElementById('out');
-      var headerTitle = document.getElementById('header-title');
-      var runFooter = document.getElementById('run-footer');
-      var stepText = document.getElementById('step-text');
-      var segHost = document.getElementById('progress-segments');
-      var PROTO = '2026-01-26';
-      var nextId = 1;
-      var pending = {};
-      var hostCtxState = {};
-      var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
+      var el = document.getElementById('out'), headerTitle = document.getElementById('header-title');
+      var runFooter = document.getElementById('run-footer'), stepText = document.getElementById('step-text');
+      var segHost = document.getElementById('progress-segments'), PROTO = '2026-01-26';
+      var nextId = 1, pending = {}, hostCtxState = {}, PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
       window.addEventListener('message', function (ev) {
         var d = ev.data;
@@ -171,7 +167,6 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         return false;
       }
 
-      /** Short line for humans; full server text stays in Technical details JSON only. */
       function shortHumanErrorMessage(obj) {
         if (obj == null) return 'Something went wrong.';
         if (typeof obj === 'string') {
@@ -203,7 +198,6 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         return 'Something went wrong.';
       }
 
-      /** Prefer server next_action; else compact fallback. Keep in sync with activate-widget-inline-script. */
       function suggestNextStep(obj) {
         if (obj == null || typeof obj !== 'object') {
           return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
@@ -240,6 +234,52 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         return suggestNextStep(obj);
       }
 
+      function errorStepLabel(obj) {
+        if (obj && typeof obj === 'object') {
+          var label = obj.current_layer_label != null && String(obj.current_layer_label).trim()
+            ? String(obj.current_layer_label).trim() : '';
+          if (label) return label;
+          if (obj.error === 'INVALID_TOOL_INPUT') return 'Fix tool input and retry';
+          if (obj.error === 'WIDGET_BOOT') return 'Restart the widget';
+          if (obj.error_code != null && String(obj.error_code).trim()) {
+            return String(obj.error_code).trim().replace(/_/g, ' ');
+          }
+        }
+        return 'Review this forward error and retry';
+      }
+
+      function normalizeForwardErrorState(obj) {
+        var idx = 1;
+        var cnt = 1;
+        var adapter = 'Forward run';
+        if (obj && typeof obj === 'object') {
+          if (obj.context_adapter_name != null && String(obj.context_adapter_name).trim()) {
+            adapter = String(obj.context_adapter_name).trim();
+          }
+          if (typeof obj.adapter_layer_index === 'number' && obj.adapter_layer_index > 0) {
+            idx = Math.floor(obj.adapter_layer_index);
+          }
+          if (typeof obj.adapter_layer_count === 'number' && obj.adapter_layer_count > 0) {
+            cnt = Math.floor(obj.adapter_layer_count);
+          } else {
+            cnt = idx;
+          }
+        }
+        return {
+          context_adapter_name: adapter,
+          current_layer_label: errorStepLabel(obj),
+          adapter_layer_index: idx,
+          adapter_layer_count: cnt,
+          error_code: obj && typeof obj === 'object' && obj.error_code != null
+            ? String(obj.error_code)
+            : (obj && typeof obj === 'object' && typeof obj.error === 'string' ? obj.error : 'FORWARD_ERROR'),
+          retry_count: obj && typeof obj === 'object' && typeof obj.retry_count === 'number'
+            ? obj.retry_count
+            : 1,
+          next_action: agentInstructionText(obj),
+        };
+      }
+
       function showRawJson(obj) {
         resetChrome();
         if (el) {
@@ -253,19 +293,24 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         notifySize();
       }
 
-      function renderHumanError(obj) {
-        resetChrome();
+      function renderForwardError(sc, rawObj) {
+        var adapterRaw = sc.context_adapter_name != null && String(sc.context_adapter_name).trim()
+          ? String(sc.context_adapter_name).trim() : '';
+        if (headerTitle) {
+          headerTitle.innerHTML = headerHtmlWithProtocol(adapterRaw || 'Forward run');
+        }
+        document.title = (adapterRaw || 'Forward') + ' — KAIROS';
         if (el) {
           el.classList.add('step-panel');
           el.classList.add('step-panel-error');
         }
-        document.title = 'Error — KAIROS';
         var wrap = document.createElement('div');
         wrap.className = 'widget-error';
         wrap.setAttribute('role', 'alert');
+        wrap.innerHTML = formatStepTitle(sc, false, true);
         var msgEl = document.createElement('p');
         msgEl.className = 'widget-error-msg';
-        msgEl.textContent = shortHumanErrorMessage(obj);
+        msgEl.textContent = shortHumanErrorMessage(rawObj);
         wrap.appendChild(msgEl);
         var nextEl = document.createElement('p');
         nextEl.className = 'widget-error-next';
@@ -273,7 +318,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         nextLbl.className = 'widget-error-next-label';
         nextLbl.textContent = 'Your AI agent was asked to: ';
         nextEl.appendChild(nextLbl);
-        nextEl.appendChild(document.createTextNode(agentInstructionText(obj)));
+        nextEl.appendChild(document.createTextNode(agentInstructionText(rawObj)));
         wrap.appendChild(nextEl);
         var det = document.createElement('details');
         det.className = 'widget-error-details';
@@ -283,14 +328,20 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
         var pre = document.createElement('pre');
         pre.className = 'raw widget-error-raw';
         try {
-          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+          pre.textContent = typeof rawObj === 'string' ? rawObj : JSON.stringify(rawObj, null, 2);
         } catch (e) {
-          pre.textContent = String(obj);
+          pre.textContent = String(rawObj);
         }
         det.appendChild(pre);
         wrap.appendChild(det);
         el.replaceChildren(wrap);
+        renderProgress(sc.adapter_layer_index, sc.adapter_layer_count, true, false);
         notifySize();
+      }
+
+      function renderHumanError(obj) {
+        resetChrome();
+        renderForwardError(normalizeForwardErrorState(obj), obj);
       }
 
       function showJson(obj) {
@@ -381,6 +432,10 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
           el.classList.remove('step-panel-error');
         }
         var hasIssue = !!(sc.error_code || (typeof sc.retry_count === 'number' && sc.retry_count > 0));
+        if (hasIssue) {
+          renderForwardError(sc, sc);
+          return;
+        }
         var rewardReady = isRewardNext(sc) && !hasIssue;
         el.innerHTML = formatStepTitle(sc, rewardReady, hasIssue);
         renderProgress(sc.adapter_layer_index, sc.adapter_layer_count, hasIssue, rewardReady);
@@ -460,4 +515,4 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = `
 
       boot();
     })();
-`.trim();
+`);

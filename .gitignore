@@ -242,3 +242,4 @@ data/
 .devcontainer.disable/
 snapshots
 .cursor/TODO.md
+.kairos-work/

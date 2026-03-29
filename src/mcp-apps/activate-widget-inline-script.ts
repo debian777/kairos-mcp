@@ -1,17 +1,12 @@
 /** Inline boot script for {@link ./activate-widget-html.ts} (MCP Apps HTML bundle). */
-export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
+import { minifyInlineWidgetScript } from './widget-inline-minify.js';
+
+export const ACTIVATE_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
     (function () {
-      var el = document.getElementById('out');
-      var headerTitle = document.getElementById('header-title');
-      var headerTopMatch = document.getElementById('header-top-match');
-      var PROTO = '2026-01-26';
-      var nextId = 1;
-      var pending = {};
-      var hostCtxState = {};
-      /** Top N visible in the main list; remaining choices live in a collapsed details block (error-panel style). */
-      var ACTIVATE_VISIBLE_CHOICES = 3;
-      var BATCH = 10;
-      var PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
+      var el = document.getElementById('out'), headerTitle = document.getElementById('header-title');
+      var headerTopMatch = document.getElementById('header-top-match'), PROTO = '2026-01-26';
+      var nextId = 1, pending = {}, hostCtxState = {};
+      var ACTIVATE_VISIBLE_CHOICES = 3, BATCH = 10, PRESENTATION_ONLY = __KAIROS_WIDGET_PRESENTATION_ONLY__;
 
       window.addEventListener('message', function (ev) {
         var d = ev.data;
@@ -193,83 +188,30 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           '%</span></div>';
       }
 
-      function isErrorLike(obj) {
-        if (obj == null) return false;
-        if (typeof obj === 'string') return true;
-        if (typeof obj !== 'object') return false;
-        if (obj.isError === true) return true;
-        if (typeof obj.error === 'string' && obj.error.length > 0) return true;
-        if (obj.error_code != null && String(obj.error_code).length > 0) return true;
-        return false;
+      function stringifyJson(obj) {
+        try { return JSON.stringify(obj, null, 2); } catch (e) { return String(obj); }
       }
 
-      /** Short line for humans; full server text stays in Technical details JSON only. */
-      function shortHumanErrorMessage(obj) {
-        if (obj == null) return 'Something went wrong.';
+      function summaryLineFromPayload(obj) {
+        if (obj == null) return '';
         if (typeof obj === 'string') {
           var ts = obj.trim();
-          if (!ts) return 'Something went wrong.';
+          if (!ts) return '';
           return ts.length > 90 ? ts.slice(0, 87) + '…' : ts;
         }
-        if (typeof obj !== 'object') return 'Something went wrong.';
+        if (typeof obj !== 'object') return '';
+        if (typeof obj.message === 'string' && obj.message.trim()) {
+          var msg = obj.message.trim();
+          if (msg.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
+          return msg.length > 90 ? msg.slice(0, 87) + '…' : msg;
+        }
         if (typeof obj.error === 'string' && obj.error.length) {
           if (obj.error === 'INVALID_TOOL_INPUT') return 'Invalid tool input.';
           if (obj.error === 'WIDGET_BOOT') return 'Panel could not start.';
           return 'Something went wrong.';
         }
-        if (obj.isError === true) {
-          var m = typeof obj.message === 'string' ? obj.message.trim() : '';
-          if (m) {
-            if (m.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
-            var dot = m.indexOf('. ');
-            if (dot > 0 && dot < 120) return m.slice(0, dot + 1);
-            return m.length > 90 ? m.slice(0, 87) + '…' : m;
-          }
-          return 'Something went wrong.';
-        }
-        if (typeof obj.message === 'string' && obj.message.trim()) {
-          var m2 = obj.message.trim();
-          if (m2.indexOf('Input validation error:') === 0) return 'Invalid tool input.';
-          return m2.length > 90 ? m2.slice(0, 87) + '…' : m2;
-        }
-        return 'Something went wrong.';
-      }
-
-      /** Prefer server next_action; else compact fallback. Keep in sync with forward-widget-inline-script. */
-      function suggestNextStep(obj) {
-        if (obj == null || typeof obj !== 'object') {
-          return 'Read the last tool response for next_action, or run activate again with a short description of your goal.';
-        }
-        var err = obj.error;
-        var tool = obj.tool;
-        if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
-          return 'Match solution to contract.type, or omit solution on the first forward from an adapter URI.';
-        }
-        if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
-          return 'Check query and optional space against the activate schema.';
-        }
-        if (err === 'INVALID_TOOL_INPUT' && (tool === 'train' || tool === 'tune')) {
-          return 'Check adapter body, space name, and required fields against the schema.';
-        }
-        if (err === 'INVALID_TOOL_INPUT' && tool === 'reward') {
-          return 'Use the layer URI from forward, outcome, and any required fields.';
-        }
-        if (obj.isError === true) {
-          return 'Retry the last step; expand Technical details if you need the raw payload.';
-        }
-        if (typeof obj.next_action === 'string' && obj.next_action.trim()) {
-          return 'Follow next_action from this response when you retry.';
-        }
-        return 'Read the last successful tool result for next_action, or run activate with a clear description of what you want to do.';
-      }
-
-      function agentInstructionText(obj) {
-        if (obj == null || typeof obj !== 'object') {
-          return suggestNextStep(obj);
-        }
-        var na = typeof obj.next_action === 'string' ? obj.next_action.trim() : '';
-        if (na) return na;
-        return suggestNextStep(obj);
+        if (obj.isError === true || obj.error_code != null) return 'Something went wrong.';
+        return '';
       }
 
       function showRawJson(obj) {
@@ -279,56 +221,40 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         if (el) {
           var pre = document.createElement('pre');
           pre.className = 'raw';
-          try { pre.textContent = JSON.stringify(obj, null, 2); } catch (e) { pre.textContent = String(obj); }
+          pre.textContent = stringifyJson(obj);
           el.replaceChildren(pre);
         }
         notifySize();
       }
 
-      function renderHumanError(obj) {
+      function showJson(obj) {
+        var summary = summaryLineFromPayload(obj);
+        if (!summary) {
+          showRawJson(obj);
+          return;
+        }
         clearTopMatch();
         if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
-        document.title = 'Error — KAIROS';
+        document.title = 'Activate — KAIROS';
         if (!el) return;
         var wrap = document.createElement('div');
-        wrap.className = 'widget-error';
-        wrap.setAttribute('role', 'alert');
         var msgEl = document.createElement('p');
-        msgEl.className = 'widget-error-msg';
-        msgEl.textContent = shortHumanErrorMessage(obj);
+        msgEl.className = 'sub activate-json-summary';
+        msgEl.textContent = summary;
         wrap.appendChild(msgEl);
-        var nextEl = document.createElement('p');
-        nextEl.className = 'widget-error-next';
-        var nextLbl = document.createElement('span');
-        nextLbl.className = 'widget-error-next-label';
-        nextLbl.textContent = 'Your AI agent was asked to: ';
-        nextEl.appendChild(nextLbl);
-        nextEl.appendChild(document.createTextNode(agentInstructionText(obj)));
-        wrap.appendChild(nextEl);
         var det = document.createElement('details');
-        det.className = 'widget-error-details';
+        det.className = 'activate-json-details';
         var sum = document.createElement('summary');
         sum.textContent = 'Technical details';
         det.appendChild(sum);
         var pre = document.createElement('pre');
-        pre.className = 'raw widget-error-raw';
-        try {
-          pre.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
-        } catch (e) {
-          pre.textContent = String(obj);
-        }
+        pre.className = 'raw activate-json-raw';
+        pre.textContent = stringifyJson(obj);
         det.appendChild(pre);
         wrap.appendChild(det);
         el.replaceChildren(wrap);
+        det.addEventListener('toggle', notifySize);
         notifySize();
-      }
-
-      function showJson(obj) {
-        if (isErrorLike(obj)) {
-          renderHumanError(obj);
-          return;
-        }
-        showRawJson(obj);
       }
 
       function isActivateStructured(sc) {
@@ -342,7 +268,6 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
         return 'match';
       }
 
-      /** Same tier breakpoints as header "Top match" (green → amber). */
       function tierFromScore(score) {
         if (score == null || typeof score !== 'number' || isNaN(score)) return null;
         return score >= 0.8 ? '4' : score >= 0.65 ? '3' : score >= 0.5 ? '2' : '1';
@@ -504,7 +429,7 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
           if (headerTitle) headerTitle.innerHTML = headerHtmlIdle();
           if (el) {
             var msg = (err && err.message) ? err.message : String(err);
-            renderHumanError({
+            showJson({
               isError: true,
               message: 'This panel could not finish starting (' + msg + '). The same data may still appear as normal text in the chat.',
               error: 'WIDGET_BOOT',
@@ -516,4 +441,4 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = `
 
       boot();
     })();
-`.trim();
+`);

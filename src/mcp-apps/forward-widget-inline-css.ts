@@ -1,5 +1,6 @@
 /** Forward-only styles; shared chrome in {@link ./mcp-widget-chrome-inline-css.ts}. */
 import { MCP_WIDGET_CHROME_INLINE_CSS } from './mcp-widget-chrome-inline-css.js';
+import { minifyInlineWidgetCss } from './widget-inline-minify.js';
 
 const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
     #out.step-panel {
@@ -88,7 +89,6 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       background: color-mix(in srgb, var(--color-text-muted) 18%, var(--color-surface-elevated));
     }
     .seg-done { background: var(--color-success); border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border)); }
-    /* Current step: amber (warning), distinct from green completed segments. */
     .seg-current:not(.seg-issue) {
       background: color-mix(in srgb, var(--color-warning) 72%, var(--color-surface-elevated));
       border-color: color-mix(in srgb, var(--color-warning) 58%, var(--color-border));
@@ -98,7 +98,6 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
       background: color-mix(in srgb, var(--color-warning) 55%, transparent);
       border-color: color-mix(in srgb, var(--color-warning) 48%, var(--color-border));
     }
-    /* Retry / error on this layer: blend warning with error tint. */
     .seg-current.seg-issue {
       background: color-mix(in srgb, var(--color-error) 42%, var(--color-warning) 58%);
       border-color: color-mix(in srgb, var(--color-error) 55%, var(--color-border));
@@ -115,16 +114,22 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
     .widget-error {
       margin: 0;
       padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .widget-error .step-running {
+      margin: 0;
     }
     .widget-error-msg {
-      margin: 0 0 6px 0;
+      margin: 0;
       font-size: var(--font-size-sm);
       line-height: 1.45;
       font-weight: 600;
       color: var(--color-error);
     }
     .widget-error-next {
-      margin: 0 0 8px 0;
+      margin: 0;
       font-size: var(--font-size-sm);
       line-height: 1.45;
       color: var(--color-text-muted);
@@ -154,4 +159,5 @@ const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
     }
 `.trim();
 
-export const FORWARD_WIDGET_INLINE_CSS = `${MCP_WIDGET_CHROME_INLINE_CSS}\n${FORWARD_WIDGET_SPECIFIC_INLINE_CSS}`;
+export const FORWARD_WIDGET_INLINE_CSS =
+  minifyInlineWidgetCss(MCP_WIDGET_CHROME_INLINE_CSS) + minifyInlineWidgetCss(FORWARD_WIDGET_SPECIFIC_INLINE_CSS);
