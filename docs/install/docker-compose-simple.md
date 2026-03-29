@@ -83,7 +83,7 @@ Repo root (or any dir with this `compose.yaml`). **No `up` until step 4.**
 
 ### OpenAI
 
-```sh
+```ini
 OPENAI_API_KEY=sk-proj-xxxxxxxx
 QDRANT_API_KEY=change-me
 AUTH_ENABLED=false
@@ -91,7 +91,7 @@ AUTH_ENABLED=false
 
 ### Ollama (Compose app + Ollama on host; no `/v1` in URL)
 
-```sh
+```ini
 OPENAI_API_URL=http://host.docker.internal:11434
 OPENAI_EMBEDDING_MODEL=nomic-embed-text
 OPENAI_API_KEY=ollama

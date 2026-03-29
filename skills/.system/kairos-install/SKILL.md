@@ -76,7 +76,7 @@ shared steps.
 If the app runs **in Docker Compose** and Ollama is on the **host** on
 **Mac or Windows**:
 
-```sh
+```ini
 QDRANT_API_KEY=<local-dev-secret>
 OPENAI_API_URL=http://host.docker.internal:11434
 OPENAI_EMBEDDING_MODEL=nomic-embed-text

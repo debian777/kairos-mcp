@@ -33,7 +33,6 @@ python3 scripts/deploy-generate-dev-secrets.py
 
 ```sh
 docker compose -p kairos-mcp up -d
-# fullstack:
 docker compose -p kairos-mcp --profile fullstack up -d
 ```
 
@@ -46,12 +45,10 @@ docker compose -p kairos-mcp --profile fullstack up -d
 
 **`REDIS_URL`**
 
-```sh
-# app inside Compose
-redis://:PASSWORD@redis:6379
-# app on host
-redis://:PASSWORD@127.0.0.1:6379
-```
+| App runs in… | Example |
+|--------------|---------|
+| Compose | `redis://:PASSWORD@redis:6379` |
+| Host | `redis://:PASSWORD@127.0.0.1:6379` |
 
 ## Embeddings
 
@@ -59,7 +56,7 @@ OpenAI vs Ollama: [prerequisites](prerequisites.md).
 
 ### TEI
 
-```sh
+```ini
 TEI_BASE_URL=http://tei-host:8080
 TEI_MODEL=optional-model-id
 ```

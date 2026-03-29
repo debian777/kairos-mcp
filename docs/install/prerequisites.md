@@ -41,7 +41,7 @@ flowchart TB
 
 **.env** (with `QDRANT_API_KEY` from [simple](docker-compose-simple.md#3-environment-file) / [full](docker-compose-full-stack.md#3-environment-file)):
 
-```sh
+```ini
 OPENAI_API_KEY=sk-...
 # optional:
 # OPENAI_EMBEDDING_MODEL=text-embedding-3-small
@@ -81,12 +81,12 @@ Switching OpenAI ↔ Ollama can change **vector size** → Qdrant may migrate on
 
 ## TEI
 
-```sh
+```ini
 TEI_BASE_URL=http://your-tei:8080
 # TEI_MODEL=...
 ```
 
-→ [env-and-secrets — TEI](env-and-secrets.md#embedding-backends)
+→ [env-and-secrets — TEI](env-and-secrets.md#tei)
 
 ---
 
