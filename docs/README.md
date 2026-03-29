@@ -18,13 +18,11 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
   app (default profile)
 - [Docker Compose — full stack](install/docker-compose-full-stack.md) — Redis,
   Postgres, Keycloak (`fullstack` profile)
-- [Install MCP in Cursor](install/cursor-mcp.md) — `mcp.json`, HTTP-only MCP (not
-  stdio)
+- [Cursor and MCP](install/README.md#cursor-and-mcp) — `mcp.json`, HTTP-only MCP
+  (not stdio)
 - [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch
   training
 - [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
-
-Older bookmark paths `docs/INSTALL-*.md` redirect to the install folder.
 
 ## Architecture and behavior
 

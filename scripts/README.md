@@ -59,7 +59,7 @@ Paths are relative to the repo root (`scripts/…`). **Used from** lists primary
 | `scripts/deploy-configure-keycloak-google-idp.py` | Creates or updates Google IdP on a Keycloak realm | `npm run dev:google-idp`; see `docs/install/google-auth-dev.md` |
 | `scripts/deploy-add-keycloak-user` | Adds a realm user with auto-generated password via Admin REST API | `scripts/keycloak/import/README.md` (examples) |
 | `scripts/lint-agent-skills.py` | Validates agent skills layout against repo rules | `npm run lint:skills` |
-| `scripts/sync-kairos-install-references.py` | Copies `docs/install/{docker-compose-*,cursor-mcp,env-and-secrets}.md`, `docs/install/google-auth-dev.md`, and `docs/CLI.md` into `skills/.system/kairos-install/references/` and patches outbound links for the bundled layout | `npm run skills:sync-install-refs`; see `skills/.system/kairos-install/references/README.md` |
+| `scripts/sync-kairos-install-references.py` | Copies `docs/install/{README,docker-compose-*,env-and-secrets}.md`, `docs/install/google-auth-dev.md`, and `docs/CLI.md` into `skills/.system/kairos-install/references/` (hub at `install/README.md`) and patches outbound links for the bundled layout | `npm run skills:sync-install-refs`; see `skills/.system/kairos-install/references/README.md` |
 | `scripts/lint-verify-clean-source.mjs` | Prebuild gate: forbids `console.*` and test mocks under `src/` (AST-based) | `npm run verify:clean` (`prebuild`) |
 | `scripts/build-embed-docs.ts` | Bundles `src/embed-docs/**` into generated TS resources for the server | `npm run prebuild` (`npx ts-node scripts/build-embed-docs.ts`) |
 | `scripts/build-embed-docs-slug-meta.ts` | Slug/frontmatter helpers for `build-embed-docs.ts` | Imported by `build-embed-docs.ts` only |

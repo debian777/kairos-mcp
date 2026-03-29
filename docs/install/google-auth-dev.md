@@ -28,7 +28,7 @@ Copy the resulting client ID and client secret.
 
 Add these values to the repo-root `.env` used for your fullstack setup:
 
-```env
+```sh
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```

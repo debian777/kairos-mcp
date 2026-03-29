@@ -1,39 +1,56 @@
-# Install KAIROS with Docker Compose (simple stack)
+# Docker Compose — simple stack
 
-This guide starts the **default** Compose stack from the repository: **Qdrant**
-and the **app** service only. No Redis, Postgres, or Keycloak profile is
-enabled. Use this for the smallest runnable deployment.
+**Default profile:** **Qdrant + app** only (no Redis / Postgres / Keycloak). Smallest runnable deploy.
 
-Work through the sections **in order**. Do not run `docker compose up` until
-`.env` exists and required variables are set.
+Order: **`.env`** → **`docker compose up`** → **`curl /health`**. Do not `up` without `.env`.
+
+## Topology
+
+Muted = not in **default** profile (`--profile fullstack` adds them).
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+  subgraph ext ["External"]
+    openai["OpenAI"]
+    ollama["Ollama"]
+  end
+  subgraph dc ["Compose default"]
+    app["KAIROS app"]
+    qdrant["Qdrant"]
+    redis["Redis"]
+    pg["Postgres"]
+    kc["Keycloak"]
+  end
+  app --> qdrant
+  app -.-> redis
+  app -.-> kc
+  kc -.-> pg
+  app --> openai
+  app --> ollama
+
+  classDef embOpenAI fill:#0d6b48,stroke:#0a5a3c,color:#f0f6fc
+  classDef embOllama fill:#0e7b6e,stroke:#0a5c52,color:#f0f6fc
+  classDef appN fill:#0550ae,stroke:#0969da,color:#f0f6fc
+  classDef vector fill:#116329,stroke:#1a7f37,color:#f0f6fc
+  classDef muted fill:#30363d,stroke:#484f58,color:#8d96a0
+
+  class openai embOpenAI
+  class ollama embOllama
+  class app appN
+  class qdrant vector
+  class redis,pg,kc muted
+```
 
 ## Prerequisites
 
-Complete these before you follow the numbered steps:
+1. Docker + Compose v2  
+2. [Repo](https://github.com/debian777/kairos-mcp) + `compose.yaml`  
+3. Embeddings in `.env` → [prerequisites](prerequisites.md)
 
-1. **Docker Engine** and **Docker Compose v2** installed and running.
-2. **Repository content** — a clone of
-   [kairos-mcp](https://github.com/debian777/kairos-mcp) with `compose.yaml` at
-   the working directory you will use (repository root is recommended).
-3. **Qdrant** — you do not install Qdrant separately; this Compose file starts it
-   as a service. Ensure host ports **6333** and **6344** are free (unless you
-   change them in Compose).
-4. **Embeddings (OpenAI or Ollama)** — the app needs a working embedding
-   backend before training and search behave normally:
-   - **OpenAI:** a valid `OPENAI_API_KEY` (embeddings API only).
-   - **Ollama (or another OpenAI-compatible server):** base URL **without**
-     `/v1`, a model name, and `OPENAI_API_KEY=ollama` when no real key is used.
+## 1. `mcp.json`
 
-   URLs differ when the app runs **inside Docker** vs on the **host**; see
-   [Environment variables and secrets — Embedding backends](env-and-secrets.md#embedding-backends).
-
-## 1. MCP client configuration (`mcp.json`)
-
-Configure Cursor **after** the server is healthy (step 4), but set the URL to
-match the app port you will use (`PORT` in `.env`, default **3000**).
-
-Open **Settings → MCP → Edit config** in Cursor. Add a **streamable HTTP**
-entry whose `url` is your app base URL with `/mcp` appended:
+Match **`PORT`** (default **3000**). Auth / widgets: [install README](README.md#cursor-and-mcp).
 
 ```json
 {
@@ -56,38 +73,25 @@ entry whose `url` is your app base URL with `/mcp` appended:
 }
 ```
 
-If you set `PORT` to something other than 3000, replace `3000` in `url`. Auth,
-discovery, widgets, and the Cursor plugin bundle:
-[Install MCP in Cursor](cursor-mcp.md).
+## 2. Install
 
-## 2. Installation
-
-Use the **repository root** (recommended) or any directory that contains this
-repository’s `compose.yaml`.
-
-You do not run `docker compose up` until step 4.
+Repo root (or any dir with this `compose.yaml`). **No `up` until step 4.**
 
 ## 3. Environment file
 
-Create **`.env`** in the repository root (next to `compose.yaml`). This stack is
-**app + Qdrant only** with `AUTH_ENABLED=false` (no Redis or Keycloak). Pick
-**one** template — OpenAI or Ollama — then replace placeholder values.
+**`.env`** next to `compose.yaml`. **`AUTH_ENABLED=false`**. Pick **one** block.
 
-### OpenAI (cloud)
+### OpenAI
 
-```env
+```sh
 OPENAI_API_KEY=sk-proj-xxxxxxxx
 QDRANT_API_KEY=change-me
 AUTH_ENABLED=false
 ```
 
-### Ollama (local)
+### Ollama (Compose app + Ollama on host; no `/v1` in URL)
 
-For the **app running inside Docker Compose** while **Ollama runs on the host**
-(macOS or Windows). The base URL must not include `/v1`. Pull the model first,
-for example: `ollama pull nomic-embed-text`.
-
-```env
+```sh
 OPENAI_API_URL=http://host.docker.internal:11434
 OPENAI_EMBEDDING_MODEL=nomic-embed-text
 OPENAI_API_KEY=ollama
@@ -95,111 +99,44 @@ QDRANT_API_KEY=change-me
 AUTH_ENABLED=false
 ```
 
-If the app runs **on the host** (not in Docker), use
-`OPENAI_API_URL=http://127.0.0.1:11434` instead. More options:
-[Environment variables and secrets](env-and-secrets.md#embedding-backends).
+App on **host** (not container): `OPENAI_API_URL=http://127.0.0.1:11434`
 
-You must set `QDRANT_API_KEY` and the variables for your chosen embedding path.
+### Ports to free
 
-### Free the default ports
+| Service | Port |
+|---------|------|
+| App | `PORT` → 3000 |
+| Qdrant | 6333, 6344 |
+| Metrics | `METRICS_PORT` → 9090 |
 
-Before starting, ensure nothing else is bound to:
+## 4. Start
 
-- **App:** `PORT` (default **3000**)
-- **Qdrant:** **6333** (and **6344** as in `compose.yaml`)
-- **Metrics:** `METRICS_PORT` (default **9090**)
-
-## 4. Start the stack and use MCP
-
-Only after `.env` is ready and ports are clear:
-
-```bash
+```sh
 docker compose -p kairos-mcp up -d
-```
-
-Verify the app:
-
-```bash
 curl -sS "http://localhost:${PORT:-3000}/health"
 ```
 
-Endpoints (same host and port as health):
+| Path | URL pattern |
+|------|-------------|
+| UI | `http://localhost:3000/ui` |
+| MCP | `http://localhost:3000/mcp` |
+| Metrics | `http://localhost:9090/metrics` |
 
-- UI: `http://localhost:3000/ui`
-- MCP (streamable HTTP): `http://localhost:3000/mcp`
-- Metrics: `http://localhost:9090/metrics` (unless `METRICS_PORT` differs)
+## Services (default profile)
 
-Then ensure Cursor’s `mcp.json` `url` matches this origin (section 1).
+- **qdrant**
+- **app-prod** (`debian777/kairos-mcp` image from `compose.yaml`)
 
-## What this stack runs
+## Related
 
-The default project does **not** use the `fullstack` profile. When you start it,
-Compose brings up:
-
-- **qdrant** — vector store
-- **app-prod** — KAIROS application (image `debian777/kairos-mcp` as defined in
-  `compose.yaml`)
-
-Same component layout as the [full stack](docker-compose-full-stack.md#what-this-stack-runs) diagram. **Gray** nodes and **dotted** edges are not started in the **default** profile (use `--profile fullstack` for Redis, Postgres, and Keycloak).
-
-```mermaid
-flowchart TB
-  subgraph ext ["External — not in Compose"]
-    emb["OpenAI API or Ollama<br/>(embeddings over HTTPS)"]
-  end
-  subgraph dc ["Docker Compose — default profile"]
-    app["KAIROS app (app-prod)"]
-    qdrant["Qdrant"]
-    redis["Redis"]
-    pg["Postgres"]
-    kc["Keycloak"]
-  end
-  app -->|"vectors / HTTP API"| qdrant
-  app -.->|"not used — fullstack only"| redis
-  app -.->|"not used — fullstack only"| kc
-  kc -.->|"not used — fullstack only"| pg
-  app -->|"OPENAI_* or compatible URL"| emb
-
-  classDef ext fill:#a371f7,stroke:#8957e5,color:#fff
-  classDef appN fill:#0969da,stroke:#0550ae,color:#fff
-  classDef vector fill:#1a7f37,stroke:#116329,color:#fff
-  classDef muted fill:#d8dee4,stroke:#8c959f,color:#57606a
-
-  class emb ext
-  class app appN
-  class qdrant vector
-  class redis,pg,kc muted
-```
-
-## Related documentation
-
-- [Environment variables and secrets](env-and-secrets.md) — embedding detail,
-  variable reference
-- [Install MCP in Cursor](cursor-mcp.md) — full client guide
-- For Redis, Postgres, Keycloak, and auth-enabled local dev, use
-  [Docker Compose — full stack](docker-compose-full-stack.md)
+- [env-and-secrets](env-and-secrets.md)
+- [Full stack](docker-compose-full-stack.md) — Redis, Keycloak, auth
 
 ## Troubleshooting
 
-**1. Compose fails with `QDRANT_API_KEY must be set`**
-
-1. Open `.env` and set `QDRANT_API_KEY` to a non-empty secret
-2. Re-run `docker compose -p kairos-mcp up -d`
-
-**2. Port already in use**
-
-1. Find what holds the port: `docker compose -p kairos-mcp ps`
-2. Change `PORT` (and `METRICS_PORT` if needed) in `.env`, or stop the
-   conflicting service
-
-**3. App container unhealthy**
-
-1. Inspect logs: `docker compose -p kairos-mcp logs app-prod`
-2. Confirm Qdrant is reachable from the app (see `QDRANT_URL` in
-   `compose.yaml`)
-
-**4. Embeddings or training errors**
-
-1. Confirm your embedding provider variables match [Environment variables and secrets](env-and-secrets.md)
-2. Test keys when applicable: `npm run dev:test-embedding-key` from a dev
-   checkout
+| Issue | Fix |
+|-------|-----|
+| `QDRANT_API_KEY must be set` | Set in `.env`, `up` again |
+| Port in use | Change `PORT` / `METRICS_PORT` or stop conflict |
+| App unhealthy | `docker compose -p kairos-mcp logs app-prod` |
+| Embeddings | [env-and-secrets](env-and-secrets.md), `npm run dev:test-embedding-key` |

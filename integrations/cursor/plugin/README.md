@@ -32,7 +32,7 @@ in the repository root (copied here as `assets/logo.svg`).
 3. In Cursor, install this directory as a plugin: use the folder that **contains**
    `.cursor-plugin` (that is, this `integrations/cursor/plugin` directory), per
    Cursor’s plugin docs. If your Cursor build only offers user-level MCP JSON,
-   use [docs/install/cursor-mcp.md](../../../docs/install/cursor-mcp.md) instead.
+   use [docs/install/README.md#cursor-and-mcp](../../../docs/install/README.md#cursor-and-mcp) instead.
 
 ## Verify
 

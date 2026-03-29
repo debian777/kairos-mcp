@@ -27,8 +27,11 @@ for the URL index (Agent Skills `references/` layout).
 
 ## 1. Goal
 
-Confirm the user wants the **minimal** stack. Deep reference for env variables
-and embedding backends:
+Confirm the user wants the **minimal** stack. **OpenAI vs Ollama** (URLs,
+verification, TEI pointer):
+https://github.com/debian777/kairos-mcp/blob/main/docs/install/prerequisites.md
+
+Full variable table and TEI details:
 https://github.com/debian777/kairos-mcp/blob/main/docs/install/env-and-secrets.md
 
 **Ask which embedding backend they want:**
@@ -73,7 +76,7 @@ shared steps.
 If the app runs **in Docker Compose** and Ollama is on the **host** on
 **Mac or Windows**:
 
-```env
+```sh
 QDRANT_API_KEY=<local-dev-secret>
 OPENAI_API_URL=http://host.docker.internal:11434
 OPENAI_EMBEDDING_MODEL=nomic-embed-text
@@ -148,10 +151,9 @@ If the app fails to start, check logs:
 
 ## 8. After install (optional)
 
-- **Cursor MCP:** https://github.com/debian777/kairos-mcp/blob/main/docs/install/cursor-mcp.md
-- **Cursor MCP (HTTP only) and CLI (`npx @debian777/kairos-mcp`):**
-  https://github.com/debian777/kairos-mcp/blob/main/docs/install/cursor-mcp.md
-  and https://github.com/debian777/kairos-mcp/blob/main/docs/CLI.md
+- **Cursor MCP (HTTP only):**
+  https://github.com/debian777/kairos-mcp/blob/main/docs/install/README.md#cursor-and-mcp
+- **CLI (`npx @debian777/kairos-mcp`):** https://github.com/debian777/kairos-mcp/blob/main/docs/CLI.md
 - **Full stack (Redis, Keycloak, and so on):**
   https://github.com/debian777/kairos-mcp/blob/main/docs/install/docker-compose-full-stack.md
 - **CLI:** https://github.com/debian777/kairos-mcp/blob/main/docs/CLI.md

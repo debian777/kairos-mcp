@@ -197,7 +197,7 @@ HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
 If you run the minimal Compose stack without overriding `PORT`, point MCP at
 `http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
 server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
-[AGENTS.md](AGENTS.md) and [docs/install/cursor-mcp.md](docs/install/cursor-mcp.md).
+[AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
 
 When executing over MCP, follow **[Protocol execution](#protocol-execution)**
 above and each tool result’s `next_action`. The connected server’s tool
@@ -289,7 +289,7 @@ More detail: [skills/README.md](skills/README.md)
 
 - [Documentation index](docs/README.md)
 - [Install and environment](docs/install/README.md)
-- [Install MCP in Cursor](docs/install/cursor-mcp.md)
+- [Cursor and MCP](docs/install/README.md#cursor-and-mcp)
 - [CLI reference](docs/CLI.md)
 - [Architecture](docs/architecture/README.md)
 - [Protocol examples](docs/examples/README.md)

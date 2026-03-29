@@ -1,39 +1,68 @@
-# Install KAIROS with Docker Compose (full stack)
+# Docker Compose — full stack (production-style)
 
-This guide starts **Redis**, **Postgres**, **Keycloak**, and the **app** with
-the **`fullstack`** Compose profile. Use this when you need local
-auth-related features, Redis-backed behavior, and the Keycloak dev realm setup
-documented in this repository.
+**Profile `fullstack`:** Redis, Postgres, Keycloak, Qdrant, app. **Public HTTPS** app + IdP URLs, **`kairos-prod`**, Docker DNS **`redis` / `qdrant` / `keycloak`** in `.env`.
 
-Work through the sections **in order**. Do not run `docker compose … up` until
-`.env` exists and required variables (including Redis and Keycloak secrets) are
-set.
+**No `compose up` without `.env`.** Keycloak in this repo = **`start-dev`** in `compose.yaml` → OK for many single nodes; hardened prod → [Keycloak guides](https://www.keycloak.org/guides).
+
+## Stack topology
+
+Colored **dark** theme. Compare [simple stack topology](docker-compose-simple.md#stack-topology).
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+  subgraph ext ["External — not in Compose"]
+    openai["OpenAI embeddings<br/>api.openai.com or proxy"]
+    ollama["Ollama / compatible<br/>e.g. host:11434"]
+  end
+  subgraph dc ["Docker Compose — profile fullstack"]
+    app["KAIROS app (app-prod)"]
+    qdrant["Qdrant"]
+    redis["Redis"]
+    pg["Postgres"]
+    kc["Keycloak"]
+  end
+  app -->|"vectors / HTTP API"| qdrant
+  app -->|"REDIS_URL"| redis
+  app -->|"OIDC / session (AUTH_ENABLED)"| kc
+  kc -->|"Keycloak DB"| pg
+  app -->|"OPENAI_API_KEY (cloud)"| openai
+  app -->|"OPENAI_API_URL → Ollama"| ollama
+
+  classDef embOpenAI fill:#0d6b48,stroke:#0a5a3c,color:#f0f6fc
+  classDef embOllama fill:#0e7b6e,stroke:#0a5c52,color:#f0f6fc
+  classDef appN fill:#0550ae,stroke:#0969da,color:#f0f6fc
+  classDef vector fill:#116329,stroke:#1a7f37,color:#f0f6fc
+  classDef cache fill:#953800,stroke:#bc4c00,color:#f0f6fc
+  classDef db fill:#1f495e,stroke:#336791,color:#f0f6fc
+  classDef idp fill:#6639ba,stroke:#8250df,color:#f0f6fc
+
+  class openai embOpenAI
+  class ollama embOllama
+  class app appN
+  class qdrant vector
+  class redis cache
+  class pg db
+  class kc idp
+```
 
 ## Prerequisites
 
-1. **Docker Engine** and **Docker Compose v2** installed and running.
-2. **Clone** [kairos-mcp](https://github.com/debian777/kairos-mcp) (or an
-   equivalent tree with `compose.yaml`, `docs/install/`, and
-   `scripts/deploy-configure-keycloak-realms.py` if you use `npm run infra:up`).
-3. **Python 3** on the host if you use `npm run infra:up` (realm configuration).
-4. **Qdrant** — provided by Compose (same as the simple stack); ensure Qdrant
-   ports are free unless overridden.
-5. **Embeddings (OpenAI or Ollama)** — same requirement as the minimal stack;
-   see [Environment variables and secrets — Embedding backends](env-and-secrets.md#embedding-backends).
+- Docker + Compose v2, [repo](https://github.com/debian777/kairos-mcp)
+- `npm run infra:up` → **Python 3**
+- Embeddings → [prerequisites](prerequisites.md)
+- DNS/TLS for app + Keycloak (often reverse proxy)
 
-## 1. MCP client configuration (`mcp.json`)
+## 1. `mcp.json`
 
-MCP uses the **KAIROS app** HTTP port (`PORT` in `.env`, default **3000**), not
-Keycloak’s 8080. Use `http://localhost:<PORT>/mcp`.
-
-Open **Settings → MCP → Edit config** in Cursor and add:
+App **public** origin + `/mcp` (not Keycloak port). Replace host:
 
 ```json
 {
   "mcpServers": {
     "KAIROS": {
       "type": "streamable-http",
-      "url": "http://localhost:3000/mcp",
+      "url": "https://kairos.example.com/mcp",
       "alwaysAllow": [
         "activate",
         "forward",
@@ -49,206 +78,130 @@ Open **Settings → MCP → Edit config** in Cursor and add:
 }
 ```
 
-When `AUTH_ENABLED=true`, Cursor may need OAuth via
-`/.well-known/oauth-protected-resource` or CLI login first. See
-[Install MCP in Cursor](cursor-mcp.md) and [CLI authentication](../CLI.md#authentication).
+OAuth: `/.well-known/oauth-protected-resource` · [install README](README.md#cursor-and-mcp) · [CLI auth](../CLI.md#authentication)
 
-## 2. Installation
+## 2. Install
 
-Use the **repository root** so paths to scripts and `docs/install/` match this
-guide.
+Repo root (paths for `scripts/` + `docs/install/`).
 
-## 3. Environment file
+## 3. `.env`
 
-Create **`.env`** at the repository root. Paste the block below, then set
-secrets and embedding variables.
+Base: [`scripts/env/.env.template`](../../scripts/env/.env.template). Fill `__…__`, swap example hosts.
 
-**Full stack** (Redis, Postgres, Keycloak, `AUTH_ENABLED=true`). For the app
-**inside** Compose, set `REDIS_URL` to the **`redis`** hostname (see comment in
-block).
+| In container | Example |
+|----------------|---------|
+| `REDIS_URL` | `redis://:PW@redis:6379` |
+| `KEYCLOAK_INTERNAL_URL` | `http://keycloak:8080` |
+| `QDRANT_URL` | `http://qdrant:6333` |
 
-```env
-# ------------------------------------------------------------
-# KAIROS MCP — Full stack (infra + app + auth)
-# Repository root .env — set secrets before docker compose up.
-# ------------------------------------------------------------
+| Public (browser / redirects) | Example |
+|------------------------------|---------|
+| `AUTH_CALLBACK_BASE_URL` | `https://kairos.example.com` |
+| `KEYCLOAK_URL` | `https://auth.example.com` |
+| `KEYCLOAK_REALM` | `kairos-prod` |
+| `AUTH_TRUSTED_ISSUERS` | `https://auth.example.com/realms/kairos-prod` |
 
-# --- Required: infra ---
-QDRANT_URL=http://127.0.0.1:6333
-QDRANT_API_KEY=change-me
-REDIS_PASSWORD=change-me
-# App container in Compose (use this line when app runs in Docker):
-REDIS_URL=redis://:change-me@redis:6379
-# Host-run app / tests against mapped Redis:
-# REDIS_URL=redis://:change-me@127.0.0.1:6379
-
-# --- Required: embeddings (set one path) ---
-OPENAI_API_KEY=
-
-# --- Optional: app ---
-# PORT=3000
-# METRICS_PORT=9090
-# QDRANT_COLLECTION=kairos
-# OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-# OPENAI_API_URL=https://api.openai.com
-# QDRANT_SNAPSHOT_DIR= (omit → 503 on POST /api/snapshot)
-
-# --- Required: auth ---
+```sh
+KEYCLOAK_ADMIN_PASSWORD=__KEYCLOAK_ADMIN_PASSWORD__
+KEYCLOAK_ADMIN_USERNAME=admin
+KEYCLOAK_DB_PASSWORD=__KEYCLOAK_DB_PASSWORD__
+REDIS_PASSWORD=__REDIS_PASSWORD__
+QDRANT_API_KEY=__QDRANT_API_KEY__
+QDRANT_COLLECTION=kairos_prod
+QDRANT_URL=http://qdrant:6333
+REDIS_URL=redis://:__REDIS_PASSWORD__@redis:6379
+PORT=3000
+METRICS_PORT=9090
+MAX_CONCURRENT_MCP_REQUESTS=0
+NODE_ENV=production
+LOG_LEVEL=warn
+LOG_FORMAT=json
+KAIROS_REDIS_PREFIX=kairos:prod:
+OPENAI_API_KEY=__OPENAI_API_KEY__
+EMBEDDING_PROVIDER=openai
+QDRANT_RESCORE=true
+QDRANT_SNAPSHOT_DIR=var/snapshots
 AUTH_ENABLED=true
-SESSION_SECRET=
-# Match the app port you expose (3000 for default Compose; use 3300 if you align with npm dev:deploy on host).
-AUTH_CALLBACK_BASE_URL=http://localhost:3000
-KEYCLOAK_URL=http://localhost:8080
-KEYCLOAK_REALM=kairos-dev
+SESSION_SECRET=__SESSION_SECRET__
+SESSION_MAX_AGE_SEC=604800
+AUTH_CALLBACK_BASE_URL=https://kairos.example.com
+KEYCLOAK_INTERNAL_URL=http://keycloak:8080
+KEYCLOAK_URL=https://auth.example.com
+KEYCLOAK_REALM=kairos-prod
 KEYCLOAK_CLIENT_ID=kairos-mcp
 KEYCLOAK_CLI_CLIENT_ID=kairos-cli
-# KEYCLOAK_INTERNAL_URL=http://keycloak:8080
-KEYCLOAK_ADMIN_USERNAME=admin
-KEYCLOAK_ADMIN_PASSWORD=
-KEYCLOAK_DB_PASSWORD=
 AUTH_MODE=oidc_bearer
-AUTH_TRUSTED_ISSUERS=http://localhost:8080/realms/kairos-dev
+AUTH_TRUSTED_ISSUERS=https://auth.example.com/realms/kairos-prod
 AUTH_ALLOWED_AUDIENCES=kairos-mcp,kairos-cli
 ```
 
-Set at least:
+After Keycloak is up: `python3 scripts/deploy-configure-keycloak-realms.py` · embeddings → [prerequisites](prerequisites.md)
 
-- `QDRANT_API_KEY`, `REDIS_PASSWORD`, `SESSION_SECRET`, `KEYCLOAK_ADMIN_PASSWORD`,
-  `KEYCLOAK_DB_PASSWORD`
-- `REDIS_URL` with the **correct** host for where the app runs (`redis` vs
-  `127.0.0.1` — see [Environment variables and secrets](env-and-secrets.md))
-- One embedding backend
+**Host ports:** `PORT` 3000, `METRICS_PORT` 9090, 6333/6344, 6379, 5432, 8080/9000 — or TLS proxy only.
 
-### Free the default ports
+## 4. Start
 
-Check for conflicts on (at minimum) app `PORT` (default **3000**), **6333** /
-**6344** (Qdrant), **6379** (Redis), **5432** (Postgres), **8080** / **9000**
-(Keycloak), and **9090** (metrics) unless you change them in `.env` or Compose.
-
-## 4. Start the stack and use MCP
-
-Only after `.env` is complete:
-
-```bash
+```sh
 docker compose -p kairos-mcp --profile fullstack up -d
 ```
 
-### Optional: realm and client setup via npm
+**Realms script (optional):**
 
-From a Node dev checkout at the repo root (uses the same `.env`):
-
-```bash
+```sh
 npm run infra:up
 ```
 
-That runs Compose with `--profile fullstack` and executes
-`scripts/deploy-configure-keycloak-realms.py`.
+→ `deploy-configure-keycloak-realms.py` (**kairos-dev** + **kairos-prod**). Prod: `KEYCLOAK_REALM=kairos-prod` + redirects = `AUTH_CALLBACK_BASE_URL` / `KEYCLOAK_URL`.
 
-### Optional Redis Insight UI
+**Redis Insight:**
 
-```bash
+```sh
 docker compose -p kairos-mcp --profile fullstack --profile infra-ui up -d
 ```
 
-### Verify the app
+**Health:**
 
-```bash
-curl -sS "http://localhost:${PORT:-3000}/health"
+```sh
+curl -sS "https://kairos.example.com/health"
 ```
 
-Match Cursor’s `mcp.json` URL to the same app origin (section 1).
+## Services (`fullstack`)
 
-## What this stack runs
+| Service | Notes |
+|---------|--------|
+| redis | `REDIS_PASSWORD` |
+| postgres | Keycloak DB |
+| keycloak | OIDC (`start-dev` in repo) |
+| qdrant | vectors |
+| app-prod | KAIROS |
 
-With **`--profile fullstack`**, Compose starts (see `compose.yaml`):
+**`infra-ui`:** Redis Insight on **5540**
 
-- **redis** — password-protected; requires `REDIS_PASSWORD` in `.env`
-- **postgres** — database for Keycloak
-- **keycloak** — OIDC IdP (dev mode command `start-dev` in Compose)
-- **qdrant** — vector store (always on)
-- **app-prod** — KAIROS application
+## Ports (`compose.yaml`)
 
-Optional UI for Redis uses profile **`infra-ui`** together with **`fullstack`**.
+| Service | Ports |
+|---------|-------|
+| App | `${PORT:-3000}` |
+| Metrics | `${METRICS_PORT:-9090}` |
+| Qdrant | 6333, 6344 |
+| Redis | 6379 |
+| Postgres | 5432 |
+| Keycloak | 8080, 9000 |
+| Redis Insight | 5540 |
 
-Topology (compare with the [simple stack](docker-compose-simple.md#what-this-stack-runs) diagram — same nodes; there, unused services are gray):
+## Related
 
-```mermaid
-flowchart TB
-  subgraph ext ["External — not in Compose"]
-    emb["OpenAI API or Ollama<br/>(embeddings over HTTPS)"]
-  end
-  subgraph dc ["Docker Compose — profile fullstack"]
-    app["KAIROS app (app-prod)"]
-    qdrant["Qdrant"]
-    redis["Redis"]
-    pg["Postgres"]
-    kc["Keycloak"]
-  end
-  app -->|"vectors / HTTP API"| qdrant
-  app -->|"REDIS_URL"| redis
-  app -->|"OIDC / session (AUTH_ENABLED)"| kc
-  kc -->|"Keycloak DB"| pg
-  app -->|"OPENAI_* or compatible URL"| emb
+- [env-and-secrets](env-and-secrets.md) · [Cursor MCP](README.md#cursor-and-mcp) · [infrastructure](../architecture/infrastructure.md) · `scripts/keycloak/import/README.md`
 
-  classDef ext fill:#a371f7,stroke:#8957e5,color:#fff
-  classDef appN fill:#0969da,stroke:#0550ae,color:#fff
-  classDef vector fill:#1a7f37,stroke:#116329,color:#fff
-  classDef cache fill:#bc4c00,stroke:#953800,color:#fff
-  classDef db fill:#336791,stroke:#1f495e,color:#fff
-  classDef idp fill:#8250df,stroke:#6639ba,color:#fff
+## Google IdP
 
-  class emb ext
-  class app appN
-  class qdrant vector
-  class redis cache
-  class pg db
-  class kc idp
-```
-
-## Ports (defaults from `compose.yaml`)
-
-| Service   | Host ports (typical) |
-|-----------|----------------------|
-| KAIROS app | `${PORT:-3000}`   |
-| Metrics   | `${METRICS_PORT:-9090}` |
-| Qdrant    | 6333, 6344        |
-| Redis     | 6379              |
-| Postgres  | 5432              |
-| Keycloak  | 8080, 9000        |
-| Redis Insight | 5540 (with `infra-ui`) |
-
-## Related documentation
-
-- [Environment variables and secrets](env-and-secrets.md) — embeddings, Redis URL
-- [Install MCP in Cursor](cursor-mcp.md) — Cursor MCP HTTP configuration
-- [Infrastructure](../architecture/infrastructure.md) — topology detail
-- Keycloak import notes: `scripts/keycloak/import/README.md`
-
-## Appendix: Google sign-in on Keycloak (dev)
-
-Optional: add **Google** as an identity provider in the local `kairos-dev`
-realm. See [Appendix — Google sign-in (Keycloak, dev)](google-auth-dev.md).
+[google-auth-dev.md](google-auth-dev.md) shows **kairos-dev**; prod → `kairos-prod` + `deploy-configure-keycloak-google-idp.py`.
 
 ## Troubleshooting
 
-**1. `REDIS_PASSWORD must be set`**
-
-1. Add `REDIS_PASSWORD` to `.env`
-2. Recreate services: `docker compose -p kairos-mcp --profile fullstack up -d`
-
-**2. Keycloak or Postgres never healthy**
-
-1. Check logs: `docker compose -p kairos-mcp logs postgres keycloak`
-2. Confirm `KEYCLOAK_DB_PASSWORD` matches `POSTGRES_PASSWORD` expectations in
-   `.env`
-
-**3. App cannot reach Redis**
-
-1. Verify `REDIS_URL` uses host **`redis`**, not `127.0.0.1`, inside Compose
-2. Match the password in `REDIS_URL` to `REDIS_PASSWORD`
-
-**4. `npm run infra:up` fails**
-
-1. Ensure **Python 3** is available
-2. Run from the repository root with a populated `.env`
-3. Bring containers up first, then re-run the script if the API was not ready
+| Issue | Fix |
+|-------|-----|
+| `REDIS_PASSWORD must be set` | `.env` → `up -d` |
+| Keycloak / Postgres unhealthy | `docker compose -p kairos-mcp logs postgres keycloak` · DB password |
+| App → Redis | `REDIS_URL` host **`redis`**, password match |
+| `infra:up` fails | Python 3 · repo root · containers up first |

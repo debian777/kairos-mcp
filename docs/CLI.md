@@ -322,6 +322,6 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 
 - [Install index](install/README.md)
 - [Environment variables and secrets](install/env-and-secrets.md)
-- [Install MCP in Cursor](install/cursor-mcp.md)
+- [Cursor and MCP](install/README.md#cursor-and-mcp)
 - [Architecture](architecture/README.md)
 - [Protocol examples](examples/README.md)

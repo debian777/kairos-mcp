@@ -14,35 +14,48 @@ BASE = "https://github.com/debian777/kairos-mcp/blob/main"
 
 # Flat layout under references/ (Agent Skills progressive disclosure)
 COPIES = [
+    (INST / "prerequisites.md", REF / "prerequisites.md"),
     (INST / "docker-compose-simple.md", REF / "docker-compose-simple.md"),
     (INST / "docker-compose-full-stack.md", REF / "docker-compose-full-stack.md"),
-    (INST / "cursor-mcp.md", REF / "cursor-mcp.md"),
     (INST / "env-and-secrets.md", REF / "env-and-secrets.md"),
     (DOCS / "CLI.md", REF / "CLI.md"),
     (INST / "google-auth-dev.md", REF / "install" / "google-auth-dev.md"),
+    (INST / "README.md", REF / "install" / "README.md"),
 ]
 
 
-def patch_cursor_mcp(text: str) -> str:
-    text = text.replace(
-        "The repository root [README](../../README.md) summarizes the same paths.",
-        f"The repository [README]({BASE}/README.md) summarizes the same paths.",
-    )
-    text = text.replace(
-        "in the root [README](../../README.md).",
-        f"in the repository [README]({BASE}/README.md).",
-    )
+def patch_install_hub(text: str) -> str:
+    """Hub README lives under references/install/; fix paths for the flat bundle."""
+    text = text.replace("](docker-compose-simple.md", "](../docker-compose-simple.md")
+    text = text.replace("](docker-compose-full-stack.md", "](../docker-compose-full-stack.md")
+    text = text.replace("](env-and-secrets.md", "](../env-and-secrets.md")
+    text = text.replace("](prerequisites.md", "](../prerequisites.md")
     text = text.replace(
         "when calling MCP from an agent bridge. See [AGENTS.md](../../AGENTS.md).",
         "when calling MCP from an agent bridge. See "
         f"[AGENTS.md]({BASE}/AGENTS.md).",
     )
     text = text.replace(
-        "See [CLI auth](../CLI.md#authentication) and\n[authentication overview](../architecture/auth-overview.md).",
-        "See [CLI auth](CLI.md#authentication) and\n"
+        "[authentication overview](../architecture/auth-overview.md).",
         f"[authentication overview]({BASE}/docs/architecture/auth-overview.md).",
     )
+    text = text.replace(
+        "- [Documentation map](../README.md)",
+        f"- [Documentation map]({BASE}/docs/README.md)",
+    )
+    text = text.replace(
+        "- [Main README](../../README.md)",
+        f"- [Main README]({BASE}/README.md)",
+    )
     return text
+
+
+def patch_cursor_links_for_bundle(text: str) -> str:
+    """From references/*.md, Cursor section is under install/README.md."""
+    return text.replace(
+        "[Cursor and MCP](README.md#cursor-and-mcp)",
+        "[Cursor and MCP](install/README.md#cursor-and-mcp)",
+    )
 
 
 def patch_docker_full(text: str) -> str:
@@ -57,14 +70,14 @@ def patch_cli(text: str) -> str:
 
 - [Install index](install/README.md)
 - [Environment variables and secrets](install/env-and-secrets.md)
-- [Install MCP in Cursor](install/cursor-mcp.md)
+- [Cursor and MCP](install/README.md#cursor-and-mcp)
 - [Architecture](architecture/README.md)
 - [Protocol examples](examples/README.md)"""
     new = f"""## Related docs
 
 - [Install index]({BASE}/docs/install/README.md)
 - [Environment variables and secrets](env-and-secrets.md)
-- [Install MCP in Cursor](cursor-mcp.md)
+- [Cursor and MCP]({BASE}/docs/install/README.md#cursor-and-mcp)
 - [Architecture]({BASE}/docs/architecture/README.md)
 - [Protocol examples]({BASE}/docs/examples/README.md)"""
     return text.replace(old, new)
@@ -79,21 +92,28 @@ def main() -> None:
         shutil.copy2(src, dst)
         print(f"copied {src.relative_to(ROOT)} -> {dst.relative_to(ROOT)}")
 
-    cm = REF / "cursor-mcp.md"
-    cm.write_text(patch_cursor_mcp(cm.read_text(encoding="utf-8")), encoding="utf-8")
-    print("patched cursor-mcp.md")
+    hub = REF / "install" / "README.md"
+    hub.write_text(patch_install_hub(hub.read_text(encoding="utf-8")), encoding="utf-8")
+    print("patched install/README.md")
+
+    simple = REF / "docker-compose-simple.md"
+    simple.write_text(patch_cursor_links_for_bundle(simple.read_text(encoding="utf-8")), encoding="utf-8")
+    print("patched docker-compose-simple.md (Cursor links)")
 
     fs = REF / "docker-compose-full-stack.md"
-    fs.write_text(patch_docker_full(fs.read_text(encoding="utf-8")), encoding="utf-8")
+    fs.write_text(
+        patch_docker_full(patch_cursor_links_for_bundle(fs.read_text(encoding="utf-8"))),
+        encoding="utf-8",
+    )
     print("patched docker-compose-full-stack.md")
 
     cli = REF / "CLI.md"
     cli.write_text(patch_cli(cli.read_text(encoding="utf-8")), encoding="utf-8")
     print("patched CLI.md")
 
-    cm_t = cm.read_text(encoding="utf-8")
-    if BASE not in cm_t:
-        raise SystemExit("cursor-mcp.md patch verification failed")
+    hub_t = hub.read_text(encoding="utf-8")
+    if BASE not in hub_t:
+        raise SystemExit("install/README.md patch verification failed")
     if BASE not in fs.read_text(encoding="utf-8"):
         raise SystemExit("docker-compose-full-stack.md patch verification failed")
     if BASE not in cli.read_text(encoding="utf-8"):
