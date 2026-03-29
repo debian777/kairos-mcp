@@ -164,12 +164,12 @@ maintainers explicitly choose to track them.
   ```bash
    npm ci
   ```
-4. Create **`.env`** at the repository root from the template in
-   [docs/install/docker-compose-full-stack.md](docs/install/docker-compose-full-stack.md#3-environment-file),
-   then configure required variables (for example `OPENAI_API_KEY` or TEI,
-   `QDRANT_API_KEY`, `REDIS_PASSWORD`, `SESSION_SECRET`,
-   `KEYCLOAK_ADMIN_PASSWORD`, and `KEYCLOAK_DB_PASSWORD`).
-5. Start infrastructure (Redis, Qdrant, Postgres, Keycloak):
+4. Create **`.env`** at the repository root from
+   [`scripts/env/.env.template`](scripts/env/.env.template), then set variables
+   for your dev stack (embeddings, Qdrant, Redis, session, and any IdP secrets you
+   use). **IdP setup is not part of `docs/install/`** — see
+   [Infrastructure](docs/architecture/infrastructure.md).
+5. Start infrastructure (Compose `fullstack` profile and helpers as needed):
   ```bash
    npm run infra:up
   ```

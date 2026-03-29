@@ -16,10 +16,9 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
   embeddings, Redis URL, variable table
 - [Docker Compose — simple stack](install/docker-compose-simple.md) — Qdrant +
   app (default profile)
-- [Docker Compose — full stack](install/docker-compose-full-stack.md) — Redis,
-  Postgres, Keycloak (`fullstack` profile)
-- [Keycloak — Google IdP (dev)](keycloak/google-auth-dev.md) — optional Google
-  sign-in on `kairos-dev`
+- [Optional `fullstack` Compose note](install/docker-compose-full-stack.md) — not
+  a Keycloak install guide
+- [Keycloak notes (operators)](keycloak/google-auth-dev.md) — outside install path
 - [Cursor and MCP](install/README.md#cursor-and-mcp) — `mcp.json`, HTTP-only MCP
   (not stdio)
 - [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch

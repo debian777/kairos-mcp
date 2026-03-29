@@ -163,11 +163,9 @@ guided skill. The default Compose profile starts **Qdrant + app only**.
    - MCP: `http://localhost:3000/mcp`
    - Metrics: `http://localhost:9090/metrics`
 
-### Full stack (Redis + Postgres + Keycloak)
+### Optional `fullstack` Compose profile
 
-For local auth-enabled development, create **`.env`** from the template in
-[Docker Compose — full stack — Environment file](docs/install/docker-compose-full-stack.md#3-environment-file),
-then start the `fullstack` profile:
+Extra services (cache, DB, OIDC container) are **optional** and **not** covered as a step-by-step install in **`docs/install/`**. **Keycloak / IdP configuration is your responsibility.** See [Infrastructure](docs/architecture/infrastructure.md) and [`scripts/env/.env.template`](scripts/env/.env.template). Short [operator note](docs/install/docker-compose-full-stack.md).
 
 ```bash
 docker compose -p kairos-mcp --profile fullstack up -d

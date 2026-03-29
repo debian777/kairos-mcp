@@ -1,15 +1,14 @@
 # Appendix: Google sign-in for Keycloak (dev)
 
-This page is an **appendix** to the **full-stack Keycloak** setup. Complete
-[Docker Compose — full stack](../install/docker-compose-full-stack.md) first. KAIROS still
-authenticates against Keycloak; Google is configured as an identity provider
-inside the `kairos-dev` realm.
+**Not part of `docs/install/`.** For operators who already run Keycloak (or an
+equivalent IdP) **at their own discretion**. KAIROS talks to Keycloak for OIDC;
+below adds Google as a broker in the **`kairos-dev`** realm. Layout and ports:
+[Infrastructure](../architecture/infrastructure.md).
 
 ## Prerequisites
 
-- Full-stack env and running Keycloak (see [install README](../install/README.md) and
-  [Docker Compose — full stack](../install/docker-compose-full-stack.md))
-- Keycloak running locally (`npm run infra:up` or equivalent Compose)
+- Keycloak reachable and **`kairos-dev`** (or your target realm) under your control
+- Optional Compose context: [`fullstack` operator note](../install/docker-compose-full-stack.md), `npm run infra:up`, or your own deployment
 - Admin access to the local Keycloak realm
 - A Google OAuth client created in Google Cloud
 
@@ -26,7 +25,7 @@ Copy the resulting client ID and client secret.
 
 ## 2. Put the Google credentials in `.env`
 
-Add these values to the repo-root `.env` used for your fullstack setup:
+Add these values to the **`.env`** next to your **`compose.yaml`** for the full-stack setup:
 
 ```ini
 GOOGLE_CLIENT_ID=...
