@@ -7,6 +7,7 @@ import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
+import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 
@@ -144,6 +145,13 @@ export async function loadMemoryForParsedUri(
   return { memory };
 }
 
+/** Reuse an in-store nonce for the same layer so repeat forward-without-solution calls do not rotate the challenge. */
+async function challengeReuseOptions(memory: Memory): Promise<{ existingNonce: string } | undefined> {
+  if (!memory.memory_uuid) return undefined;
+  const existing = await proofOfWorkStore.getNonce(memory.memory_uuid);
+  return existing != null ? { existingNonce: existing } : undefined;
+}
+
 async function buildContractResponse(
   memory: Memory,
   executionId: string,
@@ -151,7 +159,8 @@ async function buildContractResponse(
 ): Promise<{ contract: ForwardOutput['contract']; tensorIn?: Record<string, unknown> }> {
   const storedContract = normalizeContract(memory);
   if (!storedContract) {
-    const fallback = await buildChallenge(memory, undefined);
+    const reuse = await challengeReuseOptions(memory);
+    const fallback = await buildChallenge(memory, undefined, reuse);
     if (proofHash) {
       fallback.proof_hash = proofHash;
     }
@@ -174,7 +183,8 @@ async function buildContractResponse(
     };
   }
 
-  const challenge = await buildChallenge(memory, storedContract);
+  const reuse = await challengeReuseOptions(memory);
+  const challenge = await buildChallenge(memory, storedContract, reuse);
   if (proofHash) {
     challenge.proof_hash = proofHash;
   }

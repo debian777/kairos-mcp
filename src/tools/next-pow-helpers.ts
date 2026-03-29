@@ -77,6 +77,8 @@ export async function buildChallenge(
   if (memory?.memory_uuid) {
     if (options?.existingNonce != null) {
       base.nonce = options.existingNonce;
+      // Refresh TTL so repeated forward previews (no solution) do not expire the active challenge.
+      await proofOfWorkStore.setNonce(memory.memory_uuid, options.existingNonce);
     } else {
       const nonce = crypto.randomBytes(16).toString('hex');
       await proofOfWorkStore.setNonce(memory.memory_uuid, nonce);
