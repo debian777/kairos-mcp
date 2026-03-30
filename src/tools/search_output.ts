@@ -12,8 +12,8 @@ import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import {
-  KAIROS_CREATION_FOOTER_ADAPTER_NAME,
-  KAIROS_CREATION_FOOTER_LABEL
+  KAIROS_CREATION_FOOTER_LABEL,
+  KAIROS_REFINING_FOOTER_LABEL
 } from '../constants/builtin-search-meta.js';
 
 export interface Candidate {
@@ -126,8 +126,8 @@ export async function generateUnifiedOutput(
     choices.push(
       {
         uri: refiningUri,
-        label: 'Get help refining your search',
-        adapter_name: 'Run adapter to turn vague user request into a better search query',
+        label: KAIROS_REFINING_FOOTER_LABEL,
+        adapter_name: KAIROS_REFINING_FOOTER_LABEL,
         score: null,
         role: 'refine',
         tags: ['meta', 'refine'],
@@ -138,7 +138,7 @@ export async function generateUnifiedOutput(
       {
         uri: createUri,
         label: KAIROS_CREATION_FOOTER_LABEL,
-        adapter_name: KAIROS_CREATION_FOOTER_ADAPTER_NAME,
+        adapter_name: KAIROS_CREATION_FOOTER_LABEL,
         score: null,
         role: 'create',
         tags: ['meta', 'creation'],
