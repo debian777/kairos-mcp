@@ -205,7 +205,7 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
         var err = obj.error;
         var tool = obj.tool;
         if (err === 'INVALID_TOOL_INPUT' && tool === 'forward') {
-          return 'Match solution to contract.type. Omit solution only on the first forward call in a run; continuation calls in that same execution chain must include solution.';
+          return 'Match solution to contract.type. Omit solution on the start call (adapter URI or layer without execution_id); continuation calls with ?execution_id= must include solution.';
         }
         if (err === 'INVALID_TOOL_INPUT' && tool === 'activate') {
           return 'Check query and optional space against the activate schema.';

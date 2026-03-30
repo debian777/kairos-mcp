@@ -32,4 +32,18 @@ describe('mcp-tool-input-teaching', () => {
     expect(Array.isArray(body.invalid_fields) ? body.invalid_fields : []).toContain('solution');
     expect(String(body.message)).toContain('same execution chain');
   });
+
+  test('forward start call with solution teaches omit solution on start', () => {
+    const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+    const parsed = forwardInputSchema.safeParse({
+      uri: ADAPTER_URI,
+      solution: { type: 'comment', comment: { text: 'x' } }
+    });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    const body = buildMcpInputTeachingPayload('forward', parsed.error, {});
+    expect(body.error).toBe('INVALID_TOOL_INPUT');
+    expect(String(body.message)).toContain('Omit `solution` when starting');
+    expect(String(body.next_action)).toContain('omit `solution`');
+  });
 });
