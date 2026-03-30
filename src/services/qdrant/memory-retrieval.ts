@@ -5,6 +5,7 @@ import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/ten
 import { buildAdapterSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { structuredLogger } from '../../utils/structured-logger.js';
+import { extractAdapterRewardSignal } from '../../utils/reward-signal.js';
 
 /**
  * Retrieval helpers
@@ -105,6 +106,10 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
     const result = await retrieveById(conn, uuid);
     if (!result) return null;
     const payload = result.payload;
+    const rewardSignal =
+      payload.adapter && typeof payload.adapter === 'object'
+        ? extractAdapterRewardSignal(payload.adapter as Record<string, unknown>)
+        : undefined;
     return {
       id: result.uuid,
       label: payload.label || '',
@@ -128,8 +133,8 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
         ...(Array.isArray(payload.adapter.activation_patterns) && {
           activation_patterns: payload.adapter.activation_patterns
         }),
-        ...(typeof payload.adapter.reward_signal === 'string' && {
-          reward_signal: payload.adapter.reward_signal
+        ...(typeof rewardSignal === 'string' && {
+          reward_signal: rewardSignal
         })
       } : undefined,
       inference_contract: payload.inference_contract,

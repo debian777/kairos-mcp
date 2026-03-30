@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { Memory, InferenceContractDefinition } from '../../types/memory.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
+import { extractAdapterRewardSignal } from '../../utils/reward-signal.js';
 
 type QdrantPointLike = {
   id?: string | number | null;
@@ -36,6 +37,7 @@ export function pointToMemory(point: QdrantPointLike): Memory {
       : null;
 
   if (payloadAdapter) {
+    const rewardSignal = extractAdapterRewardSignal(payloadAdapter);
     base.adapter = {
       id: payloadAdapter.id,
       name:
@@ -56,8 +58,8 @@ export function pointToMemory(point: QdrantPointLike): Memory {
       ...(Array.isArray(payloadAdapter.activation_patterns) && {
         activation_patterns: payloadAdapter.activation_patterns,
       }),
-      ...(typeof payloadAdapter.reward_signal === 'string' && {
-        reward_signal: payloadAdapter.reward_signal,
+      ...(typeof rewardSignal === 'string' && {
+        reward_signal: rewardSignal,
       }),
     };
   }

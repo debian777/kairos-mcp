@@ -33,4 +33,48 @@ describe('pointToMemory', () => {
       'text'
     ]);
   });
+
+  test('maps older-format completion_rule adapter field into reward_signal heading', () => {
+    const memory = pointToMemory({
+      id: '00000000-0000-0000-0000-000000000112',
+      payload: {
+        label: 'Compose',
+        text: 'Compose workflow content.',
+        llm_model_id: 'test-model',
+        created_at: '2026-03-30T00:00:00.000Z',
+        adapter: {
+          id: '00000000-0000-0000-0000-000000000112',
+          name: 'Compose',
+          layer_index: 1,
+          layer_count: 3,
+          completion_rule: 'Protocol is complete when all review checks pass.'
+        }
+      }
+    });
+
+    expect(memory.adapter?.reward_signal).toBe(
+      '## Completion Rule\n\nProtocol is complete when all review checks pass.'
+    );
+  });
+
+  test('preserves canonical reward_signal without rewriting heading', () => {
+    const memory = pointToMemory({
+      id: '00000000-0000-0000-0000-000000000113',
+      payload: {
+        label: 'Compose',
+        text: 'Compose workflow content.',
+        llm_model_id: 'test-model',
+        created_at: '2026-03-30T00:00:00.000Z',
+        adapter: {
+          id: '00000000-0000-0000-0000-000000000113',
+          name: 'Compose',
+          layer_index: 1,
+          layer_count: 3,
+          reward_signal: '## Reward Signal\n\nAll done when checks are green.'
+        }
+      }
+    });
+
+    expect(memory.adapter?.reward_signal).toBe('## Reward Signal\n\nAll done when checks are green.');
+  });
 });
