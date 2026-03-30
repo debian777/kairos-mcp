@@ -171,7 +171,6 @@
     "path-to-regexp": "^8.4.0",
     "glob": "^13.0.0",
     "minimatch": "^10.2.3",
-    "picomatch": "^4.0.4",
     "tar": "^7.5.11"
   }
 }
