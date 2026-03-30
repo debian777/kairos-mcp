@@ -93,22 +93,72 @@ export const forwardSolutionSchema = z.object({
   { message: 'The type-specific field must match the solution type' }
 );
 
+function isLayerUriWithExecutionId(uri: string): boolean {
+  const match = uri.match(LAYER_URI_INPUT_REGEX);
+  return Boolean(match?.[2]);
+}
+
 export const forwardInputSchema = z.object({
   uri: forwardUriSchema.describe('Adapter or layer URI'),
   solution: forwardSolutionSchema.optional().describe('Layer solution; omit to start a new forward execution')
+}).superRefine((data, ctx) => {
+  if (isLayerUriWithExecutionId(data.uri) && !data.solution) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['solution'],
+      message:
+        '`solution` is required when continuing a run with `kairos://layer/...?execution_id=...`. Omit `solution` only on the first forward call of a run.'
+    });
+  }
 });
+
+const forwardWireSolutionSchema = z.object({
+  type: z
+    .enum(['tensor', 'shell', 'mcp', 'user_input', 'comment'])
+    .optional()
+    .describe('Must match contract.type for continuation calls.'),
+  nonce: z.string().optional(),
+  proof_hash: z.string().optional(),
+  tensor: z.object({
+    name: z.string().optional(),
+    value: z.any().optional()
+  }).optional(),
+  shell: z.object({
+    exit_code: z.number().optional(),
+    stdout: z.string().optional(),
+    stderr: z.string().optional(),
+    duration_seconds: z.number().optional()
+  }).optional(),
+  mcp: z.object({
+    tool_name: z.string().optional(),
+    arguments: z.any().optional(),
+    result: z.any().optional(),
+    success: z.boolean().optional()
+  }).optional(),
+  user_input: z.object({
+    confirmation: z.string().optional(),
+    timestamp: z.string().optional()
+  }).optional(),
+  comment: z.object({
+    text: z.string().optional()
+  }).optional(),
+  trace: z.string().optional()
+}).passthrough()
+  .describe(
+    'For the first forward call in a run, omit `solution`. For every continuation call in the same execution chain (layer URI with `?execution_id=...`), provide `solution` with the sub-object that matches `type` (`tensor`, `shell`, `mcp`, `user_input`, or `comment`).'
+  );
 
 /**
  * Wire registration schema for the MCP `forward` tool. The SDK only emits `tools/list` JSON Schema
  * for plain object Zod types; a `z.union` used for loose parsing yields empty `properties`.
  * The handler still validates with {@link forwardInputSchema} and returns teaching payloads on failure.
- * `uri` is optional on the wire schema so `{}` and other malformed payloads reach the handler instead of
- * failing in the MCP SDK with a generic validation error.
+ * `uri` remains optional on the wire schema so `{}` and other malformed payloads reach the handler instead
+ * of failing in the MCP SDK with a generic validation error.
  */
 export const forwardMcpWireInputSchema = z
   .object({
-    uri: z.any().optional(),
-    solution: z.any().optional()
+    uri: z.string().optional(),
+    solution: forwardWireSolutionSchema.optional()
   })
   .passthrough();
 

@@ -1,6 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { withRawOnFail } from '../utils/expect-with-raw.js';
-import { schemaHasObjectBranchWithProps } from '../utils/mcp-list-tools-schema-helpers.js';
+import { schemaHasObjectBranchWithProps, schemaHasPropertyPath } from '../utils/mcp-list-tools-schema-helpers.js';
 
 describe('forward input schema exposure', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
@@ -20,6 +20,8 @@ describe('forward input schema exposure', () => {
       expect(tool).toBeDefined();
       expect(tool?.inputSchema).toBeDefined();
       expect(schemaHasObjectBranchWithProps(tool?.inputSchema, ['uri', 'solution'])).toBe(true);
+      expect(schemaHasPropertyPath(tool?.inputSchema, ['solution', 'mcp', 'success'])).toBe(true);
+      expect(schemaHasPropertyPath(tool?.inputSchema, ['solution', 'comment', 'text'])).toBe(true);
     }, '[tools/list] forward schema');
   });
 });

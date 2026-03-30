@@ -29,3 +29,26 @@ export function schemaHasObjectBranchWithProps(schema: unknown, propNames: strin
   }
   return false;
 }
+
+/**
+ * True when at least one object branch exposes the nested property path.
+ * Example: ['solution', 'mcp', 'success'].
+ */
+export function schemaHasPropertyPath(schema: unknown, path: string[]): boolean {
+  if (!schema || typeof schema !== 'object' || path.length === 0) return false;
+  const s = schema as Record<string, unknown>;
+  if (s.type === 'object' && s.properties && typeof s.properties === 'object') {
+    const [head, ...tail] = path;
+    const props = s.properties as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(props, head)) return false;
+    if (tail.length === 0) return true;
+    return schemaHasPropertyPath(props[head], tail);
+  }
+  if (Array.isArray(s.anyOf)) {
+    return s.anyOf.some((b) => schemaHasPropertyPath(b, path));
+  }
+  if (Array.isArray(s.oneOf)) {
+    return s.oneOf.some((b) => schemaHasPropertyPath(b, path));
+  }
+  return false;
+}

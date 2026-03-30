@@ -24,7 +24,11 @@
 
 1. **`train`** — store `markdown_doc` + `llm_model_id` (optional `space`, `force_update`, `protocol_version`).
 2. **`activate`** — semantic match; pick one choice; obey its `next_action` (usually **`forward`** with `kairos://adapter/{uuid}`).
-3. **`forward`** — first call with adapter URI and **no** `solution` loads layer + `contract`. Then submit `solution` whose `type` matches `contract.type` until `next_action` points to **`reward`**.
+3. **`forward`** — first call in a run with adapter URI and **no**
+   `solution` loads layer + `contract`. Continuation calls in that same
+   execution chain (layer URI with `?execution_id=...`) must include
+   `solution` whose `type` matches `contract.type` until `next_action` points
+   to **`reward`**.
 4. **`reward`** — pass the **layer** URI from the final **`forward`** response (`kairos://layer/...`).
 
 **Edit / backup:** **`export`** (markdown or dataset formats) → edit → **`tune`** with `uris` + `markdown_doc`. **`delete`** removes adapters or layers.

@@ -3,6 +3,8 @@ import { forwardInputSchema, forwardMcpWireInputSchema } from '../../src/tools/f
 import { buildMcpInputTeachingPayload } from '../../src/tools/mcp-tool-input-teaching.js';
 
 describe('mcp-tool-input-teaching', () => {
+  const LAYER_WITH_EXEC = 'kairos://layer/00000000-0000-0000-0000-000000000002?execution_id=00000000-0000-0000-0000-000000000003';
+
   test('forward MCP wire schema accepts empty object so handler can teach', () => {
     const wire = forwardMcpWireInputSchema.safeParse({});
     expect(wire.success).toBe(true);
@@ -19,5 +21,15 @@ describe('mcp-tool-input-teaching', () => {
     expect(String(body.message)).toContain('Input validation error');
     expect(String(body.next_action)).toContain('forward');
     expect(String(body.next_action)).toContain('uri');
+  });
+
+  test('forward continuation call without solution explains same-run requirement', () => {
+    const parsed = forwardInputSchema.safeParse({ uri: LAYER_WITH_EXEC });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    const body = buildMcpInputTeachingPayload('forward', parsed.error, { uri: LAYER_WITH_EXEC });
+    expect(body.error).toBe('INVALID_TOOL_INPUT');
+    expect(Array.isArray(body.invalid_fields) ? body.invalid_fields : []).toContain('solution');
+    expect(String(body.message)).toContain('same execution chain');
   });
 });

@@ -12,7 +12,10 @@ Run an **adapter** layer-by-layer. Each layer exposes a **contract** (what to sa
 **Input**
 
 - `uri` — adapter or layer URI as above.
-- `solution` — omit on the **first** call for a run to load the current layer and contract only. For later calls, supply a solution whose `type` matches `contract.type`.
+- `solution` — omit only on the **first** call of a run to load the current
+  layer and contract. For continuation calls in that same execution chain
+  (layer URI with `?execution_id=...`), include `solution` whose `type`
+  matches `contract.type`.
 
 **Output:** `must_obey`, `current_layer` (markdown body), `contract` (includes `type`: `tensor` | `shell` | `mcp` | `user_input` | `comment`; for proof layers, echo server `nonce` / `proof_hash` in the solution when present), optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`, optional `slug_disambiguation_note` when a slug URI matched multiple adapters, optional `activation_space_name`, `context_adapter_name`, `current_layer_label`, `adapter_layer_index`, `adapter_layer_count` (widget progress), error fields on retry paths.
 
@@ -20,7 +23,8 @@ Run an **adapter** layer-by-layer. Each layer exposes a **contract** (what to sa
 
 1. **`activate`** → pick adapter URI → **`forward`** with adapter URI and **no** `solution`.
 2. Read `contract` and `next_action`. Complete the work the contract describes.
-3. **`forward`** again with the **layer** URI from the response and a matching `solution`.
+3. **`forward`** again with the **layer** URI from the response (including
+   `?execution_id=...`) and a matching `solution`.
 4. Repeat until `next_action` directs you to **`reward`** on the final layer URI.
 
 **Tensor contracts:** supply `solution.tensor` matching `contract.tensor.output.name` and type constraints; prior tensor outputs may be merged per `tensor_in`.
