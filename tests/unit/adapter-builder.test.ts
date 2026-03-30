@@ -20,5 +20,7 @@ describe('buildHeaderMemoryAdapter', () => {
     expect(memories[1]?.label).toBe('Step Two');
     expect(memories[memories.length - 1]?.text).toContain('Second body.');
     expect(memories[memories.length - 1]?.text).not.toContain('## Reward Signal');
+    expect(memories[0]?.adapter?.reward_signal).toContain('## Reward Signal');
+    expect(memories[0]?.adapter?.reward_signal).toContain('Only after all steps.');
   });
 });
