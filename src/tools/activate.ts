@@ -10,6 +10,7 @@ import { buildAdapterUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
+import { KAIROS_CREATION_FOOTER_NEXT_ACTION } from '../constants/builtin-search-meta.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -37,7 +38,7 @@ async function mapSearchToActivate(
           role: choice.role,
           tags: choice.tags,
           next_action: choice.role === 'create'
-            ? 'call train with adapter markdown to register a new adapter'
+            ? KAIROS_CREATION_FOOTER_NEXT_ACTION
             : `call forward with ${adapterUri} to execute the refine adapter`,
           adapter_version: choice.adapter_version,
           activation_patterns: [],
@@ -64,9 +65,7 @@ async function mapSearchToActivate(
 
   return {
     must_obey: true,
-    message: searchOutput.message
-      .replaceAll('protocol', 'adapter')
-      .replaceAll('Protocol', 'Adapter'),
+    message: searchOutput.message,
     next_action: "Pick one choice and follow that choice's next_action.",
     query,
     choices

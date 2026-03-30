@@ -21,6 +21,7 @@ import { searchOutputSchema, type SearchInput, type SearchOutput } from './searc
 import { logSearchAnomaly } from '../services/embedding/audit.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import {
+  KAIROS_CREATION_FOOTER_NEXT_ACTION,
   KAIROS_CREATION_PROTOCOL_UUID,
   KAIROS_REFINING_PROTOCOL_UUID
 } from '../constants/builtin-search-meta.js';
@@ -29,7 +30,7 @@ import { buildAdapterUri } from './kairos-uri.js';
 const CREATION_PROTOCOL_URI = buildAdapterUri(KAIROS_CREATION_PROTOCOL_UUID);
 const REFINING_PROTOCOL_URI = buildAdapterUri(KAIROS_REFINING_PROTOCOL_UUID);
 const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to execute the refine adapter`;
-const CREATE_NEXT_ACTION = 'call train with adapter markdown to register a new adapter';
+const CREATE_NEXT_ACTION = KAIROS_CREATION_FOOTER_NEXT_ACTION;
 
 /** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
 function queryForSearch(query: string): string {

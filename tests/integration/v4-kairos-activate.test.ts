@@ -140,6 +140,22 @@ describe('v4-activate unified response schema', () => {
     });
   });
 
+  test('authoring wording: register personal adapter keeps create choice visible', async () => {
+    const { call, result, parsed } = await activateQuery('Register personal KAIROS adapter');
+    const createUri = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
+
+    withRawOnFail({ call, result }, () => {
+      const createChoice = parsed.choices.find(
+        (c: { role: string; uri: string }) => c.role === 'create' && c.uri === createUri
+      );
+      expect(createChoice).toBeDefined();
+      expect(String(createChoice!.label).toLowerCase()).toContain('adapter');
+      expect(String(createChoice!.label).toLowerCase()).toContain('protocol');
+      expect(String(createChoice!.next_action).toLowerCase()).toContain('register');
+      expect(String(createChoice!.next_action).toLowerCase()).toContain('adapter/protocol/workflow');
+    });
+  });
+
   test('multiple matches: refine and create choices have correct URI and next_action', async () => {
     const ts = Date.now();
     const token = `V4ActivateMulti${ts}`;
