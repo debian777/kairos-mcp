@@ -144,7 +144,8 @@ export async function storeHeaderBasedAdapter(
           layer_index: i + 1,
           layer_count: layerCount,
           ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
-          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
+          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns }),
+          ...(typeof adapter.reward_signal === 'string' && { reward_signal: adapter.reward_signal })
         },
         slug: protocolSlug
       }

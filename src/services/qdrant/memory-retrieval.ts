@@ -127,6 +127,9 @@ export async function getMemoryByUUID(conn: QdrantConnection, uuid: string): Pro
         }),
         ...(Array.isArray(payload.adapter.activation_patterns) && {
           activation_patterns: payload.adapter.activation_patterns
+        }),
+        ...(typeof payload.adapter.reward_signal === 'string' && {
+          reward_signal: payload.adapter.reward_signal
         })
       } : undefined,
       inference_contract: payload.inference_contract,

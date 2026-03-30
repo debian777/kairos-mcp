@@ -56,6 +56,9 @@ export function pointToMemory(point: QdrantPointLike): Memory {
       ...(Array.isArray(payloadAdapter.activation_patterns) && {
         activation_patterns: payloadAdapter.activation_patterns,
       }),
+      ...(typeof payloadAdapter.reward_signal === 'string' && {
+        reward_signal: payloadAdapter.reward_signal,
+      }),
     };
   }
 

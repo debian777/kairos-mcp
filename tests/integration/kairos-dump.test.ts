@@ -69,7 +69,10 @@ Only after all steps.`;
     expect(out).toHaveProperty('uri', uri);
     expect(out).toHaveProperty('format', 'markdown');
     expect(out).toHaveProperty('content_type');
-    expect((out.content as string).toLowerCase()).toContain('body for export single');
+    const content = out.content as string;
+    expect(content.toLowerCase()).toContain('body for export single');
+    expect(content).toContain('## Reward Signal');
+    expect(content).toContain('Only after all steps.');
   }, 25000);
 
   test('export with adapter URI returns full adapter markdown', async () => {
@@ -123,6 +126,8 @@ Only after all steps.`;
     expect(content).toContain('Export Protocol');
     expect(content).toContain('First');
     expect(content).toContain('Second');
+    expect(content).toContain('## Reward Signal');
+    expect(content).toContain('Only after all steps.');
   }, 25000);
 
   test('export with non-existent URI returns error', async () => {

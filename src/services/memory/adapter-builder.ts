@@ -60,6 +60,14 @@ function startsWithRewardSection(sectionText: string): boolean {
   return /^##\s+(Reward Signal|Completion Rule)\s*(?:\r?\n|$)/i.test(trimmed);
 }
 
+function extractRewardSection(sectionText: string): string | null {
+  const trimmed = sectionText.trim();
+  if (!trimmed || !startsWithRewardSection(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
 /**
  * Process a single H1 section into an adapter of layer memories. Layer
  * boundaries are defined by fenced contract blocks. H2 headings are used only
@@ -151,7 +159,8 @@ function processH1Section(
   }
 
   const trailing = h1Content.slice(prevEnd).trim();
-  if (trailing.length > 0 && !startsWithRewardSection(trailing)) {
+  const rewardSection = extractRewardSection(trailing);
+  if (trailing.length > 0 && !rewardSection) {
     const codeResult = codeBlockProcessor.processMarkdown(trailing);
     const baseTags = generateTags(trailing);
     const codeTags = codeResult.allIdentifiers.slice(0, 5);
@@ -187,6 +196,14 @@ function processH1Section(
   } else {
     memories.forEach(m => {
       if (m.adapter) m.adapter.layer_count = memories.length;
+    });
+  }
+
+  if (rewardSection) {
+    memories.forEach((memory) => {
+      if (memory.adapter) {
+        memory.adapter.reward_signal = rewardSection;
+      }
     });
   }
 

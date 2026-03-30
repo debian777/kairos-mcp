@@ -38,6 +38,20 @@ function buildMarkdownDocSingle(memory: Memory): string {
   return body + challengeBlock(getInferenceContract(memory));
 }
 
+function includesRewardHeading(markdown: string): boolean {
+  return /^##\s+(Reward Signal|Completion Rule)\s*(?:\r?\n|$)/im.test(markdown);
+}
+
+function resolveStoredRewardSection(memories: Memory[]): string | null {
+  for (const memory of memories) {
+    const rewardSignal = memory.adapter?.reward_signal;
+    if (typeof rewardSignal === 'string' && rewardSignal.trim().length > 0) {
+      return rewardSignal.trim();
+    }
+  }
+  return null;
+}
+
 function buildMarkdownDocProtocol(memories: Memory[]): string {
   if (memories.length === 0) return '';
   const adapterName = memories[0]!.adapter?.name ?? memories[0]!.label ?? 'Protocol';
@@ -46,6 +60,13 @@ function buildMarkdownDocProtocol(memories: Memory[]): string {
     const body = extractMemoryBody(memory.text);
     const bodyStripped = stripRedundantStepH2(body, memory.label);
     parts.push(`## ${memory.label}\n\n${bodyStripped}${challengeBlock(getInferenceContract(memory))}`);
+  }
+  const rewardSection = resolveStoredRewardSection(memories);
+  if (rewardSection) {
+    const rewardAlreadyPresent = memories.some((memory) => includesRewardHeading(extractMemoryBody(memory.text)));
+    if (!rewardAlreadyPresent) {
+      parts.push(rewardSection);
+    }
   }
   return parts.join('\n\n');
 }

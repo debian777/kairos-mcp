@@ -197,7 +197,8 @@ export async function storeDefaultAdapter(
           layer_index: adapter.layer_index,
           layer_count: adapter.layer_count,
           ...(adapter.protocol_version && { protocol_version: adapter.protocol_version }),
-          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns })
+          ...(adapter.activation_patterns && { activation_patterns: adapter.activation_patterns }),
+          ...(typeof adapter.reward_signal === 'string' && { reward_signal: adapter.reward_signal })
         }
       }
     });

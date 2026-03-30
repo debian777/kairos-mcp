@@ -42,7 +42,14 @@ function buildCanonicalAdapterPayload(
       ? adapter['protocol_version']
       : undefined;
 
+  const passthroughEntries = Object.entries(adapter).filter(
+    ([key]) =>
+      !['id', 'name', 'layer_index', 'layer_count', 'protocol_version', 'activation_patterns'].includes(key)
+  );
+  const passthroughAdapterFields = Object.fromEntries(passthroughEntries);
+
   return {
+    ...passthroughAdapterFields,
     id,
     name,
     layer_index: layerIndex,
