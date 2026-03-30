@@ -35,6 +35,7 @@ function createFlatConfig(rootDir) {
         '.cache/**',
         'helm/**',
         '.ai/**',
+        '.kairos-work/**',
         '.local/**',
         '.git',
         '.git/**',
