@@ -6,6 +6,15 @@ export const KAIROS_REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-0000000020
 /** Built-in adapter authoring flow; always appended as an **activate** footer choice (not a vector match). */
 export const KAIROS_CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 
+/**
+ * Footer copy for the built-in creation flow.
+ * Keep adapter/protocol/workflow wording aligned with activate docs and built-in mem resources.
+ */
+export const KAIROS_CREATION_FOOTER_LABEL = 'Create New KAIROS adapter/protocol';
+export const KAIROS_CREATION_FOOTER_ADAPTER_NAME = 'Create New KAIROS adapter/protocol';
+export const KAIROS_CREATION_FOOTER_NEXT_ACTION =
+  'call train with adapter markdown to register a new adapter/protocol/workflow';
+
 /** True if this memory belongs to built-in footer protocols (refine / create). */
 export function memoryIsBuiltinSearchFooterProtocol(m: Memory): boolean {
   return (

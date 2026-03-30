@@ -11,6 +11,10 @@ import { buildAdapterUri } from './kairos-uri.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
+import {
+  KAIROS_CREATION_FOOTER_ADAPTER_NAME,
+  KAIROS_CREATION_FOOTER_LABEL
+} from '../constants/builtin-search-meta.js';
 
 export interface Candidate {
   memory: Memory;
@@ -117,9 +121,8 @@ export async function generateUnifiedOutput(
     });
   }
 
-  const RELEVANT_SCORE = normalizePublicSearchScore(0.5);
-  const singleMatchNotRelevant = matchCount === 1 && (choices[0]?.score ?? 0) < RELEVANT_SCORE;
-  if (matchCount !== 1 || singleMatchNotRelevant) {
+  const includeMetaFooter = true;
+  if (includeMetaFooter) {
     choices.push(
       {
         uri: refiningUri,
@@ -134,8 +137,8 @@ export async function generateUnifiedOutput(
       },
       {
         uri: createUri,
-        label: 'Create New KAIROS adapter',
-        adapter_name: 'Create New KAIROS adapter',
+        label: KAIROS_CREATION_FOOTER_LABEL,
+        adapter_name: KAIROS_CREATION_FOOTER_ADAPTER_NAME,
         score: null,
         role: 'create',
         tags: ['meta', 'creation'],
@@ -149,7 +152,10 @@ export async function generateUnifiedOutput(
   let message: string;
   let nextAction: string;
   if (matchCount === 0) {
-    message = 'No existing adapter matched your query. Refine your search or create a new one.';
+    message = 'No existing adapter/protocol matched your query. Refine your search or create a new one.';
+    nextAction = "Pick one choice and follow that choice's next_action.";
+  } else if (matchCount === 1 && includeMetaFooter) {
+    message = 'Found 1 match. You can run it, refine your search, or create a new adapter/protocol.';
     nextAction = "Pick one choice and follow that choice's next_action.";
   } else if (matchCount === 1) {
     message = 'Found 1 match.';
@@ -157,7 +163,7 @@ export async function generateUnifiedOutput(
   } else {
     const topMatch = choices[0]!;
     const confidencePercent = Math.round((topMatch.score || 0) * 100);
-    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new adapter.`;
+    message = `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one, refine your search, or create a new adapter/protocol.`;
     nextAction = "Pick one choice and follow that choice's next_action.";
   }
   return { must_obey: true, message, next_action: nextAction, choices };
