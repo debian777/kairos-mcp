@@ -44,10 +44,10 @@ function teachingForward(error: ZodError): Record<string, unknown> {
   let detail: string;
   if (uriProblem) {
     detail =
-      'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First run: adapter URI only, omit `solution`. Later runs: use the layer `uri` from the last forward response, include `solution` matching `contract.type`.';
+      'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First forward call of a run: use adapter URI and omit `solution`. Continuation calls in that same execution chain (layer URI with `?execution_id=...`): include `solution` matching `contract.type`.';
   } else if (solutionProblem) {
     detail =
-      '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment) and include the matching payload object. Omit `solution` only on the first call when starting from an adapter URI.';
+      '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment) and include the matching payload object (`solution.mcp`, `solution.comment`, and so on). Omit `solution` only on the first forward call of a run, not on continuation calls in the same execution chain.';
   } else {
     detail =
       'See the forward tool description: pass `uri` (adapter or layer) and optional `solution` shaped for the active contract.';

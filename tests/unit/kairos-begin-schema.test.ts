@@ -26,8 +26,19 @@ describe('forward input schema (entry pass without solution)', () => {
     expect(r.success).toBe(true);
   });
 
-  test('accepts layer uri with execution_id query', () => {
+  test('requires solution for layer uri with execution_id query', () => {
     const r = forwardInputSchema.safeParse({ uri: LAYER_WITH_EXEC });
+    expect(r.success).toBe(false);
+  });
+
+  test('accepts layer uri with execution_id query when solution is provided', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: { text: 'Continuing the same run with a valid comment solution.' }
+      }
+    });
     expect(r.success).toBe(true);
   });
 });
