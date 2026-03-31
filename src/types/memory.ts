@@ -5,7 +5,7 @@ export interface AdapterInfo {
   layer_count: number; // Total number of layers in the adapter
   protocol_version?: string; // Optional semver carried from frontmatter/train input
   activation_patterns?: string[];
-  reward_signal?: string; // Optional trailing Reward Signal/Completion Rule markdown section
+  reward_signal?: string; // Optional trailing Reward Signal markdown section
 }
 
 export interface TensorOutputSpec {

@@ -3,7 +3,7 @@
 This document explains how the KAIROS MCP server initializes and migrates
 the Qdrant vector database when the application starts. All migrations run
 **before** the HTTP server accepts traffic so that the collection is ready
-for search and protocol execution.
+for search and adapter execution.
 
 **Preferred approach for collection structural changes.** Boot-time
 migrations in `store-init.ts` are the preferred way to change Qdrant

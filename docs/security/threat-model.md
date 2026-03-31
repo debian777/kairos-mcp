@@ -29,7 +29,7 @@ flowchart LR
 You must protect the following assets because compromise directly affects
 integrity, confidentiality, or availability.
 
-- Protocol chains and memory content in Qdrant.
+- Adapter chains and memory content in Qdrant.
 - Embedding vectors and relevance metadata.
 - Tenant and space authorization context from Keycloak claims.
 - Session data, cache entries, and request correlation data.
@@ -62,15 +62,15 @@ malicious content.
     search behavior.
   - Memory metadata with `created_by` and `modified_by` for forensic tracing.
 
-### Prompt injection through stored protocol steps
+### Prompt injection through stored adapter layers
 
-Stored protocol text can include manipulation attempts that influence agent
+Stored adapter markdown can include manipulation attempts that influence agent
 execution.
 
 - **Mitigations in place**
-  - Deterministic protocol execution flow (`search -> begin -> next -> attest`).
-  - Structured protocol validation during train (store) operations.
-  - Explicit `must_obey` and `next_action` semantics in protocol output.
+  - Deterministic adapter execution flow (`search -> begin -> next -> attest`).
+  - Structured adapter structure validation during train (store) operations.
+  - Explicit `must_obey` and `next_action` semantics in tool output.
   - Audit and incident runbook support for suspicious train and update events.
 
 ### Cross-tenant data leakage

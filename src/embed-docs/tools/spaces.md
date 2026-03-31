@@ -13,10 +13,10 @@ adapters each contains.
 
 **Collaboration patterns**
 
-1. **Precedence** — `activate` search ties break in favour of your **default write space** (usually **Personal**). A personal fork can rank beside an identical-scoring group protocol.
+1. **Precedence** — `activate` search ties break in favour of your **default write space** (usually **Personal**). A personal fork can rank beside an identical-scoring group adapter.
 2. **Scoping `activate`** — pass `space` / `space_id` using the same strings as **`train`** / **`tune`**: `"personal"`, a full group path such as `"/kairos-shares/kairos-operator"` (optional `"Group: "` prefix), or the raw `space_id` from this tool.
 3. **Fork** — use **`train`** with `source_adapter_uri` (`kairos://adapter/{uuid}`) and target `space` to copy markdown into a **new** adapter UUID in another space; the original is unchanged.
 4. **Move** — use **`tune`** with `space` (and optional content edits) to reassign an existing adapter’s layers to another allowed space.
 5. **Visibility** — `activate` **match** choices include **`space_name`** so you can see whether a hit is personal, group, or app-level.
 
-**KAIROS protocol order** for runs: **`activate`** → **`forward`** (per layer until `next_action` → **`reward`**) → **`reward`**. Use this tool first when you need valid **`space`** values or an inventory before activation.
+**KAIROS tool order** for runs: **`activate`** → **`forward`** (per layer until `next_action` → **`reward`**) → **`reward`**. Use this tool first when you need valid **`space`** values or an inventory before activation.

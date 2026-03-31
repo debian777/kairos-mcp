@@ -136,7 +136,7 @@ Every inline script follows this structure:
   // DOM refs
   var el = document.getElementById('out');
 
-  // Protocol constants
+  // JSON-RPC / widget contract version constants
   var PROTO = '2026-01-26';
   var nextId = 1;
   var pending = {};

@@ -1,7 +1,7 @@
 # KAIROS MCP documentation
 
 This directory documents the current behavior of the repository: how to run the
-server, connect clients, use the CLI, understand the protocol engine, and work
+server, connect clients, use the CLI, understand the adapter execution engine, and work
 on the codebase.
 
 Start with the root [README](../README.md) for the product overview and the
@@ -40,8 +40,8 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
 
 ## Tool workflows
 
-- [Architecture and protocol workflows](architecture/README.md) — how the
-  protocol runs end-to-end (**activate** → **forward** → **reward**),
+- [Architecture and adapter workflows](architecture/README.md) — how the
+  adapter runs end-to-end (**activate** → **forward** → **reward**),
   per-tool references, response shapes, and companion workflow page mapping.
 - [Full execution workflow](architecture/workflow-full-execution.md) —
   end-to-end walkthrough with example calls.
@@ -55,9 +55,9 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
   [workflow-delete](architecture/workflow-delete.md),
   [workflow-export](architecture/workflow-export.md).
 
-## Examples and protocol authoring
+## Examples and adapter authoring
 
-- [Protocol examples](examples/README.md) — trainable example adapters
+- [Adapter examples](examples/README.md) — trainable example adapters
 - [Challenge types](examples/challenge-types.md) — challenge/solution shapes
 
 ## Security and operations
@@ -67,8 +67,8 @@ All installation guides are under **[install/](install/README.md)**. Highlights:
 - [Threat model](security/threat-model.md)
 - [Incident runbook](security/incident-runbook.md)
 - [Code security setup](security/code-security-setup.md)
-- [Skills that ship KAIROS protocols](../skills/README.md) — how a skill can
-  bundle a protocol, declare requirements, and run **activate** → **train** if
+- [Skills that ship KAIROS adapters](../skills/README.md) — how a skill can
+  bundle an adapter, declare requirements, and run **activate** → **train** if
   missing → **forward** / **reward**.
 
 ## Skills and contributor guidance

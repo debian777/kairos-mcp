@@ -13,7 +13,7 @@ Execute.
 
 ---
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "AI coding rules" or "coding rules".
 
@@ -277,6 +277,6 @@ Provide:
 
 Proof of work: final response must include summary, validation commands, test log path, and risks.
 
-## Completion Rule
+## Reward Signal
 
 Only reachable after all prior steps are solved.

@@ -21,7 +21,7 @@ on the payload stores quality tier or score.
 
 Quality metadata is set in five situations:
 
-1. **Initial store (adapter train):** When a protocol adapter is stored,
+1. **Initial store (adapter train):** When an adapter is stored,
    each layer payload is built with `quality_metadata` from
    `modelStats.calculateStepQualityMetadata(...)` using the layer's
    label, domain, task, type, and tags (no execution context yet).
@@ -39,12 +39,12 @@ Quality metadata is set in five situations:
 4. **After each step in forward:** When a step is completed and the
    solution is validated, that step's quality is updated with outcome
    `success` or `failure`. This is the primary update path during a
-   protocol run.
+   adapter run.
 
 5. **After reward (final step):** When `reward` runs with a
    success or failure outcome, it recalculates quality and calls
    `updateQualityMetadata`. `reward` is the required final step
-   of every protocol run.
+   of every adapter run.
 
 Calculation is centralized in `src/services/stats/scoring.ts`:
 `calculateStepQualityMetadata(description, domain, task, type, tags,
@@ -53,7 +53,7 @@ promote the tier (for example, success + high base → excellent).
 
 ## Where quality_metadata is read
 
-- **Protocol-level quality:** `calculateProtocolQualityMetadata(protocolId)`
+- **Adapter-level quality:** `calculateProtocolQualityMetadata(protocolId)`
   in `src/services/stats/protocol.ts` fetches all steps via
   `findProtocolSteps`, reads `payload.quality_metadata` from each point,
   and aggregates `step_quality_score` and `step_quality` into
@@ -108,9 +108,9 @@ await client.scroll(collection, {
 });
 ```
 
-### Scroll: fetch steps by protocol_id (protocol stats)
+### Scroll: fetch steps by protocol_id (adapter stats)
 
-Used by `findProtocolSteps(protocolId)` to load all steps of a protocol
+Used by `findProtocolSteps(protocolId)` to load all steps of an adapter
 for aggregate quality:
 
 ```json
@@ -145,7 +145,7 @@ Typical payload shape for an adapter layer after store or update:
   },
   "adapter": {
     "id": "a67e7ead-4aef-4b0e-b3e5-b6cbb7416917",
-    "name": "Simple Setup Protocol",
+    "name": "Simple Setup Adapter",
     "layer_index": 1,
     "layer_count": 3
   },
@@ -210,7 +210,7 @@ flowchart LR
   upsert. `forward` and `reward` update it via retrieve +
   merge + upsert.
 - **Storage:** One field on the point payload; no separate collection.
-- **Reads:** Protocol stats scrolls by `protocol_id` and reads
+- **Reads:** Adapter stats scrolls by `protocol_id` and reads
   `quality_metadata` from each point. Search applies a bounded quality
   boost to the vector score.
 

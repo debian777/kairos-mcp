@@ -1,10 +1,10 @@
 # KAIROS skills — how to use them
 
-Skills from this repo help you run KAIROS protocols (**activate** →
+Skills from this repo help you run KAIROS adapters (**activate** →
 **forward** → **reward**), capture MCP bug reports, and guide
 first-time setup in Cursor or Claude Code. Install with:
 `npx skills add debian777/kairos-mcp`. For **authoring** skills
-(structure, protocol requirements, validation), see
+(structure, adapter authoring requirements, validation), see
 [SKILLS.md](SKILLS.md).
 
 **References:** [skills CLI (vercel-labs/skills)](https://github.com/vercel-labs/skills) · [Agent Skills Directory (skills.sh)](https://skills.sh/)
@@ -22,7 +22,7 @@ still name-based.
 
 | Usage         | Skill           | When to install / use |
 |---------------|-----------------|------------------------|
-| **Everyday**  | kairos          | Default: run KAIROS protocols. Install this first. |
+| **Everyday**  | kairos          | Default: run KAIROS adapters. Install this first. |
 | **Occasional** | kairos-bug-report | Capture structured MCP bug reports under `reports/` after a failed tool or resource call. |
 | **One-time**  | kairos-install  | First-time environment setup (Ollama, minimal Docker stack); run once per machine. |
 
@@ -46,7 +46,7 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-bug-report
 
 | Skill | Usage | Purpose |
 |-------|-------|---------|
-| kairos | Everyday | Run KAIROS protocols. |
+| kairos | Everyday | Run KAIROS adapters. |
 | kairos-bug-report | Occasional | Save structured MCP bug reports under `reports/`. |
 | kairos-install | One-time | First-time install: Ollama + minimal Docker stack; confirm each step with user. |
 

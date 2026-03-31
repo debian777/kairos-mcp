@@ -6,7 +6,6 @@
  */
 
 import { findAllLayerContractBlocks, hasPlainFenceLayerContractBlock } from './adapter-contract-blocks.js';
-
 export const CREATION_PROTOCOL_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
 
 export type ValidationResult = {
@@ -130,11 +129,13 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
   for (const h2TitlesOfSection of sections) {
     const firstH2 = h2TitlesOfSection[0] ?? '';
     const lastH2 = h2TitlesOfSection[h2TitlesOfSection.length - 1] ?? '';
-    if (!/(Activation Patterns|Natural Language Triggers)/i.test(firstH2)) {
+    const firstOk = /^Activation Patterns$/i.test(firstH2.trim());
+    if (!firstOk) {
       missing.push(MISSING_ACTIVATION_PATTERNS);
       break;
     }
-    if (!/(Reward Signal|Completion Rule)/i.test(lastH2)) {
+    const lastOk = /^Reward Signal$/i.test(lastH2.trim());
+    if (!lastOk) {
       missing.push(MISSING_REWARD_SIGNAL);
       break;
     }

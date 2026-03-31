@@ -66,7 +66,7 @@ describe('POST /api/export', () => {
 
     const markdown = `# Dump HTTP ${Date.now()}
 
-## Natural Language Triggers
+## Activation Patterns
 When to run.
 
 ## Step 1
@@ -76,7 +76,7 @@ Content for HTTP export test.
 {"contract": {"type": "comment", "description": "Minimal"}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
       method: 'POST',
@@ -113,7 +113,7 @@ Done.`;
     const title = `Export By Adapter ${Date.now()}`;
     const md = `# ${title}
 
-## Natural Language Triggers
+## Activation Patterns
 Browse adapter export.
 
 ## Step One
@@ -123,7 +123,7 @@ First step body.
 {"contract": {"type": "comment", "description": "Step one"}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
     const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
       method: 'POST',

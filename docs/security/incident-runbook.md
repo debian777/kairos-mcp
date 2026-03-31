@@ -70,7 +70,7 @@ Use these focused procedures for known high-risk patterns.
 ### Data poisoning suspicion
 
 Data poisoning incidents usually start with low-quality search results or
-unexpected protocol behavior.
+unexpected adapter behavior.
 
 1. Query `audit.anomaly` events for `embedding_unusual_norm`,
    `search_low_score`, and `search_zero_results`.

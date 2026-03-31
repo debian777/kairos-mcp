@@ -1,8 +1,8 @@
 # Example: All challenge types
 
-One protocol with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to train with `train`.
+One adapter with four steps, one per challenge type (shell, mcp, user_input, comment). Ready to train with `train`.
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "example all types" or "all challenge types".
 
@@ -57,7 +57,7 @@ Obtain explicit approval from the user before continuing.
 
 ## Step 4 — Provide a verification comment
 
-Write a short summary of what was done in this protocol (at least 30 characters).
+Write a short summary of what was done in this adapter (at least 30 characters).
 
 ```json
 {
@@ -75,6 +75,6 @@ Write a short summary of what was done in this protocol (at least 30 characters)
 
 Only reachable after Steps 1–4 are solved. Show the outputs from Steps 1–4 to the user (command result, MCP result, user confirmation, summary). No additional challenge.
 
-## Completion Rule
+## Reward Signal
 
 Only reachable after all prior steps are solved.

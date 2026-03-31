@@ -95,7 +95,7 @@ flowchart TB
 
 ## Port map
 
-| Service      | Host port | Container port | Protocol | Purpose |
+| Service      | Host port | Container port | Transport | Purpose |
 |-------------|-----------|---------------|----------|---------|
 | redis        | 6379  | 6379  | TCP  | Key-value store |
 | redisinsight | 5540  | 5540  | HTTP | Redis web UI (profile `infra-ui`) |
@@ -152,7 +152,7 @@ sequenceDiagram
     end
 
     PROC->>+RES: injectMemResourcesAtBoot(force=true)
-    Note right of RES: Upserts built-in protocol<br/>chains from embed-docs/
+    Note right of RES: Upserts built-in adapter<br/>chains from embed-docs/
     RES-->>-PROC: resources injected
 
     PROC->>+MT: startMetricsServer()
@@ -280,7 +280,7 @@ If you want host-path mounts, you must edit `compose.yaml` yourself.
 
 ## Redis data model
 
-Redis holds only **transient** state; all durable protocol data lives in
+Redis holds only **transient** state; all durable adapter data lives in
 Qdrant.
 
 | Key pattern | TTL | Purpose |
@@ -293,7 +293,7 @@ Config: `maxmemory 512mb`, `allkeys-lru`, persistence via
 
 ## Qdrant data model
 
-One collection holds every protocol step as a vector + payload point. The
+One collection holds every adapter step as a vector + payload point. The
 source default is `kairos` (`src/config.ts`), while the published runtime image
 sets `QDRANT_COLLECTION=kairos_memories` unless you override it with env.
 Within that collection, H1 headings become adapter headers and H2 headings become
@@ -309,9 +309,9 @@ erDiagram
     MEMORY_POINT {
         uuid    id               "unique point ID"
         float[] vector           "embedding vector"
-        string  chain_id         "groups all steps of one protocol"
+        string  chain_id         "groups all steps of one adapter"
         int     position         "1 = header, 2..N = steps"
-        string  label            "protocol or step title"
+        string  label            "adapter or step title"
         string  body             "markdown content"
         json    challenge        "optional proof-of-work spec"
         json    quality_metadata "scoring and run history"
@@ -356,7 +356,7 @@ flowchart TD
 
 ## See also
 
-- [Full execution workflow](workflow-full-execution.md) — protocol run
+- [Full execution workflow](workflow-full-execution.md) — adapter run
   end-to-end
 - [Quality metadata](quality-metadata.md) — scoring and bonus structure
 - [Authentication overview](auth-overview.md) — Keycloak URL

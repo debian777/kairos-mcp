@@ -14,6 +14,11 @@ time: discovery, clarification, ideation, planning, execution, validation,
 review, and handoff. The bundle prefers truth, explicit sequencing, and
 observable verification over polished but weak wording.
 
+Bundled mem resources that intentionally use **protocol** and **adapter** as
+synonyms include `<!-- kairos-lint-allow-protocol-synonyms -->` after the YAML
+frontmatter (within the first ~2.5k characters of the file) so `review-protocol-wording` (ESLint warn) skips the file. Prefer
+**adapter** in new copy when you are not mirroring user-facing trigger phrases.
+
 ## Protocols
 
 | UUID | Slug | Purpose |

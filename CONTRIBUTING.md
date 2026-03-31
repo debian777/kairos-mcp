@@ -143,7 +143,7 @@ start with `**activate`**, then complete `**forward**` through `**reward**`
 before answering the user.
 
 **Git vs MCP:** branches, commits, and pull requests follow the sections
-below. The protocol above runs **against the KAIROS server** your editor
+below. The activate → forward → reward sequence above runs **against the KAIROS server** your editor
 targets (for example **KAIROS LIVE**), not against Git.
 
 ### Claude Code (`.claude/hooks`)
@@ -283,13 +283,13 @@ in Docker; use `./data/qdrant/snapshots` in dev). Trigger on demand:
 
 ```
 src/               TypeScript source
-src/embed-docs/    Built-in protocol chains embedded as MCP resources
+src/embed-docs/    Built-in adapter workflows embedded as MCP resources
 dist/              Compiled output (generated)
 tests/             Test files
 tests/test-data/   Test fixtures
 tests/workflow-test/ Workflow test harness; prompt in tests/workflow-test/PROMPT.md
 reports/           Workflow test output (gitignored except .gitkeep)
-docs/examples/     Mintable protocol examples for dev workflow tests
+docs/examples/     Mintable adapter examples for dev workflow tests
 skills/            Shipped agent skills (`kairos/` and `skills/.system/`)
 scripts/           Build and utility scripts
 ```

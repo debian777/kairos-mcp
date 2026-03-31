@@ -1,20 +1,20 @@
 # KAIROS challenge types — trainable examples
 
-The documents in this folder are **real markdown adapters ready for `train`**. Each has one H1 (protocol title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"contract": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
+The documents in this folder are **real markdown adapters ready for `train`**. Each has one H1 (adapter title), one or more H2 steps, and a trailing ` ```json ` block per step with `{"contract": { ... }}`. Copy the contents of any example into a file and pass it to `train` (with `llm_model_id` and optional `force_update`).
 
-## Example protocol documents
+## Example adapter documents
 
 | File | Challenge type(s) | Description |
 |------|------------------|-------------|
-| [protocol-example-shell.md](protocol-example-shell.md) | shell | Step 1: run a command. Step 2: show output to user (no challenge). |
-| [protocol-example-user-input.md](protocol-example-user-input.md) | user_input | Step 1: get human confirmation. Step 2: show output to user (no challenge). |
-| [protocol-example-comment.md](protocol-example-comment.md) | comment | Step 1: provide a text summary (min length). Step 2: show output to user (no challenge). |
-| [protocol-example-mcp.md](protocol-example-mcp.md) | mcp | Step 1: call an MCP tool and report success. Step 2: show output to user (no challenge). |
-| [protocol-example-all-types.md](protocol-example-all-types.md) | shell, mcp, user_input, comment | Steps 1–4: one per type. Step 5: show outputs to user (no challenge). |
+| [adapter-example-shell.md](adapter-example-shell.md) | shell | Step 1: run a command. Step 2: show output to user (no challenge). |
+| [adapter-example-user-input.md](adapter-example-user-input.md) | user_input | Step 1: get human confirmation. Step 2: show output to user (no challenge). |
+| [adapter-example-comment.md](adapter-example-comment.md) | comment | Step 1: provide a text summary (min length). Step 2: show output to user (no challenge). |
+| [adapter-example-mcp.md](adapter-example-mcp.md) | mcp | Step 1: call an MCP tool and report success. Step 2: show output to user (no challenge). |
+| [adapter-example-all-types.md](adapter-example-all-types.md) | shell, mcp, user_input, comment | Steps 1–4: one per type. Step 5: show outputs to user (no challenge). |
 
 ## How to train
 
-1. Copy the full content of one of the protocol files above (or combine steps into your own document).
+1. Copy the full content of one of the adapter markdown files above (or combine steps into your own document).
 2. Ensure each step ends with a single ` ```json ` block containing an object with a `challenge` key (see the examples).
 3. Call `train` with `markdown_doc`, `llm_model_id`, and optionally `force_update: true`.
 

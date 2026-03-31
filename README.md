@@ -1,5 +1,7 @@
 # KAIROS MCP
 
+<!-- kairos-lint-allow-protocol-synonyms -->
+
 <img src="logo/kaiiros-mcp.svg" width="128" alt="KAIROS MCP logo" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -93,7 +95,7 @@ For a longer narrative, see
 The current codebase includes:
 
 - **HTTP application server** — Express app for MCP, REST, auth routes, and UI
-- **Qdrant-backed protocol store** — required for runtime
+- **Qdrant-backed adapter store** — required for runtime
 - **Optional Redis cache / proof-of-work state store** — enabled when `REDIS_URL` is set
 - **Optional Keycloak auth integration** — browser session + Bearer JWT validation
 - **React UI** — served from the same origin at `/ui`
@@ -250,7 +252,7 @@ workflow skill lives in `skills/`. The helper skills live in
 
 | Skill | Purpose |
 |-------|---------|
-| `kairos` | Run KAIROS protocols |
+| `kairos` | Run KAIROS adapters |
 | `kairos-bug-report` | Capture structured MCP bug reports in `reports/` |
 | `kairos-install` | First-time local setup guidance |
 
@@ -290,7 +292,7 @@ More detail: [skills/README.md](skills/README.md)
 - [Cursor and MCP](docs/install/README.md#cursor-and-mcp)
 - [CLI reference](docs/CLI.md)
 - [Architecture](docs/architecture/README.md)
-- [Protocol examples](docs/examples/README.md)
+- [Adapter examples](docs/examples/README.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Troubleshooting

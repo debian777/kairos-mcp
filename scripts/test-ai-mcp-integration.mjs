@@ -301,13 +301,13 @@ async function runProtocol(baseUrl, protocolName, markdown, reportPath) {
   writeIntegrationReportFile(reportPath, report, REPORTS_DIR);
 }
 
-function listProtocolFiles() {
+function listAdapterExampleFiles() {
   const names = [
-    'protocol-example-user-input.md',
-    'protocol-example-comment.md',
-    'protocol-example-mcp.md',
-    'protocol-example-shell.md',
-    'protocol-example-all-types.md'
+    'adapter-example-user-input.md',
+    'adapter-example-comment.md',
+    'adapter-example-mcp.md',
+    'adapter-example-shell.md',
+    'adapter-example-all-types.md'
   ];
   return names
     .map((name) => ({
@@ -327,15 +327,15 @@ async function main() {
       'Auth: no bearer token. With AUTH_ENABLED, use .test-auth-env.dev.json (e.g. AUTH_ENABLED=true npm run dev:test after deploy) or set KAIROS_INTEGRATION_BEARER.'
     );
   }
-  const protocols = listProtocolFiles();
-  console.log(`Protocols: ${protocols.map((p) => p.name).join(', ')}`);
+  const examples = listAdapterExampleFiles();
+  console.log(`Adapter examples: ${examples.map((p) => p.name).join(', ')}`);
 
-  for (const { name, path: filePath } of protocols) {
-    const protocolFolder = name.replace(/\.md$/, '');
+  for (const { name, path: filePath } of examples) {
+    const exampleFolder = name.replace(/\.md$/, '');
     const markdown = fs.readFileSync(filePath, 'utf8');
-    const reportPath = path.join(REPORTS_DIR, RUN_ID, protocolFolder, 'report.md');
+    const reportPath = path.join(REPORTS_DIR, RUN_ID, exampleFolder, 'report.md');
     console.log(`Running ${name} -> ${reportPath}`);
-    await runProtocol(BASE_URL, protocolFolder, markdown, reportPath);
+    await runProtocol(BASE_URL, exampleFolder, markdown, reportPath);
   }
 
   console.log(`Done. Reports under reports/${RUN_ID}/`);

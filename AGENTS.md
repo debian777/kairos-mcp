@@ -7,10 +7,14 @@ agents operating in the repository.
 KAIROS MCP is a Model Context Protocol server for persistent memory and
 deterministic adapter execution. It stores workflows as linked adapters
 whose layers can carry proof-of-work challenges. You
-execute a protocol by calling **`activate`** (semantic match), then
+execute an adapter run by calling **`activate`** (semantic match), then
 **`forward`** for each layer’s contract (loop until `next_action` directs you
 to **`reward`**), then **`reward`** to finalize the run. Every hash, nonce,
 and identifier is server-generated; echo them verbatim — never compute them.
+
+## Core functionality
+
+Action routing for agents is defined in **[`skills/kairos/SKILL.md`](skills/kairos/SKILL.md)** (zero-drift: **`activate`** → **`forward`** → **`reward`** for action intents). Cursor or other hosts may also install the same text under **`~/.agents/skills/kairos/SKILL.md`**. If KAIROS MCP is **unavailable or unauthenticated**, treat that as a **critical error** and stop; fix the host connection per **[docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp)** and **`.agents/skills/mcp-host-bridge/SKILL.md`**. For **real MCP calls**, follow the **connected server’s** tool names, schemas, and descriptions; for **implementation in this repository**, follow this worktree’s source, tests, and embedded docs.
 
 ## Architecture
 
@@ -25,7 +29,7 @@ and identifier is server-generated; echo them verbatim — never compute them.
 | `tests/` | Integration tests |
 | `tests/workflow-test/` | Workflow test harness (prompt in PROMPT.md, how to run) |
 | `reports/` | Workflow test output (`reports/<run-id>/report.md`) |
-| `docs/examples/` | Mintable protocol examples for dev workflow tests |
+| `docs/examples/` | Mintable adapter examples for dev workflow tests |
 | `scripts/` | Build and utility scripts |
 
 ## Protocol execution model
@@ -63,8 +67,12 @@ When training (**`train`**) or editing (**`tune`**) adapter markdown:
   **`forward`**).
 - The opening \`\`\`json must be on its own line (line start). Blocks with
   text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
-- Add a `## Activation Patterns` section as the first H2.
 - Add a `## Reward Signal` section as the last H2.
+
+**First H2 — two valid contexts:**
+
+- **This repository** (`src/embed-docs/`, `docs/examples/`, and anything validated like shipped adapter docs): use **`## Activation Patterns`** as the **first** H2, with the usual bullets (trigger phrases, pattern, Must Never / Must Always, good/bad examples). This matches local examples and keeps one consistent shape in-tree.
+- **Kairos app “Review and Publish New KAIROS Protocol”** (or the same checklist elsewhere on the server): that flow’s format review may require a **different first H2 title** than this repo uses — the checklist on the server names that heading and six subsections (**Trigger phrases**, **Trigger pattern**, **Must Never**, **Must Always**, **Good trigger examples**, **Bad trigger examples**). Satisfy the checklist you are actually running; if you need repo-shaped markdown after **`train`**, follow with **`tune`** or an edit pass so the first H2 is **`## Activation Patterns`** before merging to this worktree.
 
 ## Environment context
 
@@ -154,6 +162,10 @@ When `kairos-forbidden-text/no-forbidden-kairos-text` fails in `src/`, `scripts/
 - Strip whole comments or docstrings **only** to silence the rule.
 - Re-add identifiers enumerated in `eslint/plugins/kairos-forbidden-text.cjs` (disallowed bearer-token env vars and retired MCP tool names).
 - Use other wording or phrases flagged in that plugin (see its in-source list and messages).
+
+### `review-protocol-wording` (markdown, warn)
+
+On `**/*.md`, ESLint warns on bare **protocol** when it may mean a stored KAIROS artifact: prefer **adapter** or **workflow**, unless the phrase is allowlisted in `KAIROS_PROTOCOL_WORDING_ALLOWLIST_SOURCES` in `eslint/plugins/kairos-forbidden-text.cjs` (e.g. Model Context Protocol, `**protocol**` in rule docs, OIDC path `/protocol/openid-connect`). This repo disables inline `eslint-disable`; for a whole file that intentionally mixes **protocol** / **adapter** (e.g. trigger quotes), add `<!-- kairos-lint-allow-protocol-synonyms -->` in the first ~2.5k characters of the file (often right after YAML frontmatter; see `src/embed-docs/mem/README.md`).
 
 ### Override
 

@@ -16,7 +16,7 @@ When several spaces contain similar adapters, the server prefers your **default 
 
 - `match` — `activation_score` is a normalized 0.0–1.0 confidence score; that choice’s `next_action` tells you to **`forward`** with its adapter URI.
 - `refine` — guided help to improve the query; **`forward`** the refine adapter URI from the choice.
-- `create` — no stored adapter/protocol matched; **`train`** new adapter markdown (protocol/workflow creation flow).
+- `create` — no stored adapter matched; **`train`** new adapter markdown (adapter/workflow creation flow).
 
 **Rules**
 

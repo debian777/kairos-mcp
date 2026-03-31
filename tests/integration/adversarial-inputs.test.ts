@@ -106,7 +106,7 @@ describe('Adversarial and robustness inputs', () => {
     const markdown = [
       `# ${uniqueTitle}`,
       '',
-      '## Natural Language Triggers',
+      '## Activation Patterns',
       'Run when input contains emoji and null-byte probes.',
       '',
       '## Step 1',
@@ -116,7 +116,7 @@ describe('Adversarial and robustness inputs', () => {
       '{"contract":{"type":"comment","description":"Edge-case content accepted safely"}}',
       '```',
       '',
-      '## Completion Rule',
+      '## Reward Signal',
       'Done.'
     ].join('\n');
 

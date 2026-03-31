@@ -15,7 +15,7 @@ title: ${title}
 
 # ${title}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "version test".
 
 ## Step 1
@@ -25,14 +25,14 @@ Content.
 {"contract":{"type":"comment","comment":{"min_length":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
 }
 
 function protocolNoFrontmatter(title: string): string {
   return `# ${title}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "version test".
 
 ## Step 1
@@ -42,7 +42,7 @@ Content.
 {"contract":{"type":"comment","comment":{"min_length":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Done.`;
 }
 

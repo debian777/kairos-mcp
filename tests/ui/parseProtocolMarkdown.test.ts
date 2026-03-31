@@ -20,10 +20,10 @@ describe("parseProtocolMarkdown", () => {
     expect(result.steps).toEqual([]);
   });
 
-  it("parses Natural language triggers section", () => {
+  it("parses Activation Patterns section", () => {
     const md = `# P
 
-## Natural language triggers
+## Activation Patterns
 
 deploy and test
 `;
@@ -31,10 +31,10 @@ deploy and test
     expect(result.triggers).toBe("deploy and test");
   });
 
-  it("parses Completion rule section", () => {
+  it("parses Reward Signal section", () => {
     const md = `# P
 
-## Completion rule
+## Reward Signal
 
 When all steps are done.
 `;
@@ -144,7 +144,7 @@ Write a comment.
   it("strips json code blocks from triggers and completion", () => {
     const md = `# P
 
-## Natural language triggers
+## Activation Patterns
 
 Some text
 \`\`\`json
@@ -152,7 +152,7 @@ Some text
 \`\`\`
 more text
 
-## Completion rule
+## Reward Signal
 
 Done.
 `;
@@ -191,7 +191,7 @@ describe("parseProtocolMarkdownToForm and buildMarkdownFromForm", () => {
   it("round-trips protocol with triggers, steps, and completion", () => {
     const md = `# Deploy and test
 
-## Natural language triggers
+## Activation Patterns
 
 deploy and test
 run tests and deploy
@@ -204,7 +204,7 @@ Run the build.
 {"contract": {"type": "shell", "shell": {"cmd": "npm run build"}}}
 \`\`\`
 
-## Completion rule
+## Reward Signal
 
 When each step is verified and the final reward is recorded.
 `;
@@ -261,7 +261,7 @@ When each step is verified and the final reward is recorded.
   it("round-trips shell interpreter, flags, args, workdir", () => {
     const md = `# T
 
-## Natural language triggers
+## Activation Patterns
 
 When.
 
@@ -273,7 +273,7 @@ Body.
 {"contract":{"type":"shell","shell":{"cmd":"die unless 1","interpreter":"perl","flags":["-e"],"timeout_seconds":5,"args":["x"],"workdir":"$KAIROS_WORK_DIR"},"required":true}}
 \`\`\`
 
-## Completion rule
+## Reward Signal
 
 Done.
 `;

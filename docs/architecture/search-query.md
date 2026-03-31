@@ -50,7 +50,7 @@ flowchart LR
 ## End-to-end flow
 
 1. **Input:** MCP tool **`activate`** or HTTP **`POST /api/activate`** with `query` (and optional `space`).
-2. **Query preparation:** The raw query is cleaned for search and cache key: built-in protocol URIs and UUIDs (refine and creation) are stripped so the query text is not literally “searching for” those protocols. Empty after strip is valid (returns no vector matches).
+2. **Query preparation:** The raw query is cleaned for search and cache key: built-in adapter URIs and UUIDs (refine and creation) are stripped so the query text is not literally “searching for” those protocols. Empty after strip is valid (returns no vector matches).
 3. **Space context:** If `space` is provided and allowed, the request runs in that space context; otherwise the default (e.g. personal) is used. Search sees **allowed spaces plus the KAIROS app space** (`getSearchSpaceIds()`).
 4. **Cache:** A Redis cache key is built from the search query and group-collapse flag. On hit, the cached unified response is returned; no Qdrant call.
 5. **Store call:** `memoryStore.searchMemories(searchQuery, limit, enableGroupCollapse)` runs. It uses the (trimmed) search query for cache write and passes the same query to the vector layer.
@@ -70,7 +70,7 @@ Implementations: [src/tools/search.ts](../../src/tools/search.ts) and [src/tools
 
 ## Query normalization
 
-Before the query is sent to the store or used in the cache key, the string is cleaned so that built-in protocol URIs and UUIDs do not affect search or cache:
+Before the query is sent to the store or used in the cache key, the string is cleaned so that built-in adapter URIs and UUIDs do not affect search or cache:
 
 - **Refine adapter:** `kairos://adapter/00000000-0000-0000-0000-000000002002`, UUID `00000000-0000-0000-0000-000000002002`
 - **Creation flow:** `kairos://adapter/00000000-0000-0000-0000-000000002001`, UUID `00000000-0000-0000-0000-000000002001`
@@ -130,7 +130,7 @@ before it returns them.
   - `space_id` in `getSearchSpaceIds()`  
   - `adapter.layer_index` = 1 (adapter heads only)
 - **must_not:**  
-  - `has_id` = refine protocol UUID (`00000000-0000-0000-0000-000000002002`) so the built-in refine protocol never appears as a vector match. Creation protocol and copies in other spaces may be excluded by additional `has_id` or `adapter.name` conditions; any remaining are filtered in code (for example, `isRefineProtocol`) before returning.
+  - `has_id` = refine adapter UUID (`00000000-0000-0000-0000-000000002002`) so the built-in refine adapter never appears as a vector match. Creation adapter and copies in other spaces may be excluded by additional `has_id` or `adapter.name` conditions; any remaining are filtered in code (for example, `isRefineProtocol`) before returning.
 
 Fallback if the Query API fails: plain dense search with the same filter and rescore.
 
@@ -156,7 +156,7 @@ confidence before the response is returned:
 
 1. Points are mapped to memories and raw scores (Qdrant score only;
    reward-derived boost is already in the formula).
-2. Built-in refine protocol is excluded in the Qdrant filter by UUID; any remaining (for example, duplicates in another space) are filtered out in code (`isRefineProtocol`) until exclusion is fully expressed in the Qdrant filter (for example, by `adapter.name`).
+2. Built-in refine adapter is excluded in the Qdrant filter by UUID; any remaining (for example, duplicates in another space) are filtered out in code (`isRefineProtocol`) until exclusion is fully expressed in the Qdrant filter (for example, by `adapter.name`).
 3. Sort by raw score descending, then by `memory_uuid` for tie-break; take up
    to `limit`.
 4. Optional fallback: if all results were filtered out but there were points, return up to `limit` with a default score (e.g. 0.5) so the UI still shows options.

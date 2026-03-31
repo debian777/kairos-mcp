@@ -6,7 +6,6 @@ import {
   generateTags,
 } from '../../utils/memory-store-utils.js';
 import { extractInferenceContract, findAllLayerContractBlocks } from './adapter-contract-blocks.js';
-
 /**
  * Sanitize H2 headings to remove STEP patterns and numbering that break layer order.
  * Transforms patterns like "## STEP 1 - Foo" or "## 3. Bar" into "## Foo" or "## Bar".
@@ -38,7 +37,7 @@ function extractActivationPatterns(sectionText: string): string[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (/^##\s+(Activation Patterns|Natural Language Triggers)\s*$/i.test(trimmed)) {
+    if (/^##\s+Activation Patterns\s*$/i.test(trimmed)) {
       collecting = true;
       continue;
     }
@@ -57,7 +56,7 @@ function extractActivationPatterns(sectionText: string): string[] {
 
 function startsWithRewardSection(sectionText: string): boolean {
   const trimmed = sectionText.trimStart();
-  return /^##\s+(Reward Signal|Completion Rule)\s*(?:\r?\n|$)/i.test(trimmed);
+  return /^##\s+Reward Signal\s*(?:\r?\n|$)/i.test(trimmed);
 }
 
 function extractRewardSection(sectionText: string): string | null {

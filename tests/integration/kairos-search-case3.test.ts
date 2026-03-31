@@ -30,7 +30,7 @@ describe('Kairos Search - CASE 3: NO PERFECT MATCH BUT GOOD CANDIDATE', () => {
     const uniqueTitle = `PartialMatchCase3 ${ts}`;
     const content = `# ${uniqueTitle}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "partial match case 3".
 
 ## Step 1
@@ -40,7 +40,7 @@ This protocol tests CASE 3 behavior: no perfect match but good candidate.
 {"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     // Store the protocol

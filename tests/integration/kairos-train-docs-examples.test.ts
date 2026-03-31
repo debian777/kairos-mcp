@@ -1,7 +1,7 @@
 /**
  * Kairos Mint integration tests for docs/examples (workflow test — imports scenario).
  *
- * Trains each example protocol from docs/examples/ via train. Used in dev/qa
+ * Trains each example adapter from docs/examples/ via train. Used in dev/qa
  * to validate that canonical examples can be imported; complements agent-driven
  * workflow tests in tests/workflow-test/.
  */
@@ -30,12 +30,12 @@ describe('Kairos Mint Docs Examples (docs/examples)', () => {
 
   const examplesDir = join(process.cwd(), 'docs', 'examples');
   const testFiles = readdirSync(examplesDir)
-    .filter((name) => name.startsWith('protocol-example-') && name.toLowerCase().endsWith('.md'))
+    .filter((name) => name.startsWith('adapter-example-') && name.toLowerCase().endsWith('.md'))
     .map((name) => join(examplesDir, name));
 
   beforeAll(() => {
     if (testFiles.length === 0) {
-      throw new Error('docs/examples has no protocol-example-*.md files');
+      throw new Error('docs/examples has no adapter-example-*.md files');
     }
   });
 
