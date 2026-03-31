@@ -1,4 +1,5 @@
 import type { ZodError } from 'zod';
+import { FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE } from './forward_schema.js';
 
 export const MCP_INVALID_TOOL_INPUT = 'INVALID_TOOL_INPUT' as const;
 
@@ -41,10 +42,15 @@ function teachingForward(error: ZodError): Record<string, unknown> {
   const paths = issuePaths(error);
   const uriProblem = hasTopLevelField(error, 'uri');
   const solutionProblem = hasTopLevelField(error, 'solution') || paths.some((p) => p.startsWith('solution'));
+  const forbiddenSolutionOnStart = error.issues.some(
+    (i) => i.message === FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE
+  );
   let detail: string;
   if (uriProblem) {
     detail =
       'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First forward call of a run: use adapter URI and omit `solution`. Continuation calls in that same execution chain (layer URI with `?execution_id=...`): include `solution` matching `contract.type`.';
+  } else if (solutionProblem && forbiddenSolutionOnStart) {
+    detail = FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE;
   } else if (solutionProblem) {
     detail =
       '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment) and include the matching payload object (`solution.mcp`, `solution.comment`, and so on). Omit `solution` only on the first forward call of a run, not on continuation calls in the same execution chain.';
@@ -52,13 +58,15 @@ function teachingForward(error: ZodError): Record<string, unknown> {
     detail =
       'See the forward tool description: pass `uri` (adapter or layer) and optional `solution` shaped for the active contract.';
   }
+  const next_action = forbiddenSolutionOnStart
+    ? 'Retry forward with {"uri":"<adapter or layer uri from activate/forward>"} only — omit `solution`. After you receive `contract` and `execution_id`, submit `solution` on the next call using the layer URI with `?execution_id=...`.'
+    : 'Retry forward with valid JSON arguments, e.g. {"uri":"kairos://adapter/<uuid>"} with the exact URI string from activate or the prior forward response.';
   return {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'forward',
     must_obey: true,
     message: `Input validation error: Invalid arguments for tool forward. ${detail}`,
-    next_action:
-      'Retry forward with valid JSON arguments, e.g. {"uri":"kairos://adapter/<uuid>"} with the exact URI string from activate or the prior forward response.',
+    next_action,
     invalid_fields: paths
   };
 }

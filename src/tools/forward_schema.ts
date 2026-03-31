@@ -98,10 +98,30 @@ function isLayerUriWithExecutionId(uri: string): boolean {
   return Boolean(match?.[2]);
 }
 
+/** First forward in a run: adapter URI or layer URI without `?execution_id=...` (new execution). */
+function isStartingNewForwardRun(uri: string): boolean {
+  if (ADAPTER_URI_INPUT_REGEX.test(uri)) {
+    return true;
+  }
+  const match = uri.match(LAYER_URI_INPUT_REGEX);
+  return Boolean(match?.[1] && !match[2]);
+}
+
+/** Zod issue message; teaching layer matches this string exactly. */
+export const FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE =
+  'Omit `solution` when starting a run (`kairos://adapter/...` or `kairos://layer/{uuid}` without `?execution_id=...`). Read `contract` from the response, then call `forward` again with the layer URI including `?execution_id=...` and a `solution` matching `contract.type`.';
+
 export const forwardInputSchema = z.object({
   uri: forwardUriSchema.describe('Adapter or layer URI'),
   solution: forwardSolutionSchema.optional().describe('Layer solution; omit to start a new forward execution')
 }).superRefine((data, ctx) => {
+  if (isStartingNewForwardRun(data.uri) && data.solution !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['solution'],
+      message: FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE
+    });
+  }
   if (isLayerUriWithExecutionId(data.uri) && !data.solution) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

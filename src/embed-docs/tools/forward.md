@@ -12,10 +12,11 @@ Run an **adapter** layer-by-layer. Each layer exposes a **contract** (what to sa
 **Input**
 
 - `uri` — adapter or layer URI as above.
-- `solution` — omit only on the **first** call of a run to load the current
-  layer and contract. For continuation calls in that same execution chain
-  (layer URI with `?execution_id=...`), include `solution` whose `type`
-  matches `contract.type`.
+- `solution` — omit on the **first** call of a run (adapter URI, or layer URI
+  **without** `?execution_id=...`) to load the current layer and contract.
+  **Do not** send `solution` on that start call. For continuation calls in that
+  same execution chain (layer URI with `?execution_id=...`), include `solution`
+  whose `type` matches `contract.type`.
 
 **Output:** `must_obey`, `current_layer` (markdown body), `contract` (includes `type`: `tensor` | `shell` | `mcp` | `user_input` | `comment`; for proof layers, echo server `nonce` / `proof_hash` in the solution when present), optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`, optional `slug_disambiguation_note` when a slug URI matched multiple adapters, optional `activation_space_name`, `context_adapter_name`, `current_layer_label`, `adapter_layer_index`, `adapter_layer_count` (widget progress), error fields on retry paths.
 

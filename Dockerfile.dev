@@ -23,8 +23,8 @@ FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f7
 
 VOLUME /snapshots
 
-# Same Alpine zlib refresh as release Dockerfile.
-RUN apk update && apk upgrade --no-cache zlib
+# Same Alpine refresh as release Dockerfile.
+RUN apk update && apk upgrade --no-cache
 
 # Match global npm pin in release Dockerfile.
 RUN npm install -g npm@11.12.0
