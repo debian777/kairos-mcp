@@ -1,0 +1,26 @@
+{{- if and .Values.gateway.enabled .Values.gateway.hostname .Values.app.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-mcp
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.existingGatewayName | default .Values.gateway.gatewayName }}
+      {{- if .Values.gateway.existingGatewayNamespace }}
+      namespace: {{ .Values.gateway.existingGatewayNamespace }}
+      {{- else }}
+      namespace: {{ .Release.Namespace }}
+      {{- end }}
+  hostnames:
+    - {{ .Values.gateway.hostname }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gateway.routes.mcp.path | default "/" }}
+      backendRefs:
+        - name: {{ .Values.app.name | default "kairos-mcp" }}
+          port: {{ .Values.app.port }}
+{{- end }}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create or update the Google Identity Provider in a Keycloak realm (e.g. kairos-dev).
+Create or update the Google Identity Provider in a Keycloak realm (e.g. kairos).
 
 Reads KEYCLOAK_URL, KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_REALM, GOOGLE_CLIENT_ID,
 GOOGLE_CLIENT_SECRET from .env (same pattern as deploy-configure-keycloak-realms.py).

@@ -1,0 +1,32 @@
+{{- if or .Values.redisCluster.enabled .Values.keycloakInstance.enabled .Values.postgresCluster.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-operator-precheck
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-14"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ .Release.Name }}-operator-precheck
+      containers:
+        - name: precheck
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat /config/check.sh | sh
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-operator-precheck
+{{- end }}

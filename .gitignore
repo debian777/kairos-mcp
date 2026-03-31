@@ -184,10 +184,8 @@ docker-compose.override.yml
 # Kubernetes
 *.kubeconfig
 
-# Helm (ignored for now)
-helm/
-# Helm chart dependencies (run: helm dependency update in helm/kairos-fullstack)
-helm/kairos-fullstack/charts/*.tgz
+# Helm chart dependencies (run: helm dependency update in helm/kairos-mcp)
+helm/kairos-mcp/charts/*.tgz
 
 # Terraform
 *.tfstate

@@ -6,15 +6,21 @@ FROM --platform=$BUILDPLATFORM node:25-alpine@sha256:ad82ecad30371c43f4057aaa480
 
 WORKDIR /app
 
+RUN apk add --no-cache git
+
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY eslint.config.cjs ./
+COPY vite.config.ts ./
+COPY postcss.config.js ./
 
 RUN npm ci && npm cache clean --force
 
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY docs/ ./docs/
+COPY skills/ ./skills/
+COPY logo/ ./logo/
 
 ENV DOCKER_BUILD=1
 RUN npm run build

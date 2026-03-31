@@ -1,0 +1,2 @@
+# Dependencies (run: helm dependency update)
+charts/*.tgz
