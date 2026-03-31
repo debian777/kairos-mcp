@@ -21,7 +21,7 @@ const markdownSchema = z
   .string()
   .min(1, "Protocol content is required")
   .refine((s) => s.includes("# "), "Protocol must have an H1 title")
-  .refine((s) => /(^|\n)##\s+Natural language triggers\b/i.test(s), 'Include a "Natural language triggers" section (H2)')
+  .refine((s) => /(^|\n)##\s+Activation Patterns\b/i.test(s), 'Include an "Activation Patterns" section (H2)')
   .refine((s) => /(^|\n)##\s+Completion rule\b/i.test(s), 'Include a "Completion rule" section (H2)');
 
 const DEFAULT_STEP: StepFormState = {

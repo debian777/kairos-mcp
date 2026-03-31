@@ -82,8 +82,8 @@ worth calling out explicitly.
 preview, and save behavior. New protocols are created through
 `/api/train/raw`, while edits go through **`POST /api/tune`**.
 
-The editor validates for an H1 title plus the required `Natural language
-triggers` and `Completion rule` sections before submission.
+The editor validates for an H1 title plus the required `Activation Patterns`
+and `Reward Signal` sections before submission.
 
 ### Guided test runs
 

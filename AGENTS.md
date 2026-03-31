@@ -63,8 +63,8 @@ When training (**`train`**) or editing (**`tune`**) adapter markdown:
   **`forward`**).
 - The opening \`\`\`json must be on its own line (line start). Blocks with
   text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
-- Add a `## Natural Language Triggers` section as the first H2.
-- Add a `## Completion Rule` section as the last H2.
+- Add a `## Activation Patterns` section as the first H2.
+- Add a `## Reward Signal` section as the last H2.
 
 ## Environment context
 

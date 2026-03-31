@@ -109,8 +109,7 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
  * Returns { valid, missing, message } so train can return a
  * PROTOCOL_STRUCTURE_INVALID error with next_action.
  * When multiple H1 sections exist, each section must have first H2 =
- * Activation Patterns (or older Natural Language Triggers) and last H2 =
- * Reward Signal (or older Completion Rule).
+ * Activation Patterns and last H2 = Reward Signal.
  */
 export function validateProtocolStructure(markdownDoc: string): ValidationResult {
   const missing: string[] = [];
@@ -167,9 +166,9 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
     const parts = missing.map(m => {
       if (m === MISSING_H1) return 'H1 title';
       if (m === MISSING_ACTIVATION_PATTERNS) {
-        return 'Activation Patterns or Natural Language Triggers (first H2)';
+        return 'Activation Patterns (first H2)';
       }
-      if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal or Completion Rule (last H2)';
+      if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal (last H2)';
       if (m === MISSING_CONTRACT_BLOCK) return 'at least one ```json contract block';
       if (m === MIXED_CONTRACT_FENCES) {
         return 'use only ```json for contract blocks (no plain ``` with contract JSON)';

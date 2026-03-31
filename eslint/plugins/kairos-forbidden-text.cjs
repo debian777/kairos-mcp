@@ -24,6 +24,7 @@ const KAIROS_FORBIDDEN_LEGACY_REFERENCE_NAMES = [
 const KAIROS_FORBIDDEN_CASE_INSENSITIVE_PHRASES = [
   'backwards compatibility',
   'backward compatibility',
+  'natural language',
 ];
 
 /** Exact markers (case-sensitive). */
@@ -85,7 +86,7 @@ const kairosForbiddenTextPlugin = {
         type: 'problem',
         docs: {
           description:
-            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases (case-insensitive), and KAIROS:BODY-* markers (case-sensitive). Applied to src/, scripts/, tests/ (code), all **/*.md, and root context7.json. Fix by removing obsolete code/shims and rewording—do not strip useful comments only to pass lint.',
+            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases including "natural language" (case-insensitive), and KAIROS:BODY-* markers (case-sensitive). Applied to src/, scripts/, tests/ (code), all **/*.md, and root context7.json. Fix by removing obsolete code/shims and rewording—do not strip useful comments only to pass lint.',
         },
         schema: [],
       },

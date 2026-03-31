@@ -17,8 +17,8 @@ Every protocol file still has to satisfy the normal `train` requirements
 enforced by the server:
 
 - H1 title
-- `## Natural Language Triggers` as the first H2
-- `## Completion Rule` as the last H2
+- `## Activation Patterns` as the first H2
+- `## Reward Signal` as the last H2
 - at least one trailing ````json` challenge block somewhere in the file
 
 ## Bulk import with the CLI
