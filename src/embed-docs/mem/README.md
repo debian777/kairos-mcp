@@ -3,23 +3,34 @@
 This directory contains the bundled KAIROS-internal adapters and policy
 documents that are injected into the Kairos app space at boot.
 
+Version: **4.0.1**
+
+## Philosophy
+
+KAIROS exists for AI agents and for human–AI harmony.
+
+The bundle is designed to help agents recognise the right mode at the right
+time: discovery, clarification, ideation, planning, execution, validation,
+review, and handoff. The bundle prefers truth, explicit sequencing, and
+observable verification over polished but weak wording.
+
 ## Protocols
 
 | UUID | Slug | Purpose |
 |------|------|---------|
-| [2001](00000000-0000-0000-0000-000000002001.md) | `create-new-protocol` | Authoring adapter — gather requirements, draft protocol markdown |
+| [2001](00000000-0000-0000-0000-000000002001.md) | `create-new-protocol` | Authoring adapter — create, review, or refactor KAIROS protocols |
 | [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | Review adapter — format review, stranger review, approval, train |
-| [2002](00000000-0000-0000-0000-000000002002.md) | `refine-search` | Refine search — improve a failed **activate** query |
-| [2005](00000000-0000-0000-0000-000000002005.md) | `phase-critic` | Phase boundary adversarial review — verify plan/implementation against artifacts and invariants |
+| [2002](00000000-0000-0000-0000-000000002002.md) | `refine-search` | Refine search — recover user intent after failed `activate` |
+| [2005](00000000-0000-0000-0000-000000002005.md) | `phase-critic` | Phase-boundary adversarial review — verify claims against evidence |
 
 ### Linked authoring flow
 
-```
-2001 (Author) → forward(kairos://adapter/00000000-0000-0000-0000-000000002003) → 2003 (Review & Publish)
+```text
+2001 (Author) → activate("Review and Publish New KAIROS Protocol") → 2003 (Review & Publish)
 ```
 
 ## Reference Documents
 
 | UUID | Slug | Purpose |
 |------|------|---------|
-| [2004](00000000-0000-0000-0000-000000002004.md) | `challenge-type-guide` | Decision tree, JSON formats, interpreter selection, anti-patterns for challenge types. Loaded as policy target by 2001 and 2003. |
+| [2004](00000000-0000-0000-0000-000000002004.md) | `challenge-type-guide` | Challenge type selection, interpreter choice, and stronger verification patterns |
