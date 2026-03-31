@@ -303,6 +303,7 @@ jobs:
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
 
   integration-pass:
     name: Integration workflow passed

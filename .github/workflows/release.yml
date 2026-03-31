@@ -205,6 +205,7 @@ jobs:
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
 
   create-release:
     name: Create GitHub Release

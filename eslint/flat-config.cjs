@@ -49,6 +49,7 @@ function createFlatConfig(rootDir) {
         '**/*.yaml',
         '**/*.yml',
         '**/*.tgz',
+        '.trivyignore',
         '**/*.png',
         '**/*.jpg',
         '**/*.jpeg',
