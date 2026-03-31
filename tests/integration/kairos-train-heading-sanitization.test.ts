@@ -33,7 +33,7 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
     const timestamp = Date.now();
     const markdown = `# Test Protocol ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "test protocol".
 
 ## STEP 1 — ESTABLISH BASELINE
@@ -52,7 +52,7 @@ ${shellBlock('echo commit')}
 This is step four content.
 ${shellBlock('echo final-step')}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 `;
 
@@ -94,7 +94,7 @@ Only after all steps.
     const timestamp = Date.now();
     const markdown = `# First Protocol ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "first protocol".
 
 ## Step A
@@ -105,12 +105,12 @@ ${shellBlock('echo first-a', 15)}
 Content for first protocol step B.
 ${shellBlock('echo first-b', 15)}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 
 # Second Protocol ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "second protocol".
 
 ## Step X
@@ -121,19 +121,19 @@ ${shellBlock('echo second-x', 15)}
 Content for second protocol step Y.
 ${shellBlock('echo second-y', 15)}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 
 # Third Protocol ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "third protocol".
 
 ## Step 1 — Third Protocol Step
 Content for third protocol step 1.
 ${shellBlock('echo third-1', 15)}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 `;
 
@@ -173,7 +173,7 @@ Only after all steps.
       hasStep1
     ];
     const protocolCount = protocolSteps.filter(Boolean).length;
-    // Third protocol may appear as "Third Protocol Step", "Natural Language Triggers", or "Completion Rule"
+    // Third protocol may appear as "Third Protocol Step", "Activation Patterns", or "Reward Signal"
     const hasThirdProtocolStep = labels.some(l => 
       l.includes('Step 1') || 
       l.includes('Third Protocol') || 
@@ -189,7 +189,7 @@ Only after all steps.
     const timestamp = Date.now();
     const markdown = `# AI CODING RULES ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "coding rules".
 
 ## STEP 1 — Foo
@@ -208,7 +208,7 @@ ${shellBlock('echo baz', 25)}
 Content for step 4.
 ${shellBlock('echo normal', 25)}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 `;
 
@@ -250,7 +250,7 @@ Only after all steps.
     const timestamp = Date.now();
     const markdown = `# AI CODING RULES ${timestamp}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "coding rules".
 
 ## STEP 1 — Foo
@@ -269,7 +269,7 @@ ${shellBlock('echo baz-step', 25)}
 Content for Normal Step.
 ${shellBlock('echo normal-step', 25)}
 
-## Completion Rule
+## Reward Signal
 Only after all steps.
 `;
 
@@ -286,11 +286,11 @@ Only after all steps.
     expect(parsed.status).toBe('stored');
     expect(parsed.items).toBeDefined();
     
-    // Should create at least 3 content steps (first segment may be "Natural Language Triggers" before first challenge)
+    // Should create at least 3 content steps (first segment may be "Activation Patterns" before first challenge)
     expect(parsed.items.length).toBeGreaterThanOrEqual(3);
     expect(parsed.items.length).toBeLessThanOrEqual(6);
 
-    // Verify step labels: Foo may be merged into first segment (Natural Language Triggers), so require Bar, Baz, Normal Step
+    // Verify step labels: Foo may be merged into first segment (Activation Patterns), so require Bar, Baz, Normal Step
     const labels = parsed.items.map(item => item.label);
     const stepLabels = labels.filter(l => 
       l.includes('Foo') || 
@@ -310,8 +310,8 @@ Only after all steps.
     expect(hasBar).toBe(true);
     expect(hasBaz).toBe(true);
     expect(hasNormalStep).toBe(true);
-    // Foo may be in first segment labeled "Natural Language Triggers" (labels), or appear in stepLabels
-    expect(hasFoo || labels.some(l => l.includes('Natural Language Triggers'))).toBe(true);
+    // Foo may be in first segment labeled "Activation Patterns" (labels), or appear in stepLabels
+    expect(hasFoo || labels.some(l => l.includes('Activation Patterns'))).toBe(true);
     expect(stepLabels.length).toBeGreaterThanOrEqual(3);
     
     // Verify adapter layer order is preserved - steps should be in document order

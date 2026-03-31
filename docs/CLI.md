@@ -147,7 +147,7 @@ kairos token --login
 
 ### `activate`
 
-Match stored adapters for a natural-language query.
+Match stored adapters for a user phrasing (plain-text query).
 
 ```bash
 kairos activate ai coding standards
@@ -175,8 +175,8 @@ Register one adapter from a markdown file, or many from a directory of `.md`
 files.
 
 ```bash
-kairos train protocol.md --model "gpt-4.1"
-kairos train protocol.md --model "gpt-4.1" --force
+kairos train adapter.md --model "gpt-4.1"
+kairos train adapter.md --model "gpt-4.1" --force
 kairos train ./bundle --force
 kairos train ./bundle --force --recursive
 ```
@@ -264,7 +264,7 @@ kairos reward 'kairos://layer/<last-layer-uuid>?execution_id=<id>' success "Run 
 ### Batch train a bundle
 
 ```bash
-kairos train ./protocols --force --recursive
+kairos train ./adapters --force --recursive
 ```
 
 ## Run from this repo against the local dev server
@@ -324,4 +324,4 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 - [Environment variables and secrets](install/env-and-secrets.md)
 - [Cursor and MCP](install/README.md#cursor-and-mcp)
 - [Architecture](architecture/README.md)
-- [Protocol examples](examples/README.md)
+- [Adapter examples](examples/README.md)

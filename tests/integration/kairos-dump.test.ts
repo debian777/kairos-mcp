@@ -26,7 +26,7 @@ describe('Kairos export (MCP)', () => {
     const ts = Date.now().toString();
     const md = `# Export Single ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "export single".
 
 ## Step A
@@ -36,7 +36,7 @@ Body for export single.
 {"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',
@@ -79,7 +79,7 @@ Only after all steps.`;
     const ts = Date.now().toString();
     const md = `# Export Protocol ${ts}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "export protocol".
 
 ## First
@@ -96,7 +96,7 @@ Second step.
 {"contract":{"type":"shell","shell":{"cmd":"echo two","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',

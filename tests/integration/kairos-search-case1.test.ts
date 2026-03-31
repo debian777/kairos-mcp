@@ -30,7 +30,7 @@ describe('Kairos Search - CASE 1: ONE PERFECT MATCH', () => {
     const uniqueTitle = `PerfectMatchCase1 ${ts}`;
     const content = `# ${uniqueTitle}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "perfect match case 1".
 
 ## Step 1
@@ -40,7 +40,7 @@ This protocol tests CASE 1 behavior: single perfect match.
 {"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
 
     // Store the protocol (force_update bypasses similarity check in shared dev collection)

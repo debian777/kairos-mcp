@@ -21,6 +21,9 @@ metadata:
 allowed-tools: activate forward reward train tune export delete spaces
 ---
 
+<!-- kairos-lint-allow-protocol-synonyms -->
+<!-- Intentional: this skill documents KAIROS MCP execution chains and uses "protocol" for the activate→forward→reward flow alongside adapters. -->
+
 # KAIROS — ZERO DRIFT PROTOCOL
 
 **CRITICAL DIRECTIVE (non-negotiable):**  

@@ -1,24 +1,24 @@
-# KAIROS protocol bundles
+# KAIROS adapter bundles
 
-A bundle is a directory of protocol markdown files stored outside the KAIROS
+A bundle is a directory of adapter markdown files stored outside the KAIROS
 server, usually in Git. Bundles are useful when you want reviewable source
-files for protocols, export snapshots from a space, or bulk-import a set of
+files for adapters, export snapshots from a space, or bulk-import a set of
 documents.
 
 ## Bundle layout
 
 Recommended layout:
 
-- one protocol per `.md` file
+- one adapter per `.md` file
 - optional subdirectories by topic or team
 - optional `README.md` files for humans
 
-Every protocol file still has to satisfy the normal `train` requirements
+Every adapter markdown file still has to satisfy the normal `train` requirements
 enforced by the server:
 
 - H1 title
-- `## Natural Language Triggers` as the first H2
-- `## Completion Rule` as the last H2
+- `## Activation Patterns` as the first H2
+- `## Reward Signal` as the last H2
 - at least one trailing ````json` challenge block somewhere in the file
 
 ## Bulk import with the CLI

@@ -26,7 +26,7 @@ The script:
 3. **Client Scope `openid`:** creates a realm Client Scope named `openid` (if missing), adds it to **default optional client scopes**, and allowlists it on **Allowed Client Scopes** registration policies. MCP clients such as `mcp-remote` register with OAuth `scope: openid` (from protected-resource metadata); without this named scope, Keycloak rejects dynamic client registration with *Not permitted to use specified clientScope*.
 4. **Allowed client templates:** sets anonymous/authenticated registration policy allow lists (includes `openid` plus templates aligned with `kairos-cli` defaults).
 5. **Test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
-6. **JWT `groups` mapper** on clients **kairos-mcp** and **kairos-cli**: adds Keycloak’s **Group Membership** protocol mapper (claim `groups`, access + ID + userinfo + introspection). **`full.path` is always on** (full paths such as `/kairos-auditor`, `/kairos-shares/kairos-operator`); the script does not toggle it via env.
+6. **JWT `groups` mapper** on clients **kairos-mcp** and **kairos-cli**: adds Keycloak’s **Group Membership** mapper for OIDC tokens (claim `groups`, access + ID + userinfo + introspection). **`full.path` is always on** (full paths such as `/kairos-auditor`, `/kairos-shares/kairos-operator`); the script does not toggle it via env.
 
 Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
 
@@ -39,7 +39,7 @@ KAIROS expects explicit token claims (not inferred fallbacks):
 
 ### Identity provider claim (Keycloak 26.5.x)
 
-For brokered login (Google/Okta/etc.), configure a **User Session Note** protocol mapper:
+For brokered login (Google/Okta/etc.), configure a **User Session Note** mapper on the identity provider:
 
 - session note: `identity_provider`
 - token claim name: `identity_provider`

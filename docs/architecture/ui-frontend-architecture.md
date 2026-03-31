@@ -50,11 +50,11 @@ client. `src/ui/App.tsx` owns the route tree and mounts the app under
 The current route set is:
 
 - `/` for `HomePage`
-- `/kairos` for protocol discovery (activation search plus A–Z browse-by-title over adapters; nav label “Browse”)
+- `/kairos` for adapter discovery (activation search plus A–Z browse-by-title over adapters; nav label “Browse”)
 - `/runs` for saved browser test runs
-- `/protocols/new` for protocol creation
-- `/protocols/:uri` for protocol detail
-- `/protocols/:uri/edit` for protocol editing
+- `/protocols/new` for adapter creation
+- `/protocols/:uri` for adapter detail
+- `/protocols/:uri/edit` for adapter editing
 - `/protocols/:uri/run` for guided test execution
 - `/protocols/:uri/skill` for skill-bundle export guidance
 - `/account` for session identity details
@@ -65,7 +65,7 @@ stay consistent.
 ### Data access
 
 The UI keeps server interactions in hooks rather than inside page
-components. Current hooks cover auth, protocol search and fetch, spaces,
+components. Current hooks cover auth, adapter search and fetch, spaces,
 and the guided run flow (**`activate`**, **`forward`**, **`reward`**).
 
 This split keeps pages focused on user flow and lets TanStack Query own
@@ -76,14 +76,14 @@ loading, error, and cache state.
 The frontend currently supports two implementation-heavy flows that are
 worth calling out explicitly.
 
-### Protocol editing
+### Adapter editing
 
 `ProtocolEditPage` is a markdown-first editor with upload, validation,
-preview, and save behavior. New protocols are created through
+preview, and save behavior. New adapters are created through
 `/api/train/raw`, while edits go through **`POST /api/tune`**.
 
-The editor validates for an H1 title plus the required `Natural language
-triggers` and `Completion rule` sections before submission.
+The editor validates for an H1 title plus the required `Activation Patterns`
+and `Reward Signal` sections before submission.
 
 ### Guided test runs
 

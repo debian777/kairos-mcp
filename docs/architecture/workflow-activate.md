@@ -66,8 +66,8 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
   "choices": [
     {
       "uri": "kairos://adapter/bd939b2a-b35f-40f2-8dec-7dec74a65116",
-      "label": "EXTENSION — NATURAL LANGUAGE → CODING → KAIROS (MANDATORY)",
-      "adapter_name": "EXTENSION — NATURAL LANGUAGE → CODING → KAIROS (MANDATORY)",
+      "label": "EXTENSION — ACTIVATION → CODING → KAIROS (MANDATORY)",
+      "adapter_name": "EXTENSION — ACTIVATION → CODING → KAIROS (MANDATORY)",
       "activation_score": 0.56,
       "role": "match",
       "tags": ["coding", "deploy", "mandatory"],
@@ -105,7 +105,7 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
     {
       "uri": "kairos://adapter/00000000-0000-0000-0000-000000002002",
       "label": "Get help refining your search",
-      "adapter_name": "Run protocol to turn vague user request into a better activate query",
+      "adapter_name": "Run adapter to turn vague user request into a better activate query",
       "activation_score": null,
       "role": "refine",
       "tags": ["meta", "refine"],

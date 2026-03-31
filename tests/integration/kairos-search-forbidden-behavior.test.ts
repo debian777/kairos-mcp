@@ -49,7 +49,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   test('never returns raw score to user', async () => {
     const ts = Date.now();
     const uniqueTitle = `NoRawScoreTest ${ts}`;
-    const content = `# ${uniqueTitle}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nTest for raw score exposure.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
+    const content = `# ${uniqueTitle}\n\n## Activation Patterns\nWhen.\n\n## Step 1\nTest for raw score exposure.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Reward Signal\nDone.`;
 
     // Store
     await mcpConnection.client.callTool({
@@ -91,7 +91,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
   test('never returns results[] array when must_obey: true', async () => {
     const ts = Date.now();
     const uniqueTitle = `NoResultsArrayTest ${ts}`;
-    const content = `# ${uniqueTitle}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nTest for results array.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
+    const content = `# ${uniqueTitle}\n\n## Activation Patterns\nWhen.\n\n## Step 1\nTest for results array.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":5},"required":true}}\n\`\`\`\n\n## Reward Signal\nDone.`;
 
     // Store
     await mcpConnection.client.callTool({

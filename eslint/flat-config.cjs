@@ -98,9 +98,7 @@ function createFlatConfig(rootDir) {
         '**/*.rev',
         '**/*.svg',
         'logo/**',
-        'logos/**',
-        // Local Storybook build output if present (Storybook removed from npm scripts; folder may remain on disk)
-        'storybook-static/**',
+        'logos/**'
       ],
     },
 
@@ -160,11 +158,6 @@ function createFlatConfig(rootDir) {
         ],
         'no-console': 'off',
       },
-    },
-
-    {
-      files: ['src/ui/pages/ProtocolEditPage.tsx'],
-      rules: { 'max-lines': 'off' },
     },
 
     {
@@ -244,12 +237,12 @@ function createFlatConfig(rootDir) {
       },
     },
     {
+      // Files that must embed forbidden tokens by design (see comments in each file).
       files: ['src/http/http-server-config.ts'],
       rules: {
         'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
       },
     },
-
     // -------------------------------------------------------------------------
     // 3cb. MCP Apps HTML widgets (src/mcp-apps): handshake + safe inline script + HTML shell
     // -------------------------------------------------------------------------
@@ -309,6 +302,7 @@ function createFlatConfig(rootDir) {
       rules: {
         'max-lines': 'off',
         'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
+        'kairos-forbidden-text/review-protocol-wording': 'warn',
       },
     },
 

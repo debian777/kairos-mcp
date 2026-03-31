@@ -8,7 +8,6 @@ import { slugifyFromTitle } from '../utils/protocol-slug.js';
 import { buildChallengeShapeForDisplay } from './next-pow-helpers.js';
 import { resolveAdapterFirstLayer } from '../services/adapter-navigation.js';
 import { redisCacheService } from '../services/redis-cache.js';
-
 function normalizeUri(value: string): { uuid: string; uri: string } {
   const normalized = (value || '').trim();
   const uuid = normalized.split('/').pop();
@@ -39,7 +38,7 @@ function buildMarkdownDocSingle(memory: Memory): string {
 }
 
 function includesRewardHeading(markdown: string): boolean {
-  return /^##\s+(Reward Signal|Completion Rule)\s*(?:\r?\n|$)/im.test(markdown);
+  return /^##\s+Reward Signal\s*(?:\r?\n|$)/im.test(markdown);
 }
 
 function resolveStoredRewardSection(memories: Memory[]): string | null {

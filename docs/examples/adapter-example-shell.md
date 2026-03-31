@@ -1,8 +1,8 @@
 # Example: Shell challenge
 
-Short protocol: one real step plus a final verification step. Run a command to prove completion. Ready to train with `train`.
+Short adapter example: one real step plus a final verification step. Run a command to prove completion. Ready to train with `train`.
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "example shell" or "run shell example".
 
@@ -27,6 +27,6 @@ Execute the project test suite. Success means the command exits with code 0.
 
 Only reachable after Step 1 is solved. Show the output from Step 1 to the user (exit code, stdout, stderr if any). No additional challenge.
 
-## Completion Rule
+## Reward Signal
 
 Only reachable after all prior steps are solved.

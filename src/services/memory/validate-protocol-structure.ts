@@ -6,7 +6,6 @@
  */
 
 import { findAllLayerContractBlocks, hasPlainFenceLayerContractBlock } from './adapter-contract-blocks.js';
-
 export const CREATION_PROTOCOL_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
 
 export type ValidationResult = {
@@ -109,8 +108,7 @@ function extractH2TitlesPerH1Section(markdown: string): string[][] {
  * Returns { valid, missing, message } so train can return a
  * PROTOCOL_STRUCTURE_INVALID error with next_action.
  * When multiple H1 sections exist, each section must have first H2 =
- * Activation Patterns (or older Natural Language Triggers) and last H2 =
- * Reward Signal (or older Completion Rule).
+ * Activation Patterns and last H2 = Reward Signal.
  */
 export function validateProtocolStructure(markdownDoc: string): ValidationResult {
   const missing: string[] = [];
@@ -131,11 +129,13 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
   for (const h2TitlesOfSection of sections) {
     const firstH2 = h2TitlesOfSection[0] ?? '';
     const lastH2 = h2TitlesOfSection[h2TitlesOfSection.length - 1] ?? '';
-    if (!/(Activation Patterns|Natural Language Triggers)/i.test(firstH2)) {
+    const firstOk = /^Activation Patterns$/i.test(firstH2.trim());
+    if (!firstOk) {
       missing.push(MISSING_ACTIVATION_PATTERNS);
       break;
     }
-    if (!/(Reward Signal|Completion Rule)/i.test(lastH2)) {
+    const lastOk = /^Reward Signal$/i.test(lastH2.trim());
+    if (!lastOk) {
       missing.push(MISSING_REWARD_SIGNAL);
       break;
     }
@@ -167,9 +167,9 @@ export function validateProtocolStructure(markdownDoc: string): ValidationResult
     const parts = missing.map(m => {
       if (m === MISSING_H1) return 'H1 title';
       if (m === MISSING_ACTIVATION_PATTERNS) {
-        return 'Activation Patterns or Natural Language Triggers (first H2)';
+        return 'Activation Patterns (first H2)';
       }
-      if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal or Completion Rule (last H2)';
+      if (m === MISSING_REWARD_SIGNAL) return 'Reward Signal (last H2)';
       if (m === MISSING_CONTRACT_BLOCK) return 'at least one ```json contract block';
       if (m === MIXED_CONTRACT_FENCES) {
         return 'use only ```json for contract blocks (no plain ``` with contract JSON)';

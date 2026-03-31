@@ -61,4 +61,4 @@ flowchart LR
 ## More information
 
 For technical details on how protocols actually run in this repository, see
-[Architecture and protocol workflows](../architecture/README.md).
+[Architecture and adapter workflows](../architecture/README.md).

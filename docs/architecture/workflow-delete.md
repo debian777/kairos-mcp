@@ -79,7 +79,7 @@ explicitly when the user wants the whole adapter removed.
 
 ## Scenario 2: delete multiple memories (full adapter)
 
-The agent deletes all layers of a protocol adapter. URIs come from search
+The agent deletes all layers of an adapter. URIs come from search
 plus adapter navigation.
 
 ### Input
@@ -122,8 +122,8 @@ plus adapter navigation.
 
 ### AI behavior
 
-Confirm how many memories were deleted. When the user asked to remove a
-protocol, verify that all step URIs for that protocol were included.
+Confirm how many memories were deleted. When the user asked to remove an
+adapter, verify that all step URIs for that adapter were included.
 
 ## Scenario 3: partial failure
 
@@ -163,7 +163,7 @@ when `total_failed` > 0.
 3. Each result has `uri`, `status` (`"deleted"` or `"error"`), and
    `message`.
 4. Deleting a memory does not automatically delete other layers in the same
-   adapter. Pass all layer URIs to remove an entire protocol.
+   adapter. Pass all layer URIs to remove an entire adapter chain.
 
 ## See also
 

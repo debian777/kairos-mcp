@@ -16,7 +16,7 @@ import {
 function minimalProtocolMd(title: string): string {
   return `# ${title}
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when user says "${title}".
 
@@ -28,7 +28,7 @@ Basic setup.
 {"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 
 Done.
 `;

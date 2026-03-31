@@ -1,8 +1,8 @@
-# Twelve Step Linear Test Protocol
+# Twelve Step Linear Test Adapter
 
-## Natural Language Triggers
+## Activation Patterns
 
-- twelve step linear test protocol twelve layers
+- Twelve Step Linear Test Adapter twelve layers
 - long sequential comment checkpoints unique train 2026-03-27
 - MCP forward widget progress drill twelve checkpoints
 
@@ -174,6 +174,6 @@ Record completion of checkpoint twelve in your own words.
 }
 ```
 
-## Completion Rule
+## Reward Signal
 
 Only reachable after all twelve checkpoints are solved. This adapter exists for long-run testing and UI progress coverage.

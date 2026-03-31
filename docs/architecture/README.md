@@ -1,4 +1,4 @@
-# Architecture and protocol workflows
+# Architecture and adapter workflows
 
 Use this section when implementing clients, debugging execution, or
 designing new agent-facing behavior. It covers how the KAIROS protocol
@@ -17,7 +17,7 @@ works end-to-end and how each MCP tool fits into the flow.
   **`export`**, **`delete`**, and **`spaces`**. Authoritative agent copy lives
   under [`src/embed-docs/tools/`](../../src/embed-docs/tools/).
 
-Protocol order: **activate** → **forward** (loop) → **reward**.
+Tool order: **activate** → **forward** (loop) → **reward**.
 
 ## Infrastructure
 
@@ -106,5 +106,5 @@ which Keycloak URL each party uses and how `KEYCLOAK_URL` vs
 - For Cursor setup, see [Cursor and MCP](../install/README.md#cursor-and-mcp).
 - For agent-facing design doctrine, see
   [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles).
-- For protocol examples and challenge types, see
+- For adapter examples and challenge types, see
   [Examples](../examples/README.md).

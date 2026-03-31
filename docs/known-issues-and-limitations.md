@@ -31,7 +31,7 @@ codebase and configuration model.
 ## UI limitations
 
 - **The browser UI is not a full agent runtime.** It provides browsing,
-  protocol detail/editing, and a guided run/testing surface, but the core
+  adapter detail/editing, and a guided run/testing surface, but the core
   automation model remains MCP/REST/CLI driven.
 
 ## Project/operational limitations

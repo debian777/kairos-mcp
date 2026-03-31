@@ -84,7 +84,7 @@ Apply these on every screen and component.
 
 ### Protocol structure (detail page)
 
-Markdown: **H1** = adapter title; **H2** = layer labels; optional `{"contract": {...}}` per layer. Sections: **Natural language triggers**, **Completion rule**. Challenge types for display: `shell` (show command), `mcp` (show tool name), `user_input` (show prompt), `comment` (show min length). UI does not execute.
+Markdown: **H1** = adapter title; **H2** = layer labels; optional `{"contract": {...}}` per layer. Sections: **Activation Patterns**, **Reward Signal**. Challenge types for display: `shell` (show command), `mcp` (show tool name), `user_input` (show prompt), `comment` (show min length). UI does not execute.
 
 ### Error recovery
 
@@ -149,7 +149,7 @@ Implementation maps to **`src/ui/pages/`**, **`src/ui/components/`**, hooks, i18
 
 **3. Browse (Kairos)** — Activation/search with visible labels; default browse uses **A–Z letter buckets** by protocol title where the product shows that pattern. Results: role badges (match / refine / create), **View** / **Refine** / **Create** as returned by activate. Empty and error states recoverable.
 
-**4. Protocol view** — Title, metadata (URI, read-only). Steps with labels and challenge types. Triggers section. Completion rule. “How to use”: one line + link (e.g. “Use in Cursor (MCP) or via CLI”). Actions: Edit, Duplicate, and any guided test entry the product exposes.
+**4. Protocol view** — Title, metadata (URI, read-only). Steps with labels and challenge types. Activation Patterns section. Reward Signal. “How to use”: one line + link (e.g. “Use in Cursor (MCP) or via CLI”). Actions: Edit, Duplicate, and any guided test entry the product exposes.
 
 **5. Protocol create/edit** — Create or edit; markdown + challenge blocks. Save, cancel, validation. Depends on backend train/tune APIs.
 

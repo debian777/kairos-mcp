@@ -13,7 +13,6 @@ import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js'
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
 import type { RewardRecord, TensorValue } from '../types/memory.js';
-
 interface RegisterExportOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -79,10 +78,7 @@ async function resolveAdapter(memoryStore: MemoryQdrantStore, qdrantService: Qdr
 }
 
 function toCurrentMarkdown(markdownDoc: string): string {
-  return markdownDoc
-    .replaceAll('"challenge":', '"contract":')
-    .replaceAll('Natural Language Triggers', 'Activation Patterns')
-    .replaceAll('Completion Rule', 'Reward Signal');
+  return markdownDoc.replaceAll('"challenge":', '"contract":');
 }
 
 function stringifyLines(items: unknown[]): string {

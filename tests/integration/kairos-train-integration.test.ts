@@ -28,12 +28,12 @@ describe('Kairos Mint Integration', () => {
   }
 
   test('activate returns valid response after train', async () => {
-    // Use one timestamp for store + query; include required Natural Language Triggers and Completion Rule
+    // Use one timestamp for store + query; include required Activation Patterns and Reward Signal
     const ts = Date.now();
     const testQuery = `CacheCheckDoc ${ts}`;
     const content = `# ${testQuery}
 
-## Natural Language Triggers
+## Activation Patterns
 Run when user says "cache check".
 
 This document exists to test activate after train.
@@ -45,7 +45,7 @@ Body.
 {"contract":{"type":"shell","shell":{"cmd":"echo ok","timeout_seconds":5},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',

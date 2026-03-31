@@ -20,14 +20,61 @@ const KAIROS_FORBIDDEN_LEGACY_REFERENCE_NAMES = [
   'legacy',
 ];
 
-/** Multi-word phrases (case-insensitive); words may be separated by any whitespace in source. */
+/**
+ * Multi-word phrases (case-insensitive). Tokens are split on spaces here; in source,
+ * one or more `[\W_]` (non-word chars or `_`) may appear between each pair — so multiple
+ * spaces, newlines, `-`, `.`, `/`, and `natural_language` all match, but CamelCase like
+ * `completionRule` does not. Outer `\b` only. Longer phrases sort first.
+ */
 const KAIROS_FORBIDDEN_CASE_INSENSITIVE_PHRASES = [
+  'natural language triggers',
+  'natural language trigger',
   'backwards compatibility',
   'backward compatibility',
+  'natural language',
+  'completion rule',
 ];
 
 /** Exact markers (case-sensitive). */
 const KAIROS_FORBIDDEN_CASE_SENSITIVE_MARKERS = ['KAIROS:BODY-START', 'KAIROS:BODY-END'];
+
+/**
+ * Only phrases where `protocol` is clearly not “KAIROS stored artifact” prose.
+ * Do not add broad patterns (e.g. `protocol execution`, `protocol chains`) — those
+ * hide hits that should warn unless the file uses <!-- kairos-lint-allow-protocol-synonyms -->.
+ * Match must fully cover the reported `protocol` token (case-insensitive).
+ */
+const KAIROS_PROTOCOL_WORDING_ALLOWLIST_SOURCES = [
+  String.raw`\bmodel\s+context\s+protocol\b`,
+  String.raw`\bkairos(?:\s+mcp)?\s+protocol\b`,
+  // AGENTS.md canonical phrases only (do not use bare `protocol execution` — too broad).
+  String.raw`\bprotocol\s+execution\s+model\b`,
+  String.raw`\bprotocol\s+authority\b`,
+  String.raw`\*\*protocol\*\*`,
+  String.raw`\/protocol\/openid-connect`,
+  String.raw`\bprotocol\.ts\b`,
+];
+
+/**
+ * @param {string} win
+ * @param {number} relStart
+ * @param {number} relEnd
+ * @returns {boolean}
+ */
+function kairosProtocolWordingAllowedInWindow(win, relStart, relEnd) {
+  for (const src of KAIROS_PROTOCOL_WORDING_ALLOWLIST_SOURCES) {
+    const re = new RegExp(src, 'gi');
+    let m;
+    while ((m = re.exec(win)) !== null) {
+      const ms = m.index;
+      const me = ms + m[0].length;
+      if (relStart >= ms && relEnd <= me) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /**
  * @param {string} s
@@ -66,7 +113,7 @@ function kairosForbiddenCaseSensitiveMarkerMessage(matched) {
  * @returns {string}
  */
 function kairosForbiddenPhraseMessage(matched, canonicalPhrase) {
-  return `Disallowed phrasing (matched "${matched}", same as "${canonicalPhrase}", case-insensitive). AI: remove obsolete branches, compatibility shims, and dual code paths—one supported behavior only. Reword comments and strings to match; do not delete useful documentation only to pass lint.`;
+  return `Disallowed phrasing (matched "${matched}", same as "${canonicalPhrase}", case-insensitive; only non-word separators between words, /\\bWORD1[\\W_]+WORD2\\b/i — multiple spaces, newlines, _.-/ etc.). AI: remove obsolete branches, compatibility shims, and dual code paths—one supported behavior only. Reword comments and strings to match; do not delete useful documentation only to pass lint.`;
 }
 
 /**
@@ -85,7 +132,7 @@ const kairosForbiddenTextPlugin = {
         type: 'problem',
         docs: {
           description:
-            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases (case-insensitive), and KAIROS:BODY-* markers (case-sensitive). Applied to src/, scripts/, tests/ (code), all **/*.md, and root context7.json. Fix by removing obsolete code/shims and rewording—do not strip useful comments only to pass lint.',
+            'Disallow KAIROS_BEARER_TOKEN, kairos_* MCP names, prior-era wording "legacy" (case-insensitive substring), standalone "v10" (not v10-*), multi-word phrases (case-insensitive; /\\bWORD1[\\W_]+WORD2\\b/i — separators only, e.g. multiple spaces or underscores, not letters), and KAIROS:BODY-* markers (case-sensitive). Applied to src/, scripts/, tests/ (code), all **/*.md, and root context7.json. Fix by removing obsolete code/shims and rewording—do not strip useful comments only to pass lint.',
         },
         schema: [],
       },
@@ -146,13 +193,17 @@ const kairosForbiddenTextPlugin = {
             });
           }
         }
-        for (const phrase of KAIROS_FORBIDDEN_CASE_INSENSITIVE_PHRASES) {
-          const pattern = phrase
-            .trim()
-            .split(/\s+/)
-            .map((w) => escapeRegExp(w))
-            .join('\\s+');
-          const re = new RegExp(`(?<![\\w])${pattern}(?![\\w])`, 'gi');
+        const forbiddenPhrasesSorted = [...KAIROS_FORBIDDEN_CASE_INSENSITIVE_PHRASES].sort(
+          (a, b) => b.trim().length - a.trim().length,
+        );
+        for (const phrase of forbiddenPhrasesSorted) {
+          const words = phrase.trim().split(/\s+/).filter(Boolean);
+          if (words.length < 2) {
+            continue;
+          }
+          // [\W_]+ between tokens: multiple spaces, newlines, _.-/ etc.; not letters (avoids completionRule).
+          const pattern = `\\b${words.map((w) => escapeRegExp(w)).join('[\\W_]+')}\\b`;
+          const re = new RegExp(pattern, 'gi');
           let m;
           while ((m = re.exec(text)) !== null) {
             const at = m.index;
@@ -183,6 +234,47 @@ const kairosForbiddenTextPlugin = {
               message: kairosForbiddenCaseSensitiveMarkerMessage(m[0]),
             });
           }
+        }
+        return {};
+      },
+    },
+    'review-protocol-wording': {
+      meta: {
+        type: 'suggestion',
+        docs: {
+          description:
+            'Warn on bare "protocol" in markdown: prefer "adapter" or "workflow" for stored KAIROS artifacts. Tight allowlist in KAIROS_PROTOCOL_WORDING_ALLOWLIST_SOURCES (MCP product name, KAIROS Protocol, etc.); for intentional synonym-heavy copy add <!-- kairos-lint-allow-protocol-synonyms --> in the first ~2.5k chars.',
+        },
+        schema: [],
+      },
+      create(context) {
+        const sourceCode = context.sourceCode;
+        const text = sourceCode.getText();
+        // Whole-file opt-out (no inline eslint-disable in this repo): place early in the file (e.g. right after YAML frontmatter). Use ~2.5k because some skills have long frontmatter before the marker.
+        if (/<!--\s*kairos-lint-allow-protocol-synonyms\s*-->/i.test(text.slice(0, 2500))) {
+          return {};
+        }
+        // Hyphenated slugs (e.g. review-protocol-wording) must not match; prose uses spaces/punctuation around "protocol".
+        const re = /(?<![-A-Za-z0-9_])protocol(?![-A-Za-z0-9_])/gi;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          const pStart = m.index;
+          const pEnd = pStart + m[0].length;
+          const winStart = Math.max(0, pStart - 160);
+          const winEnd = Math.min(text.length, pEnd + 160);
+          const win = text.slice(winStart, winEnd);
+          const relStart = pStart - winStart;
+          const relEnd = pEnd - winStart;
+          if (kairosProtocolWordingAllowedInWindow(win, relStart, relEnd)) {
+            continue;
+          }
+          const start = sourceCode.getLocFromIndex(pStart);
+          const end = sourceCode.getLocFromIndex(pEnd);
+          context.report({
+            loc: { start, end },
+            message:
+              'Ambiguous "protocol" wording: prefer "adapter" or "workflow" for stored KAIROS artifacts unless this is Model Context Protocol, "KAIROS Protocol", or another tight allowlist phrase in eslint/plugins/kairos-forbidden-text.cjs. Whole-file synonymy: <!-- kairos-lint-allow-protocol-synonyms --> near the top (no inline eslint-disable in this repo).',
+          });
         }
         return {};
       },

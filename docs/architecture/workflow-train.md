@@ -20,7 +20,7 @@ executable adapters, end each verifiable layer with a fenced JSON block using
 
 Fields:
 
-- `markdown_doc` — the markdown document to store (H1 = protocol, H2 =
+- `markdown_doc` — the markdown document to store (H1 = adapter title, H2 =
   steps).
 - `llm_model_id` — LLM model ID used for embedding and storage context.
 - `force_update` — when `true`, overwrite an existing adapter with the same
@@ -108,7 +108,7 @@ still show `"challenge"` in older examples; the runtime surface uses
 When both an older inline challenge block and a JSON block are present in a layer,
 the JSON block takes precedence.
 
-## Scenario 1: store new protocol adapter
+## Scenario 1: store new adapter
 
 The document is new. All steps are stored and URIs are returned.
 
@@ -169,7 +169,7 @@ Deploy to staging.
 ### AI behavior
 
 Use the returned URIs for search/begin or to inform the user. To run the
-protocol, call `activate` with a query matching the adapter label, then
+adapter, call `activate` with a query matching the adapter label, then
 follow `next_action`.
 
 ## Scenario 2: force_update overwrites existing adapter
@@ -194,7 +194,7 @@ replace), `status: "stored"`.
 ### AI behavior
 
 Only use `force_update: true` after the user or agent has confirmed that
-the existing protocol must be replaced (for example, after using
+the existing adapter must be replaced (for example, after using
 `export` to compare content).
 
 ## Scenario 3: error - `DUPLICATE_ADAPTER`
@@ -289,4 +289,4 @@ and do not claim success.
 - [tune workflow](workflow-tune.md) — update individual
   steps
 - [activate workflow](workflow-activate.md) — find existing
-  protocols before training a duplicate
+  adapters before training a duplicate

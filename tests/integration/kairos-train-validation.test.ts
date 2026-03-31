@@ -59,7 +59,7 @@ Done.`;
   test('train returns PROTOCOL_STRUCTURE_INVALID for invalid contract type placeholder', async () => {
     const badTypeMd = `# Bad Type Protocol ${Date.now()}
 
-## Natural Language Triggers
+## Activation Patterns
 
 Run when testing invalid challenge types.
 
@@ -71,7 +71,7 @@ Bad illustrative type.
 {"contract":{"type":"comment|user_input|mcp|shell","comment":{"min_length":10},"required":true}}
 \`\`\`
 
-## Completion Rule
+## Reward Signal
 
 Done.`;
 

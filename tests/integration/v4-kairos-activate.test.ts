@@ -36,7 +36,7 @@ describe('v4-activate unified response schema', () => {
   }
 
   async function trainProtocol(title: string) {
-    const content = `# ${title}\n\n## Natural Language Triggers\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Completion Rule\nDone.`;
+    const content = `# ${title}\n\n## Activation Patterns\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Reward Signal\nDone.`;
     await mcpConnection.client.callTool({
       name: 'train',
       arguments: { markdown_doc: content, llm_model_id: 'test-v4-activate', force_update: true }
@@ -149,8 +149,9 @@ describe('v4-activate unified response schema', () => {
         (c: { role: string; uri: string }) => c.role === 'create' && c.uri === createUri
       );
       expect(createChoice).toBeDefined();
-      expect(String(createChoice!.label).toLowerCase()).toContain('adapter');
+      expect(String(createChoice!.label).toLowerCase()).toContain('kairos');
       expect(String(createChoice!.label).toLowerCase()).toContain('protocol');
+      expect(String(createChoice!.label).toLowerCase()).toMatch(/create|review|refactor/);
       expect(String(createChoice!.next_action).toLowerCase()).toContain('register');
       expect(String(createChoice!.next_action).toLowerCase()).toContain('adapter/protocol/workflow');
     });

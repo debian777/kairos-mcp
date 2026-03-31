@@ -79,7 +79,7 @@ def patch_cli(text: str) -> str:
 - [Environment variables and secrets](env-and-secrets.md)
 - [Cursor and MCP]({BASE}/docs/install/README.md#cursor-and-mcp)
 - [Architecture]({BASE}/docs/architecture/README.md)
-- [Protocol examples]({BASE}/docs/examples/README.md)"""
+- [Adapter examples]({BASE}/docs/examples/README.md)"""
     return text.replace(old, new)
 
 
