@@ -8,7 +8,7 @@ to the versions listed below.
 
 | Version | Supported |
 | ------- | --------- |
-| 3.x     | Yes       |
+| 4.x     | Yes       |
 
 
 ## Reporting a vulnerability
