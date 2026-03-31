@@ -10,8 +10,9 @@ FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f7
 VOLUME /snapshots
 
 # Refresh zlib from Alpine repos (FROM digest can still trail apk security fixes).
-RUN apk update && apk upgrade --no-cache zlib && \
-    apk upgrade --no-cache 
+# Keep the zlib RUN on one line: .github/workflows/security.yml greps it for the Trivy base scan.
+RUN apk update && apk upgrade --no-cache zlib
+RUN apk upgrade --no-cache
 
 # Pin global npm to a newer release than the default in the base image (bundled deps drift with the CLI).
 # RUN npm install -g npm@11.12.0
