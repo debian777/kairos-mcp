@@ -113,7 +113,19 @@ export async function validateBearerToken(
   const iss = typeof payload["iss"] === "string" ? payload["iss"] : "";
   if (!iss) return null;
   const realm = realmFromIssuer(iss);
-  const groups = applyOidcGroupsAllowlist(extractGroupsFromPayload(payload), OIDC_GROUPS_ALLOWLIST);
+  const groupsFromAccess = extractGroupsFromPayload(payload);
+  let groups = groupsFromAccess;
+  if (groupsFromAccess.length === 0) {
+    const nestedIdToken = payload["id_token"];
+    if (typeof nestedIdToken === "string" && nestedIdToken.length > 0) {
+      try {
+        groups = extractGroupsFromPayload(decodePayload(nestedIdToken));
+      } catch {
+        // Ignore malformed nested id_token and keep empty groups.
+      }
+    }
+  }
+  groups = applyOidcGroupsAllowlist(groups, OIDC_GROUPS_ALLOWLIST);
   const enrich = enrichAuthPayloadFromVerifiedJwt(payload);
   const result: AuthPayload = {
     sub,
