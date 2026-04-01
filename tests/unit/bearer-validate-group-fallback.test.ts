@@ -32,6 +32,7 @@ jest.unstable_mockModule('../../src/http/oidc-profile-claims.js', () => ({
 
 describe('validateBearerToken group extraction', () => {
   let validateBearerToken: typeof import('../../src/http/bearer-validate.js').validateBearerToken;
+  const originalFetch = globalThis.fetch;
 
   beforeAll(async () => {
     ({ validateBearerToken } = await import('../../src/http/bearer-validate.js'));
@@ -39,6 +40,7 @@ describe('validateBearerToken group extraction', () => {
 
   afterEach(() => {
     payloadByToken.clear();
+    globalThis.fetch = originalFetch;
   });
 
   test('uses id_token groups when access token has no groups', async () => {
@@ -53,6 +55,28 @@ describe('validateBearerToken group extraction', () => {
     });
 
     const auth = await validateBearerToken(token, [issuer], ['kairos-mcp']);
+    expect(auth).not.toBeNull();
+    expect(auth?.groups).toEqual(['/SHARED/PE-TEAM']);
+  });
+
+  test('uses OIDC userinfo when access token has no groups and no nested id_token', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sub: 'user-1', groups: ['/SHARED/PE-TEAM'] })
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const issuer = 'https://kc.example/realms/kairos-dev';
+    const token = tokenFor({
+      iss: issuer,
+      sub: 'user-1',
+      aud: ['kairos-mcp']
+    });
+
+    const auth = await validateBearerToken(token, [issuer], ['kairos-mcp']);
+    expect(fetchMock).toHaveBeenCalled();
+    const callUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(callUrl).toContain('/protocol/openid-connect/userinfo');
     expect(auth).not.toBeNull();
     expect(auth?.groups).toEqual(['/SHARED/PE-TEAM']);
   });

@@ -143,7 +143,8 @@ export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCE
  * Comma-separated group names (or /paths) allowed in the KAIROS auth session after OIDC.
  * Only JWT `groups` entries that match any entry are kept:
  * exact name or path (slash optional), or a **prefix** entry ending with `/` (e.g. `/kairos-shares/`
- * keeps every group whose path starts with that prefix). Empty = keep no token groups (default deny).
+ * keeps every group whose path starts with that prefix). Matching is **case-insensitive** for paths.
+ * Empty = keep no token groups (default deny).
  * Keycloak still issues full membership in the JWT; this filter controls what KAIROS forwards internally.
  */
 export const OIDC_GROUPS_ALLOWLIST: readonly string[] = (() => {

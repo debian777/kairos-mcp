@@ -101,27 +101,34 @@ function groupPathForm(g: string): string {
 export function applyOidcGroupsAllowlist(groups: string[], allowlist: readonly string[]): string[] {
   if (allowlist.length === 0) return [];
   const exact = new Set<string>();
+  const exactLower = new Set<string>();
   const prefixes: string[] = [];
+  const prefixLower: string[] = [];
   for (const e of allowlist) {
     const t = e.trim();
     if (!t) continue;
     if (t.endsWith("/")) {
       const p = t.startsWith("/") ? t : `/${t}`;
       prefixes.push(p);
+      prefixLower.push(p.toLowerCase());
       continue;
     }
     for (const v of groupStringVariants(t)) {
       exact.add(v);
+      exactLower.add(v.toLowerCase());
     }
   }
   return groups.filter((g) => {
     const variants = groupStringVariants(g);
     if (variants.length === 0) return false;
-    if (variants.some((v) => exact.has(v))) return true;
+    if (variants.some((v) => exact.has(v) || exactLower.has(v.toLowerCase()))) return true;
     const pathForm = groupPathForm(g);
     if (!pathForm) return false;
-    for (const p of prefixes) {
-      if (pathForm.startsWith(p)) return true;
+    const pathLower = pathForm.toLowerCase();
+    for (let i = 0; i < prefixes.length; i++) {
+      const p = prefixes[i]!;
+      const pl = prefixLower[i]!;
+      if (pathForm.startsWith(p) || pathLower.startsWith(pl)) return true;
     }
     return false;
   });
