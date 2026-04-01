@@ -127,7 +127,7 @@ export async function ensurePreviousProofCompleted(
     if (proofType === 'shell') {
       const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
       message += ` Execute "${cmd}" and report the result before continuing.`;
-      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call forward with ${prevStepUri} and solution matching that step's challenge.`;
+      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call forward with ${prevStepUri} and solution.type="${proofType}" plus solution.${proofType}.`;
     } else if (proofType === 'user_input') {
       const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
       message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling forward with ${prevStepUri} and solution.user_input.confirmation.`;

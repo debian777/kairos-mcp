@@ -45,22 +45,30 @@ function teachingForward(error: ZodError): Record<string, unknown> {
   const forbiddenSolutionOnStart = error.issues.some(
     (i) => i.message === FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE
   );
+  const missingSolutionType = error.issues.some(
+    (issue) => issue.path.length === 2 && issue.path[0] === 'solution' && issue.path[1] === 'type'
+  );
   let detail: string;
   if (uriProblem) {
     detail =
-      'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First forward call of a run: use adapter URI and omit `solution`. Continuation calls in that same execution chain (layer URI with `?execution_id=...`): include `solution` matching `contract.type`.';
+      'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First forward call of a run: use adapter URI and omit `solution`. Continuation calls in that same execution chain (layer URI with `?execution_id=...`): include `solution.type`, the matching `solution.<type>` object, and any required proof fields from the current contract.';
   } else if (solutionProblem && forbiddenSolutionOnStart) {
     detail = FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE;
+  } else if (solutionProblem && missingSolutionType) {
+    detail =
+      '`solution.type` is required on continuation calls (layer URI with `?execution_id=...`). Set it to the current `contract.type`, include the matching payload object (for example, `solution.shell`), and echo `nonce`/`proof_hash` when the contract provides them. If this is the first call, omit `solution` entirely.';
   } else if (solutionProblem) {
     detail =
-      '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment) and include the matching payload object (`solution.mcp`, `solution.comment`, and so on). Omit `solution` only on the first forward call of a run, not on continuation calls in the same execution chain.';
+      '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment). Include `solution.type` plus the matching payload object (`solution.mcp`, `solution.comment`, and so on). Omit `solution` only on the first forward call of a run (adapter URI or layer URI without `?execution_id=...`), not on continuation calls in the same execution chain.';
   } else {
     detail =
       'See the forward tool description: pass `uri` (adapter or layer) and optional `solution` shaped for the active contract.';
   }
   const next_action = forbiddenSolutionOnStart
     ? 'Retry forward with {"uri":"<adapter or layer uri from activate/forward>"} only — omit `solution`. After you receive `contract` and `execution_id`, submit `solution` on the next call using the layer URI with `?execution_id=...`.'
-    : 'Retry forward with valid JSON arguments, e.g. {"uri":"kairos://adapter/<uuid>"} with the exact URI string from activate or the prior forward response.';
+    : missingSolutionType
+      ? 'Retry forward with {"uri":"<layer uri with ?execution_id=...>","solution":{"type":"<contract.type>","<type-specific>":{...},"nonce":"<contract.nonce>","proof_hash":"<contract.proof_hash>"}} using the exact URI and fields from the current contract. If you are starting a run, call forward with {"uri":"<adapter or layer uri>"} only.'
+      : 'Retry forward with valid JSON arguments, e.g. {"uri":"kairos://adapter/<uuid>"} with the exact URI string from activate or the prior forward response.';
   return {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'forward',

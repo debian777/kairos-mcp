@@ -70,7 +70,7 @@ async function buildNextPayload(
   };
 
   if (nextStepId) {
-    payload.next_action = `call forward with ${buildLayerUri(nextStepId, executionId)} and solution matching challenge`;
+    payload.next_action = `call forward with ${buildLayerUri(nextStepId, executionId)} and solution.type="${challenge.type}" plus solution.${challenge.type}`;
   } else {
     payload.message = 'Adapter layers complete. Call reward to finalize.';
     payload.next_action = `call reward with ${requestedUri} and outcome (success or failure) and feedback to complete the adapter`;

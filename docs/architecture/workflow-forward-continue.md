@@ -2,7 +2,8 @@
 
 > **Current MCP tool:** **`forward`** with a **`kairos://layer/{uuid}`** URI
 > (and **`?execution_id=`** when the run uses it) and a **`solution`** whose
-> **`type`** matches **`contract.type`**. See
+> **`type`** matches **`contract.type`** and includes the matching payload
+> object. See
 > [`forward.md`](../../src/embed-docs/tools/forward.md).
 
 Use this after the **first** **`forward`** (adapter URI, no solution). Each
@@ -26,7 +27,7 @@ that names the next **`forward`** or **`reward`**.
     "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
     "comment": { "min_length": 20 }
   },
-  "next_action": "call forward with kairos://layer/ccc33333-3333-3333-3333-333333333333?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee and solution matching contract",
+  "next_action": "call forward with kairos://layer/ccc33333-3333-3333-3333-333333333333?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee and solution.type=\"comment\" plus solution.comment (include nonce/proof_hash when present)",
   "proof_hash": "…"
 }
 ```
@@ -57,6 +58,8 @@ that names the next **`forward`** or **`reward`**.
 1. `must_obey: true` → follow **`next_action`**.
 2. Use the **layer** URI from the previous response (not the adapter URI).
 3. Echo **`nonce`** / **`proof_hash`** exactly when the contract requires them.
+4. Include **`solution.type`** and the matching payload object, such as
+   **`solution.shell`**.
 
 ## Last layer → reward
 
@@ -87,8 +90,10 @@ may list options such as **`tune`** to fix stored content, **`reward`** with
 ## Validation rules
 
 1. **`solution.type`** must match **`contract.type`**.
-2. **`current_layer.uri`** is always a **`kairos://layer/...`** URI.
-3. **`proof_hash`** in the response is for chaining proofs; echo the correct
+2. Include the matching payload object, such as **`solution.shell`** or
+   **`solution.comment`**.
+3. **`current_layer.uri`** is always a **`kairos://layer/...`** URI.
+4. **`proof_hash`** in the response is for chaining proofs; echo the correct
    hash source described in **`forward`** / **`next_action`**.
 
 ## See also

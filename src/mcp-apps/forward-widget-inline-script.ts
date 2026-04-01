@@ -446,7 +446,9 @@ export const FORWARD_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
         if (PRESENTATION_ONLY) return;
         if (!p) return;
         if (p.isError) {
-          showJson({ isError: true, content: p.content, message: p.message });
+          var parsedError = p.structuredContent && typeof p.structuredContent === 'object' ? p.structuredContent : null;
+          if (!parsedError && p.content && p.content[0] && typeof p.content[0].text === 'string') { try { parsedError = JSON.parse(p.content[0].text); } catch (e) {} }
+          showJson(parsedError && typeof parsedError === 'object' ? parsedError : { isError: true, content: p.content, message: p.message });
           return;
         }
         if (p.structuredContent != null && isForwardStructured(p.structuredContent)) {

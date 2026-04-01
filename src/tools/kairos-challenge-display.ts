@@ -43,7 +43,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
         pickShellChallengeFields({ cmd, interpreter, flags, args, workdir })
       );
       const invocationLine = formatShellInvocationForDisplay(argv);
-      let description = `Shell challenge (timeout ${timeout}s): run exactly: ${invocationLine}. Capture stdout and stderr (do not suppress stderr); exit_code 0 = pass. Report real exit_code/stdout/stderr; do not fabricate.`;
+      let description = `Shell contract (timeout ${timeout}s): run exactly: ${invocationLine}. Capture stdout and stderr (do not suppress stderr); exit_code 0 = pass. Report real exit_code/stdout/stderr; do not fabricate.`;
       const interpTrim = interpreter?.trim();
       if (interpTrim) {
         description += ` Before running, ensure the interpreter is on PATH (e.g. \`which ${shellQuoteForDesc(interpTrim)}\`); if not found, fail with a clear local error.`;

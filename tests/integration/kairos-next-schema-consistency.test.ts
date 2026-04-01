@@ -22,6 +22,9 @@ describe('forward input schema exposure', () => {
       expect(schemaHasObjectBranchWithProps(tool?.inputSchema, ['uri', 'solution'])).toBe(true);
       expect(schemaHasPropertyPath(tool?.inputSchema, ['solution', 'mcp', 'success'])).toBe(true);
       expect(schemaHasPropertyPath(tool?.inputSchema, ['solution', 'comment', 'text'])).toBe(true);
+      expect(String(tool?.description)).toContain('solution.type');
+      expect(String(tool?.description)).toContain('omit');
+      expect(String(tool?.description)).toContain('execution_id');
     }, '[tools/list] forward schema');
   });
 });

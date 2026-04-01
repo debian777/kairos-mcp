@@ -178,7 +178,7 @@ function buildErrorPayload(
   if (maxExceeded && uri) {
     payload.next_action = `Options: (1) call tune with uris ["${uri}"] and markdown_doc or updates to fix the step for future executions (2) call reward with ${uri} and outcome failure and feedback to abort (3) ask the user for help`;
   } else if (uri) {
-    payload.next_action = `retry forward with ${uri} -- use nonce and proof_hash from THIS response's challenge`;
+    payload.next_action = `retry forward with ${uri} -- use nonce and proof_hash from THIS response's contract`;
   }
 
   return payload;
@@ -229,17 +229,17 @@ export async function handleProofSubmission(
         { event: 'pow_nonce_mismatch', memory_uuid: memory.memory_uuid, submitted_nonce: submission.nonce ?? null, stored_nonce: storedNonce },
         'pow: submitted nonce does not match store'
       );
-      return blocked('Nonce mismatch. Use the nonce from the current step challenge.', 'NONCE_MISMATCH');
+      return blocked('Nonce mismatch. Use the nonce from the current contract.', 'NONCE_MISMATCH');
     }
   }
 
   if (options?.expectedPreviousHash != null && submittedProofHash !== undefined) {
     if (submittedProofHash !== options.expectedPreviousHash) {
-      return blocked('proof_hash mismatch. Use proof_hash from the previous response or challenge.', 'PROOF_HASH_MISMATCH');
+      return blocked('proof_hash mismatch. Use proof_hash from the previous response or current contract.', 'PROOF_HASH_MISMATCH');
     }
   }
   if (options?.expectedPreviousHash != null && submittedProofHash === undefined) {
-    return blocked('Include proof_hash in solution (use challenge.proof_hash for step 1).', 'MISSING_FIELD');
+    return blocked('Include proof_hash in solution (use contract.proof_hash for step 1).', 'MISSING_FIELD');
   }
 
   if (proofType !== requiredType && requiredType !== undefined) {
