@@ -39,7 +39,7 @@ Verify: `kubectl get pods -n redis-operator` and
 The KAIROS chart creates a ClusterIP **`rfr-<redisCluster.name>`** Service
 (selecting the Redis **master** pod) because some operator versions do not
 expose that Service; set `app.redisUrl` to `redis://rfr-<name>:6379` (see
-`helm/values.yaml`).
+`helm/values.dev.yaml`).
 
 ---
 
@@ -137,7 +137,7 @@ On the repo-local `k3d` profile, export `OPENAI_API_KEY` (for example
 full Helm install; it creates the embedding Secret from that env var. Use
 `KAIROS_SKIP_CHART=1` if you only want operators and ngrok. Use
 `KAIROS_NGROK_HOSTNAME` when your reserved ngrok hostname does not match
-`helm/values.yaml`.
+`helm/values.dev.yaml`.
 
 Set `app.qdrantUrl`, `app.keycloakUrl`, `app.keycloakInternalUrl`, and
 `app.embedding` or `app.extraEnv` when you enable the app. Set `app.redisUrl`

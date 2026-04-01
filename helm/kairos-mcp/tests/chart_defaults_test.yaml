@@ -1,0 +1,56 @@
+# helm-unittest — https://github.com/helm-unittest/helm-unittest
+---
+suite: credentials generator RBAC
+templates:
+  - credentials-generator-rbac.yaml
+tests:
+  - it: renders hook ServiceAccount Role and RoleBinding when auto-generating credentials
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: ServiceAccount
+        documentIndex: 0
+      - isKind:
+          of: Role
+        documentIndex: 1
+      - isKind:
+          of: RoleBinding
+        documentIndex: 2
+      - matchRegex:
+          path: metadata.name
+          pattern: RELEASE-NAME-credentials-generator
+        documentIndex: 0
+---
+suite: Gateway resource
+templates:
+  - gateway.yaml
+tests:
+  - it: renders Gateway when createGateway and hostname are set
+    set:
+      gateway.enabled: true
+      gateway.createGateway: true
+      gateway.hostname: "kairos.example.com"
+      gateway.gatewayName: "kairos-gateway"
+      gateway.gatewayClassName: "ngrok"
+      gateway.tls.certManager.enabled: false
+    asserts:
+      - isKind:
+          of: Gateway
+      - equal:
+          path: spec.gatewayClassName
+          value: ngrok
+---
+suite: app Service
+templates:
+  - kairos-mcp-service.yaml
+tests:
+  - it: renders Service when app is enabled
+    set:
+      app.enabled: true
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.ports[0].port
+          value: 3000

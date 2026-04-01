@@ -5,11 +5,11 @@ set -euxo pipefail
 # Idempotent: safe to re-run (repos, namespaces, kubectl apply, helm upgrade --install).
 #
 # Default: full local stack — operators, ngrok GatewayClass, then Helm install of
-# kairos (helm/values.yaml) so Qdrant, Postgres, Keycloak, MCP app, and Gateway
+# kairos (helm/values.dev.yaml) so Qdrant, Postgres, Keycloak, MCP app, and Gateway
 # routes are applied. Requires OPENAI_API_KEY in the environment (e.g. source
 # .env && ./helm/k3b.sh); the script only creates the K8s Secret from that var.
 # Optional: KAIROS_NGROK_HOSTNAME=your-subdomain.ngrok-free.dev
-# to override gateway hostname / app.keycloakUrl if it differs from values.yaml.
+# to override gateway hostname / app.keycloakUrl if it differs from values.dev.yaml.
 # Operators only (no chart): KAIROS_SKIP_CHART=1 ./helm/k3b.sh
 helm_repo_ensure() {
     local name="$1" url="$2" out ec=0
@@ -148,7 +148,7 @@ kubectl wait --for=condition=Accepted gatewayclass/ngrok --timeout=120s
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHART_DIR="${REPO_ROOT}/helm/kairos-mcp"
-VALUES_FILE="${REPO_ROOT}/helm/values.yaml"
+VALUES_FILE="${REPO_ROOT}/helm/values.dev.yaml"
 
 if [[ "${KAIROS_SKIP_CHART:-}" == "1" ]]; then
     echo "Skipping kairos Helm chart (KAIROS_SKIP_CHART=1)."

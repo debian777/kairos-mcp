@@ -4,6 +4,7 @@ description: KAIROS MCP application chart (Phase 2+). Phase 1 data plane lives u
 type: application
 version: 0.1.0
 appVersion: "3.0.0"
+icon: https://raw.githubusercontent.com/debian777/kairos-mcp/main/logo/kaiiros-mcp.svg
 keywords:
   - kairos
   - mcp
