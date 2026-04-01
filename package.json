@@ -70,7 +70,7 @@
     "design:viewports": "node scripts/test-capture-viewports.mjs",
     "test:ui": "NODE_OPTIONS='--no-webstorage' vitest run --config vitest.config.ts",
     "test:ui:watch": "NODE_OPTIONS='--no-webstorage' vitest --config vitest.config.ts",
-    "test:helm": "helm repo add qdrant https://qdrant.github.io/qdrant-helm && helm dependency build helm/kairos-mcp && helm lint helm/kairos-mcp --strict && helm unittest helm/kairos-mcp && ct lint --config ct.yaml --all && (helm template kairos helm/kairos-mcp -f helm/values.dev.yaml | kubeconform || echo '⚠️  kubeconform CRD failures expected')",
+    "test:helm": "scripts/test-helm.sh",
     "pack": "npm run build && npm pack",
     "npm:publish": "npm run build && npm publish --access public",
     "npm:publish:dry": "npm run build && npm publish --access public --dry-run",

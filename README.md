@@ -297,6 +297,8 @@ This repository includes a comprehensive npm target for testing the Helm chart, 
 npm run test:helm
 ```
 
+This runs `scripts/test-helm.sh` which provides clear progress indicators and handles all validation steps.
+
 ### Test Location Recommendation
 
 **Use `helm/` for chart-related tests** - This follows Helm conventions and keeps tests close to the chart files:
@@ -323,12 +325,13 @@ The single `npm run test:helm` command runs the complete CI workflow:
 
 ### Tool Requirements
 
-The target expects these tools to be available:
-- **helm-unittest** v1.0.3 (plugin)
-- **chart-testing** (ct) 
-- **kubeconform**
+The target checks for required tools and provides clear installation instructions:
 
-Install with: `helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.0.3 && brew install chart-testing kubeconform`
+- **chart-testing (ct)**: `brew install chart-testing`
+- **kubeconform**: `brew install kubeconform`  
+- **helm-unittest**: `helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.0.3`
+
+The target will fail fast with clear error messages if any tools are missing, avoiding unnecessary installation attempts.
 
 ## Documentation map
 
