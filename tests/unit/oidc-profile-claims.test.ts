@@ -126,6 +126,14 @@ describe("oidc-profile-claims", () => {
     expect(applyOidcGroupsAllowlist(["/kairos-shares"], ["/kairos-shares/"])).toEqual([]);
   });
 
+  test("applyOidcGroupsAllowlist matches group paths case-insensitively against allowlist prefix", () => {
+    expect(applyOidcGroupsAllowlist(["/SHARED/PE-TEAM"], ["/shared/"])).toEqual(["/SHARED/PE-TEAM"]);
+  });
+
+  test("applyOidcGroupsAllowlist matches exact entries case-insensitively", () => {
+    expect(applyOidcGroupsAllowlist(["/Kairos-Auditor"], ["kairos-auditor"])).toEqual(["/Kairos-Auditor"]);
+  });
+
   test("mergeCallbackTokenPayloads does not map realm_access roles into groups", () => {
     const r = mergeCallbackTokenPayloads({
       idPayload: null,

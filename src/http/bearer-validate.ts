@@ -35,14 +35,56 @@ export interface AuthPayload {
 
 const JWKS_CACHE = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-/** Resolve JWKS fetch URL: use KEYCLOAK_INTERNAL_URL when token issuer is user-facing (localhost) so Docker app can reach Keycloak. */
-function getJwksFetchUrl(issuer: string): string {
+/**
+ * Issuer URL base for server-side HTTP to Keycloak (JWKS, userinfo).
+ * When KEYCLOAK_INTERNAL_URL is set and the token issuer matches KEYCLOAK_URL, use internal host
+ * so Docker can reach Keycloak.
+ */
+function resolveOidcIssuerBaseForServerFetch(issuer: string): string {
   const base = issuer.replace(/\/$/, "");
   if (KEYCLOAK_INTERNAL_URL && KEYCLOAK_URL && base.startsWith(KEYCLOAK_URL.replace(/\/$/, ""))) {
     const internalBase = KEYCLOAK_INTERNAL_URL.replace(/\/$/, "");
-    return `${internalBase}${new URL(base).pathname}/protocol/openid-connect/certs`;
+    return `${internalBase}${new URL(base).pathname}`;
   }
-  return `${base}/protocol/openid-connect/certs`;
+  return base;
+}
+
+function getJwksFetchUrl(issuer: string): string {
+  return `${resolveOidcIssuerBaseForServerFetch(issuer)}/protocol/openid-connect/certs`;
+}
+
+function getOidcUserinfoUrl(issuer: string): string {
+  return `${resolveOidcIssuerBaseForServerFetch(issuer)}/protocol/openid-connect/userinfo`;
+}
+
+/**
+ * When the access JWT has no `groups` claim (common if Group Membership is mapped to ID token / userinfo only),
+ * fetch groups from OIDC Userinfo using the same Bearer token. Aligns MCP Bearer auth with browser sessions
+ * that merge id_token groups in the OAuth callback.
+ */
+async function fetchGroupsFromOidcUserinfo(issuer: string, accessToken: string): Promise<string[]> {
+  const url = getOidcUserinfoUrl(issuer);
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) {
+      structuredLogger.debug(`[auth] userinfo groups: HTTP ${res.status} url=${url}`);
+      return [];
+    }
+    const body = (await res.json()) as Record<string, unknown>;
+    return extractGroupsFromPayload(body);
+  } catch (err) {
+    structuredLogger.debug(
+      `[auth] userinfo groups: fetch failed url=${url} err=${err instanceof Error ? err.message : String(err)}`
+    );
+    return [];
+  }
 }
 
 function getJwksForIssuer(issuer: string): ReturnType<typeof createRemoteJWKSet> {
@@ -124,6 +166,9 @@ export async function validateBearerToken(
         // Ignore malformed nested id_token and keep empty groups.
       }
     }
+  }
+  if (groups.length === 0) {
+    groups = await fetchGroupsFromOidcUserinfo(iss, token);
   }
   groups = applyOidcGroupsAllowlist(groups, OIDC_GROUPS_ALLOWLIST);
   const enrich = enrichAuthPayloadFromVerifiedJwt(payload);
