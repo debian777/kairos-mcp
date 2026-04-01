@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { getTestSpaceId } from '../utils/auth-headers.js';
 
 function buildAdapterMarkdown(title: string, activationPatterns: string[]): string {
   return [
@@ -23,10 +24,36 @@ function buildAdapterMarkdown(title: string, activationPatterns: string[]): stri
 
 describe('activate precision', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
+  let createdAdapterUris: string[] = [];
+
+  function activateArgs(query: string): { query: string; space_id?: string } {
+    const args: { query: string; space_id?: string } = { query };
+    const spaceId = getTestSpaceId();
+    if (spaceId) args.space_id = spaceId;
+    return args;
+  }
+
+  function rememberCreatedAdapters(parsed: { items?: Array<{ adapter_uri?: string }> }) {
+    for (const item of parsed.items ?? []) {
+      if (item.adapter_uri) createdAdapterUris.push(item.adapter_uri);
+    }
+  }
 
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
   }, 30000);
+
+  afterEach(async () => {
+    const uris = [...new Set(createdAdapterUris)];
+    createdAdapterUris = [];
+    if (!mcpConnection || uris.length === 0) return;
+
+    const deleteResult = await mcpConnection.client.callTool({
+      name: 'delete',
+      arguments: { uris }
+    });
+    parseMcpJson(deleteResult, 'activate precision cleanup');
+  });
 
   afterAll(async () => {
     if (mcpConnection) {
@@ -38,13 +65,14 @@ describe('activate precision', () => {
     const ts = Date.now();
     const targetTitle = `Alpha Adapter ${ts}`;
     const distractorTitle = `Beta Adapter ${ts}`;
+    const uniqueQuery = `rotate database credentials token-${ts}`;
 
     const trainTarget = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
         markdown_doc: buildAdapterMarkdown(targetTitle, [
-          'rotate database credentials',
-          'rotate postgres password'
+          uniqueQuery,
+          `rotate postgres password token-${ts}`
         ]),
         llm_model_id: 'test-activate-precision',
         force_update: true
@@ -61,12 +89,22 @@ describe('activate precision', () => {
         force_update: true
       }
     });
-    expect(parseMcpJson(trainTarget, 'activate precision target').status).toBe('stored');
-    expect(parseMcpJson(trainDistractor, 'activate precision distractor').status).toBe('stored');
+    const targetPayload = parseMcpJson(trainTarget, 'activate precision target') as {
+      status: string;
+      items?: Array<{ adapter_uri?: string }>;
+    };
+    const distractorPayload = parseMcpJson(trainDistractor, 'activate precision distractor') as {
+      status: string;
+      items?: Array<{ adapter_uri?: string }>;
+    };
+    rememberCreatedAdapters(targetPayload);
+    rememberCreatedAdapters(distractorPayload);
+    expect(targetPayload.status).toBe('stored');
+    expect(distractorPayload.status).toBe('stored');
 
     const call = {
       name: 'activate',
-      arguments: { query: 'rotate database credentials' }
+      arguments: activateArgs(uniqueQuery)
     };
     const result = await mcpConnection.client.callTool(call);
     const parsed = parseMcpJson(result, 'activate precision search');
@@ -77,7 +115,7 @@ describe('activate precision', () => {
       );
       expect(matchChoices.length).toBeGreaterThan(0);
       expect(matchChoices[0]?.label).toBe(targetTitle);
-      expect(matchChoices[0]?.activation_patterns).toContain('rotate database credentials');
+      expect(matchChoices[0]?.activation_patterns).toContain(uniqueQuery);
     });
   }, 30000);
 });

@@ -33,6 +33,25 @@ describe('mcp-tool-input-teaching', () => {
     expect(String(body.message)).toContain('same execution chain');
   });
 
+  test('forward continuation call without solution.type includes explicit guidance', () => {
+    const parsed = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: { shell: { exit_code: 0 } }
+    });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    const body = buildMcpInputTeachingPayload('forward', parsed.error, {
+      uri: LAYER_WITH_EXEC,
+      solution: { shell: { exit_code: 0 } }
+    });
+    expect(body.error).toBe('INVALID_TOOL_INPUT');
+    expect(String(body.message)).toContain('solution.type');
+    expect(String(body.message)).toContain('omit `solution` entirely');
+    expect(String(body.next_action)).toContain('"type"');
+    expect(String(body.next_action)).toContain('solution');
+    expect(String(body.next_action)).toContain('starting a run');
+  });
+
   test('forward start call with solution teaches omit solution on start', () => {
     const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
     const parsed = forwardInputSchema.safeParse({

@@ -86,9 +86,12 @@ describe('v4-forward continuation response schema', () => {
       expect(layerIdFromUri(parsed.current_layer.uri)).toBe(secondLayerId);
       expect(parsed.current_layer.mimeType).toBe('text/markdown');
       expect(parsed.contract).toBeDefined();
+      expect(parsed.contract.type).toBe('shell');
 
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action).toContain('kairos://layer/');
+      expect(parsed.next_action).toContain('solution.type="shell"');
+      expect(parsed.next_action).toContain('solution.shell');
 
       if (parsed.proof_hash) {
         expect(typeof parsed.proof_hash).toBe('string');

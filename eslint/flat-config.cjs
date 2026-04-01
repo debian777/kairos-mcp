@@ -37,6 +37,7 @@ function createFlatConfig(rootDir) {
         '.ai/**',
         '.kairos-work/**',
         '.local/**',
+        'non-public/marketing-positioning.md',
         '.git',
         '.git/**',
         '**/.git/**',

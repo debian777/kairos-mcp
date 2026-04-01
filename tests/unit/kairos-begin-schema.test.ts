@@ -42,6 +42,30 @@ describe('forward input schema (entry pass without solution)', () => {
     expect(r.success).toBe(true);
   });
 
+  test('rejects continuation solution without solution.type', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        comment: { text: 'Missing solution.type but has a payload.' }
+      }
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((issue) => issue.path.join('.') === 'solution.type')).toBe(true);
+    }
+  });
+
+  test('rejects continuation solution with mismatched type and payload', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'shell',
+        comment: { text: 'Payload does not match solution.type.' }
+      }
+    });
+    expect(r.success).toBe(false);
+  });
+
   test('rejects solution when starting from adapter uri', () => {
     const r = forwardInputSchema.safeParse({
       uri: ADAPTER_URI,

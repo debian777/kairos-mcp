@@ -39,7 +39,7 @@ async function mapSearchToActivate(
           tags: choice.tags,
           next_action: choice.role === 'create'
             ? KAIROS_CREATION_FOOTER_NEXT_ACTION
-            : `call forward with ${adapterUri} to execute the refine adapter`,
+            : `call forward with ${adapterUri} and no solution to start the refine adapter`,
           adapter_version: choice.adapter_version,
           activation_patterns: [],
           space_name: choice.space_name ?? null
@@ -55,7 +55,7 @@ async function mapSearchToActivate(
         activation_score: choice.score,
         role: choice.role,
         tags: choice.tags,
-        next_action: `call forward with ${adapterUri} to execute this adapter`,
+        next_action: `call forward with ${adapterUri} and no solution to start this adapter`,
         adapter_version: choice.adapter_version,
         activation_patterns: choice.activation_patterns ?? [],
         space_name: choice.space_name ?? null

@@ -8,8 +8,9 @@
 
 The server returns the first **`contract`**, optional **`current_layer`**
 (markdown + layer URI), **`execution_id`** when a new run starts, and
-**`next_action`** (usually another **`forward`** on the layer URI with a
-matching **`solution`**, or **`reward`** on a single-layer adapter).
+**`next_action`** (usually another **`forward`** on the layer URI with
+**`solution.type`** plus the matching payload object, or **`reward`** on a
+single-layer adapter).
 
 ## Response shape (illustrative)
 
@@ -31,7 +32,7 @@ matching **`solution`**, or **`reward`** on a single-layer adapter).
       "timeout_seconds": 30
     }
   },
-  "next_action": "call forward with kairos://layer/bbb22222-2222-2222-2222-222222222222?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee and solution matching contract",
+  "next_action": "call forward with kairos://layer/bbb22222-2222-2222-2222-222222222222?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee and solution.type=\"shell\" plus solution.shell (include nonce/proof_hash when present)",
   "execution_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
 }
 ```
@@ -61,7 +62,8 @@ entry layer before returning the current layer.
 3. Read **`contract`** for the proof you must satisfy.
 4. Call **`forward`** again with the **layer** URI from `current_layer.uri`
    (include `?execution_id=` when the server returned one) and a **`solution`**
-   whose **`type`** matches **`contract.type`**.
+   whose **`type`** matches **`contract.type`**, plus the matching payload
+   object such as **`solution.shell`**.
 
 ## Single-layer run
 
@@ -82,8 +84,10 @@ store logic; always prefer the **adapter** URI from **`activate`**.
    **`kairos://adapter/{slug}`**; omit **`solution`**.
 2. **`contract`** is always present; **`current_layer`** may be null in edge
    cases—obey **`next_action`** regardless.
-3. **`next_action`** is authoritative for the next tool invocation.
-4. Prefer **`execution_id`** continuity across layer **`forward`** calls when
+3. Continuation calls use the layer URI with **`?execution_id=`** and include
+   **`solution.type`** plus the matching payload object.
+4. **`next_action`** is authoritative for the next tool invocation.
+5. Prefer **`execution_id`** continuity across layer **`forward`** calls when
    the URI or docs say to include it.
 
 ## See also

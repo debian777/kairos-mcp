@@ -69,7 +69,7 @@ export function buildForwardToolOffering(): Record<string, unknown> {
     name: FORWARD_TOOL_NAME,
     title: 'Run adapter forward pass',
     description:
-      getToolDoc('forward') ?? 'Run the first or next adapter layer. Omitting solution starts a new execution.',
+      getToolDoc('forward') ?? 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
     inputSchema: zodToInputJsonSchema(forwardInputSchema),
     outputSchema: zodToOutputJsonSchema(forwardOutputSchema),
     _meta: KAIROS_FORWARD_TOOL_UI_META

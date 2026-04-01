@@ -23,7 +23,7 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
     toolName,
     {
       title: 'Run adapter forward pass',
-      description: getToolDoc('forward') || 'Run the first or next adapter layer. Omitting solution starts a new execution.',
+      description: getToolDoc('forward') || 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
       inputSchema: forwardMcpWireInputSchema,
       outputSchema: forwardOutputSchema,
       _meta: KAIROS_FORWARD_TOOL_UI_META

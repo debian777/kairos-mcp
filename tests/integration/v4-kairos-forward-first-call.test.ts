@@ -52,10 +52,12 @@ describe('v4-forward first-call response schema', () => {
       expect(parsed.current_layer.uri).toMatch(/^kairos:\/\/layer\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i);
       expect(parsed.current_layer.mimeType).toBe('text/markdown');
       expect(parsed.contract).toBeDefined();
-      expect(parsed.contract.type).toBeDefined();
+      expect(parsed.contract.type).toBe('shell');
 
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action.toLowerCase()).toContain('forward');
+      expect(parsed.next_action).toContain('solution.type="shell"');
+      expect(parsed.next_action).toContain('solution.shell');
       expect(parsed.execution_id).toBeDefined();
 
       expect(parsed.next_step).toBeUndefined();

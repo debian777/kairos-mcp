@@ -114,7 +114,7 @@ export async function generateUnifiedOutput(
       score: result.score,
       role: 'match',
       tags: result.tags,
-      next_action: `call forward with ${head.uri} to execute this adapter`,
+      next_action: `call forward with ${head.uri} and no solution to start this adapter`,
       adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
       activation_patterns: getActivationPatterns(result.memory),
       space_name: spaceIdToDisplayName(sid, spaceNamesById)

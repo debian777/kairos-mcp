@@ -51,7 +51,7 @@ export const forwardContractSchema = z.object({
 });
 
 export const forwardSolutionSchema = z.object({
-  type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']).describe('Must match contract.type'),
+  type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']).describe('Must match contract.type on continuation calls'),
   nonce: z.string().optional().describe('Echo nonce from contract for proof-based layers'),
   proof_hash: z.string().optional().describe('Echo proof_hash from previous layer when required'),
   tensor: z.object({
@@ -109,11 +109,15 @@ function isStartingNewForwardRun(uri: string): boolean {
 
 /** Zod issue message; teaching layer matches this string exactly. */
 export const FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE =
-  'Omit `solution` when starting a run (`kairos://adapter/...` or `kairos://layer/{uuid}` without `?execution_id=...`). Read `contract` from the response, then call `forward` again with the layer URI including `?execution_id=...` and a `solution` matching `contract.type`.';
+  'Omit `solution` when starting a run (`kairos://adapter/...` or `kairos://layer/{uuid}` without `?execution_id=...`). The first call loads `contract`; then call `forward` again with the layer URI including `?execution_id=...` and a `solution` whose `type` matches `contract.type`.';
 
 export const forwardInputSchema = z.object({
   uri: forwardUriSchema.describe('Adapter or layer URI'),
-  solution: forwardSolutionSchema.optional().describe('Layer solution; omit to start a new forward execution')
+  solution: forwardSolutionSchema
+    .optional()
+    .describe(
+      'Layer solution. Required only when continuing a run (layer URI with `?execution_id=...`). Omit entirely on the first call (adapter URI or layer without `?execution_id=...`). For continuation calls, include solution.type, the matching payload object, and echo nonce/proof_hash when present.'
+    )
 }).superRefine((data, ctx) => {
   if (isStartingNewForwardRun(data.uri) && data.solution !== undefined) {
     ctx.addIssue({
@@ -136,7 +140,7 @@ const forwardWireSolutionSchema = z.object({
   type: z
     .enum(['tensor', 'shell', 'mcp', 'user_input', 'comment'])
     .optional()
-    .describe('Must match contract.type for continuation calls.'),
+    .describe('Required for continuation calls; must match contract.type. Do not send `solution` at all on start calls.'),
   nonce: z.string().optional(),
   proof_hash: z.string().optional(),
   tensor: z.object({
@@ -165,7 +169,7 @@ const forwardWireSolutionSchema = z.object({
   trace: z.string().optional()
 }).passthrough()
   .describe(
-    'For the first forward call in a run, omit `solution`. For every continuation call in the same execution chain (layer URI with `?execution_id=...`), provide `solution` with the sub-object that matches `type` (`tensor`, `shell`, `mcp`, `user_input`, or `comment`).'
+    'Start call (adapter URI or layer URI without `?execution_id=...`): omit `solution`. Continuation call (layer URI with `?execution_id=...`): include solution.type plus the matching payload object (solution.tensor, solution.shell, and so on), and echo nonce/proof_hash when present. Empty solution objects or missing solution.type will be rejected.'
   );
 
 /**
@@ -177,8 +181,13 @@ const forwardWireSolutionSchema = z.object({
  */
 export const forwardMcpWireInputSchema = z
   .object({
-    uri: z.string().optional(),
-    solution: forwardWireSolutionSchema.optional()
+    uri: z
+      .string()
+      .optional()
+      .describe('Adapter or layer URI. Use adapter or layer without execution_id to start; use layer with execution_id to continue.'),
+    solution: forwardWireSolutionSchema
+      .optional()
+      .describe('Only for continuation calls; omit on start. Must include solution.type and the matching payload object.')
   })
   .passthrough();
 

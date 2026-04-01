@@ -236,7 +236,7 @@ export async function buildForwardView(
     ...buildForwardUiSummary(memory),
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
-      : `call forward with ${layer.uri} and solution matching contract`,
+      : `call forward with ${layer.uri} and solution.type="${contract.type}" plus solution.${contract.type} (include nonce/proof_hash when present)`,
     execution_id: executionId,
     ...(options?.proofHash && { proof_hash: options.proofHash }),
     ...(options?.message && { message: options.message }),
