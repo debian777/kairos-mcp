@@ -54,8 +54,8 @@ export function buildSpacesWidgetHtml(): string {
       padding: 8px;
       border-radius: 8px;
       font-size: var(--font-text-sm-size, 0.8125rem);
-      overflow: auto;
-      max-height: min(340px, 68vh);
+      overflow: visible;
+      max-height: none;
     }
     #out pre.raw {
       margin: 0;

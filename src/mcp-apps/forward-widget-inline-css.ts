@@ -3,6 +3,11 @@ import { MCP_WIDGET_CHROME_INLINE_CSS } from './mcp-widget-chrome-inline-css.js'
 import { minifyInlineWidgetCss } from './widget-inline-minify.js';
 
 const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
+    #out {
+      flex: 0 1 auto;
+      max-height: none;
+      overflow: visible;
+    }
     #out.step-panel {
       box-shadow: inset 3px 0 0 0 color-mix(in srgb, var(--color-primary) 72%, transparent);
     }
