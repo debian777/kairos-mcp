@@ -9,8 +9,9 @@ server drives every transition via `next_action` and `must_obey`.
 
 ## Tool order (runtime)
 
-1. **`activate`** — semantic match on the user’s intent; returns `choices`
-   with `kairos://adapter/{uuid}` (and refine/create paths).
+1. **`activate`** — semantic match on the user’s intent; pass a short
+   `query` summary and receive `choices` with `kairos://adapter/{uuid}` (and
+   refine/create paths).
 2. **`forward`** — first call with the chosen **adapter** URI and **no**
    `solution` loads the first layer and `contract`. Subsequent calls use the
    **layer** URI from the prior response, with a `solution` whose `type`
@@ -31,7 +32,9 @@ server drives every transition via `next_action` and `must_obey`.
 Step A — pick a workflow:
 
 ```json
-activate({})
+activate({
+  "query": "summarize adapter run"
+})
 ```
 
 Step B — start the run (adapter URI from the chosen `next_action`):
@@ -58,7 +61,7 @@ reward({
 ## Flow summary
 
 ```
-activate()
+activate({query: "summarize adapter run"})
   -> choices[].next_action -> forward(adapter_uri, no solution)
     -> contract + layer uri
     -> forward(layer_uri, solution)  # loop
@@ -79,8 +82,9 @@ activate()
 
 ## Companion `workflow-*.md` pages
 
-The **`workflow-activate.md`**, **`workflow-forward-*.md`**, **`workflow-reward.md`**,
-and related files in this folder are **companion narratives** aligned with this
-file and with **`src/embed-docs/tools/*.md`**. They use the **current** MCP tool
-names (not removed **`kairos_*`** wire names). Execution uses **`kairos://adapter/`**
-and **`kairos://layer/`** URIs.
+The **`workflow-activate.md`**, **`workflow-forward-*.md`**,
+**`workflow-reward.md`**, and related files in this folder are **companion
+narratives** aligned with this file and with
+**`src/embed-docs/tools/*.md`**. They use the **current** MCP tool names (not
+removed **`kairos_*`** wire names). Execution uses **`kairos://adapter/`** and
+**`kairos://layer/`** URIs.

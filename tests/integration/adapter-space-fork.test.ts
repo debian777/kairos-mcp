@@ -12,9 +12,10 @@ import {
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import {
-  adapterSpaceSkipReason,
+  assertGroupSpacesWhenAuth,
   openAdapterSpaceMcpBundle
 } from './utils/adapter-space-mcp-context.js';
+import { hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
 import { BASE_URL, CLI_PATH, execAsync, setupCliConfigWithLogin, setupServerCheck } from './cli-commands-shared.js';
 
 const API_BASE = `${getTestAuthBaseUrl()}/api`;
@@ -42,11 +43,15 @@ describe('Adapter fork copy (group → personal)', () => {
   });
 
   test('MCP: train fork copies group adapter into personal (group original unchanged)', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (why || !bundle) {
-      console.warn(`[adapter-space-fork] skip MCP fork: ${why}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-fork] skip MCP fork: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-fork] skip MCP fork: auth disabled or no token');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { mcp, groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceForkMCP ${Date.now()}`;
@@ -107,11 +112,15 @@ describe('Adapter fork copy (group → personal)', () => {
   }, 120000);
 
   test('API: POST /api/train fork copies group adapter into personal', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (why || !bundle) {
-      console.warn(`[adapter-space-fork] skip API fork: ${why}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-fork] skip API fork: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-fork] skip API fork: auth disabled or no token');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceForkAPI ${Date.now()}`;
@@ -159,11 +168,19 @@ describe('Adapter fork copy (group → personal)', () => {
   }, 120000);
 
   test('CLI: train --source-adapter-uri copies group adapter into personal', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (!cliOk || why || !bundle) {
-      console.warn(`[adapter-space-fork] skip CLI fork: ${why ?? 'CLI not logged in'}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-fork] skip CLI fork: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-fork] skip CLI fork: auth disabled or no token');
+      return;
+    }
+    if (!cliOk) {
+      console.warn('[adapter-space-fork] skip CLI fork: CLI not logged in');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceForkCLI ${Date.now()}`;

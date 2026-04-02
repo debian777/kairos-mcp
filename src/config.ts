@@ -142,10 +142,11 @@ export const AUTH_ALLOWED_AUDIENCES_STRING = getEnvString('AUTH_ALLOWED_AUDIENCE
 /**
  * Comma-separated group names (or /paths) allowed in the KAIROS auth session after OIDC.
  * Only JWT `groups` entries that match any entry are kept:
- * exact name or path (slash optional), or a **prefix** entry ending with `/` (e.g. `/kairos-shares/`
+ * exact name or path (slash optional), or a **prefix** entry ending with `/` (e.g. `/shared/`
  * keeps every group whose path starts with that prefix). Matching is **case-insensitive** for paths.
- * Empty = keep no token groups (default deny).
- * Keycloak still issues full membership in the JWT; this filter controls what KAIROS forwards internally.
+ * Empty = do not filter: keep all token `groups` (recommended default so group spaces match IdP membership).
+ * To restrict, set entries; to approximate “no group spaces”, use an allowlist that matches nothing you issue (e.g. a dedicated sentinel name).
+ * Keycloak still issues full membership in the JWT; this filter controls what KAIROS forwards internally when non-empty.
  */
 export const OIDC_GROUPS_ALLOWLIST: readonly string[] = (() => {
   const raw = getEnvString('OIDC_GROUPS_ALLOWLIST', '').trim();
@@ -156,6 +157,65 @@ export const OIDC_GROUPS_ALLOWLIST: readonly string[] = (() => {
       .map((s) => s.trim())
       .filter(Boolean)
   );
+})();
+
+/**
+ * Bearer MCP auth: union groups from the verified access JWT with groups from OIDC userinfo (default true).
+ * Browser sessions merge id_token + access_token; Bearer clients often send an access token whose `groups`
+ * claim is incomplete or absent while userinfo still lists full membership — without merging, `spaces` omits
+ * group rows even though the UI (session) shows them.
+ */
+export const OIDC_BEARER_MERGE_USERINFO_GROUPS = getEnvBoolean('OIDC_BEARER_MERGE_USERINFO_GROUPS', true);
+
+/**
+ * Suffix appended when building the example group path from a path-prefix
+ * allowlist entry (see GROUP_SPACE_PATH_EXAMPLE). Default `pe-team`.
+ */
+const KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX_RAW = getEnvString(
+  'KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX',
+  'pe-team'
+).trim();
+export const KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX =
+  KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX_RAW.length > 0
+    ? KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX_RAW
+    : 'pe-team';
+
+/**
+ * Derive an illustrative full group path from the first path-prefix entry in
+ * `OIDC_GROUPS_ALLOWLIST` (entry ending with `/`). Returns null if none.
+ */
+export function deriveGroupSpacePathExampleFromAllowlist(
+  allowlist: readonly string[],
+  suffix: string
+): string | null {
+  for (const entry of allowlist) {
+    const e = entry.trim();
+    if (e.endsWith('/') && e.length > 1) {
+      const base = e.replace(/\/+$/, '');
+      return `${base}/${suffix}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Example group path interpolated into MCP tool descriptions (`activate`, `spaces`,
+ * `train`, `tune`) at process start.
+ *
+ * - Set **`KAIROS_GROUP_SPACE_PATH_EXAMPLE`** to override completely.
+ * - Otherwise, if **`OIDC_GROUPS_ALLOWLIST`** contains a path-prefix entry (e.g. `/shared/`),
+ *   the example is `{prefix-without-trailing-slash}/{KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`.
+ * - Otherwise default **`/shared/{suffix}`** (suffix from `KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX`).
+ */
+export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
+  const explicit = getEnvString('KAIROS_GROUP_SPACE_PATH_EXAMPLE', '').trim();
+  if (explicit) return explicit;
+  const derived = deriveGroupSpacePathExampleFromAllowlist(
+    OIDC_GROUPS_ALLOWLIST,
+    KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX
+  );
+  if (derived) return derived;
+  return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
 // Int configurations

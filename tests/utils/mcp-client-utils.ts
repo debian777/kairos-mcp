@@ -77,6 +77,11 @@ export async function createMcpConnection() {
     intervalMs: 2000   // Check every 2 seconds
   });
 
+  // Refresh password-grant token so it includes optional scopes (e.g. kairos-groups) and matches server OIDC merge.
+  if (serverRequiresAuth()) {
+    await refreshTestAuthToken();
+  }
+
   const client = new Client({
     name: 'kb-integration-tests',
     version: '1.0.0'

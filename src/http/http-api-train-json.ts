@@ -9,6 +9,8 @@ import { trainInputSchema } from '../tools/train_schema.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { KairosError } from '../types/index.js';
+import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
+import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 
 const SAFE_TRAIN_DETAIL_KEYS = new Set([
   'missing',
@@ -64,7 +66,32 @@ export function setupTrainJsonRoute(
       structuredLogger.info(
         `→ POST /api/train (json, model: ${parsed.data.llm_model_id}, force: ${parsed.data.force_update ?? false})`
       );
-      const result = await executeTrain(memoryStore, parsed.data, (fn) => fn(), qdrantService);
+      const ctx = getSpaceContext(req as express.Request & { spaceContext?: unknown });
+      const rawSpace = typeof parsed.data.space === 'string' ? parsed.data.space.trim() : '';
+      const spaceParam = rawSpace.toLowerCase();
+      let resolvedSpaceId: string;
+      if (parsed.data.space === undefined || rawSpace === '' || spaceParam === 'personal') {
+        resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+      } else {
+        const r = resolveSpaceParamForContext(ctx, rawSpace);
+        if (!r.ok) {
+          const errKey = r.code === 'SPACE_READ_ONLY' ? 'SPACE_READ_ONLY' : 'SPACE_NOT_FOUND';
+          res.status(400).json({ error: errKey, message: r.message });
+          return;
+        }
+        resolvedSpaceId = r.spaceId;
+      }
+      const narrowedContext = {
+        ...ctx,
+        allowedSpaceIds: [resolvedSpaceId],
+        defaultWriteSpaceId: resolvedSpaceId
+      };
+      const result = await executeTrain(
+        memoryStore,
+        parsed.data,
+        (fn) => runWithSpaceContextAsync(narrowedContext, fn),
+        qdrantService
+      );
       res.status(200).json(result);
     } catch (error) {
       const err = error as {

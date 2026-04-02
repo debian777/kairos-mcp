@@ -1,6 +1,6 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, runWithOptionalSpaceAsync } from '../utils/tenant-context.js';
@@ -102,7 +102,7 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
     toolName,
     {
       title: 'Activate the best adapter',
-      description: getToolDoc('activate') || 'Find the best adapter for the current input and return ranked activation choices.',
+      description: resolveToolDoc('activate') || 'Find the best adapter for the current input and return ranked activation choices.',
       inputSchema: mcpLooseToolInput(activateInputSchema),
       outputSchema: activateOutputSchema,
       _meta: KAIROS_ACTIVATE_TOOL_UI_META

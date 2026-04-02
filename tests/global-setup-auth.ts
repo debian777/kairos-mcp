@@ -53,6 +53,43 @@ function getAuthStateFile(root: string): string {
  * user:<realmSlug>:<uuidv5(iss + "\nuser\n" + sub)>
  * Realm must match bearer-validate (issuer URL), not a stray JWT `realm` claim, or activate/train space params fail resolution.
  */
+/**
+ * Fail fast when Keycloak has no group membership for the test user (spaces would omit type:group — #278).
+ * Only for existing Keycloak from .env; Testcontainers setup does not run deploy-configure-keycloak-realms.py.
+ */
+async function assertOidcUserinfoHasGroups(bearerToken: string): Promise<void> {
+  const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '');
+  const realm = process.env.KEYCLOAK_REALM?.trim() || 'kairos-dev';
+  if (!keycloakUrl) return;
+  const url = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/userinfo`;
+  let body: Record<string, unknown>;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${bearerToken}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) {
+      throw new Error(`userinfo HTTP ${res.status}`);
+    }
+    body = (await res.json()) as Record<string, unknown>;
+  } catch (e) {
+    throw new Error(
+      `globalSetup: OIDC userinfo failed (${e instanceof Error ? e.message : String(e)}). ` +
+        'Check KEYCLOAK_URL / realm and that the test password grant token is valid.'
+    );
+  }
+  const groups = body['groups'];
+  const ok = Array.isArray(groups) && groups.some((g) => typeof g === 'string' && g.length > 0);
+  if (!ok) {
+    throw new Error(
+      'globalSetup: OIDC userinfo has no non-empty `groups` for the test user. ' +
+        'Assign kairos-tester to at least one realm group (e.g. /shared/ci-test) and run ' +
+        '`python3 scripts/deploy-configure-keycloak-realms.py` against this Keycloak.'
+    );
+  }
+}
+
 function spaceIdFromToken(token: string): string | undefined {
   try {
     const parts = token.split('.');
@@ -159,6 +196,9 @@ export default async function globalSetup(): Promise<void> {
     ? await useExistingKeycloakFromEnv()
     : await startKeycloakWithTestUser();
   const bearerToken = await env.getTestUserToken();
+  if (useExisting) {
+    await assertOidcUserinfoHasGroups(bearerToken);
+  }
   const containerId = env.container?.getId();
   const spaceId = spaceIdFromToken(bearerToken);
   const cwd = process.cwd();

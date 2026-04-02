@@ -12,28 +12,37 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
    **kairos-mcp** `redirectUris` / `webOrigins` are then pushed again via **PUT …/clients/{id}**
    because realm-level PUT does not reliably update existing clients (redirect list would stay stale).
    **Groups:** realm PUT does not reliably create/re-parent groups. The script enforces
-   top-level groups from import JSON, plus **shared** and **kairos-shares** →
-   **kairos-operator** nesting via Admin API.
+   top-level groups from import JSON, plus **shared** → **ci-test** (JWT path `/shared/ci-test`).
+   If the import lists **kairos-shares**, it also nests **kairos-operator** under it via Admin API.
+   Top-level groups present in Keycloak but not in the import are **removed** (prune) so the dump
+   matches the JSON.
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
 3. OIDC scope `openid` for dynamic registration: ensure a realm Client Scope named `openid`
    exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
 4. Allowed client scopes (policies): whitelist client-scope templates for anonymous/authenticated
    registration (includes `openid` and kairos-cli default templates).
-4b. OIDC **Group Membership** protocol mapper on **kairos-mcp** and **kairos-cli** so JWTs include a
-   `groups` claim (access + ID + userinfo + introspection). Mapper **`full.path` is always enabled**
-   (full Keycloak paths, e.g. `/kairos-auditor`, `/shared/team-platform`) — not configurable here
-   so running systems stay consistent with KAIROS allowlists and space ids.
+4b. OIDC **Group Membership** protocol mapper on a shared **client scope** so JWTs include a
+   `groups` claim (access + ID + userinfo + introspection). The scope is attached as a **default**
+   client scope so new OAuth clients (including dynamically registered MCP hosts) inherit it, and
+   it is linked to **kairos-mcp** and **kairos-cli** for backwards compatibility. Mapper
+   **`full.path` is always enabled** (full Keycloak paths, e.g. `/kairos-auditor`,
+   `/shared/team-platform`) — not configurable here so running systems stay consistent with KAIROS
+   allowlists and space ids.
 5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in **kairos-dev**.
 6. Verify realm dump matches import JSON.
-7. Add test user to **kairos-auditor** and **kairos-operator** last; **GET** user groups to confirm (so Admin UI matches).
+7. Add test users to groups last; **GET** user groups to confirm (so Admin UI matches):
+   **kairos-tester** → **kairos-auditor** and **ci-test**; if the import includes **kairos-shares**,
+   also **kairos-operator**; optional **KAIROS_CI_TEST_USERNAME** (default **kairos-ci-tester**)
+   → **ci-test** only.
 
 Identity providers (e.g. Google) are not in realm JSON; configure via deploy-configure-keycloak-google-idp.py.
 
 Env: KEYCLOAK_URL (default http://localhost:8080), KEYCLOAK_ADMIN_PASSWORD,
-TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret).
+TEST_USERNAME (default kairos-tester), TEST_PASSWORD (default kairos-tester-secret),
+KAIROS_CI_TEST_USERNAME / KAIROS_CI_TEST_PASSWORD (optional second dev user for `/shared/ci-test` only).
 KAIROS app: set OIDC_GROUPS_ALLOWLIST (comma-separated; use a trailing `/` on an entry for path-prefix match)
 to intersect JWT groups with what KAIROS stores.
-If unset or empty, KAIROS keeps no token groups (default deny).
+If unset or empty, KAIROS keeps all JWT groups (no allowlist filtering).
 (Keycloak's mapper still lists all memberships the user has in the realm).
 AUTH_CALLBACK_BASE_URL (optional) — for **kairos-dev** **kairos-mcp**, adds that origin/callback
 if not already covered by the port range (Keycloak has no native port-range wildcard).
@@ -77,6 +86,7 @@ DYNAMIC_REGISTRATION_ALLOWED_CLIENT_SCOPES = [
     "profile",
     "roles",
     "email",
+    "kairos-groups",
 ]
 REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),
@@ -85,6 +95,7 @@ REALM_FILES = [
 
 KAIROS_OIDC_GROUP_MAPPER_NAME = "kairos-oidc-groups"
 KAIROS_OIDC_GROUP_MAPPER_PROVIDER = "oidc-group-membership-mapper"
+KAIROS_GROUPS_CLIENT_SCOPE_NAME = "kairos-groups"
 CLIENT_IDS_FOR_GROUP_MAPPER = frozenset({"kairos-mcp", "kairos-cli"})
 
 # Keycloak has no redirect_uri port-range syntax; we emit one URI per port. Cap list growth.
@@ -492,6 +503,232 @@ def ensure_kairos_oidc_group_mapper_for_client(
     print(f"  Added OIDC group mapper ({realm_name}, {client_label})")
 
 
+def list_client_scope_protocol_mappers(
+    base_url: str, realm_name: str, scope_id: str, token: str
+) -> list[dict]:
+    url = (
+        f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes/"
+        f"{scope_id}/protocol-mappers/models"
+    )
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = json.loads(resp.read().decode())
+            return raw if isinstance(raw, list) else []
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"List scope protocol mappers {realm_name} scope={scope_id} failed: {e.code} {body}")
+
+
+def ensure_kairos_oidc_group_mapper_for_client_scope(
+    base_url: str,
+    realm_name: str,
+    scope_id: str,
+    scope_label: str,
+    token: str,
+    full_path: bool,
+) -> None:
+    desired_cfg = _oidc_group_membership_mapper_config(full_path)
+    mappers = list_client_scope_protocol_mappers(base_url, realm_name, scope_id, token)
+    existing = next((m for m in mappers if m.get("name") == KAIROS_OIDC_GROUP_MAPPER_NAME), None)
+    if existing:
+        if existing.get("protocolMapper") != KAIROS_OIDC_GROUP_MAPPER_PROVIDER:
+            sys.exit(
+                f"{realm_name} scope {scope_label}: mapper {KAIROS_OIDC_GROUP_MAPPER_NAME!r} exists "
+                f"with provider {existing.get('protocolMapper')!r}; remove or rename in Keycloak Admin UI."
+            )
+        cur = {k: str(v) for k, v in (existing.get("config") or {}).items()}
+        if _mapper_config_matches(cur, desired_cfg):
+            return
+        mapper_id = existing.get("id")
+        if not isinstance(mapper_id, str) or not mapper_id:
+            sys.exit(f"{realm_name} scope {scope_label}: mapper {KAIROS_OIDC_GROUP_MAPPER_NAME!r} has no id")
+        merged_cfg = {**cur, **desired_cfg}
+        body = {
+            "id": mapper_id,
+            "name": KAIROS_OIDC_GROUP_MAPPER_NAME,
+            "protocol": "openid-connect",
+            "protocolMapper": KAIROS_OIDC_GROUP_MAPPER_PROVIDER,
+            "config": merged_cfg,
+        }
+        url = (
+            f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes/"
+            f"{scope_id}/protocol-mappers/models/{mapper_id}"
+        )
+        payload = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, method="PUT")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", "application/json")
+        try:
+            urllib.request.urlopen(req, timeout=15)
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode() if e.fp else ""
+            sys.exit(f"PUT scope group mapper {realm_name} {scope_label} failed: {e.code} {err_body}")
+        print(f"  Updated OIDC group mapper (scope {realm_name}, {scope_label})")
+        return
+
+    create_body = {
+        "name": KAIROS_OIDC_GROUP_MAPPER_NAME,
+        "protocol": "openid-connect",
+        "protocolMapper": KAIROS_OIDC_GROUP_MAPPER_PROVIDER,
+        "config": desired_cfg,
+    }
+    url = (
+        f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes/"
+        f"{scope_id}/protocol-mappers/models"
+    )
+    payload = json.dumps(create_body).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode() if e.fp else ""
+        sys.exit(f"POST scope group mapper {realm_name} {scope_label} failed: {e.code} {err_body}")
+    print(f"  Added OIDC group mapper (scope {realm_name}, {scope_label})")
+
+
+def ensure_kairos_groups_client_scope(base_url: str, realm_name: str, token: str) -> str:
+    scopes = list_realm_client_scopes(base_url, realm_name, token)
+    scope_row = next((s for s in scopes if s.get("name") == KAIROS_GROUPS_CLIENT_SCOPE_NAME), None)
+    if not scope_row:
+        url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes"
+        payload = json.dumps({
+            "name": KAIROS_GROUPS_CLIENT_SCOPE_NAME,
+            "protocol": "openid-connect",
+            "attributes": {
+                "include.in.token.scope": "true",
+                "display.on.consent.screen": "false",
+            },
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, method="POST")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", "application/json")
+        try:
+            urllib.request.urlopen(req, timeout=15)
+        except urllib.error.HTTPError as e:
+            if e.code != 409:
+                body = e.read().decode() if e.fp else ""
+                sys.exit(f"Create client scope {KAIROS_GROUPS_CLIENT_SCOPE_NAME} in {realm_name} failed: {e.code} {body}")
+        scopes = list_realm_client_scopes(base_url, realm_name, token)
+        scope_row = next((s for s in scopes if s.get("name") == KAIROS_GROUPS_CLIENT_SCOPE_NAME), None)
+        if not scope_row:
+            sys.exit(f"Client scope {KAIROS_GROUPS_CLIENT_SCOPE_NAME} missing in {realm_name} after create attempt")
+        print(f"  Created client scope '{KAIROS_GROUPS_CLIENT_SCOPE_NAME}' in {realm_name}")
+    else:
+        print(f"  Client scope '{KAIROS_GROUPS_CLIENT_SCOPE_NAME}' already present in {realm_name}")
+
+    scope_id = scope_row.get("id")
+    if not isinstance(scope_id, str) or not scope_id:
+        sys.exit(f"Client scope {KAIROS_GROUPS_CLIENT_SCOPE_NAME} missing id in {realm_name}")
+    ensure_kairos_oidc_group_mapper_for_client_scope(
+        base_url, realm_name, scope_id, KAIROS_GROUPS_CLIENT_SCOPE_NAME, token, full_path=True
+    )
+    return scope_id
+
+
+def list_default_client_scopes(base_url: str, realm_name: str, token: str) -> list[dict]:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/default-default-client-scopes"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET default client scopes {realm_name} failed: {e.code} {body}")
+
+
+def ensure_default_client_scope(
+    base_url: str,
+    realm_name: str,
+    token: str,
+    scope_id: str,
+    scope_name: str,
+) -> None:
+    defaults = list_default_client_scopes(base_url, realm_name, token)
+    if any(s.get("name") == scope_name for s in defaults):
+        print(f"  '{scope_name}' already in default client scopes ({realm_name})")
+        return
+    add_url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/default-default-client-scopes/{scope_id}"
+    put_req = urllib.request.Request(add_url, data=b"", method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(put_req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Add {scope_name} to default client scopes {realm_name} failed: {e.code} {body}")
+    print(f"  Linked '{scope_name}' to default client scopes ({realm_name})")
+
+
+def list_client_default_scopes(
+    base_url: str, realm_name: str, client_uuid: str, token: str
+) -> list[dict]:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/{client_uuid}/default-client-scopes"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET client default scopes {realm_name} client={client_uuid} failed: {e.code} {body}")
+
+
+def ensure_client_default_scope(
+    base_url: str,
+    realm_name: str,
+    token: str,
+    client_uuid: str,
+    scope_id: str,
+    scope_name: str,
+) -> None:
+    defaults = list_client_default_scopes(base_url, realm_name, client_uuid, token)
+    if any(s.get("name") == scope_name for s in defaults):
+        return
+    add_url = (
+        f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/"
+        f"{client_uuid}/default-client-scopes/{scope_id}"
+    )
+    put_req = urllib.request.Request(add_url, data=b"", method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(put_req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Add {scope_name} to client default scopes {realm_name} client={client_uuid} failed: {e.code} {body}")
+
+
+def remove_kairos_oidc_group_mapper_from_client(
+    base_url: str,
+    realm_name: str,
+    client_uuid: str,
+    client_label: str,
+    token: str,
+) -> None:
+    mappers = list_client_protocol_mappers(base_url, realm_name, client_uuid, token)
+    existing = next((m for m in mappers if m.get("name") == KAIROS_OIDC_GROUP_MAPPER_NAME), None)
+    if not existing:
+        return
+    mapper_id = existing.get("id")
+    if not isinstance(mapper_id, str) or not mapper_id:
+        sys.exit(f"{realm_name} client {client_label}: mapper {KAIROS_OIDC_GROUP_MAPPER_NAME!r} has no id")
+    url = (
+        f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/"
+        f"{client_uuid}/protocol-mappers/models/{mapper_id}"
+    )
+    req = urllib.request.Request(url, method="DELETE")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode() if e.fp else ""
+        sys.exit(f"DELETE group mapper {realm_name} {client_label} failed: {e.code} {err_body}")
+    print(f"  Removed legacy OIDC group mapper ({realm_name}, {client_label})")
+
+
 def list_realm_client_scopes(base_url: str, realm_name: str, token: str) -> list[dict]:
     """GET realm-defined client scopes (templates)."""
     url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/client-scopes"
@@ -841,6 +1078,7 @@ def set_password(
 _KAIROS_SHARES_GROUP = "kairos-shares"
 _KAIROS_OPERATOR_GROUP = "kairos-operator"
 _SHARED_GROUP = "shared"
+_CI_TEST_SUBGROUP = "ci-test"
 
 
 def _find_group_id_by_name(groups: list[dict], name: str) -> str | None:
@@ -900,6 +1138,16 @@ def get_realm_group_id_by_name(
                         base_url, realm, shares_id, token
                     ):
                         if ch.get("name") == _KAIROS_OPERATOR_GROUP:
+                            cid = ch.get("id")
+                            if isinstance(cid, str) and cid:
+                                return cid
+            if group_name == _CI_TEST_SUBGROUP:
+                shared_id = _find_group_id_by_name(raw, _SHARED_GROUP)
+                if shared_id:
+                    for ch in list_direct_group_children(
+                        base_url, realm, shared_id, token
+                    ):
+                        if ch.get("name") == _CI_TEST_SUBGROUP:
                             cid = ch.get("id")
                             if isinstance(cid, str) and cid:
                                 return cid
@@ -1026,6 +1274,35 @@ def ensure_kairos_shares_operator_hierarchy(base_url: str, realm: str, token: st
     )
 
 
+def _ci_test_is_child_of_shared(base_url: str, realm: str, token: str) -> bool:
+    shared_id = get_realm_group_id_by_name(base_url, realm, _SHARED_GROUP, token)
+    if not shared_id:
+        return False
+    for ch in list_direct_group_children(base_url, realm, shared_id, token):
+        if ch.get("name") == _CI_TEST_SUBGROUP:
+            return True
+    return False
+
+
+def ensure_shared_ci_test_hierarchy(base_url: str, realm: str, token: str) -> None:
+    """
+    Nest ci-test under shared (idempotent). JWT group path /shared/ci-test (full.path mapper).
+    """
+    if _ci_test_is_child_of_shared(base_url, realm, token):
+        print(f"  Groups {realm}: '/shared/{_CI_TEST_SUBGROUP}' already present")
+        return
+    shared_id = create_top_level_group_if_missing(base_url, realm, _SHARED_GROUP, token)
+    tree = fetch_realm_groups_tree(base_url, realm, token)
+    ci_id = _find_group_id_by_name(tree, _CI_TEST_SUBGROUP)
+    post_group_child(base_url, realm, shared_id, _CI_TEST_SUBGROUP, ci_id, token)
+    if not _ci_test_is_child_of_shared(base_url, realm, token):
+        sys.exit(
+            f"{realm}: expected {_CI_TEST_SUBGROUP!r} under {_SHARED_GROUP!r} "
+            "after Admin API child POST; re-check Keycloak state."
+        )
+    print(f"  Groups {realm}: nested {_CI_TEST_SUBGROUP!r} under {_SHARED_GROUP!r}")
+
+
 def ensure_top_level_groups_from_import(
     base_url: str, realm: str, desired_realm: dict, token: str
 ) -> None:
@@ -1053,6 +1330,47 @@ def ensure_shared_group(base_url: str, realm: str, token: str) -> None:
     """
     create_top_level_group_if_missing(base_url, realm, _SHARED_GROUP, token)
     print(f"  Groups {realm}: ensured '/{_SHARED_GROUP}'")
+
+
+def import_includes_top_level_group(desired_realm: dict, name: str) -> bool:
+    for entry in desired_realm.get("groups") or []:
+        if isinstance(entry, dict) and entry.get("name") == name:
+            return True
+    return False
+
+
+def delete_realm_group_by_id(
+    base_url: str, realm: str, group_id: str, token: str
+) -> None:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/groups/{group_id}"
+    req = urllib.request.Request(url, method="DELETE")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"DELETE group id={group_id!r} {realm} failed: {e.code} {body}")
+
+
+def prune_top_level_groups_not_in_import(
+    base_url: str, realm: str, desired_realm: dict, token: str
+) -> None:
+    """Remove top-level realm groups whose names are not listed in import JSON (idempotent)."""
+    wanted: set[str] = set()
+    for entry in desired_realm.get("groups") or []:
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str):
+            wanted.add(entry["name"])
+    if not wanted:
+        return
+    tree = fetch_realm_groups_tree(base_url, realm, token)
+    for g in tree:
+        name = g.get("name")
+        gid = g.get("id")
+        if not isinstance(name, str) or not isinstance(gid, str):
+            continue
+        if name not in wanted:
+            delete_realm_group_by_id(base_url, realm, gid, token)
+            print(f"  Groups {realm}: removed top-level group not in import ({name!r})")
 
 
 def list_user_groups(base_url: str, realm: str, user_id: str, token: str) -> list[dict]:
@@ -1271,6 +1589,8 @@ def main() -> int:
 
     test_username = env.get("TEST_USERNAME", "kairos-tester")
     test_password = env.get("TEST_PASSWORD", "kairos-tester-secret")
+    ci_test_only_username = env.get("KAIROS_CI_TEST_USERNAME", "kairos-ci-tester")
+    ci_test_only_password = env.get("KAIROS_CI_TEST_PASSWORD", "kairos-ci-tester-secret")
 
     token = get_admin_token(base_url, admin_password)
     import_dir = root / "scripts" / "keycloak" / "import"
@@ -1305,12 +1625,15 @@ def main() -> int:
         push_kairos_mcp_redirect_config(base_url, realm_name, desired, token)
 
     # 1b. Realm PUT does not reliably create/move groups; enforce import top-level groups
-    # and then /shared plus shares/operator hierarchy via Admin API.
+    # and then /shared plus optional shares/operator hierarchy via Admin API.
     for realm_name, _ in REALM_FILES:
         desired = desired_by_realm.get(realm_name, {})
         ensure_top_level_groups_from_import(base_url, realm_name, desired, token)
         ensure_shared_group(base_url, realm_name, token)
-        ensure_kairos_shares_operator_hierarchy(base_url, realm_name, token)
+        ensure_shared_ci_test_hierarchy(base_url, realm_name, token)
+        if import_includes_top_level_group(desired, _KAIROS_SHARES_GROUP):
+            ensure_kairos_shares_operator_hierarchy(base_url, realm_name, token)
+        prune_top_level_groups_not_in_import(base_url, realm_name, desired, token)
 
     # 2. Set trusted hosts per realm (dev / prod)
     for realm_name, _ in REALM_FILES:
@@ -1321,27 +1644,40 @@ def main() -> int:
     for realm_name, _ in REALM_FILES:
         ensure_openid_client_scope(base_url, realm_name, token)
 
+    # 3b. Shared groups client scope (default for all clients, including dynamic registration).
+    group_scope_ids: dict[str, str] = {}
+    for realm_name, _ in REALM_FILES:
+        group_scope_ids[realm_name] = ensure_kairos_groups_client_scope(base_url, realm_name, token)
+
     # 4. Dynamic client registration: allowed client-scope templates
     for realm_name, _ in REALM_FILES:
         ensure_allowed_client_templates(base_url, realm_name, token)
 
-    # 4b. JWT `groups` claim (Group Membership mapper on MCP + CLI clients); full.path always on
+    # 4b. Attach groups scope to realm defaults + legacy clients (kairos-mcp / kairos-cli).
     for realm_name, _ in REALM_FILES:
+        scope_id = group_scope_ids.get(realm_name)
+        if not scope_id:
+            sys.exit(f"Missing {KAIROS_GROUPS_CLIENT_SCOPE_NAME} scope id for {realm_name}")
+        ensure_default_client_scope(
+            base_url, realm_name, token, scope_id, KAIROS_GROUPS_CLIENT_SCOPE_NAME
+        )
         for cid in sorted(CLIENT_IDS_FOR_GROUP_MAPPER):
             c_uuid = get_client_internal_id_by_client_id(base_url, realm_name, cid, token)
             if not c_uuid:
                 print(
-                    f"WARNING: client {cid!r} missing in {realm_name}; skip OIDC group mapper.",
+                    f"WARNING: client {cid!r} missing in {realm_name}; skip groups scope link.",
                     file=sys.stderr,
                 )
                 continue
-            ensure_kairos_oidc_group_mapper_for_client(
-                base_url, realm_name, c_uuid, cid, token, full_path=True
+            ensure_client_default_scope(
+                base_url, realm_name, token, c_uuid, scope_id, KAIROS_GROUPS_CLIENT_SCOPE_NAME
             )
+            remove_kairos_oidc_group_mapper_from_client(base_url, realm_name, c_uuid, cid, token)
 
-    # 5. Test user in dev only (password); group membership runs after verify (step 7)
+    # 5. Test users in dev only (password); group membership runs after verify (step 7)
     for realm_name in ("kairos-dev",):
         ensure_test_user(base_url, realm_name, test_username, test_password, token)
+        ensure_test_user(base_url, realm_name, ci_test_only_username, ci_test_only_password, token)
 
     # 6. Verify: dump from Keycloak and compare with import
     verify_errors = verify_realms_after_update(base_url, token, import_dir, env)
@@ -1354,8 +1690,14 @@ def main() -> int:
 
     # 7. Test user groups last (realm/clients verified); GET confirms membership for Admin UI / tokens
     for realm_name in ("kairos-dev",):
+        desired = desired_by_realm.get(realm_name, {})
         ensure_test_user_in_group(base_url, realm_name, test_username, "kairos-auditor", token)
-        ensure_test_user_in_group(base_url, realm_name, test_username, "kairos-operator", token)
+        if import_includes_top_level_group(desired, _KAIROS_SHARES_GROUP):
+            ensure_test_user_in_group(
+                base_url, realm_name, test_username, "kairos-operator", token
+            )
+        ensure_test_user_in_group(base_url, realm_name, test_username, "ci-test", token)
+        ensure_test_user_in_group(base_url, realm_name, ci_test_only_username, "ci-test", token)
 
     print("Keycloak realms configured.")
     return 0

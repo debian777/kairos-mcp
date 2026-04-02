@@ -122,7 +122,7 @@ export class MemoryQdrantStore {
   async storeAdapter(
     docs: string[],
     llmModelId: string,
-    options: { forceUpdate?: boolean; protocolVersion?: string } = {}
+    options: { forceUpdate?: boolean; protocolVersion?: string; forkNewAdapter?: boolean } = {}
   ): Promise<Memory[]> {
     return this.adapterStore.storeAdapter(docs, llmModelId, options);
   }

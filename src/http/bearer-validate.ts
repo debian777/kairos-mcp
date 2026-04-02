@@ -4,7 +4,12 @@
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { decodeJwt } from "jose/jwt/decode";
-import { KEYCLOAK_URL, KEYCLOAK_INTERNAL_URL, OIDC_GROUPS_ALLOWLIST } from "../config.js";
+import {
+  KEYCLOAK_URL,
+  KEYCLOAK_INTERNAL_URL,
+  OIDC_BEARER_MERGE_USERINFO_GROUPS,
+  OIDC_GROUPS_ALLOWLIST
+} from "../config.js";
 import { structuredLogger } from "../utils/structured-logger.js";
 import {
   applyOidcGroupsAllowlist,
@@ -169,6 +174,11 @@ export async function validateBearerToken(
   }
   if (groups.length === 0) {
     groups = await fetchGroupsFromOidcUserinfo(iss, token);
+  } else if (OIDC_BEARER_MERGE_USERINFO_GROUPS) {
+    const fromUserinfo = await fetchGroupsFromOidcUserinfo(iss, token);
+    if (fromUserinfo.length > 0) {
+      groups = [...new Set([...groups, ...fromUserinfo])];
+    }
   }
   groups = applyOidcGroupsAllowlist(groups, OIDC_GROUPS_ALLOWLIST);
   const enrich = enrichAuthPayloadFromVerifiedJwt(payload);

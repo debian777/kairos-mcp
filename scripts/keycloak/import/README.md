@@ -2,12 +2,22 @@
 
 Realm JSONs in this directory are applied **idempotently** by **scripts/deploy-configure-keycloak-realms.py** via the Admin API. No Docker import mount; do not use Keycloak `--import-realm` (would conflict with existing realms).
 
-**Sub-realms only.** All realm configuration in this repo (import JSON + `deploy-configure-keycloak-realms.py`) targets **sub-realms** (e.g. `kairos-dev`, `kairos-prod`). The **master** realm is used only for admin authentication (obtaining a token); no script modifies master.
+**Sub-realms only.** All realm configuration in this repo (import JSON +
+`deploy-configure-keycloak-realms.py`) targets **sub-realms** (for example,
+`kairos-dev`, `kairos-prod`). The **master** realm is used only for admin
+authentication (obtaining a token); no script modifies master.
 
 ## Files
 
-- **kairos-dev-realm.json** – Dev realm: `kairos-dev`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE). Browser SSO is kept; MCP clients should send `prompt=login` when building the auth URL (see `authorization_request_parameters` in `/.well-known/oauth-protected-resource`).
-- **kairos-prod-realm.json** – Prod realm: `kairos-prod`, clients `kairos-mcp` (server browser login) and `kairos-cli` (CLI/MCP host PKCE).
+These files define the realm baselines that the Admin API merge step applies.
+
+- **kairos-dev-realm.json** – Dev realm: `kairos-dev`, clients `kairos-mcp`
+  (server browser login) and `kairos-cli` (CLI or MCP host PKCE). Browser SSO
+  is kept. We recommend MCP clients send `prompt=login` when building the auth
+  URL (see `authorization_request_parameters` in
+  `/.well-known/oauth-protected-resource`).
+- **kairos-prod-realm.json** – Prod realm: `kairos-prod`, clients `kairos-mcp`
+  (server browser login) and `kairos-cli` (CLI or MCP host PKCE).
 
 ## Idempotent configuration: `deploy-configure-keycloak-realms.py`
 
@@ -25,8 +35,14 @@ The script:
 2. **Trusted hosts:** set per realm (dev: 127.0.0.1 + Docker gateway; prod: app-prod).
 3. **Client Scope `openid`:** creates a realm Client Scope named `openid` (if missing), adds it to **default optional client scopes**, and allowlists it on **Allowed Client Scopes** registration policies. MCP clients such as `mcp-remote` register with OAuth `scope: openid` (from protected-resource metadata); without this named scope, Keycloak rejects dynamic client registration with *Not permitted to use specified clientScope*.
 4. **Allowed client templates:** sets anonymous/authenticated registration policy allow lists (includes `openid` plus templates aligned with `kairos-cli` defaults).
-5. **Test user** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` from env (default `kairos-tester` / `kairos-tester-secret`).
-6. **JWT `groups` mapper** on clients **kairos-mcp** and **kairos-cli**: adds Keycloak’s **Group Membership** mapper for OIDC tokens (claim `groups`, access + ID + userinfo + introspection). **`full.path` is always on** (full paths such as `/kairos-auditor`, `/kairos-shares/kairos-operator`); the script does not toggle it via env.
+5. **Test users** (dev only): `TEST_USERNAME` / `TEST_PASSWORD` (default `kairos-tester` / `kairos-tester-secret`), optional `KAIROS_CI_TEST_USERNAME` / `KAIROS_CI_TEST_PASSWORD` (default `kairos-ci-tester` / `kairos-ci-tester-secret`). The script ensures **`/shared/ci-test`** exists under the top-level **`shared`** group and assigns both users to **`ci-test`** (plus **`kairos-auditor`** for `kairos-tester`; **`kairos-operator`** only if the import lists top-level **`kairos-shares`**). Extra top-level groups not present in the import JSON are **deleted** from the realm so verification matches.
+6. **JWT `groups` mapper** client scope: creates a shared client scope named
+   `kairos-groups` with the **Group Membership** mapper for OIDC tokens (claim
+   `groups`, access + ID + userinfo + introspection). The script attaches the
+   scope as a **default client scope** so new OAuth clients inherit it, then
+   links it to `kairos-mcp` and `kairos-cli`. **`full.path` is always on** (full
+   paths such as `/kairos-auditor`, `/kairos-shares/kairos-operator`); the
+   script does not toggle it via env.
 
 Requires `KEYCLOAK_ADMIN_PASSWORD` in `.env` or environment. Optional: `KEYCLOAK_URL` (default `http://localhost:8080`), `TEST_USERNAME`, `TEST_PASSWORD`.
 
@@ -51,11 +67,21 @@ Without this mapper, KAIROS treats users as local account type because the claim
 
 KAIROS reads only the JWT `groups` claim. It does **not** fallback to `realm_access.roles`.
 
-`deploy-configure-keycloak-realms.py` installs a **Group Membership** mapper named `kairos-oidc-groups` on **kairos-mcp** and **kairos-cli**. Keycloak’s mapper lists **every** realm group the user belongs to (you cannot whitelist individual groups in that mapper on current Keycloak).
+`deploy-configure-keycloak-realms.py` creates a shared client scope named
+`kairos-groups` and attaches the **Group Membership** mapper named
+`kairos-oidc-groups`. The scope is a **default client scope** so new OAuth
+clients inherit the claim, and the script links it to `kairos-mcp` and
+`kairos-cli`. Keycloak’s mapper lists **every** realm group the user belongs to
+(you cannot whitelist individual groups in that mapper on current Keycloak).
 
-To **choose which groups KAIROS uses** (spaces, `/api/me`, session cookie) after the token is issued, set **`OIDC_GROUPS_ALLOWLIST`** in the app `.env` to a comma-separated list of full group **paths** or **path prefixes** ending with `/`.
-For example, `/shared/` matches `/shared/team-platform`.
-Leave the allowlist empty or unset to deny all group paths (default deny).
+To **choose which groups KAIROS uses** (spaces, `/api/me`, session cookie) after
+the token is issued, set **`OIDC_GROUPS_ALLOWLIST`** in the app `.env` to a
+comma-separated list of full group **paths** or **path prefixes** ending with
+`/`. For example, `/shared/` matches `/shared/team-platform`.
+
+Leave the allowlist empty or unset to deny all group paths (default deny). Use
+`/` or a more specific prefix to accept group paths and then tighten the list
+as needed.
 
 KAIROS builds deterministic space ids at request time using the issuer and
 token claims:
@@ -63,11 +89,12 @@ token claims:
 - Personal space: `user:<realmSlug>:<uuidv5(iss + "\\nuser\\n" + sub)>`
 - Group space: `group:<realmSlug>:<uuidv5(iss + "\\ngroup\\n" + fullPath)>`
 
-If you manage Keycloak manually, add the same style of **Group Membership** mapper yourself; keep the claim name `groups` so KAIROS can read it.
+If you manage Keycloak manually, add the same style of **Group Membership**
+mapper yourself. Keep the claim name `groups` so KAIROS can read it.
 
 ## Adding other users
 
-For ad-hoc users (e.g. demo) with auto-generated password:
+For ad-hoc users (for example, `demo`) with auto-generated password:
 
 ```bash
 python3 scripts/deploy-add-keycloak-user --realm kairos-dev --user demo
@@ -76,9 +103,18 @@ python3 scripts/deploy-add-keycloak-user --realm kairos-dev --user demo
 
 ## MCP OAuth and multi-browser (already_logged_in)
 
-The server exposes `authorization_request_parameters: { "prompt": "login" }` in `/.well-known/oauth-protected-resource`. MCP clients (e.g. Cursor) that support it should add these parameters to the authorization request when redirecting to Keycloak, so users get a fresh login for MCP without disabling SSO for normal browser use. If your MCP client does not yet support this, you may see `already_logged_in` when already logged in elsewhere; use a private window or a second browser with the same Keycloak base URL.
+The server exposes `authorization_request_parameters: { "prompt": "login" }` in
+`/.well-known/oauth-protected-resource`. MCP clients (for example, Cursor) that
+support it can add these parameters to the authorization request when
+redirecting to Keycloak, so users get a fresh login for MCP without disabling
+SSO for normal browser use. If your MCP client does not yet support this, you
+may see `already_logged_in` when already logged in elsewhere. Use a private
+window or a second browser with the same Keycloak base URL.
 
 ## Naming
 
+Use the naming patterns below to keep realm files consistent.
+
 - Realm config: `<realm>-realm.json`.
-- User files (if you add exported users): `<realm>-users-<n>.json` (see [Keycloak import/export](https://www.keycloak.org/server/importExport)).
+- User files (if you add exported users): `<realm>-users-<n>.json` (see
+  [Keycloak import/export](https://www.keycloak.org/server/importExport)).

@@ -4,6 +4,7 @@ import { logger } from '../../utils/structured-logger.js';
 import { embeddingService } from '../embedding/service.js';
 import { getEmbeddingDimension } from '../embedding/config.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
+import crypto from 'node:crypto';
 import { IDGenerator } from '../id-generator.js';
 import { modelStats } from '../stats/model-stats.js';
 import { redisCacheService } from '../redis-cache.js';
@@ -33,7 +34,8 @@ export async function storeHeaderBasedAdapter(
   headerAdapterMemories: Memory[],
   llmModelId: string,
   forceUpdate: boolean,
-  slugInput: AdapterSlugMintInput
+  slugInput: AdapterSlugMintInput,
+  forkNewAdapter = false
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
@@ -42,7 +44,7 @@ export async function storeHeaderBasedAdapter(
   const adapterTitle = (explicitAdapterTitle && explicitAdapterTitle.trim().length > 0)
     ? explicitAdapterTitle.trim()
     : (firstLabel.includes(':') ? firstLabel.split(':')[0]!.trim() : firstLabel.trim());
-  const adapterUuid = IDGenerator.generateAdapterUUIDv5(adapterTitle);
+  const adapterUuid = forkNewAdapter ? crypto.randomUUID() : IDGenerator.generateAdapterUUIDv5(adapterTitle);
 
   await handleDuplicateAdapter(client, collection, adapterUuid, forceUpdate);
 

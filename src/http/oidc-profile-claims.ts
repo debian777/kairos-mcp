@@ -71,9 +71,26 @@ export function realmFromIssuer(iss: string): string {
   return typeof segment === "string" ? segment : "default";
 }
 
+/**
+ * Normalize Keycloak / OIDC `groups` into string paths. Handles array, single path string,
+ * or JSON array string (some gateways serialize oddly).
+ */
 export function extractGroupsFromPayload(payload: Record<string, unknown>): string[] {
   const g = payload["groups"];
   if (Array.isArray(g)) return g.filter((x): x is string => typeof x === "string");
+  if (typeof g === "string") {
+    const t = g.trim();
+    if (!t) return [];
+    if (t.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(t) as unknown;
+        if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
+      } catch {
+        return [t];
+      }
+    }
+    return [t];
+  }
   return [];
 }
 
@@ -94,12 +111,13 @@ function groupPathForm(g: string): string {
  * Keep only token groups that match an allowlist entry:
  * - **Exact:** plain name or path (`kairos-auditor`, `/kairos-auditor`) — slash optional on either side.
  * - **Prefix:** entry ends with `/` (e.g. `/kairos-shares/`) — keep any JWT group whose path form starts with that prefix (after normalizing a leading slash on the entry).
- * - **Default deny:** empty allowlist keeps no groups.
+ * - **Default (no filter):** empty allowlist keeps **all** JWT groups (same membership the IdP issued).
+ *   Set a non-empty allowlist to restrict which paths become KAIROS spaces.
  * Keycloak's Group Membership mapper lists every group the user belongs to; use this on KAIROS
- * to restrict which entries become session/API groups.
+ * to restrict which entries become session/API groups when you configure an allowlist.
  */
 export function applyOidcGroupsAllowlist(groups: string[], allowlist: readonly string[]): string[] {
-  if (allowlist.length === 0) return [];
+  if (allowlist.length === 0) return [...groups];
   const exact = new Set<string>();
   const exactLower = new Set<string>();
   const prefixes: string[] = [];

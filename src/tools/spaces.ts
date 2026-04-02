@@ -4,7 +4,7 @@
  */
 
 import type { MemoryQdrantStore } from '../services/memory/store.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { buildSpaceFilter } from '../utils/space-filter.js';
@@ -151,7 +151,7 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
     toolName,
     {
       title: 'List spaces and adapter counts',
-      description: getToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
+      description: resolveToolDoc('spaces') ?? 'List the agent\'s available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.',
       inputSchema: mcpLooseToolInput(spacesInputSchema),
       outputSchema: spacesOutputSchema,
       _meta: KAIROS_SPACES_TOOL_UI_META

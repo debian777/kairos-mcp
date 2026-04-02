@@ -1,6 +1,6 @@
 import type { QdrantService } from '../services/qdrant/service.js';
 import { qdrantService as qdrantServiceSingleton } from '../services/qdrant/index.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './delete_schema.js';
@@ -65,7 +65,7 @@ export function registerDeleteTool(server: any, toolName = 'delete') {
     toolName,
     {
       title: 'Delete KAIROS adapter resource',
-      description: getToolDoc('delete'),
+      description: resolveToolDoc('delete'),
       inputSchema: mcpLooseToolInput(deleteInputSchema),
       outputSchema: deleteOutputSchema
     },

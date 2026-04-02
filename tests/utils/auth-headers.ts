@@ -54,6 +54,9 @@ async function fetchKeycloakToken(
   password: string
 ): Promise<string> {
   const tokenUrl = `${keycloakUrl.replace(/\/$/, '')}/realms/${realm}/protocol/openid-connect/token`;
+  /** Include `kairos-groups` so access token + userinfo carry Group Membership (integration / #278). */
+  const scope =
+    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid profile email kairos-groups';
   const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -61,7 +64,8 @@ async function fetchKeycloakToken(
       grant_type: 'password',
       client_id: clientId,
       username,
-      password
+      password,
+      scope
     })
   });
   if (!res.ok) {
@@ -74,26 +78,32 @@ async function fetchKeycloakToken(
 }
 
 /**
- * Fetch a fresh Keycloak token and update the env-specific auth file.
- * Uses KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID from loaded .env. Returns true if refreshed.
+ * Fetch a fresh Keycloak token and update `.test-auth-env.dev.json`.
+ * Works from `process.env` alone (KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID) so integration
+ * tests get `kairos-groups` + password grant even when the auth file is missing or stale (#278).
  */
 export async function refreshTestAuthToken(): Promise<boolean> {
   if (process.env.AUTH_ENABLED !== 'true') return false;
-  const env = readAuthEnv();
-  if (!env?.baseUrl || !env?.keycloakUrl) return false;
   const keycloakUrl = process.env.KEYCLOAK_URL?.replace(/\/$/, '');
   const realm = process.env.KEYCLOAK_REALM?.trim();
   const clientId = process.env.KEYCLOAK_CLIENT_ID?.trim();
   if (!keycloakUrl || !realm || !clientId) return false;
+  const port = process.env.PORT || '3300';
+  const baseUrl =
+    readAuthEnv()?.baseUrl?.trim() ||
+    process.env.KAIROS_TEST_BASE_URL?.trim() ||
+    `http://localhost:${port}`;
+  const username = process.env.TEST_USERNAME?.trim() || TEST_USERNAME;
+  const password = process.env.TEST_PASSWORD?.trim() || TEST_PASSWORD;
   try {
-    const token = await fetchKeycloakToken(
-      keycloakUrl,
-      realm,
-      clientId,
-      TEST_USERNAME,
-      TEST_PASSWORD
-    );
-    const next = { ...env, bearerToken: token };
+    const token = await fetchKeycloakToken(keycloakUrl, realm, clientId, username, password);
+    const prev = readAuthEnv();
+    const next: TestAuthEnv = {
+      ...(prev ?? {}),
+      bearerToken: token,
+      baseUrl,
+      keycloakUrl
+    };
     writeFileSync(getAuthEnvFilePath(), JSON.stringify(next));
     invalidateAuthEnvCache();
     return true;
@@ -122,6 +132,14 @@ export function getTestAuthBaseUrl(): string {
   }
   const port = process.env.PORT || '3300';
   return `http://localhost:${port}`;
+}
+
+/** Keycloak base URL from auth env (preferred) or KEYCLOAK_URL fallback. */
+export function getTestKeycloakUrl(): string | undefined {
+  const env = readAuthEnv();
+  if (env?.keycloakUrl) return env.keycloakUrl;
+  const fallback = process.env.KEYCLOAK_URL?.trim();
+  return fallback ? fallback.replace(/\/$/, '') : undefined;
 }
 
 /** True when server requires auth (from .env). */

@@ -1,6 +1,6 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { executionTraceStore, type TrainingPair } from '../services/execution-trace-store.js';
 import { getAdapterId } from '../services/memory/memory-accessors.js';
 import { getSpaceContextFromStorage, getTenantId } from '../utils/tenant-context.js';
@@ -291,7 +291,7 @@ export function registerExportTool(server: any, memoryStore: MemoryQdrantStore, 
     toolName,
     {
       title: 'Export adapter or training data',
-      description: getToolDoc('export') || 'Export adapter markdown or training datasets.',
+      description: resolveToolDoc('export') || 'Export adapter markdown or training datasets.',
       inputSchema: mcpLooseToolInput(exportInputSchema),
       outputSchema: exportOutputSchema
     },

@@ -17,6 +17,8 @@ import { checkSimilarAdapterByTitle } from './store-adapter-helpers.js';
 export interface StoreAdapterOptions {
   forceUpdate?: boolean;
   protocolVersion?: string;
+  /** When true (train fork from `source_adapter_uri`), mint a new adapter id instead of title-derived v5. */
+  forkNewAdapter?: boolean;
 }
 
 export class MemoryQdrantStoreAdapter {
@@ -92,7 +94,8 @@ export class MemoryQdrantStoreAdapter {
             headerAdapterMemories,
             llmModelId,
             options.forceUpdate || false,
-            { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied }
+            { slug: slugCand.slug, authorSupplied: slugCand.authorSupplied },
+            !!options.forkNewAdapter
           );
         }
         docsForDefaultPath = [docForAdapter];
@@ -120,7 +123,8 @@ export class MemoryQdrantStoreAdapter {
         now,
         options.forceUpdate || false,
         effectiveProtocolVersion,
-        parsedSingleDoc
+        parsedSingleDoc,
+        !!options.forkNewAdapter
       );
     } finally {
       timer({ tenant_id: tenantId });

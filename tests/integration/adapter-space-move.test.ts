@@ -15,9 +15,10 @@ import {
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import {
-  adapterSpaceSkipReason,
+  assertGroupSpacesWhenAuth,
   openAdapterSpaceMcpBundle
 } from './utils/adapter-space-mcp-context.js';
+import { hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
 import {
   BASE_URL,
   CLI_PATH,
@@ -51,11 +52,15 @@ describe('Adapter space move (personal → group)', () => {
   });
 
   test('MCP: tune(space) moves personal adapter into group', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (why || !bundle) {
-      console.warn(`[adapter-space-move] skip MCP move: ${why}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-move] skip MCP move: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-move] skip MCP move: auth disabled or no token');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { mcp, groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceMoveMCP ${Date.now()}`;
@@ -105,11 +110,15 @@ describe('Adapter space move (personal → group)', () => {
   }, 120000);
 
   test('API: POST /api/tune with space moves personal adapter into group', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (why || !bundle) {
-      console.warn(`[adapter-space-move] skip API move: ${why}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-move] skip API move: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-move] skip API move: auth disabled or no token');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceMoveAPI ${Date.now()}`;
@@ -154,11 +163,19 @@ describe('Adapter space move (personal → group)', () => {
   }, 120000);
 
   test('CLI: tune --space moves personal adapter into group', async () => {
-    const why = adapterSpaceSkipReason(bundle, serverOk);
-    if (!cliOk || why || !bundle) {
-      console.warn(`[adapter-space-move] skip CLI move: ${why ?? 'CLI not logged in'}`);
+    if (!serverOk) {
+      console.warn('[adapter-space-move] skip CLI move: server unavailable');
       return;
     }
+    if (!serverRequiresAuth() || !hasAuthToken()) {
+      console.warn('[adapter-space-move] skip CLI move: auth disabled or no token');
+      return;
+    }
+    if (!cliOk) {
+      console.warn('[adapter-space-move] skip CLI move: CLI not logged in');
+      return;
+    }
+    assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
     const { groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceMoveCLI ${Date.now()}`;

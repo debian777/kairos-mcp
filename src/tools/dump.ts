@@ -1,6 +1,6 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import type { Memory, ProofOfWorkDefinition } from '../types/memory.js';
+import type { InferenceContractDefinition, Memory } from '../types/memory.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { buildProtocolYamlFrontmatter, stripRedundantStepH2 } from '../utils/dump-markdown.js';
@@ -26,15 +26,18 @@ async function loadMemory(memoryStore: MemoryQdrantStore, uuid: string): Promise
   return memory;
 }
 
-/** Serialize proof-of-work as a JSON code block only (no older line format). */
-function challengeBlock(proofOfWork: ProofOfWorkDefinition | undefined): string {
-  if (!proofOfWork) return '';
-  return `\n\n\`\`\`json\n${JSON.stringify({ challenge: proofOfWork })}\n\`\`\``;
+/**
+ * Append ```json for a stored layer contract. Train / validateProtocolStructure require
+ * `{"contract": ...}` (same as mint); `{ challenge: ... }` breaks fork-from-source re-train (#278).
+ */
+function inferenceContractFence(contract: InferenceContractDefinition | undefined): string {
+  if (!contract) return '';
+  return `\n\n\`\`\`json\n${JSON.stringify({ contract })}\n\`\`\``;
 }
 
 function buildMarkdownDocSingle(memory: Memory): string {
   const body = extractMemoryBody(memory.text);
-  return body + challengeBlock(getInferenceContract(memory));
+  return body + inferenceContractFence(getInferenceContract(memory));
 }
 
 function includesRewardHeading(markdown: string): boolean {
@@ -58,7 +61,7 @@ function buildMarkdownDocProtocol(memories: Memory[]): string {
   for (const memory of memories) {
     const body = extractMemoryBody(memory.text);
     const bodyStripped = stripRedundantStepH2(body, memory.label);
-    parts.push(`## ${memory.label}\n\n${bodyStripped}${challengeBlock(getInferenceContract(memory))}`);
+    parts.push(`## ${memory.label}\n\n${bodyStripped}${inferenceContractFence(getInferenceContract(memory))}`);
   }
   const rewardSection = resolveStoredRewardSection(memories);
   if (rewardSection) {

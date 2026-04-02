@@ -2,7 +2,7 @@
  * Test helpers that print the raw MCP/app response on assertion failures.
  */
 
-export function withRawOnFail(raw, assertions, header) {
+export function withRawOnFail(raw: unknown, assertions: () => void, header?: string) {
   try {
     assertions();
   } catch (err) {
