@@ -63,7 +63,11 @@ export const trainStoreInputSchema = z.object({
   llm_model_id: z.string().min(1).describe('LLM model ID'),
   force_update: z.boolean().optional().default(false).describe('Overwrite an existing adapter with the same label'),
   protocol_version: z.string().optional().describe('Protocol version (e.g. semver). Overrides or supplies version when document has no frontmatter.'),
-  space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" (default) or group name to train into that group space')
+  space: z.union([z.literal('personal'), z.string()]).optional().describe('Target space: "personal" (default) or group name to train into that group space'),
+  fork_new_adapter: z
+    .boolean()
+    .optional()
+    .describe('Internal: mint new adapter id (train fork from source_adapter_uri)')
 });
 
 export const trainStoreOutputSchema = z.object({

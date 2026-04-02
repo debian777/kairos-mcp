@@ -1,5 +1,5 @@
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { applyRewardMetrics, type RewardMetricsResult } from '../services/reward-metrics.js';
@@ -110,7 +110,7 @@ export function registerRewardTool(server: any, qdrantService: QdrantService, op
     toolName,
     {
       title: 'Record adapter reward',
-      description: getToolDoc('reward') || 'Attach a reward signal after adapter execution completes.',
+      description: resolveToolDoc('reward') || 'Attach a reward signal after adapter execution completes.',
       inputSchema: mcpLooseToolInput(rewardInputSchema),
       outputSchema: rewardOutputSchema
     },

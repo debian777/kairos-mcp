@@ -408,6 +408,13 @@ test() {
 
     case "$ENV" in
         dev)
+            # Playwright is a devDependency; browser binaries are not shipped with npm. Install the
+            # Chromium bundle used by tests/integration/cli-auth-browser-login.e2e.test.ts so
+            # `npm test` / `npm run dev:test` work on a fresh clone without a manual step. Idempotent
+            # when ~/.cache/ms-playwright is already populated (CI restores this cache before tests).
+            print_info "Ensuring Playwright Chromium for integration e2e tests..."
+            npx playwright install chromium
+
             # Isolated CLI config for test run (CLI uses XDG_CONFIG_HOME; tests must not set it).
             CLI_CONFIG_DIR="$(mktemp -d)"
             export XDG_CONFIG_HOME="$CLI_CONFIG_DIR"

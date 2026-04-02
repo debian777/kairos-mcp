@@ -34,6 +34,7 @@ When running **MCP-only** workflow tests (no shell, no filesystem except `report
 
 - [Architecture and adapter workflows](../architecture/README.md) — End-to-end flow (**activate** → **forward** → **reward**) and per-tool workflows.
 - [Workflow test README](../../tests/workflow-test/README.md) — Test harness and how to run.
-- Building KAIROS workflows is described in the MCP resource **building-kairos-workflows** and in the tool description for **`train`**.
+- Building KAIROS workflows is described in the tool descriptions for
+  **`train`** and **`forward`**.
 - [Agent-facing design principles](../../CONTRIBUTING.md#agent-facing-design-principles) — For contributors designing or reviewing MCP tools and APIs.
 

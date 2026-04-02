@@ -41,7 +41,8 @@ export async function storeDefaultAdapter(
   now: Date,
   forceUpdate: boolean,
   protocolVersion?: string,
-  parsedFrontmatter?: ParsedFrontmatter
+  parsedFrontmatter?: ParsedFrontmatter,
+  forkNewAdapter = false
 ): Promise<Memory[]> {
   const tenantId = getTenantId();
 
@@ -57,7 +58,7 @@ export async function storeDefaultAdapter(
   }
 
   const firstGeneratedLabel = generateLabel(processedDocs[0]!.original);
-  const adapterUuid = IDGenerator.generateAdapterUUIDv5(firstGeneratedLabel);
+  const adapterUuid = forkNewAdapter ? crypto.randomUUID() : IDGenerator.generateAdapterUUIDv5(firstGeneratedLabel);
 
   await handleDuplicateAdapter(client, collection, adapterUuid, forceUpdate);
 

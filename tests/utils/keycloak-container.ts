@@ -187,13 +187,8 @@ export async function createUser(
     if (!searchRes.ok) throw new Error(`Find user failed: ${searchRes.status}`);
     const users = (await searchRes.json()) as Array<{ id?: string }>;
     const existingId = users[0]?.id;
-    if (existingId) {
-      const delRes = await fetch(
-        `${baseUrl.replace(/\/$/, '')}/admin/realms/${realm}/users/${existingId}`,
-        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (delRes.ok || delRes.status === 404) return createUser(baseUrl, token, realm);
-    }
+    /** Do not delete+recreate: that drops Keycloak group membership from deploy-configure-keycloak-realms.py (#278). */
+    if (existingId) return existingId;
   }
   throw new Error(`Create user failed: ${res.status} ${await res.text()}`);
 }
@@ -263,6 +258,11 @@ export function getTestUserTokenFromKeycloak(
   password: string
 ): Promise<string> {
   const tokenUrl = `${baseUrl.replace(/\/$/, '')}/realms/${realm}/protocol/openid-connect/token`;
+  // kairos-groups: matches tests/utils/auth-headers.ts (#278). Do not default to
+  // profile/email here — explicit email scope can make Keycloak reject password grant
+  // with "Account is not fully set up" when the test user is not email-verified.
+  const scope =
+    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid kairos-groups';
   const doRequest = () =>
     fetch(tokenUrl, {
       method: 'POST',
@@ -271,7 +271,8 @@ export function getTestUserTokenFromKeycloak(
         grant_type: 'password',
         client_id: clientId,
         username,
-        password
+        password,
+        scope
       })
     });
   return (async () => {

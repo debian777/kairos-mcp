@@ -6,7 +6,7 @@
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-compat.js';
 import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { listPromptOfferings } from '../resources/prompt-resources.js';
 import { activateInputSchema, activateOutputSchema } from '../tools/activate_schema.js';
 import { forwardInputSchema, forwardOutputSchema } from '../tools/forward_schema.js';
@@ -55,7 +55,7 @@ export function buildSpacesToolOffering(): Record<string, unknown> {
     name: SPACES_TOOL_NAME,
     title: 'List spaces and adapter counts',
     description:
-      getToolDoc('spaces') ??
+      resolveToolDoc('spaces') ??
       "List the agent's available spaces with human-readable names and adapter counts.",
     inputSchema: zodToInputJsonSchema(spacesInputSchema),
     outputSchema: zodToOutputJsonSchema(spacesOutputSchema),
@@ -69,7 +69,7 @@ export function buildForwardToolOffering(): Record<string, unknown> {
     name: FORWARD_TOOL_NAME,
     title: 'Run adapter forward pass',
     description:
-      getToolDoc('forward') ?? 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
+      resolveToolDoc('forward') ?? 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
     inputSchema: zodToInputJsonSchema(forwardInputSchema),
     outputSchema: zodToOutputJsonSchema(forwardOutputSchema),
     _meta: KAIROS_FORWARD_TOOL_UI_META
@@ -82,7 +82,7 @@ export function buildActivateToolOffering(): Record<string, unknown> {
     name: ACTIVATE_TOOL_NAME,
     title: 'Activate the best adapter',
     description:
-      getToolDoc('activate') ??
+      resolveToolDoc('activate') ??
       'Find the best adapter for the current input and return ranked activation choices.',
     inputSchema: zodToInputJsonSchema(activateInputSchema),
     outputSchema: zodToOutputJsonSchema(activateOutputSchema),

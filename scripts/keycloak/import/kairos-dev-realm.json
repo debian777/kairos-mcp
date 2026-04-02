@@ -14,13 +14,13 @@
   "groups": [
     { "name": "kairos-admin" },
     { "name": "kairos-auditor" },
-    { "name": "shared" },
     {
-      "name": "kairos-shares",
-      "subGroups": [{ "name": "kairos-operator" }]
-    },
-    { "name": "kairos-team-platform" },
-    { "name": "kairos-team-sre" }
+      "name": "shared",
+      "subGroups": [
+        { "name": "pe-team" },
+        { "name": "ci-test" }
+      ]
+    }
   ],
   "clients": [
     {

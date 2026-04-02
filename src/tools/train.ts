@@ -1,7 +1,7 @@
 import type { Memory } from '../types/memory.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 import { executeTrainStore, TrainError } from './train-store.js';
@@ -130,12 +130,14 @@ export async function executeTrain(
       must_obey: true
     });
   }
+  const forkedFromSource = typeof input.source_adapter_uri === 'string' && input.source_adapter_uri.trim().length > 0;
   const storePayload = {
     markdown_doc: markdownDoc,
     llm_model_id: input.llm_model_id,
     force_update: input.force_update,
     ...(input.protocol_version !== undefined && { protocol_version: input.protocol_version }),
-    ...(input.space !== undefined && { space: input.space })
+    ...(input.space !== undefined && { space: input.space }),
+    ...(forkedFromSource && { fork_new_adapter: true })
   };
   const result = await executeTrainStore(
     memoryStore,
@@ -169,7 +171,7 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
     toolName,
     {
       title: 'Register a new adapter',
-      description: getToolDoc('train') || 'Store a new adapter from markdown.',
+      description: resolveToolDoc('train') || 'Store a new adapter from markdown.',
       inputSchema: mcpLooseToolInput(trainInputSchema),
       outputSchema: trainOutputSchema
     },

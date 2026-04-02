@@ -9,6 +9,18 @@ has **`must_obey: true`**. Each choice includes an **`adapter` URI**
 per-choice **`next_action`** (typically **`forward`** on that adapter URI with
 no `solution`, **`train`** for create, or **`forward`** on the refine adapter).
 
+## Input schema
+
+Every call requires a short `query` string that summarizes the user’s intent.
+Use 3-8 words. Optional `space` / `space_id` narrows the search, and
+`max_choices` caps the result count.
+
+```json
+{
+  "query": "summarize adapter run"
+}
+```
+
 ## Unified response schema
 
 ```json
@@ -16,6 +28,7 @@ no `solution`, **`train`** for create, or **`forward`** on the refine adapter).
   "must_obey": true,
   "message": "<string>",
   "next_action": "Pick one choice and follow that choice's next_action.",
+  "query": "<string>",
   "choices": [
     {
       "uri": "kairos://adapter/<uuid>",
@@ -25,7 +38,9 @@ no `solution`, **`train`** for create, or **`forward`** on the refine adapter).
       "role": "match | refine | create",
       "tags": ["<string>"],
       "next_action": "<string>",
-      "adapter_version": "<string or null>"
+      "adapter_version": "<string or null>",
+      "activation_patterns": ["<string>"],
+      "space_name": "<string or null>"
     }
   ]
 }
@@ -33,8 +48,10 @@ no `solution`, **`train`** for create, or **`forward`** on the refine adapter).
 
 **`next_action` patterns** (see `src/tools/activate.ts`):
 
-- **match:** `call forward with kairos://adapter/<uuid> to execute this adapter`
-- **refine:** `call forward with kairos://adapter/<uuid> to execute the refine adapter`
+- **match:** `call forward with kairos://adapter/<uuid> and no solution to
+  start this adapter`
+- **refine:** `call forward with kairos://adapter/<uuid> and no solution to
+  start the refine adapter`
 - **create:** `call train with adapter markdown to register a new adapter`
 
 Roles:
@@ -51,7 +68,9 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 ### Input
 
 ```json
-{}
+{
+  "query": "summarize adapter run"
+}
 ```
 
 ### Expected output (illustrative)
@@ -61,6 +80,7 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
   "must_obey": true,
   "message": "Found 1 match.",
   "next_action": "Pick one choice and follow that choice's next_action.",
+  "query": "summarize adapter run",
   "choices": [
     {
       "uri": "kairos://adapter/bd939b2a-b35f-40f2-8dec-7dec74a65116",
@@ -78,7 +98,8 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 
 ### AI behavior
 
-1. Obey the chosen row’s **`next_action`** (here: **`forward`** with that adapter URI, omit **`solution`**).
+1. Obey the chosen row’s **`next_action`** (here: **`forward`** with that
+   adapter URI, omit **`solution`**).
 
 ## Scenario 2: multiple matches + refine + create
 
@@ -89,6 +110,7 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
   "must_obey": true,
   "message": "Found 3 matches (top confidence: 52%). Choose one, refine your search, or create a new adapter.",
   "next_action": "Pick one choice and follow that choice's next_action.",
+  "query": "summarize adapter run",
   "choices": [
     {
       "uri": "kairos://adapter/2ab737f0-a9b1-49a0-bb10-5c8105c4f6e8",
@@ -126,12 +148,14 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 
 ### AI behavior
 
-1. Pick one choice using **`label`**, **`adapter_name`**, **`activation_score`**, and **`tags`**.
+1. Pick one choice using **`label`**, **`adapter_name`**,
+   **`activation_score`**, and **`tags`**.
 2. For **create**, call **`train`** with markdown—there is no adapter run yet.
 
 ## Scenario 3: weak matches
 
-When scores are low, prefer **refine** once before **create**, if that fits the user’s goal.
+When scores are low, prefer **refine** once before **create**, if that fits
+the user’s goal.
 
 ## Scenario 4: no strong matches
 
@@ -142,10 +166,11 @@ rules.
 
 1. **`must_obey`** is always **`true`**.
 2. **`choices`** is non-empty.
-3. Every choice has **`uri`**, **`label`**, **`adapter_name`**, **`activation_score`**,
-   **`role`**, **`tags`**, **`next_action`**, **`adapter_version`** (nullable).
-4. **`uri`** values exposed to agents are **`kairos://adapter/{uuid}`** (including
-   well-known refine/create IDs when present).
+3. Every choice has **`uri`**, **`label`**, **`adapter_name`**,
+   **`activation_score`**, **`role`**, **`tags`**, **`next_action`**,
+   **`adapter_version`** (nullable).
+4. **`uri`** values exposed to agents are **`kairos://adapter/{uuid}`**
+   (including well-known refine/create IDs when present).
 
 ## See also
 

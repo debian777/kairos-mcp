@@ -2,6 +2,7 @@ import { describe, expect, test } from "@jest/globals";
 import {
   applyOidcGroupsAllowlist,
   deriveAccountKindAndLabel,
+  extractGroupsFromPayload,
   extractWhitelistedProfileFromPayload,
   mergeCallbackTokenPayloads,
 } from "../../src/http/oidc-profile-claims.js";
@@ -99,8 +100,8 @@ describe("oidc-profile-claims", () => {
     expect(r.merged.groups).toEqual(["r"]);
   });
 
-  test("applyOidcGroupsAllowlist with empty allowlist keeps no groups", () => {
-    expect(applyOidcGroupsAllowlist(["a", "b"], [])).toEqual([]);
+  test("applyOidcGroupsAllowlist with empty allowlist passes through all groups", () => {
+    expect(applyOidcGroupsAllowlist(["a", "b"], [])).toEqual(["a", "b"]);
   });
 
   test("applyOidcGroupsAllowlist intersects with names and slash paths", () => {
@@ -132,6 +133,13 @@ describe("oidc-profile-claims", () => {
 
   test("applyOidcGroupsAllowlist matches exact entries case-insensitively", () => {
     expect(applyOidcGroupsAllowlist(["/Kairos-Auditor"], ["kairos-auditor"])).toEqual(["/Kairos-Auditor"]);
+  });
+
+  test("extractGroupsFromPayload accepts string and JSON array string", () => {
+    expect(extractGroupsFromPayload({ groups: ["/a", "/b"] })).toEqual(["/a", "/b"]);
+    expect(extractGroupsFromPayload({ groups: "/shared/pe-team" })).toEqual(["/shared/pe-team"]);
+    expect(extractGroupsFromPayload({ groups: '["/x","/y"]' })).toEqual(["/x", "/y"]);
+    expect(extractGroupsFromPayload({ groups: "" })).toEqual([]);
   });
 
   test("mergeCallbackTokenPayloads does not map realm_access roles into groups", () => {

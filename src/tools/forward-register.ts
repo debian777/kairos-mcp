@@ -1,6 +1,6 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { KAIROS_FORWARD_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
@@ -23,7 +23,7 @@ export function registerForwardTool(server: any, memoryStore: MemoryQdrantStore,
     toolName,
     {
       title: 'Run adapter forward pass',
-      description: getToolDoc('forward') || 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
+      description: resolveToolDoc('forward') || 'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
       inputSchema: forwardMcpWireInputSchema,
       outputSchema: forwardOutputSchema,
       _meta: KAIROS_FORWARD_TOOL_UI_META

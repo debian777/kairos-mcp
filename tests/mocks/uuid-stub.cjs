@@ -1,13 +1,17 @@
 /**
  * Jest stub for the `uuid` package (see jest.config.js moduleNameMapper).
- * Named exports match `import { v4, v5 } from 'uuid'` usage in src/.
+ * Must be CommonJS: transitive CJS (e.g. dockerode → uuid) uses require().
  */
-export function v4(): string {
+'use strict';
+
+function v4() {
   return '00000000-0000-0000-0000-000000000004';
 }
 
-export function v5(name: string, namespace: string): string {
+function v5(name, namespace) {
   void name;
   void namespace;
   return '00000000-0000-0000-0000-000000000005';
 }
+
+module.exports = { v4, v5 };

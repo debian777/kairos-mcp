@@ -1,5 +1,5 @@
 import type { QdrantService } from '../services/qdrant/service.js';
-import { getToolDoc } from '../resources/embedded-mcp-resources.js';
+import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { tuneInputSchema, tuneOutputSchema } from './tune_schema.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
@@ -15,7 +15,7 @@ export function registerTuneTool(server: any, toolName = 'tune') {
     toolName,
     {
       title: 'Update adapter content',
-      description: getToolDoc('tune') || 'Update adapter layer content.',
+      description: resolveToolDoc('tune') || 'Update adapter layer content.',
       inputSchema: mcpLooseToolInput(tuneInputSchema),
       outputSchema: tuneOutputSchema
     },

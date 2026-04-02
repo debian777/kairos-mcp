@@ -1,7 +1,19 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
+import { parseFrontmatter } from '../utils/frontmatter.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
+
+/** Fork export includes `slug:` in YAML; same author slug in target space collides — allocate fresh. */
+function markdownWithoutAuthorSlugForFork(markdown: string): string {
+  const p = parseFrontmatter(markdown);
+  if (p.slugRaw === undefined) return markdown;
+  const lines: string[] = [];
+  if (p.version) lines.push(`version: ${p.version}`);
+  if (p.title) lines.push(`title: ${p.title}`);
+  const fm = lines.length > 0 ? `---\n${lines.join('\n')}\n---\n\n` : '';
+  return `${fm}${p.body}`;
+}
 
 /** Thrown by executeTrainStore on validation or store errors. */
 export class TrainError extends Error {
@@ -24,7 +36,8 @@ export async function executeTrainStore(
   input: TrainStoreInput,
   runStore: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
 ): Promise<TrainStoreOutput> {
-  const validation = validateProtocolStructure(input.markdown_doc);
+  const docForStore = input.fork_new_adapter ? markdownWithoutAuthorSlugForFork(input.markdown_doc) : input.markdown_doc;
+  const validation = validateProtocolStructure(docForStore);
   if (!validation.valid) {
     throw new TrainError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
       missing: validation.missing,
@@ -33,9 +46,10 @@ export async function executeTrainStore(
     });
   }
   const memories = await runStore(() =>
-    memoryStore.storeAdapter([input.markdown_doc], input.llm_model_id, {
+    memoryStore.storeAdapter([docForStore], input.llm_model_id, {
       forceUpdate: !!input.force_update,
-      ...(input.protocol_version && { protocolVersion: input.protocol_version })
+      ...(input.protocol_version && { protocolVersion: input.protocol_version }),
+      ...(input.fork_new_adapter && { forkNewAdapter: true })
     })
   );
   return {
