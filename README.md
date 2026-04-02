@@ -64,7 +64,7 @@ Authoritative behavior for agents is defined in the MCP tool resources under
 **`reward`**). This is an on-wire summary; follow each response’s `next_action`
 and `must_obey` fields in real runs.
 
-1. **`activate`** — Pass the user message or a short intent phrase as `query`.
+1. **`activate`** — On the first call, invoke it with no query string.
    From `choices`, pick **one** row and obey **that** row’s `next_action` (do not
    mix in another URI). Typical roles: **`match`** (continue with **`forward`**
    on the given adapter URI), **`refine`**, **`create`** (register a new adapter with **`train`**).

@@ -44,6 +44,8 @@ function createFlatConfig(rootDir) {
         '.turbo/**',
         '.next/**',
         'eslint.config.cjs',
+        // Keep the hand-authored contextual prompt out of markdown wording checks.
+        'src/embed-docs/prompts/contextual-prompt.md',
         // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.
         '**/*.json',
         '!context7.json',

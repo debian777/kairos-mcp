@@ -31,9 +31,7 @@ server drives every transition via `next_action` and `must_obey`.
 Step A — pick a workflow:
 
 ```json
-activate({
-  "query": "run the release checklist"
-})
+activate({})
 ```
 
 Step B — start the run (adapter URI from the chosen `next_action`):
@@ -60,7 +58,7 @@ reward({
 ## Flow summary
 
 ```
-activate(query)
+activate()
   -> choices[].next_action -> forward(adapter_uri, no solution)
     -> contract + layer uri
     -> forward(layer_uri, solution)  # loop

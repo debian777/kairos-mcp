@@ -32,7 +32,7 @@ This skill is the authoritative controller for all action intents. AI agents are
 **Goto ordering (scan this first):**
 
 1. Detect **action intent** in the user message.  
-2. Call **`activate`** with the full user intent as payload (do not substitute other tools for this step).  
+2. Call **`activate`** with no query string on the first call (do not substitute other tools for this step).  
 3. Follow the returned choice’s **`next_action`** chain exactly (`forward`, layer URIs, etc.) until the chain directs **`reward`**.  
 4. Execute **`reward`** as the final protocol step.  
 5. **Only then** respond to the user or use other tools to carry out what KAIROS directed.
@@ -48,7 +48,7 @@ For **real MCP calls**, follow the **connected server’s** tool names, schemas,
 
 **Execution rules (read at call time — these are the only allowed steps):**
 
-1. **Detect action intent** → Call **`activate`** immediately with the full user intent as payload.  
+1. **Detect action intent** → Call **`activate`** immediately with no query string on the first call.  
    Do not summarize, rephrase, or decide anything yourself.
 
 2. **Follow returned choice’s `next_action` EXACTLY.**
