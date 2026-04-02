@@ -258,9 +258,11 @@ export function getTestUserTokenFromKeycloak(
   password: string
 ): Promise<string> {
   const tokenUrl = `${baseUrl.replace(/\/$/, '')}/realms/${realm}/protocol/openid-connect/token`;
-  // kairos-groups: matches tests/utils/auth-headers.ts (#278).
+  // kairos-groups: matches tests/utils/auth-headers.ts (#278). Do not default to
+  // profile/email here — explicit email scope can make Keycloak reject password grant
+  // with "Account is not fully set up" when the test user is not email-verified.
   const scope =
-    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid profile email kairos-groups';
+    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid kairos-groups';
   const doRequest = () =>
     fetch(tokenUrl, {
       method: 'POST',

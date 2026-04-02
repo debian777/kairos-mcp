@@ -56,7 +56,7 @@ async function fetchKeycloakToken(
   const tokenUrl = `${keycloakUrl.replace(/\/$/, '')}/realms/${realm}/protocol/openid-connect/token`;
   /** Include `kairos-groups` so access token + userinfo carry Group Membership (integration / #278). */
   const scope =
-    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid profile email kairos-groups';
+    process.env.KAIROS_TEST_OIDC_SCOPE?.trim() || 'openid kairos-groups';
   const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
