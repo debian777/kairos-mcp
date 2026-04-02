@@ -81,9 +81,9 @@ export const MCP_WIDGET_CHROME_INLINE_CSS = `
       border-radius: var(--radius-md);
       font-size: var(--font-size-sm);
       line-height: 1.5;
-      overflow: auto;
-      max-height: min(340px, 68vh);
-      flex: 1;
+      overflow: visible;
+      max-height: none;
+      flex: 0 1 auto;
       min-height: 0;
       background: var(--color-surface-elevated);
       border: 1px solid var(--color-border);
