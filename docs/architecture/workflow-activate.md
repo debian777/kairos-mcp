@@ -51,9 +51,7 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 ### Input
 
 ```json
-{
-  "query": "coding deploy"
-}
+{}
 ```
 
 ### Expected output (illustrative)

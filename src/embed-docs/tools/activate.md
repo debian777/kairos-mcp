@@ -1,14 +1,14 @@
 Rank stored **adapters** for the user’s intent and return URIs you must use next.
 
-**When to call:** Whenever the message describes an action, task, or workflow — even if the user never says “KAIROS”. The user’s words are the `query`.
+**When to call:** Whenever the message describes an action, task, or workflow — even if the user never says “KAIROS”. On the first call, invoke `activate` with no query string.
 
 **Input**
 
-- `query` — user message or a short intent phrase (about 3–8 words is ideal). Stay faithful; expand shorthand (e.g. `/ai-docs` → concrete wording).
+- On the first call, pass no query string.
 - `space` / `space_id` (optional) — narrow search to one space: `"personal"`, a full group path such as `"/kairos-shares/kairos-operator"` (optional `"Group: "` prefix), or your raw `space_id` (same forms as **`train`** / **`tune`** `space`).
 - `max_choices` (optional) — cap on match rows returned.
 
-**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, and for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create), plus `message`, a global `next_action`, and `query` (echo of the input `query` for clients and MCP App UI).
+**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, and for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create), plus `message`, a global `next_action`, and optional host metadata.
 
 When several spaces contain similar adapters, the server prefers your **default write space** (usually **Personal**) on ties so a personal copy can override a group template.
 
