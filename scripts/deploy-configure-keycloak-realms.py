@@ -28,7 +28,9 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
    **`full.path` is always enabled** (full Keycloak paths, e.g. `/kairos-auditor`,
    `/shared/team-platform`) — not configurable here so running systems stay consistent with KAIROS
    allowlists and space ids.
-5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in **kairos-dev**.
+5. Test user: ensure TEST_USERNAME/TEST_PASSWORD exists in **kairos-dev** with profile fields and
+   no required actions so **direct access grants** (password) do not return `invalid_grant` /
+   **Account is not fully set up** (Keycloak 24+ expects first/last name; see keycloak#36108).
 6. Verify realm dump matches import JSON.
 7. Add test users to groups last; **GET** user groups to confirm (so Admin UI matches):
    **kairos-tester** → **kairos-auditor** and **ci-test**; if the import includes **kairos-shares**,
@@ -1039,7 +1041,18 @@ def get_user_id(base_url: str, realm: str, username: str, token: str) -> str | N
 
 def create_user(base_url: str, realm: str, username: str, token: str) -> str | None:
     url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users"
-    payload = json.dumps({"username": username, "enabled": True}).encode("utf-8")
+    email = username if "@" in username else f"{username}@localhost"
+    payload = json.dumps(
+        {
+            "username": username,
+            "enabled": True,
+            "firstName": "Kairos",
+            "lastName": "Tester",
+            "email": email,
+            "emailVerified": True,
+            "requiredActions": [],
+        }
+    ).encode("utf-8")
     req = urllib.request.Request(url, data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
@@ -1073,6 +1086,44 @@ def set_password(
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"Set password failed: {e.code} {body}")
+
+
+def finalize_test_user_for_direct_grant(
+    base_url: str, realm: str, user_id: str, username: str, token: str
+) -> None:
+    """
+    Password grant (e2e / Jest) fails with invalid_grant / Account is not fully set up if the user
+    lacks first/last name, verified email, or has required actions (Update password, Verify email,
+    etc.). Aligns test users with Keycloak 24+ expectations (see keycloak/keycloak#36108).
+    """
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm}/users/{user_id}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            user = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Get user {user_id} failed: {e.code} {body}")
+    rest = {k: v for k, v in user.items() if k != "credentials"}
+    fn = (rest.get("firstName") or "").strip()
+    ln = (rest.get("lastName") or "").strip()
+    rest["firstName"] = fn or "Kairos"
+    rest["lastName"] = ln or "Tester"
+    if not (rest.get("email") or "").strip():
+        rest["email"] = username if "@" in username else f"{username}@localhost"
+    rest["emailVerified"] = True
+    rest["enabled"] = True
+    rest["requiredActions"] = []
+    payload = json.dumps(rest).encode("utf-8")
+    put_req = urllib.request.Request(url, data=payload, method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    put_req.add_header("Content-Type", "application/json")
+    try:
+        urllib.request.urlopen(put_req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Finalize test user {username!r} failed: {e.code} {body}")
 
 
 _KAIROS_SHARES_GROUP = "kairos-shares"
@@ -1447,6 +1498,7 @@ def ensure_test_user(
         print(f"WARNING: Could not create/find user {username} in {realm}.", file=sys.stderr)
         return
     set_password(base_url, realm, user_id, password, token)
+    finalize_test_user_for_direct_grant(base_url, realm, user_id, username, token)
     print(f"  Test user {realm}: {username}")
 
 
