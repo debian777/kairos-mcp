@@ -2,7 +2,7 @@
 # Use: docker build -f Dockerfile.dev -t kairos-mcp:dev .
 # Release images use Dockerfile and install from npm.
 # Multi-arch support for x64 and ARM64
-FROM --platform=$BUILDPLATFORM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f76f7dbfef023 AS builder
+FROM --platform=$BUILDPLATFORM node:25-alpine@sha256:ad82ecad30371c43f4057aaa4800a8ed88f9446553a2d21323710c7b937177fc AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY docs/ ./docs/
 ENV DOCKER_BUILD=1
 RUN npm run build
 
-FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f76f7dbfef023 AS production
+FROM node:25-alpine@sha256:ad82ecad30371c43f4057aaa4800a8ed88f9446553a2d21323710c7b937177fc AS production
 
 VOLUME /snapshots
 
