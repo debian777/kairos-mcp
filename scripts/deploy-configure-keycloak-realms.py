@@ -89,6 +89,10 @@ DYNAMIC_REGISTRATION_ALLOWED_CLIENT_SCOPES = [
     "roles",
     "email",
     "kairos-groups",
+    "offline_access",
+    "address",
+    "phone",
+    "service_account",
 ]
 REALM_FILES = [
     ("kairos-dev", "kairos-dev-realm.json"),

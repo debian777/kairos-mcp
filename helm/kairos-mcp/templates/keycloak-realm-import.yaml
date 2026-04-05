@@ -1,0 +1,20 @@
+{{- if and .Values.keycloakRealmImport.enabled .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) }}
+{{- $host := .Values.keycloakRealmImport.publicHost | default .Values.gateway.hostname | trim }}
+{{- if eq $host "" }}
+{{- fail "keycloakRealmImport.enabled requires gateway.hostname or keycloakRealmImport.publicHost (ngrok / public host for OIDC redirects)" }}
+{{- end }}
+{{- $raw := .Files.Get "files/kairos-realm.json" | replace "__KAIROS_PUBLIC_HOST__" $host }}
+{{- $realm := mustFromJson $raw }}
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  name: {{ .Values.keycloakRealmImport.name | quote }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  keycloakCRName: {{ .Values.keycloakInstance.name | quote }}
+  realm:
+    {{- toYaml $realm | nindent 4 }}
+{{- end }}
