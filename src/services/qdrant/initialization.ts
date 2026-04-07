@@ -60,7 +60,11 @@ export async function initializeCollection(conn: QdrantConnection): Promise<void
       { field_name: 'adapter.layer_index', field_schema: 'integer' as const },
       { field_name: 'adapter.layer_count', field_schema: 'integer' as const },
       { field_name: 'adapter.activation_patterns', field_schema: 'keyword' as const },
-      { field_name: 'slug', field_schema: 'keyword' as const }
+      { field_name: 'slug', field_schema: 'keyword' as const },
+      { field_name: 'adapter_name_text', field_schema: { type: 'text' as const, tokenizer: 'word' as const, min_token_len: 2, max_token_len: 40, lowercase: true } },
+      { field_name: 'label_text', field_schema: { type: 'text' as const, tokenizer: 'word' as const, min_token_len: 2, max_token_len: 40, lowercase: true } },
+      { field_name: 'activation_patterns_text', field_schema: { type: 'text' as const, tokenizer: 'word' as const, min_token_len: 2, max_token_len: 40, lowercase: true } },
+      { field_name: 'tags_text', field_schema: { type: 'text' as const, tokenizer: 'word' as const, min_token_len: 2, max_token_len: 40, lowercase: true } }
     ];
 
     for (const index of indexConfigs) {
