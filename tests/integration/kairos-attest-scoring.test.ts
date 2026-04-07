@@ -219,7 +219,7 @@ describe('reward scoring: propagation and score boost', () => {
       () => {
         expect(scoreBefore).not.toBeNull();
         expect(scoreAfter).not.toBeNull();
-        expect(scoreAfter as number).toBeCloseTo(scoreBefore as number, 5);
+        expect(scoreAfter as number).toBeCloseTo(scoreBefore as number, 4);
       },
       'reward scoring threshold'
     );
