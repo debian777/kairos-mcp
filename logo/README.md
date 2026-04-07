@@ -4,7 +4,7 @@ This directory contains the official KAIROS MCP logo.
 
 | File | Description |
 |------|-------------|
-| [kaiiros-mcp.svg](kaiiros-mcp.svg) | Primary logo — “Deterministic Path” symbol (512×512). Dark background, gradient path with four nodes. Use for app icon, favicon, sidebar, and docs. |
+| [kairos-mcp.svg](kairos-mcp.svg) | Primary logo — “Deterministic Path” symbol (512×512). Dark background, gradient path with four nodes. Use for app icon, favicon, sidebar, and docs. |
 
 The logo is used in the repo at: root README, the web app (`src/ui/`
 favicon and sidebar), and [TRADEMARK.md](../TRADEMARK.md).
