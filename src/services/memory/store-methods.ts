@@ -108,6 +108,30 @@ export class MemoryQdrantStoreMethods {
   }
 
   /**
+   * Tokenize query the same way Qdrant's `word` tokenizer does (split on
+   * non-alphanumeric, lowercase, filter by length).  Used to build per-token
+   * match conditions so short fields like adapter names still get boosts.
+   */
+  private static tokenizeQuery(query: string): string[] {
+    return query
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(t => t.length >= 2 && t.length <= 40);
+  }
+
+  /**
+   * Build a per-token match condition: returns 1 if ANY query token matches
+   * the given payload field.  Falls back to a single full-query match when
+   * there is only one token.
+   */
+  private static anyTokenMatch(field: string, tokens: string[]): Record<string, unknown> {
+    if (tokens.length <= 1) {
+      return { key: field, match: { text: tokens[0] ?? '' } };
+    }
+    return { max: tokens.map(t => ({ key: field, match: { text: t } })) };
+  }
+
+  /**
    * Hybrid search: dense + activation-focused dense legs + BM25 via Query API.
    * All ranking stays in Qdrant so the tool surface sees the same scores the
    * index produced.
@@ -135,6 +159,8 @@ export class MemoryQdrantStoreMethods {
       using: 'bm25' as const,
       filter
     };
+
+    const queryTokens = MemoryQdrantStoreMethods.tokenizeQuery(query);
 
     let points: Array<{ id: string | number; score?: number; payload?: Record<string, unknown> | null }>;
     try {
@@ -179,7 +205,7 @@ export class MemoryQdrantStoreMethods {
               {
                 mult: [
                   TITLE_MATCH_BOOST,
-                  { key: 'adapter_name_text', match: { text: query } }
+                  MemoryQdrantStoreMethods.anyTokenMatch('adapter_name_text', queryTokens)
                 ]
               },
               {
@@ -191,7 +217,7 @@ export class MemoryQdrantStoreMethods {
               {
                 mult: [
                   LABEL_MATCH_BOOST,
-                  { key: 'label_text', match: { text: query } }
+                  MemoryQdrantStoreMethods.anyTokenMatch('label_text', queryTokens)
                 ]
               },
               {

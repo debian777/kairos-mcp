@@ -147,6 +147,27 @@ async function ensureBm25SparseConfig(
   }
 }
 
+const FULL_TEXT_INDEX_FIELDS = [
+  'adapter_name_text',
+  'label_text',
+  'activation_patterns_text',
+  'tags_text',
+] as const;
+
+async function ensureFullTextIndexes(client: QdrantClient, collection: string): Promise<void> {
+  for (const field of FULL_TEXT_INDEX_FIELDS) {
+    try {
+      await client.createPayloadIndex(collection, {
+        field_name: field,
+        field_schema: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 40, lowercase: true },
+      } as Parameters<QdrantClient['createPayloadIndex']>[1]);
+      logger.info(`[MemoryQdrantStore] Created full-text index for ${field}`);
+    } catch {
+      logger.debug(`[MemoryQdrantStore] Full-text index for ${field} already exists or could not be created`);
+    }
+  }
+}
+
 export async function initializeQdrantStore(client: QdrantClient, collection: string, url: string): Promise<void> {
   try {
     logger.info(
@@ -314,6 +335,7 @@ export async function initializeQdrantStore(client: QdrantClient, collection: st
 
       // Ensure bm25 sparse vector config (idempotent; required for hybrid search). Uses recreation if updateCollection not supported.
       await ensureBm25SparseConfig(client, collection, currentVectorName, vectorDescriptors);
+      await ensureFullTextIndexes(client, collection);
       await backfillActivationSearchVectors(client, collection, currentDim);
     }
   } catch (error) {
