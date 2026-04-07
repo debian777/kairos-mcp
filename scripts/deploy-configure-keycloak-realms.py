@@ -18,7 +18,11 @@ from scripts/keycloak/import relative to repo root (works regardless of CWD).
    matches the JSON.
 2. Trusted hosts: set env-specific IPs (dev: Docker gateway; prod: app-prod).
 3. OIDC scope `openid` for dynamic registration: ensure a realm Client Scope named `openid`
-   exists and is a default optional scope (mcp-remote sends `scope: openid` in registration).
+   exists and is a **default** (not optional) client scope. Without `openid` in every token,
+   Keycloak's Userinfo endpoint returns 403 "Missing openid scope", which breaks the
+   Bearer-auth groups fallback in KAIROS (bearer-validate.ts → fetchGroupsFromOidcUserinfo).
+   The scope is also linked to **kairos-mcp** and **kairos-cli** for backwards compatibility
+   (named clients created before `openid` became a realm default don't inherit it automatically).
 4. Allowed client scopes (policies): whitelist client-scope templates for anonymous/authenticated
    registration (includes `openid` and kairos-cli default templates).
 4b. OIDC **Group Membership** protocol mapper on a shared **client scope** so JWTs include a
@@ -748,11 +752,18 @@ def list_realm_client_scopes(base_url: str, realm_name: str, token: str) -> list
         sys.exit(f"List client scopes {realm_name} failed: {e.code} {body}")
 
 
-def ensure_openid_client_scope(base_url: str, realm_name: str, token: str) -> None:
+def ensure_openid_client_scope(base_url: str, realm_name: str, token: str) -> str:
     """
     Keycloak maps OAuth scope 'openid' in DCR to a Client Scope named 'openid'. If that
     template does not exist, the Allowed Client Scopes registration policy rejects the request
     (mcp-remote, RFC 9728 metadata with scopes_supported containing openid).
+
+    The scope is added as a **default** (not optional) client scope so every token — including
+    those issued to dynamically registered MCP clients — carries the `openid` scope. Without it,
+    the OIDC Userinfo endpoint returns 403 "Missing openid scope", which breaks the Bearer-auth
+    groups fallback path in KAIROS (bearer-validate.ts → fetchGroupsFromOidcUserinfo).
+
+    Returns the scope id so callers can link it to named clients.
     """
     scopes = list_realm_client_scopes(base_url, realm_name, token)
     openid_row = next((s for s in scopes if s.get("name") == "openid"), None)
@@ -784,29 +795,20 @@ def ensure_openid_client_scope(base_url: str, realm_name: str, token: str) -> No
         print(f"  Client scope 'openid' already present in {realm_name}")
 
     scope_id = openid_row["id"]
-    opt_url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/default-optional-client-scopes"
-    req = urllib.request.Request(opt_url, method="GET")
-    req.add_header("Authorization", f"Bearer {token}")
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            optional = json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        body = e.read().decode() if e.fp else ""
-        sys.exit(f"GET default optional client scopes {realm_name} failed: {e.code} {body}")
 
-    if any(s.get("name") == "openid" for s in optional):
-        print(f"  'openid' already in default optional client scopes ({realm_name})")
-        return
-
-    add_url = f"{opt_url}/{scope_id}"
-    put_req = urllib.request.Request(add_url, data=b"", method="PUT")
-    put_req.add_header("Authorization", f"Bearer {token}")
+    # Remove from optional defaults if present (legacy from earlier config).
+    opt_url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/default-optional-client-scopes/{scope_id}"
+    del_req = urllib.request.Request(opt_url, method="DELETE")
+    del_req.add_header("Authorization", f"Bearer {token}")
     try:
-        urllib.request.urlopen(put_req, timeout=15)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode() if e.fp else ""
-        sys.exit(f"Add openid to optional scopes {realm_name} failed: {e.code} {body}")
-    print(f"  Linked 'openid' to default optional client scopes ({realm_name})")
+        urllib.request.urlopen(del_req, timeout=15)
+        print(f"  Removed 'openid' from optional client scopes ({realm_name})")
+    except urllib.error.HTTPError:
+        pass  # Not in optional — fine.
+
+    # Add to default client scopes (idempotent).
+    ensure_default_client_scope(base_url, realm_name, token, scope_id, "openid")
+    return scope_id
 
 
 def _merge_realm(current: dict, desired: dict) -> dict:
@@ -1696,9 +1698,12 @@ def main() -> int:
         env_key = realm_name.replace("kairos-", "")
         ensure_trusted_hosts(base_url, realm_name, env_key, token)
 
-    # 3. Client Scope `openid` + realm optional defaults (DCR / mcp-remote)
+    # 3. Client Scope `openid` as realm **default** (not optional) so Userinfo works for
+    #    Bearer tokens. Without `openid` in scope, Keycloak returns 403 "Missing openid scope"
+    #    on the Userinfo endpoint, breaking the groups-fallback in bearer-validate.ts.
+    openid_scope_ids: dict[str, str] = {}
     for realm_name, _ in REALM_FILES:
-        ensure_openid_client_scope(base_url, realm_name, token)
+        openid_scope_ids[realm_name] = ensure_openid_client_scope(base_url, realm_name, token)
 
     # 3b. Shared groups client scope (default for all clients, including dynamic registration).
     group_scope_ids: dict[str, str] = {}
@@ -1709,11 +1714,14 @@ def main() -> int:
     for realm_name, _ in REALM_FILES:
         ensure_allowed_client_templates(base_url, realm_name, token)
 
-    # 4b. Attach groups scope to realm defaults + legacy clients (kairos-mcp / kairos-cli).
+    # 4b. Attach groups + openid scopes to realm defaults + named clients (kairos-mcp / kairos-cli).
+    #     Realm defaults apply to newly registered DCR clients automatically. Named clients
+    #     need explicit linking because they were created before the scopes became defaults.
     for realm_name, _ in REALM_FILES:
         scope_id = group_scope_ids.get(realm_name)
         if not scope_id:
             sys.exit(f"Missing {KAIROS_GROUPS_CLIENT_SCOPE_NAME} scope id for {realm_name}")
+        openid_id = openid_scope_ids.get(realm_name)
         ensure_default_client_scope(
             base_url, realm_name, token, scope_id, KAIROS_GROUPS_CLIENT_SCOPE_NAME
         )
@@ -1721,13 +1729,17 @@ def main() -> int:
             c_uuid = get_client_internal_id_by_client_id(base_url, realm_name, cid, token)
             if not c_uuid:
                 print(
-                    f"WARNING: client {cid!r} missing in {realm_name}; skip groups scope link.",
+                    f"WARNING: client {cid!r} missing in {realm_name}; skip scope links.",
                     file=sys.stderr,
                 )
                 continue
             ensure_client_default_scope(
                 base_url, realm_name, token, c_uuid, scope_id, KAIROS_GROUPS_CLIENT_SCOPE_NAME
             )
+            if openid_id:
+                ensure_client_default_scope(
+                    base_url, realm_name, token, c_uuid, openid_id, "openid"
+                )
             remove_kairos_oidc_group_mapper_from_client(base_url, realm_name, c_uuid, cid, token)
 
     # 5. Test users in dev only (password); group membership runs after verify (step 7)
