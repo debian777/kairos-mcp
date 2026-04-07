@@ -71,7 +71,10 @@ function summarizeContract(contract: InferenceContractDefinition): string {
     return `Execute shell command: ${contract.shell?.cmd ?? contract.cmd ?? 'unknown command'}`;
   }
   if (contract.type === 'mcp') {
-    return `Call MCP tool: ${contract.mcp?.tool_name ?? 'unknown tool'}`;
+    const tool = contract.mcp?.tool_name ?? 'unknown tool';
+    const args = contract.mcp?.arguments;
+    const argsBit = args !== undefined ? ` (arguments: ${JSON.stringify(args)})` : '';
+    return `Call MCP tool: ${tool}${argsBit}`;
   }
   if (contract.type === 'user_input') {
     return `Collect user input: ${contract.user_input?.prompt ?? 'confirmation required'}`;

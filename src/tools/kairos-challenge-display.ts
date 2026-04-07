@@ -62,8 +62,14 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
       result['shell'] = shellOut;
     } else if (proofType === 'mcp') {
       const toolName = proof.mcp?.tool_name || 'No tool specified';
-      result['description'] = `Call MCP tool: ${toolName}. You MUST actually call this tool and report its real result; do not fabricate.`;
-      result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
+      const argsHint =
+        proof.mcp?.arguments !== undefined
+          ? ` Include solution.mcp.arguments matching (subset of) ${JSON.stringify(proof.mcp.arguments)}.`
+          : '';
+      result['description'] = `Call MCP tool: ${toolName}.${argsHint} You MUST actually call this tool and report its real result; do not fabricate.`;
+      const mcpOut: Record<string, unknown> = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
+      if (proof.mcp?.arguments !== undefined) mcpOut['arguments'] = proof.mcp.arguments;
+      result['mcp'] = mcpOut;
     } else if (proofType === 'user_input') {
       const prompt = proof.user_input?.prompt || 'Confirm completion';
       result['description'] = `User confirmation: ${prompt}. You MUST show this prompt to the user and use only their reply as user_input.confirmation; do not assume or invent it.`;

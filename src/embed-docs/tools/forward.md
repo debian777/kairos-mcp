@@ -54,6 +54,19 @@ Follow these steps in order.
 `contract.tensor.output.name` and type constraints; prior tensor outputs may be
 merged per `tensor_in`.
 
+**MCP contracts (`contract.type` is `mcp`):** supply `solution.mcp` with
+`tool_name`, `result`, `success`, and optionally `arguments` (object). The
+server checks your submission against the layer contract before accepting the
+proof:
+
+- **`contract.mcp.tool_name`** — when present on the contract, `solution.mcp.tool_name` must match **exactly** (case-sensitive).
+- **`contract.mcp.arguments`** — when this field is **present** on the contract (including `{}`), you **must** send `solution.mcp.arguments` as a **plain object** (not `null` or an array). Matching is **subset / deep**: every key in the contract object must match the same value in your object (nested objects use the same rule; extra keys on your side are allowed). Arrays must have the same length and each index is compared the same way. If the contract omits `mcp.arguments`, the server does not constrain `solution.mcp.arguments`.
+- After those checks, `solution.mcp.success` still determines pass vs fail for the step.
+
+On mismatch, responses may include `error_code` **`MCP_TOOL_MISMATCH`**,
+**`MCP_ARGUMENTS_MISMATCH`**, or **`MISSING_FIELD`** (for example missing
+`solution.mcp.arguments` when the contract defines `mcp.arguments`).
+
 **MUST ALWAYS:** Echo server-issued `nonce`, `proof_hash`, and URIs exactly.
 Follow `next_action` verbatim.
 

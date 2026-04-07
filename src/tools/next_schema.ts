@@ -48,7 +48,7 @@ export const solutionSchema = z.object({
   { message: 'The type-specific field must match the solution type' }
 );
 
-const challengeSchema = z.object({
+export const challengeSchema = z.object({
   type: z.enum(['shell', 'mcp', 'user_input', 'comment']),
   description: z.string(),
   nonce: z.string().optional().describe('Echo back as solution.nonce'),
@@ -65,6 +65,7 @@ const challengeSchema = z.object({
   }).optional(),
   mcp: z.object({
     tool_name: z.string(),
+    arguments: z.record(z.string(), z.unknown()).optional(),
     expected_result: z.any().optional()
   }).optional(),
   user_input: z.object({

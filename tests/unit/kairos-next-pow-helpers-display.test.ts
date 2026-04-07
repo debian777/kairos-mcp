@@ -35,6 +35,17 @@ describe('buildChallengeShapeForDisplay', () => {
     expect(String(shape.description)).toContain('PATH');
   });
 
+  test('mcp challenge includes arguments in payload and description', () => {
+    const shape = buildChallengeShapeForDisplay({
+      required: true,
+      type: 'mcp',
+      mcp: { tool_name: 'activate', arguments: { query: 'x' } }
+    } as any);
+    expect(shape.type).toBe('mcp');
+    expect((shape.mcp as Record<string, unknown>).arguments).toEqual({ query: 'x' });
+    expect(String(shape.description)).toContain('subset');
+  });
+
   test('invalid stored type is coerced to comment with valid schema fields', () => {
     const warn = jest.spyOn(structuredLogger, 'warn').mockImplementation(() => {});
 
