@@ -2,7 +2,7 @@
 
 <!-- kairos-lint-allow-protocol-synonyms -->
 
-<img src="logo/kaiiros-mcp.svg" width="128" alt="KAIROS MCP logo" />
+<img src="logo/kairos-mcp.svg" width="128" alt="KAIROS MCP logo" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org/)

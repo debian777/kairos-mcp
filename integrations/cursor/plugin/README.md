@@ -5,7 +5,7 @@ for connecting to the KAIROS streamable HTTP endpoint. Use it when you want
 Cursor’s tool row to show the KAIROS logo (plugin metadata), not only a manual
 `mcp.json` entry.
 
-Official artwork matches [logo/kaiiros-mcp.svg](../../../logo/kaiiros-mcp.svg)
+Official artwork matches [logo/kairos-mcp.svg](../../../logo/kairos-mcp.svg)
 in the repository root (copied here as `assets/logo.svg`).
 
 ## Layout

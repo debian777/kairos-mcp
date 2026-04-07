@@ -1,6 +1,6 @@
 # Illustrative business application cases
 
-<img src="../../logo/kaiiros-mcp.svg" width="96" alt="KAIROS MCP logo" />
+<img src="../../logo/kairos-mcp.svg" width="96" alt="KAIROS MCP logo" />
 
 This section contains **illustrative examples** of how KAIROS can be applied in
 organizational workflows. These pages are scenario sketches for managers and
