@@ -198,7 +198,7 @@ describe('v4-activate unified response schema', () => {
     });
   }, 60000);
 
-  test('every choice has uri, label, adapter_name, activation_score, role, tags', async () => {
+  test('every choice has uri, label, adapter_name, activation_score, role, tags, slug', async () => {
     const ts = Date.now();
     const title = `V4ActivateFields ${ts}`;
     await trainProtocol(title);
@@ -216,11 +216,15 @@ describe('v4-activate unified response schema', () => {
         expect(choice).toHaveProperty('activation_score');
         expect(choice).toHaveProperty('role');
         expect(choice).toHaveProperty('tags');
+        expect(choice).toHaveProperty('slug');
         if (isNewFormat) expect(choice).toHaveProperty('next_action');
         expect(['match', 'refine', 'create']).toContain(choice.role);
         if (choice.role === 'match') {
           expect(choice.activation_score).toBeGreaterThanOrEqual(0);
           expect(choice.activation_score).toBeLessThanOrEqual(1);
+        }
+        if (choice.role === 'refine' || choice.role === 'create') {
+          expect(choice.slug).toBeNull();
         }
       }
     });

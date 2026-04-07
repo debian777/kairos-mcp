@@ -40,7 +40,8 @@ Use 3-8 words. Optional `space` / `space_id` narrows the search, and
       "next_action": "<string>",
       "adapter_version": "<string or null>",
       "activation_patterns": ["<string>"],
-      "space_name": "<string or null>"
+      "space_name": "<string or null>",
+      "slug": "<routing slug or null — null for refine/create or when absent>"
     }
   ]
 }

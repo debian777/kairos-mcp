@@ -196,13 +196,13 @@ export async function executeSearch(
 
   const runWithCache = async (): Promise<SearchOutput> => {
     const effectiveSpaceId = spaceParam ?? getSpaceIdFromStorage();
-    const cacheKey = `activate:v5:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
+    const cacheKey = `activate:v6:${effectiveSpaceId}:${searchQuery}:${KAIROS_ENABLE_GROUP_COLLAPSE}:${effectiveLimit}`;
     const tenantId = getTenantId();
     const requestId = getRequestIdFromStorage();
     const cacheDebugBase: Record<string, unknown> = {
       component: 'activate_search_cache',
       cache_backend: USE_REDIS ? 'redis' : 'memory',
-      cache_key_version: 'v5',
+      cache_key_version: 'v6',
       group_collapse: KAIROS_ENABLE_GROUP_COLLAPSE,
       effective_limit: effectiveLimit,
       normalized_query_len: searchQuery.length,

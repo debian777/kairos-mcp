@@ -27,3 +27,9 @@ export function getLayerCount(memory: Pick<Memory, 'adapter' | 'memory_uuid' | '
 export function getInferenceContract(memory: Pick<Memory, 'inference_contract'>): InferenceContractDefinition | undefined {
   return memory.inference_contract;
 }
+
+/** Normalized slug for activate/search tool output; null when missing or blank. */
+export function getAdapterSlugForSearchOutput(memory: Pick<Memory, 'slug'>): string | null {
+  const raw = memory.slug;
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+}

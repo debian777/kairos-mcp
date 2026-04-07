@@ -60,8 +60,8 @@ describeRedis('Redis activate cache invalidation', () => {
     await withDefaultSpace(async () => {
       const spaceId = KAIROS_APP_SPACE_ID;
       const collapse = KAIROS_ENABLE_GROUP_COLLAPSE;
-      const keyA = `activate:v5:${spaceId}:query-a:${collapse}:8`;
-      const keyB = `activate:v5:${spaceId}:query-b:${collapse}:10`;
+      const keyA = `activate:v6:${spaceId}:query-a:${collapse}:8`;
+      const keyB = `activate:v6:${spaceId}:query-b:${collapse}:10`;
       await redisCacheService.set(keyA, '{"choices":[]}', 120);
       await redisCacheService.set(keyB, '{"choices":[]}', 120);
       expect(await testClient.exists(redisKey(keyA))).toBe(1);
@@ -78,7 +78,7 @@ describeRedis('Redis activate cache invalidation', () => {
     await withDefaultSpace(async () => {
       const spaceId = KAIROS_APP_SPACE_ID;
       const collapse = KAIROS_ENABLE_GROUP_COLLAPSE;
-      const keyAct = `activate:v5:${spaceId}:semantic-task:${collapse}:5`;
+      const keyAct = `activate:v6:${spaceId}:semantic-task:${collapse}:5`;
       await redisCacheService.set(keyAct, '{}', 120);
       expect(await testClient.exists(redisKey(keyAct))).toBe(1);
 

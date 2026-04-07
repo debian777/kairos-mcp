@@ -6,7 +6,14 @@
 import type { Memory } from '../types/memory.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveAdapterEntry } from '../services/adapter-navigation.js';
-import { getActivationPatterns, getAdapterId, getAdapterInfo, getAdapterName, getLayerCount } from '../services/memory/memory-accessors.js';
+import {
+  getActivationPatterns,
+  getAdapterId,
+  getAdapterInfo,
+  getAdapterName,
+  getAdapterSlugForSearchOutput,
+  getLayerCount
+} from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
 import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
@@ -37,6 +44,8 @@ export interface UnifiedChoice {
   activation_patterns?: string[];
   /** Display name of the space where the adapter is stored (match rows only). */
   space_name: string | null;
+  /** Stored adapter routing slug when present; null for refine/create or adapters without slug. */
+  slug: string | null;
 }
 
 const PUBLIC_SCORE_PIVOT = 0.5;
@@ -107,6 +116,7 @@ export async function generateUnifiedOutput(
   for (const result of results) {
     const head = await resolveHead(result.memory, qdrantService);
     const sid = result.memory.space_id ?? KAIROS_APP_SPACE_ID;
+    const slug = getAdapterSlugForSearchOutput(result.memory);
     choices.push({
       uri: head.uri,
       label: head.label || result.label,
@@ -117,7 +127,8 @@ export async function generateUnifiedOutput(
       next_action: `call forward with ${head.uri} and no solution to start this adapter`,
       adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
       activation_patterns: getActivationPatterns(result.memory),
-      space_name: spaceIdToDisplayName(sid, spaceNamesById)
+      space_name: spaceIdToDisplayName(sid, spaceNamesById),
+      slug
     });
   }
 
@@ -133,7 +144,8 @@ export async function generateUnifiedOutput(
         tags: ['meta', 'refine'],
         next_action: refiningNextAction,
         adapter_version: refiningProtocolVersion,
-        space_name: null
+        space_name: null,
+        slug: null
       },
       {
         uri: createUri,
@@ -144,7 +156,8 @@ export async function generateUnifiedOutput(
         tags: ['meta', 'creation'],
         next_action: createNextAction,
         adapter_version: createProtocolVersion,
-        space_name: null
+        space_name: null,
+        slug: null
       }
     );
   }
