@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kairos-mcp
-description: KAIROS MCP application chart (Phase 2+). Phase 1 data plane lives under helm/infrastructure (Kustomize). Operators under helm/operators.
+description: KAIROS MCP application chart with bundled Qdrant. Install cluster-scoped operators from helm/operators (Kustomize) and optional ngrok/GatewayClass from helm/infrastructure before enabling Redis, Keycloak, or Postgres CRs in values.
 type: application
 version: 0.1.0
 appVersion: "3.0.0"
@@ -15,4 +15,3 @@ dependencies:
   - name: qdrant
     version: "1.17.0"
     repository: https://qdrant.github.io/qdrant-helm
-    condition: qdrant.enabled

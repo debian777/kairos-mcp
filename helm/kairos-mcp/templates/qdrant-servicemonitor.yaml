@@ -1,4 +1,4 @@
-{{- if and .Values.qdrant.enabled .Values.monitoring.serviceMonitor.qdrant.enabled }}
+{{- if .Values.monitoring.serviceMonitor.qdrant.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

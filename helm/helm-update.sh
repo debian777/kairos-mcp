@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Helm upgrade kairos release from repo helm/ overlay. Safe to run from any cwd.
+# Convenience: helm upgrade kairos using helm/values.dev.yaml (expects deps built + cluster ready).
+# Primary install flow: see helm/README.md (operators/infrastructure Kustomize, then helm upgrade).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

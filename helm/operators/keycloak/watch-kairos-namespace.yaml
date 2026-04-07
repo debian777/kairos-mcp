@@ -1,0 +1,15 @@
+# Override default JOSDK_WATCH_CURRENT so Keycloak reconciles Keycloak CRs in namespace kairos.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-operator
+spec:
+  template:
+    spec:
+      containers:
+        - name: keycloak-operator
+          env:
+            - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES
+              value: kairos
+            - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES
+              value: kairos

@@ -186,6 +186,9 @@ docker-compose.override.yml
 
 # Helm chart dependencies (run: helm dependency update in helm/kairos-mcp)
 helm/kairos-mcp/charts/*.tgz
+# Kustomize helmCharts local cache (kustomize build --enable-helm)
+helm/operators/charts/
+helm/infrastructure/charts/
 
 # Terraform
 *.tfstate

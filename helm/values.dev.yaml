@@ -1,22 +1,20 @@
-# Repo-local overlay for k3d local-ha-cluster.
+# Example overlay for local k3d + ngrok (not chart defaults).
 #
-# Full stack (infra + app + Keycloak + Gateway routes on ngrok): load the key
-# into the shell, then run k3b (it creates the Secret from $OPENAI_API_KEY):
-#   set -a && source .env && set +a && ./helm/k3b.sh
-# If your reserved ngrok hostname differs from gateway.hostname below:
-#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/k3b.sh
-# Operators + ngrok only (no Helm release):
-#   KAIROS_SKIP_CHART=1 ./helm/k3b.sh
+# Prereqs: kubectl apply -k helm/operators && (ngrok Secret + kubectl apply -k helm/infrastructure).
+# Create embedding Secret: kubectl create secret generic kairos-mcp-embedding -n kairos \
+#   --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" --dry-run=client -o yaml | kubectl apply -f -
+# Install: helm dependency update helm/kairos-mcp && helm upgrade --install kairos helm/kairos-mcp \
+#   -n kairos --create-namespace -f helm/values.dev.yaml
 #
-# The app image (see app.image below) must exist in the cluster; for k3d build
-# and import, for example: npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev
+# Optional k3d: ./helm/.dev/cluster-k3d.sh — see helm/.dev/README.md and helm/README.md.
+#
+# The app image must exist in the cluster (e.g. npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev).
 
 app:
-  enabled: true
   replicaCount: 2
   image:
     repository: debian777/kairos-mcp
-    tag: dev
+    tag: latest
     pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>
   redisUrl: redis://rfr-kairos-redis:6379
@@ -60,7 +58,6 @@ gateway:
       port: 8080
 
 qdrant:
-  enabled: true
   replicaCount: 3
 
 redisCluster:

@@ -1,0 +1,31 @@
+# Gateway ingress path: ngrok Kubernetes operator + GatewayClass (Gateway API).
+# Build: kustomize build --enable-helm .
+# Apply: kubectl apply -k .   (from this directory)
+#
+# **Before apply:** create the ngrok credentials Secret in `ngrok-operator` (not stored in git):
+#
+#   kubectl create secret generic ngrok-k8s-credentials -n ngrok-operator \
+#     --from-literal=API_KEY="$NGROK_API_KEY" \
+#     --from-literal=AUTHTOKEN="$NGROK_AUTHTOKEN" \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#
+# renovate: datasource=helm registryUrl=https://charts.ngrok.com depName=ngrok-operator
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  - gatewayclass-ngrok.yaml
+
+helmCharts:
+  - name: ngrok-operator
+    repo: https://charts.ngrok.com
+    releaseName: ngrok-operator
+    namespace: ngrok-operator
+    includeCRDs: true
+    valuesInline:
+      credentials:
+        secret:
+          name: ngrok-k8s-credentials
+      gateway:
+        enabled: true

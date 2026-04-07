@@ -1,4 +1,4 @@
-{{- if and .Values.qdrant.enabled .Values.qdrant.vpa.enabled }}
+{{- if .Values.qdrant.vpa.enabled }}
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:

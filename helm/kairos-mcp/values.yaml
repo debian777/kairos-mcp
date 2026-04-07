@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------------
-# KAIROS MCP chart defaults.
-# Keep this file complete: templates rely on explicit nested keys existing.
+# KAIROS MCP chart defaults (quick install: MCP app + Qdrant always deployed).
+# Optional features (gateway, Redis/Keycloak/Postgres CRs, monitoring) default off.
+# Keep nested keys present: templates rely on them.
 # ------------------------------------------------------------------------------
 
 global:
@@ -17,7 +18,6 @@ ha:
   spreadAcrossNodes: true
 
 app:
-  enabled: false
   name: "kairos-mcp"
   replicaCount: 1
   port: 3000
@@ -42,7 +42,7 @@ app:
   # OpenAI embeddings (required for the app to start unless you set TEI via extraEnv).
   embedding:
     openai:
-      existingSecret: ""
+      existingSecret: "kairos-mcp-embedding"
       secretKey: "OPENAI_API_KEY"
       model: "text-embedding-3-small"
   extraEnv: []
@@ -66,7 +66,7 @@ app:
       memory: "2Gi"
 
 gateway:
-  enabled: true
+  enabled: false
   createGateway: false
   gatewayName: "kairos-gateway"
   existingGatewayName: ""
@@ -92,8 +92,7 @@ gateway:
       port: 8080
 
 qdrant:
-  enabled: true
-  replicaCount: 3
+  replicaCount: 1
   hpa:
     enabled: false
     minReplicas: 1

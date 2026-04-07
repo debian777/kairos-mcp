@@ -1,0 +1,29 @@
+# Allow Keycloak operator ServiceAccount (in keycloak ns) to watch kairos release namespace.
+# To use a different app namespace, copy this tree and use a Kustomize overlay (replacements) or edit.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-operator-watch
+  namespace: kairos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: keycloakcontroller-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: keycloak-operator
+    namespace: keycloak
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-realmimport-watch
+  namespace: kairos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: keycloakrealmimportcontroller-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: keycloak-operator
+    namespace: keycloak

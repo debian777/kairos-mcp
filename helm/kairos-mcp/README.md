@@ -1,87 +1,69 @@
 # KAIROS MCP Helm chart (`helm/kairos-mcp`)
 
-Deploys **Qdrant** and the optional **kairos-mcp** app. Redis, Keycloak, and
-Postgres can be external (your operators) or created by this chart through
-operator CRs.
+Deploys the **kairos-mcp** application and **bundled Qdrant** (Helm subchart). Redis, Keycloak, and Postgres are optional: use external services (`useOwnCluster` + URLs) or enable chart CRs when the matching operators are installed (see [docs/OPERATORS.md](docs/OPERATORS.md)).
+
+## Quick install (defaults)
+
+With no custom values file, the chart installs **app + Qdrant** only: Gateway API routes, Redis/Keycloak/Postgres CRs, and monitoring stay **off** until you enable them.
+
+- **`app.qdrantUrl`** defaults to `http://<release-name>-qdrant:6333` when unset (in-cluster Qdrant Service).
+- **`app.embedding.openai.existingSecret`** defaults to **`kairos-mcp-embedding`**. Create that Secret in the release namespace before the app can start:
+
+  ```bash
+  kubectl create secret generic kairos-mcp-embedding -n kairos \
+    --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY"
+  ```
+
+- Use **`app.extraEnv`** for TEI (`TEI_BASE_URL`, `TEI_MODEL`) instead of OpenAI if you prefer.
 
 ## Prerequisites
 
 - Kubernetes cluster
-- **Operators** installed when using chart-created clusters (see [docs/OPERATORS.md](docs/OPERATORS.md)):
-  - Redis (Spotahome redis-operator)
-  - Keycloak operator
-  - Postgres (Percona PostgreSQL operator)
+- **Operators** (only if you enable chart-managed Redis, Keycloak, or Postgres): install **[helm/operators](../../operators/)** and optionally **[helm/infrastructure](../../infrastructure/)** for ngrok + `GatewayClass`. See [docs/OPERATORS.md](docs/OPERATORS.md).
 
 ## Credentials
 
-The chart creates only internal bootstrap secrets. When you enable the app, you
-must still provide an embedding provider configuration.
-
-- Set `credentials.autoGenerate: true` (default): a pre-install hook creates a
-  Secret with random `redis-password`, `keycloak-db-password`, and
-  `session-secret`. Use `credentials.existingSecret` to use your own.
-- Set `app.extraEnv` to inject your embedding provider. Use either
-  `OPENAI_API_KEY` plus `OPENAI_EMBEDDING_MODEL`, or `TEI_BASE_URL` plus
-  `TEI_MODEL`. Prefer `valueFrom.secretKeyRef`.
-- Set `app.qdrantUrl`, `app.keycloakUrl`, and `app.keycloakInternalUrl`.
-  Set `app.redisUrl` only when you want Redis.
-- **Browser OIDC:** set `app.auth.enabled: true`, `app.auth.realm` (default
-  `kairos`), `app.auth.clientId` (default `kairos-mcp`), and
-  `app.auth.callbackBaseUrl` to your **public app origin** (e.g.
-  `https://your-host.ngrok-free.dev`, no trailing slash). The app needs
-  `session-secret` in the credentials Secret (hook or `existingSecret`).
-- **Realm import:** set `keycloakRealmImport.enabled: true` to apply a
-  `KeycloakRealmImport` for `kairos` with `kairos-mcp` / `kairos-cli`
-  clients. Redirect URIs use `https://<gateway.hostname>/…` unless you set
-  `keycloakRealmImport.publicHost`. If the realm already exists, reconcile or
-  adjust clients in Keycloak Admin instead of duplicating imports.
+- **`credentials.autoGenerate: true`** (default): a pre-install hook can create a Secret with random `redis-password`, `keycloak-db-password`, and `session-secret`. Use **`credentials.existingSecret`** to use your own.
+- Set **`app.keycloakUrl`**, **`app.keycloakInternalUrl`**, and **`app.redisUrl`** when you use Redis/Keycloak (full-stack overlays such as `helm/values.dev.yaml` show typical URLs).
+- **Browser OIDC:** set **`app.auth.enabled: true`**, **`app.auth.callbackBaseUrl`** to your public origin, and **`gateway.hostname`** when exposing routes. **`keycloakRealmImport.enabled: true`** applies the bundled realm JSON (redirect URIs use `https://<gateway.hostname>/…` unless **`keycloakRealmImport.publicHost`** is set).
 
 ## Cluster configuration
 
-- **Use your own clusters:** set `redisCluster.useOwnCluster`, `keycloakInstance.useOwnCluster`, or `postgresCluster.useOwnCluster` to `true` and set app.*Url. No CRs are created.
-- **Chart creates clusters:** set `redisCluster.enabled`,
-  `keycloakInstance.enabled`, or `postgresCluster.enabled` to `true`.
-  Operators must be installed first, must watch the release namespace, and
-  must have RBAC in that namespace.
+- **External data plane:** set **`redisCluster.useOwnCluster`**, **`keycloakInstance.useOwnCluster`**, or **`postgresCluster.useOwnCluster`** to **`true`** and set **`app.*` URLs**. No CRs are created.
+- **Chart-managed CRs:** set **`redisCluster.enabled`**, **`keycloakInstance.enabled`**, or **`postgresCluster.enabled`** to **`true`**. Operators must be installed first; see [docs/OPERATORS.md](docs/OPERATORS.md).
 
 ## Operator pre-check
 
-When any of `redisCluster.enabled`, `keycloakInstance.enabled`, or `postgresCluster.enabled` is `true`, a **pre-install hook** checks that required operator CRDs exist (e.g. `redisfailovers.databases.spotahome.com`, `keycloaks.k8s.keycloak.org`, `perconapgclusters.pgv2.percona.com`). See [docs/OPERATORS.md](docs/OPERATORS.md).
+When any of **`redisCluster.enabled`**, **`keycloakInstance.enabled`**, or **`postgresCluster.enabled`** is **`true`**, a **pre-install hook** checks that required operator CRDs exist. If install fails, apply **`helm/operators`** (or manual steps in OPERATORS.md) and retry.
 
 ## Gateway API
 
-Set `gateway.enabled: true`, `gateway.hostname`, and
-`gateway.gatewayClassName`. The app route renders only when `app.enabled=true`.
-Keycloak is exposed at `https://<hostname>/sso`. For the repo-local k3d flow,
-`helm/k3b.sh` installs operators, ngrok, `GatewayClass/ngrok`, and by default
-the `kairos` Helm release (`helm/values.dev.yaml`) so the MCP app and Keycloak get
-`HTTPRoute`s on that hostname. Set `KAIROS_NGROK_HOSTNAME` if your ngrok domain
-differs from `gateway.hostname` in values. Use `KAIROS_SKIP_CHART=1` for
-operators only.
-TLS via cert-manager is used only when
-`gateway.tls.certManager.enabled=true`.
+Set **`gateway.enabled: true`**, **`gateway.hostname`**, and **`gateway.gatewayClassName`** (e.g. **`ngrok`**) when you want HTTPRoutes. The MCP route renders when **`gateway.hostname`** is set. Keycloak route uses **`gateway.routes.keycloak`**. TLS via cert-manager when **`gateway.tls.certManager.enabled=true`**.
 
 ## Monitoring (ServiceMonitor and alerts)
 
-Requires [Prometheus Operator](https://prometheus-operator.dev/). App exposes `/metrics` on `app.metricsPort` (9090); Qdrant on port 6333. Enable `monitoring.serviceMonitor.app.enabled` and `monitoring.serviceMonitor.qdrant.enabled`; set `release` (e.g. `prometheus`) so Prometheus selects them. Optional: `monitoring.serviceMonitor.redis` / `keycloak` / `postgres` with `serviceNamespace` and `serviceSelector`. Set `monitoring.prometheusRule.enabled: true` for default alerts (KAIROSAppDown, KAIROSAppHighErrorRate, KAIROSQdrantDown); set `monitoring.prometheusRule.release` for selection.
+Requires [Prometheus Operator](https://prometheus-operator.dev/). Enable **`monitoring.serviceMonitor.app.enabled`** / **`monitoring.serviceMonitor.qdrant.enabled`** and set **`release`** for selection. Optional Redis/Keycloak/Postgres monitors. **`monitoring.prometheusRule.enabled: true`** for default alerts.
 
 ## Install
 
 ```bash
-helm dependency update
-helm install kairos . -n kairos --create-namespace -f my-values.yaml
+helm repo add qdrant https://qdrant.github.io/qdrant-helm
+helm dependency build
+helm upgrade --install kairos . -n kairos --create-namespace
 ```
 
-When `app.enabled` is true, the process must supply an embedding provider. The
-chart supports OpenAI via `app.embedding.openai.existingSecret` (recommended)
-or `app.extraEnv` for TEI (`TEI_BASE_URL`, `TEI_MODEL`).
+Use **`-f ../values.dev.yaml`** (or your values) for a full-stack example. See **[helm/README.md](../README.md)** for Kustomize operator install order.
 
-For the repo-local k3d profile, `./helm/k3b.sh` applies the full chart by
-default. Put `OPENAI_API_KEY` in the environment first (e.g.
-`set -a && source .env && set +a`); the script creates `kairos-mcp-embedding`
-from that variable. See `helm/values.dev.yaml` (production-oriented: `helm/values.prod.yaml`).
+## Packaging and release
 
-In `my-values.yaml`, set at least `app.qdrantUrl`, `app.keycloakUrl`,
-`app.keycloakInternalUrl`, and embedding or `app.extraEnv` when you enable the
-app. Set `app.redisUrl` only when you configure Redis. Set
-`app.auth.callbackBaseUrl` when using auth.
+- Run **`helm dependency build`** (or **`helm dependency update`**) before **`helm package`** so **`charts/*.tgz`** is populated; **`Chart.lock`** should stay committed for reproducible builds.
+- **`charts/*.tgz`** is gitignored under this chart; CI/release pipelines should build dependencies before packaging.
+- Published artifacts should include vendored subcharts so consumers can **`helm install`** without extra repo setup beyond what `Chart.lock` records.
+
+## Chart tests
+
+From repository root:
+
+```bash
+./scripts/test-helm.sh
+```

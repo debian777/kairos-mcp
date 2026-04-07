@@ -1,0 +1,15 @@
+# Namespaces for operator installs (idempotent with kubectl apply).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kairos
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-operator

@@ -45,9 +45,7 @@ suite: app Service
 templates:
   - kairos-mcp-service.yaml
 tests:
-  - it: renders Service when app is enabled
-    set:
-      app.enabled: true
+  - it: renders Service by default
     asserts:
       - isKind:
           of: Service

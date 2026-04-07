@@ -1,0 +1,28 @@
+# Kustomize bundle: Redis (Spotahome), Keycloak operator, Percona PostgreSQL operator.
+# Build: kustomize build --enable-helm .
+# Apply: kubectl apply -k .   (from this directory)
+#
+# renovate: datasource=helm registryUrl=https://spotahome.github.io/redis-operator depName=redis-operator
+# renovate: datasource=github-tags depName=keycloak/keycloak-k8s-resources
+# renovate: datasource=helm registryUrl=https://percona.github.io/percona-helm-charts/ depName=pg-operator
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  - keycloak-rbac.yaml
+  - keycloak
+
+helmCharts:
+  - name: redis-operator
+    repo: https://spotahome.github.io/redis-operator
+    version: 3.2.9
+    releaseName: redis-operator
+    namespace: redis-operator
+    includeCRDs: true
+  - name: pg-operator
+    repo: https://percona.github.io/percona-helm-charts/
+    version: 2.8.2
+    releaseName: pg-operator
+    namespace: kairos
+    includeCRDs: true

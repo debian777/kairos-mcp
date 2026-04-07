@@ -5,12 +5,18 @@ on:
   pull_request:
     paths:
       - "helm/kairos-mcp/**"
+      - "helm/operators/**"
+      - "helm/infrastructure/**"
+      - "scripts/validate-kustomize.sh"
       - "ct.yaml"
       - ".github/workflows/helm-chart.yml"
   push:
     branches: [main, v4, "ci/**"]
     paths:
       - "helm/kairos-mcp/**"
+      - "helm/operators/**"
+      - "helm/infrastructure/**"
+      - "scripts/validate-kustomize.sh"
       - "ct.yaml"
       - ".github/workflows/helm-chart.yml"
   workflow_dispatch:
@@ -29,6 +35,19 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: v4.0.5
+
+      - name: Install Kustomize
+        env:
+          KUSTOMIZE_TAG: kustomize/v5.8.1
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/${KUSTOMIZE_TAG}/kustomize_v5.8.1_linux_amd64.tar.gz" | tar xz
+          sudo install -m 0755 kustomize /usr/local/bin/kustomize
+          rm -f kustomize
+          kustomize version
+
+      - name: Kustomize build (operators + infrastructure)
+        run: ./scripts/validate-kustomize.sh
 
       - name: Add helm repos (chart dependencies)
         run: helm repo add qdrant https://qdrant.github.io/qdrant-helm
