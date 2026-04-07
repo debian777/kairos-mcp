@@ -28,6 +28,8 @@ export function pointToMemory(point: QdrantPointLike): Memory {
       typeof payload.created_at === 'string'
         ? payload.created_at
         : new Date().toISOString(),
+    ...(typeof payload.slug === 'string' &&
+      payload.slug.trim().length > 0 && { slug: payload.slug.trim() }),
   };
 
   const payloadAdapter: any =

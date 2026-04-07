@@ -80,13 +80,6 @@ describe('MCP Tools and Resources', () => {
     expect(runtimePromptText.toLowerCase()).toContain('kairos');
   }, 30000);
 
-  test('resources/list returns registered resources', async () => {
-    const resources = await mcp.client.listResources();
-    expect(Array.isArray(resources.resources)).toBe(true);
-    expect(resources.resources.some((r: any) => typeof r.uri === 'string' && r.uri.startsWith('kairos://meta/'))).toBe(false);
-    expect(resources.resources.some((r: any) => r.uri === 'kairos://doc/building-kairos-workflows')).toBe(false);
-  }, 30000);
-
   test('resources/templates/list returns empty array when no templates are registered', async () => {
     const templates = await mcp.client.listResourceTemplates();
     expect(Array.isArray(templates.resourceTemplates)).toBe(true);

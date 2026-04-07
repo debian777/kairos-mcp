@@ -11,11 +11,14 @@ import {
   CLI_PATH,
   TEST_FILE,
   setupServerCheck,
-  setupCliConfigWithLogin
+  setupCliConfigWithLogin,
+  requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
 import { serverRequiresAuth } from '../utils/auth-headers.js';
 
 const AUTH_ERROR_PATTERN = /Authentication required|Unauthorized|Bearer token invalid|expired|login|Log in/i;
+
+const describeAuthNoToken = serverRequiresAuth() ? describe : describe.skip;
 
 describe('CLI Commands Environment & Error Tests', () => {
   let serverAvailable = false;
@@ -28,7 +31,7 @@ describe('CLI Commands Environment & Error Tests', () => {
 
   describe('CLI via npm script', () => {
     test('npm run cli -- activate with --url returns choices when server is up', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       const { stdout } = await execAsync(
         `npm run cli --silent -- --url ${BASE_URL} activate "test query"`,
@@ -42,7 +45,7 @@ describe('CLI Commands Environment & Error Tests', () => {
 
   describe('KAIROS_API_URL environment variable', () => {
     test('activate uses KAIROS_API_URL environment variable', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       const { stdout, stderr } = await execAsync(
         `KAIROS_API_URL=${BASE_URL} node ${CLI_PATH} activate "test query"`
@@ -57,7 +60,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
 
     test('forward uses KAIROS_API_URL environment variable with URI', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Train test protocol then activate to get a valid URI (no longer rely on built-in mem docs)
       await execAsync(
@@ -88,7 +91,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
 
     test('train uses KAIROS_API_URL environment variable', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
@@ -101,7 +104,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
 
     test('--url parameter overrides KAIROS_API_URL environment variable', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Set env var to wrong URL, but --url should override
       const { stdout, stderr } = await execAsync(
@@ -117,9 +120,9 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
   });
 
-  describe('Auth required (no token)', () => {
+  describeAuthNoToken('Auth required (no token)', () => {
     test('activate without token fails with auth message when server requires auth', async () => {
-      if (!serverAvailable || !serverRequiresAuth()) return;
+      expect(serverAvailable).toBe(true);
 
       try {
         await execAsyncNoAuth(
@@ -136,7 +139,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 20000);
 
     test('activate with invalid token in config fails with auth message when server requires auth', async () => {
-      if (!serverAvailable || !serverRequiresAuth()) return;
+      expect(serverAvailable).toBe(true);
 
       try {
         await execAsyncWithConfig(
@@ -158,7 +161,7 @@ describe('CLI Commands Environment & Error Tests', () => {
 
   describe('Error handling with --url', () => {
     test('activate fails with invalid --url', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       await expect(
         execAsync(`node ${CLI_PATH} activate --url http://invalid-url:9999 "test query"`)
@@ -166,7 +169,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
 
     test('forward fails with invalid --url', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // URI can be any; we are asserting the client rejects when server URL is invalid
       await expect(
@@ -177,7 +180,7 @@ describe('CLI Commands Environment & Error Tests', () => {
     }, 30000);
 
     test('train fails with invalid --url', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       await expect(
         execAsync(`node ${CLI_PATH} train --url http://invalid-url:9999 "${TEST_FILE}"`)
