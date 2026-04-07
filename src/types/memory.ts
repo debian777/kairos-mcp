@@ -42,6 +42,8 @@ export interface InferenceContractDefinition {
   };
   mcp?: {
     tool_name: string;
+    /** When set (including `{}`), submission must supply a plain object `solution.mcp.arguments` matching these keys (subset semantics). */
+    arguments?: Record<string, unknown>;
     expected_result?: unknown;
   };
   user_input?: {

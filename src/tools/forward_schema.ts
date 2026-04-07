@@ -40,6 +40,7 @@ export const forwardContractSchema = z.object({
   }).optional(),
   mcp: z.object({
     tool_name: z.string(),
+    arguments: z.record(z.string(), z.unknown()).optional(),
     expected_result: z.any().optional()
   }).optional(),
   user_input: z.object({

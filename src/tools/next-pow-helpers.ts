@@ -13,6 +13,8 @@ import type {
   HandleProofResult,
   ProofOfWorkSubmission
 } from './next-proof-types.js';
+import { validateMcpSubmissionAgainstContract } from './mcp-contract-match.js';
+import { buildChallengeShapeForDisplay } from './next-pow-challenge-shape.js';
 export type {
   BuildChallengeOptions,
   ElicitResult,
@@ -21,51 +23,14 @@ export type {
   ProofOfWorkSubmission
 } from './next-proof-types.js';
 
-const COMMENT_SEMANTIC_THRESHOLD = 0.25;
+export { buildChallengeShapeForDisplay } from './next-pow-challenge-shape.js';
+export { GENESIS_HASH } from './kairos-genesis-proof-hash.js';
 
-export const GENESIS_HASH = crypto.createHash('sha256').update('genesis').digest('hex');
+const COMMENT_SEMANTIC_THRESHOLD = 0.25;
 
 function hashProofRecord(record: ProofOfWorkResultRecord): string {
   const canonical = JSON.stringify(record, Object.keys(record).sort());
   return crypto.createHash('sha256').update(canonical).digest('hex');
-}
-
-export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Record<string, unknown> {
-  const base: Record<string, unknown> = proof ? (() => {
-    if (proof.type === 'tensor') {
-      return {
-        type: 'tensor',
-        description: `Emit tensor output "${proof.tensor?.output.name ?? 'unnamed'}".`,
-        ...(proof.tensor ? { tensor: proof.tensor } : {})
-      };
-    }
-    const proofType: ProofOfWorkType = proof.type ?? 'shell';
-    const result: Record<string, unknown> = { type: proofType, description: '' };
-    if (proofType === 'shell') {
-      const cmd = proof.shell?.cmd || proof.cmd || 'No command specified';
-      const timeout = proof.shell?.timeout_seconds || proof.timeout_seconds || 30;
-      result['description'] = `Execute shell command: ${cmd}. You MUST actually run this command and report the real exit_code/stdout/stderr; do not fabricate.`;
-      result['shell'] = { cmd, timeout_seconds: timeout };
-    } else if (proofType === 'mcp') {
-      const toolName = proof.mcp?.tool_name || 'No tool specified';
-      result['description'] = `Call MCP tool: ${toolName}. You MUST actually call this tool and report its real result; do not fabricate.`;
-      result['mcp'] = { tool_name: toolName, expected_result: proof.mcp?.expected_result };
-    } else if (proofType === 'user_input') {
-      const prompt = proof.user_input?.prompt || 'Confirm completion';
-      result['description'] = `User confirmation: ${prompt}. You MUST show this prompt to the user and use only their reply as user_input.confirmation; do not assume or invent it.`;
-      result['user_input'] = { prompt };
-    } else if (proofType === 'comment') {
-      const minLength = proof.comment?.min_length || 10;
-      result['description'] = `Provide a verification comment (minimum ${minLength} characters) that genuinely summarises what was done in this step; do not paste unrelated text.`;
-      result['comment'] = { min_length: minLength };
-    }
-    return result;
-  })() : {
-    type: 'comment' as ProofOfWorkType,
-    description: 'Provide a verification comment describing how you completed this step. Write a genuine summary; do not paste unrelated text.'
-  };
-  base['proof_hash'] = GENESIS_HASH;
-  return base;
 }
 
 export async function buildChallenge(
@@ -273,6 +238,10 @@ export async function handleProofSubmission(
     const mcp = submission.mcp;
     if (!mcp) {
       return blocked('MCP proof requires mcp field', 'MISSING_FIELD');
+    }
+    const mcpContractCheck = validateMcpSubmissionAgainstContract(proof, mcp);
+    if (!mcpContractCheck.ok) {
+      return blocked(mcpContractCheck.message, mcpContractCheck.code);
     }
     record.status = mcp.success ? 'success' : 'failed';
     record.mcp = {
