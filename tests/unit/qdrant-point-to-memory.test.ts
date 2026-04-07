@@ -33,4 +33,24 @@ describe('pointToMemory', () => {
       'text'
     ]);
   });
+
+  test('maps payload slug onto memory for activate/search output', () => {
+    const memory = pointToMemory({
+      id: '00000000-0000-0000-0000-000000000222',
+      payload: {
+        label: 'Routed',
+        slug: 'my-protocol-slug',
+        text: 'x',
+        llm_model_id: 'm',
+        created_at: '2026-03-26T00:00:00.000Z',
+        adapter: {
+          id: '00000000-0000-0000-0000-000000000222',
+          name: 'Routed',
+          layer_index: 1,
+          layer_count: 1
+        }
+      }
+    });
+    expect(memory.slug).toBe('my-protocol-slug');
+  });
 });

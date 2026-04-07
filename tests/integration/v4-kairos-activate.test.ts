@@ -1,74 +1,142 @@
 /**
- * Activate tool response shape tests.
- * Tests use the actual space of kairos-tester (user:realm:sub from token); activate passes space_id
- * so train and activate run in the same scope and adapters stored via train are visible.
+ * Integration: `activate` MCP tool — response shape, meta footers, and slug contract.
  *
- * Depends on: train (and optionally tune). Run train integration tests first where sequenced.
+ * Prerequisites: dev stack reachable (`npm run dev:deploy` / ENV=dev), auth as configured for
+ * integration tests, Qdrant indexing lag tolerated via polling where needed.
+ *
+ * Train + activate share scope via `space_id` from `getTestSpaceId()` so adapters trained in-test are visible.
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
+import { AUTHOR_SLUG_RE } from '../../src/utils/protocol-slug.js';
+import {
+  type ActivateChoice,
+  expectActivateChoiceSlugField,
+  expectConfidencePercentInMessage,
+  expectNoDeprecatedTopLevelFields,
+  nextActionLooksActionable,
+  type ParsedActivate,
+  sleep
+} from './v4-activate-test-helpers.js';
+
+/** Built-in meta adapters (fixed UUIDs). */
+const URI_REFINE_SEARCH = 'kairos://adapter/00000000-0000-0000-0000-000000002002' as const;
+const URI_CREATE_PROTOCOL = 'kairos://adapter/00000000-0000-0000-0000-000000002001' as const;
+
+const RE_ADAPTER_URI = /^kairos:\/\/adapter\/[0-9a-f-]{36}$/i;
+
+const TRAIN_LLM_MODEL_ID = 'test-v4-activate';
+
+/** After train, allow vector index to catch up before activate (single-adapter cases). */
+const SETTLE_AFTER_TRAIN_MS = 4000;
+/** Shorter settle for field-shape test (warm-ish index). */
+const SETTLE_AFTER_TRAIN_SHORT_MS = 2000;
 
 describe('v4-activate unified response schema', () => {
-  let mcpConnection;
-
-  function expectConfidenceMessageWithinBounds(message: string) {
-    const match = message.match(/top confidence: (\d+)%/i);
-    if (!match) return;
-    expect(Number(match[1])).toBeLessThanOrEqual(100);
-  }
+  let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
   }, 30000);
 
   afterAll(async () => {
-    if (mcpConnection) await mcpConnection.close();
+    if (mcpConnection) {
+      await mcpConnection.close();
+    }
   });
 
   async function activateQuery(query: string) {
     const args: { query: string; space_id?: string } = { query };
     const spaceId = getTestSpaceId();
     if (spaceId) args.space_id = spaceId;
-    const call = { name: 'activate', arguments: args };
+    const call = { name: 'activate' as const, arguments: args };
     const result = await mcpConnection.client.callTool(call);
     return { call, result, parsed: parseMcpJson(result, 'v4-activate') };
   }
 
-  async function trainProtocol(title: string) {
-    const content = `# ${title}\n\n## Activation Patterns\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Reward Signal\nDone.`;
+  function buildMinimalProtocolBody(title: string): string {
+    return `# ${title}
+
+## Activation Patterns
+When.
+
+## Step 1
+Do something.
+
+\`\`\`json
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
+## Reward Signal
+Done.`;
+  }
+
+  async function trainMinimalProtocol(title: string): Promise<void> {
+    const content = buildMinimalProtocolBody(title);
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: content, llm_model_id: 'test-v4-activate', force_update: true }
+      arguments: { markdown_doc: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
     });
   }
 
-  test('Create New KAIROS adapter: activate returns choices', async () => {
+  /** Train with YAML `slug:` so Qdrant stores a routing slug; activate must echo it on the match row. */
+  async function trainMinimalProtocolWithRoutingSlug(title: string, routingSlug: string): Promise<void> {
+    expect(routingSlug).toMatch(AUTHOR_SLUG_RE);
+    const content = `---
+slug: ${routingSlug}
+---
+
+${buildMinimalProtocolBody(title)}`;
+    await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: { markdown_doc: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
+    });
+  }
+
+  /**
+   * Re-call activate after incremental delays until predicate passes or attempts exhausted.
+   * Returns the last attempt (caller should assert predicate or fail with context).
+   */
+  async function pollActivate(
+    query: string,
+    options: { delaysMs: number[]; until: (parsed: ParsedActivate) => boolean }
+  ): Promise<{ call: { name: string; arguments: Record<string, unknown> }; result: unknown; parsed: ParsedActivate }> {
+    let last = await activateQuery(query);
+    if (options.until(last.parsed)) {
+      return last;
+    }
+    for (const ms of options.delaysMs) {
+      await sleep(ms);
+      last = await activateQuery(query);
+      if (options.until(last.parsed)) {
+        return last;
+      }
+    }
+    return last;
+  }
+
+  test('trained adapter: envelope, match choice shape, and no obsolete top-level fields', async () => {
     const ts = Date.now();
     const title = `V4ActivateSingle ${ts}`;
-    await trainProtocol(title);
+    await trainMinimalProtocol(title);
 
-    // Allow Qdrant indexing to complete
-    await new Promise((r) => setTimeout(r, 4000));
+    await sleep(SETTLE_AFTER_TRAIN_MS);
     const { call, result, parsed } = await activateQuery(title);
 
     withRawOnFail({ call, result }, () => {
       expect(parsed.must_obey).toBe(true);
       expect(typeof parsed.message).toBe('string');
-      expectConfidenceMessageWithinBounds(parsed.message);
+      expectConfidencePercentInMessage(parsed.message);
       expect(typeof parsed.next_action).toBe('string');
-      expect(
-        parsed.next_action.includes("choice's next_action") ||
-          parsed.next_action.includes('kairos://') ||
-          parsed.next_action.toLowerCase().includes('forward')
-      ).toBe(true);
+      expect(nextActionLooksActionable(parsed.next_action)).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      const matchChoice = parsed.choices.find((c: { role: string }) => c.role === 'match');
-      const choice = matchChoice || parsed.choices[0];
+      const matchChoice = parsed.choices.find((c: ActivateChoice) => c.role === 'match') as ActivateChoice | undefined;
+      const choice = (matchChoice ?? parsed.choices[0]) as ActivateChoice;
       expect(choice).toBeDefined();
-      expect(choice.uri).toMatch(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i);
+      expect(choice.uri).toMatch(RE_ADAPTER_URI);
       expect(typeof choice.label).toBe('string');
       if (parsed.next_action.includes("choice's next_action")) {
         expect(choice).toHaveProperty('next_action');
@@ -76,37 +144,72 @@ describe('v4-activate unified response schema', () => {
       expect(['match', 'refine', 'create']).toContain(choice.role);
       if (choice.role === 'match') {
         expect(typeof choice.activation_score).toBe('number');
-        expect(choice.activation_score).toBeGreaterThanOrEqual(0);
-        expect(choice.activation_score).toBeLessThanOrEqual(1);
+        expect(choice.activation_score as number).toBeGreaterThanOrEqual(0);
+        expect(choice.activation_score as number).toBeLessThanOrEqual(1);
+        expectActivateChoiceSlugField(choice);
       } else {
-        expect(choice.activation_score === null).toBe(true);
+        expect(choice.activation_score).toBeNull();
       }
       expect(Array.isArray(choice.tags)).toBe(true);
 
-      expect(parsed.start_here).toBeUndefined();
-      expect(parsed.best_match).toBeUndefined();
-      expect(parsed.protocol_status).toBeUndefined();
-      expect(parsed.suggestion).toBeUndefined();
-      expect(parsed.hint).toBeUndefined();
+      expectNoDeprecatedTopLevelFields(parsed);
     });
   });
 
-  test('builtin refine/create chains are not returned as vector matches (no duplicate URIs)', async () => {
-    const { call, result, parsed } = await activateQuery('protocol');
-    const refineUri = 'kairos://adapter/00000000-0000-0000-0000-000000002002';
-    const createUri = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
+  test('match row echoes routing slug after train stores slug frontmatter', async () => {
+    const ts = Date.now();
+    const routingSlug = `v4-activate-route-${ts}`;
+    const title = `V4ActivateSlugEcho ${ts}`;
+    await trainMinimalProtocolWithRoutingSlug(title, routingSlug);
+    await sleep(SETTLE_AFTER_TRAIN_MS);
+
+    const rowForOurAdapter = (p: ParsedActivate) =>
+      p.choices.some(
+        (c: ActivateChoice) =>
+          c.role === 'match' && String(c.adapter_name ?? c.label ?? '') === title
+      );
+
+    const { call, result, parsed } = await pollActivate(title, {
+      delaysMs: [3000, 4000, 4000],
+      until: rowForOurAdapter
+    });
+
     withRawOnFail({ call, result }, () => {
-      const matches = parsed.choices.filter((c: { role: string }) => c.role === 'match');
-      expect(matches.some((c: { uri: string }) => c.uri === refineUri)).toBe(false);
-      expect(matches.some((c: { uri: string }) => c.uri === createUri)).toBe(false);
+      const ours = parsed.choices.find(
+        (c: ActivateChoice) =>
+          c.role === 'match' && String(c.adapter_name ?? '') === title
+      ) as ActivateChoice | undefined;
+      if (ours === undefined) {
+        throw new Error(
+          `no match row for trained adapter "${title}"; got ${JSON.stringify(
+            parsed.choices.map((c: ActivateChoice) => ({
+              role: c.role,
+              adapter_name: c.adapter_name,
+              slug: c.slug
+            }))
+          )}`
+        );
+      }
+      expect(ours.slug).toBe(routingSlug);
+      expect(String(ours.slug)).toMatch(AUTHOR_SLUG_RE);
+    });
+  }, 60000);
+
+  test('vector matches never duplicate builtin refine/create adapter URIs', async () => {
+    const { call, result, parsed } = await activateQuery('protocol');
+
+    withRawOnFail({ call, result }, () => {
+      const matches = parsed.choices.filter((c: ActivateChoice) => c.role === 'match');
+      expect(matches.some((c: ActivateChoice) => c.uri === URI_REFINE_SEARCH)).toBe(false);
+      expect(matches.some((c: ActivateChoice) => c.uri === URI_CREATE_PROTOCOL)).toBe(false);
       const footerCreate = parsed.choices.filter(
-        (c: { role: string; uri: string }) => c.role === 'create' && c.uri === createUri
+        (c: ActivateChoice) => c.role === 'create' && c.uri === URI_CREATE_PROTOCOL
       );
       expect(footerCreate.length).toBeLessThanOrEqual(1);
     });
   }, 45000);
 
-  test('no matches: must_obey true, creation adapter with role create', async () => {
+  test('no vector match: refine/create footers and refine label stable', async () => {
     const ts = Date.now();
     const gibberish = `XyZ123GarbageV4Test${ts}NoOneSearchesThis`;
 
@@ -119,13 +222,13 @@ describe('v4-activate unified response schema', () => {
       expect(Array.isArray(parsed.choices)).toBe(true);
       expect(parsed.choices.length).toBeGreaterThanOrEqual(1);
 
-      const refineChoice = parsed.choices.find((c: { role: string }) => c.role === 'refine');
-      const createChoice = parsed.choices.find((c: { role: string }) => c.role === 'create');
+      const refineChoice = parsed.choices.find((c: ActivateChoice) => c.role === 'refine');
+      const createChoice = parsed.choices.find((c: ActivateChoice) => c.role === 'create');
       expect(createChoice).toBeDefined();
       expect(createChoice!.activation_score).toBeNull();
-      expect(createChoice!.uri).toMatch(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i);
+      expect(createChoice!.uri).toMatch(RE_ADAPTER_URI);
       expect(refineChoice).toBeDefined();
-      expect(refineChoice!.uri).toBe('kairos://adapter/00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.uri).toBe(URI_REFINE_SEARCH);
       expect(typeof refineChoice!.next_action).toBe('string');
       expect(refineChoice!.next_action).toContain('forward');
       expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
@@ -134,19 +237,16 @@ describe('v4-activate unified response schema', () => {
         expect(typeof createChoice!.next_action).toBe('string');
       }
 
-      expect(parsed.start_here).toBeUndefined();
-      expect(parsed.best_match).toBeUndefined();
-      expect(parsed.protocol_status).toBeUndefined();
+      expectNoDeprecatedTopLevelFields(parsed);
     });
   });
 
-  test('authoring wording: register personal adapter keeps create choice visible', async () => {
+  test('create footer choice remains discoverable for authoring-style query', async () => {
     const { call, result, parsed } = await activateQuery('Register personal KAIROS adapter');
-    const createUri = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
 
     withRawOnFail({ call, result }, () => {
       const createChoice = parsed.choices.find(
-        (c: { role: string; uri: string }) => c.role === 'create' && c.uri === createUri
+        (c: ActivateChoice) => c.role === 'create' && c.uri === URI_CREATE_PROTOCOL
       );
       expect(createChoice).toBeDefined();
       expect(String(createChoice!.label).toLowerCase()).toContain('kairos');
@@ -157,59 +257,67 @@ describe('v4-activate unified response schema', () => {
     });
   });
 
-  test('multiple matches: refine and create choices have correct URI and next_action', async () => {
+  test('two trained adapters: at least two match rows, footers and scores bounded', async () => {
     const ts = Date.now();
     const token = `V4ActivateMulti${ts}`;
-    await trainProtocol(`${token} Alpha`);
-    await trainProtocol(`${token} Beta`);
-    let parsed: ReturnType<typeof parseMcpJson>;
-    let call: { name: string; arguments: Record<string, unknown> };
-    let result: unknown;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await new Promise((r) => setTimeout(r, attempt === 0 ? 6000 : 3000));
-      const out = await activateQuery(token);
-      parsed = out.parsed;
-      call = out.call;
-      result = out.result;
-      const matches = parsed.choices.filter((c: { role: string }) => c.role === 'match');
-      if (matches.length >= 2) break;
-    }
+    await trainMinimalProtocol(`${token} Alpha`);
+    await trainMinimalProtocol(`${token} Beta`);
+
+    const minMatches = (p: ParsedActivate) =>
+      p.choices.filter((c: ActivateChoice) => c.role === 'match').length >= 2;
+
+    const { call, result, parsed } = await pollActivate(token, {
+      delaysMs: [6000, 3000, 3000, 3000, 3000],
+      until: minMatches
+    });
 
     withRawOnFail({ call, result }, () => {
+      const matches = parsed.choices.filter((c: ActivateChoice) => c.role === 'match');
+      if (matches.length < 2) {
+        throw new Error(
+          `expected ≥2 match rows after polling; got ${matches.length}. choices=${JSON.stringify(
+            parsed.choices.map((c: ActivateChoice) => ({ role: c.role, uri: c.uri }))
+          )}`
+        );
+      }
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+
       expect(parsed.must_obey).toBe(true);
       expect(Array.isArray(parsed.choices)).toBe(true);
-      expectConfidenceMessageWithinBounds(parsed.message);
-      const matches = parsed.choices.filter((c: { role: string }) => c.role === 'match');
-      expect(matches.length).toBeGreaterThanOrEqual(2);
+      expectConfidencePercentInMessage(parsed.message);
+
       for (const match of matches) {
         expect(match.activation_score).toBeGreaterThanOrEqual(0);
         expect(match.activation_score).toBeLessThanOrEqual(1);
+        expectActivateChoiceSlugField(match as ActivateChoice);
       }
 
-      const refineChoice = parsed.choices.find((c: { role: string }) => c.role === 'refine');
-      const createChoice = parsed.choices.find((c: { role: string }) => c.role === 'create');
+      const refineChoice = parsed.choices.find((c: ActivateChoice) => c.role === 'refine');
+      const createChoice = parsed.choices.find((c: ActivateChoice) => c.role === 'create');
       expect(refineChoice).toBeDefined();
       expect(createChoice).toBeDefined();
-      expect(refineChoice!.uri).toBe('kairos://adapter/00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.uri).toBe(URI_REFINE_SEARCH);
       expect(refineChoice!.next_action).toContain('forward');
       expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
-      expect(createChoice!.uri).toBe('kairos://adapter/00000000-0000-0000-0000-000000002001');
+      expect(createChoice!.uri).toBe(URI_CREATE_PROTOCOL);
       expect(createChoice!.next_action).toContain('train');
     });
   }, 60000);
 
-  test('every choice has uri, label, adapter_name, activation_score, role, tags, slug', async () => {
+  test('every choice exposes required fields; slug follows protocol rules', async () => {
     const ts = Date.now();
     const title = `V4ActivateFields ${ts}`;
-    await trainProtocol(title);
+    await trainMinimalProtocol(title);
 
-    await new Promise((r) => setTimeout(r, 2000));
+    await sleep(SETTLE_AFTER_TRAIN_SHORT_MS);
     const { call, result, parsed } = await activateQuery(title);
 
     withRawOnFail({ call, result }, () => {
-      const isNewFormat =
+      const usesPerChoiceNextAction =
         typeof parsed.next_action === 'string' && parsed.next_action.includes("choice's next_action");
-      for (const choice of parsed.choices) {
+
+      for (const raw of parsed.choices) {
+        const choice = raw as ActivateChoice;
         expect(choice).toHaveProperty('uri');
         expect(choice).toHaveProperty('label');
         expect(choice).toHaveProperty('adapter_name');
@@ -217,15 +325,15 @@ describe('v4-activate unified response schema', () => {
         expect(choice).toHaveProperty('role');
         expect(choice).toHaveProperty('tags');
         expect(choice).toHaveProperty('slug');
-        if (isNewFormat) expect(choice).toHaveProperty('next_action');
+        if (usesPerChoiceNextAction) {
+          expect(choice).toHaveProperty('next_action');
+        }
         expect(['match', 'refine', 'create']).toContain(choice.role);
         if (choice.role === 'match') {
           expect(choice.activation_score).toBeGreaterThanOrEqual(0);
           expect(choice.activation_score).toBeLessThanOrEqual(1);
         }
-        if (choice.role === 'refine' || choice.role === 'create') {
-          expect(choice.slug).toBeNull();
-        }
+        expectActivateChoiceSlugField(choice);
       }
     });
   }, 45000);

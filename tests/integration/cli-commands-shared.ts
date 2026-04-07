@@ -101,3 +101,22 @@ export async function setupServerCheck() {
   return serverAvailable;
 }
 
+/**
+ * Use at the start of CLI integration tests that need a live server and `cli login --token`.
+ * Replaces silent `if (!serverAvailable || !cliLoggedIn) return` (which passes with zero assertions).
+ */
+export function requireMcpServerAndCliLogin(serverAvailable: boolean, cliLoggedIn: boolean): void {
+  if (!serverAvailable || !cliLoggedIn) {
+    throw new Error(
+      'CLI integration requires dev server and CLI login (setupServerCheck + setupCliConfigWithLogin). Refusing silent skip.'
+    );
+  }
+}
+
+/** Preflight URI from train/activate in beforeAll; fail loudly if missing. */
+export function requireCachedLayerUri(uri: string | null | undefined, what: string): asserts uri is string {
+  if (uri == null || uri === '') {
+    throw new Error(`Missing cached layer URI for ${what}: train/activate preflight did not produce a URI.`);
+  }
+}
+

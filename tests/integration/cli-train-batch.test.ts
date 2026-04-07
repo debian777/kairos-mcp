@@ -10,7 +10,8 @@ import {
   BASE_URL,
   CLI_PATH,
   setupServerCheck,
-  setupCliConfigWithLogin
+  setupCliConfigWithLogin,
+  requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
 
 function minimalProtocolMd(title: string): string {
@@ -44,7 +45,7 @@ describe('CLI train directory batch', () => {
   }, 60000);
 
   test('train directory stores all root .md files and returns batch JSON', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const ts = Date.now();
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-batch-'));
@@ -75,7 +76,7 @@ describe('CLI train directory batch', () => {
   }, 120000);
 
   test('train --recursive includes nested .md files', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const ts = Date.now();
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-rec-'));
@@ -105,7 +106,7 @@ describe('CLI train directory batch', () => {
   }, 120000);
 
   test('train --recursive skips README.md at root and in subdirs', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const ts = Date.now();
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-readme-rec-'));
@@ -137,7 +138,7 @@ describe('CLI train directory batch', () => {
   }, 120000);
 
   test('train directory batch skips root README.md only', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const ts = Date.now();
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-readme-flat-'));
@@ -161,7 +162,7 @@ describe('CLI train directory batch', () => {
   }, 120000);
 
   test('train without --recursive skips nested .md', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const ts = Date.now();
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-flat-'));
@@ -186,7 +187,7 @@ describe('CLI train directory batch', () => {
   }, 120000);
 
   test('train empty directory exits with error', async () => {
-    if (!serverAvailable || !cliLoggedIn) return;
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
     const dir = mkdtempSync(join(tmpdir(), 'kairos-train-empty-'));
     try {

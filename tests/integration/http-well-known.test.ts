@@ -25,17 +25,9 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
     }
   }, 60000);
 
-  function skipIfUnavailable(): boolean {
-    if (!serverAvailable) {
-      console.warn('Skipping — server not available');
-      return true;
-    }
-    return false;
-  }
-
   describe('GET /.well-known/oauth-protected-resource (root)', () => {
     test('returns 200 with valid JSON structure', async () => {
-      if (skipIfUnavailable()) return;
+      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/.well-known/oauth-protected-resource`);
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toMatch(/application\/json/);
@@ -85,7 +77,7 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
 
   describe('GET /.well-known/oauth-protected-resource/mcp (path-specific)', () => {
     test('returns 200 with same metadata as root', async () => {
-      if (skipIfUnavailable()) return;
+      expect(serverAvailable).toBe(true);
       const [rootRes, pathRes] = await Promise.all([
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource`),
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource/mcp`)
@@ -102,15 +94,12 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
   const describeWhenAuthRequired = serverRequiresAuth() ? describe : describe.skip;
   describeWhenAuthRequired('401 WWW-Authenticate header', () => {
     test('unauthenticated POST /mcp returns 401 with resource_metadata and scope', async () => {
-      if (skipIfUnavailable()) return;
+      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/mcp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1, params: {} })
       });
-      if (res.status !== 401) {
-        return;
-      }
       expect(res.status).toBe(401);
 
       const wwwAuth = res.headers.get('www-authenticate');

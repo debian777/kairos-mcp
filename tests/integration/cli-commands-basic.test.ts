@@ -10,7 +10,9 @@ import {
   CLI_PATH,
   TEST_FILE,
   setupServerCheck,
-  setupCliConfigWithLogin
+  setupCliConfigWithLogin,
+  requireMcpServerAndCliLogin,
+  requireCachedLayerUri
 } from './cli-commands-shared.js';
 
 describe('CLI Commands Basic --url Tests', () => {
@@ -42,7 +44,7 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('activate command', () => {
     test('activate uses --url parameter', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} activate --url ${BASE_URL} "test query"`
@@ -56,7 +58,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('activate uses -u short form', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} activate -u ${BASE_URL} "test query"`
@@ -72,7 +74,8 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('forward command', () => {
     test('forward uses --url parameter with URI', async () => {
-      if (!serverAvailable || !cliLoggedIn || !cachedSearchUri) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+      requireCachedLayerUri(cachedSearchUri, 'CLI basic forward');
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} forward --url ${BASE_URL} "${cachedSearchUri}"`
@@ -87,7 +90,8 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('forward uses -u short form with URI', async () => {
-      if (!serverAvailable || !cliLoggedIn || !cachedSearchUri) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+      requireCachedLayerUri(cachedSearchUri, 'CLI basic forward');
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} forward -u ${BASE_URL} "${cachedSearchUri}"`
@@ -104,7 +108,7 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('train command', () => {
     test('train uses --url parameter', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
@@ -117,7 +121,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('train uses -u short form', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
@@ -130,7 +134,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('train with --url and --force (updates existing)', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Test that --force works on an existing adapter
       // The adapter should already exist from previous tests, so this covers the update path
@@ -146,7 +150,7 @@ describe('CLI Commands Basic --url Tests', () => {
     }, 30000);
 
     test('train with --url and --model', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       // Use --force to handle case where the adapter already exists from previous test runs
       const { stdout, stderr } = await execAsync(
@@ -161,7 +165,7 @@ describe('CLI Commands Basic --url Tests', () => {
 
   describe('token command', () => {
     test('token prints bearer token to stdout when logged in', async () => {
-      if (!serverAvailable || !cliLoggedIn) return;
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} token --url ${BASE_URL}`
