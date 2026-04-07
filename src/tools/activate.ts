@@ -42,7 +42,8 @@ async function mapSearchToActivate(
             : `call forward with ${adapterUri} and no solution to start the refine adapter`,
           adapter_version: choice.adapter_version,
           activation_patterns: [],
-          space_name: choice.space_name ?? null
+          space_name: choice.space_name ?? null,
+          slug: choice.slug ?? null
         };
       }
 
@@ -58,7 +59,8 @@ async function mapSearchToActivate(
         next_action: `call forward with ${adapterUri} and no solution to start this adapter`,
         adapter_version: choice.adapter_version,
         activation_patterns: choice.activation_patterns ?? [],
-        space_name: choice.space_name ?? null
+        space_name: choice.space_name ?? null,
+        slug: choice.slug ?? null
       };
     })
   );

@@ -40,7 +40,13 @@ export const searchOutputSchema = z.object({
     space_name: z
       .string()
       .nullable()
-      .describe('Human-readable space for stored adapters (Personal, Group: …, Kairos app); null for refine/create')
+      .describe('Human-readable space for stored adapters (Personal, Group: …, Kairos app); null for refine/create'),
+    slug: z
+      .string()
+      .nullable()
+      .describe(
+        'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
+      )
   })).describe('Options: match(es) first, then refine (if present), then create (if present).')
 }).strict();
 

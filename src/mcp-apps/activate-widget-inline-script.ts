@@ -282,6 +282,8 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
           ? String(ch.adapter_name).trim() : '';
         var space = ch && ch.space_name != null && String(ch.space_name).trim()
           ? String(ch.space_name).trim() : '';
+        var slug = ch && ch.slug != null && String(ch.slug).trim()
+          ? String(ch.slug).trim() : '';
         var score = ch && ch.activation_score;
         var row = document.createElement('div');
         row.className = 'choice-row choice-row-top';
@@ -323,6 +325,12 @@ export const ACTIVATE_WIDGET_INLINE_SCRIPT = minifyInlineWidgetScript(`
           mp.className = 'sub';
           mp.textContent = adapterName;
           li.appendChild(mp);
+        }
+        if (slug) {
+          var sp = document.createElement('p');
+          sp.className = 'sub choice-slug';
+          sp.textContent = 'Slug: ' + slug;
+          li.appendChild(sp);
         }
         return li;
       }

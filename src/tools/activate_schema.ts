@@ -40,7 +40,13 @@ export const activateOutputSchema = z.object({
     space_name: z
       .string()
       .nullable()
-      .describe('Human-readable space where the adapter is stored; null for refine/create choices')
+      .describe('Human-readable space where the adapter is stored; null for refine/create choices'),
+    slug: z
+      .string()
+      .nullable()
+      .describe(
+        'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
+      )
   }))
 }).strict();
 

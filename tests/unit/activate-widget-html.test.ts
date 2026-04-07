@@ -26,6 +26,7 @@ describe('buildActivateWidgetHtml', () => {
     expect(html).toContain('tierFromScore');
     expect(html).toContain('choice-row-top');
     expect(html).toContain('choice-space');
+    expect(html).toContain('choice-slug');
     expect(html).toContain('#kairos-activate-root #out');
     expect(html).toContain('summaryLineFromPayload');
     expect(html).toContain('activate-json-details');
