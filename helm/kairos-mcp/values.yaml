@@ -1,0 +1,217 @@
+# ------------------------------------------------------------------------------
+# KAIROS MCP chart defaults.
+# Keep this file complete: templates rely on explicit nested keys existing.
+# ------------------------------------------------------------------------------
+
+global:
+  name: "kairos"
+  namespace: ""
+  hostname: "kairos.example.com"
+
+credentials:
+  autoGenerate: true
+  existingSecret: ""
+  name: "kairos-mcp-credentials"
+
+ha:
+  spreadAcrossNodes: true
+
+app:
+  enabled: false
+  name: "kairos-mcp"
+  replicaCount: 1
+  port: 3000
+  metricsPort: 9090
+  image:
+    repository: "debian777/kairos-mcp"
+    tag: "latest"
+    pullPolicy: "IfNotPresent"
+  existingSecret: ""
+  redisUrl: ""
+  qdrantUrl: ""
+  keycloakUrl: ""
+  keycloakInternalUrl: ""
+  auth:
+    enabled: false
+    realm: "kairos"
+    clientId: "kairos-mcp"
+    callbackBaseUrl: ""
+    # JWT `groups` prefix allowlist (see src/config OIDC_GROUPS_ALLOWLIST). Empty = omit env (app deny-all for groups).
+    # Default matches bundled realm paths under /shared/…
+    oidcGroupsAllowlist: "/shared/"
+  # OpenAI embeddings (required for the app to start unless you set TEI via extraEnv).
+  embedding:
+    openai:
+      existingSecret: ""
+      secretKey: "OPENAI_API_KEY"
+      model: "text-embedding-3-small"
+  extraEnv: []
+  resources: {}
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  vpa:
+    enabled: false
+    updateMode: "Off"
+    minAllowed:
+      cpu: "100m"
+      memory: "128Mi"
+    maxAllowed:
+      cpu: "2"
+      memory: "2Gi"
+
+gateway:
+  enabled: true
+  createGateway: false
+  gatewayName: "kairos-gateway"
+  existingGatewayName: ""
+  existingGatewayNamespace: ""
+  gatewayClassName: "ngrok"
+  hostname: ""
+  tls:
+    secretName: ""
+    certManager:
+      enabled: false
+      secretName: ""
+      issuerRef:
+        name: "letsencrypt-prod"
+        kind: "ClusterIssuer"
+  routes:
+    mcp:
+      path: "/"
+    keycloak:
+      enabled: true
+      path: "/sso"
+      serviceName: ""
+      serviceNamespace: ""
+      port: 8080
+
+qdrant:
+  enabled: true
+  replicaCount: 3
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  vpa:
+    enabled: false
+    updateMode: "Off"
+    minAllowed:
+      cpu: "100m"
+      memory: "128Mi"
+    maxAllowed:
+      cpu: "2"
+      memory: "2Gi"
+
+redisCluster:
+  enabled: false
+  useOwnCluster: false
+  namespace: ""
+  name: "kairos-redis"
+  sentinelReplicas: 3
+  replicas: 3
+  customSpec: {}
+
+keycloakInstance:
+  enabled: false
+  useOwnCluster: false
+  namespace: ""
+  name: "keycloak"
+  replicas: 1
+  http:
+    httpEnabled: true
+    httpPort: 8080
+  hostname:
+    url: ""
+    strict: false
+  proxy:
+    headers: "xforwarded"
+  httpRelativePath: "/sso"
+  db:
+    host: ""
+    port: 5432
+    database: "keycloak"
+    usernameSecretName: ""
+    usernameSecretKey: "user"
+    passwordSecretName: ""
+    passwordSecretKey: "password"
+  customSpec: {}
+
+# When true, applies KeycloakRealmImport (realm kairos + kairos-mcp client) so browser OIDC works.
+# Requires keycloakInstance.enabled, gateway.hostname (or keycloakRealmImport.publicHost), and Keycloak operator.
+keycloakRealmImport:
+  enabled: false
+  name: "kairos-realm-import"
+  # If empty, uses gateway.hostname for https://… redirect URIs / webOrigins in the bundled realm JSON.
+  publicHost: ""
+
+postgresCluster:
+  enabled: false
+  useOwnCluster: false
+  namespace: ""
+  name: "kairos-postgres"
+  crVersion: "2.8.2"
+  image: "docker.io/percona/percona-distribution-postgresql:17.7-2"
+  pgBackRestImage: "docker.io/percona/percona-pgbackrest:2.57.0-1"
+  pgBouncerImage: "docker.io/percona/percona-pgbouncer:1.25.0-1"
+  postgresVersion: 17
+  instances: 1
+  storage: "1Gi"
+  backupStorage: "1Gi"
+  pgBouncerReplicas: 1
+  defaultUser:
+    name: "keycloak"
+    database: "keycloak"
+  customSpec: {}
+  vpa:
+    enabled: false
+    targetKind: "StatefulSet"
+    targetName: ""
+    updateMode: "Off"
+    minAllowed:
+      cpu: "100m"
+      memory: "128Mi"
+    maxAllowed:
+      cpu: "2"
+      memory: "2Gi"
+
+monitoring:
+  serviceMonitor:
+    app:
+      enabled: false
+      release: ""
+      interval: "30s"
+      scrapeTimeout: "10s"
+    qdrant:
+      enabled: false
+      release: ""
+      interval: "30s"
+      scrapeTimeout: "10s"
+    redis:
+      enabled: false
+      release: ""
+      serviceNamespace: ""
+      serviceSelector: {}
+      interval: "30s"
+    keycloak:
+      enabled: false
+      release: ""
+      serviceNamespace: ""
+      serviceSelector: {}
+      interval: "30s"
+    postgres:
+      enabled: false
+      release: ""
+      serviceNamespace: ""
+      serviceSelector: {}
+      interval: "30s"
+  prometheusRule:
+    enabled: false
+    release: ""
+    rules: []

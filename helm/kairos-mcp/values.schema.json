@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "kairos-mcp Helm values",
+  "description": "Merged values for kairos-mcp and conditional subcharts (validated on lint/template/install when present).",
+  "properties": {
+    "global": { "type": "object", "additionalProperties": true },
+    "credentials": { "type": "object", "additionalProperties": true },
+    "ha": { "type": "object", "additionalProperties": true },
+    "app": { "type": "object", "additionalProperties": true },
+    "gateway": { "type": "object", "additionalProperties": true },
+    "qdrant": { "type": "object", "additionalProperties": true },
+    "redisCluster": { "type": "object", "additionalProperties": true },
+    "keycloakInstance": { "type": "object", "additionalProperties": true },
+    "keycloakRealmImport": { "type": "object", "additionalProperties": true },
+    "postgresCluster": { "type": "object", "additionalProperties": true },
+    "monitoring": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}

@@ -286,6 +286,53 @@ Popular global installs:
 
 More detail: [skills/README.md](skills/README.md)
 
+## Helm Chart Testing
+
+This repository includes a comprehensive npm target for testing the Helm chart, matching the GitHub Actions CI pipeline.
+
+### Quick Start
+
+```bash
+# Run complete Helm test workflow (matches GitHub Actions)
+npm run test:helm
+```
+
+This runs `scripts/test-helm.sh` which provides clear progress indicators and handles all validation steps.
+
+### Test Location Recommendation
+
+**Use `helm/` for chart-related tests** - This follows Helm conventions and keeps tests close to the chart files:
+
+- ✅ **`helm/kairos-mcp/tests/`** - Chart unit tests (already exists)
+- ✅ **`helm/kairos-mctests/`** - Additional chart validation tests
+- ❌ **`tests/`** - Better suited for application code tests
+
+### What the Target Tests
+
+The single `npm run test:helm` command runs the complete CI workflow:
+
+1. **Dependencies** - Add repos, build chart dependencies
+2. **Helm Lint** - Strict validation of chart structure
+3. **Unit Tests** - helm-unittest plugin validation  
+4. **Chart Testing** - ct lint validation
+5. **Resource Validation** - kubeconform Kubernetes schema checks
+
+### Expected Behavior
+
+- ✅ **All steps pass** - Chart is ready for deployment
+- ⚠️ **kubeconform CRD failures** - Normal for custom resources (Gateway, HTTPRoute, Keycloak, etc.)
+- ❌ **Other failures** - Requires fixes before deployment
+
+### Tool Requirements
+
+The target checks for required tools and provides clear installation instructions:
+
+- **chart-testing (ct)**: `brew install chart-testing`
+- **kubeconform**: `brew install kubeconform`  
+- **helm-unittest**: `helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.0.3`
+
+The target will fail fast with clear error messages if any tools are missing, avoiding unnecessary installation attempts.
+
 ## Documentation map
 
 - [Documentation index](docs/README.md)
