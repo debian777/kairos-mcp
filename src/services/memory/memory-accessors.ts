@@ -33,3 +33,9 @@ export function getAdapterSlugForSearchOutput(memory: Pick<Memory, 'slug'>): str
   const raw = memory.slug;
   return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
 }
+
+/** Chain root slug from adapter metadata; null when missing or blank. */
+export function getChainRoot(memory: Pick<Memory, 'adapter' | 'memory_uuid' | 'label'>): string | null {
+  const raw = getAdapterInfo(memory)?.chain_root;
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+}

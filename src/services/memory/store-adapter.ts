@@ -63,6 +63,11 @@ export class MemoryQdrantStoreAdapter {
               if (memory.adapter) memory.adapter.protocol_version = effectiveProtocolVersion;
             }
           }
+          if (parsedSingleDoc?.chainRoot) {
+            for (const memory of headerAdapterMemories) {
+              if (memory.adapter) memory.adapter.chain_root = parsedSingleDoc.chainRoot;
+            }
+          }
           const firstLabel = headerAdapterMemories[0]?.label || 'Knowledge Adapter';
           const explicitAdapterTitle = headerAdapterMemories[0]?.adapter?.name;
           const adapterTitle =

@@ -2,11 +2,13 @@
  * YAML frontmatter for protocol dumps (round-trip with train).
  * Slug and version values are constrained when storing via train; kept single-line.
  */
-export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: string): string {
+export function buildProtocolYamlFrontmatter(slug: string, protocolVersion?: string, chainRoot?: string): string {
   const s = (slug || '').trim();
   const lines = ['---', `slug: ${s || 'protocol'}`];
   const v = protocolVersion?.trim();
   if (v) lines.push(`version: ${v}`);
+  const cr = chainRoot?.trim();
+  if (cr) lines.push(`chain_root: ${cr}`);
   lines.push('---', '');
   // Blank line after frontmatter before H1
   return `${lines.join('\n')}\n`;
