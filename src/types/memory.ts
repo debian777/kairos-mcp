@@ -6,6 +6,8 @@ export interface AdapterInfo {
   protocol_version?: string; // Optional semver carried from frontmatter/train input
   activation_patterns?: string[];
   reward_signal?: string; // Optional trailing Reward Signal markdown section
+  /** Slug of the chain entry-point adapter. When set, `activate` collapses this adapter's URI to the root. */
+  chain_root?: string;
 }
 
 export interface TensorOutputSpec {

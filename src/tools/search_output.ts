@@ -12,6 +12,7 @@ import {
   getAdapterInfo,
   getAdapterName,
   getAdapterSlugForSearchOutput,
+  getChainRoot,
   getLayerCount
 } from '../services/memory/memory-accessors.js';
 import { buildAdapterUri } from './kairos-uri.js';
@@ -22,6 +23,7 @@ import {
   KAIROS_CREATION_FOOTER_LABEL,
   KAIROS_REFINING_FOOTER_LABEL
 } from '../constants/builtin-search-meta.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 
 export interface Candidate {
   memory: Memory;
@@ -110,27 +112,63 @@ export async function generateUnifiedOutput(
     createProtocolVersion = null
   } = opts;
   const choices: UnifiedChoice[] = [];
-  const matchCount = results.length;
   const spaceNamesById = getSpaceContextFromStorage().spaceNamesById;
 
   for (const result of results) {
     const head = await resolveHead(result.memory, qdrantService);
     const sid = result.memory.space_id ?? KAIROS_APP_SPACE_ID;
     const slug = getAdapterSlugForSearchOutput(result.memory);
+    const chainRoot = getChainRoot(result.memory);
+    let choiceUri = head.uri;
+    let choiceLabel = head.label || result.label;
+    let choiceNextAction = `call forward with ${head.uri} and no solution to start this adapter`;
+
+    if (chainRoot && qdrantService) {
+      try {
+        const rootOutcome = await qdrantService.findFirstStepMemoryUuidBySlug(chainRoot);
+        if (rootOutcome.layerUuid) {
+          const rootPoint = await qdrantService.getMemoryByUUID(rootOutcome.layerUuid);
+          if (rootPoint) {
+            const rootAdapterId = typeof rootPoint.adapter?.id === 'string' ? rootPoint.adapter.id : rootOutcome.layerUuid;
+            const rootUri = buildAdapterUri(rootAdapterId);
+            const rootLabel = typeof rootPoint.adapter?.name === 'string' ? rootPoint.adapter.name : (rootPoint.label || choiceLabel);
+            choiceUri = rootUri;
+            choiceLabel = rootLabel;
+            choiceNextAction = `call forward with ${rootUri} and no solution to start this adapter`;
+          }
+        }
+      } catch (err) {
+        structuredLogger.warn(`[chain_root] Failed to resolve chain_root slug "${chainRoot}": ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     choices.push({
-      uri: head.uri,
-      label: head.label || result.label,
+      uri: choiceUri,
+      label: choiceLabel,
       adapter_name: getAdapterName(result.memory) || null,
       score: result.score,
       role: 'match',
       tags: result.tags,
-      next_action: `call forward with ${head.uri} and no solution to start this adapter`,
+      next_action: choiceNextAction,
       adapter_version: getAdapterInfo(result.memory)?.protocol_version ?? null,
       activation_patterns: getActivationPatterns(result.memory),
       space_name: spaceIdToDisplayName(sid, spaceNamesById),
-      slug
+      slug: chainRoot ?? slug
     });
   }
+
+  // Deduplicate match choices that collapsed to the same chain root URI
+  const seenMatchUris = new Set<string>();
+  const deduplicatedChoices: UnifiedChoice[] = [];
+  for (const choice of choices) {
+    if (choice.role === 'match') {
+      if (seenMatchUris.has(choice.uri)) continue;
+      seenMatchUris.add(choice.uri);
+    }
+    deduplicatedChoices.push(choice);
+  }
+  choices.length = 0;
+  choices.push(...deduplicatedChoices);
 
   const includeMetaFooter = true;
   if (includeMetaFooter) {
@@ -161,6 +199,8 @@ export async function generateUnifiedOutput(
       }
     );
   }
+
+  const matchCount = choices.filter(c => c.role === 'match').length;
 
   let message: string;
   let nextAction: string;

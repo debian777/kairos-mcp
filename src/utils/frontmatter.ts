@@ -9,6 +9,8 @@ export interface ParsedFrontmatter {
   title?: string;
   /** Present when the document had a `slug:` key in frontmatter (value may be empty). */
   slugRaw?: string;
+  /** Present when the document had a `chain_root:` key in frontmatter (slug of the chain entry-point adapter). */
+  chainRoot?: string;
   body: string;
 }
 
@@ -43,6 +45,9 @@ export function parseFrontmatter(text: string): ParsedFrontmatter {
     if (key === 'title' && value) result.title = value;
     if (key === 'slug') {
       result.slugRaw = value;
+    }
+    if ((key === 'chain_root' || key === 'chainroot') && value) {
+      result.chainRoot = value;
     }
   }
   return result;

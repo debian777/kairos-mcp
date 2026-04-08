@@ -11,6 +11,7 @@ function markdownWithoutAuthorSlugForFork(markdown: string): string {
   const lines: string[] = [];
   if (p.version) lines.push(`version: ${p.version}`);
   if (p.title) lines.push(`title: ${p.title}`);
+  if (p.chainRoot) lines.push(`chain_root: ${p.chainRoot}`);
   const fm = lines.length > 0 ? `---\n${lines.join('\n')}\n---\n\n` : '';
   return `${fm}${p.body}`;
 }

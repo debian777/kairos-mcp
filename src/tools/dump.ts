@@ -127,8 +127,9 @@ export async function executeDump(
     const headUri = `kairos://mem/${firstLayer.uuid}`;
     const headSlug = memories[0]?.slug?.trim();
     const slugForExport = headSlug && headSlug.length > 0 ? headSlug : slugifyFromTitle(chainLabel);
+    const chainRootForExport = memories[0]?.adapter?.chain_root;
     const markdownBody = buildMarkdownDocProtocol(memories);
-    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion) + markdownBody;
+    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion, chainRootForExport) + markdownBody;
     return {
       markdown_doc,
       uri: headUri,
