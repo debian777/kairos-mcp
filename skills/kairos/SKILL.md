@@ -16,7 +16,7 @@ description: >-
   reward → respond. No other path allowed.
 
 metadata:
-  version: "4.1.0"
+  version: "4.2.0-rc.0"
   author: kairos-mcp
 allowed-tools: activate forward reward train tune export delete spaces
 ---
