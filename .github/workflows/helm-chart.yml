@@ -8,7 +8,7 @@ on:
       - "ct.yaml"
       - ".github/workflows/helm-chart.yml"
   push:
-    branches: [main, v4, "ci/**"]
+    branches: [main, "ci/**"]
     paths:
       - "helm/kairos-mcp/**"
       - "ct.yaml"
