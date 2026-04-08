@@ -1,6 +1,6 @@
 {
   "name": "@debian777/kairos-mcp",
-  "version": "4.1.1-rc.2",
+  "version": "4.1.1-rc.3",
   "description": "MCP server for agent automation: persistent memory and deterministic workflow execution for AI agents and chats",
   "type": "module",
   "main": "dist/index.js",
