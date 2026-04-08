@@ -35,7 +35,7 @@ SECRET_KEYS = [
 
 # Dev defaults applied when generating .env (merged after template; template can override).
 DEV_DEFAULTS = {
-    "MAX_CONCURRENT_MCP_REQUESTS": "10",
+    "MAX_CONCURRENT_MCP_REQUESTS": "10000",
 }
 
 PLACEHOLDER_RE = re.compile(r"^__([A-Za-z_][A-Za-z0-9_]*)__$")

@@ -6,10 +6,15 @@
 # Requires branch protection to allow this workflow to push tags.
 name: Release tag on version bump
 
+concurrency:
+  group: release-tag-on-version-bump-${{ github.repository }}
+  cancel-in-progress: false
+
 on:
   workflow_run:
     workflows: [Integration]
     types: [completed]
+    branches: [main, "ci/**"]
   workflow_dispatch:
     inputs:
       ref:
@@ -33,6 +38,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -74,11 +80,20 @@ jobs:
 
           do_tag=false
           if [ "$is_main" = "true" ]; then
-            higher=$(printf '%s\n' "$latest" "$pkg" | sort -V | tail -n1)
-            if [ "$higher" = "$pkg" ] && [ "$latest" != "$pkg" ]; then do_tag=true; fi
+            if git rev-parse "$tag_name" >/dev/null 2>&1; then
+              :
+            elif git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+              :
+            else
+              higher=$(printf '%s\n' "$latest" "$pkg" | sort -V | tail -n1)
+              if [ "$higher" = "$pkg" ] && [ "$latest" != "$pkg" ]; then do_tag=true; fi
+            fi
           else
             if [ "$is_beta" = "true" ]; then
-              if ! git rev-parse "$tag_name" >/dev/null 2>&1; then do_tag=true; fi
+              if ! git rev-parse "$tag_name" >/dev/null 2>&1 \
+                && ! git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+                do_tag=true
+              fi
             fi
           fi
 
@@ -95,7 +110,12 @@ jobs:
             echo "version=" >> "$GITHUB_OUTPUT"
             if [ "$is_main" != "true" ] && [ "$is_beta" != "true" ]; then
               echo "Skipped: non-main branches only allow beta versions (version must contain -beta.)"
-            elif [ "$is_main" != "true" ] && git rev-parse "$tag_name" >/dev/null 2>&1; then
+            elif [ "$is_main" = "true" ] && { git rev-parse "$tag_name" >/dev/null 2>&1 \
+              || git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; }; then
+              echo "Skipped: tag $tag_name already exists (local or origin)"
+            elif [ "$is_main" != "true" ] && [ "$is_beta" = "true" ] \
+              && { git rev-parse "$tag_name" >/dev/null 2>&1 \
+              || git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; }; then
               echo "Skipped: tag $tag_name already exists"
             else
               echo "No tag needed (package version $pkg not greater than latest $latest)"
