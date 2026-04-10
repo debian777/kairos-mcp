@@ -42,6 +42,22 @@ describe('forward input schema (entry pass without solution)', () => {
     expect(r.success).toBe(true);
   });
 
+  test('accepts comment solution as a plain string (normalized to comment.text)', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: 'Continuing the same run with a valid comment solution.'
+      }
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.solution?.comment).toEqual({
+        text: 'Continuing the same run with a valid comment solution.'
+      });
+    }
+  });
+
   test('rejects continuation solution without solution.type', () => {
     const r = forwardInputSchema.safeParse({
       uri: LAYER_WITH_EXEC,

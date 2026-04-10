@@ -51,6 +51,18 @@ export const forwardContractSchema = z.object({
   }).optional()
 });
 
+/**
+ * Comment proofs accept either `{ "text": "..." }` or a plain string (same meaning).
+ * Plain strings match how contracts describe `comment` constraints (e.g. `min_length`) without
+ * stating the wrapper object shape.
+ */
+export const forwardCommentSolutionFieldSchema = z
+  .union([
+    z.string(),
+    z.object({ text: z.string() })
+  ])
+  .transform((v): { text: string } => (typeof v === 'string' ? { text: v } : v));
+
 export const forwardSolutionSchema = z.object({
   type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']).describe('Must match contract.type on continuation calls'),
   nonce: z.string().optional().describe('Echo nonce from contract for proof-based layers'),
@@ -75,9 +87,7 @@ export const forwardSolutionSchema = z.object({
     confirmation: z.string(),
     timestamp: z.string().optional()
   }).optional(),
-  comment: z.object({
-    text: z.string()
-  }).optional(),
+  comment: forwardCommentSolutionFieldSchema.optional(),
   trace: z.string().optional().describe('Optional reasoning trace stored with the execution trace')
 }).refine(
   (data) => !!(data.tensor || data.shell || data.mcp || data.user_input || data.comment),
@@ -164,9 +174,7 @@ const forwardWireSolutionSchema = z.object({
     confirmation: z.string().optional(),
     timestamp: z.string().optional()
   }).optional(),
-  comment: z.object({
-    text: z.string().optional()
-  }).optional(),
+  comment: forwardCommentSolutionFieldSchema.optional(),
   trace: z.string().optional()
 }).passthrough()
   .describe(

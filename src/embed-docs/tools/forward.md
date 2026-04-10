@@ -54,6 +54,11 @@ Follow these steps in order.
 `contract.tensor.output.name` and type constraints; prior tensor outputs may be
 merged per `tensor_in`.
 
+**Comment contracts (`contract.type` is `comment`):** supply `solution.comment`
+either as a **string** (the verification text) or as an object
+`{ "text": "<verification text>" }`. Both forms are equivalent; `text` must
+meet `contract.comment.min_length` when that constraint is present.
+
 **MCP contracts (`contract.type` is `mcp`):** supply `solution.mcp` with
 `tool_name`, `result`, `success`, and optionally `arguments` (object). The
 server checks your submission against the layer contract before accepting the
