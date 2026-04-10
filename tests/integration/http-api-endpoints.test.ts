@@ -106,6 +106,7 @@ Done.`;
       const data = await response.json();
       expect(data.status).toBe('stored');
     }, 30000);
+
   });
 
   describe('POST /api/snapshot', () => {

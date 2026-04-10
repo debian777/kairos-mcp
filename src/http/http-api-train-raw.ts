@@ -11,6 +11,8 @@ import { HTTP_TRAIN_RAW_BODY_LIMIT } from '../config.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { KairosError } from '../types/index.js';
+import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
+import { listWritableSpaceDisplayNames, resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 
 const SAFE_TRAIN_RAW_DETAIL_KEYS = new Set([
   'missing',
@@ -71,8 +73,18 @@ export function setupTrainRawRoute(
       const force_update =
         req.query['force'] === 'true' || req.headers['x-force-update'] === 'true';
       const protocol_version = (req.query['protocol_version'] as string) || (req.headers['x-protocol-version'] as string) || undefined;
+      const space =
+        (req.query['space'] as string) ||
+        (req.headers['x-space'] as string) ||
+        undefined;
 
-      const bodyInput = { markdown_doc: markdown, llm_model_id, force_update, ...(protocol_version && { protocol_version }) };
+      const bodyInput = {
+        markdown_doc: markdown,
+        llm_model_id,
+        force_update,
+        ...(protocol_version && { protocol_version }),
+        ...(space ? { space } : {})
+      };
       const parsed = trainInputSchema.safeParse(bodyInput);
       if (!parsed.success) {
         const first = parsed.error.flatten().fieldErrors;
@@ -86,7 +98,36 @@ export function setupTrainRawRoute(
       }
 
       structuredLogger.info(`→ POST /api/train/raw (${markdown.length} bytes, model: ${parsed.data.llm_model_id}, force: ${parsed.data.force_update})`);
-      const result = await executeTrain(memoryStore, parsed.data, (fn) => fn(), qdrantService);
+      const ctx = getSpaceContext(req as express.Request & { spaceContext?: unknown });
+      const rawSpace = typeof parsed.data.space === 'string' ? parsed.data.space.trim() : '';
+      const spaceParam = rawSpace.toLowerCase();
+      let resolvedSpaceId: string;
+      if (parsed.data.space === undefined || rawSpace === '' || spaceParam === 'personal') {
+        resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+      } else {
+        const r = resolveSpaceParamForContext(ctx, rawSpace);
+        if (!r.ok) {
+          const errKey = r.code === 'SPACE_READ_ONLY' ? 'SPACE_READ_ONLY' : 'SPACE_NOT_FOUND';
+          res.status(400).json({
+            error: errKey,
+            message: r.message,
+            available_spaces: listWritableSpaceDisplayNames(ctx)
+          });
+          return;
+        }
+        resolvedSpaceId = r.spaceId;
+      }
+      const narrowedContext = {
+        ...ctx,
+        allowedSpaceIds: [resolvedSpaceId],
+        defaultWriteSpaceId: resolvedSpaceId
+      };
+      const result = await executeTrain(
+        memoryStore,
+        parsed.data,
+        (fn) => runWithSpaceContextAsync(narrowedContext, fn),
+        qdrantService
+      );
       res.status(200).json(result);
     } catch (error) {
       const err = error as { code?: string; details?: Record<string, unknown>; message?: string; status?: number; statusCode?: number; type?: string };

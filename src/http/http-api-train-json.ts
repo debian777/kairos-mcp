@@ -10,7 +10,7 @@ import { buildAdapterUri } from '../tools/kairos-uri.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { KairosError } from '../types/index.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
-import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
+import { listWritableSpaceDisplayNames, resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 
 const SAFE_TRAIN_DETAIL_KEYS = new Set([
   'missing',
@@ -76,7 +76,11 @@ export function setupTrainJsonRoute(
         const r = resolveSpaceParamForContext(ctx, rawSpace);
         if (!r.ok) {
           const errKey = r.code === 'SPACE_READ_ONLY' ? 'SPACE_READ_ONLY' : 'SPACE_NOT_FOUND';
-          res.status(400).json({ error: errKey, message: r.message });
+          res.status(400).json({
+            error: errKey,
+            message: r.message,
+            available_spaces: listWritableSpaceDisplayNames(ctx)
+          });
           return;
         }
         resolvedSpaceId = r.spaceId;
