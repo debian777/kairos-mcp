@@ -3,6 +3,7 @@ import { createRequire } from 'module';
 import { activateCommand } from './commands/search.js';
 import { forwardCommand } from './commands/begin.js';
 import { trainCliCommand } from './commands/cli-train.js';
+import { spacesCommand } from './commands/spaces.js';
 import { updateCommand } from './commands/update.js';
 import { deleteCommand } from './commands/delete.js';
 import { rewardCommand } from './commands/attest.js';
@@ -48,6 +49,7 @@ export function createProgram(): Command {
   activateCommand(program); // activate
   forwardCommand(program); // forward
   trainCliCommand(program);
+  spacesCommand(program);
   updateCommand(program); // tune
   deleteCommand(program); // delete
   rewardCommand(program); // reward

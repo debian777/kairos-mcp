@@ -109,9 +109,12 @@ export function trainCliCommand(program: Command): void {
             process.exit(1);
           }
 
-          const trainOptions: { llmModelId?: string; force?: boolean } = {};
+          const trainOptions: { llmModelId?: string; force?: boolean; space?: string } = {};
           if (options.model) trainOptions.llmModelId = options.model;
           if (options.force) trainOptions.force = options.force;
+          if (typeof options.space === 'string' && options.space.trim().length > 0) {
+            trainOptions.space = options.space.trim();
+          }
 
           if (st.isDirectory()) {
             const files = listMarkdownFiles(abs, Boolean(options.recursive));

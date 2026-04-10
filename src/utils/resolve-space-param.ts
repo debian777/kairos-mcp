@@ -97,3 +97,16 @@ export function resolveSpaceParamForContext(
   }
   return { ok: true, spaceId: match };
 }
+
+/** Writable display names for spaces available in the current context. */
+export function listWritableSpaceDisplayNames(ctx: SpaceContext): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const spaceId of ctx.allowedSpaceIds) {
+    const name = spaceIdToDisplayName(spaceId, ctx.spaceNamesById);
+    if (seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  return names;
+}

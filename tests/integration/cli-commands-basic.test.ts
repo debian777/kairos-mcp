@@ -161,6 +161,35 @@ describe('CLI Commands Basic --url Tests', () => {
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('status');
     }, 30000);
+
+    test('train with invalid --space fails and lists writable spaces', async () => {
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+
+      await expect(
+        execAsync(
+          `node ${CLI_PATH} train --url ${BASE_URL} --force --space "/nonexistent-space" "${TEST_FILE}"`
+        )
+      ).rejects.toMatchObject({
+        stderr: expect.stringContaining('Available writable spaces:')
+      });
+    }, 30000);
+  });
+
+  describe('spaces command', () => {
+    test('spaces uses --url parameter', async () => {
+      requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} spaces --url ${BASE_URL}`
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout);
+      expect(Array.isArray(result.spaces)).toBe(true);
+      expect(result.spaces.length).toBeGreaterThan(0);
+      expect(result.spaces[0]).toHaveProperty('name');
+      expect(result.spaces[0]).toHaveProperty('space_id');
+    }, 30000);
   });
 
   describe('token command', () => {

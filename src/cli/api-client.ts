@@ -20,6 +20,16 @@ import type { DeleteOutput } from '../tools/delete_schema.js';
 
 const PROACTIVE_REFRESH_SKEW_SEC = 60;
 
+type SpacesOutput = {
+    spaces: Array<{
+        name: string;
+        space_id: string;
+        type: 'personal' | 'group' | 'app' | 'other';
+        adapter_count: number;
+        adapters?: Array<{ adapter_id: string; title: string; layer_count: number }>;
+    }>;
+};
+
 export class ApiClient {
     private baseUrl: string;
     private openInBrowser: boolean;
@@ -139,8 +149,22 @@ export class ApiClient {
         });
 
         if (!response.ok) {
-            const errorData = data as { message?: string; error?: string; login_url?: string };
-            const msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            const errorData = data as {
+                message?: string;
+                error?: string;
+                login_url?: string;
+                available_spaces?: unknown;
+            };
+            let msg = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+            if (
+                (errorData.error === 'SPACE_NOT_FOUND' || errorData.error === 'SPACE_READ_ONLY') &&
+                Array.isArray(errorData.available_spaces)
+            ) {
+                const availableSpaces = errorData.available_spaces.filter((entry): entry is string => typeof entry === 'string');
+                if (availableSpaces.length > 0) {
+                    msg += `\nAvailable writable spaces: ${availableSpaces.join(', ')}`;
+                }
+            }
             if (response.status === 401) {
                 const cfg401 = await readConfig(this.baseUrl);
                 if (!isRetryAfterRefresh && cfg401.refreshToken) {
@@ -196,7 +220,7 @@ export class ApiClient {
 
     async train(
         markdown: SafeMarkdownUpload,
-        options?: { llmModelId?: string; force?: boolean },
+        options?: { llmModelId?: string; force?: boolean; space?: string },
         isRetryAfterLogin = false
     ): Promise<TrainOutput> {
         const headers: Record<string, string> = {
@@ -209,6 +233,10 @@ export class ApiClient {
 
         if (options?.force) {
             headers['x-force-update'] = 'true';
+        }
+
+        if (typeof options?.space === 'string' && options.space.trim().length > 0) {
+            headers['x-space'] = options.space.trim();
         }
 
         return this.request<TrainOutput>(
@@ -263,6 +291,17 @@ export class ApiClient {
         return this.request<DeleteOutput>('/api/delete', {
             method: 'POST',
             body: JSON.stringify({ uris }),
+        });
+    }
+
+    async spaces(options?: { include_adapter_titles?: boolean }): Promise<SpacesOutput> {
+        const body: Record<string, unknown> = {};
+        if (options?.include_adapter_titles === true) {
+            body['include_adapter_titles'] = true;
+        }
+        return this.request<SpacesOutput>('/api/spaces', {
+            method: 'POST',
+            body: JSON.stringify(body),
         });
     }
 
