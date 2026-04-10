@@ -51,19 +51,28 @@ export const forwardContractSchema = z.object({
   }).optional()
 });
 
-/**
- * Comment proofs accept either `{ "text": "..." }` or a plain string (same meaning).
- * Plain strings match how contracts describe `comment` constraints (e.g. `min_length`) without
- * stating the wrapper object shape.
- */
-export const forwardCommentSolutionFieldSchema = z
-  .union([
-    z.string(),
-    z.object({ text: z.string() })
-  ])
-  .transform((v): { text: string } => (typeof v === 'string' ? { text: v } : v));
+/** Canonical comment proof after input parsing; only this shape is used past the schema boundary. */
+const forwardCommentSolutionCanonicalSchema = z.object({
+  text: z.string()
+});
 
-export const forwardSolutionSchema = z.object({
+/**
+ * Accept plain string or `{ text }` at the wire; normalize to `{ text }` before validation
+ * so runtime, traces, and proof code see one shape only.
+ */
+function normalizeForwardSolutionCommentInput(raw: unknown): unknown {
+  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
+    return raw;
+  }
+  const o = raw as Record<string, unknown>;
+  const c = o['comment'];
+  if (typeof c === 'string') {
+    return { ...o, comment: { text: c } };
+  }
+  return raw;
+}
+
+const forwardSolutionShapeSchema = z.object({
   type: z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']).describe('Must match contract.type on continuation calls'),
   nonce: z.string().optional().describe('Echo nonce from contract for proof-based layers'),
   proof_hash: z.string().optional().describe('Echo proof_hash from previous layer when required'),
@@ -87,7 +96,7 @@ export const forwardSolutionSchema = z.object({
     confirmation: z.string(),
     timestamp: z.string().optional()
   }).optional(),
-  comment: forwardCommentSolutionFieldSchema.optional(),
+  comment: forwardCommentSolutionCanonicalSchema.optional(),
   trace: z.string().optional().describe('Optional reasoning trace stored with the execution trace')
 }).refine(
   (data) => !!(data.tensor || data.shell || data.mcp || data.user_input || data.comment),
@@ -102,6 +111,11 @@ export const forwardSolutionSchema = z.object({
     return true;
   },
   { message: 'The type-specific field must match the solution type' }
+);
+
+export const forwardSolutionSchema = z.preprocess(
+  normalizeForwardSolutionCommentInput,
+  forwardSolutionShapeSchema
 );
 
 function isLayerUriWithExecutionId(uri: string): boolean {
@@ -147,7 +161,7 @@ export const forwardInputSchema = z.object({
   }
 });
 
-const forwardWireSolutionSchema = z.object({
+const forwardWireSolutionShapeSchema = z.object({
   type: z
     .enum(['tensor', 'shell', 'mcp', 'user_input', 'comment'])
     .optional()
@@ -174,9 +188,12 @@ const forwardWireSolutionSchema = z.object({
     confirmation: z.string().optional(),
     timestamp: z.string().optional()
   }).optional(),
-  comment: forwardCommentSolutionFieldSchema.optional(),
+  comment: forwardCommentSolutionCanonicalSchema.optional(),
   trace: z.string().optional()
-}).passthrough()
+}).passthrough();
+
+const forwardWireSolutionSchema = z
+  .preprocess(normalizeForwardSolutionCommentInput, forwardWireSolutionShapeSchema)
   .describe(
     'Start call (adapter URI or layer URI without `?execution_id=...`): omit `solution`. Continuation call (layer URI with `?execution_id=...`): include solution.type plus the matching payload object (solution.tensor, solution.shell, and so on), and echo nonce/proof_hash when present. Empty solution objects or missing solution.type will be rejected.'
   );

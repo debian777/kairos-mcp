@@ -138,8 +138,8 @@ export async function ensurePreviousProofCompleted(
       next_action = `Call ${toolName}, then call forward with ${prevStepUri} and solution.mcp with the real result.`;
     } else if (proofType === 'comment') {
       const minLen = prevProof.comment?.min_length ?? 10;
-      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.comment.text (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
-      next_action = `call forward with ${prevStepUri} and solution.comment.text (min ${minLen} chars).`;
+      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.comment as a string (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
+      next_action = `call forward with ${prevStepUri} and solution.comment as a string (min ${minLen} chars).`;
     } else {
       message += ` Complete the required ${proofType} verification before continuing.`;
       next_action = `call forward with ${prevStepUri} -- complete previous step first`;

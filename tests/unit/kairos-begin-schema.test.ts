@@ -31,31 +31,80 @@ describe('forward input schema (entry pass without solution)', () => {
     expect(r.success).toBe(false);
   });
 
-  test('accepts layer uri with execution_id query when solution is provided', () => {
-    const r = forwardInputSchema.safeParse({
-      uri: LAYER_WITH_EXEC,
-      solution: {
-        type: 'comment',
-        comment: { text: 'Continuing the same run with a valid comment solution.' }
-      }
-    });
-    expect(r.success).toBe(true);
-  });
+  const commentText = 'Continuing the same run with a valid comment solution.';
 
-  test('accepts comment solution as a plain string (normalized to comment.text)', () => {
+  test('accepts comment solution as object { text } and normalizes to canonical shape', () => {
     const r = forwardInputSchema.safeParse({
       uri: LAYER_WITH_EXEC,
       solution: {
         type: 'comment',
-        comment: 'Continuing the same run with a valid comment solution.'
+        comment: { text: commentText }
       }
     });
     expect(r.success).toBe(true);
     if (r.success) {
-      expect(r.data.solution?.comment).toEqual({
-        text: 'Continuing the same run with a valid comment solution.'
-      });
+      expect(r.data.solution?.comment).toEqual({ text: commentText });
+      expect(r.data.solution?.comment?.text).toBe(commentText);
     }
+  });
+
+  test('accepts comment solution as a plain string (normalized to { text })', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: commentText
+      }
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.solution?.comment).toEqual({ text: commentText });
+      expect(r.data.solution?.comment?.text).toBe(commentText);
+    }
+  });
+
+  test('rejects comment solution when comment is a number', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: 42 as unknown as string
+      }
+    });
+    expect(r.success).toBe(false);
+  });
+
+  test('rejects comment solution when comment is an empty object', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: {} as { text: string }
+      }
+    });
+    expect(r.success).toBe(false);
+  });
+
+  test('rejects comment solution when comment object omits text', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: { other: 'x' } as unknown as { text: string }
+      }
+    });
+    expect(r.success).toBe(false);
+  });
+
+  test('rejects comment solution when comment.text is not a string', () => {
+    const r = forwardInputSchema.safeParse({
+      uri: LAYER_WITH_EXEC,
+      solution: {
+        type: 'comment',
+        comment: { text: 99 as unknown as string }
+      }
+    });
+    expect(r.success).toBe(false);
   });
 
   test('rejects continuation solution without solution.type', () => {
