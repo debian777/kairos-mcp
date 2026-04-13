@@ -48,11 +48,31 @@ Follow these steps in order.
 2. Read `contract` and `next_action`. Complete the work the contract describes.
 3. **`forward`** again with the **layer** URI from the response (including
    `?execution_id=...`) and a matching `solution` (`solution.type` plus payload).
+   Example for a comment layer:
+
+   ```json
+   {
+     "uri": "kairos://layer/00000000-0000-0000-0000-000000000002?execution_id=00000000-0000-0000-0000-000000000003",
+     "solution": {
+       "type": "comment",
+       "comment": "<verification text — prefer a plain string>",
+       "nonce": "<echo from contract when present>",
+       "proof_hash": "<echo from contract when present>"
+     }
+   }
+   ```
+
 4. Repeat until `next_action` directs you to **`reward`** on the final layer URI.
 
 **Tensor contracts:** supply `solution.tensor` matching
 `contract.tensor.output.name` and type constraints; prior tensor outputs may be
 merged per `tensor_in`.
+
+**Comment contracts (`contract.type` is `comment`):** prefer `solution.comment` as
+a **plain string** (the verification text). The object form
+`{ "text": "<verification text>" }` remains accepted for compatibility with older
+clients. The string must meet `contract.comment.min_length` when that constraint
+is present.
 
 **MCP contracts (`contract.type` is `mcp`):** supply `solution.mcp` with
 `tool_name`, `result`, `success`, and optionally `arguments` (object). The
