@@ -8,7 +8,13 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { v5 as uuidv5 } from 'uuid';
-import { AUTH_ENABLED, KAIROS_APP_SPACE_ID } from '../config.js';
+import {
+  AUTH_ENABLED,
+  KAIROS_APP_SPACE_ID,
+  KAIROS_SIMPLE_PERSONAL_REALM,
+  KAIROS_SIMPLE_PERSONAL_SPACE_ID,
+  KAIROS_SIMPLE_PERSONAL_UUIDV5_SEED
+} from '../config.js';
 import { resolveSpaceParamForContext } from './resolve-space-param.js';
 
 /** Sentinel space when AUTH is on but no auth context (strict isolation; not shared with tenants). */
@@ -42,13 +48,14 @@ const NO_CONTEXT_SENTINEL: SpaceContext = {
 const spaceStorage = new AsyncLocalStorage<SpaceContext>();
 
 function defaultSpaceContext(): SpaceContext {
-  const spaceId = KAIROS_APP_SPACE_ID;
+  const personalSpaceId = defaultPersonalSpaceIdForNoAuth();
+  const appSpaceId = KAIROS_APP_SPACE_ID;
   return {
     userId: '',
     groupIds: [],
-    allowedSpaceIds: [spaceId],
-    defaultWriteSpaceId: spaceId,
-    spaceNamesById: { [spaceId]: 'Kairos app' },
+    allowedSpaceIds: [personalSpaceId, appSpaceId],
+    defaultWriteSpaceId: personalSpaceId,
+    spaceNamesById: { [personalSpaceId]: 'Personal', [appSpaceId]: 'Kairos app' },
     requestId: ''
   };
 }
@@ -174,6 +181,15 @@ function normalizeIssuer(iss: string, realm: string): string {
   const trimmed = (iss || '').trim();
   if (!trimmed) return `realm:${realm}`;
   return trimmed.replace(/\/+$/, '');
+}
+
+function defaultPersonalSpaceIdForNoAuth(): string {
+  if (KAIROS_SIMPLE_PERSONAL_UUIDV5_SEED.length > 0) {
+    const realmSlug = normalizeRealmSlug(KAIROS_SIMPLE_PERSONAL_REALM);
+    const personalUuid = uuidv5(KAIROS_SIMPLE_PERSONAL_UUIDV5_SEED, SPACE_ID_NAMESPACE);
+    return `user:${realmSlug}:${personalUuid}`;
+  }
+  return KAIROS_SIMPLE_PERSONAL_SPACE_ID;
 }
 
 function normalizeGroupFullPath(value: string): string {

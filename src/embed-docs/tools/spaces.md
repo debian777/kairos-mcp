@@ -11,6 +11,8 @@ adapters each contains.
 
 **Output:** `spaces` array with `name`, `space_id`, `type` (`personal` | `group` | `app` | `other`), `adapter_count`, and optionally `adapters` (`adapter_id`, `title`, `layer_count`).
 
+When running in simple mode (`AUTH_ENABLED=false`), `spaces` includes both a writable **Personal** space and the read-only **Kairos app** space.
+
 **Collaboration patterns**
 
 1. **Precedence** — `activate` search ties break in favour of your **default write space** (usually **Personal**). A personal fork can rank beside an identical-scoring group adapter.
