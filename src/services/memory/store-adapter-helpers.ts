@@ -101,7 +101,7 @@ export async function checkSimilarAdapterByTitle(
 
   const label = buildAdapterSimilaritySearchQuery(adapterTitle);
 
-  const { memories, scores } = await methods.searchMemories(label, 10, false);
+  const { memories, scores } = await methods.searchAdapterTitlesBySimilarity(label, 10);
 
   if (memories.length === 0 || scores.length === 0) {
     return;

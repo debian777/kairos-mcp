@@ -15,6 +15,7 @@ import {
   memoryIsBuiltinSearchFooterProtocol
 } from '../../constants/builtin-search-meta.js';
 import { pointToMemory as mapQdrantPointToMemory } from './qdrant-point-to-memory.js';
+import { searchAdapterTitlesBySimilarity as searchAdapterTitlesBySimilarityImpl } from './store-title-similarity-search.js';
 import {
   getActivationPatternVectorName,
   getAdapterTitleVectorName,
@@ -105,6 +106,16 @@ export class MemoryQdrantStoreMethods {
     const vectorResult = await this.vectorSearch(queryKey, limit);
     await redisCacheService.setSearchResult(queryKey, limit, vectorResult, { collapse });
     return vectorResult;
+  }
+
+  async searchAdapterTitlesBySimilarity(query: string, limit: number): Promise<{ memories: Memory[], scores: number[] }> {
+    return searchAdapterTitlesBySimilarityImpl({
+      client: this.client,
+      collection: this.collection,
+      query,
+      limit,
+      mapPointToMemory: (point) => this.pointToMemory(point)
+    });
   }
 
   /**
