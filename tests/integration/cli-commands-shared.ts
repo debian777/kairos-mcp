@@ -37,6 +37,8 @@ const execFilePromise = promisify(execFile);
 
 /** Run "cli login --token" so config is written to XDG_CONFIG_HOME (set by runner). Returns true if login ran, false if no token. */
 export async function setupCliConfigWithLogin(): Promise<boolean> {
+  // In simple profile auth is disabled, so CLI commands are expected to work without login.
+  if (process.env.AUTH_ENABLED !== 'true') return true;
   const token = process.env.AUTH_ENABLED === 'true' ? getMcpTestBearerToken() : undefined;
   if (!token) return false;
   const env = { ...process.env, BROWSER: 'true' };

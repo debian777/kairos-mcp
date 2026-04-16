@@ -37,7 +37,7 @@ describe('workflow eval harness: reward export readiness', () => {
     };
     const spaceId = getTestSpaceId();
     if (spaceId) {
-      trainArgs.space = spaceId;
+      trainArgs.space = 'personal';
     }
 
     const trainResult = await mcpConnection.client.callTool({

@@ -2,7 +2,13 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { LOG_LEVEL, AUTH_ENABLED, MAX_CONCURRENT_MCP_REQUESTS_RAW } from '../config.js';
+import {
+  LOG_LEVEL,
+  AUTH_ALLOWED_AUDIENCES,
+  AUTH_ENABLED,
+  AUTH_TRUSTED_ISSUERS,
+  MAX_CONCURRENT_MCP_REQUESTS_RAW
+} from '../config.js';
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
@@ -10,7 +16,7 @@ import { buildListOfferingsForUIResult } from '../mcp-apps/list-offerings-for-ui
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { KairosError } from '../types/index.js';
-
+import { validateBearerToken } from './bearer-validate.js';
 const MAX_CONCURRENT = resolveMaxConcurrentRequests(MAX_CONCURRENT_MCP_REQUESTS_RAW);
 
 export interface McpRequestContext {
@@ -35,6 +41,35 @@ setInterval(() => {
 
 /** Current number of in-flight MCP requests; used for backpressure (503 when over limit). */
 let concurrentMcpRequests = 0;
+
+async function resolveMcpAuthPayload(req: express.Request): Promise<express.Request['auth']> {
+  if (req.auth?.sub) {
+    return req.auth;
+  }
+  if (!AUTH_ENABLED) {
+    return undefined;
+  }
+  const authHeader = req.get('authorization');
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+    return undefined;
+  }
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return undefined;
+  }
+  try {
+    const payload = await validateBearerToken(token, AUTH_TRUSTED_ISSUERS, AUTH_ALLOWED_AUDIENCES);
+    if (payload) {
+      req.auth = payload;
+      return payload;
+    }
+  } catch (error) {
+    structuredLogger.debug(
+      `[mcp] bearer fallback validation failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return undefined;
+}
 
 function sanitizeMcpErrorDetails(details: unknown): Record<string, unknown> {
   if (!details || typeof details !== 'object') {
@@ -117,9 +152,11 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
         // listOfferingsForUI (MCP Apps / UI discovery): not implemented by SDK. Handle here so the client
         // gets a proper auth-related response when auth is required, instead of -32601 Method not found.
+        const resolvedAuth = await resolveMcpAuthPayload(req);
+
         if (method === 'listOfferingsForUI') {
             const id = req.body?.id ?? null;
-            if (AUTH_ENABLED && !req.auth) {
+            if (AUTH_ENABLED && !resolvedAuth) {
                 setWwwAuthenticate(res, {
                     error: 'invalid_token',
                     error_description: 'Authentication required for UI offerings'
@@ -257,8 +294,9 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             (transport as any)._requestContext = req;
 
             const requestIdFromHttp = (req as express.Request & { requestId?: string }).requestId;
+            const authAwareReq = resolvedAuth ? { ...req, auth: resolvedAuth } : req;
             const spaceCtx = {
-              ...(req.spaceContext ?? getSpaceContext(req)),
+              ...(req.spaceContext ?? getSpaceContext(authAwareReq)),
               requestId: requestIdFromHttp || requestId || ''
             };
             await runWithSpaceContextAsync(spaceCtx, async () => {

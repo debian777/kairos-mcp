@@ -5,10 +5,15 @@
 
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { v5 as uuidv5 } from 'uuid';
 
-/** Same convention as global-setup-auth: .test-auth-env.dev.json */
+function getEnvSuffix(): string {
+  return process.env.ENV || 'dev';
+}
+
+/** Same convention as global-setup-auth: .test-auth-env.<env>.json */
 function getAuthEnvFilePath(): string {
-  return join(process.cwd(), '.test-auth-env.dev.json');
+  return join(process.cwd(), `.test-auth-env.${getEnvSuffix()}.json`);
 }
 
 export const TEST_USERNAME = 'kairos-tester';
@@ -20,6 +25,44 @@ interface TestAuthEnv {
   keycloakUrl?: string;
   /** Space of kairos-tester (user:realm:sub from token); use for activate space_id so tests use actual test user scope */
   spaceId?: string;
+}
+
+const SPACE_ID_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
+
+function realmFromIssuer(iss: string): string {
+  const match = /\/realms\/([^/]+)/.exec(iss);
+  const segment = match?.[1] ?? iss.split('/').filter(Boolean).pop();
+  return typeof segment === 'string' ? segment : 'default';
+}
+
+function normalizeRealmSlug(realm: string): string {
+  const raw = (realm || '').trim().toLowerCase();
+  const slug = raw.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'default';
+}
+
+function normalizeIssuer(iss: string, realmSlug: string): string {
+  const trimmed = (iss || '').trim();
+  if (!trimmed) return `realm:${realmSlug}`;
+  return trimmed.replace(/\/+$/, '');
+}
+
+function spaceIdFromToken(token: string): string | undefined {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return undefined;
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string; iss?: string };
+    const sub = payload.sub;
+    if (!sub || typeof sub !== 'string') return undefined;
+    const iss = typeof payload.iss === 'string' ? payload.iss : '';
+    if (!iss) return undefined;
+    const realmSlug = normalizeRealmSlug(realmFromIssuer(iss));
+    const issuerKey = normalizeIssuer(iss, realmSlug);
+    const personalUuid = uuidv5(`${issuerKey}\nuser\n${sub}`, SPACE_ID_NAMESPACE);
+    return `user:${realmSlug}:${personalUuid}`;
+  } catch {
+    return undefined;
+  }
 }
 
 let cached: TestAuthEnv | null | undefined = undefined;
@@ -97,12 +140,14 @@ export async function refreshTestAuthToken(): Promise<boolean> {
   const password = process.env.TEST_PASSWORD?.trim() || TEST_PASSWORD;
   try {
     const token = await fetchKeycloakToken(keycloakUrl, realm, clientId, username, password);
+    const spaceId = spaceIdFromToken(token);
     const prev = readAuthEnv();
     const next: TestAuthEnv = {
       ...(prev ?? {}),
       bearerToken: token,
       baseUrl,
-      keycloakUrl
+      keycloakUrl,
+      ...(spaceId && { spaceId })
     };
     writeFileSync(getAuthEnvFilePath(), JSON.stringify(next));
     invalidateAuthEnvCache();
@@ -157,8 +202,11 @@ export function getMcpTestBearerToken(): string | undefined {
   return readAuthEnv()?.bearerToken ?? undefined;
 }
 
-/** Space ID of kairos-tester (user:realm:sub) when AUTH_ENABLED and token present. Pass as space_id to activate so tests use actual test user scope. */
+/** Stable activate/write scope for kairos-tester when AUTH_ENABLED. Prefer the human-oriented selector over raw UUID-derived ids in tests. */
 export function getTestSpaceId(): string | undefined {
-  return readAuthEnv()?.spaceId ?? undefined;
+  if (process.env.AUTH_ENABLED !== 'true') return undefined;
+  const env = readAuthEnv();
+  if (!env?.bearerToken) return undefined;
+  return 'personal';
 }
 

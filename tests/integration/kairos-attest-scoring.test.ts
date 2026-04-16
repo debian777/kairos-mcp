@@ -87,13 +87,17 @@ describe('reward scoring: propagation and score boost', () => {
       force_update: true
     };
     const spaceId = getTestSpaceId();
-    if (spaceId) mintArgs.space = spaceId;
+    if (spaceId) mintArgs.space = 'personal';
     const storeResult = await mcpConnection!.client.callTool({
       name: 'train',
       arguments: mintArgs
     });
     const stored = parseMcpJson(storeResult, 'attest-scoring train');
-    expect(stored.status).toBe('stored');
+    withRawOnFail({ call: { name: 'train', arguments: mintArgs }, result: storeResult, parsed: stored }, () => {
+      expect(stored.status).toBe('stored');
+      expect(Array.isArray(stored.items)).toBe(true);
+      expect(stored.items.length).toBeGreaterThan(0);
+    }, 'attest-scoring train');
     const items = stored.items as Array<{ uri: string; adapter_uri: string }>;
 
     const open = await mcpConnection!.client.callTool({
@@ -143,7 +147,7 @@ describe('reward scoring: propagation and score boost', () => {
     const uniqueLabel = `AttestScoringPositive ${ts}`;
     const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
+    const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     const parsedBefore = await searchFn(uniqueLabel);
     const scoreBefore = getScoreForChain(parsedBefore, chainLabel);
     const matchChoicesBefore = parsedBefore.choices?.filter((c: { role: string }) => c.role === 'match') ?? [];
@@ -178,7 +182,7 @@ describe('reward scoring: propagation and score boost', () => {
     const uniqueLabel = `AttestScoringNegative ${ts}`;
     const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
+    const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     for (let i = 0; i < MIN_ATTEST_RUNS; i++) {
       await reward(completionLayerUri, 'success', `Warmup ${i + 1}.`);
     }
@@ -205,7 +209,7 @@ describe('reward scoring: propagation and score boost', () => {
     const uniqueLabel = `AttestScoringNoBoost ${ts}`;
     const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
 
-    const searchFn = getTestSpaceId() ? activateAllSpaces : activateQuery;
+    const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     const parsedBefore = await searchFn(uniqueLabel);
     const scoreBefore = getScoreForChain(parsedBefore, chainLabel);
 
