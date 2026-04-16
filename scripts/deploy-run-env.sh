@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # kairos Environment Management Script
-# USAGE: ENV=dev|prod ./scripts/deploy-run-env.sh [build|start|stop|restart|status|test|logs|health|...]
+# USAGE: ENV=dev|dev_simple|prod ./scripts/deploy-run-env.sh [build|start|stop|restart|status|test|logs|health|...]
 #
-# Single .env for all; we do not manage prod from this repo (exception: Keycloak realm setup dev/prod).
-# - dev:  Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
+# Single base .env plus optional .env.<ENV> profile overrides; prod is not managed from this repo
+# (exception: Keycloak realm setup dev/prod).
+# - dev:        Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
+# - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
@@ -57,12 +59,18 @@ mask_url() {
 # Environment setup (single .env for all)
 ENV="${ENV:-dev}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${PROJECT_DIR}/.env"
+BASE_ENV_FILE="${PROJECT_DIR}/.env"
+PROFILE_ENV_FILE="${PROJECT_DIR}/.env.${ENV}"
+if [ -f "$PROFILE_ENV_FILE" ]; then
+    ENV_FILE="$PROFILE_ENV_FILE"
+else
+    ENV_FILE="$BASE_ENV_FILE"
+fi
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
 
 # In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
-if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$ENV_FILE" ]; then
+if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$BASE_ENV_FILE" ]; then
     if [ -f "${PROJECT_DIR}/scripts/deploy-copy-env-from-main.sh" ]; then
         "${PROJECT_DIR}/scripts/deploy-copy-env-from-main.sh" || true
     fi
@@ -72,21 +80,32 @@ fi
 # Preserve AUTH_ENABLED if explicitly set (e.g. AUTH_ENABLED=true npm run dev:test)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     AUTH_ENABLED_BEFORE="${AUTH_ENABLED:-}"
-    [ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
+    [ -f "$BASE_ENV_FILE" ] && set -a && source "$BASE_ENV_FILE" && set +a
+    [ -f "$PROFILE_ENV_FILE" ] && set -a && source "$PROFILE_ENV_FILE" && set +a
     [ -n "${AUTH_ENABLED_BEFORE}" ] && export AUTH_ENABLED="$AUTH_ENABLED_BEFORE"
 fi
 
 # Validate environment (skip for ensure-coding-rules)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
-    case "$ENV" in dev|prod) ;; *) print_error "Invalid ENV: $ENV (use dev or prod)"; exit 1 ;; esac
+    case "$ENV" in dev|dev_simple|prod) ;; *) print_error "Invalid ENV: $ENV (use dev, dev_simple, or prod)"; exit 1 ;; esac
 fi
 
-# Environment defaults (PORT from .env; dev=3300, prod=3500 for inspect)
-METRICS_PORT="${METRICS_PORT:-9390}"
+# Environment defaults (PORT from .env/.env.<ENV>; dev=3300, dev_simple=4300, prod=3500 for inspect)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in
-        dev)  PORT="${PORT:-3300}" ;;
-        prod) PORT="${PORT:-3500}" ;;
+        dev)
+            PORT="${PORT:-3300}"
+            METRICS_PORT="${METRICS_PORT:-9390}"
+            ;;
+        dev_simple)
+            PORT="${PORT:-4300}"
+            METRICS_PORT="${METRICS_PORT:-9490}"
+            QDRANT_URL="${QDRANT_URL:-http://localhost:7333}"
+            ;;
+        prod)
+            PORT="${PORT:-3500}"
+            METRICS_PORT="${METRICS_PORT:-9390}"
+            ;;
     esac
 fi
 
@@ -105,7 +124,11 @@ check_qdrant() {
     fi
 }
 check_redis() {
-    local redis_url="${REDIS_URL:-redis://localhost:6379}"
+    local redis_url="${REDIS_URL:-}"
+    if [[ -z "$redis_url" ]]; then
+        print_info "Redis check skipped (REDIS_URL not set)"
+        return 0
+    fi
     redis-cli -u "$redis_url" ping >/dev/null 2>&1 && print_success "Redis OK" || print_warning "Redis DOWN"
 }
 check_tei() { 
@@ -155,9 +178,13 @@ show_urls() {
     fi
 
     # Redis
-    echo "- Redis:   via redis-cli (no HTTP)"
-    echo "  · URL:        $(mask_url "${REDIS_URL:-redis://localhost:6379}")"
-    echo "  · Key prefix: ${KAIROS_REDIS_PREFIX:-kb:}"
+    if [[ -n "${REDIS_URL:-}" ]]; then
+        echo "- Redis:   via redis-cli (no HTTP)"
+        echo "  · URL:        $(mask_url "${REDIS_URL}")"
+        echo "  · Key prefix: ${KAIROS_REDIS_PREFIX:-kb:}"
+    else
+        echo "- Redis:   disabled (REDIS_URL not set)"
+    fi
 
     # Metrics
     echo "- Metrics:"
@@ -171,7 +198,7 @@ build() {
     print_info "Building project..."
     cd "$PROJECT_DIR"
     case "$ENV" in
-        dev|prod)
+        dev|dev_simple|prod)
             print_info "Running prebuild (embed-docs) and verification..."
             npm run prebuild
             npx tsc && chmod +x dist/cli/index.js && print_success "Build complete"
@@ -189,7 +216,7 @@ start() {
     LOG_FORMAT="${LOG_FORMAT:-text}"
 
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             # Validate LOG_TARGET
             case "$LOG_TARGET" in
                 file|stdout|both) ;;
@@ -200,7 +227,7 @@ start() {
             # Use 'env VAR=...' after dotenv so MAX_CONCURRENT_MCP_REQUESTS from .env is visible to node (dotenv -e can override inherited env).
             # For E2E and CLI browser login, well-known must expose a URL the browser can open. If .env has KEYCLOAK_URL with internal host (e.g. keycloak:8080), override for the dev process.
             keycloak_export=""
-            if [[ "${KEYCLOAK_URL:-}" =~ ^https?://keycloak: ]]; then
+            if [ "$ENV" = "dev" ] && [[ "${KEYCLOAK_URL:-}" =~ ^https?://keycloak: ]]; then
                 keycloak_export="KEYCLOAK_URL=http://localhost:8080"
             fi
             dev_port="${PORT:-3300}"
@@ -281,7 +308,7 @@ stop() {
     cd "$PROJECT_DIR"
 
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             if [ -f "$PID_FILE" ]; then
                 dev_pid="$(cat "$PID_FILE")"
                 if kill "$dev_pid" 2>/dev/null; then
@@ -328,7 +355,7 @@ restart() {
 
 deploy() {
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             build
             restart
             ;;
@@ -344,7 +371,7 @@ status() {
     cd "$PROJECT_DIR"
 
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             [ -f "$PID_FILE" ] && print_success "Process running (PID: $(cat "$PID_FILE"))" || print_warning "No process found"
             ;;
         prod)
@@ -399,6 +426,22 @@ test() {
         args=("${args[@]:1}")
     fi
 
+    if [ "$ENV" = "dev_simple" ]; then
+        has_ignore_patterns=false
+        for arg in "${args[@]}"; do
+            if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
+                has_ignore_patterns=true
+                break
+            fi
+        done
+        if [ "$has_ignore_patterns" = false ]; then
+            args+=(
+                --testPathPatterns "tests/integration/"
+                --testPathIgnorePatterns "tests/integration/cli-auth-browser-login.e2e.test.ts|tests/integration/auth-keycloak.test.ts|tests/integration/mcp-host-client-groups.test.ts"
+            )
+        fi
+    fi
+
     LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
     # Use REPORT_LOG_FILE from environment if provided, otherwise generate timestamped filename
     REPORT_LOG_FILE="${REPORT_LOG_FILE:-reports/tests/test-$(date +%Y%m%d-%H%M%S).log}"
@@ -407,7 +450,7 @@ test() {
     echo "--------------------------------" >> "$REPORT_LOG_FILE"
 
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             # Playwright is a devDependency; browser binaries are not shipped with npm. Install the
             # Chromium bundle used by tests/integration/cli-auth-browser-login.e2e.test.ts so
             # `npm test` / `npm run dev:test` work on a fresh clone without a manual step. Idempotent
@@ -454,7 +497,7 @@ test() {
 
 logs() {
     case "$ENV" in
-        dev)
+        dev|dev_simple)
             [ -f "$LOG_FILE" ] && cat "$LOG_FILE" || print_warning "No log file found"
             ;;
         prod)
@@ -584,12 +627,13 @@ ensure_coding_rules() {
 
 help() {
     echo "kairos Environment Script"
-    echo "USAGE: ENV=dev|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
+    echo "USAGE: ENV=dev|dev_simple|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
     echo ""
     echo "Single .env; prod is not managed here (exception: Keycloak realm setup)."
     echo "ENVIRONMENTS:"
-    echo "  dev  - Local app (start, stop, test, build). PORT=3300 default."
-    echo "  prod - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
+    echo "  dev        - Local app (start, stop, test, build). PORT=3300 default."
+    echo "  dev_simple - Local app simple mode profile. PORT=4300 default."
+    echo "  prod       - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
     echo ""
     echo "ENV VARS (from .env):"
     echo "  PORT               - App port"

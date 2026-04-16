@@ -1,0 +1,216 @@
+name: Integration Simple
+
+on:
+  pull_request:
+    branches: [main, "ci/**"]
+  merge_group:
+  push:
+    branches: [main, "ci/**"]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build npm package (tgz)
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      - name: Build package (tgz)
+        run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-simple
+          path: dist/*.tgz
+
+  verify-integration-simple:
+    name: Infra + dev deploy + integration tests (SIMPLE mode)
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: "npm"
+
+      - name: "Generate .env (base vars, overridden for simple mode)"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
+
+      - name: Verify .env exists
+        run: ls -la .env
+
+      - name: Apply simple profile overrides
+        run: cat .env.dev_simple >> .env
+
+      - name: Restore Qdrant Docker image cache
+        uses: actions/cache/restore@v5
+        id: docker-qdrant-cache
+        with:
+          path: .cache/docker-qdrant
+          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
+
+      - name: Load Qdrant Docker image from cache
+        if: steps.docker-qdrant-cache.outputs.cache-hit == 'true'
+        run: docker load -i .cache/docker-qdrant/images.tar
+
+      - name: Start Qdrant and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          docker compose -p kairos-mcp-simple --env-file .env up -d qdrant &
+          pid_compose=$!
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_compose || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
+
+      - name: Save Qdrant Docker image for cache
+        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache/docker-qdrant
+          IMAGE=$(docker compose -p kairos-mcp-simple --env-file .env config --format json | jq -r '.services.qdrant.image')
+          docker save -o .cache/docker-qdrant/images.tar "$IMAGE"
+
+      - name: Cache Qdrant Docker image
+        uses: actions/cache/save@v5
+        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
+        with:
+          path: .cache/docker-qdrant
+          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
+
+      - name: Download npm package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-package-simple
+          path: artifact-npm
+
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache-simple
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers and wait for Qdrant (parallel)
+        id: playwright-install-simple
+        run: |
+          set -euo pipefail
+          ec=0
+          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          pid_pw=$!
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
+            [ "$i" -eq 30 ] && ec=1
+            sleep 2
+          done &
+          pid_wait=$!
+          wait $pid_pw || ec=1
+          wait $pid_wait || ec=1
+          exit $ec
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache-simple.outputs.cache-hit != 'true' && steps.playwright-install-simple.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install package from tgz
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
+            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
+
+      - name: Expose installed package dist for CLI tests
+        run: |
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
+
+      - name: Start app (from installed package, simple mode)
+        env:
+          HEALTH_CHECK_ATTEMPTS: 15
+          ENV: dev_simple
+          QDRANT_SNAPSHOT_DIR: var/snapshots
+        run: |
+          mkdir -p var/log var/snapshots
+          npm run dev:start:installed > var/log/kairos-simple.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:4300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            sleep 2
+          done
+
+      - name: Run simple-mode integration tests
+        env:
+          ENV: dev_simple
+        run: npm run dev_simple:test
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
+
+      - name: Upload kairos simple log - check
+        if: always() && failure()
+        run: |
+          pwd
+          ls -la var/log 2>/dev/null || true
+          if [ -f var/log/kairos-simple.log ]; then ls -la var/log/kairos-simple.log; cat var/log/kairos-simple.log; else echo "No var/log/kairos-simple.log"; fi
+
+      - name: Upload kairos simple log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairos-simple-log
+          path: var/log/kairos-simple.log
+          if-no-files-found: ignore
+
+  integration-simple-pass:
+    name: Integration simple workflow passed
+    needs: [build, verify-integration-simple]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs
+        run: |
+          echo "build=${{ needs.build.result }} verify-integration-simple=${{ needs.verify-integration-simple.result }}"
+          test "${{ needs.build.result }}" = "success"
+          test "${{ needs.verify-integration-simple.result }}" = "success"
+          echo "All simple integration jobs passed."
