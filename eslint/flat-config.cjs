@@ -314,6 +314,12 @@ function createFlatConfig(rootDir) {
         'kairos-forbidden-text/review-protocol-wording': 'off',
       },
     },
+    {
+      files: ['skills/kairos/SKILL.md'],
+      rules: {
+        'kairos-forbidden-text/review-protocol-wording': 'off',
+      },
+    },
 
     // -------------------------------------------------------------------------
     // 3da. All shell scripts (stub parser; no code rules)
