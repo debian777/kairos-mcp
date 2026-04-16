@@ -308,6 +308,12 @@ function createFlatConfig(rootDir) {
         'kairos-forbidden-text/review-protocol-wording': 'warn',
       },
     },
+    {
+      files: ['src/embed-docs/mem/*.md'],
+      rules: {
+        'kairos-forbidden-text/review-protocol-wording': 'off',
+      },
+    },
 
     // -------------------------------------------------------------------------
     // 3da. All shell scripts (stub parser; no code rules)

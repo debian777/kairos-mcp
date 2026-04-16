@@ -37,7 +37,7 @@ function normalizeIssuer(iss: string, realmSlug: string): string {
 
 /** Env suffix for test auth file (e.g. .test-auth-env.dev.json). */
 function getEnvSuffix(): string {
-  return 'dev';
+  return process.env.ENV || 'dev';
 }
 
 function getAuthEnvFile(root: string): string {
@@ -156,8 +156,8 @@ function loadEnv(): void {
   const opts = { override: true };
   const env = process.env.ENV || 'dev';
   const envFile = join(root, `.env.${env}`);
-  if (existsSync(envFile)) config({ path: envFile, ...opts });
   if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  if (existsSync(envFile)) config({ path: envFile, ...opts });
 }
 
 /** Run scripts/deploy-configure-keycloak-realms.py so realm and kairos-cli client exist (required for CLI auth E2E). */

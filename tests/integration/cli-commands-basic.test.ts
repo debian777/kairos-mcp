@@ -195,6 +195,12 @@ describe('CLI Commands Basic --url Tests', () => {
   describe('token command', () => {
     test('token prints bearer token to stdout when logged in', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+      if (process.env.AUTH_ENABLED !== 'true') {
+        await expect(
+          execAsync(`node ${CLI_PATH} token --url ${BASE_URL}`)
+        ).rejects.toThrow();
+        return;
+      }
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} token --url ${BASE_URL}`

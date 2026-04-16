@@ -223,6 +223,7 @@ certs
 reports/
 !reports/.gitkeep
 .env.*
+!.env.dev_simple
 !scripts/env/.env.template
 docs/.obsidian .kilocodeignore
 docs/.obsidian
