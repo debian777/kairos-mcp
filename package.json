@@ -90,6 +90,8 @@
     "lint": "eslint . && npm run lint:skills",
     "lint:skills": "python3 scripts/lint-agent-skills.py",
     "skills:sync-install-refs": "python3 scripts/sync-kairos-install-references.py",
+    "compose:sync-app-tag": "node -e \"const fs=require('fs');const p='compose.yaml';const v=require('./package.json').version;let s=fs.readFileSync(p,'utf8');s=s.replace(/(^\\s*image:\\s*debian777\\/kairos-mcp:)(\\S+)/m,(_,prefix)=>prefix+'v'+v);fs.writeFileSync(p,s);\"",
+    "version:sync": "npm run version:sync-skills && npm run compose:sync-app-tag",
     "version:sync-skills": "node scripts/build-sync-skill-versions.mjs",
     "version:check-skills": "node scripts/build-sync-skill-versions.mjs --check",
     "prebuild": "npm run verify:clean && npx ts-node scripts/build-embed-docs.ts && node scripts/build-sync-skill-versions.mjs",
@@ -99,13 +101,13 @@
     "test:tgz": "node scripts/ci-test-tgz-install.mjs",
     "prepare:publish": "npm run build:tgz && npm run test:tgz",
     "publish": "npm run prepare:publish && npm publish ./dist/debian777-kairos-mcp-$(node -p \"require('./package.json').version\").tgz --access public",
-    "release:major": "npm version major --no-git-tag-version && npm run version:sync-skills",
-    "release:minor": "npm version minor --no-git-tag-version && npm run version:sync-skills",
-    "release:patch": "npm version patch --no-git-tag-version && npm run version:sync-skills",
+    "release:major": "npm version major --no-git-tag-version && npm run version:sync",
+    "release:minor": "npm version minor --no-git-tag-version && npm run version:sync",
+    "release:patch": "npm version patch --no-git-tag-version && npm run version:sync",
     "release:bug": "npm run release:patch",
-    "release:rc": "npm version prerelease --preid=rc --no-git-tag-version && npm run version:sync-skills",
-    "release:pre": "npm version prerelease --preid=pre --no-git-tag-version && npm run version:sync-skills",
-    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync-skills"
+    "release:rc": "npm version prerelease --preid=rc --no-git-tag-version && npm run version:sync",
+    "release:pre": "npm version prerelease --preid=pre --no-git-tag-version && npm run version:sync",
+    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync"
   },
   "dependencies": {
     "@exodus/bytes": "^1.15.0",
