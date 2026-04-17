@@ -12,7 +12,7 @@ concurrency:
 
 on:
   workflow_run:
-    workflows: [Integration]
+    workflows: [Integration, Integration Simple]
     types: [completed]
     branches: [main, "ci/**"]
   workflow_dispatch:
@@ -31,8 +31,30 @@ jobs:
     permissions:
       contents: write  # push tag
       actions: write  # trigger Release workflow
+      checks: read
 
     steps:
+      - name: Require Integration and Integration Simple success on same SHA
+        if: github.event_name == 'workflow_run'
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          json=$(curl -sSf -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/actions/runs?head_sha=${HEAD_SHA}&per_page=100")
+
+          integration=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
+          simple=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration Simple" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
+
+          echo "Integration conclusion: ${integration:-missing}"
+          echo "Integration Simple conclusion: ${simple:-missing}"
+
+          test "${integration:-}" = "success"
+          test "${simple:-}" = "success"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
