@@ -1,22 +1,8 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
-
-const BASE_URL = getTestAuthBaseUrl();
-const API_BASE = `${BASE_URL}/api`;
-function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(url, {
-    ...init,
-    headers: { ...getAuthHeaders(), ...(init.headers as Record<string, string>) }
-  });
-}
+import { API_BASE, apiFetch, ensureApiHealth } from './http-api-test-helpers.js';
 
 describe('HTTP REST API Endpoints', () => {
   beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
+    await ensureApiHealth();
   }, 60000);
 
   describe('POST /api/train/raw', () => {
@@ -120,59 +106,6 @@ Done.`;
       expect(data).toHaveProperty('status', 'completed');
       expect(data).toHaveProperty('target', 'qdrant');
       expect(data).toHaveProperty('snapshotName');
-    }, 30000);
-  });
-
-  describe('POST /api/activate', () => {
-    test('searches for adapter entry layers', async () => {
-      expect.hasAssertions();
-      const query = `Test Query ${Date.now()}`;
-      const response = await apiFetch(`${API_BASE}/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
-      });
-
-      expect(response.status).toBe(200);
-      const data = (await response.json()) as Record<string, unknown>;
-      // Activate HTTP response keeps canonical top-level keys; kairos_work_dir is env-dependent.
-      const baseSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
-      expect(Object.keys(data).sort()).toEqual([...(('kairos_work_dir' in data) ? [...baseSearchKeys, 'kairos_work_dir'] : baseSearchKeys)].sort());
-      expect(data.must_obey).toBe(true);
-      expect(Array.isArray(data.choices)).toBe(true);
-      expect(typeof data.message).toBe('string');
-      expect(typeof data.next_action).toBe('string');
-      expect(data.query).toBe(query);
-      if (data.metadata && typeof data.metadata === 'object' && data.metadata !== null && 'duration_ms' in data.metadata) {
-        expect(typeof (data.metadata as { duration_ms?: number }).duration_ms).toBe('number');
-      }
-    }, 30000);
-
-    test('rejects empty query', async () => {
-      expect.hasAssertions();
-      const response = await apiFetch(`${API_BASE}/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: '' })
-      });
-
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data).toHaveProperty('error', 'INVALID_INPUT');
-    });
-
-    test('rejects oversized JSON bodies', async () => {
-      expect.hasAssertions();
-
-      const response = await apiFetch(`${API_BASE}/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: 'x'.repeat(1_100_000) })
-      });
-
-      expect(response.status).toBe(413);
-      const data = await response.json();
-      expect(data).toHaveProperty('error', 'PAYLOAD_TOO_LARGE');
     }, 30000);
   });
 
