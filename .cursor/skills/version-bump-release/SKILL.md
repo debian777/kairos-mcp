@@ -92,6 +92,14 @@ gh pr create --base main --head "release/$VERSION" \
   --body "Version bump to $VERSION."
 ```
 
+GitHub PR checks note:
+
+- Required checks are controlled by repository settings (branch protection /
+  rulesets), not by workflow YAML alone.
+- If you intentionally use skip tokens such as `[skip ci]`, remember they only
+  affect workflows triggered by `push` and `pull_request`, and PR behavior is
+  based on the HEAD commit message.
+
 ### 3.4 Show clickable PR URL
 
 After `gh pr create`, the CLI prints the PR URL. Present that URL clearly to the

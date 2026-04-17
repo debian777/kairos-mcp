@@ -46,6 +46,22 @@ flowchart LR
 
 **PR/MR tooling:** This repo uses the GitHub CLI (**gh**) for PRs. For GitLab MRs use **glab**. KAIROS protocols: *GitHub PR with gh* (create/track PRs with `gh`), *GitLab MR with glab* (create/track MRs with `glab`).
 
+### GitHub PR protocol notes: skip CI and required checks
+
+For the GitHub PR flow, treat these as hard rules:
+
+- Required checks are configured in GitHub repository settings (branch
+  protection or rulesets), not in workflow YAML.
+- Workflow files define jobs and check names, but they do not decide which
+  checks block merge.
+- Current `main` required checks are:
+  - `Integration workflow passed`
+  - `Integration simple workflow passed`
+- `[skip ci]` style tokens only apply to workflows triggered by `push` and
+  `pull_request`, and PR behavior depends on the HEAD commit message.
+- If skip instructions are used but checks still run, verify the latest commit
+  message first, then verify required checks in branch protection settings.
+
 **Dependabot:** Auto-merge is enabled at repository level (Settings → General → Pull Requests → Allow auto-merge). On each Dependabot PR, use **Enable auto-merge**; the PR will merge when required status checks pass. No workflow is used for this.
 
 **Manual-only:** Publish npm and Publish Container are for ad-hoc republish/debug; they use `package.json` version when not run from a tag.

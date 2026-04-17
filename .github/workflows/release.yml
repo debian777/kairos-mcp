@@ -19,93 +19,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-npm:
-    name: Publish npm
+  trivyignore-expiry:
+    name: Trivy ignore expiry guard
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
-    # If you set an "Environment" in npm Trusted Publisher, set it here too (e.g. environment: production)
     permissions:
       contents: read
-      id-token: write
-
+    env:
+      TRIVYIGNORE_EXPIRY_WARNING_DAYS: "45"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "25"
-          cache: "npm"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Set version and npm tag from ref
-        id: version
+      - name: Validate .trivyignore expiry dates
         run: |
-          ref="${{ github.event.inputs.ref }}"
-          if [ -n "$ref" ]; then
-            v="${ref#v}"
-          else
-            v="${GITHUB_REF#refs/tags/v}"
-          fi
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          if echo "$v" | grep -q '-'; then
-            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
-          else
-            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
-          fi
+          python3 scripts/ci-check-trivyignore-expiry.py \
+            --file .trivyignore \
+            --warning-days "$TRIVYIGNORE_EXPIRY_WARNING_DAYS"
 
-      - name: Sync version from tag
-        run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Set up Python (skills-ref)
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Install skills-ref and validate skills
-        run: |
-          python -m pip install --upgrade pip
-          pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
-          npm run lint:skills
-
-      - name: Knip
-        run: npm run knip
-
-      - name: Prepare publish (build tgz + test install)
-        run: npm run prepare:publish
-
-      - name: Publish to npm
-        run: |
-          set +e
-          out=$(npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
-          code=$?
-          echo "$out"
-          if [ $code -eq 0 ]; then exit 0; fi
-          if echo "$out" | grep -q "You cannot publish over the previously published versions"; then
-            echo "Version already on npm; continuing to Docker and GitHub Release"
-            exit 0
-          fi
-          exit 1
-
-      - name: Generate npm CycloneDX SBOM
-        run: npx @cyclonedx/cyclonedx-npm@latest --output-file kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json --output-format json
-
-      - name: Upload npm SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-sbom
-          path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json
-          if-no-files-found: error
+  publish-npm:
+    name: Publish npm
+    needs: trivyignore-expiry
+    uses: ./.github/workflows/reusable-publish-npm.yml
+    with:
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+      sync-version-from-ref: true
+      allow-existing-version: true
+      force-publish: false
+      upload-sbom: true
+    secrets: inherit
 
   publish-docker:
     name: Publish Docker image
@@ -125,13 +67,7 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: |
-          ref="${{ github.event.inputs.ref }}"
-          if [ -n "$ref" ]; then
-            echo "version=${ref#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "version=${{ needs.publish-npm.outputs.version }}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4

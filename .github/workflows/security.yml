@@ -22,6 +22,22 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
 
 jobs:
+  trivyignore-expiry:
+    name: Trivy ignore expiry guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TRIVYIGNORE_EXPIRY_WARNING_DAYS: "45"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate .trivyignore expiry dates
+        run: |
+          python3 scripts/ci-check-trivyignore-expiry.py \
+            --file .trivyignore \
+            --warning-days "$TRIVYIGNORE_EXPIRY_WARNING_DAYS"
+
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
