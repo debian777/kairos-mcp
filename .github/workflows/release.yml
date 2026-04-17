@@ -40,6 +40,9 @@ jobs:
   publish-npm:
     name: Publish npm
     needs: trivyignore-expiry
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/reusable-publish-npm.yml
     with:
       ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
