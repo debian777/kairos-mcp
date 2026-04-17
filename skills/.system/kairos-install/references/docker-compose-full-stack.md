@@ -65,5 +65,5 @@ Use these resources when you operate the advanced profile.
 - [Install index](README.md)
 - [Docker Compose — simple stack](docker-compose-simple.md)
 - [CLI](../CLI.md)
-- [Infrastructure](../architecture/infrastructure.md)
+- [Infrastructure](https://github.com/debian777/kairos-mcp/blob/main/docs/architecture/infrastructure.md)
 - [`compose.yaml`](https://github.com/debian777/kairos-mcp/blob/main/compose.yaml)
