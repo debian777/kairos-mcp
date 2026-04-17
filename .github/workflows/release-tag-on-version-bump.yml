@@ -43,17 +43,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          json=$(curl -sSf -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPO}/actions/runs?head_sha=${HEAD_SHA}&per_page=100")
+          attempts=10
+          sleep_seconds=15
+          for attempt in $(seq 1 "$attempts"); do
+            json=$(curl -sSf -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/actions/runs?head_sha=${HEAD_SHA}&per_page=100")
 
-          integration=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
-          simple=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration Simple" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
+            integration=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
+            simple=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration Simple" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
 
-          echo "Integration conclusion: ${integration:-missing}"
-          echo "Integration Simple conclusion: ${simple:-missing}"
+            echo "Attempt ${attempt}/${attempts}: Integration=${integration:-missing}, Integration Simple=${simple:-missing}"
 
-          test "${integration:-}" = "success"
-          test "${simple:-}" = "success"
+            if [ "${integration:-}" = "success" ] && [ "${simple:-}" = "success" ]; then
+              exit 0
+            fi
+
+            if [ "${integration:-}" = "failure" ] || [ "${integration:-}" = "cancelled" ] || [ "${simple:-}" = "failure" ] || [ "${simple:-}" = "cancelled" ]; then
+              echo "Required integration workflow failed/cancelled on HEAD SHA ${HEAD_SHA}"
+              exit 1
+            fi
+
+            if [ "$attempt" -lt "$attempts" ]; then
+              sleep "$sleep_seconds"
+            fi
+          done
+
+          echo "Timed out waiting for Integration and Integration Simple success on SHA ${HEAD_SHA}"
+          exit 1
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,14 +162,71 @@ jobs:
 
       - name: Trigger Release workflow
         if: steps.push_tag.outputs.tag_created == 'true'
+        env:
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           tag="v${{ steps.push_tag.outputs.version }}"
-          curl -sSf -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches" \
-            -d "{\"ref\":\"main\",\"inputs\":{\"ref\":\"$tag\"}}"
+          dispatch_release() {
+            curl -sSf -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${REPO}/actions/workflows/release.yml/dispatches" \
+              -d "{\"ref\":\"main\",\"inputs\":{\"ref\":\"$tag\"}}"
+          }
+
+          latest_release_run_id() {
+            curl -sSf -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/actions/workflows/release.yml/runs?event=workflow_dispatch&head_sha=${GITHUB_SHA}&per_page=5" \
+              | jq -r '.workflow_runs[0].id // empty'
+          }
+
+          wait_for_release_run() {
+            local expected_run_id="$1"
+            local tries=12
+            local wait_seconds=5
+            for try in $(seq 1 "$tries"); do
+              run_json=$(curl -sSf -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/actions/runs/${expected_run_id}")
+              run_status=$(printf '%s' "$run_json" | jq -r '.status')
+              run_conclusion=$(printf '%s' "$run_json" | jq -r '.conclusion // "null"')
+              echo "Release run ${expected_run_id}: status=${run_status}, conclusion=${run_conclusion}"
+              if [ "$run_status" = "completed" ]; then
+                if [ "$run_conclusion" = "startup_failure" ]; then
+                  return 10
+                fi
+                return 0
+              fi
+              sleep "$wait_seconds"
+            done
+            return 0
+          }
+
+          dispatch_release
           echo "Triggered Release workflow for $tag"
+
+          release_run_id=""
+          for lookup in $(seq 1 6); do
+            release_run_id="$(latest_release_run_id)"
+            if [ -n "$release_run_id" ]; then
+              break
+            fi
+            sleep 3
+          done
+
+          if [ -z "$release_run_id" ]; then
+            echo "Could not resolve release run id after dispatch; leaving first trigger as-is."
+            exit 0
+          fi
+
+          if wait_for_release_run "$release_run_id"; then
+            exit 0
+          fi
+
+          echo "Release run ${release_run_id} ended with startup_failure; dispatching one retry."
+          dispatch_release
+          echo "Triggered retry Release workflow for $tag"
 
     outputs:
       tag_created: ${{ steps.push_tag.outputs.tag_created }}
