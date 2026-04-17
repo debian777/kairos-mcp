@@ -2,11 +2,12 @@
 name: kairos-install
 description: >-
   Guide first-time KAIROS installation from the canonical GitHub install docs.
-  Also handle maintenance updates for Docker Compose and the npm-distributed
-  KAIROS CLI. Check prerequisites, offer to install missing components after
-  explicit user approval, help the user choose and configure an embedding
-  backend, start the simple Docker stack, and guide CLI authentication when the
-  target server requires it.
+  Also handle maintenance updates for Docker Compose, the npm-distributed
+  KAIROS CLI, and additional repo skills installed through `npx skills add
+  debian777/kairos-mcp`. Check prerequisites, offer to install missing
+  components after explicit user approval, help the user choose and configure
+  an embedding backend, start the simple Docker stack, and guide CLI
+  authentication when the target server requires it.
 compatibility: >-
   Requires network access to GitHub and, when installation is approved,
   permission to inspect installed tools, open ports, and the chosen working
@@ -123,6 +124,8 @@ Resolve these decisions explicitly:
 4. When a prerequisite is missing, install it now or wait?
 5. If the target server requires auth, use browser login or token login?
 6. Does the host actually need MCP configuration, or is the CLI enough?
+7. Which repo skills should be present after install/update (`kairos`,
+   `kairos-install`, `kairos-bug-report`, or all)?
 
 For this skill, "advanced full stack" or "operator-managed profile" means the
 Compose deployment that adds supporting services such as Redis, Postgres, and
@@ -154,6 +157,9 @@ Apply these rules on every install run:
 - Set `AUTH_ENABLED=false` for the default simple stack.
 - Guide the user through CLI authentication when auth is enabled on the chosen
   server.
+- Keep repo skills aligned with user intent by installing or refreshing them via
+  `npx skills add debian777/kairos-mcp` (all skills) or explicit `--skill`
+  flags.
 - Explain the next blocking issue when the install cannot continue.
 - If the user declines an installation step, explain what remains blocked and
   wait.
@@ -174,6 +180,8 @@ Apply these prohibitions on every install run:
   `docs/install/env-and-secrets.md` for the main flow.
 - Never continue past a missing prerequisite if the user has not approved the
   fix.
+- Never assume only `kairos-install` is enough when the user asked for
+  additional workflow skills.
 
 ## Workflow
 
@@ -188,8 +196,8 @@ Classify the user request before taking action:
 
 If unclear, ask the user whether they want install mode or update mode.
 
-When the user asks for Docker and npm CLI updates, skip backend and `.env`
-selection unless they also ask to reconfigure the runtime.
+When the user asks for Docker, npm CLI, or repo skill updates, skip backend and
+`.env` selection unless they also ask to reconfigure the runtime.
 
 ### 1. Read the canonical docs
 
@@ -594,6 +602,25 @@ KAIROS. Keep explicit approvals for each material update action.
 
 For detailed update commands, cross-platform checks, and fallback handling, use
 `references/docker-npm-cli-updates.md`.
+
+### 9. Install or refresh additional repo skills
+
+Run this section when the user wants more than `kairos-install`, or asks to
+sync skills during routine updates.
+
+1. Confirm target skill set:
+   - all shipped skills (`npx skills add debian777/kairos-mcp`)
+   - or named skills with repeated `--skill`
+2. List available skills before applying:
+   - `npx skills add debian777/kairos-mcp --list`
+3. Install or refresh the selected set:
+   - all: `npx skills add debian777/kairos-mcp`
+   - specific:
+     `npx skills add debian777/kairos-mcp --skill kairos --skill kairos-bug-report --skill kairos-install`
+4. If global/agent-scoped install is required, add `-y -g` and host flags (for
+   example `-a cursor` or `-a claude-code`) after approval.
+5. Include this skill-sync step when running maintenance updates so Docker/npm
+   and repo skills move together.
 
 ## Reference modules
 

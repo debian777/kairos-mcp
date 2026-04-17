@@ -1,7 +1,8 @@
 # Docker and npm CLI update guide
 
 Use this reference when the user asks to update Docker, Docker Compose, Node.js,
-npm, or the npm-distributed KAIROS CLI.
+npm, the npm-distributed KAIROS CLI, or installed skills from
+`debian777/kairos-mcp`.
 
 ## Scope and approvals
 
@@ -13,7 +14,8 @@ Resolve scope first:
 
 1. Docker only
 2. npm CLI only
-3. both Docker and npm CLI
+3. skills refresh only
+4. Docker + npm CLI + skills refresh
 
 ## Baseline checks
 
@@ -35,7 +37,7 @@ npx @debian777/kairos-mcp --help
 
 ## Update sequence
 
-Use this order when both Docker and npm CLI updates are requested.
+Use this order when Docker/npm updates and skill refresh are requested together.
 
 1. Update Docker and Compose via the official Docker installation channel for
    the user's OS.
@@ -54,6 +56,22 @@ kairos --help
 ```bash
 npx @debian777/kairos-mcp@latest --help
 ```
+
+7. Refresh installed repo skills in the same pass:
+
+```bash
+npx skills add debian777/kairos-mcp --list
+npx skills add debian777/kairos-mcp
+```
+
+Use explicit targeting when needed:
+
+```bash
+npx skills add debian777/kairos-mcp --skill kairos --skill kairos-bug-report --skill kairos-install
+```
+
+For global non-interactive installs, include approved flags such as
+`-y -g -a cursor` or `-y -g -a claude-code`.
 
 ## Post-update runtime validation
 
