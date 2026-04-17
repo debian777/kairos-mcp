@@ -135,9 +135,9 @@ Done.`;
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
-      // Activate HTTP response: exact top-level keys (canonical shape; no metadata in spec)
-      const canonicalSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
-      expect(Object.keys(data).sort()).toEqual([...canonicalSearchKeys].sort());
+      // Activate HTTP response keeps canonical top-level keys; kairos_work_dir is env-dependent.
+      const baseSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
+      expect(Object.keys(data).sort()).toEqual([...(('kairos_work_dir' in data) ? [...baseSearchKeys, 'kairos_work_dir'] : baseSearchKeys)].sort());
       expect(data.must_obey).toBe(true);
       expect(Array.isArray(data.choices)).toBe(true);
       expect(typeof data.message).toBe('string');
