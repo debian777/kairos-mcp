@@ -18,6 +18,7 @@ import { buildMissingProofPayload } from './next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
+import { KAIROS_WORK_DIR } from '../config.js';
 
 async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
   const cached = await redisCacheService.getMemoryResource(uuid);
@@ -66,7 +67,8 @@ async function buildNextPayload(
   const payload: any = {
     must_obey: true as const,
     current_step,
-    challenge
+    challenge,
+    kairos_work_dir: KAIROS_WORK_DIR
   };
 
   if (nextStepId) {
@@ -244,6 +246,7 @@ async function _executeNext(
         must_obey: payload.retry_count < 3,
         current_step: payload.current_step,
         challenge: payload.challenge,
+        kairos_work_dir: KAIROS_WORK_DIR,
         message: previousBlock.message,
         next_action: payload.next_action,
         error_code: previousBlock.error_code || 'MISSING_PROOF',

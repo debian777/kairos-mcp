@@ -6,6 +6,7 @@ import { getInferenceContract } from '../services/memory/memory-accessors.js';
 import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { KAIROS_WORK_DIR } from '../config.js';
 import type {
   BuildChallengeOptions,
   ElicitResult,
@@ -133,6 +134,7 @@ function buildErrorPayload(
     must_obey: !maxExceeded,
     current_step,
     challenge,
+    kairos_work_dir: KAIROS_WORK_DIR,
     message: maxExceeded
       ? `Step failed ${retryCount} times. Use your judgment to recover.`
       : message,

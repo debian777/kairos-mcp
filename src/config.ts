@@ -6,6 +6,8 @@
 
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { resolveKairosWorkDir } from './utils/kairos-work-dir-resolve.js';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
 function getEnvRequired(key: string, errorMessage?: string): string {
@@ -56,6 +58,12 @@ const TRACE_STORE_DIR_RAW = getEnvString(
 export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
   ? TRACE_STORE_DIR_RAW
   : path.resolve(TRACE_STORE_DIR_RAW);
+
+/** Directory of this module (`src/config.ts` or `dist/config.js`) for repo-root discovery when `process.cwd()` is outside the checkout. */
+const KAIROS_CONFIG_MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+/** Canonical shell / authoring work directory; created at server startup. */
+export const KAIROS_WORK_DIR = resolveKairosWorkDir({ runtimeDir: KAIROS_CONFIG_MODULE_DIR });
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');

@@ -9,6 +9,7 @@ import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.j
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
+import { KAIROS_WORK_DIR } from '../config.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 
 export function extractUuid(uri: string): string {
@@ -237,6 +238,7 @@ export async function buildForwardView(
     contract,
     ...(tensorIn && Object.keys(tensorIn).length > 0 ? { tensor_in: tensorIn } : {}),
     ...buildForwardUiSummary(memory),
+    kairos_work_dir: KAIROS_WORK_DIR,
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
       : `call forward with ${layer.uri} and solution.type="${contract.type}" plus solution.${contract.type} (include nonce/proof_hash when present)`,

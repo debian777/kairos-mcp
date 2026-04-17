@@ -47,7 +47,9 @@ export const activateOutputSchema = z.object({
       .describe(
         'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
       )
-  }))
+  })),
+  /** Canonical path: export as `KAIROS_WORK_DIR` before running local shell challenges that reference it. */
+  kairos_work_dir: z.string().optional()
 }).strict();
 
 export type ActivateInput = z.infer<typeof activateInputSchema>;

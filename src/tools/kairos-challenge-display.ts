@@ -50,7 +50,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
       }
       const wd = workdir?.trim();
       if (wd) {
-        description += ` Use workdir "${wd}" as the process working directory after expanding env vars (e.g. $KAIROS_WORK_DIR); if it does not exist, is not a directory, or a required variable is unset, fail with a clear local error.`;
+        description += ` Use workdir "${wd}" as the process working directory after expanding env vars (for example export KAIROS_WORK_DIR from the latest activate/forward/next response field kairos_work_dir when your shell does not already define it). If the path does not exist, is not a directory, or expansion leaves an empty path, fail with a clear local error.`;
       }
       result['description'] = description;
       const shellOut: Record<string, unknown> = { cmd, timeout_seconds: timeout };

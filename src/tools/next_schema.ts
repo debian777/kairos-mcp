@@ -93,7 +93,9 @@ export const nextOutputSchema = z.object({
   proof_hash: z.string().optional().describe('Hash of proof just stored. Use as solution.proof_hash for next step.'),
   message: z.string().optional(),
   error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
-  retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)')
+  retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)'),
+  /** Canonical path: export as `KAIROS_WORK_DIR` before running shell challenges that reference it. */
+  kairos_work_dir: z.string().optional()
 });
 
 export { layerUriSchema };

@@ -4,9 +4,8 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { homedir, platform } from 'os';
+import { getKairosConfigDir } from '../utils/kairos-user-dirs.js';
 
-const CONFIG_DIR_NAME = 'kairos';
 const CONFIG_FILE_NAME = 'config.json';
 export const KEYCHAIN_TOKEN_PLACEHOLDER = '__KEYCHAIN__';
 
@@ -60,12 +59,7 @@ export function writeConfigShape(shape: ConfigFileShape): void {
 }
 
 export function getConfigDir(): string {
-    if (platform() === 'win32') {
-        const appData = process.env['APPDATA'] || join(homedir(), 'AppData', 'Roaming');
-        return join(appData, CONFIG_DIR_NAME);
-    }
-    const base = process.env['XDG_CONFIG_HOME'] || join(homedir(), '.config');
-    return join(base, CONFIG_DIR_NAME);
+    return getKairosConfigDir();
 }
 
 export function getConfigPath(): string {
