@@ -1,5 +1,7 @@
 # CVE-2026-33671 (picomatch ReDoS): bundled under global npm CLI
 # (usr/local/lib/node_modules/npm/node_modules/tinyglobby/node_modules/picomatch).
-# npm@11.12.0 and npm@latest still ship picomatch@4.0.3; fixed upstream in 4.0.4+.
-# Runtime image does not use the npm CLI on untrusted glob patterns. Revisit when npm updates its bundle.
-CVE-2026-33671 exp:2026-06-30
+# Revalidated 2026-04-17: npm@11.12.1 (latest) still bundles tinyglobby@0.2.15
+# with picomatch@4.0.3 (fixed upstream in 4.0.4+).
+# Runtime image does not use npm CLI on untrusted glob patterns.
+# Revisit as soon as npm ships picomatch 4.0.4+ in its bundled tree.
+CVE-2026-33671 exp:2026-12-31

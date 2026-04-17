@@ -1,0 +1,137 @@
+name: Reusable publish npm
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
+      sync-version-from-ref:
+        required: false
+        type: boolean
+        default: false
+      allow-existing-version:
+        required: false
+        type: boolean
+        default: false
+      force-publish:
+        required: false
+        type: boolean
+        default: false
+      upload-sbom:
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      version:
+        description: "Package version used for publish"
+        value: ${{ jobs.publish.outputs.version }}
+      npm-tag:
+        description: "npm dist-tag used for publish"
+        value: ${{ jobs.publish.outputs.npm-tag }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      npm-tag: ${{ steps.version.outputs.npm_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set version and npm tag
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ inputs.sync-version-from-ref }}" == "true" ]]; then
+            ref="${{ inputs.ref != '' && inputs.ref || github.ref }}"
+            if [[ "$ref" == refs/tags/* ]]; then
+              v="${ref#refs/tags/v}"
+            else
+              v="${ref#v}"
+            fi
+            npm version "$v" --no-git-tag-version --allow-same-version
+          else
+            v="$(node -p "require('./package.json').version")"
+          fi
+
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if echo "$v" | grep -q '-'; then
+            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Set up Python (skills-ref)
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install skills-ref and validate skills
+        run: |
+          python -m pip install --upgrade pip
+          pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
+          npm run lint:skills
+
+      - name: Knip
+        run: npm run knip
+
+      - name: Prepare publish (build tgz + test install)
+        run: npm run prepare:publish
+
+      - name: Publish to npm (allow existing)
+        if: inputs.allow-existing-version
+        shell: bash
+        run: |
+          set +e
+          out=$(npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -eq 0 ]; then exit 0; fi
+          if echo "$out" | grep -q "You cannot publish over the previously published versions"; then
+            echo "Version already on npm; continuing"
+            exit 0
+          fi
+          exit 1
+
+      - name: Publish to npm (strict)
+        if: ${{ !inputs.allow-existing-version && !inputs.force-publish }}
+        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
+
+      - name: Publish to npm (force)
+        if: inputs.force-publish
+        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} --force
+
+      - name: Generate npm CycloneDX SBOM
+        if: inputs.upload-sbom
+        run: npx @cyclonedx/cyclonedx-npm@latest --output-file kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json --output-format json
+
+      - name: Upload npm SBOM
+        if: inputs.upload-sbom
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-sbom
+          path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json
+          if-no-files-found: error
