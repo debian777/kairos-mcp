@@ -66,9 +66,12 @@ async function mapSearchToActivate(
     })
   );
 
+  const groundingReminder =
+    'Protocols are interfaces for AI agents. Choose the adapter that serves the human\'s real need, follow it exactly, and never fabricate proof.';
+
   return {
     must_obey: true,
-    message: searchOutput.message,
+    message: `${groundingReminder}\n\n${searchOutput.message}`,
     next_action: "Pick one choice and follow that choice's next_action.",
     query,
     choices,
