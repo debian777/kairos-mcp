@@ -35,6 +35,7 @@ jobs:
 
     steps:
       - name: Require Integration and Integration Simple success on same SHA
+        id: verify_integrations
         if: github.event_name == 'workflow_run'
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -52,10 +53,17 @@ jobs:
           echo "Integration conclusion: ${integration:-missing}"
           echo "Integration Simple conclusion: ${simple:-missing}"
 
-          test "${integration:-}" = "success"
-          test "${simple:-}" = "success"
+          if [ "${integration:-}" = "success" ] && [ "${simple:-}" = "success" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # One workflow may finish before the other; skip this run without failing.
+          echo "Both workflows are not successful yet on this SHA; waiting for the next workflow_run trigger."
+          echo "ready=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
@@ -63,16 +71,19 @@ jobs:
           fetch-tags: true
 
       - name: Set up Node.js
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: "25"
           cache: "npm"
 
       - name: Get package version
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Set branch and beta flags
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         id: flags
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -85,6 +96,7 @@ jobs:
           if echo "$pkg" | grep -q '\-beta\.'; then echo "is_beta=true" >> "$GITHUB_OUTPUT"; else echo "is_beta=false" >> "$GITHUB_OUTPUT"; fi
 
       - name: Get latest stable tag (by version in repo)
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         id: tag
         run: |
           latest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || echo "v0.0.0")
@@ -92,6 +104,7 @@ jobs:
           echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag if version increased
+        if: github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true'
         id: push_tag
         run: |
           pkg="${{ steps.pkg.outputs.version }}"
@@ -145,7 +158,7 @@ jobs:
           fi
 
       - name: Trigger Release workflow
-        if: steps.push_tag.outputs.tag_created == 'true'
+        if: (github.event_name == 'workflow_dispatch' || steps.verify_integrations.outputs.ready == 'true') && steps.push_tag.outputs.tag_created == 'true'
         run: |
           tag="v${{ steps.push_tag.outputs.version }}"
           curl -sSf -X POST \
