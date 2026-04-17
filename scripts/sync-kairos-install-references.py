@@ -17,9 +17,7 @@ COPIES = [
     (INST / "prerequisites.md", REF / "prerequisites.md"),
     (INST / "docker-compose-simple.md", REF / "docker-compose-simple.md"),
     (INST / "docker-compose-full-stack.md", REF / "docker-compose-full-stack.md"),
-    (INST / "env-and-secrets.md", REF / "env-and-secrets.md"),
     (DOCS / "CLI.md", REF / "CLI.md"),
-    (INST / "google-auth-dev.md", REF / "install" / "google-auth-dev.md"),
     (INST / "README.md", REF / "install" / "README.md"),
 ]
 
@@ -28,7 +26,10 @@ def patch_install_hub(text: str) -> str:
     """Hub README lives under references/install/; fix paths for the flat bundle."""
     text = text.replace("](docker-compose-simple.md", "](../docker-compose-simple.md")
     text = text.replace("](docker-compose-full-stack.md", "](../docker-compose-full-stack.md")
-    text = text.replace("](env-and-secrets.md", "](../env-and-secrets.md")
+    text = text.replace(
+        "](env-and-secrets.md",
+        f"]({BASE}/docs/install/docker-compose-simple.md#3-environment-file",
+    )
     text = text.replace("](prerequisites.md", "](../prerequisites.md")
     text = text.replace(
         "when calling MCP from an agent bridge. See [AGENTS.md](../../AGENTS.md).",
@@ -66,21 +67,19 @@ def patch_docker_full(text: str) -> str:
 
 
 def patch_cli(text: str) -> str:
-    old = """## Related docs
-
-- [Install index](install/README.md)
-- [Environment variables and secrets](install/env-and-secrets.md)
-- [Cursor and MCP](install/README.md#cursor-and-mcp)
-- [Architecture](architecture/README.md)
-- [Protocol examples](examples/README.md)"""
-    new = f"""## Related docs
-
-- [Install index]({BASE}/docs/install/README.md)
-- [Environment variables and secrets](env-and-secrets.md)
-- [Cursor and MCP]({BASE}/docs/install/README.md#cursor-and-mcp)
-- [Architecture]({BASE}/docs/architecture/README.md)
-- [Adapter examples]({BASE}/docs/examples/README.md)"""
-    return text.replace(old, new)
+    text = text.replace("[Install index](install/README.md)", f"[Install index]({BASE}/docs/install/README.md)")
+    text = text.replace(
+        "[Environment variables and secrets](install/env-and-secrets.md)",
+        f"[Environment file and required variables]({BASE}/docs/install/docker-compose-simple.md#3-environment-file)",
+    )
+    text = text.replace(
+        "[Cursor and MCP](install/README.md#cursor-and-mcp)",
+        f"[Cursor and MCP]({BASE}/docs/install/README.md#cursor-and-mcp)",
+    )
+    text = text.replace("[Architecture](architecture/README.md)", f"[Architecture]({BASE}/docs/architecture/README.md)")
+    text = text.replace("[Protocol examples](examples/README.md)", f"[Adapter examples]({BASE}/docs/examples/README.md)")
+    text = text.replace("[Adapter examples](examples/README.md)", f"[Adapter examples]({BASE}/docs/examples/README.md)")
+    return text
 
 
 def main() -> None:
@@ -116,7 +115,8 @@ def main() -> None:
         raise SystemExit("install/README.md patch verification failed")
     if BASE not in fs.read_text(encoding="utf-8"):
         raise SystemExit("docker-compose-full-stack.md patch verification failed")
-    if BASE not in cli.read_text(encoding="utf-8"):
+    cli_t = cli.read_text(encoding="utf-8")
+    if f"{BASE}/docs/install/README.md#cursor-and-mcp" not in cli_t:
         raise SystemExit("CLI.md patch verification failed")
 
     print("done — REFERENCE-LINKS.md and references/README.md are not overwritten")

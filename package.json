@@ -94,7 +94,7 @@
     "version:sync": "npm run version:sync-skills && npm run compose:sync-app-tag",
     "version:sync-skills": "node scripts/build-sync-skill-versions.mjs",
     "version:check-skills": "node scripts/build-sync-skill-versions.mjs --check",
-    "prebuild": "npm run verify:clean && npx ts-node scripts/build-embed-docs.ts && node scripts/build-sync-skill-versions.mjs",
+    "prebuild": "npm run verify:clean && npm run skills:sync-install-refs && npx ts-node scripts/build-embed-docs.ts && node scripts/build-sync-skill-versions.mjs",
     "verify:clean": "node scripts/lint-verify-clean-source.mjs",
     "prepare": "husky",
     "build:tgz": "node scripts/build-ensure-tgz.mjs",
