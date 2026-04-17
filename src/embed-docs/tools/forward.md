@@ -35,6 +35,8 @@ The tool returns `must_obey`, `current_layer` (markdown body), `contract`
 proof layers, echo server `nonce` / `proof_hash` in the solution when present),
 optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`,
 optional `slug_disambiguation_note` when a slug URI matched multiple adapters,
+optional `kairos_work_dir` (canonical path: export as `KAIROS_WORK_DIR` before
+running shell challenges that reference it),
 optional `activation_space_name`, `context_adapter_name`, `current_layer_label`,
 `adapter_layer_index`, `adapter_layer_count` (widget progress), and error fields
 on retry paths.

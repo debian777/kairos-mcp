@@ -245,7 +245,9 @@ export const forwardOutputSchema = z.object({
   /** 1-based index of this layer in the adapter (widget progress). */
   adapter_layer_index: z.number().int().positive().optional(),
   /** Total layers in the adapter (widget progress). */
-  adapter_layer_count: z.number().int().positive().optional()
+  adapter_layer_count: z.number().int().positive().optional(),
+  /** Canonical path: export as `KAIROS_WORK_DIR` before running shell challenges that reference it. */
+  kairos_work_dir: z.string().optional()
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

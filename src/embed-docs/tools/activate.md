@@ -11,7 +11,7 @@ even if the user never says "KAIROS". Always pass a short `query` summary.
   prefix), or your raw `space_id` (same forms as **`train`** / **`tune`** `space`).
 - `max_choices` (optional) — cap on match rows returned.
 
-**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create — and `slug` — stored routing slug when present so you can **`forward`** with `kairos://adapter/{slug}`; `null` for refine/create or when the adapter has no slug), plus `message`, a global `next_action`, and optional host metadata.
+**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, for **`match`** rows `space_name` — where the adapter is stored, e.g. `Personal`, `Group: …`, `Kairos app`; `null` for refine/create — and `slug` — stored routing slug when present so you can **`forward`** with `kairos://adapter/{slug}`; `null` for refine/create or when the adapter has no slug), plus `message`, a global `next_action`, optional `kairos_work_dir` (canonical path: export as `KAIROS_WORK_DIR` before running shell challenges that reference it), and optional host metadata.
 
 When several spaces contain similar adapters, the server prefers your **default write space** (usually **Personal**) on ties so a personal copy can override a group template.
 
