@@ -12,7 +12,7 @@ import { startStdioTransport } from './stdio/stdio-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import {
-  SERVER_PORT,
+  PORT,
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
@@ -113,28 +113,16 @@ export async function runKairosServer(): Promise<void> {
         // Use --force flag to allow override in new versions
         await injectMemResourcesAtBoot(memoryStore, { force: true });
 
-        // Metrics HTTP server: only when the app serves HTTP (stdio mode avoids any HTTP listeners).
-        if (TRANSPORT_TYPE === 'http') {
-            startMetricsServer();
-        }
-
-        const transportSource = process.env['KAIROS_CLI_TRANSPORT_SOURCE']?.trim();
-        if (transportSource === 'cli' || transportSource === 'env') {
-            structuredLogger.info(
-                `Resolved MCP transport: ${TRANSPORT_TYPE} (source: ${transportSource === 'cli' ? '--transport' : 'TRANSPORT_TYPE'})`
-            );
-        }
+        // Start dedicated metrics server on separate port
+        // This runs independently from the main application server
+        startMetricsServer();
 
         if (TRANSPORT_TYPE === 'http') {
-            structuredLogger.info(`Application server: ${SERVER_PORT}`);
+            structuredLogger.info(`Application server: ${PORT}`);
         } else {
-            structuredLogger.info('Application server: stdio (no HTTP listener)');
+            structuredLogger.info('Application server: stdio');
         }
-        if (TRANSPORT_TYPE === 'http') {
-            structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
-        } else {
-            structuredLogger.info('Metrics server: disabled in stdio mode (no HTTP listeners)');
-        }
+        structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
 
         if (TRANSPORT_TYPE === 'http') {
             await startHttpTransport(memoryStore);

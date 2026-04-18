@@ -8,8 +8,9 @@ codebase and configuration model.
 - **One transport per process.** The server started by `src/index.ts` runs in
   either `TRANSPORT_TYPE=http` or `TRANSPORT_TYPE=stdio` mode. It does not run
   both transports in one process.
-- **stdio mode is MCP-only.** With `TRANSPORT_TYPE=stdio`, the process serves MCP on
-  stdin/stdout and does not start an HTTP listener: no `/health`, `/api`, `/ui`, or `/mcp` over HTTP.
+- **stdio mode is MCP-only.** With `TRANSPORT_TYPE=stdio`, the process serves
+  MCP on stdin/stdout and does not expose HTTP routes such as `/health`, `/api`,
+  `/ui`, or `/mcp`.
 - **Qdrant is always required.** Startup fails without a reachable
   `QDRANT_URL`.
 - **Embedding provider is always required.** Search and training (store) depend on a
