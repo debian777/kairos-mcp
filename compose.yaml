@@ -149,6 +149,7 @@ services:
     environment:
       # Container must reach Qdrant by service name
       - QDRANT_URL=http://qdrant:6333
+      - TRANSPORT_TYPE=http
       - METRICS_PORT=${METRICS_PORT:-9090}
       # Snapshot backup dir (volume mount); omit to disable backup (503 on POST /api/snapshot)
       - QDRANT_SNAPSHOT_DIR=/snapshots
