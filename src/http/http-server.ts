@@ -40,12 +40,15 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     return startHttpServerWithErrorHandling(app, port);
 }
 
-export async function startServer(memoryStore: MemoryQdrantStore) {
+export async function startHttpTransport(memoryStore: MemoryQdrantStore) {
     const httpPort = PORT;
 
-    structuredLogger.success('🚀 KAIROS MCP Server starting', 'HTTP transport only');
+    structuredLogger.success('KAIROS MCP Server starting', 'HTTP transport');
     structuredLogger.info('HTTP transport: enabled');
     structuredLogger.info('Port: ' + httpPort);
 
     startHttpServer(httpPort, memoryStore);
 }
+
+// Backward-compatible alias for callers that still import startServer.
+export const startServer = startHttpTransport;

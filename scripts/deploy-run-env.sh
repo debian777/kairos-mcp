@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # kairos Environment Management Script
-# USAGE: ENV=dev|dev_simple|prod ./scripts/deploy-run-env.sh [build|start|stop|restart|status|test|logs|health|...]
+# USAGE: ENV=dev|dev_simple|dev_stdio|prod ./scripts/deploy-run-env.sh [build|start|stop|restart|status|test|logs|health|...]
 #
 # Single base .env plus optional .env.<ENV> profile overrides; prod is not managed from this repo
 # (exception: Keycloak realm setup dev/prod).
 # - dev:        Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
 # - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
+# - dev_stdio: Local app stdio profile (auth off, local process transport). PID/log: .kairos-dev_stdio.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
@@ -87,20 +88,20 @@ fi
 
 # Validate environment (skip for ensure-coding-rules)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
-    case "$ENV" in dev|dev_simple|prod) ;; *) print_error "Invalid ENV: $ENV (use dev, dev_simple, or prod)"; exit 1 ;; esac
+    case "$ENV" in dev|dev_simple|dev_stdio|prod) ;; *) print_error "Invalid ENV: $ENV (use dev, dev_simple, dev_stdio, or prod)"; exit 1 ;; esac
 fi
 
-# Environment defaults (PORT from .env/.env.<ENV>; dev=3300, dev_simple=4300, prod=3500 for inspect)
+# Environment defaults (PORT from .env/.env.<ENV>; dev=3300, dev_simple/dev_stdio=4300, prod=3500 for inspect)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in
         dev)
             PORT="${PORT:-3300}"
             METRICS_PORT="${METRICS_PORT:-9390}"
             ;;
-        dev_simple)
+        dev_simple|dev_stdio)
             PORT="${PORT:-4300}"
             METRICS_PORT="${METRICS_PORT:-9490}"
-            QDRANT_URL="${QDRANT_URL:-http://localhost:7333}"
+            QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
             ;;
         prod)
             PORT="${PORT:-3500}"
@@ -198,7 +199,7 @@ build() {
     print_info "Building project..."
     cd "$PROJECT_DIR"
     case "$ENV" in
-        dev|dev_simple|prod)
+        dev|dev_simple|dev_stdio|prod)
             print_info "Running prebuild (embed-docs) and verification..."
             npm run prebuild
             npx tsc && chmod +x dist/cli/index.js && print_success "Build complete"
@@ -216,7 +217,7 @@ start() {
     LOG_FORMAT="${LOG_FORMAT:-text}"
 
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             # Validate LOG_TARGET
             case "$LOG_TARGET" in
                 file|stdout|both) ;;
@@ -250,30 +251,45 @@ start() {
                     ;;
             esac
 
-            # Resolve actual dev server PID via listening port (like stop target)
-            if command -v lsof >/dev/null 2>&1; then
-                # Give the server a moment to bind to the port
-                sleep 1
-                dev_pid="$(lsof -ti :"${dev_port}" 2>/dev/null | head -n1 || true)"
-                if [ -n "${dev_pid:-}" ]; then
-                    echo "$dev_pid" > "$PID_FILE"
-                    print_success "Dev server listening on port ${dev_port} (PID: $dev_pid)"
-                else
-                    print_warning "Dev server started but not yet bound to port ${dev_port}; PID file not created (no listener on ${dev_port} yet)"
-                fi
+            # Resolve actual dev server PID:
+            # - stdio mode: use background PID directly (no HTTP listener expected)
+            # - http mode: prefer listener PID by port
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+                dev_pid="$!"
+                echo "$dev_pid" > "$PID_FILE"
+                print_success "Dev stdio server started (PID: $dev_pid)"
             else
-                print_error "lsof not available; cannot determine dev server PID (PID file not created)"
+                if command -v lsof >/dev/null 2>&1; then
+                    # Give the server a moment to bind to the port
+                    sleep 1
+                    dev_pid="$(lsof -ti :"${dev_port}" 2>/dev/null | head -n1 || true)"
+                    if [ -n "${dev_pid:-}" ]; then
+                        echo "$dev_pid" > "$PID_FILE"
+                        print_success "Dev server listening on port ${dev_port} (PID: $dev_pid)"
+                    else
+                        print_warning "Dev server started but not yet bound to port ${dev_port}; PID file not created (no listener on ${dev_port} yet)"
+                    fi
+                else
+                    print_error "lsof not available; cannot determine dev server PID (PID file not created)"
+                fi
             fi
 
-            show_urls
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+                print_info "STDIO mode enabled: no HTTP app endpoints are expected."
+                check_qdrant
+                check_redis
+                check_metrics
+            else
+                show_urls
+            fi
 
             ;;
         prod)
             print_info "Prod is not started from this script; use your deployment pipeline."
             ;;
     esac
-    # Health check after server startup with retries (skip for prod)
-    if [ "$ENV" != "prod" ]; then
+    # Health check after server startup with retries (skip for prod/stdio mode)
+    if [ "$ENV" != "prod" ] && [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]] && [ "$ENV" != "dev_stdio" ]; then
         ATTEMPTS="${HEALTH_CHECK_ATTEMPTS:-30}"
         print_info "Performing post-startup health check with retries..."
         attempt=1
@@ -308,7 +324,7 @@ stop() {
     cd "$PROJECT_DIR"
 
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             if [ -f "$PID_FILE" ]; then
                 dev_pid="$(cat "$PID_FILE")"
                 if kill "$dev_pid" 2>/dev/null; then
@@ -324,6 +340,9 @@ stop() {
             fi
 
             # Fallback: try to locate and stop process by dev port using lsof
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+                return 0
+            fi
             dev_port="${PORT:-3300}"
             if command -v lsof >/dev/null 2>&1; then
                 print_info "Attempting fallback stop via lsof -ni :${dev_port}"
@@ -355,7 +374,7 @@ restart() {
 
 deploy() {
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             build
             restart
             ;;
@@ -371,7 +390,7 @@ status() {
     cd "$PROJECT_DIR"
 
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             [ -f "$PID_FILE" ] && print_success "Process running (PID: $(cat "$PID_FILE"))" || print_warning "No process found"
             ;;
         prod)
@@ -379,28 +398,32 @@ status() {
             ;;
     esac
 
-    # Check application health - THE MOST IMPORTANT STEP
-    print_info "Checking application health..."
-    if curl -s "http://localhost:$PORT/health" >/dev/null 2>&1; then
-        print_success "App OK (port $PORT)"
+    if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+        print_info "STDIO mode: HTTP health endpoint is not available."
     else
-        print_warning "App DOWN (port $PORT)"
-    fi
-
-    # Detailed curl health output (HTTP code + body)
-    {
-        url="http://localhost:$PORT/health"
-        tmpfile="$(mktemp 2>/dev/null || echo "/tmp/kb_health_$$")"
-        http_code=$(curl -sS -o "$tmpfile" -w "%{http_code}" "$url" 2>/dev/null || true)
-        print_info "App health HTTP: $http_code"
-        if command -v jq >/dev/null 2>&1; then
-            body=$(jq -C . "$tmpfile" 2>/dev/null || cat "$tmpfile")
+        # Check application health - THE MOST IMPORTANT STEP
+        print_info "Checking application health..."
+        if curl -s "http://localhost:$PORT/health" >/dev/null 2>&1; then
+            print_success "App OK (port $PORT)"
         else
-            body=$(cat "$tmpfile")
+            print_warning "App DOWN (port $PORT)"
         fi
-        echo "$body"
-        rm -f "$tmpfile" >/dev/null 2>&1 || true
-    }
+
+        # Detailed curl health output (HTTP code + body)
+        {
+            url="http://localhost:$PORT/health"
+            tmpfile="$(mktemp 2>/dev/null || echo "/tmp/kb_health_$$")"
+            http_code=$(curl -sS -o "$tmpfile" -w "%{http_code}" "$url" 2>/dev/null || true)
+            print_info "App health HTTP: $http_code"
+            if command -v jq >/dev/null 2>&1; then
+                body=$(jq -C . "$tmpfile" 2>/dev/null || cat "$tmpfile")
+            else
+                body=$(cat "$tmpfile")
+            fi
+            echo "$body"
+            rm -f "$tmpfile" >/dev/null 2>&1 || true
+        }
+    fi
     
     check_qdrant
     check_redis
@@ -410,7 +433,9 @@ status() {
         check_tei
     fi
 
-    show_urls
+    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" && "$ENV" != "dev_stdio" ]]; then
+        show_urls
+    fi
 
     [ -f "$LOG_FILE" ] && echo "Logs: $LOG_FILE" || print_warning "No log file"
 }
@@ -426,7 +451,7 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    if [ "$ENV" = "dev_simple" ]; then
+    if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
         has_ignore_patterns=false
         for arg in "${args[@]}"; do
             if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
@@ -489,6 +514,15 @@ test() {
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
+        dev_stdio)
+            silent_flag=""
+            [ "${CI:-}" = "true" ] || silent_flag="--silent"
+            if [ ${#args[@]} -eq 0 ]; then
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 tests/integration/stdio-launch-smoke.test.ts 2>&1 | tee -a "$REPORT_LOG_FILE"
+            else
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+            fi
+            ;;
         prod)
             print_warning "Tests are not run against prod from this script."
             ;;
@@ -497,7 +531,7 @@ test() {
 
 logs() {
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             [ -f "$LOG_FILE" ] && cat "$LOG_FILE" || print_warning "No log file found"
             ;;
         prod)
@@ -627,12 +661,13 @@ ensure_coding_rules() {
 
 help() {
     echo "kairos Environment Script"
-    echo "USAGE: ENV=dev|dev_simple|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
+    echo "USAGE: ENV=dev|dev_simple|dev_stdio|prod $0 [build|start|stop|restart|status|test|logs|health|ensure-coding-rules|redis-cli|qdrant-curl] [-- <args>]"
     echo ""
     echo "Single .env; prod is not managed here (exception: Keycloak realm setup)."
     echo "ENVIRONMENTS:"
     echo "  dev        - Local app (start, stop, test, build). PORT=3300 default."
     echo "  dev_simple - Local app simple mode profile. PORT=4300 default."
+    echo "  dev_stdio  - Local app stdio mode profile. PORT=4300 default."
     echo "  prod       - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
     echo ""
     echo "ENV VARS (from .env):"

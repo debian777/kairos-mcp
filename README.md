@@ -96,11 +96,22 @@ For a longer narrative, see
 The current codebase includes:
 
 - **HTTP application server** — Express app for MCP, REST, auth routes, and UI
+- **stdio MCP transport** — direct local-host launch path for desktop/IDE MCP clients
 - **Qdrant-backed adapter store** — required for runtime
 - **Optional Redis cache / proof-of-work state store** — enabled when `REDIS_URL` is set
 - **Optional Keycloak auth integration** — browser session + Bearer JWT validation
 - **React UI** — served from the same origin at `/ui`
 - **CLI** — talks to the HTTP API
+
+## Transport modes
+
+Use one transport mode per process:
+
+- **`TRANSPORT_TYPE=http`**: serves `/mcp`, `/api/*`, `/ui`, and `/health`; this is
+  the default for Docker Compose deployments.
+- **`TRANSPORT_TYPE=stdio`**: runs MCP over stdin/stdout for local hosts such as
+  Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
+  MCP protocol frames and logs go to stderr.
 
 ## Quick start
 
@@ -203,6 +214,28 @@ server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
 When executing over MCP, follow **[Protocol execution](#protocol-execution)**
 above and each tool result’s `next_action`. The connected server’s tool
 descriptions are the runtime authority if they differ from this file.
+
+### Local stdio launch for desktop/IDE hosts
+
+Use this when your host launches the server as a local process instead of
+connecting over HTTP.
+
+1. Build the project:
+
+   ```bash
+   npm run build
+   ```
+
+2. Run the stdio server profile:
+
+   ```bash
+   npm run dev:stdio
+   ```
+
+3. Point your host at the local command:
+   - command: `node`
+   - args: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`
+   - env override: `TRANSPORT_TYPE=stdio`
 
 ## Installation options
 

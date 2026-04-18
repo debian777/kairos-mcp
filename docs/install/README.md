@@ -5,7 +5,7 @@ self-managed KAIROS deployment. Start by confirming the local requirements,
 choose the embedding backend that determines your `.env` values, and then
 complete the simple stack. Use the CLI as the primary interface for
 authentication, verification, and day-to-day operations. Add MCP only when a
-host explicitly requires a streamable HTTP endpoint.
+host explicitly requires it (streamable HTTP or stdio local process launch).
 
 Follow this sequence:
 
@@ -87,8 +87,14 @@ For URL selection, authentication, and the full command surface, see
 
 ## Cursor and MCP
 
-Configure MCP only when your IDE or host needs a streamable HTTP endpoint. The
-CLI remains the primary interface even when MCP is enabled.
+Configure MCP only when your IDE or host needs it. The CLI remains the primary
+interface even when MCP is enabled.
+
+Use transport by host class:
+
+- Streamable HTTP for containerized or remote workflows.
+- stdio for local process-spawn hosts such as Claude Desktop, Cursor, and
+  Claude Code.
 
 The MCP URL uses the same host and port as `/health`, with `/mcp` appended.
 Local development often uses port `3300`; the Compose examples in this
@@ -126,6 +132,80 @@ curl -sS "http://localhost:3000/health"
 
 If MCP does not connect, verify the health URL first, confirm the host and
 port, and make sure the server has Qdrant plus a working embedding backend.
+
+## Local stdio hosts
+
+Use stdio mode when your host spawns the MCP server process directly.
+
+1. Build the project:
+
+   ```sh
+   npm run build
+   ```
+
+2. Start stdio mode:
+
+   ```sh
+   npm run dev:stdio
+   ```
+
+3. Configure your host command:
+   - command: `node`
+   - args: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`
+   - env: `TRANSPORT_TYPE=stdio`
+
+Host snippets:
+
+- Claude Desktop:
+
+  ```json
+  {
+    "mcpServers": {
+      "KAIROS": {
+        "command": "node",
+        "args": ["/absolute/path/to/kairos-mcp/dist/bootstrap.js"],
+        "env": {
+          "TRANSPORT_TYPE": "stdio"
+        }
+      }
+    }
+  }
+  ```
+
+- Cursor:
+
+  ```json
+  {
+    "mcpServers": {
+      "KAIROS_STDIO": {
+        "command": "node",
+        "args": ["/absolute/path/to/kairos-mcp/dist/bootstrap.js"],
+        "env": {
+          "TRANSPORT_TYPE": "stdio"
+        }
+      }
+    }
+  }
+  ```
+
+- Claude Code:
+
+  ```json
+  {
+    "mcpServers": {
+      "KAIROS": {
+        "command": "node",
+        "args": ["/absolute/path/to/kairos-mcp/dist/bootstrap.js"],
+        "env": {
+          "TRANSPORT_TYPE": "stdio"
+        }
+      }
+    }
+  }
+  ```
+
+In stdio mode, the server writes MCP JSON-RPC frames to stdout and writes logs
+to stderr.
 
 ## Index
 
