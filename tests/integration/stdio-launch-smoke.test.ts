@@ -36,31 +36,41 @@ function hasEmbeddingConfig(env: NodeJS.ProcessEnv): boolean {
   );
 }
 
-function createStdioEnv(): NodeJS.ProcessEnv {
+function createStdioEnv(metricsPort: number): NodeJS.ProcessEnv {
+  const appPort =
+    process.env['API_PORT'] ??
+    FILE_ENV['API_PORT'] ??
+    process.env.PORT ??
+    FILE_ENV.PORT ??
+    '4300';
   return {
     ...process.env,
     ...FILE_ENV,
     TRANSPORT_TYPE: 'stdio',
     AUTH_ENABLED: process.env.AUTH_ENABLED ?? FILE_ENV.AUTH_ENABLED ?? 'false',
+    API_PORT: appPort,
+    PORT: appPort,
+    METRICS_PORT: String(metricsPort),
     REDIS_URL: process.env.REDIS_URL ?? FILE_ENV.REDIS_URL ?? ''
   };
 }
 
-function spawnStdioServer(): ChildProcessWithoutNullStreams {
+function spawnStdioServer(metricsPort: number): ChildProcessWithoutNullStreams {
   const args = fs.existsSync(BOOTSTRAP_PATH)
     ? [BOOTSTRAP_PATH]
     : ['--loader', 'ts-node/esm', SOURCE_BOOTSTRAP_PATH];
 
   return spawn(process.execPath, args, {
     cwd: process.cwd(),
-    env: createStdioEnv(),
+    env: createStdioEnv(metricsPort),
     stdio: ['pipe', 'pipe', 'pipe']
   });
 }
 
 describe('STDIO launch smoke', () => {
   test('startup does not emit non-protocol bytes to stdout', async () => {
-    const child = spawnStdioServer();
+    const metricsPort = 9790 + Math.floor(Math.random() * 100);
+    const child = spawnStdioServer(metricsPort);
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
 
@@ -82,7 +92,8 @@ describe('STDIO launch smoke', () => {
   }, 90000);
 
   test('initialize and listTools work over stdio client transport', async () => {
-    const env = createStdioEnv();
+    const metricsPort = 9890 + Math.floor(Math.random() * 100);
+    const env = createStdioEnv(metricsPort);
     if (!hasEmbeddingConfig(env)) {
       // This integration requires the same embedding prerequisites as the server startup path.
       return;

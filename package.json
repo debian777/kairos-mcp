@@ -38,7 +38,7 @@
   ],
   "scripts": {
     "cli": "node dist/cli/index.js",
-    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${SERVER_PORT:-3300}}\" && exec node dist/cli/index.js \"$@\"' _",
+    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${API_PORT:-${PORT:-3300}}}\" && exec node dist/cli/index.js \"$@\"' _",
     "dev:cli-ready": "./scripts/deploy-dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/deploy-run-env.sh build",
@@ -70,14 +70,6 @@
     "dev_stdio:status": "ENV=dev_stdio ./scripts/deploy-run-env.sh status",
     "dev_stdio:stop": "ENV=dev_stdio ./scripts/deploy-run-env.sh stop",
     "dev_stdio:test": "ENV=dev_stdio ./scripts/deploy-run-env.sh test",
-    "test:integration:contracts:http-auth": "ENV=dev ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.http-auth.test.ts",
-    "test:integration:contracts:http-simple": "ENV=dev_simple ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.http-simple.test.ts",
-    "test:integration:contracts:stdio-simple": "ENV=dev_stdio ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.stdio-simple.test.ts",
-    "test:seed-snapshot": "bash ./scripts/seed-test-snapshot.sh",
-    "test:restore-snapshot": "node -r dotenv/config -e \"import('./tests/utils/restore-qdrant-snapshot.js').then(m => m.restoreTestSnapshot().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\"",
-    "qdrant:binary:install": "bash ./scripts/qdrant-binary.sh install",
-    "qdrant:binary:start": "npm run qdrant:binary:install && bash ./scripts/qdrant-binary.sh start",
-    "qdrant:binary:stop": "bash ./scripts/qdrant-binary.sh stop",
     "test:load": "ENV=dev ./scripts/deploy-run-env.sh test -- tests/load/mcp-concurrency-limit.test.ts",
     "dev:test-embedding-key": "node scripts/test-embedding-key.mjs",
     "dev:google-idp": "python3 scripts/deploy-configure-keycloak-google-idp.py",
@@ -136,10 +128,7 @@
     "release:bug": "npm run release:patch",
     "release:rc": "npm version prerelease --preid=rc --no-git-tag-version && npm run version:sync",
     "release:pre": "npm version prerelease --preid=pre --no-git-tag-version && npm run version:sync",
-    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync",
-    "journey:export": "node scripts/journey-export.mjs",
-    "journey:replay": "node scripts/journey-replay.mjs",
-    "journey:diff": "node scripts/journey-diff.mjs"
+    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync"
   },
   "dependencies": {
     "@exodus/bytes": "^1.15.0",
@@ -175,7 +164,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.1.0",
     "@jest/globals": "^30.2.0",
     "@jest/test-sequencer": "^30.2.0",
     "@mermaid-js/mermaid-cli": "^11.15.0",

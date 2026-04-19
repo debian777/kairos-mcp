@@ -120,7 +120,7 @@ Use one transport mode per process:
   Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
   MCP protocol frames and logs go to stderr.
 - **`KAIROS_HTTP_SIDECHAN=true`** (only with `TRANSPORT_TYPE=stdio`): also binds
-  the HTTP app on `PORT` for REST/UI and Streamable HTTP MCP used by integration
+  the HTTP app on **`API_PORT`** (or transitional `PORT`) for REST/UI and Streamable HTTP MCP used by integration
   tests; primary MCP remains stdio. The `dev_stdio` profile sets this for CI parity.
 
 ## Quick start
@@ -205,7 +205,7 @@ npm run dev:deploy
 
 The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
 `scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
-set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
+set **`API_PORT`** (preferred) or transitional **`PORT`** in `.env`. Use the same host and port in health checks, the UI, and MCP
 URLs.
 
 See [docs/install/README.md](docs/install/README.md) and
