@@ -1,5 +1,7 @@
 # GitHub Actions – workflow design
 
+<!-- kairos-lint-allow-protocol-synonyms -->
+
 ## Overview
 
 ```mermaid
