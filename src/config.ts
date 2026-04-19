@@ -64,8 +64,6 @@ export const KAIROS_LOCAL_ARTIFACT_DIRS: readonly string[] = parseLocalArtifactD
 );
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
-/** OIDC login-transaction state key prefix; global (no space namespace) because login has no space context. */
-export const OIDC_STATE_KEY_PREFIX = 'oidc-state:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
 /** Base URL for OpenAI API (e.g. https://api.openai.com or Azure endpoint). No trailing slash. */
 export const OPENAI_API_URL = getEnvString('OPENAI_API_URL', 'https://api.openai.com').replace(/\/$/, '');
@@ -86,12 +84,6 @@ export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESH
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
 export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
 export const AUDIT_LOG_FILE = getEnvString('AUDIT_LOG_FILE', '').trim();
-/**
- * Verbosity for MCP audit events written to AUDIT_LOG_FILE (0-3).
- * 0 = off, 1 = metadata only, 2 = + request args, 3 = + response body.
- * Existing audit.embedding / audit.anomaly events are unaffected.
- */
-export const AUDIT_LOG_LEVEL = Math.max(0, Math.min(3, getEnvInt('AUDIT_LOG_LEVEL', 1)));
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
@@ -229,8 +221,8 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-/** Main HTTP listener when `TRANSPORT_TYPE=http`: UI, REST API, and Streamable HTTP MCP. Ignored in stdio mode (no HTTP server). */
-export const SERVER_PORT = getEnvInt('SERVER_PORT', 3000);
+// Int configurations
+export const PORT = getEnvInt('PORT', 3000);
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
 
@@ -275,11 +267,9 @@ export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
 /** Max additive boost from attest (tiebreaker within RRF bands). */
 export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
 
-// Transport: stdio | http. Default http for non-CLI entrypoints (Docker/CI/bootstrap).
-// `kairos serve` sets KAIROS_CLI_SERVE=1 before spawning bootstrap so missing TRANSPORT_TYPE defaults to stdio there only.
-const _transportDefault =
-  process.env['KAIROS_CLI_SERVE'] === '1' && !process.env['TRANSPORT_TYPE']?.trim() ? 'stdio' : 'http';
-const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', _transportDefault);
+// Transport: stdio | http. Default http so Docker/CI and installed-package runs
+// keep an HTTP listener without every env file listing TRANSPORT_TYPE; opt into stdio explicitly.
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'http');
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 
