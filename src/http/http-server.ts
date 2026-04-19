@@ -4,7 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import { SERVER_PORT } from '../config.js';
 
 // Import modular components
-import { configureMiddleware } from './http-server-config.js';
+import { configureMiddleware } from '../eslint-inline-allowed/http-server-config.js';
 import { authMiddleware } from './http-auth-middleware.js';
 import { setupAuthCallback } from './http-auth-callback.js';
 import { setupHealthRoutes } from './http-health-routes.js';
