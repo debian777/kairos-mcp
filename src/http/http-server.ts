@@ -49,6 +49,3 @@ export async function startHttpTransport(memoryStore: MemoryQdrantStore) {
 
     startHttpServer(httpPort, memoryStore);
 }
-
-// Backward-compatible alias for callers that still import startServer.
-export const startServer = startHttpTransport;

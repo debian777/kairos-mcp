@@ -9,7 +9,12 @@ import { parse as parseDotenv } from 'dotenv';
 const BOOTSTRAP_PATH = path.resolve(process.cwd(), 'dist/bootstrap.js');
 const SOURCE_BOOTSTRAP_PATH = path.resolve(process.cwd(), 'src/bootstrap.ts');
 const ROOT_ENV_PATH = path.resolve(process.cwd(), '.env');
-const STDIO_ENV_PATH = path.resolve(process.cwd(), '.env.dev_stdio');
+const ACTIVE_PROFILE_ENV_PATH = (() => {
+  const envName = process.env.ENV;
+  if (!envName) return null;
+  const profilePath = path.resolve(process.cwd(), `.env.${envName}`);
+  return fs.existsSync(profilePath) ? profilePath : null;
+})();
 
 function readDotEnv(pathname: string): Record<string, string> {
   if (!fs.existsSync(pathname)) {
@@ -20,7 +25,7 @@ function readDotEnv(pathname: string): Record<string, string> {
 
 const FILE_ENV = {
   ...readDotEnv(ROOT_ENV_PATH),
-  ...readDotEnv(STDIO_ENV_PATH)
+  ...(ACTIVE_PROFILE_ENV_PATH ? readDotEnv(ACTIVE_PROFILE_ENV_PATH) : {})
 };
 
 function hasEmbeddingConfig(env: NodeJS.ProcessEnv): boolean {
