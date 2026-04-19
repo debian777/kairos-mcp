@@ -29,23 +29,23 @@ Transport resolution:
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
-HTTP listen port for the app is resolved as:
+Main HTTP listener port is resolved as:
 
-1. **`--api-port <n>`** — also sets **`API_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
-2. **`API_PORT`** in the environment (preferred in `.env*`)
-3. **`PORT`** when **`API_PORT`** is unset (transitional)
+1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
+2. **`SERVER_PORT`** in the environment (set in `.env*`)
 
 ```bash
 kairos serve
 npx @debian777/kairos-mcp serve --env-file .env
-kairos serve --port 3300 --metrics-port 9091
-kairos serve --transport http --api-port 4300
+kairos serve --metrics-port 9091
+kairos serve --transport http --server-port 4300
 TRANSPORT_TYPE=http kairos serve
 npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
 - **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).
-- **`--port` / `--metrics-port`** — set `PORT` and `METRICS_PORT` for this process before configuration is read.
+- **`--metrics-port`** — sets `METRICS_PORT` for this process before configuration is read.
+- **`--server-port`** — sets the main HTTP listener (`SERVER_PORT`); see numbered list above.
 
 The root **`--url`** option applies to **client** commands (it sets `KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For supported full-stack installation, prefer **Docker Compose** in [install/README.md](install/README.md); use `serve` when you already run backing services and want a single Node entrypoint.
 ## Select the server URL
@@ -329,7 +329,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` **`API_PORT`** or transitional **`PORT`**, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` **`SERVER_PORT`**, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready
