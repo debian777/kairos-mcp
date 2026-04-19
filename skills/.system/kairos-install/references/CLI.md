@@ -17,31 +17,37 @@ Run once without global installation:
 npx @debian777/kairos-mcp --help
 ```
 
-## Run the server locally (`serve`)
+The package also installs the **`kairos-mcp`** command (same binary as **`kairos`**).
 
-The `kairos` binary can start the same HTTP/MCP process as `node dist/index.js`
-after a build, or from the published package when dependencies and environment
-match your deployment. You still need Qdrant (and embedding-related variables
-in `.env`) the same way as [Docker Compose — simple stack](install/docker-compose-simple.md).
+## Run the MCP server (`serve`)
+
+Start the KAIROS server process (same bootstrap as `node dist/bootstrap.js` / `node dist/index.js` after a build). You still need Qdrant and embedding-related variables in `.env` the same way as [Docker Compose — simple stack](install/docker-compose-simple.md).
+
+Transport resolution:
+
+1. **`--transport stdio|http`** (highest priority)
+2. **`TRANSPORT_TYPE`** in the environment
+3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
+
+HTTP listen port for the app is resolved as:
+
+1. **`--api-port <n>`** — also sets **`API_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
+2. **`API_PORT`** in the environment (preferred in `.env*`)
+3. **`PORT`** when **`API_PORT`** is unset (transitional)
 
 ```bash
 kairos serve
 npx @debian777/kairos-mcp serve --env-file .env
 kairos serve --port 3300 --metrics-port 9091
+kairos serve --transport http --api-port 4300
+TRANSPORT_TYPE=http kairos serve
+npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
-- **`--env-file`** — if the path exists, it is loaded with `dotenv` before the
-  server reads configuration. If the file is missing, the command continues
-  (environment-only startup).
-- **`--port` / `--metrics-port`** — set `PORT` and `METRICS_PORT` for this process
-  before configuration is read.
+- **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).
+- **`--port` / `--metrics-port`** — set `PORT` and `METRICS_PORT` for this process before configuration is read.
 
-The root **`--url`** option applies to **client** commands (it sets
-`KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For
-supported full-stack installation, prefer **Docker Compose** in
-[install/README.md](install/README.md); use `serve` when you already run backing
-services and want a single Node entrypoint.
-
+The root **`--url`** option applies to **client** commands (it sets `KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For supported full-stack installation, prefer **Docker Compose** in [install/README.md](install/README.md); use `serve` when you already run backing services and want a single Node entrypoint.
 ## Select the server URL
 
 The CLI resolves the API base URL in this order:
@@ -323,7 +329,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` `PORT`, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` **`API_PORT`** or transitional **`PORT`**, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready

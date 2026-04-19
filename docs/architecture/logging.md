@@ -98,7 +98,9 @@ logger.tool('reward', 'rate', `rated ${uri}`);
 | `LOG_LEVEL`            | `info`  | Minimum level: `trace`, `debug`, `info`, `warn`, `error`.                                                                                                         |
 | `LOG_FORMAT`           | `text`  | `text` (human-readable) or `json` (one JSON object per line).                                                                                                     |
 | `TRANSPORT_TYPE`       | `http`  | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. **`kairos serve --transport`** overrides this when both are set. |
-| `KAIROS_HTTP_SIDECHAN` | `false` | When `true` with `TRANSPORT_TYPE=stdio`, also binds the HTTP app on `PORT` (REST/UI and Streamable HTTP MCP for tests); primary MCP remains stdio.                |
+| `API_PORT`             | (unset) | HTTP application listen port. When unset, **`PORT`** is used (transitional single var). **`kairos serve --api-port`** sets **`API_PORT`** for the child and updates CLI **`defaultUrl`**. |
+| `PORT`                 | `3000`  | Transitional env for the HTTP app port; used only when **`API_PORT`** is not set.                                                                                 |
+| `KAIROS_HTTP_SIDECHAN` | `false` | When `true` with `TRANSPORT_TYPE=stdio`, also binds the HTTP app on **`API_PORT`** (or transitional `PORT`) (REST/UI and Streamable HTTP MCP for tests); primary MCP remains stdio.                |
 | `TRUSTED_PROXY_CIDRS`  | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`.                                                                                            |
 
 

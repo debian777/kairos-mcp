@@ -29,10 +29,18 @@ Transport resolution:
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
+HTTP listen port for the app (REST, `/mcp` when HTTP transport or side channel) is resolved as:
+
+1. **`--api-port <n>`** — also sets **`API_PORT`** for the spawned server and writes **`defaultUrl`** to the shared CLI config as `http://localhost:<n>` (so `kairos login` and other commands target the same port).
+2. **`API_PORT`** in the environment (preferred in `.env*`)
+3. **`PORT`** in the environment (transitional alias when **`API_PORT`** is unset)
+4. Otherwise the child inherits whatever your env files define.
+
 ```bash
 kairos serve
 npx @debian777/kairos-mcp serve --env-file .env
 kairos serve --port 3300 --metrics-port 9091
+kairos serve --transport http --api-port 4300
 TRANSPORT_TYPE=http kairos serve
 TRANSPORT_TYPE=http kairos serve --transport stdio
 kairos serve --transport http
@@ -346,7 +354,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` `PORT`, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` **`API_PORT`** or transitional **`PORT`**, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready
