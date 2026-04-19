@@ -92,7 +92,7 @@ logger.tool('reward', 'rate', `rated ${uri}`);
 |----------|---------|-------------|
 | `LOG_LEVEL` | `info` | Minimum level: `trace`, `debug`, `info`, `warn`, `error`. |
 | `LOG_FORMAT` | `text` | `text` (human-readable) or `json` (one JSON object per line). |
-| `TRANSPORT_TYPE` | `stdio` | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. |
+| `TRANSPORT_TYPE` | `http` | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. |
 | `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
 
 See [install/](../install/) for env examples. All env vars and defaults are in
