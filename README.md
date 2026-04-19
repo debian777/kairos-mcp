@@ -107,6 +107,13 @@ The current codebase includes:
 
 Use one transport mode per process:
 
+**`kairos serve` / `kairos-mcp serve`** (run the MCP server from the npm package):
+
+- **`--transport stdio|http`** overrides **`TRANSPORT_TYPE`** for that process only.
+- If neither is set, **`serve` defaults to stdio** (good for local MCP hosts).
+- Other **`kairos`** commands (login, train, …) do not use `--transport`; they only see
+  **`TRANSPORT_TYPE`** if you set it in the environment (normally leave it unset for CLI-only use).
+
 - **`TRANSPORT_TYPE=http`**: serves `/mcp`, `/api/*`, `/ui`, and `/health`; this is
   the default for Docker Compose deployments.
 - **`TRANSPORT_TYPE=stdio`**: runs MCP over stdin/stdout for local hosts such as

@@ -149,10 +149,9 @@ Use stdio mode when your host spawns the MCP server process directly.
    npm run dev:stdio
    ```
 
-3. Configure your host command:
-   - command: `node`
-   - args: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`
-   - env: `TRANSPORT_TYPE=stdio`
+3. Configure your host command (pick one):
+   - **From npm (Node 25+):** `command`: `npx`, `args`: `["-y", "@debian777/kairos-mcp", "serve", "--transport", "stdio"]`, plus `env` for Qdrant/embedding.
+   - **From a checkout:** `command`: `node`, `args`: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`, `env`: `TRANSPORT_TYPE=stdio` (or run `kairos serve --transport stdio` from the repo after `npm run build`).
 
 Host snippets:
 

@@ -6,13 +6,15 @@ code, and environment variables for production monitoring and debugging.
 
 ## Log levels
 
-| Level     | Use for |
-|-----------|---------|
-| **trace** | Very verbose, high-volume diagnostics (for example, per-item loops). Off by default in production. |
+
+| Level     | Use for                                                                                                                                                              |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **trace** | Very verbose, high-volume diagnostics (for example, per-item loops). Off by default in production.                                                                   |
 | **debug** | Developer detail: parameters, internal state, non-normal paths. Emitted only when `LOG_LEVEL=debug` or `trace`. Do not prefix messages with "DEBUG:"; use the level. |
-| **info**  | Normal operations: request start/complete, tool calls, startup, successful outcomes. Default for production. |
-| **warn**  | Recoverable or expected issues: validation failures, retries, client cancellations, 4xx responses. |
-| **error** | Failures and unexpected conditions: 5xx, exceptions, timeouts. Always include `request_id` and `error_code` when available. |
+| **info**  | Normal operations: request start/complete, tool calls, startup, successful outcomes. Default for production.                                                         |
+| **warn**  | Recoverable or expected issues: validation failures, retries, client cancellations, 4xx responses.                                                                   |
+| **error** | Failures and unexpected conditions: 5xx, exceptions, timeouts. Always include `request_id` and `error_code` when available.                                          |
+
 
 Use the correct level. Never prefix messages with "DEBUG:" or "ERROR:".
 
@@ -21,27 +23,29 @@ Use the correct level. Never prefix messages with "DEBUG:" or "ERROR:".
 Include these fields where relevant so log lines support monitoring and
 aggregation.
 
-| Field | Description |
-|-------|-------------|
-| `timestamp` | ISO 8601 (for example, `2025-02-26T12:00:00.000Z`). Added automatically. |
-| `level` | `trace` \| `debug` \| `info` \| `warn` \| `error`. |
-| `msg` | Human-readable message (required by Pino). |
-| `request_id` / `correlation_id` | Request or correlation ID for tracing. Set by HTTP middleware or caller. |
-| `duration_ms` | Elapsed time in milliseconds. |
-| `status` / `code` | HTTP status or application code. |
-| `component` / `module` | Logger component name (for example, `qdrant`, `proof-of-work-store`). Use child loggers. |
-| `operation` | Operation or tool name (for example, `forward`, `search`). |
-| `error_code` | Machine-readable error code (for example, `NONCE_MISMATCH`). Preserved for agent retry and monitoring. |
-| `client_ip` | Client IP (HTTP). Set by middleware; proxy-safe when `TRUSTED_PROXY_CIDRS` is configured. |
-| `user_agent` | Client user-agent (redacted if sensitive). |
+
+| Field                           | Description                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `timestamp`                     | ISO 8601 (for example, `2025-02-26T12:00:00.000Z`). Added automatically.                               |
+| `level`                         | `trace` | `debug` | `info` | `warn` | `error`.                                                         |
+| `msg`                           | Human-readable message (required by Pino).                                                             |
+| `request_id` / `correlation_id` | Request or correlation ID for tracing. Set by HTTP middleware or caller.                               |
+| `duration_ms`                   | Elapsed time in milliseconds.                                                                          |
+| `status` / `code`               | HTTP status or application code.                                                                       |
+| `component` / `module`          | Logger component name (for example, `qdrant`, `proof-of-work-store`). Use child loggers.               |
+| `operation`                     | Operation or tool name (for example, `forward`, `search`).                                             |
+| `error_code`                    | Machine-readable error code (for example, `NONCE_MISMATCH`). Preserved for agent retry and monitoring. |
+| `client_ip`                     | Client IP (HTTP). Set by middleware; proxy-safe when `TRUSTED_PROXY_CIDRS` is configured.              |
+| `user_agent`                    | Client user-agent (redacted if sensitive).                                                             |
+
 
 **Safety:** Never log secrets. Auth headers, cookies, and tokens are
 redacted by the logger. Avoid PII in free-form messages.
 
 ## Which logger to use
 
-There is a single logger surface: **`structuredLogger`** from
-`src/utils/structured-logger.ts`. **`logger`** is an alias for it (same
+There is a single logger surface: `**structuredLogger`** from
+`src/utils/structured-logger.ts`. `**logger**` is an alias for it (same
 module). Use `structuredLogger` for HTTP/MCP request flow and when you need
 `child()` for component context or `error(..., { error_code, request_id })`.
 Using `logger` is valid everywhere (e.g. services, Qdrant, Redis,
@@ -88,26 +92,28 @@ logger.tool('reward', 'rate', `rated ${uri}`);
 
 ## Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LOG_LEVEL` | `info` | Minimum level: `trace`, `debug`, `info`, `warn`, `error`. |
-| `LOG_FORMAT` | `text` | `text` (human-readable) or `json` (one JSON object per line). |
-| `TRANSPORT_TYPE` | `http` | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. |
-| `KAIROS_HTTP_SIDECHAN` | `false` | When `true` with `TRANSPORT_TYPE=stdio`, also binds the HTTP app on `PORT` (REST/UI and Streamable HTTP MCP for tests); primary MCP remains stdio. |
-| `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
+
+| Variable               | Default | Description                                                                                                                                                       |
+| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LOG_LEVEL`            | `info`  | Minimum level: `trace`, `debug`, `info`, `warn`, `error`.                                                                                                         |
+| `LOG_FORMAT`           | `text`  | `text` (human-readable) or `json` (one JSON object per line).                                                                                                     |
+| `TRANSPORT_TYPE`       | `http`  | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. **`kairos serve --transport`** overrides this when both are set. |
+| `KAIROS_HTTP_SIDECHAN` | `false` | When `true` with `TRANSPORT_TYPE=stdio`, also binds the HTTP app on `PORT` (REST/UI and Streamable HTTP MCP for tests); primary MCP remains stdio.                |
+| `TRUSTED_PROXY_CIDRS`  | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`.                                                                                            |
+
 
 See [install/](../install/) for env examples. All env vars and defaults are in
-[`src/config.ts`](../../src/config.ts).
+`[src/config.ts](../../src/config.ts)`.
 
 ## HTTP and MCP traffic
 
 - **HTTP:** `httpLogger` middleware logs each request with `method`,
-  `path`, `status`, `response_time_ms`, `request_id`, `client_ip`, and
-  `user_agent`. The middleware generates a request ID when the client
-  does not send `X-Request-Id`.
+`path`, `status`, `response_time_ms`, `request_id`, `client_ip`, and
+`user_agent`. The middleware generates a request ID when the client
+does not send `X-Request-Id`.
 - **MCP:** The handler logs request start/complete, timeouts,
-  cancellations, and errors with `request_id` (from the request body
-  `id`) and the tool name where available.
+cancellations, and errors with `request_id` (from the request body
+`id`) and the tool name where available.
 
 ## Error codes (tools)
 
@@ -147,3 +153,4 @@ Sample JSON log line:
   "msg": "POST /mcp -> 200"
 }
 ```
+

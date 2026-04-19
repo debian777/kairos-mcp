@@ -17,6 +17,39 @@ Run once without global installation:
 npx @debian777/kairos-mcp --help
 ```
 
+The package also installs the **`kairos-mcp`** command (same binary as **`kairos`**).
+
+## Run the MCP server (`serve`)
+
+Start the KAIROS server process (same as `node dist/bootstrap.js`). Transport resolution:
+
+1. **`--transport stdio|http`** (highest priority)
+2. **`TRANSPORT_TYPE`** in the environment
+3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
+
+Examples:
+
+```bash
+kairos serve
+TRANSPORT_TYPE=http kairos serve
+TRANSPORT_TYPE=http kairos serve --transport stdio
+kairos serve --transport http
+```
+
+Equivalent:
+
+```bash
+kairos-mcp serve --transport stdio
+```
+
+With **`npx`** (Node 25+):
+
+```bash
+npx -y @debian777/kairos-mcp serve --transport stdio
+```
+
+Set **`QDRANT_URL`**, **`QDRANT_COLLECTION`**, and an embedding backend (e.g. **`OPENAI_API_KEY`**) as for any server run.
+
 ## Select the server URL
 
 The CLI resolves the API base URL in this order:
