@@ -1,5 +1,5 @@
-# Stdio MCP transport smoke: published tgz + Qdrant only (no HTTP app, no Playwright browser).
-# Complements Integration (full stack + AUTH) and Integration Simple (HTTP simple mode).
+# Full integration suite (same Jest scope as Integration Simple) with TRANSPORT_TYPE=stdio:
+# primary MCP is stdio; KAIROS_HTTP_SIDECHAN binds HTTP on PORT for MCP_URL / REST tests.
 name: Integration Stdio
 
 on:
@@ -44,7 +44,7 @@ jobs:
           path: dist/*.tgz
 
   verify-integration-stdio:
-    name: Infra + integration tests (STDIO transport smoke)
+    name: Infra + dev deploy + integration tests (STDIO transport)
     needs: [build]
     runs-on: ubuntu-latest
     env:
@@ -117,14 +117,36 @@ jobs:
           name: npm-package-stdio
           path: artifact-npm
 
-      - name: Wait for Qdrant
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache-stdio
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers and wait for Qdrant (parallel)
+        id: playwright-install-stdio
         run: |
           set -euo pipefail
+          ec=0
+          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          pid_pw=$!
           for i in $(seq 1 30); do
             curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
-            [ "$i" -eq 30 ] && exit 1
+            [ "$i" -eq 30 ] && ec=1
             sleep 2
-          done
+          done &
+          pid_wait=$!
+          wait $pid_pw || ec=1
+          wait $pid_wait || ec=1
+          exit $ec
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache-stdio.outputs.cache-hit != 'true' && steps.playwright-install-stdio.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: Install package from tgz
         run: |
@@ -137,8 +159,24 @@ jobs:
           rm -rf dist
           cp -R node_modules/@debian777/kairos-mcp/dist ./dist
 
-      - name: Run stdio transport integration tests
-        run: node scripts/ci-github-step-summary.mjs "Run stdio integration tests" -- npm run dev_stdio:test
+      - name: Start app (from installed package, stdio profile)
+        env:
+          HEALTH_CHECK_ATTEMPTS: 15
+          ENV: dev_stdio
+          QDRANT_SNAPSHOT_DIR: var/snapshots
+        run: |
+          mkdir -p var/log var/snapshots
+          npm run dev:start:installed > var/log/kairos-stdio.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:4300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            sleep 2
+          done
+
+      - name: Run stdio-profile integration tests (same scope as dev_simple)
+        env:
+          ENV: dev_stdio
+        run: npm run dev_stdio:test
 
       - name: Show test failure
         if: failure()
@@ -150,6 +188,21 @@ jobs:
           else
             echo "No reports/tests/*.log found"
           fi
+
+      - name: Upload kairos stdio log - check
+        if: always() && failure()
+        run: |
+          pwd
+          ls -la var/log 2>/dev/null || true
+          if [ -f var/log/kairos-stdio.log ]; then ls -la var/log/kairos-stdio.log; cat var/log/kairos-stdio.log; else echo "No var/log/kairos-stdio.log"; fi
+
+      - name: Upload kairos stdio log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairos-stdio-log
+          path: var/log/kairos-stdio.log
+          if-no-files-found: ignore
 
   integration-stdio-pass:
     name: Integration stdio workflow passed

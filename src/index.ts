@@ -7,7 +7,7 @@
 import { structuredLogger } from './utils/structured-logger.js';
 import { installGlobalErrorHandlers } from './utils/global-error-handlers.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
-import { startHttpTransport } from './http/http-server.js';
+import { startHttpTransport, startHttpServer } from './http/http-server.js';
 import { startStdioTransport } from './stdio/stdio-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
@@ -17,7 +17,8 @@ import {
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
   KAIROS_LOCAL_ARTIFACT_DIRS,
-  TRANSPORT_TYPE
+  TRANSPORT_TYPE,
+  KAIROS_HTTP_SIDECHAN
 } from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
@@ -119,6 +120,9 @@ export async function runKairosServer(): Promise<void> {
 
         if (TRANSPORT_TYPE === 'http') {
             structuredLogger.info(`Application server: ${PORT}`);
+        } else if (KAIROS_HTTP_SIDECHAN) {
+            structuredLogger.info('Application server: stdio (primary) + HTTP side channel');
+            structuredLogger.info(`HTTP side channel port: ${PORT}`);
         } else {
             structuredLogger.info('Application server: stdio');
         }
@@ -127,6 +131,9 @@ export async function runKairosServer(): Promise<void> {
         if (TRANSPORT_TYPE === 'http') {
             await startHttpTransport(memoryStore);
         } else {
+            if (KAIROS_HTTP_SIDECHAN) {
+                startHttpServer(PORT, memoryStore);
+            }
             await startStdioTransport(memoryStore);
         }
     } catch (err) {
