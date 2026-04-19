@@ -1,10 +1,7 @@
-# Triggers:
-# - workflow_run: when Integration/Integration Simple/Integration Stdio succeed on main or ci/**.
-# - pull_request: when a release/*beta* branch PR is merged into any branch.
-# - workflow_dispatch: manual trigger with a ref (beta only on non-main).
-#
-# Main: full releases (vX.Y.Z) and pre-releases (vX.Y.Z-pre.N) only when version > latest tag.
-# Non-main (via PR merge or manual): beta only (version must contain -beta.); tag if not already present.
+# When a merge to main changes package.json version, or when a branch has a beta version,
+# create and push the tag, then trigger the Release workflow via workflow_dispatch.
+# - Main: full releases (vX.Y.Z) and pre-releases (vX.Y.Z-pre.N) only when version > latest tag.
+# - Any other branch (or manual run): beta only (version must contain -beta.); tag if not already present.
 # Tag pushes from Actions do not trigger other workflows, so we dispatch Release manually.
 # Requires branch protection to allow this workflow to push tags.
 name: Release tag on version bump
@@ -18,9 +15,6 @@ on:
     workflows: [Integration, Integration Simple, Integration Stdio]
     types: [completed]
     branches: [main, "ci/**"]
-  pull_request:
-    types: [closed]
-    branches: ["**"]
   workflow_dispatch:
     inputs:
       ref:
@@ -30,10 +24,7 @@ on:
 jobs:
   tag-release:
     name: Tag if version bumped
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request' ||
-      github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write  # push tag
@@ -41,21 +32,6 @@ jobs:
       checks: read
 
     steps:
-      - name: Require pull_request was merged and is a beta release branch
-        if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
-            echo "PR was closed without merging — skipping."
-            exit 1
-          fi
-          head="${{ github.event.pull_request.head.ref }}"
-          if ! echo "$head" | grep -qE '^release/.*beta'; then
-            echo "Head branch '$head' does not match release/*beta* — skipping."
-            exit 1
-          fi
-          echo "PR merged: $head into ${{ github.event.pull_request.base.ref }} — proceeding."
-
       - name: Require Integration, Integration Simple, and Integration Stdio success on same SHA
         if: github.event_name == 'workflow_run'
         env:
@@ -97,10 +73,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: >-
-            ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref
-            || github.event_name == 'pull_request' && github.ref
-            || github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -119,9 +92,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "is_main=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            branch="${{ github.event.pull_request.base.ref }}"
-            if [ "$branch" = "main" ]; then echo "is_main=true" >> "$GITHUB_OUTPUT"; else echo "is_main=false" >> "$GITHUB_OUTPUT"; fi
           else
             branch="${{ github.event.workflow_run.head_branch }}"
             if [ "$branch" = "main" ]; then echo "is_main=true" >> "$GITHUB_OUTPUT"; else echo "is_main=false" >> "$GITHUB_OUTPUT"; fi
