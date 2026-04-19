@@ -6,7 +6,7 @@
  * stored in the file (with a one-time warning).
  *
  * New format:
- *   { "defaultUrl": "http://localhost:<PORT>", "environments": { "http://localhost:<PORT>": { "bearerToken": "..." }, ... } }
+ *   { "defaultUrl": "http://localhost:<SERVER_PORT>", "environments": { "http://localhost:<SERVER_PORT>": { "bearerToken": "..." }, ... } }
  * Older single-env shape: { "KAIROS_API_URL": "...", "bearerToken": "..." } — migrated on first write.
  */
 

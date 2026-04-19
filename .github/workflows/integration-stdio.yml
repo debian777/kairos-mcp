@@ -1,5 +1,5 @@
 # Full integration suite (same Jest scope as Integration Simple) with TRANSPORT_TYPE=stdio:
-# primary MCP is stdio; KAIROS_HTTP_SIDECHAN binds HTTP on API_PORT/PORT for MCP_URL / REST tests.
+# primary MCP is stdio; KAIROS_HTTP_SIDECHAN binds HTTP on SERVER_PORT for MCP_URL / REST tests.
 name: Integration Stdio
 
 on:

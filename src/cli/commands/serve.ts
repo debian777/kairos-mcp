@@ -1,8 +1,8 @@
 /**
  * kairos serve — run the KAIROS MCP server (same bootstrap as `node dist/bootstrap.js`).
  * Transport: `--transport` overrides `TRANSPORT_TYPE`; default for this command is stdio.
- * HTTP listen port: `--api-port` wins over `API_PORT`, then `PORT` (matches server config resolution).
- * Other CLI commands do not read `--transport` or `--api-port` unless those env vars are set in the shell.
+ * Main HTTP listener: `--server-port` wins over `SERVER_PORT` (same resolution as server config).
+ * Other CLI commands do not read `--transport` or `--server-port` unless those env vars are set in the shell.
  */
 
 import { spawn } from 'node:child_process';
@@ -27,20 +27,16 @@ function parseListenPort(raw: string, label: string): number {
 }
 
 /**
- * Resolve HTTP app listen port for `kairos serve`: CLI --api-port > API_PORT > PORT > unset (inherit in child).
+ * Resolve main HTTP listen port for `kairos serve`: CLI --server-port > SERVER_PORT > unset (inherit in child).
  */
-export function resolveServeApiPort(cliApiPort: string | undefined): number | undefined {
-  const trimmed = cliApiPort?.trim();
+export function resolveServeServerPort(cliServerPort: string | undefined): number | undefined {
+  const trimmed = cliServerPort?.trim();
   if (trimmed) {
-    return parseListenPort(trimmed, '--api-port');
+    return parseListenPort(trimmed, '--server-port');
   }
-  const api = process.env['API_PORT']?.trim();
-  if (api) {
-    return parseListenPort(api, 'API_PORT');
-  }
-  const fromPortEnv = process.env['PORT']?.trim();
-  if (fromPortEnv) {
-    return parseListenPort(fromPortEnv, 'PORT');
+  const fromEnv = process.env['SERVER_PORT']?.trim();
+  if (fromEnv) {
+    return parseListenPort(fromEnv, 'SERVER_PORT');
   }
   return undefined;
 }
@@ -97,35 +93,25 @@ export function serveCommand(program: Command): void {
   program
     .command('serve')
     .description(
-      'Run the KAIROS MCP server (HTTP or stdio). Same stack as Docker Compose / dev:start when using HTTP. Root --url does not set the listen address; use PORT / --port / --api-port.'
+      'Run the KAIROS MCP server (HTTP or stdio). Same stack as Docker Compose / dev:start when using HTTP. Root --url does not set the listen address; use SERVER_PORT / --server-port.'
     )
     .option('--env-file <path>', 'Path to dotenv file', '.env')
-    .option('--port <n>', 'HTTP listen port (sets PORT; used when API_PORT / --api-port are unset)')
     .option('--metrics-port <n>', 'Metrics listen port (sets METRICS_PORT)')
     .option('--transport <mode>', 'Transport: stdio or http (overrides TRANSPORT_TYPE for this process)')
     .option(
-      '--api-port <port>',
-      'HTTP app listen port (sets API_PORT for this process; with --api-port, updates CLI defaultUrl)'
+      '--server-port <port>',
+      'Main HTTP listener port (sets SERVER_PORT for this process; with --server-port, updates CLI defaultUrl)'
     )
     .action(
       async (options: {
         envFile?: string;
-        port?: string;
         metricsPort?: string;
         transport?: string;
-        apiPort?: string;
+        serverPort?: string;
       }) => {
         const envPath = options.envFile ?? '.env';
         if (existsSync(envPath)) {
           dotenvConfig({ path: envPath });
-        }
-        if (options.port !== undefined && options.port !== '') {
-          const n = parseInt(options.port, 10);
-          if (!Number.isFinite(n) || n < 1) {
-            writeStderr(`Invalid --port: ${options.port}\n`);
-            process.exit(1);
-          }
-          process.env['PORT'] = String(n);
         }
         if (options.metricsPort !== undefined && options.metricsPort !== '') {
           const n = parseInt(options.metricsPort, 10);
@@ -147,7 +133,7 @@ export function serveCommand(program: Command): void {
 
         let listenPort: number | undefined;
         try {
-          listenPort = resolveServeApiPort(options.apiPort);
+          listenPort = resolveServeServerPort(options.serverPort);
         } catch (e) {
           program.error(e instanceof Error ? e.message : String(e));
           return;
@@ -159,7 +145,7 @@ export function serveCommand(program: Command): void {
             ? 'env'
             : 'default';
 
-        if (options.apiPort?.trim()) {
+        if (options.serverPort?.trim()) {
           try {
             await writeConfig({ apiUrl: `http://localhost:${listenPort}` });
           } catch (e) {
@@ -181,7 +167,7 @@ export function serveCommand(program: Command): void {
           KAIROS_CLI_TRANSPORT_SOURCE: source
         };
         if (listenPort !== undefined) {
-          env['API_PORT'] = String(listenPort);
+          env['SERVER_PORT'] = String(listenPort);
         }
 
         const child = spawn(process.execPath, args, {
