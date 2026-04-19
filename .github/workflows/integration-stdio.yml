@@ -1,4 +1,6 @@
-# Stdio transport: no HTTP app; smoke tests spawn the server process and use MCP over stdin/stdout.
+# Stdio MCP transport: published tgz + Qdrant only (no HTTP app, no Playwright browser).
+# Runs stdio launch smoke plus the stdio-simple scenario contract (e.g. spaces over stdio; no /health).
+# Complements Integration (full stack + AUTH) and Integration Simple (HTTP simple mode).
 name: Integration Stdio
 
 on:
@@ -12,8 +14,39 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify-stdio-transport:
-    name: Stdio transport smoke (no HTTP listener)
+  build:
+    name: Build npm package (tgz)
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      - name: Build package (tgz)
+        run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-stdio
+          path: dist/*.tgz
+
+  verify-integration-stdio:
+    name: Infra + integration tests (STDIO transport + scenario contract)
+    needs: [build]
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
@@ -93,18 +126,31 @@ jobs:
         env:
           ENV: dev_stdio
         run: |
-          node scripts/ci-github-step-summary.mjs "Jest stdio smoke" -- \
-            env ENV=dev_stdio NODE_OPTIONS='--experimental-vm-modules' npx jest --runInBand --detectOpenHandles --testTimeout=120000 \
-            tests/integration/stdio-launch-smoke.test.ts
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
+
+      - name: Run stdio transport integration tests (smoke + scenario contract)
+        run: node scripts/ci-github-step-summary.mjs "Run stdio integration tests" -- npm run dev_stdio:test
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
 
   integration-stdio-pass:
     name: Integration stdio workflow passed
-    needs: [verify-stdio-transport]
+    needs: [verify-integration-stdio]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require stdio smoke job
         run: |
-          echo "verify-stdio-transport=${{ needs.verify-stdio-transport.result }}"
-          test "${{ needs.verify-stdio-transport.result }}" = "success"
+          echo "verify-integration-stdio=${{ needs.verify-integration-stdio.result }}"
+          test "${{ needs.verify-integration-stdio.result }}" = "success"
           echo "Integration Stdio workflow passed."

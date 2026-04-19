@@ -5,9 +5,9 @@
 # build-primary — Node 24 only (npm ci + pack); artifact npm-package-node24 (merge gate).
 # build-advisory — single Node Current pin (26), continue-on-error (not in integration-pass needs).
 # verify-ui-primary — static + UI tests, Node 24 only; parallel with build jobs (no tgz); merge gate.
-# verify-ui-advisory — same steps on Node 26 (Current, advisory); continue-on-error; not in integration-pass needs.
-# verify-integration-primary — Node 24 only; needs build-primary.
-# verify-integration-advisory — Node 26; needs build-advisory; advisory only.
+# verify-ui-advisory — same steps on Node 25/26 matrix; continue-on-error; not in integration-pass needs.
+# verify-integration-primary — Node 24 only; needs build-primary; scenario contracts (e.g. http-auth) follow scripts/deploy-run-env.sh and the workflows README matrix.
+# verify-integration-advisory — Node 25/26; needs build-advisory; advisory only.
 # verify-docker — release-equivalent image + Trivy; needs build-primary.
 # integration-pass — gates only on Node-24 primary jobs + verify-docker (no advisory UI/build/integration).
 name: Integration
@@ -471,9 +471,7 @@ jobs:
             sleep 2
           done
 
-      - name: Run auth integration test
-        env:
-          CI: "true"
+      - name: Run integration tests (AUTH stack + Jest suite)
         run: npm run dev:test
 
       - name: Show test failure

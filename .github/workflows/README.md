@@ -107,8 +107,10 @@ flowchart TB
   end
 
   subgraph INTSTD_WF["Integration Stdio (integration-stdio.yml)"]
-    J_STD[verify-stdio-transport]
+    J_STD_B[build]
+    J_STD[verify-integration-stdio]
     J_STDP[integration-stdio-pass]
+    J_STD_B --> J_STD
     J_STD --> J_STDP
   end
 
@@ -133,15 +135,15 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD_P,J_BLD_A,J_UI_P,J_UI_A,J_INT_P,J_INT_A,J_DKR,J_PASS,J_STD,J_STDP,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD_P,J_BLD_A,J_UI_P,J_UI_A,J_INT_P,J_INT_A,J_DKR,J_PASS,J_STD_B,J_STD,J_STDP,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
 | Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui-primary` (24) ∥ `verify-ui-advisory` (25–26, COE); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui-primary`, `verify-integration-primary`, `verify-docker` (all advisory jobs omitted from `needs`) |
-| Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + full integration suite against installed tgz |
-| Integration Stdio | `verify-stdio-transport` → `integration-stdio-pass` | Stdio smoke: spawn server, MCP over stdin/stdout (no HTTP app) |
+| Integration Simple | `build-primary` → `verify-integration-simple-primary` → `integration-simple-pass` | HTTP simple mode + Jest integration suite against installed tgz (`http-simple` scenario contracts where selected by `scripts/deploy-run-env.sh`; advisory Node 25/26 jobs omitted from `integration-simple-pass` `needs`) |
+| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio smoke + `stdio-simple` scenario contracts; no HTTP app `/health`) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -159,7 +161,7 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — single **Node 26** (Current) with **`continue-on-error: true`**; uploads **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui-primary`** runs **in parallel** with build jobs on **Node 24 only** (version check, lint skills, `npm ci`, Playwright cache, **`ci-parallel-checks.mjs`** — no tgz). **`verify-ui-advisory`** mirrors the same steps on **Node 26** with a **Node-version suffix** on the Playwright cache key and **`continue-on-error: true`** (advisory; not in **`integration-pass`** `needs`). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors Node 26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui-primary`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui-primary`** runs **in parallel** with build jobs on **Node 24 only** (version check, lint skills, `npm ci`, Playwright cache, **`ci-parallel-checks.mjs`** — no tgz). **`verify-ui-advisory`** mirrors the same steps on **25** and **26** with per-Node Playwright cache keys and **`continue-on-error`** from the matrix (advisory; not in **`integration-pass`** `needs`). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`** after infra is up (Compose + `npm ci` overlap per job layout); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`** (full Jest integration suite, including **`http-auth`** and related scenario contracts selected for the AUTH stack via `scripts/deploy-run-env.sh`). **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui-primary`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
 
 ### Node policy (24 merge gate, one Current advisory)
 
@@ -182,6 +184,18 @@ When adding new build inputs, update the `code:` filter list in **both** workflo
 **Note:** Primary integration verify cannot start until **`build-primary`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build wall clock plus later steps.
 
 **Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/ci-github-step-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/deploy-run-env.sh`).
+
+### Integration test matrix (contracts and scenarios)
+
+Transport-neutral MCP checks live under **`tests/integration/contracts/`** (shared assertions). **`tests/integration/harness/`** holds per-scenario bootstrap (`http-auth`, `http-simple`, `stdio-simple`) and helpers. **`tests/integration/scenarios/`** contains thin Jest files that bind one contract to one harness.
+
+Default **`npm run dev:test`** / **`dev_simple:test`** / **`dev_stdio:test`** (via `ENV=… ./scripts/deploy-run-env.sh test`) already runs the right scenario wrappers for each stack: `scripts/deploy-run-env.sh` ignores mismatched scenario files so the auth job does not pick up `http-simple` or `stdio-simple` wrappers, and so on.
+
+To run a single scenario explicitly (after the matching stack is up):
+
+- `npm run test:integration:contracts:http-auth`
+- `npm run test:integration:contracts:http-simple`
+- `npm run test:integration:contracts:stdio-simple`
 
 ## Release: only acceptable final output
 
