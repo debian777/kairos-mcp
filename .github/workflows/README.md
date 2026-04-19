@@ -102,6 +102,12 @@ flowchart TB
     J_DKR --> J_PASS
   end
 
+  subgraph INTSTD_WF["Integration Stdio (integration-stdio.yml)"]
+    J_STD[verify-stdio-transport]
+    J_STDP[integration-stdio-pass]
+    J_STD --> J_STDP
+  end
+
   subgraph RTAG_WF["Release tag on version bump (release-tag-on-version-bump.yml)"]
     J_TAG[tag-release]
   end
@@ -123,7 +129,7 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_STD,J_STDP,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
@@ -131,7 +137,7 @@ flowchart TB
 |----------|--------|--------------|
 | Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
 | Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + full integration suite against installed tgz |
-| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Same Jest integration scope as Simple; `TRANSPORT_TYPE=stdio` with `KAIROS_HTTP_SIDECHAN` for HTTP test surface |
+| Integration Stdio | `verify-stdio-transport` → `integration-stdio-pass` | Stdio smoke: spawn server, MCP over stdin/stdout (no HTTP app) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |

@@ -27,7 +27,7 @@ Start the KAIROS server process (same as `node dist/bootstrap.js`). Transport re
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
-Main HTTP listener port (UI, REST, `/mcp` when HTTP transport or side channel) is resolved as:
+Main HTTP listener port when **`TRANSPORT_TYPE=http`** (UI, REST, `/mcp`) is resolved as:
 
 1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** to the shared CLI config as `http://localhost:<n>` (so `kairos login` and other commands target the same port).
 2. **`SERVER_PORT`** in the environment (set in `.env*`)

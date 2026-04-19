@@ -27,7 +27,7 @@ aggregation.
 | Field                           | Description                                                                                            |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `timestamp`                     | ISO 8601 (for example, `2025-02-26T12:00:00.000Z`). Added automatically.                               |
-| `level`                         | `trace` | `debug` | `info` | `warn` | `error`.                                                         |
+| `level`                         | `trace`                                                                                                |
 | `msg`                           | Human-readable message (required by Pino).                                                             |
 | `request_id` / `correlation_id` | Request or correlation ID for tracing. Set by HTTP middleware or caller.                               |
 | `duration_ms`                   | Elapsed time in milliseconds.                                                                          |
@@ -45,7 +45,7 @@ redacted by the logger. Avoid PII in free-form messages.
 ## Which logger to use
 
 There is a single logger surface: `**structuredLogger`** from
-`src/utils/structured-logger.ts`. `**logger**` is an alias for it (same
+`src/utils/structured-logger.ts`. `**logger`** is an alias for it (same
 module). Use `structuredLogger` for HTTP/MCP request flow and when you need
 `child()` for component context or `error(..., { error_code, request_id })`.
 Using `logger` is valid everywhere (e.g. services, Qdrant, Redis,
@@ -93,14 +93,13 @@ logger.tool('reward', 'rate', `rated ${uri}`);
 ## Environment variables
 
 
-| Variable               | Default | Description                                                                                                                                                       |
-| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `LOG_LEVEL`            | `info`  | Minimum level: `trace`, `debug`, `info`, `warn`, `error`.                                                                                                         |
-| `LOG_FORMAT`           | `text`  | `text` (human-readable) or `json` (one JSON object per line).                                                                                                     |
-| `TRANSPORT_TYPE`       | `http`  | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. **`kairos serve --transport`** overrides this when both are set. |
-| `SERVER_PORT`          | `3000`  | Main HTTP listener: UI, REST API, and Streamable HTTP MCP (when transport is http or stdio side channel). **`kairos serve --server-port`** sets **`SERVER_PORT`** for the child and updates CLI **`defaultUrl`**. |
-| `KAIROS_HTTP_SIDECHAN` | `false` | When `true` with `TRANSPORT_TYPE=stdio`, also binds the HTTP app on **`SERVER_PORT`** (REST/UI and Streamable HTTP MCP for tests); primary MCP remains stdio.                |
-| `TRUSTED_PROXY_CIDRS`  | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`.                                                                                            |
+| Variable              | Default | Description                                                                                                                                                                                                                              |
+| --------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LOG_LEVEL`           | `info`  | Minimum level: `trace`, `debug`, `info`, `warn`, `error`.                                                                                                                                                                                |
+| `LOG_FORMAT`          | `text`  | `text` (human-readable) or `json` (one JSON object per line).                                                                                                                                                                            |
+| `TRANSPORT_TYPE`      | `http`  | Selects runtime transport and log stream routing. `stdio` sends MCP frames to stdout and logs to stderr. `http` serves HTTP routes and sends text logs to stdout. `**kairos serve --transport**` overrides this when both are set.       |
+| `SERVER_PORT`         | `3000`  | Main HTTP listener when `**TRANSPORT_TYPE=http**`: UI, REST API, and Streamable HTTP MCP. `**kairos serve --server-port**` sets `**SERVER_PORT**` for the child and updates CLI `**defaultUrl**`. Unused in stdio mode (no HTTP server). |
+| `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`.                                                                                                                                                                   |
 
 
 See [install/](../install/) for env examples. All env vars and defaults are in

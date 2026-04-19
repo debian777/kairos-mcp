@@ -226,7 +226,7 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-/** Main HTTP listener: UI, REST API, and Streamable HTTP MCP when transport is http (or stdio side channel). */
+/** Main HTTP listener when `TRANSPORT_TYPE=http`: UI, REST API, and Streamable HTTP MCP. Ignored in stdio mode (no HTTP server). */
 export const SERVER_PORT = getEnvInt('SERVER_PORT', 3000);
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
@@ -279,9 +279,6 @@ const _transportDefault =
 const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', _transportDefault);
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
-
-/** When true with TRANSPORT_TYPE=stdio, also bind the HTTP app on SERVER_PORT (MCP remains stdio-only). For CI / parity tests only. */
-export const KAIROS_HTTP_SIDECHAN = getEnvBoolean('KAIROS_HTTP_SIDECHAN', false);
 
 // Required (throw at startup if missing)
 export function getQdrantUrl(): string {

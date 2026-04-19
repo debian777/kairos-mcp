@@ -119,10 +119,6 @@ Use one transport mode per process:
 - **`TRANSPORT_TYPE=stdio`**: runs MCP over stdin/stdout for local hosts such as
   Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
   MCP protocol frames and logs go to stderr.
-- **`KAIROS_HTTP_SIDECHAN=true`** (only with `TRANSPORT_TYPE=stdio`): also binds
-  the HTTP app on **`SERVER_PORT`** for REST/UI and Streamable HTTP MCP used by integration
-  tests; primary MCP remains stdio. The `dev_stdio` profile sets this for CI parity.
-
 ## Quick start
 
 If your agent supports installable skills, start with the guided setup below.

@@ -6,7 +6,7 @@
 # (exception: Keycloak realm setup dev/prod).
 # - dev:        Local app (start, stop, test, build). SERVER_PORT=3300 default. PID/log: .kairos-dev.*
 # - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
-# - dev_stdio: Local app stdio profile (auth off; optional HTTP side channel when KAIROS_HTTP_SIDECHAN=true). PID/log: .kairos-dev_stdio.*
+# - dev_stdio: Local app stdio profile (auth off; TRANSPORT_TYPE=stdio; no HTTP app). PID/log: .kairos-dev_stdio.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
@@ -254,7 +254,7 @@ start() {
             # Resolve actual dev server PID:
             # - stdio mode: use background PID directly (no HTTP listener expected)
             # - http mode: prefer listener PID by port
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" ]]; then
                 dev_pid="$!"
                 echo "$dev_pid" > "$PID_FILE"
                 print_success "Dev stdio server started (PID: $dev_pid)"
@@ -274,11 +274,10 @@ start() {
                 fi
             fi
 
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
-                print_info "STDIO mode enabled: no HTTP app endpoints are expected."
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" ]]; then
+                print_info "STDIO mode enabled: no HTTP listeners (app or metrics)."
                 check_qdrant
                 check_redis
-                check_metrics
             else
                 show_urls
             fi
@@ -289,7 +288,7 @@ start() {
             ;;
     esac
     # Health check after server startup with retries (skip for prod/stdio mode)
-    if [ "$ENV" != "prod" ] && { [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]] || [[ "${KAIROS_HTTP_SIDECHAN:-}" == "true" ]]; }; then
+    if [ "$ENV" != "prod" ] && [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]]; then
         ATTEMPTS="${HEALTH_CHECK_ATTEMPTS:-30}"
         print_info "Performing post-startup health check with retries..."
         attempt=1
@@ -340,7 +339,7 @@ stop() {
             fi
 
             # Fallback: try to locate and stop process by dev port using lsof
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" ]]; then
                 return 0
             fi
             dev_port="${SERVER_PORT:-3300}"
@@ -398,7 +397,7 @@ status() {
             ;;
     esac
 
-    if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
+    if [[ "${TRANSPORT_TYPE:-http}" == "stdio" ]]; then
         print_info "STDIO mode: HTTP health endpoint is not available."
     else
         # Check application health - THE MOST IMPORTANT STEP
@@ -427,13 +426,15 @@ status() {
     
     check_qdrant
     check_redis
-    check_metrics
+    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]]; then
+        check_metrics
+    fi
     # Only check TEI if not using OpenAI embeddings
     if [[ "${EMBEDDING_PROVIDER:-}" != "openai" ]] && [[ -z "${OPENAI_API_KEY:-}" || -n "${TEI_BASE_URL:-}" ]]; then
         check_tei
     fi
 
-    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" || "${KAIROS_HTTP_SIDECHAN:-}" == "true" ]]; then
+    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]]; then
         show_urls
     fi
 
@@ -451,8 +452,8 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    # dev_simple and dev_stdio (full suite): default Jest args for the HTTP integration suite.
-    if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
+    # dev_simple (full HTTP integration suite): default Jest args unless caller passed flags.
+    if [ "$ENV" = "dev_simple" ]; then
         has_ignore_patterns=false
         for arg in "${args[@]}"; do
             if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
@@ -467,6 +468,10 @@ test() {
             )
         fi
     fi
+    # dev_stdio: stdio-only server (no HTTP); default to stdio launch smoke unless caller passed paths/flags.
+    if [ "$ENV" = "dev_stdio" ] && [ ${#args[@]} -eq 0 ]; then
+        args=(--testPathPatterns "tests/integration/stdio-launch-smoke.test.ts")
+    fi
 
     LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
     # Use REPORT_LOG_FILE from environment if provided, otherwise generate timestamped filename
@@ -477,12 +482,14 @@ test() {
 
     case "$ENV" in
         dev|dev_simple|dev_stdio)
-            # Playwright is a devDependency; browser binaries are not shipped with npm. Install the
-            # Chromium bundle used by tests/integration/cli-auth-browser-login.e2e.test.ts so
-            # `npm test` / `npm run dev:test` work on a fresh clone without a manual step. Idempotent
-            # when ~/.cache/ms-playwright is already populated (CI restores this cache before tests).
-            print_info "Ensuring Playwright Chromium for integration e2e tests..."
-            npx playwright install chromium
+            if [ "$ENV" != "dev_stdio" ]; then
+                # Playwright is a devDependency; browser binaries are not shipped with npm. Install the
+                # Chromium bundle used by tests/integration/cli-auth-browser-login.e2e.test.ts so
+                # `npm test` / `npm run dev:test` work on a fresh clone without a manual step. Idempotent
+                # when ~/.cache/ms-playwright is already populated (CI restores this cache before tests).
+                print_info "Ensuring Playwright Chromium for integration e2e tests..."
+                npx playwright install chromium
+            fi
 
             # Isolated CLI config for test run (CLI uses XDG_CONFIG_HOME; tests must not set it).
             CLI_CONFIG_DIR="$(mktemp -d)"
@@ -510,7 +517,9 @@ test() {
             # Serial tests (--runInBand): one MCP server; extra Jest workers did not improve wall time and caused queueing unless MAX_CONCURRENT_MCP_REQUESTS is high.
             # deploy - now need to run manually: npm run dev:deploy
             test_port="${SERVER_PORT:-3300}"
-            if [ ${#args[@]} -eq 0 ]; then
+            if [ "$ENV" = "dev_stdio" ]; then
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
+            elif [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
                 MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
