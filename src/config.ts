@@ -278,6 +278,9 @@ const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'http');
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 
+/** When true with TRANSPORT_TYPE=stdio, also bind the HTTP app on PORT (MCP remains stdio-only). For CI / parity tests only. */
+export const KAIROS_HTTP_SIDECHAN = getEnvBoolean('KAIROS_HTTP_SIDECHAN', false);
+
 // Required (throw at startup if missing)
 export function getQdrantUrl(): string {
   return getEnvRequired('QDRANT_URL');

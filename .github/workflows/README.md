@@ -131,7 +131,7 @@ flowchart TB
 |----------|--------|--------------|
 | Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
 | Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + full integration suite against installed tgz |
-| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio MCP smoke only) |
+| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Same Jest integration scope as Simple; `TRANSPORT_TYPE=stdio` with `KAIROS_HTTP_SIDECHAN` for HTTP test surface |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |

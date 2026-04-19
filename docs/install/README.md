@@ -207,6 +207,11 @@ Host snippets:
 In stdio mode, the server writes MCP JSON-RPC frames to stdout and writes logs
 to stderr.
 
+For CI or local parity with HTTP integration tests, set
+`KAIROS_HTTP_SIDECHAN=true` alongside `TRANSPORT_TYPE=stdio` so the HTTP app also
+listens on `PORT` (REST and Streamable HTTP MCP); the primary MCP transport
+remains stdio. Desktop hosts should omit this unless you need that dual surface.
+
 ## Index
 
 Use these links when you want broader context outside the install flow.

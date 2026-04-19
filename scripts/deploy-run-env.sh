@@ -6,7 +6,7 @@
 # (exception: Keycloak realm setup dev/prod).
 # - dev:        Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
 # - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
-# - dev_stdio: Local app stdio profile (auth off, local process transport). PID/log: .kairos-dev_stdio.*
+# - dev_stdio: Local app stdio profile (auth off; optional HTTP side channel when KAIROS_HTTP_SIDECHAN=true). PID/log: .kairos-dev_stdio.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
 # For AI agents: Use as black box. Reports MCP server URL and service status.
@@ -254,7 +254,7 @@ start() {
             # Resolve actual dev server PID:
             # - stdio mode: use background PID directly (no HTTP listener expected)
             # - http mode: prefer listener PID by port
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
                 dev_pid="$!"
                 echo "$dev_pid" > "$PID_FILE"
                 print_success "Dev stdio server started (PID: $dev_pid)"
@@ -274,7 +274,7 @@ start() {
                 fi
             fi
 
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
                 print_info "STDIO mode enabled: no HTTP app endpoints are expected."
                 check_qdrant
                 check_redis
@@ -289,7 +289,7 @@ start() {
             ;;
     esac
     # Health check after server startup with retries (skip for prod/stdio mode)
-    if [ "$ENV" != "prod" ] && [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]] && [ "$ENV" != "dev_stdio" ]; then
+    if [ "$ENV" != "prod" ] && { [[ "${TRANSPORT_TYPE:-http}" != "stdio" ]] || [[ "${KAIROS_HTTP_SIDECHAN:-}" == "true" ]]; }; then
         ATTEMPTS="${HEALTH_CHECK_ATTEMPTS:-30}"
         print_info "Performing post-startup health check with retries..."
         attempt=1
@@ -340,7 +340,7 @@ stop() {
             fi
 
             # Fallback: try to locate and stop process by dev port using lsof
-            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+            if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
                 return 0
             fi
             dev_port="${PORT:-3300}"
@@ -398,7 +398,7 @@ status() {
             ;;
     esac
 
-    if [[ "${TRANSPORT_TYPE:-http}" == "stdio" || "$ENV" == "dev_stdio" ]]; then
+    if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
         print_info "STDIO mode: HTTP health endpoint is not available."
     else
         # Check application health - THE MOST IMPORTANT STEP
@@ -433,7 +433,7 @@ status() {
         check_tei
     fi
 
-    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" && "$ENV" != "dev_stdio" ]]; then
+    if [[ "${TRANSPORT_TYPE:-http}" != "stdio" || "${KAIROS_HTTP_SIDECHAN:-}" == "true" ]]; then
         show_urls
     fi
 
@@ -451,10 +451,8 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    # dev_simple only: default Jest args for the HTTP integration suite. dev_stdio runs a fixed
-    # stdio smoke file and must not receive these patterns (they would make args non-empty and skip
-    # the dedicated stdio-launch-smoke path).
-    if [ "$ENV" = "dev_simple" ]; then
+    # dev_simple and dev_stdio (full suite): default Jest args for the HTTP integration suite.
+    if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
         has_ignore_patterns=false
         for arg in "${args[@]}"; do
             if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
@@ -478,7 +476,7 @@ test() {
     echo "--------------------------------" >> "$REPORT_LOG_FILE"
 
     case "$ENV" in
-        dev|dev_simple)
+        dev|dev_simple|dev_stdio)
             # Playwright is a devDependency; browser binaries are not shipped with npm. Install the
             # Chromium bundle used by tests/integration/cli-auth-browser-login.e2e.test.ts so
             # `npm test` / `npm run dev:test` work on a fresh clone without a manual step. Idempotent
@@ -511,19 +509,11 @@ test() {
             fi
             # Serial tests (--runInBand): one MCP server; extra Jest workers did not improve wall time and caused queueing unless MAX_CONCURRENT_MCP_REQUESTS is high.
             # deploy - now need to run manually: npm run dev:deploy
+            test_port="${PORT:-3300}"
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
-            fi
-            ;;
-        dev_stdio)
-            silent_flag=""
-            [ "${CI:-}" = "true" ] || silent_flag="--silent"
-            if [ ${#args[@]} -eq 0 ]; then
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 tests/integration/stdio-launch-smoke.test.ts 2>&1 | tee -a "$REPORT_LOG_FILE"
-            else
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)
