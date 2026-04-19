@@ -55,6 +55,14 @@ npx -y @debian777/kairos-mcp serve --transport stdio
 
 The root **`--url`** option applies to **client** commands (it sets `KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For supported full-stack installation, prefer **Docker Compose** in [install/README.md](install/README.md); use `serve` when you already run backing services and want a single Node entrypoint.
 
+**From a local clone (npm scripts):** build the publishable tarball and run the install smoke test:
+
+```bash
+npm run test:package-local
+```
+
+Same as `npm run build:tgz && npm run test:tgz` (installs `dist/debian777-kairos-mcp-<version>.tgz` into a temp directory and checks `kairos` / `kairos-mcp`).
+
 Set **`QDRANT_URL`**, **`QDRANT_COLLECTION`**, and an embedding backend (e.g. **`OPENAI_API_KEY`**) as for any server run.
 
 ## Select the server URL
