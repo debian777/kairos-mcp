@@ -1,0 +1,110 @@
+# Stdio transport: no HTTP app; smoke tests spawn the server process and use MCP over stdin/stdout.
+name: Integration Stdio
+
+on:
+  pull_request:
+    branches: [main, "ci/**"]
+  merge_group:
+  push:
+    branches: [main, "ci/**"]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  verify-stdio-transport:
+    name: Stdio transport smoke (no HTTP listener)
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: "npm"
+
+      - name: Generate .env (base vars, stdio profile)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
+
+      - name: Apply stdio profile overrides
+        run: cat .env.dev_stdio >> .env
+
+      - name: Restore Qdrant Docker image cache
+        uses: actions/cache/restore@v5
+        id: docker-qdrant-cache-stdio
+        with:
+          path: .cache/docker-qdrant-stdio
+          key: qdrant-docker-stdio-${{ hashFiles('compose.yaml') }}
+
+      - name: Load Qdrant Docker image from cache
+        if: steps.docker-qdrant-cache-stdio.outputs.cache-hit == 'true'
+        run: docker load -i .cache/docker-qdrant-stdio/images.tar
+
+      - name: Start Qdrant and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          docker compose -p kairos-mcp-stdio --env-file .env up -d qdrant &
+          pid_compose=$!
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_compose || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
+
+      - name: Save Qdrant Docker image for cache
+        if: steps.docker-qdrant-cache-stdio.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache/docker-qdrant-stdio
+          IMAGE=$(docker compose -p kairos-mcp-stdio --env-file .env config --format json | jq -r '.services.qdrant.image')
+          docker save -o .cache/docker-qdrant-stdio/images.tar "$IMAGE"
+
+      - name: Cache Qdrant Docker image
+        uses: actions/cache/save@v5
+        if: steps.docker-qdrant-cache-stdio.outputs.cache-hit != 'true'
+        with:
+          path: .cache/docker-qdrant-stdio
+          key: qdrant-docker-stdio-${{ hashFiles('compose.yaml') }}
+
+      - name: Wait for Qdrant
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Build (prebuild + tsc for dist/bootstrap.js)
+        run: |
+          node scripts/ci-github-step-summary.mjs "prebuild + tsc" -- sh -c 'npm run prebuild && npx tsc && chmod +x dist/cli/index.js'
+
+      - name: Run stdio launch smoke tests
+        env:
+          ENV: dev_stdio
+        run: |
+          node scripts/ci-github-step-summary.mjs "Jest stdio smoke" -- \
+            env ENV=dev_stdio NODE_OPTIONS='--experimental-vm-modules' npx jest --runInBand --detectOpenHandles --testTimeout=120000 \
+            tests/integration/stdio-launch-smoke.test.ts
+
+  integration-stdio-pass:
+    name: Integration stdio workflow passed
+    needs: [verify-stdio-transport]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require stdio smoke job
+        run: |
+          echo "verify-stdio-transport=${{ needs.verify-stdio-transport.result }}"
+          test "${{ needs.verify-stdio-transport.result }}" = "success"
+          echo "Integration Stdio workflow passed."

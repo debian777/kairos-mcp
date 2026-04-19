@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { HTTP_RATE_LIMIT_MAX, HTTP_RATE_LIMIT_WINDOW_MS } from "../config.js";
 import { structuredLogger } from "../utils/structured-logger.js";
-import { createRateLimiter } from "./http-server-config.js";
+import { createRateLimiter } from "../eslint-inline-allowed/http-server-config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const parentDirName = path.basename(path.resolve(__dirname, ".."));

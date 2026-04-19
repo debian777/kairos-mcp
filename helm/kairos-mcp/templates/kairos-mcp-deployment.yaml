@@ -55,7 +55,7 @@ spec:
               containerPort: {{ .Values.app.metricsPort }}
               protocol: TCP
           env:
-            - name: PORT
+            - name: SERVER_PORT
               value: "{{ .Values.app.port }}"
             - name: METRICS_PORT
               value: "{{ .Values.app.metricsPort }}"

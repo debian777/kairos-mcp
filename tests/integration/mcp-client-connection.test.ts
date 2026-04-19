@@ -17,4 +17,10 @@ describe('MCP Client Connection', () => {
       expect(sharedConnection.client).toBeTruthy();
     }, 'mcp client connection object');
   });
+
+  test('can list tools over HTTP transport', async () => {
+    const toolsResult = await sharedConnection.client.listTools();
+    expect(Array.isArray(toolsResult.tools)).toBe(true);
+    expect(toolsResult.tools.length).toBeGreaterThan(0);
+  });
 });

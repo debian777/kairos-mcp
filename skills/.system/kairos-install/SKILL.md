@@ -355,7 +355,7 @@ remapped.
 
 Default simple-stack ports are:
 
-- app: `PORT` -> `3000`
+- app: `SERVER_PORT` -> `3000`
 - Qdrant: `6333` and `6344`
 - metrics: `METRICS_PORT` -> `9090`
 
@@ -368,7 +368,7 @@ docker compose -p kairos-mcp up -d
 Then verify the server:
 
 ```bash
-curl -sS "http://localhost:${PORT:-3000}/health"
+curl -sS "http://localhost:${SERVER_PORT:-3000}/health"
 ```
 
 On native Windows outside Git Bash or WSL, substitute the actual port value and
@@ -379,7 +379,7 @@ curl.exe http://localhost:3000/health
 Invoke-WebRequest http://localhost:3000/health
 ```
 
-If `PORT=3300` in `.env`, use `http://localhost:3300/health` in those Windows
+If `SERVER_PORT=3300` in `.env`, use `http://localhost:3300/health` in those Windows
 commands.
 
 If startup fails, inspect logs:
@@ -417,19 +417,19 @@ netstat -ano | findstr :6344
 netstat -ano | findstr :9090
 ```
 
-If `3000` or `9090` is busy, ask whether to change `PORT` or `METRICS_PORT` in
+If `3000` or `9090` is busy, ask whether to change `SERVER_PORT` or `METRICS_PORT` in
 `.env` before starting. If `6333` or `6344` is busy, ask whether to stop the
 conflicting service before continuing or explicitly edit `compose.yaml`.
 
 Concrete conflict examples:
 
-- if `3000` is busy, add `PORT=3300` to `.env` and verify
+- if `3000` is busy, add `SERVER_PORT=3300` to `.env` and verify
   `http://localhost:3300/health`
 - if `9090` is busy, add `METRICS_PORT=9191` to `.env`
 - if `6333` or `6344` is busy, either stop the conflicting service or change
   the host side of the `compose.yaml` port mappings after explicit approval
 
-If `PORT` changes, update the MCP URL to the same port. Example:
+If `SERVER_PORT` changes, update the MCP URL to the same port. Example:
 `http://localhost:3300/mcp`.
 
 If `curl` fails after `up -d`, use this order:
@@ -518,7 +518,7 @@ Minimum MCP snippet:
 Use this only when the user wants an IDE or another MCP host to connect to the
 server. Do not create it just because the server exposes `/mcp`.
 
-If `PORT` changed from the default, replace `3000` in the snippet with the
+If `SERVER_PORT` changed from the default, replace `3000` in the snippet with the
 actual port from `.env`.
 
 ### 8. Update Docker and npm CLI (maintenance mode)

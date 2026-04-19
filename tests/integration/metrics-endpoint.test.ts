@@ -88,7 +88,7 @@ describe('Metrics Endpoint Integration', () => {
 
   test('metrics endpoint is on separate port', async () => {
     // Main server should NOT have /metrics (or return 404)
-    const mainPort = process.env.PORT || '3300';
+    const mainPort = process.env['SERVER_PORT'] || '3300';
     const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`, { dispatcher: fetchAgent });
     // Main server may not have /metrics endpoint, so 404 is expected.
     // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.

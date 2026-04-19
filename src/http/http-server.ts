@@ -1,10 +1,10 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { PORT } from '../config.js';
+import { SERVER_PORT } from '../config.js';
 
 // Import modular components
-import { configureMiddleware } from './http-server-config.js';
+import { configureMiddleware } from '../eslint-inline-allowed/http-server-config.js';
 import { authMiddleware } from './http-auth-middleware.js';
 import { setupAuthCallback } from './http-auth-callback.js';
 import { setupHealthRoutes } from './http-health-routes.js';
@@ -40,10 +40,10 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     return startHttpServerWithErrorHandling(app, port);
 }
 
-export async function startServer(memoryStore: MemoryQdrantStore) {
-    const httpPort = PORT;
+export async function startHttpTransport(memoryStore: MemoryQdrantStore) {
+    const httpPort = SERVER_PORT;
 
-    structuredLogger.success('🚀 KAIROS MCP Server starting', 'HTTP transport only');
+    structuredLogger.success('KAIROS MCP Server starting', 'HTTP transport');
     structuredLogger.info('HTTP transport: enabled');
     structuredLogger.info('Port: ' + httpPort);
 

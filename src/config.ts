@@ -226,8 +226,8 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-// Int configurations
-export const PORT = getEnvInt('PORT', 3000);
+/** Main HTTP listener when `TRANSPORT_TYPE=http`: UI, REST API, and Streamable HTTP MCP. Ignored in stdio mode (no HTTP server). */
+export const SERVER_PORT = getEnvInt('SERVER_PORT', 3000);
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
 
@@ -272,8 +272,11 @@ export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
 /** Max additive boost from attest (tiebreaker within RRF bands). */
 export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
 
-// Transport: stdio | http. Logging and server use this single source.
-const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
+// Transport: stdio | http. Default http for non-CLI entrypoints (Docker/CI/bootstrap).
+// `kairos serve` sets KAIROS_CLI_SERVE=1 before spawning bootstrap so missing TRANSPORT_TYPE defaults to stdio there only.
+const _transportDefault =
+  process.env['KAIROS_CLI_SERVE'] === '1' && !process.env['TRANSPORT_TYPE']?.trim() ? 'stdio' : 'http';
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', _transportDefault);
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 

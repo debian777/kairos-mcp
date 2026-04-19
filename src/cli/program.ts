@@ -11,6 +11,7 @@ import { exportCommand } from './commands/export.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { tokenCommand } from './commands/token.js';
+import { serveCommand } from './commands/serve.js';
 import { getCliApiUrlDefault } from './config.js';
 
 const loadPackageJson = createRequire(import.meta.url);
@@ -57,6 +58,7 @@ export function createProgram(): Command {
   loginCommand(program);
   logoutCommand(program);
   tokenCommand(program);
+  serveCommand(program);
 
   enableHelpAfterError(program);
 
