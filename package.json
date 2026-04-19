@@ -109,6 +109,7 @@
     "prepare": "husky",
     "build:tgz": "node scripts/build-ensure-tgz.mjs",
     "test:tgz": "node scripts/ci-test-tgz-install.mjs",
+    "test:package-local": "npm run build:tgz && npm run test:tgz",
     "prepare:publish": "npm run build:tgz && npm run test:tgz",
     "publish": "npm run prepare:publish && npm publish ./dist/debian777-kairos-mcp-$(node -p \"require('./package.json').version\").tgz --access public",
     "release:major": "npm version major --no-git-tag-version && npm run version:sync",

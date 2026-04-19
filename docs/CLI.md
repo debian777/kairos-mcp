@@ -48,6 +48,14 @@ With **`npx`** (Node 25+):
 npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
+**From a local clone (npm scripts):** build the publishable tarball and run the install smoke test:
+
+```bash
+npm run test:package-local
+```
+
+Same as `npm run build:tgz && npm run test:tgz` (installs `dist/debian777-kairos-mcp-<version>.tgz` into `.tmp/tgz-install-test` and checks `kairos` / `kairos-mcp`).
+
 Set **`QDRANT_URL`**, **`QDRANT_COLLECTION`**, and an embedding backend (e.g. **`OPENAI_API_KEY`**) as for any server run.
 
 ## Select the server URL
