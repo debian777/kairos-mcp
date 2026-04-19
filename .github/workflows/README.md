@@ -135,7 +135,7 @@ flowchart TB
 |----------|--------|--------------|
 | Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui-primary` (24) ∥ `verify-ui-advisory` (25–26, COE); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui-primary`, `verify-integration-primary`, `verify-docker` (all advisory jobs omitted from `needs`) |
 | Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + full integration suite against installed tgz |
-| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio MCP smoke only) |
+| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Same Jest integration scope as Simple; `TRANSPORT_TYPE=stdio` with `KAIROS_HTTP_SIDECHAN` for HTTP test surface |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
