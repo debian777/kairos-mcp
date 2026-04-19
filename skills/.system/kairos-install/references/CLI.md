@@ -17,6 +17,28 @@ Run once without global installation:
 npx @debian777/kairos-mcp --help
 ```
 
+The package also installs the **`kairos-mcp`** command (same binary as **`kairos`**).
+
+## Run the MCP server (`serve`)
+
+Start the KAIROS server process (same as `node dist/bootstrap.js`). Transport resolution:
+
+1. **`--transport stdio|http`** (highest priority)
+2. **`TRANSPORT_TYPE`** in the environment
+3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
+
+HTTP listen port for the app is resolved as:
+
+1. **`--api-port <n>`** — also sets **`API_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
+2. **`API_PORT`** in the environment (preferred in `.env*`)
+3. **`PORT`** when **`API_PORT`** is unset (transitional)
+
+```bash
+kairos serve
+kairos serve --transport http --api-port 4300
+npx -y @debian777/kairos-mcp serve --transport stdio
+```
+
 ## Select the server URL
 
 The CLI resolves the API base URL in this order:
@@ -269,7 +291,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` `PORT`, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` **`API_PORT`** or transitional **`PORT`**, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready

@@ -131,7 +131,7 @@ export async function refreshTestAuthToken(): Promise<boolean> {
   const realm = process.env.KEYCLOAK_REALM?.trim();
   const clientId = process.env.KEYCLOAK_CLIENT_ID?.trim();
   if (!keycloakUrl || !realm || !clientId) return false;
-  const port = process.env.PORT || '3300';
+  const port = process.env['API_PORT'] || process.env.PORT || '3300';
   const baseUrl =
     readAuthEnv()?.baseUrl?.trim() ||
     process.env.KAIROS_TEST_BASE_URL?.trim() ||
@@ -175,7 +175,7 @@ export function getTestAuthBaseUrl(): string {
     const env = readAuthEnv();
     if (env?.baseUrl) return env.baseUrl;
   }
-  const port = process.env.PORT || '3300';
+  const port = process.env['API_PORT'] || process.env.PORT || '3300';
   return `http://localhost:${port}`;
 }
 

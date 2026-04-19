@@ -38,7 +38,7 @@
   ],
   "scripts": {
     "cli": "node dist/cli/index.js",
-    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${PORT:-3300}}\" && exec node dist/cli/index.js \"$@\"' _",
+    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${API_PORT:-${PORT:-3300}}}\" && exec node dist/cli/index.js \"$@\"' _",
     "dev:cli-ready": "./scripts/deploy-dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/deploy-run-env.sh build",

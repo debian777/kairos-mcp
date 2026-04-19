@@ -1,7 +1,7 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { PORT } from '../config.js';
+import { API_PORT } from '../config.js';
 
 // Import modular components
 import { configureMiddleware } from './http-server-config.js';
@@ -41,7 +41,7 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
 }
 
 export async function startHttpTransport(memoryStore: MemoryQdrantStore) {
-    const httpPort = PORT;
+    const httpPort = API_PORT;
 
     structuredLogger.success('KAIROS MCP Server starting', 'HTTP transport');
     structuredLogger.info('HTTP transport: enabled');

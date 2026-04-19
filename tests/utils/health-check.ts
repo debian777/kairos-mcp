@@ -31,7 +31,7 @@
  */
 export async function waitForHealthCheck(options = {}) {
   const {
-    url = `http://localhost:${process.env.PORT || '3300'}/health`,
+    url = `http://localhost:${process.env['API_PORT'] || process.env.PORT || '3300'}/health`,
     timeoutMs = 30000, // 30 seconds
     intervalMs = 1000, // 1 second
     maxRetries = 30

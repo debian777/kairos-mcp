@@ -226,8 +226,12 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-// Int configurations
-export const PORT = getEnvInt('PORT', 3000);
+// HTTP application listen port: prefer API_PORT when set, else transitional PORT (Compose / existing .env).
+const _apiPortRaw = process.env['API_PORT'];
+const _hasExplicitApiPort = _apiPortRaw !== undefined && String(_apiPortRaw).trim() !== '';
+export const API_PORT = _hasExplicitApiPort ? getEnvInt('API_PORT', 3000) : getEnvInt('PORT', 3000);
+/** Same listen port as API_PORT; name retained for existing imports. */
+export const PORT = API_PORT;
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
 
@@ -280,7 +284,7 @@ const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', _transportDefault);
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 
-/** When true with TRANSPORT_TYPE=stdio, also bind the HTTP app on PORT (MCP remains stdio-only). For CI / parity tests only. */
+/** When true with TRANSPORT_TYPE=stdio, also bind the HTTP app on API_PORT (MCP remains stdio-only). For CI / parity tests only. */
 export const KAIROS_HTTP_SIDECHAN = getEnvBoolean('KAIROS_HTTP_SIDECHAN', false);
 
 // Required (throw at startup if missing)
