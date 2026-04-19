@@ -34,12 +34,28 @@ Main HTTP listener port is resolved as:
 1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
 2. **`SERVER_PORT`** in the environment (set in `.env*`)
 
+Examples:
+
 ```bash
 kairos serve
 npx @debian777/kairos-mcp serve --env-file .env
 kairos serve --metrics-port 9091
 kairos serve --transport http --server-port 4300
 TRANSPORT_TYPE=http kairos serve
+TRANSPORT_TYPE=http kairos serve --transport stdio
+kairos serve --transport http
+npx -y @debian777/kairos-mcp serve --transport stdio
+```
+
+Equivalent:
+
+```bash
+kairos-mcp serve --transport stdio
+```
+
+With **`npx`** (Node 25+):
+
+```bash
 npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
@@ -48,6 +64,17 @@ npx -y @debian777/kairos-mcp serve --transport stdio
 - **`--server-port`** — sets the main HTTP listener (`SERVER_PORT`); see numbered list above.
 
 The root **`--url`** option applies to **client** commands (it sets `KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For supported full-stack installation, prefer **Docker Compose** in [install/README.md](install/README.md); use `serve` when you already run backing services and want a single Node entrypoint.
+
+**From a local clone (npm scripts):** build the publishable tarball and run the install smoke test:
+
+```bash
+npm run test:package-local
+```
+
+Same as `npm run build:tgz && npm run test:tgz` (installs `dist/debian777-kairos-mcp-<version>.tgz` into a temp directory and checks `kairos` / `kairos-mcp`).
+
+Set **`QDRANT_URL`**, **`QDRANT_COLLECTION`**, and an embedding backend (e.g. **`OPENAI_API_KEY`**) as for any server run.
+
 ## Select the server URL
 
 The CLI resolves the API base URL in this order:
