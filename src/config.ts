@@ -272,8 +272,9 @@ export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
 /** Max additive boost from attest (tiebreaker within RRF bands). */
 export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
 
-// Transport: stdio | http. Logging and server use this single source.
-const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
+// Transport: stdio | http. Default http so Docker/CI and installed-package runs
+// keep an HTTP listener without every env file listing TRANSPORT_TYPE; opt into stdio explicitly.
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'http');
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 
