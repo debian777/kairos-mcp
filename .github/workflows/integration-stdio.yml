@@ -1,5 +1,4 @@
-# Full integration suite (same Jest scope as Integration Simple) with TRANSPORT_TYPE=stdio:
-# primary MCP is stdio; KAIROS_HTTP_SIDECHAN binds HTTP on SERVER_PORT for MCP_URL / REST tests.
+# Stdio transport: no HTTP app; smoke tests spawn the server process and use MCP over stdin/stdout.
 name: Integration Stdio
 
 on:
@@ -13,39 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build npm package (tgz)
-    runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "25"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
-
-      - name: Build package (tgz)
-        run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
-
-      - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package-stdio
-          path: dist/*.tgz
-
-  verify-integration-stdio:
-    name: Infra + dev deploy + integration tests (STDIO transport)
-    needs: [build]
+  verify-stdio-transport:
+    name: Stdio transport smoke (no HTTP listener)
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
@@ -63,13 +31,10 @@ jobs:
           node-version: "25"
           cache: "npm"
 
-      - name: "Generate .env (base vars, overridden for stdio profile)"
+      - name: Generate .env (base vars, stdio profile)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
-
-      - name: Verify .env exists
-        run: ls -la .env
 
       - name: Apply stdio profile overrides
         run: cat .env.dev_stdio >> .env
@@ -111,108 +76,35 @@ jobs:
           path: .cache/docker-qdrant-stdio
           key: qdrant-docker-stdio-${{ hashFiles('compose.yaml') }}
 
-      - name: Download npm package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: npm-package-stdio
-          path: artifact-npm
-
-      - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
-        id: playwright-cache-stdio
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers and wait for Qdrant (parallel)
-        id: playwright-install-stdio
+      - name: Wait for Qdrant
         run: |
           set -euo pipefail
-          ec=0
-          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
-          pid_pw=$!
           for i in $(seq 1 30); do
-            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
-            [ "$i" -eq 30 ] && ec=1
-            sleep 2
-          done &
-          pid_wait=$!
-          wait $pid_pw || ec=1
-          wait $pid_wait || ec=1
-          exit $ec
-
-      - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
-        if: steps.playwright-cache-stdio.outputs.cache-hit != 'true' && steps.playwright-install-stdio.outcome == 'success'
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
-
-      - name: Install package from tgz
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
-            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
-
-      - name: Expose installed package dist for CLI tests
-        run: |
-          rm -rf dist
-          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
-
-      - name: Start app (from installed package, stdio profile)
-        env:
-          HEALTH_CHECK_ATTEMPTS: 15
-          ENV: dev_stdio
-          QDRANT_SNAPSHOT_DIR: var/snapshots
-        run: |
-          mkdir -p var/log var/snapshots
-          npm run dev:start:installed > var/log/kairos-stdio.log 2>&1 &
-          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
-            curl -sSf http://127.0.0.1:4300/health >/dev/null && break
-            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && exit 0
             sleep 2
           done
+          exit 1
 
-      - name: Run stdio-profile integration tests (same scope as dev_simple)
+      - name: Build (prebuild + tsc for dist/bootstrap.js)
+        run: |
+          node scripts/ci-github-step-summary.mjs "prebuild + tsc" -- sh -c 'npm run prebuild && npx tsc && chmod +x dist/cli/index.js'
+
+      - name: Run stdio launch smoke tests
         env:
           ENV: dev_stdio
-        run: npm run dev_stdio:test
-
-      - name: Show test failure
-        if: failure()
         run: |
-          echo "--- Last test report (tail) ---"
-          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
-          if [ -n "$latest" ]; then
-            tail -n 200 "$latest"
-          else
-            echo "No reports/tests/*.log found"
-          fi
-
-      - name: Upload kairos stdio log - check
-        if: always() && failure()
-        run: |
-          pwd
-          ls -la var/log 2>/dev/null || true
-          if [ -f var/log/kairos-stdio.log ]; then ls -la var/log/kairos-stdio.log; cat var/log/kairos-stdio.log; else echo "No var/log/kairos-stdio.log"; fi
-
-      - name: Upload kairos stdio log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kairos-stdio-log
-          path: var/log/kairos-stdio.log
-          if-no-files-found: ignore
+          node scripts/ci-github-step-summary.mjs "Jest stdio smoke" -- \
+            env ENV=dev_stdio NODE_OPTIONS='--experimental-vm-modules' npx jest --runInBand --detectOpenHandles --testTimeout=120000 \
+            tests/integration/stdio-launch-smoke.test.ts
 
   integration-stdio-pass:
     name: Integration stdio workflow passed
-    needs: [build, verify-integration-stdio]
+    needs: [verify-stdio-transport]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require all jobs
+      - name: Require stdio smoke job
         run: |
-          echo "build=${{ needs.build.result }} verify-integration-stdio=${{ needs.verify-integration-stdio.result }}"
-          test "${{ needs.build.result }}" = "success"
-          test "${{ needs.verify-integration-stdio.result }}" = "success"
-          echo "All stdio integration jobs passed."
+          echo "verify-stdio-transport=${{ needs.verify-stdio-transport.result }}"
+          test "${{ needs.verify-stdio-transport.result }}" = "success"
+          echo "Integration Stdio workflow passed."
