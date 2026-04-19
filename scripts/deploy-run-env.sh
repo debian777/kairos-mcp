@@ -451,7 +451,10 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
+    # dev_simple only: default Jest args for the HTTP integration suite. dev_stdio runs a fixed
+    # stdio smoke file and must not receive these patterns (they would make args non-empty and skip
+    # the dedicated stdio-launch-smoke path).
+    if [ "$ENV" = "dev_simple" ]; then
         has_ignore_patterns=false
         for arg in "${args[@]}"; do
             if [[ "$arg" == "--testPathIgnorePatterns" ]]; then

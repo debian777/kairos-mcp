@@ -13,6 +13,8 @@ flowchart LR
 
   subgraph workflows["Workflows"]
     INT(Integration)
+    INTS(Integration Simple)
+    INTSTD(Integration Stdio)
     RTAG(Release tag on version bump)
     REL(Release)
     PNPM(Publish npm)
@@ -21,14 +23,22 @@ flowchart LR
   end
 
   PR --> INT
+  PR --> INTS
+  PR --> INTSTD
   PUSH --> INT
+  PUSH --> INTS
+  PUSH --> INTSTD
   PUSH --> RTAG
   TAG --> INT
+  TAG --> INTS
+  TAG --> INTSTD
   TAG --> REL
   RTAG -->|"if version > latest tag"| TAG
   REL --> PNPM
   PNPM --> PIMG
   MANUAL --> INT
+  MANUAL --> INTS
+  MANUAL --> INTSTD
   MANUAL --> PNPM
   MANUAL --> PCONT
 
@@ -36,7 +46,7 @@ flowchart LR
   classDef integration fill:#dcfce7,stroke:#16a34a,color:#166534
   classDef release fill:#fef3c7,stroke:#d97706,color:#92400e
   class PR,PUSH,TAG,MANUAL trigger
-  class INT integration
+  class INT,INTS,INTSTD integration
   class RTAG,REL,PNPM,PIMG,PCONT release
 ```
 
@@ -57,6 +67,7 @@ For the GitHub PR flow, treat these as hard rules:
 - Current `main` required checks are:
   - `Integration workflow passed`
   - `Integration simple workflow passed`
+  - `Integration stdio workflow passed` (add in branch protection when this workflow ships)
 - `[skip ci]` style tokens only apply to workflows triggered by `push` and
   `pull_request`, and PR behavior depends on the HEAD commit message.
 - If skip instructions are used but checks still run, verify the latest commit
@@ -117,6 +128,8 @@ flowchart TB
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
 | Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
+| Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + full integration suite against installed tgz |
+| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio MCP smoke only) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -168,12 +181,12 @@ sequenceDiagram
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration** and **Integration Simple** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on both workflows being `success` for the same head SHA. Human version bumps follow [.cursor/skills/version-bump-release/SKILL.md](../../.cursor/skills/version-bump-release/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
+`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration**, **Integration Simple**, and **Integration Stdio** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on all three workflows being `success` for the same head SHA. Human version bumps follow [.cursor/skills/version-bump-release/SKILL.md](../../.cursor/skills/version-bump-release/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
 
 - **Main:** Full releases (`vX.Y.Z`) and pre-releases (e.g. `vX.Y.Z-rc.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing **stable** tag (`X.Y.Z` only) **and** `v<package.json version>` does not already exist (local or on `origin`). Repeat Integration runs for the same version exit cleanly instead of failing on duplicate `git tag`.
 - **`ci/**`:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist (local or on `origin`). Full/pre releases are not created from non-main branches.
 - **Concurrency:** One job at a time per repository (`cancel-in-progress: false`) so concurrent runs do not race on `git tag` / `git push`.
-- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when integration workflows have not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration** and **Integration Simple** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
+- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when integration workflows have not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration**, **Integration Simple**, and **Integration Stdio** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
 
 **Flow:** When a tag is created (by this workflow), it triggers the **Release** workflow (npm → Docker → GitHub Release).
 

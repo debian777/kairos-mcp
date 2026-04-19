@@ -176,19 +176,6 @@ jobs:
           ENV: dev_simple
         run: npm run dev_simple:test
 
-      - name: Run stdio integration tests
-        env:
-          ENV: dev_stdio
-        run: |
-          npm run dev_stdio:start
-          npm run dev_stdio:test
-
-      - name: Stop stdio integration server
-        if: always()
-        env:
-          ENV: dev_stdio
-        run: npm run dev_stdio:stop
-
       - name: Show test failure
         if: failure()
         run: |
