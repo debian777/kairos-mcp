@@ -464,7 +464,7 @@ test() {
         if [ "$has_ignore_patterns" = false ]; then
             args+=(
                 --testPathPatterns "tests/integration/"
-                --testPathIgnorePatterns "tests/integration/cli-auth-browser-login.e2e.test.ts|tests/integration/auth-keycloak.test.ts|tests/integration/mcp-host-client-groups.test.ts"
+                --testPathIgnorePatterns "tests/integration/cli-auth-browser-login.e2e.test.ts|tests/integration/auth-keycloak.test.ts|tests/integration/mcp-host-client-groups.test.ts|tests/integration/scenarios/spaces-tool.http-auth.test.ts|tests/integration/scenarios/spaces-tool.stdio-simple.test.ts"
             )
         fi
     fi
@@ -518,11 +518,25 @@ test() {
             # deploy - now need to run manually: npm run dev:deploy
             test_port="${SERVER_PORT:-3300}"
             if [ "$ENV" = "dev_stdio" ]; then
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                if [ ${#args[@]} -eq 0 ]; then
+                    NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 tests/integration/stdio-launch-smoke.test.ts tests/integration/scenarios/spaces-tool.stdio-simple.test.ts 2>&1 | tee -a "$REPORT_LOG_FILE"
+                else
+                    NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                fi
             elif [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                # Scenario matrix: http-simple + stdio wrappers require the matching stack (see tests/integration/scenarios/).
+                dev_ignore_scenarios=""
+                if [ "$ENV" = "dev" ]; then
+                    dev_ignore_scenarios='tests/integration/scenarios/spaces-tool.http-simple.test.ts|tests/integration/scenarios/spaces-tool.stdio-simple.test.ts'
+                fi
+                if [ -n "$dev_ignore_scenarios" ]; then
+                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" --testPathIgnorePatterns "$dev_ignore_scenarios" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                else
+                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                fi
             else
-                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+            fi
             fi
             ;;
         prod)
