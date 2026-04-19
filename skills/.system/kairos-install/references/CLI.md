@@ -27,15 +27,14 @@ Start the KAIROS server process (same as `node dist/bootstrap.js`). Transport re
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
-HTTP listen port for the app is resolved as:
+Main HTTP listener port is resolved as:
 
-1. **`--api-port <n>`** — also sets **`API_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
-2. **`API_PORT`** in the environment (preferred in `.env*`)
-3. **`PORT`** when **`API_PORT`** is unset (transitional)
+1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
+2. **`SERVER_PORT`** in the environment (set in `.env*`)
 
 ```bash
 kairos serve
-kairos serve --transport http --api-port 4300
+kairos serve --transport http --server-port 4300
 npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
@@ -291,7 +290,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` **`API_PORT`** or transitional **`PORT`**, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` **`SERVER_PORT`**, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready

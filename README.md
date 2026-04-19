@@ -120,7 +120,7 @@ Use one transport mode per process:
   Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
   MCP protocol frames and logs go to stderr.
 - **`KAIROS_HTTP_SIDECHAN=true`** (only with `TRANSPORT_TYPE=stdio`): also binds
-  the HTTP app on **`API_PORT`** (or transitional `PORT`) for REST/UI and Streamable HTTP MCP used by integration
+  the HTTP app on **`SERVER_PORT`** for REST/UI and Streamable HTTP MCP used by integration
   tests; primary MCP remains stdio. The `dev_stdio` profile sets this for CI parity.
 
 ## Quick start
@@ -205,7 +205,7 @@ npm run dev:deploy
 
 The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
 `scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
-set **`API_PORT`** (preferred) or transitional **`PORT`** in `.env`. Use the same host and port in health checks, the UI, and MCP
+set **`SERVER_PORT`** in `.env`. Use the same host and port in health checks, the UI, and MCP
 URLs.
 
 See [docs/install/README.md](docs/install/README.md) and
@@ -215,8 +215,8 @@ See [docs/install/README.md](docs/install/README.md) and
 
 This repository ships [`.cursor/mcp.json`](.cursor/mcp.json) with a **streamable
 HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
-`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `PORT=3300`).
-If you run the minimal Compose stack without overriding `PORT`, point MCP at
+`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `SERVER_PORT=3300`).
+If you run the minimal Compose stack without overriding **`SERVER_PORT`**, point MCP at
 `http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
 server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
 [AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
@@ -398,7 +398,7 @@ docker compose -p kairos-mcp logs app-prod
 
 Also verify that required ports are free:
 
-- minimal stack: app `3000` (or your `PORT`), Qdrant `6333`, metrics `9090` (or
+- minimal stack: app `3000` (or your **`SERVER_PORT`**), Qdrant `6333`, metrics `9090` (or
   your `METRICS_PORT`)
 - repo dev scripts: app often `3300`, metrics often `9390` (see `.env`)
 - full stack adds: `6379`, `5432`, `8080`, `9000`

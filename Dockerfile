@@ -42,13 +42,13 @@ FROM deps-local AS runtime-ci
 RUN mkdir -p logs storage/qdrant /snapshots && \
     chown -R kairos:nodejs /app logs storage /snapshots
 USER kairos
-ARG PORT=3000
-ENV PORT=${PORT}
+ARG SERVER_PORT=3000
+ENV SERVER_PORT=${SERVER_PORT}
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
-EXPOSE ${PORT} ${METRICS_PORT}
+EXPOSE ${SERVER_PORT} ${METRICS_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+    CMD node -e "require('http').get('http://localhost:' + process.env.SERVER_PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories
@@ -58,13 +58,13 @@ FROM deps-registry AS runtime
 RUN mkdir -p logs storage/qdrant /snapshots && \
     chown -R kairos:nodejs /app logs storage /snapshots
 USER kairos
-ARG PORT=3000
-ENV PORT=${PORT}
+ARG SERVER_PORT=3000
+ENV SERVER_PORT=${SERVER_PORT}
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
-EXPOSE ${PORT} ${METRICS_PORT}
+EXPOSE ${SERVER_PORT} ${METRICS_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+    CMD node -e "require('http').get('http://localhost:' + process.env.SERVER_PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories

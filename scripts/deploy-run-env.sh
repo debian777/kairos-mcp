@@ -4,7 +4,7 @@
 #
 # Single base .env plus optional .env.<ENV> profile overrides; prod is not managed from this repo
 # (exception: Keycloak realm setup dev/prod).
-# - dev:        Local app (start, stop, test, build). API_PORT/PORT=3300 default. PID/log: .kairos-dev.*
+# - dev:        Local app (start, stop, test, build). SERVER_PORT=3300 default. PID/log: .kairos-dev.*
 # - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
 # - dev_stdio: Local app stdio profile (auth off; optional HTTP side channel when KAIROS_HTTP_SIDECHAN=true). PID/log: .kairos-dev_stdio.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
@@ -91,23 +91,20 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in dev|dev_simple|dev_stdio|prod) ;; *) print_error "Invalid ENV: $ENV (use dev, dev_simple, dev_stdio, or prod)"; exit 1 ;; esac
 fi
 
-# Environment defaults (API_PORT preferred; PORT legacy; from .env/.env.<ENV>; dev=3300, dev_simple/dev_stdio=4300, prod=3500 for inspect)
+# Environment defaults (SERVER_PORT from .env/.env.<ENV>; dev=3300, dev_simple/dev_stdio=4300, prod=3500 for inspect)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
     case "$ENV" in
         dev)
-            API_PORT="${API_PORT:-${PORT:-3300}}"
-            PORT="${PORT:-${API_PORT}}"
+            SERVER_PORT="${SERVER_PORT:-3300}"
             METRICS_PORT="${METRICS_PORT:-9390}"
             ;;
         dev_simple|dev_stdio)
-            API_PORT="${API_PORT:-${PORT:-4300}}"
-            PORT="${PORT:-${API_PORT}}"
+            SERVER_PORT="${SERVER_PORT:-4300}"
             METRICS_PORT="${METRICS_PORT:-9490}"
             QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
             ;;
         prod)
-            API_PORT="${API_PORT:-${PORT:-3500}}"
-            PORT="${PORT:-${API_PORT}}"
+            SERVER_PORT="${SERVER_PORT:-3500}"
             METRICS_PORT="${METRICS_PORT:-9390}"
             ;;
     esac
@@ -150,7 +147,7 @@ check_metrics() {
 
 # URLs overview per environment
 show_urls() {
-    local base="http://localhost:${API_PORT:-${PORT:-0}}"
+    local base="http://localhost:${SERVER_PORT:-0}"
     print_info "Endpoints and dependencies (ENV=$ENV):"
 
     # App endpoints (grouped)
@@ -234,7 +231,7 @@ start() {
             if [ "$ENV" = "dev" ] && [[ "${KEYCLOAK_URL:-}" =~ ^https?://keycloak: ]]; then
                 keycloak_export="KEYCLOAK_URL=http://localhost:8080"
             fi
-            dev_port="${API_PORT:-${PORT:-3300}}"
+            dev_port="${SERVER_PORT:-3300}"
             mcpr="${MAX_CONCURRENT_MCP_REQUESTS:-}"
             # Use compiled dist/bootstrap.js when available (avoids ts-node loader crash on Node 25)
             if [ -f "$PROJECT_DIR/dist/bootstrap.js" ]; then
@@ -298,7 +295,7 @@ start() {
         attempt=1
         while [ $attempt -le $ATTEMPTS ]; do
             print_info "Health check attempt $attempt/$ATTEMPTS..."
-            if curl -s "http://localhost:${API_PORT:-$PORT}/health" >/dev/null 2>&1; then
+            if curl -s "http://localhost:${SERVER_PORT}/health" >/dev/null 2>&1; then
                 print_success "Server health check passed on attempt $attempt"
                 break
             else
@@ -346,7 +343,7 @@ stop() {
             if [[ "${TRANSPORT_TYPE:-http}" == "stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]] || [[ "$ENV" == "dev_stdio" && "${KAIROS_HTTP_SIDECHAN:-}" != "true" ]]; then
                 return 0
             fi
-            dev_port="${API_PORT:-${PORT:-3300}}"
+            dev_port="${SERVER_PORT:-3300}"
             if command -v lsof >/dev/null 2>&1; then
                 print_info "Attempting fallback stop via lsof -ni :${dev_port}"
                 # Show current listeners for debugging
@@ -406,15 +403,15 @@ status() {
     else
         # Check application health - THE MOST IMPORTANT STEP
         print_info "Checking application health..."
-        if curl -s "http://localhost:${API_PORT:-$PORT}/health" >/dev/null 2>&1; then
-            print_success "App OK (port ${API_PORT:-$PORT})"
+        if curl -s "http://localhost:${SERVER_PORT}/health" >/dev/null 2>&1; then
+            print_success "App OK (port ${SERVER_PORT})"
         else
-            print_warning "App DOWN (port ${API_PORT:-$PORT})"
+            print_warning "App DOWN (port ${SERVER_PORT})"
         fi
 
         # Detailed curl health output (HTTP code + body)
         {
-            url="http://localhost:${API_PORT:-$PORT}/health"
+            url="http://localhost:${SERVER_PORT}/health"
             tmpfile="$(mktemp 2>/dev/null || echo "/tmp/kb_health_$$")"
             http_code=$(curl -sS -o "$tmpfile" -w "%{http_code}" "$url" 2>/dev/null || true)
             print_info "App health HTTP: $http_code"
@@ -492,8 +489,7 @@ test() {
             export XDG_CONFIG_HOME="$CLI_CONFIG_DIR"
             # Forward env so globalSetup and tests see same vars as server (Jest may run globalSetup in a separate process).
             export ENV="${ENV:-dev}"
-            export API_PORT="${API_PORT:-${PORT:-3300}}"
-            export PORT="${PORT:-${API_PORT}}"
+            export SERVER_PORT="${SERVER_PORT:-3300}"
             export AUTH_ENABLED="${AUTH_ENABLED:-}"
             export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
             export KEYCLOAK_REALM="${KEYCLOAK_REALM:-}"
@@ -513,7 +509,7 @@ test() {
             fi
             # Serial tests (--runInBand): one MCP server; extra Jest workers did not improve wall time and caused queueing unless MAX_CONCURRENT_MCP_REQUESTS is high.
             # deploy - now need to run manually: npm run dev:deploy
-            test_port="${API_PORT:-${PORT:-3300}}"
+            test_port="${SERVER_PORT:-3300}"
             if [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
@@ -662,14 +658,13 @@ help() {
     echo ""
     echo "Single .env; prod is not managed here (exception: Keycloak realm setup)."
     echo "ENVIRONMENTS:"
-    echo "  dev        - Local app (start, stop, test, build). API_PORT/PORT=3300 default."
-    echo "  dev_simple - Local app simple mode profile. API_PORT/PORT=4300 default."
-    echo "  dev_stdio  - Local app stdio mode profile. API_PORT/PORT=4300 default."
+    echo "  dev        - Local app (start, stop, test, build). SERVER_PORT=3300 default."
+    echo "  dev_simple - Local app simple mode profile. SERVER_PORT=4300 default."
+    echo "  dev_stdio  - Local app stdio mode profile. SERVER_PORT=4300 default."
     echo "  prod       - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
     echo ""
     echo "ENV VARS (from .env):"
-    echo "  API_PORT           - HTTP app listen port (preferred)"
-    echo "  PORT               - Legacy alias for API_PORT when API_PORT is unset"
+    echo "  SERVER_PORT        - Main HTTP listener (UI, REST, Streamable HTTP MCP)"
     echo "  QDRANT_URL         - Qdrant base URL (default http://localhost:6333)"
     echo "  \$QDRANT_API_KEY    - Qdrant API key (sent as 'api-key' header)"
     echo "  QDRANT_COLLECTION  - Qdrant collection name (default kairos)"

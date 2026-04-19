@@ -2,7 +2,7 @@
 /**
  * Capture the UI at multiple viewport sizes. Agent tool for design review at real-world dimensions.
  *
- * Prereq: App running at baseUrl (default from .env: KAIROS_BASE_URL / KAIROS_API_URL / PORT).
+ * Prereq: App running at baseUrl (default from .env: KAIROS_BASE_URL / KAIROS_API_URL / SERVER_PORT).
  * Usage: npm run design:viewports [baseUrl]
  * Output: .cursor/viewports/{mobile,tablet,desktop,wide}.png
  */

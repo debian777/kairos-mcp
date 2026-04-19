@@ -17,7 +17,7 @@ export function loadRepoEnv() {
 }
 
 /**
- * Precedence: KAIROS_BASE_URL, KAIROS_API_URL, else http://localhost:$PORT (PORT default 3300, same as deploy-run-env.sh dev).
+ * Precedence: KAIROS_BASE_URL, KAIROS_API_URL, else http://localhost:$SERVER_PORT (default 3300, same as deploy-run-env.sh dev).
  */
 export function resolveKairosAppBaseUrl() {
   loadRepoEnv();
@@ -25,6 +25,6 @@ export function resolveKairosAppBaseUrl() {
   if (fromBase) return fromBase.replace(/\/$/, "");
   const fromApi = process.env.KAIROS_API_URL?.trim();
   if (fromApi) return fromApi.replace(/\/$/, "");
-  const port = process.env.PORT?.trim() || "3300";
+  const port = process.env.SERVER_PORT?.trim() || "3300";
   return `http://localhost:${port}`;
 }

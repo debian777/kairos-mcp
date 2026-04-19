@@ -79,7 +79,7 @@ When the local stack is present, run a quick health check after updates:
 
 ```bash
 docker compose -p kairos-mcp ps
-curl -sS "http://localhost:${PORT:-3000}/health"
+curl -sS "http://localhost:${SERVER_PORT:-3000}/health"
 ```
 
 If services fail to start after update, inspect app logs:

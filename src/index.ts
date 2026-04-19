@@ -13,7 +13,7 @@ import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import { mkdirSync } from 'fs';
 import {
-  API_PORT,
+  SERVER_PORT,
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
@@ -106,10 +106,10 @@ async function main(): Promise<void> {
         }
 
         if (TRANSPORT_TYPE === 'http') {
-            structuredLogger.info(`Application server: ${API_PORT}`);
+            structuredLogger.info(`Application server: ${SERVER_PORT}`);
         } else if (KAIROS_HTTP_SIDECHAN) {
             structuredLogger.info('Application server: stdio (primary) + HTTP side channel');
-            structuredLogger.info(`HTTP side channel port: ${API_PORT}`);
+            structuredLogger.info(`HTTP side channel port: ${SERVER_PORT}`);
         } else {
             structuredLogger.info('Application server: stdio');
         }
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
             await startHttpTransport(memoryStore);
         } else {
             if (KAIROS_HTTP_SIDECHAN) {
-                startHttpServer(API_PORT, memoryStore);
+                startHttpServer(SERVER_PORT, memoryStore);
             }
             await startStdioTransport(memoryStore);
         }

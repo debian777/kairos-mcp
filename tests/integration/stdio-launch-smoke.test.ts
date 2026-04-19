@@ -38,18 +38,15 @@ function hasEmbeddingConfig(env: NodeJS.ProcessEnv): boolean {
 
 function createStdioEnv(metricsPort: number): NodeJS.ProcessEnv {
   const appPort =
-    process.env['API_PORT'] ??
-    FILE_ENV['API_PORT'] ??
-    process.env.PORT ??
-    FILE_ENV.PORT ??
+    process.env['SERVER_PORT'] ??
+    FILE_ENV['SERVER_PORT'] ??
     '4300';
   return {
     ...process.env,
     ...FILE_ENV,
     TRANSPORT_TYPE: 'stdio',
     AUTH_ENABLED: process.env.AUTH_ENABLED ?? FILE_ENV.AUTH_ENABLED ?? 'false',
-    API_PORT: appPort,
-    PORT: appPort,
+    SERVER_PORT: appPort,
     METRICS_PORT: String(metricsPort),
     REDIS_URL: process.env.REDIS_URL ?? FILE_ENV.REDIS_URL ?? ''
   };

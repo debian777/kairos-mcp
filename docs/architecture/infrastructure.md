@@ -263,7 +263,7 @@ flowchart LR
 | redis    | `redis-cli ping` | 10 s | 3 s | 3 | — |
 | qdrant   | `/proc/net/tcp` hex port `:18BD` (= 6333) | 30 s | 5 s | 3 | — |
 | postgres | `pg_isready -U keycloak` | 5 s | 5 s | 10 | — |
-| app-prod | `wget /health` on `$PORT` | 30 s | 5 s | 3 | 40 s |
+| app-prod | `wget /health` on `$SERVER_PORT` | 30 s | 5 s | 3 | 40 s |
 
 ## Volume layout
 

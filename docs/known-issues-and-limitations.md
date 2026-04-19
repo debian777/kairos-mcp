@@ -12,7 +12,7 @@ codebase and configuration model.
   `KAIROS_HTTP_SIDECHAN` unset or `false`, the process serves MCP on stdin/stdout
   and does not expose HTTP routes such as `/health`, `/api`, `/ui`, or `/mcp`.
   For integration parity only, set `KAIROS_HTTP_SIDECHAN=true` to also bind the
-  HTTP app on `PORT` while MCP remains on stdio (HTTP `/mcp` is available for tests;
+  HTTP app on **`SERVER_PORT`** while MCP remains on stdio (HTTP `/mcp` is available for tests;
   primary MCP is still stdio).
 - **Qdrant is always required.** Startup fails without a reachable
   `QDRANT_URL`.

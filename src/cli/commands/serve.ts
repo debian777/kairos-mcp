@@ -1,8 +1,8 @@
 /**
  * Run the KAIROS MCP server process (same entry as bootstrap/index).
  * Transport: --transport wins over TRANSPORT_TYPE; default for this command is stdio.
- * HTTP listen port: --api-port wins over API_PORT, then PORT (matches server config resolution).
- * Other CLI commands do not read --transport or --api-port; they are unaffected unless those env vars are set in the shell.
+ * Main HTTP listener: --server-port wins over SERVER_PORT (same resolution as server config).
+ * Other CLI commands do not read --transport or --server-port; they are unaffected unless those env vars are set in the shell.
  */
 
 import { spawn } from 'node:child_process';
@@ -28,20 +28,16 @@ function parseListenPort(raw: string, label: string): number {
 }
 
 /**
- * Resolve HTTP app listen port for `kairos serve`: CLI --api-port > API_PORT > PORT > unset (inherit in child).
+ * Resolve main HTTP listen port for `kairos serve`: CLI --server-port > SERVER_PORT > unset (inherit in child).
  */
-export function resolveServeApiPort(cliApiPort: string | undefined): number | undefined {
-  const trimmed = cliApiPort?.trim();
+export function resolveServeServerPort(cliServerPort: string | undefined): number | undefined {
+  const trimmed = cliServerPort?.trim();
   if (trimmed) {
-    return parseListenPort(trimmed, '--api-port');
+    return parseListenPort(trimmed, '--server-port');
   }
-  const api = process.env['API_PORT']?.trim();
-  if (api) {
-    return parseListenPort(api, 'API_PORT');
-  }
-  const fromPortEnv = process.env['PORT']?.trim();
-  if (fromPortEnv) {
-    return parseListenPort(fromPortEnv, 'PORT');
+  const fromEnv = process.env['SERVER_PORT']?.trim();
+  if (fromEnv) {
+    return parseListenPort(fromEnv, 'SERVER_PORT');
   }
   return undefined;
 }
@@ -100,10 +96,10 @@ export function serveCommand(program: Command): void {
       'Transport: stdio or http (overrides TRANSPORT_TYPE for this process)'
     )
     .option(
-      '--api-port <port>',
-      'HTTP app listen port (sets API_PORT for this process; with --api-port, updates CLI defaultUrl)'
+      '--server-port <port>',
+      'Main HTTP listener port (sets SERVER_PORT for this process; with --server-port, updates CLI defaultUrl)'
     )
-    .action(async (options: { transport?: string; apiPort?: string }) => {
+    .action(async (options: { transport?: string; serverPort?: string }) => {
       const envBefore = process.env['TRANSPORT_TYPE'];
       let transport: ServeTransport;
       try {
@@ -115,7 +111,7 @@ export function serveCommand(program: Command): void {
 
       let listenPort: number | undefined;
       try {
-        listenPort = resolveServeApiPort(options.apiPort);
+        listenPort = resolveServeServerPort(options.serverPort);
       } catch (e) {
         program.error(e instanceof Error ? e.message : String(e));
         return;
@@ -127,7 +123,7 @@ export function serveCommand(program: Command): void {
           ? 'env'
           : 'default';
 
-      if (options.apiPort?.trim()) {
+      if (options.serverPort?.trim()) {
         try {
           await writeConfig({ apiUrl: `http://localhost:${listenPort}` });
         } catch (e) {
@@ -149,7 +145,7 @@ export function serveCommand(program: Command): void {
         KAIROS_CLI_TRANSPORT_SOURCE: source
       };
       if (listenPort !== undefined) {
-        env['API_PORT'] = String(listenPort);
+        env['SERVER_PORT'] = String(listenPort);
       }
 
       const child = spawn(process.execPath, args, {

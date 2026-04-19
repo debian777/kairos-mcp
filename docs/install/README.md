@@ -208,7 +208,7 @@ to stderr.
 
 For CI or local parity with HTTP integration tests, set
 `KAIROS_HTTP_SIDECHAN=true` alongside `TRANSPORT_TYPE=stdio` so the HTTP app also
-listens on **`API_PORT`** (or transitional `PORT`) (REST and Streamable HTTP MCP); the primary MCP transport
+listens on **`SERVER_PORT`** (REST and Streamable HTTP MCP); the primary MCP transport
 remains stdio. Desktop hosts should omit this unless you need that dual surface.
 
 ## Index
