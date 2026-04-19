@@ -29,17 +29,10 @@ Transport resolution:
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
-Main HTTP listener port when **`TRANSPORT_TYPE=http`** (UI, REST, `/mcp`) is resolved as:
-
-1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** to the shared CLI config as `http://localhost:<n>` (so `kairos login` and other commands target the same port).
-2. **`SERVER_PORT`** in the environment (set in `.env*`)
-3. Otherwise the child inherits whatever your env files define.
-
 ```bash
 kairos serve
 npx @debian777/kairos-mcp serve --env-file .env
-kairos serve --metrics-port 9091
-kairos serve --transport http --server-port 4300
+kairos serve --port 3300 --metrics-port 9091
 TRANSPORT_TYPE=http kairos serve
 TRANSPORT_TYPE=http kairos serve --transport stdio
 kairos serve --transport http
@@ -58,18 +51,9 @@ npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
 - **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).
-- **`--metrics-port`** — sets `METRICS_PORT` for this process before configuration is read.
-- **`--server-port`** — sets the main HTTP listener (`SERVER_PORT`); see numbered list above.
+- **`--port` / `--metrics-port`** — set `PORT` and `METRICS_PORT` for this process before configuration is read.
 
 The root **`--url`** option applies to **client** commands (it sets `KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For supported full-stack installation, prefer **Docker Compose** in [install/README.md](install/README.md); use `serve` when you already run backing services and want a single Node entrypoint.
-
-**From a local clone (npm scripts):** build the publishable tarball and run the install smoke test:
-
-```bash
-npm run test:package-local
-```
-
-Same as `npm run build:tgz && npm run test:tgz` (installs `dist/debian777-kairos-mcp-<version>.tgz` into a temp directory and checks `kairos` / `kairos-mcp`).
 
 Set **`QDRANT_URL`**, **`QDRANT_COLLECTION`**, and an embedding backend (e.g. **`OPENAI_API_KEY`**) as for any server run.
 
@@ -354,7 +338,7 @@ kairos train ./adapters --force --recursive
 
 ## Run from this repo against the local dev server
 
-After the local dev server is ready (port from `.env` **`SERVER_PORT`**, commonly `3300` in the template):
+After the local dev server is ready (port from `.env` `PORT`, commonly `3300` in the template):
 
 ```bash
 npm run dev:cli-ready

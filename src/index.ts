@@ -118,6 +118,13 @@ export async function runKairosServer(): Promise<void> {
         // This runs independently from the main application server
         startMetricsServer();
 
+        const transportSource = process.env['KAIROS_CLI_TRANSPORT_SOURCE']?.trim();
+        if (transportSource === 'cli' || transportSource === 'env') {
+            structuredLogger.info(
+                `Resolved MCP transport: ${TRANSPORT_TYPE} (source: ${transportSource === 'cli' ? '--transport' : 'TRANSPORT_TYPE'})`
+            );
+        }
+
         if (TRANSPORT_TYPE === 'http') {
             structuredLogger.info(`Application server: ${PORT}`);
         } else if (KAIROS_HTTP_SIDECHAN) {
