@@ -60,7 +60,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const trainGroupCall = {
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test-space-fork-mcp',
         space: groupSpaceName,
         force_update: true
@@ -130,7 +130,7 @@ describe('Adapter fork copy (group → personal)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test-space-fork-api-g',
         space: groupSpaceName,
         force_update: true
@@ -190,7 +190,7 @@ describe('Adapter fork copy (group → personal)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test-space-fork-cli-g',
         space: groupSpaceName,
         force_update: true

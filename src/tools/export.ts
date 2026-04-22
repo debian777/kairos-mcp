@@ -170,11 +170,28 @@ export async function executeExport(
       uri: input.uri,
       format: input.format,
       content_type: 'text/markdown',
-      content: toCurrentMarkdown(String(dump['markdown_doc'] ?? '')),
+      content: toCurrentMarkdown(String(dump['content'] ?? '')),
       item_count: 1,
       adapter_name: typeof dump['label'] === 'string' ? dump['label'] : null,
       adapter_version: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null,
       ...spaceFields
+    };
+  }
+
+  if (input.format === 'source') {
+    const memory = await memoryStore.getMemory(layerId);
+    if (!memory) {
+      throw new Error('Artifact not found');
+    }
+    const ct = memory.content_type || 'text/markdown';
+    return {
+      uri: input.uri,
+      format: input.format,
+      content_type: ct,
+      content: memory.text,
+      item_count: 1,
+      adapter_name: memory.adapter?.name ?? null,
+      adapter_version: memory.adapter?.protocol_version ?? null
     };
   }
 

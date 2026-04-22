@@ -70,7 +70,7 @@ describe('activate precision', () => {
     const trainTarget = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: buildAdapterMarkdown(targetTitle, [
+        content: buildAdapterMarkdown(targetTitle, [
           uniqueQuery,
           `rotate postgres password token-${ts}`
         ]),
@@ -81,7 +81,7 @@ describe('activate precision', () => {
     const trainDistractor = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: buildAdapterMarkdown(distractorTitle, [
+        content: buildAdapterMarkdown(distractorTitle, [
           'restart background worker',
           'drain a queue consumer'
         ]),

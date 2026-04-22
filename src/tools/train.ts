@@ -7,7 +7,7 @@ import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 import { executeTrainStore, TrainError } from './train-store.js';
 import { executeDump } from './dump.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
-import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
+import { buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
 import {
   trainInputSchema,
   trainOutputSchema,
@@ -79,12 +79,12 @@ function formatTrainErrorPayload(error: { code?: string; details?: Record<string
   };
 }
 
-async function resolveMarkdownForTrain(
+async function resolveContentForTrain(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
   input: TrainInput
 ): Promise<string> {
-  const fromInput = typeof input.markdown_doc === 'string' ? input.markdown_doc.trim() : '';
+  const fromInput = typeof input.content === 'string' ? input.content.trim() : '';
   const sourceUri = input.source_adapter_uri?.trim();
   if (!sourceUri) {
     return fromInput;
@@ -92,7 +92,7 @@ async function resolveMarkdownForTrain(
   if (!qdrantService) {
     throw new TrainError(
       'SOURCE_ADAPTER_UNAVAILABLE',
-      'Forking from source_adapter_uri requires the adapter store; try again or pass markdown_doc only.',
+      'Forking from source_adapter_uri requires the adapter store; try again or pass content only.',
       { must_obey: true }
     );
   }
@@ -109,7 +109,7 @@ async function resolveMarkdownForTrain(
     uri: `kairos://mem/${headUuid}`,
     protocol: true
   });
-  const dumped = typeof dump['markdown_doc'] === 'string' ? dump['markdown_doc'].trim() : '';
+  const dumped = typeof dump['content'] === 'string' ? dump['content'].trim() : '';
   if (!dumped) {
     throw new TrainError('SOURCE_EXPORT_EMPTY', 'Could not export markdown from the source adapter.', {
       must_obey: true
@@ -124,19 +124,22 @@ export async function executeTrain(
   runStore: <T>(fn: () => Promise<T>) => Promise<T>,
   qdrantService?: QdrantService
 ): Promise<TrainOutput> {
-  const markdownDoc = await resolveMarkdownForTrain(memoryStore, qdrantService, input);
-  if (!markdownDoc || markdownDoc.length < 1) {
-    throw new TrainError('MARKDOWN_REQUIRED', 'Provide markdown_doc and/or source_adapter_uri.', {
+  const content = await resolveContentForTrain(memoryStore, qdrantService, input);
+  if (!content || content.length < 1) {
+    throw new TrainError('CONTENT_REQUIRED', 'Provide content and/or source_adapter_uri.', {
       must_obey: true
     });
   }
   const forkedFromSource = typeof input.source_adapter_uri === 'string' && input.source_adapter_uri.trim().length > 0;
   const storePayload = {
-    markdown_doc: markdownDoc,
+    content,
     llm_model_id: input.llm_model_id,
     force_update: input.force_update,
     ...(input.protocol_version !== undefined && { protocol_version: input.protocol_version }),
     ...(input.space !== undefined && { space: input.space }),
+    ...(input.mime !== undefined && { mime: input.mime }),
+    ...(input.artifact_name !== undefined && { artifact_name: input.artifact_name }),
+    ...(input.adapter_uri !== undefined && { adapter_uri: input.adapter_uri }),
     ...(forkedFromSource && { fork_new_adapter: true })
   };
   const result = await executeTrainStore(
@@ -146,14 +149,43 @@ export async function executeTrain(
   );
   const items = await Promise.all(
     result.items.map(async (item) => {
-      const memory = await memoryStore.getMemory(item.memory_uuid);
-      const adapterId = memory?.adapter?.id ?? item.memory_uuid;
+      const storedId = item.layer_uuid ?? item.artifact_uuid;
+      const memory = storedId ? await memoryStore.getMemory(storedId) : null;
+      const isArtifactRow =
+        Boolean(item.artifact_uuid) ||
+        (typeof item.content_type === 'string' && item.content_type !== 'text/markdown');
+
+      let adapterId = memory?.adapter?.id;
+      if (!adapterId && typeof item.adapter_uri === 'string' && item.adapter_uri.trim().length > 0) {
+        try {
+          const parsed = parseKairosUri(item.adapter_uri.trim());
+          if (parsed.kind === 'adapter') adapterId = parsed.id;
+        } catch {
+          /* ignore invalid uri */
+        }
+      }
+      if (!adapterId && isArtifactRow && typeof input.adapter_uri === 'string' && input.adapter_uri.trim().length > 0) {
+        try {
+          const parsed = parseKairosUri(input.adapter_uri.trim());
+          if (parsed.kind === 'adapter') adapterId = parsed.id;
+        } catch {
+          /* ignore invalid uri */
+        }
+      }
+      if (!adapterId && !isArtifactRow && storedId) {
+        adapterId = storedId;
+      }
+
       return {
-        uri: buildLayerUri(item.memory_uuid),
-        layer_uuid: item.memory_uuid,
-        adapter_uri: buildAdapterUri(adapterId),
+        uri: item.content_type && item.content_type !== 'text/markdown'
+          ? `kairos://mem/${storedId}`
+          : buildLayerUri(storedId || ''),
+        ...(item.layer_uuid && { layer_uuid: item.layer_uuid }),
+        ...(item.artifact_uuid && { artifact_uuid: item.artifact_uuid }),
+        ...(adapterId && { adapter_uri: buildAdapterUri(adapterId) }),
         label: item.label,
-        tags: item.tags
+        tags: item.tags,
+        ...(item.content_type && { content_type: item.content_type })
       };
     })
   );

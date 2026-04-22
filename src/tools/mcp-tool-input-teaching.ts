@@ -95,7 +95,7 @@ function teachingReward(error: ZodError): Record<string, unknown> {
 
 function teachingTrain(error: ZodError): Record<string, unknown> {
   const paths = issuePaths(error);
-  const md = hasTopLevelField(error, 'markdown_doc') || hasTopLevelField(error, 'source_adapter_uri');
+  const md = hasTopLevelField(error, 'content') || hasTopLevelField(error, 'source_adapter_uri');
   const model = hasTopLevelField(error, 'llm_model_id');
   let extra = '';
   if (model) {
@@ -103,7 +103,7 @@ function teachingTrain(error: ZodError): Record<string, unknown> {
   }
   if (md) {
     extra +=
-      ' Supply full adapter `markdown_doc` and/or `source_adapter_uri` (fork) so at least one source of markdown exists.';
+      ' Supply full adapter `content` and/or `source_adapter_uri` (fork) so at least one source of content exists.';
   }
   return {
     error: MCP_INVALID_TOOL_INPUT,
@@ -111,7 +111,7 @@ function teachingTrain(error: ZodError): Record<string, unknown> {
     must_obey: true,
     message: `Input validation error: Invalid arguments for tool train.${extra} See train tool description for optional force_update, protocol_version, space.`,
     next_action:
-      'Retry train with {"markdown_doc":"...","llm_model_id":"..."} or with source_adapter_uri (and optional markdown_doc override).',
+      'Retry train with {"content":"...","llm_model_id":"..."} or with source_adapter_uri (and optional content override).',
     invalid_fields: paths
   };
 }
@@ -123,9 +123,9 @@ function teachingTune(error: ZodError): Record<string, unknown> {
     tool: 'tune',
     must_obey: true,
     message:
-      'Input validation error: `tune` requires non-empty `uris` (adapter and/or layer URIs). Provide at least one of: parallel `markdown_doc` strings (same length as uris), `updates` map, or `space` to move targets.',
+      'Input validation error: `tune` requires non-empty `uris` (adapter and/or layer URIs). Provide at least one of: parallel `content` strings (same length as uris), `updates` map, or `space` to move targets.',
     next_action:
-      'Call tune with {"uris":["kairos://adapter/..."],"markdown_doc":["..."]} or {"uris":[...],"space":"personal"} — URIs must match kairos://adapter/{uuid} or kairos://layer/{uuid}[?execution_id=...].',
+      'Call tune with {"uris":["kairos://adapter/..."],"content":["..."]} or {"uris":[...],"space":"personal"} — URIs must match kairos://adapter/{uuid} or kairos://layer/{uuid}[?execution_id=...].',
     invalid_fields: paths
   };
 }

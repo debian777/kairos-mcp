@@ -74,7 +74,7 @@ describe('Kairos protocol versioning', () => {
 
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: md, llm_model_id: 'test-versioning', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true }
     });
 
     await new Promise((r) => setTimeout(r, 6000));
@@ -104,7 +104,7 @@ describe('Kairos protocol versioning', () => {
     await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test-versioning',
         force_update: true,
         protocol_version: '2.0.0'
@@ -133,7 +133,7 @@ describe('Kairos protocol versioning', () => {
 
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: md, llm_model_id: 'test-versioning', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true }
     });
     const trainParsed = parseMcpJson(trainResult, 'train');
     expect(trainParsed.status).toBe('stored');

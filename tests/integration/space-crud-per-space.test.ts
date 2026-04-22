@@ -70,7 +70,7 @@ describe('Space CRUD per space (MCP)', () => {
     const trainCall = {
       name: 'train',
       arguments: {
-        markdown_doc: mdWithTitle(title),
+        content: mdWithTitle(title),
         llm_model_id: 'test-space-crud-personal',
         space: 'personal',
         force_update: true
@@ -91,7 +91,7 @@ describe('Space CRUD per space (MCP)', () => {
       name: 'tune',
       arguments: {
         uris: [adapterUri],
-        markdown_doc: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
+        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
       }
     };
     const tuneRes = await mcp.client.callTool(tuneCall);
@@ -133,7 +133,7 @@ describe('Space CRUD per space (MCP)', () => {
     const trainCall = {
       name: 'train',
       arguments: {
-        markdown_doc: mdWithTitle(title),
+        content: mdWithTitle(title),
         llm_model_id: 'test-space-crud-group',
         space: CI_TEST_SPACE_PARAM,
         force_update: true
@@ -154,7 +154,7 @@ describe('Space CRUD per space (MCP)', () => {
       name: 'tune',
       arguments: {
         uris: [adapterUri],
-        markdown_doc: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
+        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
       }
     };
     const tuneRes = await mcp.client.callTool(tuneCall);
@@ -194,7 +194,7 @@ describe('Space CRUD per space (MCP)', () => {
     const trainCall = {
       name: 'train',
       arguments: {
-        markdown_doc: mdWithTitle(`SpaceCrudAppRO ${Date.now()}`),
+        content: mdWithTitle(`SpaceCrudAppRO ${Date.now()}`),
         llm_model_id: 'test-space-crud-app-ro',
         space: 'Kairos app',
         force_update: true
@@ -230,7 +230,7 @@ describe('Space CRUD per space (MCP)', () => {
     const trainCall = {
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test-space-crud-move',
         space: 'personal',
         force_update: true

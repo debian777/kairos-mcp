@@ -106,6 +106,7 @@ export interface Memory {
   text: string;
   llm_model_id: string;
   created_at: string;
+  content_type?: string;
   adapter?: AdapterInfo;
   inference_contract?: InferenceContractDefinition;
 }

@@ -16,7 +16,8 @@ export const exportFormatSchema = z.enum([
   'trace_jsonl',
   'reward_jsonl',
   'sft_jsonl',
-  'preference_jsonl'
+  'preference_jsonl',
+  'source'
 ]);
 
 export const exportInputSchema = z.object({

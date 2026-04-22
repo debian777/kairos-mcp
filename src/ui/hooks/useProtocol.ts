@@ -5,7 +5,7 @@ import type { ExportOutput } from "../../tools/export_schema.js";
 
 /** Protocol editor / detail payload from markdown export. */
 export interface ProtocolQueryData {
-  markdown_doc: string;
+  content: string;
   uri: string;
   label: string;
   adapter_name: string | null;
@@ -29,7 +29,7 @@ async function fetchProtocol(uri: string): Promise<ProtocolQueryData> {
   }
   const output = (await res.json()) as ExportOutput;
   return {
-    markdown_doc: output.content,
+    content: output.content,
     uri: output.uri,
     label: output.adapter_name ?? "Adapter",
     adapter_name: output.adapter_name ?? null,
@@ -84,7 +84,7 @@ export interface ProtocolFormState {
   completionMarkdown: string;
 }
 
-/** Parse markdown_doc into title, steps (label + contract type + body), activation patterns, and reward signal. */
+/** Parse content into title, steps (label + contract type + body), activation patterns, and reward signal. */
 export function parseProtocolMarkdown(md: string): {
   title: string;
   steps: ParsedStep[];

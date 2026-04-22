@@ -11,17 +11,17 @@ The server resolves them to the underlying stored records.
 ```json
 {
   "uris": ["kairos://layer/<uuid>", "..."],
-  "markdown_doc": ["<string>", "..."],
+  "content": ["<string>", "..."],
   "updates": { "<key>": "<value>" }
 }
 ```
 
-Provide exactly one of **`markdown_doc`** or **`updates`**. When using
-**`markdown_doc`**, the array length must match **`uris`**.
+Provide exactly one of **`content`** or **`updates`**. When using
+**`content`**, the array length must match **`uris`**.
 
 ### Body markers
 
-When **`markdown_doc`** strings include `<!-- KAIROS-BODY-START -->` /
+When **`content`** strings include `<!-- KAIROS-BODY-START -->` /
 `<!-- KAIROS-BODY-END -->`, only the enclosed region is applied as the stored
 body (see server implementation).
 
@@ -45,7 +45,7 @@ body (see server implementation).
 
 1. **`export`** an adapter or layer to obtain current markdown (**`content`**).
 2. Edit offline.
-3. **`tune`** with the same target URIs and parallel **`markdown_doc`** entries.
+3. **`tune`** with the same target URIs and parallel **`content`** entries.
 
 ## Recovery hint
 

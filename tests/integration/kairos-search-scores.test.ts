@@ -75,7 +75,7 @@ describe('activate score baseline and verification', () => {
     const content = `# ${title}\n\n## Activation Patterns\nWhen.\n\n## Step 1\nDo something.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}\n\`\`\`\n\n## Reward Signal\nDone.`;
     await mcpConnection!.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: content, llm_model_id: 'test-score-baseline', force_update: true }
+      arguments: { content: content, llm_model_id: 'test-score-baseline', force_update: true }
     });
   }
 

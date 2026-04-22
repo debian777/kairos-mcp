@@ -29,7 +29,7 @@ describe('forward response schema (train → forward)', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
     });
 
     const parsed = parseMcpJson(storeResult, '[forward tests] train');
@@ -47,7 +47,7 @@ describe('forward response schema (train → forward)', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
     });
 
     const parsed = parseMcpJson(storeResult, '[forward tests] train');

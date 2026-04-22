@@ -137,7 +137,7 @@ describe('MCP host client groups', () => {
       const trainCall = {
         name: 'train',
         arguments: {
-          markdown_doc: mdWithTitle(title),
+          content: mdWithTitle(title),
           llm_model_id: 'test-host-client-group',
           space: group.name,
           force_update: true

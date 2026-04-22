@@ -55,7 +55,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
     await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: content,
+        content: content,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -97,7 +97,7 @@ describe('Kairos Search - FORBIDDEN BEHAVIOUR', () => {
     await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: content,
+        content: content,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }

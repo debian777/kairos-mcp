@@ -7,6 +7,7 @@ import { resolveCollectionAlias } from '../../utils/qdrant-utils.js';
 import { getQdrantUrl, getQdrantCollection, QDRANT_API_KEY } from '../../config.js';
 import { initializeQdrantStore } from './store-init.js';
 import { MemoryQdrantStoreAdapter } from './store-adapter.js';
+import type { StoreArtifactOptions } from './store-adapter.js';
 
 const DEFAULT_QDRANT_URL = getQdrantUrl();
 const DEFAULT_COLLECTION = getQdrantCollection('kairos');
@@ -125,6 +126,10 @@ export class MemoryQdrantStore {
     options: { forceUpdate?: boolean; protocolVersion?: string; forkNewAdapter?: boolean } = {}
   ): Promise<Memory[]> {
     return this.adapterStore.storeAdapter(docs, llmModelId, options);
+  }
+
+  async storeArtifact(content: string, options: StoreArtifactOptions): Promise<Memory[]> {
+    return this.adapterStore.storeArtifact(content, options);
   }
 
   async getMemory(memory_uuid: string, options?: { fresh?: boolean }): Promise<Memory | null> {

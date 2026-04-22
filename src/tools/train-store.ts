@@ -4,6 +4,16 @@ import { parseFrontmatter } from '../utils/frontmatter.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
 
+const ALLOWED_ARTIFACT_MIMES = new Set([
+  'text/x-python',
+  'text/x-shellscript',
+  'text/javascript',
+  'text/x-perl',
+  'text/x-toml',
+  'text/yaml',
+  'text/plain'
+]);
+
 /** Fork export includes `slug:` in YAML; same author slug in target space collides — allocate fresh. */
 function markdownWithoutAuthorSlugForFork(markdown: string): string {
   const p = parseFrontmatter(markdown);
@@ -37,7 +47,37 @@ export async function executeTrainStore(
   input: TrainStoreInput,
   runStore: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
 ): Promise<TrainStoreOutput> {
-  const docForStore = input.fork_new_adapter ? markdownWithoutAuthorSlugForFork(input.markdown_doc) : input.markdown_doc;
+  const mime = input.mime?.trim();
+  const isArtifact = !!mime && mime !== 'text/markdown';
+  if (isArtifact) {
+    if (!ALLOWED_ARTIFACT_MIMES.has(mime)) {
+      throw new TrainError('UNSUPPORTED_MIME', `Mime type "${mime}" is not in the allowlist`, {
+        allowed: [...ALLOWED_ARTIFACT_MIMES]
+      });
+    }
+    const memories = await runStore(() =>
+      memoryStore.storeArtifact(input.content, {
+        mime,
+        name: input.artifact_name!,
+        adapterUri: input.adapter_uri!,
+        llmModelId: input.llm_model_id,
+        forceUpdate: !!input.force_update
+      })
+    );
+    return {
+      items: memories.map((memory) => ({
+        uri: `kairos://mem/${memory.memory_uuid}`,
+        artifact_uuid: memory.memory_uuid,
+        adapter_uri: input.adapter_uri!,
+        label: memory.label,
+        tags: memory.tags,
+        content_type: mime
+      })),
+      status: 'stored'
+    };
+  }
+
+  const docForStore = input.fork_new_adapter ? markdownWithoutAuthorSlugForFork(input.content) : input.content;
   const validation = validateProtocolStructure(docForStore);
   if (!validation.valid) {
     throw new TrainError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
@@ -56,9 +96,10 @@ export async function executeTrainStore(
   return {
     items: memories.map((memory) => ({
       uri: `kairos://mem/${memory.memory_uuid}`,
-      memory_uuid: memory.memory_uuid,
+      layer_uuid: memory.memory_uuid,
       label: memory.label,
-      tags: memory.tags
+      tags: memory.tags,
+      content_type: 'text/markdown'
     })),
     status: 'stored'
   };

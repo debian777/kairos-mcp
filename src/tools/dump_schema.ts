@@ -7,7 +7,7 @@ const positionSchema = z.object({
 
 /** Output shape for single-step dump (no protocol=true). */
 export const dumpOutputSchema = z.object({
-  markdown_doc: z.string(),
+  content: z.string(),
   uri: z.string(),
   label: z.string(),
   adapter_name: z.string().nullable(),

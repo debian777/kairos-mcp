@@ -42,7 +42,7 @@ describe('v4-reward response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-reward', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-reward', force_update: true }
     });
     const stored = parseMcpJson(storeResult, 'v4-reward train');
     expect(stored.status).toBe('stored');

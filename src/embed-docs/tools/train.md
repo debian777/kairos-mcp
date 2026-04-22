@@ -2,12 +2,12 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 
 **Input**
 
-- `markdown_doc` — full document string (optional if `source_adapter_uri` supplies content).
+- `content` — full document string (optional if `source_adapter_uri` supplies content).
 - `llm_model_id` — required model identifier string.
 - `force_update` (optional) — replace an existing adapter with the same label.
 - `protocol_version` (optional) — version string (e.g. semver) stored on the adapter.
 - `space` (optional) — `"personal"` or a full group path such as `"{{KAIROS_GROUP_SPACE_PATH_EXAMPLE}}"` (target space for the new adapter).
-- `source_adapter_uri` (optional) — `kairos://adapter/{uuid}` to **fork**: export that adapter’s markdown and **train** a **new** adapter (new ids). If you also pass `markdown_doc`, that text is used instead of the export (customize before calling **`train`**).
+- `source_adapter_uri` (optional) — `kairos://adapter/{uuid}` to **fork**: export that adapter’s markdown and **train** a **new** adapter (new ids). If you also pass `content`, that text is used instead of the export (customize before calling **`train`**).
 
 **Required structure (validated before store)**
 

@@ -34,11 +34,11 @@ export function ProtocolDetailPage() {
     );
   }
 
-  const { title, steps, triggers, completion } = parseProtocolMarkdown(data.markdown_doc);
+  const { title, steps, triggers, completion } = parseProtocolMarkdown(data.content);
 
   const handleDownloadMarkdown = () => {
     const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
-    const blob = new Blob([data.markdown_doc], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([data.content], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -49,7 +49,7 @@ export function ProtocolDetailPage() {
 
   const handleDownloadSkill = () => {
     const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
-    const skillMd = `# ${title}\n\n${data.markdown_doc}`;
+    const skillMd = `# ${title}\n\n${data.content}`;
     const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

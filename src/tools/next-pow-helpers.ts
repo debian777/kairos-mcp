@@ -143,7 +143,7 @@ function buildErrorPayload(
   };
 
   if (maxExceeded && uri) {
-    payload.next_action = `Options: (1) call tune with uris ["${uri}"] and markdown_doc or updates to fix the step for future executions (2) call reward with ${uri} and outcome failure and feedback to abort (3) ask the user for help`;
+    payload.next_action = `Options: (1) call tune with uris ["${uri}"] and content or updates to fix the step for future executions (2) call reward with ${uri} and outcome failure and feedback to abort (3) ask the user for help`;
   } else if (uri) {
     payload.next_action = `retry forward with ${uri} -- use nonce and proof_hash from THIS response's contract`;
   }

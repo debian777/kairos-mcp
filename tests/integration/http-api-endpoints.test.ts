@@ -218,7 +218,7 @@ Done.`;
       expect(data).toHaveProperty('error', 'INVALID_INPUT');
     });
 
-    test('validates markdown_doc array length matches uris', async () => {
+    test('validates content array length matches uris', async () => {
       expect.hasAssertions();
 
       const response = await apiFetch(`${API_BASE}/tune`, {
@@ -229,7 +229,7 @@ Done.`;
             'kairos://layer/00000000-0000-0000-0000-000000000001',
             'kairos://layer/00000000-0000-0000-0000-000000000002'
           ],
-          markdown_doc: ['# Only one doc']
+          content: ['# Only one doc']
         })
       });
 

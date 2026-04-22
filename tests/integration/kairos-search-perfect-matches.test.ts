@@ -43,7 +43,7 @@ describe('Kairos Search Perfect Matches', () => {
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: content,
+        content: content,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -117,7 +117,7 @@ describe('Kairos Search Perfect Matches', () => {
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: content,
+        content: content,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }

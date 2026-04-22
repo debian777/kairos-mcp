@@ -160,7 +160,26 @@ export async function getAdapterLayers(
       allowedSpaceIdsOverride && allowedSpaceIdsOverride.length > 0
         ? allowedSpaceIdsOverride
         : getSearchSpaceIds();
-    const filter = buildAdapterSiblingScrollFilter(spaceIds, adapterId);
+    const sibling = buildAdapterSiblingScrollFilter(spaceIds, adapterId);
+    const filter = {
+      must: sibling.must,
+      must_not: [
+        {
+          key: 'content_type',
+          match: {
+            any: [
+              'text/x-python',
+              'text/x-shellscript',
+              'text/javascript',
+              'text/x-perl',
+              'text/x-toml',
+              'text/yaml',
+              'text/plain'
+            ]
+          }
+        }
+      ]
+    };
     do {
       const page = await conn.client.scroll(conn.collectionName, {
         filter,

@@ -103,7 +103,7 @@ export async function executeDump(
     const firstLayer = await resolveAdapterFirstLayer(memory, qdrantService);
     if (!firstLayer?.uuid) {
       return {
-        markdown_doc: buildMarkdownDocSingle(memory),
+        content: buildMarkdownDocSingle(memory),
         uri: normalizedUri,
         label: memory.label,
         adapter_name: memory.adapter.name,
@@ -129,9 +129,9 @@ export async function executeDump(
     const slugForExport = headSlug && headSlug.length > 0 ? headSlug : slugifyFromTitle(chainLabel);
     const chainRootForExport = memories[0]?.adapter?.chain_root;
     const markdownBody = buildMarkdownDocProtocol(memories);
-    const markdown_doc = buildProtocolYamlFrontmatter(slugForExport, protocolVersion, chainRootForExport) + markdownBody;
+    const content = buildProtocolYamlFrontmatter(slugForExport, protocolVersion, chainRootForExport) + markdownBody;
     return {
-      markdown_doc,
+      content,
       uri: headUri,
       label: chainLabel,
       adapter_name: chainLabel,
@@ -142,7 +142,7 @@ export async function executeDump(
   }
 
   const output: Record<string, unknown> = {
-    markdown_doc: buildMarkdownDocSingle(memory),
+    content: buildMarkdownDocSingle(memory),
     uri: normalizedUri,
     label: memory.label,
     adapter_name: memory.adapter?.name ?? null

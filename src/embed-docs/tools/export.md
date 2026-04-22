@@ -22,4 +22,4 @@ in `trace_jsonl` but are excluded from model-training formats.
 **RFT gate:** `rft_jsonl` is intentionally not exposed yet. Add it only after
 grader reliability and task suitability are proven.
 
-**Use with `tune`:** Edit exported markdown, then **`tune`** with matching `uris` / `markdown_doc` to apply changes.
+**Use with `tune`:** Edit exported markdown, then **`tune`** with matching `uris` / `content` to apply changes.

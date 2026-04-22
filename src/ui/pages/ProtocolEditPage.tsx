@@ -64,9 +64,9 @@ export function ProtocolEditPage() {
   }, [isNew, data]);
 
   useEffect(() => {
-    if (data?.markdown_doc) {
+    if (data?.content) {
       try {
-        setForm(parseProtocolMarkdownToForm(data.markdown_doc));
+        setForm(parseProtocolMarkdownToForm(data.content));
         setUploadKey(String(Date.now()));
       } catch {
         setForm({
@@ -140,7 +140,7 @@ export function ProtocolEditPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            markdown_doc: markdown,
+            content: markdown,
             llm_model_id: "kairos-ui",
             force_update: false,
             space: spaceParam,
@@ -164,7 +164,7 @@ export function ProtocolEditPage() {
         const nextSpace = moveSpace.trim();
         const tunePayload: Record<string, unknown> = {
           uris: [decodedUri!],
-          markdown_doc: [markdown],
+          content: [markdown],
         };
         if (nextSpace && nextSpace !== initial) {
           tunePayload.space = nextSpace;

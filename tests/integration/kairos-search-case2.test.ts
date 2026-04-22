@@ -51,7 +51,7 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       const storeResult = await mcpConnection.client.callTool({
         name: 'train',
         arguments: {
-          markdown_doc: protocol,
+          content: protocol,
           llm_model_id: 'minimax/minimax-m2:free',
           force_update: true
         }

@@ -11,7 +11,7 @@ describe('resource URI schemas', () => {
   test('tune rejects execution_id on adapter URIs', () => {
     const result = tuneInputSchema.safeParse({
       uris: [ADAPTER_WITH_EXEC],
-      markdown_doc: ['# Updated adapter']
+      content: ['# Updated adapter']
     });
 
     expect(result.success).toBe(false);
@@ -20,7 +20,7 @@ describe('resource URI schemas', () => {
   test('tune accepts layer execution_id URIs', () => {
     const result = tuneInputSchema.safeParse({
       uris: [LAYER_WITH_EXEC],
-      markdown_doc: ['# Updated adapter']
+      content: ['# Updated adapter']
     });
 
     expect(result.success).toBe(true);

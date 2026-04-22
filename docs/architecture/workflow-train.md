@@ -12,7 +12,7 @@ executable adapters, end each verifiable layer with a fenced JSON block using
 
 ```json
 {
-  "markdown_doc": "<string, non-empty>",
+  "content": "<string, non-empty>",
   "llm_model_id": "<string, non-empty>",
   "force_update": "<boolean, optional, default false>"
 }
@@ -20,7 +20,7 @@ executable adapters, end each verifiable layer with a fenced JSON block using
 
 Fields:
 
-- `markdown_doc` — the markdown document to store (H1 = adapter title, H2 =
+- `content` — the markdown document to store (H1 = adapter title, H2 =
   steps).
 - `llm_model_id` — LLM model ID used for embedding and storage context.
 - `force_update` — when `true`, overwrite an existing adapter with the same
@@ -114,7 +114,7 @@ The document is new. All steps are stored and URIs are returned.
 
 ### Input
 
-Example `markdown_doc` (actual request body uses `\n` for newlines in
+Example `content` (actual request body uses `\n` for newlines in
 JSON):
 
 ````
@@ -139,7 +139,7 @@ Deploy to staging.
 
 ```json
 {
-  "markdown_doc": "<see example above>",
+  "content": "<see example above>",
   "llm_model_id": "gpt-4o"
 }
 ```
@@ -180,7 +180,7 @@ An adapter with the same label exists. Set `force_update: true` to replace it.
 
 ```json
 {
-  "markdown_doc": "# Deploy Checklist\n\n## Step 1: Build\n...",
+  "content": "# Deploy Checklist\n\n## Step 1: Build\n...",
   "llm_model_id": "gpt-4o",
   "force_update": true
 }

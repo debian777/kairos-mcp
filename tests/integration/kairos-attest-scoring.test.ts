@@ -81,8 +81,8 @@ describe('reward scoring: propagation and score boost', () => {
       { heading: 'Step One', body: `First for ${uniqueLabel}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second for ${uniqueLabel}.`, proofCmd: 'echo step2' }
     ]);
-    const mintArgs: { markdown_doc: string; llm_model_id: string; force_update: boolean; space?: string } = {
-      markdown_doc: doc,
+    const mintArgs: { content: string; llm_model_id: string; force_update: boolean; space?: string } = {
+      content: doc,
       llm_model_id: 'test-attest-scoring',
       force_update: true
     };

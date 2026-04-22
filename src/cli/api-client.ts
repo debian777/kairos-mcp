@@ -261,7 +261,7 @@ export class ApiClient {
         }
     ): Promise<TuneOutput> {
         const body: Record<string, unknown> = { uris };
-        if (opts?.markdownDoc) body['markdown_doc'] = opts.markdownDoc;
+        if (opts?.markdownDoc) body['content'] = opts.markdownDoc;
         if (opts?.updates) body['updates'] = opts.updates;
         const sp = typeof opts?.space === 'string' ? opts.space.trim() : '';
         if (sp.length > 0) body['space'] = sp;
@@ -277,7 +277,7 @@ export class ApiClient {
         force_update?: boolean;
         space?: string;
         source_adapter_uri?: string;
-        markdown_doc?: string;
+        content?: string;
         protocol_version?: string;
     }): Promise<TrainOutput> {
         return this.request<TrainOutput>('/api/train', {

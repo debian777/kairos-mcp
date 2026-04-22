@@ -68,7 +68,7 @@ describe('Adapter space move (personal → group)', () => {
 
     const trainCall = {
       name: 'train',
-      arguments: { markdown_doc: md, llm_model_id: 'test-space-move-mcp', space: 'personal', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-space-move-mcp', space: 'personal', force_update: true }
     };
     const trainRes = await mcp.client.callTool(trainCall);
     const trained = parseMcpJson(trainRes, 'train-move-mcp');
@@ -125,7 +125,7 @@ describe('Adapter space move (personal → group)', () => {
     const md = buildSpaceMoveMarkdown(title);
 
     const trainBody = {
-      markdown_doc: md,
+      content: md,
       llm_model_id: 'test-space-move-api',
       space: 'personal',
       force_update: true
