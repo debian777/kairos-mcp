@@ -224,6 +224,7 @@ reports/
 !reports/.gitkeep
 .env.*
 !.env.dev_simple
+!.env.dev_stdio
 !scripts/env/.env.template
 docs/.obsidian .kilocodeignore
 docs/.obsidian

@@ -14,7 +14,7 @@ if (process.env.DEBUG_TEST_ENV === '1') {
   const k = (key: string) => `${key}=${process.env[key] !== undefined ? '<set>' : '<unset>'}`;
   console.log(
     '[DEBUG_TEST_ENV]',
-    ['ENV', 'QDRANT_COLLECTION', 'QDRANT_URL', 'REDIS_URL', 'AUTH_ENABLED', 'PORT'].map(k).join(' ')
+    ['ENV', 'QDRANT_COLLECTION', 'QDRANT_URL', 'REDIS_URL', 'AUTH_ENABLED', 'SERVER_PORT'].map(k).join(' ')
   );
 }
 

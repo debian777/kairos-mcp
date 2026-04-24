@@ -183,7 +183,7 @@ export default async function globalSetup(): Promise<void> {
   cleanStaleAuthState(process.cwd());
   if (process.env.AUTH_ENABLED !== 'true') return;
 
-  const port = process.env.PORT || '3300';
+  const port = process.env['SERVER_PORT'] || '3300';
   const useExisting =
     process.env.KEYCLOAK_URL != null && process.env.KEYCLOAK_URL.trim() !== '';
   const baseUrl = `http://localhost:${port}`;

@@ -1,17 +1,25 @@
 /**
  * KAIROS MCP Server
  *
- * Supporting HTTP transport only (STDIO removed for simplicity)
+ * Supports HTTP and stdio transports.
  */
 
 import { structuredLogger } from './utils/structured-logger.js';
 import { installGlobalErrorHandlers } from './utils/global-error-handlers.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
-import { startServer } from './http/http-server.js';
+import { startHttpTransport } from './http/http-server.js';
+import { startStdioTransport } from './stdio/stdio-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import { mkdirSync } from 'fs';
-import { PORT, METRICS_PORT, QDRANT_SNAPSHOT_ON_START, QDRANT_SNAPSHOT_DIR, KAIROS_WORK_DIR } from './config.js';
+import {
+  SERVER_PORT,
+  METRICS_PORT,
+  QDRANT_SNAPSHOT_ON_START,
+  QDRANT_SNAPSHOT_DIR,
+  KAIROS_WORK_DIR,
+  TRANSPORT_TYPE
+} from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
 import { probeEmbeddingDimension } from './services/embedding/service.js';
@@ -85,14 +93,34 @@ async function main(): Promise<void> {
         // Use --force flag to allow override in new versions
         await injectMemResourcesAtBoot(memoryStore, { force: true });
 
-        // Start dedicated metrics server on separate port
-        // This runs independently from the main application server
-        startMetricsServer();
+        // Metrics HTTP server: only when the app serves HTTP (stdio mode avoids any HTTP listeners).
+        if (TRANSPORT_TYPE === 'http') {
+            startMetricsServer();
+        }
 
-        structuredLogger.info(`Application server: ${PORT}`);
-        structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
+        const transportSource = process.env['KAIROS_CLI_TRANSPORT_SOURCE']?.trim();
+        if (transportSource === 'cli' || transportSource === 'env') {
+            structuredLogger.info(
+                `Resolved MCP transport: ${TRANSPORT_TYPE} (source: ${transportSource === 'cli' ? '--transport' : 'TRANSPORT_TYPE'})`
+            );
+        }
 
-        await startServer(memoryStore);
+        if (TRANSPORT_TYPE === 'http') {
+            structuredLogger.info(`Application server: ${SERVER_PORT}`);
+        } else {
+            structuredLogger.info('Application server: stdio (no HTTP listener)');
+        }
+        if (TRANSPORT_TYPE === 'http') {
+            structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
+        } else {
+            structuredLogger.info('Metrics server: disabled in stdio mode (no HTTP listeners)');
+        }
+
+        if (TRANSPORT_TYPE === 'http') {
+            await startHttpTransport(memoryStore);
+        } else {
+            await startStdioTransport(memoryStore);
+        }
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 

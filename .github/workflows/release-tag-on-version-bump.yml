@@ -12,7 +12,7 @@ concurrency:
 
 on:
   workflow_run:
-    workflows: [Integration, Integration Simple]
+    workflows: [Integration, Integration Simple, Integration Stdio]
     types: [completed]
     branches: [main, "ci/**"]
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
       checks: read
 
     steps:
-      - name: Require Integration and Integration Simple success on same SHA
+      - name: Require Integration, Integration Simple, and Integration Stdio success on same SHA
         if: github.event_name == 'workflow_run'
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -51,14 +51,15 @@ jobs:
 
             integration=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
             simple=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration Simple" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
+            stdio=$(printf '%s' "$json" | jq -r '.workflow_runs[] | select(.name=="Integration Stdio" and .head_branch=="'"${HEAD_BRANCH}"'") | .conclusion' | head -n1)
 
-            echo "Attempt ${attempt}/${attempts}: Integration=${integration:-missing}, Integration Simple=${simple:-missing}"
+            echo "Attempt ${attempt}/${attempts}: Integration=${integration:-missing}, Integration Simple=${simple:-missing}, Integration Stdio=${stdio:-missing}"
 
-            if [ "${integration:-}" = "success" ] && [ "${simple:-}" = "success" ]; then
+            if [ "${integration:-}" = "success" ] && [ "${simple:-}" = "success" ] && [ "${stdio:-}" = "success" ]; then
               exit 0
             fi
 
-            if [ "${integration:-}" = "failure" ] || [ "${integration:-}" = "cancelled" ] || [ "${simple:-}" = "failure" ] || [ "${simple:-}" = "cancelled" ]; then
+            if [ "${integration:-}" = "failure" ] || [ "${integration:-}" = "cancelled" ] || [ "${simple:-}" = "failure" ] || [ "${simple:-}" = "cancelled" ] || [ "${stdio:-}" = "failure" ] || [ "${stdio:-}" = "cancelled" ]; then
               echo "Required integration workflow failed/cancelled on HEAD SHA ${HEAD_SHA}"
               exit 1
             fi
@@ -68,7 +69,7 @@ jobs:
             fi
           done
 
-          echo "Timed out waiting for Integration and Integration Simple success on SHA ${HEAD_SHA}"
+          echo "Timed out waiting for Integration, Integration Simple, and Integration Stdio success on SHA ${HEAD_SHA}"
           exit 1
 
       - name: Checkout

@@ -1,5 +1,7 @@
 # GitHub Actions – workflow design
 
+<!-- kairos-lint-allow-protocol-synonyms -->
+
 ## Overview
 
 ```mermaid
@@ -13,6 +15,8 @@ flowchart LR
 
   subgraph workflows["Workflows"]
     INT(Integration)
+    INTS(Integration Simple)
+    INTSTD(Integration Stdio)
     RTAG(Release tag on version bump)
     REL(Release)
     PNPM(Publish npm)
@@ -21,14 +25,22 @@ flowchart LR
   end
 
   PR --> INT
+  PR --> INTS
+  PR --> INTSTD
   PUSH --> INT
+  PUSH --> INTS
+  PUSH --> INTSTD
   PUSH --> RTAG
   TAG --> INT
+  TAG --> INTS
+  TAG --> INTSTD
   TAG --> REL
   RTAG -->|"if version > latest tag"| TAG
   REL --> PNPM
   PNPM --> PIMG
   MANUAL --> INT
+  MANUAL --> INTS
+  MANUAL --> INTSTD
   MANUAL --> PNPM
   MANUAL --> PCONT
 
@@ -36,7 +48,7 @@ flowchart LR
   classDef integration fill:#dcfce7,stroke:#16a34a,color:#166534
   classDef release fill:#fef3c7,stroke:#d97706,color:#92400e
   class PR,PUSH,TAG,MANUAL trigger
-  class INT integration
+  class INT,INTS,INTSTD integration
   class RTAG,REL,PNPM,PIMG,PCONT release
 ```
 
@@ -57,6 +69,7 @@ For the GitHub PR flow, treat these as hard rules:
 - Current `main` required checks are:
   - `Integration workflow passed`
   - `Integration simple workflow passed`
+  - `Integration stdio workflow passed` (add in branch protection when this workflow ships)
 - `[skip ci]` style tokens only apply to workflows triggered by `push` and
   `pull_request`, and PR behavior depends on the HEAD commit message.
 - If skip instructions are used but checks still run, verify the latest commit
@@ -89,6 +102,12 @@ flowchart TB
     J_DKR --> J_PASS
   end
 
+  subgraph INTSTD_WF["Integration Stdio (integration-stdio.yml)"]
+    J_STD[verify-stdio-transport]
+    J_STDP[integration-stdio-pass]
+    J_STD --> J_STDP
+  end
+
   subgraph RTAG_WF["Release tag on version bump (release-tag-on-version-bump.yml)"]
     J_TAG[tag-release]
   end
@@ -110,13 +129,15 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_STD,J_STDP,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
 | Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
+| Integration Simple | `build` → `verify-integration-simple` → `integration-simple-pass` | HTTP simple mode + Jest integration suite against installed tgz (includes `http-simple` scenario contracts where selected by `scripts/deploy-run-env.sh`) |
+| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio smoke + `stdio-simple` scenario contracts, no HTTP `/health`) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -134,13 +155,25 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads the **`npm-package`** artifact. **`verify-ui`** runs **in parallel with `build`** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) downloads the tgz **after** **Compose is already up and `npm ci` has run** (infra + test harness do not wait on the artifact); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-docker`** (`needs: build`, parallel with `verify-integration`) stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads the **`npm-package`** artifact. **`verify-ui`** runs **in parallel with `build`** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) downloads the tgz **after** **Compose is already up and `npm ci` has run** (infra + test harness do not wait on the artifact); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`** (full Jest integration suite, including **`http-auth`** scenario contract tests selected for the AUTH stack). **`verify-docker`** (`needs: build`, parallel with `verify-integration`) stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
 
 **Caching:** **`verify-ui`** and **`verify-integration`** share the **`~/.cache/ms-playwright`** key. **`verify-integration`** restores/saves **Docker infra** images (`compose.yaml` hash).
 
 **Note:** `verify-integration` cannot start until **`build`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build time plus later steps.
 
 **Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/ci-github-step-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/deploy-run-env.sh`).
+
+### Integration test matrix (contracts and scenarios)
+
+Transport-neutral MCP checks live under **`tests/integration/contracts/`** (shared assertions). **`tests/integration/harness/`** holds per-scenario bootstrap (`http-auth`, `http-simple`, `stdio-simple`) and helpers. **`tests/integration/scenarios/`** contains thin Jest files that bind one contract to one harness.
+
+Default **`npm run dev:test`** / **`dev_simple:test`** / **`dev_stdio:test`** (via `ENV=… ./scripts/deploy-run-env.sh test`) already runs the right scenario wrappers for each stack: `scripts/deploy-run-env.sh` ignores mismatched scenario files so the auth job does not pick up `http-simple` or `stdio-simple` wrappers, and so on.
+
+To run a single scenario explicitly (after the matching stack is up):
+
+- `npm run test:integration:contracts:http-auth`
+- `npm run test:integration:contracts:http-simple`
+- `npm run test:integration:contracts:stdio-simple`
 
 ## Release: only acceptable final output
 
@@ -168,12 +201,12 @@ sequenceDiagram
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration** and **Integration Simple** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on both workflows being `success` for the same head SHA. Human version bumps follow [.cursor/skills/version-bump-release/SKILL.md](../../.cursor/skills/version-bump-release/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
+`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration**, **Integration Simple**, and **Integration Stdio** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on all three workflows being `success` for the same head SHA. Human version bumps follow [.cursor/skills/version-bump-release/SKILL.md](../../.cursor/skills/version-bump-release/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
 
 - **Main:** Full releases (`vX.Y.Z`) and pre-releases (e.g. `vX.Y.Z-rc.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing **stable** tag (`X.Y.Z` only) **and** `v<package.json version>` does not already exist (local or on `origin`). Repeat Integration runs for the same version exit cleanly instead of failing on duplicate `git tag`.
 - **`ci/**`:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist (local or on `origin`). Full/pre releases are not created from non-main branches.
 - **Concurrency:** One job at a time per repository (`cancel-in-progress: false`) so concurrent runs do not race on `git tag` / `git push`.
-- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when integration workflows have not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration** and **Integration Simple** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
+- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when integration workflows have not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration**, **Integration Simple**, and **Integration Stdio** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
 
 **Flow:** When a tag is created (by this workflow), it triggers the **Release** workflow (npm → Docker → GitHub Release).
 

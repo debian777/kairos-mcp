@@ -4,7 +4,7 @@
 #
 # build — no Docker infra (npm ci + pack only).
 # verify-ui — static + UI tests; runs in parallel with build (no tgz required).
-# verify-integration — starts Compose + npm ci before downloading the package artifact; then Playwright, Keycloak, install tgz, dev:test.
+# verify-integration — starts Compose + npm ci before downloading the package artifact; then Playwright, Keycloak, install tgz, dev:test (includes HTTP scenario contracts where applicable; see workflows README).
 # verify-docker — release-equivalent image + Trivy (release safety net only).
 # integration-pass — single green gate for branch protection / workflow_run.
 name: Integration
@@ -236,7 +236,7 @@ jobs:
             sleep 2
           done
 
-      - name: Run auth integration test
+      - name: Run integration tests (AUTH stack + Jest suite)
         run: npm run dev:test
 
       - name: Show test failure

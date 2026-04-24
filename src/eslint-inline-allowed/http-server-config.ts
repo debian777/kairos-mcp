@@ -11,7 +11,7 @@ import {
     MCP_RATE_LIMIT_WINDOW_MS
 } from '../config.js';
 import { httpLogger } from '../utils/structured-logger.js';
-import { httpMetricsMiddleware } from './http-metrics-middleware.js';
+import { httpMetricsMiddleware } from '../http/http-metrics-middleware.js';
 
 /** Minimal CSP for API server (no HTML UI); satisfies security scanners while avoiding breakage. */
 const HELMET_CSP = {
@@ -39,8 +39,7 @@ export function createRateLimiter(options: {
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
-        // Keep the upstream option name literal here for readability.
-        // eslint config allowlists this file for the prior-era wording rule.
+        // eslint-disable-next-line kairos-forbidden-text/no-forbidden-kairos-text -- express-rate-limit upstream option name
         legacyHeaders: false,
         identifier: options.identifier,
         message: {

@@ -14,7 +14,7 @@ Use this flow when the user wants the default local install.
 4. Confirm the `.env` path, write the OpenAI block with `QDRANT_API_KEY` and
    `AUTH_ENABLED=false`, and ask before overwriting anything.
 5. Ask before `docker compose -p kairos-mcp up -d`.
-6. Verify `curl -sS "http://localhost:${PORT:-3000}/health"`.
+6. Verify `curl -sS "http://localhost:${SERVER_PORT:-3000}/health"`.
 7. Explain that no CLI login is needed for the simple stack because
    `AUTH_ENABLED=false`.
 8. Offer MCP config only if the user's IDE explicitly needs it.

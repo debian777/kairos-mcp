@@ -96,12 +96,29 @@ For a longer narrative, see
 The current codebase includes:
 
 - **HTTP application server** — Express app for MCP, REST, auth routes, and UI
+- **stdio MCP transport** — direct local-host launch path for desktop/IDE MCP clients
 - **Qdrant-backed adapter store** — required for runtime
 - **Optional Redis cache / proof-of-work state store** — enabled when `REDIS_URL` is set
 - **Optional Keycloak auth integration** — browser session + Bearer JWT validation
 - **React UI** — served from the same origin at `/ui`
 - **CLI** — talks to the HTTP API
 
+## Transport modes
+
+Use one transport mode per process:
+
+**`kairos serve` / `kairos-mcp serve`** (run the MCP server from the npm package):
+
+- **`--transport stdio|http`** overrides **`TRANSPORT_TYPE`** for that process only.
+- If neither is set, **`serve` defaults to stdio** (good for local MCP hosts).
+- Other **`kairos`** commands (login, train, …) do not use `--transport`; they only see
+  **`TRANSPORT_TYPE`** if you set it in the environment (normally leave it unset for CLI-only use).
+
+- **`TRANSPORT_TYPE=http`**: serves `/mcp`, `/api/*`, `/ui`, and `/health`; this is
+  the default for Docker Compose deployments.
+- **`TRANSPORT_TYPE=stdio`**: runs MCP over stdin/stdout for local hosts such as
+  Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
+  MCP protocol frames and logs go to stderr.
 ## Quick start
 
 If your agent supports installable skills, start with the guided setup below.
@@ -184,7 +201,7 @@ npm run dev:deploy
 
 The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
 `scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
-set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
+set **`SERVER_PORT`** in `.env`. Use the same host and port in health checks, the UI, and MCP
 URLs.
 
 See [docs/install/README.md](docs/install/README.md) and
@@ -194,8 +211,8 @@ See [docs/install/README.md](docs/install/README.md) and
 
 This repository ships [`.cursor/mcp.json`](.cursor/mcp.json) with a **streamable
 HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
-`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `PORT=3300`).
-If you run the minimal Compose stack without overriding `PORT`, point MCP at
+`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `SERVER_PORT=3300`).
+If you run the minimal Compose stack without overriding **`SERVER_PORT`**, point MCP at
 `http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
 server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
 [AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
@@ -203,6 +220,28 @@ server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
 When executing over MCP, follow **[Protocol execution](#protocol-execution)**
 above and each tool result’s `next_action`. The connected server’s tool
 descriptions are the runtime authority if they differ from this file.
+
+### Local stdio launch for desktop/IDE hosts
+
+Use this when your host launches the server as a local process instead of
+connecting over HTTP.
+
+1. Build the project:
+
+   ```bash
+   npm run build
+   ```
+
+2. Run the stdio server profile:
+
+   ```bash
+   npm run dev:stdio
+   ```
+
+3. Point your host at the local command:
+   - command: `node`
+   - args: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`
+   - env override: `TRANSPORT_TYPE=stdio`
 
 ## Installation options
 
@@ -355,7 +394,7 @@ docker compose -p kairos-mcp logs app-prod
 
 Also verify that required ports are free:
 
-- minimal stack: app `3000` (or your `PORT`), Qdrant `6333`, metrics `9090` (or
+- minimal stack: app `3000` (or your **`SERVER_PORT`**), Qdrant `6333`, metrics `9090` (or
   your `METRICS_PORT`)
 - repo dev scripts: app often `3300`, metrics often `9390` (see `.env`)
 - full stack adds: `6379`, `5432`, `8080`, `9000`

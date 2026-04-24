@@ -35,5 +35,9 @@ mkdirSync(testDir, { recursive: true });
 run("npm", ["init", "-y"], testDir, "npm init");
 run("npm", ["install", tgzPath], testDir, "npm install <tgz>");
 run("npx", ["kairos", "--version"], testDir, "npx kairos --version");
+run("npx", ["kairos-mcp", "--version"], testDir, "npx kairos-mcp --version");
+run("npx", ["kairos-mcp", "serve", "--help"], testDir, "npx kairos-mcp serve --help");
 
-console.log("test:tgz OK — install and kairos --version succeeded.");
+console.log(
+  "test:tgz OK — install, kairos --version, kairos-mcp --version, and serve --help succeeded."
+);

@@ -131,7 +131,7 @@ export async function refreshTestAuthToken(): Promise<boolean> {
   const realm = process.env.KEYCLOAK_REALM?.trim();
   const clientId = process.env.KEYCLOAK_CLIENT_ID?.trim();
   if (!keycloakUrl || !realm || !clientId) return false;
-  const port = process.env.PORT || '3300';
+  const port = process.env['SERVER_PORT'] || '3300';
   const baseUrl =
     readAuthEnv()?.baseUrl?.trim() ||
     process.env.KAIROS_TEST_BASE_URL?.trim() ||
@@ -168,14 +168,14 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 /**
- * Base URL for the app. When AUTH_ENABLED=true and the auth file exists, use its baseUrl; otherwise http://localhost:PORT.
+ * Base URL for the app. When AUTH_ENABLED=true and the auth file exists, use its baseUrl; otherwise http://localhost:SERVER_PORT.
  */
 export function getTestAuthBaseUrl(): string {
   if (process.env.AUTH_ENABLED === 'true') {
     const env = readAuthEnv();
     if (env?.baseUrl) return env.baseUrl;
   }
-  const port = process.env.PORT || '3300';
+  const port = process.env['SERVER_PORT'] || '3300';
   return `http://localhost:${port}`;
 }
 
