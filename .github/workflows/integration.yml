@@ -297,7 +297,7 @@ jobs:
             docker build --target runtime-ci --build-arg "PACKAGE_VERSION=${VERSION}" -t kairos-mcp:release-ci .
 
       - name: Trivy container scan (same policy as Release)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: kairos-mcp:release-ci
           format: table
