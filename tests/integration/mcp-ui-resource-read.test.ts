@@ -65,6 +65,7 @@ describe('MCP UI resource read (spaces widget)', () => {
       expect(typeof c.text).toBe('string');
       expect(c.text).toContain('kairos-forward-view');
       expect(c.text).toContain('isForwardStructured');
+      expect(c.text).toContain('background:transparent');
     }, 'resources/read forward widget');
   });
 
