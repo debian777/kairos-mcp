@@ -194,11 +194,19 @@ export interface SlugResolveOutcome {
   disambiguation_note?: string;
 }
 
+function getSlugSpacePrecedence(spaceId: string): number {
+  if (spaceId.startsWith('user:')) return 0;
+  if (spaceId.startsWith('group:')) return 1;
+  if (spaceId === KAIROS_APP_SPACE_ID || spaceId.startsWith('app:')) return 2;
+  return 2;
+}
+
 /**
  * Find the first adapter layer UUID for a protocol slug (exact match), scoped to searchable spaces.
  * Paginates scroll so matches are not truncated at a small limit.
- * If the slug maps to more than one adapter, picks deterministically: default write space first, then
- * lowest point id; logs and returns a disambiguation_note instead of failing the request.
+ * If the slug maps to more than one adapter, picks deterministically by fixed precedence:
+ * personal > group > app/system, then lowest point id; logs and returns a disambiguation_note
+ * instead of failing the request.
  */
 export async function findFirstStepMemoryUuidBySlug(
   conn: QdrantConnection,
@@ -247,12 +255,11 @@ export async function findFirstStepMemoryUuidBySlug(
       return { layerUuid: String(unique[0]!.id) };
     }
 
-    const defaultWrite = getSpaceContext().defaultWriteSpaceId;
     const spaceOf = (p: any) => String(p.payload?.space_id ?? KAIROS_APP_SPACE_ID);
     const sorted = [...unique].sort((a: any, b: any) => {
-      const aDef = spaceOf(a) === defaultWrite ? 0 : 1;
-      const bDef = spaceOf(b) === defaultWrite ? 0 : 1;
-      if (aDef !== bDef) return aDef - bDef;
+      const aPriority = getSlugSpacePrecedence(spaceOf(a));
+      const bPriority = getSlugSpacePrecedence(spaceOf(b));
+      if (aPriority !== bPriority) return aPriority - bPriority;
       return String(a.id).localeCompare(String(b.id));
     });
     const winner = sorted[0]!;
@@ -261,7 +268,16 @@ export async function findFirstStepMemoryUuidBySlug(
       typeof winner.payload?.adapter?.id === 'string'
         ? winner.payload.adapter.id
         : chosenId;
-    const note = `Slug "${normalized}" matched ${unique.length} adapters; selected one deterministically (default write space preferred, then stable id). Prefer an explicit adapter URI such as kairos://adapter/${adapterHint} to avoid ambiguity.`;
+    const winnerSpaceId = spaceOf(winner);
+    const contenderSummary = sorted
+      .map((point: any) => {
+        const pointId = String(point.id);
+        const adapterId = typeof point.payload?.adapter?.id === 'string' ? point.payload.adapter.id : pointId;
+        const pointSpaceId = spaceOf(point);
+        return `${adapterId}@${pointSpaceId}`;
+      })
+      .join(', ');
+    const note = `Slug "${normalized}" matched ${unique.length} adapters; selected "${adapterHint}" from "${winnerSpaceId}" by precedence (personal > group > app/system, then stable id). Candidates: ${contenderSummary}. Prefer an explicit adapter URI such as kairos://adapter/${adapterHint} to avoid ambiguity.`;
     structuredLogger.warn(`[slug-resolve] ${note}`);
     return { layerUuid: chosenId, disambiguation_note: note };
   });
