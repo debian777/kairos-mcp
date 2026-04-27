@@ -9,6 +9,7 @@ import { executeUpdate } from './update.js';
 import { type TuneInput, type TuneOutput } from './tune_schema.js';
 import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { buildTuneResultMessage } from './tune-messages.js';
+import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
 
 type AdapterLayerPoint = { uuid: string; payload: any };
 
@@ -57,6 +58,15 @@ function selectAdapterLayerSet(layers: AdapterLayerPoint[], preferredSpaceId?: s
   return sortByLayerIndex(groupedBySpace.get(fallbackSpaceId!) ?? layers);
 }
 
+function assertWritableTuneLayers(layers: AdapterLayerPoint[]): void {
+  for (const layer of layers) {
+    const spaceId = typeof layer.payload?.space_id === 'string' ? layer.payload.space_id : '';
+    if (isProtectedWriteSpace(spaceId)) {
+      throw new Error(protectedWriteErrorMessage(spaceId));
+    }
+  }
+}
+
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string, preferredSpaceId?: string): Promise<string> {
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'layer') {
@@ -64,6 +74,7 @@ async function normalizeTuneUri(qdrantService: QdrantService, uri: string, prefe
   }
 
   const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
+  assertWritableTuneLayers(layers);
   const head = layers[0]?.uuid ?? parsed.id;
   return `kairos://mem/${head}`;
 }
@@ -78,6 +89,7 @@ async function collectLayerMemoryUuidsForTune(
     return [parsed.id];
   }
   const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
+  assertWritableTuneLayers(layers);
   return layers.map((l) => l.uuid);
 }
 
@@ -103,6 +115,7 @@ async function tuneAdapterMarkdownInPlace(
   }
 
   const existingLayers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id));
+  assertWritableTuneLayers(existingLayers);
   if (existingLayers.length === 0) {
     throw new Error(`Adapter not found: ${adapterUri}`);
   }

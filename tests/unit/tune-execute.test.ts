@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { executeTune } from '../../src/tools/tune-execute.js';
 import { IDGenerator } from '../../src/services/id-generator.js';
+import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 
 type LayerPayload = {
   space_id: string;
@@ -193,5 +194,73 @@ New reward text after tune.
     expect(output.results[0]?.status).toBe('error');
     expect(output.results[0]?.message).toContain('Failed to update adapter layer');
     expect(fakeQdrant.updateCalls).toHaveLength(0);
+  });
+
+  test('blocks tune updates for app/system-backed adapters', async () => {
+    const adapterName = 'Tune Protected Adapter';
+    const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
+    const appOnlyLayers = buildInitialLayers(adapterId, adapterName).map((layer) => ({
+      ...layer,
+      payload: {
+        ...layer.payload,
+        space_id: 'space:kairos-app'
+      }
+    }));
+    const fakeQdrant = new FakeQdrantService(appOnlyLayers);
+
+    const output = await executeTune(fakeQdrant as any, {
+      uris: [`kairos://adapter/${adapterId}`],
+      updates: { tags: ['blocked'] }
+    });
+
+    expect(output.total_updated).toBe(0);
+    expect(output.total_failed).toBe(1);
+    expect(output.results[0]?.status).toBe('error');
+    expect(output.results[0]?.message).toContain('protected app/system spaces');
+    expect(fakeQdrant.updateCalls).toHaveLength(0);
+  });
+
+  test('still updates writable personal override when app and personal layers share adapter id', async () => {
+    const adapterName = 'Tune Mixed Space Adapter';
+    const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
+    const personalLayers = buildInitialLayers(adapterId, adapterName).map((layer) => ({
+      ...layer,
+      payload: {
+        ...layer.payload,
+        space_id: 'user:test-space'
+      }
+    }));
+    const appLayerUuids = [
+      '33333333-3333-4333-8333-333333333333',
+      '44444444-4444-4444-8444-444444444444'
+    ];
+    const appLayers = buildInitialLayers(adapterId, adapterName).map((layer, index) => ({
+      ...layer,
+      uuid: appLayerUuids[index]!,
+      payload: {
+        ...layer.payload,
+        space_id: 'space:kairos-app'
+      }
+    }));
+    const fakeQdrant = new FakeQdrantService([...personalLayers, ...appLayers]);
+
+    const output = await runWithSpaceContextAsync(
+      {
+        userId: 'u1',
+        groupIds: [],
+        allowedSpaceIds: ['user:test-space'],
+        defaultWriteSpaceId: 'user:test-space'
+      },
+      async () =>
+        executeTune(fakeQdrant as any, {
+          uris: [`kairos://adapter/${adapterId}`],
+          updates: { tags: ['personal-update'] }
+        })
+    );
+
+    expect(output.total_updated).toBe(1);
+    expect(output.total_failed).toBe(0);
+    expect(fakeQdrant.updateCalls).toHaveLength(1);
+    expect(fakeQdrant.updateCalls[0]?.id).toBe('11111111-1111-4111-8111-111111111111');
   });
 });

@@ -4,6 +4,7 @@ import { KairosError } from '../../types/index.js';
 import { SIMILAR_MEMORY_THRESHOLD } from '../../config.js';
 import { getSpaceContext } from '../../utils/tenant-context.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
+import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../../utils/protected-space-write-guard.js';
 import type { MemoryQdrantStoreMethods } from './store-methods.js';
 import { buildAdapterUri, buildLayerUri } from '../../tools/kairos-uri.js';
 import { MAX_AUTO_SUFFIX_ATTEMPTS, nextAutoSlugCandidate } from '../../utils/protocol-slug.js';
@@ -63,6 +64,24 @@ export async function handleDuplicateAdapter(
         uri: `kairos://mem/${String(p.id)}`
       }));
       throw new KairosError('Duplicate adapter', 'DUPLICATE_ADAPTER', 409, { adapter_id: adapterUuid, items });
+    }
+    const protectedEntries = (dup.points || []).filter((p: any) =>
+      isProtectedWriteSpace(typeof p?.payload?.space_id === 'string' ? p.payload.space_id : '')
+    );
+    if (protectedEntries.length > 0) {
+      const items = protectedEntries.map((p: any) => ({
+        label: (p.payload?.label as string) || 'Memory',
+        uri: `kairos://mem/${String(p.id)}`,
+        space_id: typeof p?.payload?.space_id === 'string' ? p.payload.space_id : undefined
+      }));
+      const firstSpaceId =
+        typeof protectedEntries[0]?.payload?.space_id === 'string' ? protectedEntries[0].payload.space_id : undefined;
+      throw new KairosError(
+        protectedWriteErrorMessage(firstSpaceId),
+        'PROTECTED_SPACE_WRITE_FORBIDDEN',
+        403,
+        { adapter_id: adapterUuid, items }
+      );
     }
     const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds, {
       must: [{ key: 'adapter.id', match: { value: adapterUuid } }]
