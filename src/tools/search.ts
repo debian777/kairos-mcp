@@ -14,7 +14,7 @@ import {
   KAIROS_SEARCH_LIMIT_CAP,
   KAIROS_SEARCH_LIMIT_MIN,
   KAIROS_ENABLE_GROUP_COLLAPSE,
-  USE_REDIS
+  REDIS_URL
 } from '../config.js';
 import { createResults, generateUnifiedOutput } from './search_output.js';
 import { searchOutputSchema, type SearchInput, type SearchOutput } from './search_schema.js';
@@ -201,7 +201,7 @@ export async function executeSearch(
     const requestId = getRequestIdFromStorage();
     const cacheDebugBase: Record<string, unknown> = {
       component: 'activate_search_cache',
-      cache_backend: USE_REDIS ? 'redis' : 'memory',
+      cache_backend: REDIS_URL ? 'redis' : 'memory',
       cache_key_version: 'v6',
       group_collapse: KAIROS_ENABLE_GROUP_COLLAPSE,
       effective_limit: effectiveLimit,

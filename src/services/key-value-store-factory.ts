@@ -3,13 +3,13 @@
  * Uses Redis when REDIS_URL is set (non-empty), in-memory when REDIS_URL is unset or empty.
  */
 
-import { USE_REDIS } from '../config.js';
+import { REDIS_URL } from '../config.js';
 import type { IKeyValueStore } from './key-value-store.js';
 import { MemoryStore } from './memory-store.js';
 import { RedisService } from './redis.js';
 
 function createKeyValueStore(): IKeyValueStore {
-  if (!USE_REDIS) {
+  if (!REDIS_URL) {
     return new MemoryStore();
   }
   return new RedisService();

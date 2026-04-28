@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { keyValueStore } from '../../src/services/key-value-store-factory.js';
 import { redisCacheService } from '../../src/services/redis-cache.js';
-import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, USE_REDIS, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
+import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, REDIS_URL, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
 
@@ -34,9 +34,8 @@ function memoryRedisKey(uuid: string): string {
   return `${KAIROS_REDIS_PREFIX}${MEMORY_CACHE_KEY_PREFIX}${uuid}`;
 }
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-
-const describeRedis = USE_REDIS ? describe : describe.skip;
+const TEST_REDIS_URL = REDIS_URL || 'redis://127.0.0.1:6379';
+const describeRedis = REDIS_URL ? describe : describe.skip;
 
 describeRedis('Redis Pub/Sub Integration Tests', () => {
   let testClient: RedisClientType;
@@ -47,7 +46,7 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
     await keyValueStore.connect();
 
     // Create test Redis client for direct verification
-    testClient = createClient({ url: REDIS_URL });
+    testClient = createClient({ url: TEST_REDIS_URL });
     await testClient.connect();
 
     // Create subscriber client for pub/sub tests
@@ -336,4 +335,3 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
     });
   });
 });
-

@@ -14,14 +14,14 @@
 
 /**
  * @typedef {Object} HealthResponse
- * @property {'healthy'|'degraded'} status
+ * @property {'healthy'|'unhealthy'} status
  * @property {string} service
  * @property {string} version
  * @property {string} transport
  * @property {Object} dependencies
  * @property {'healthy'|'unhealthy'} dependencies.qdrant
- * @property {'healthy'|'unhealthy'} dependencies.redis
- * @property {'healthy'|'unhealthy'} dependencies.tei
+ * @property {'healthy'|'unhealthy'|'disabled'} dependencies.redis
+ * @property {'healthy'|'unhealthy'|'disabled'} dependencies.embedding
  */
 
 /**

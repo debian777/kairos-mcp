@@ -7,7 +7,10 @@
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseOidcScopesSupported } from './http/oidc-scopes.js';
 import { resolveKairosWorkDir } from './utils/kairos-work-dir-resolve.js';
+
+export { DEFAULT_OIDC_SCOPES_SUPPORTED, parseOidcScopesSupported } from './http/oidc-scopes.js';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
 function getEnvRequired(key: string, errorMessage?: string): string {
@@ -49,7 +52,6 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 
 // REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend
 export const REDIS_URL = (getEnvString('REDIS_URL', '')).trim();
-export const USE_REDIS = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
 const TRACE_STORE_DIR_RAW = getEnvString(
   'KAIROS_TRACE_STORE_DIR',
@@ -140,6 +142,15 @@ export const AUTH_CALLBACK_BASE_URL = getEnvString('AUTH_CALLBACK_BASE_URL', '')
 export const SESSION_SECRET = getEnvString('SESSION_SECRET', '');
 /** Session cookie and payload exp lifetime in seconds; default 7 days. */
 export const SESSION_MAX_AGE_SEC = getEnvInt('SESSION_MAX_AGE_SEC', 604800);
+
+/**
+ * Comma-separated scopes advertised from `/.well-known/oauth-protected-resource`.
+ * Defaults to the baseline OIDC scopes required by KAIROS discovery; set explicitly
+ * to add scopes such as `offline_access` without rebuilding the container image.
+ */
+export const OIDC_SCOPES_SUPPORTED: readonly string[] = parseOidcScopesSupported(
+  process.env['KAIROS_OIDC_SCOPES_SUPPORTED']
+);
 
 /** When set to oidc_bearer, Bearer tokens are validated (issuer, audience, exp); when unset, Bearer presence only (backward compat). */
 export const AUTH_MODE = getEnvString('AUTH_MODE', '');
