@@ -8,6 +8,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseOidcScopesSupported } from './http/oidc-scopes.js';
+import { normalizeRedisUrl } from './utils/normalize-redis-url.js';
 import { resolveKairosWorkDir } from './utils/kairos-work-dir-resolve.js';
 
 export { DEFAULT_OIDC_SCOPES_SUPPORTED, parseOidcScopesSupported } from './http/oidc-scopes.js';
@@ -50,8 +51,10 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
-// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend
-export const REDIS_URL = (getEnvString('REDIS_URL', '')).trim();
+// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend; inject REDIS_PASSWORD when credentials are missing.
+const REDIS_URL_RAW = getEnvString('REDIS_URL', '');
+const REDIS_PASSWORD = getEnvString('REDIS_PASSWORD', '');
+export const REDIS_URL = normalizeRedisUrl(REDIS_URL_RAW, REDIS_PASSWORD);
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
 const TRACE_STORE_DIR_RAW = getEnvString(
   'KAIROS_TRACE_STORE_DIR',

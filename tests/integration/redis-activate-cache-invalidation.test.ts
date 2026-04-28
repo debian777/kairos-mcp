@@ -26,7 +26,6 @@ function redisKey(suffix: string): string {
   return `${KAIROS_REDIS_PREFIX}${KAIROS_APP_SPACE_ID}:${suffix}`;
 }
 
-const TEST_REDIS_URL = REDIS_URL || 'redis://127.0.0.1:6379';
 const describeRedis = REDIS_URL ? describe : describe.skip;
 
 /** executeSearch / MCP activate cache keys; memory CUD must call invalidateAfterUpdate to clear them. */
@@ -36,7 +35,7 @@ describeRedis('Redis activate cache invalidation', () => {
 
   beforeAll(async () => {
     await keyValueStore.connect();
-    testClient = createClient({ url: TEST_REDIS_URL });
+    testClient = createClient({ url: REDIS_URL });
     await testClient.connect();
   }, 30000);
 

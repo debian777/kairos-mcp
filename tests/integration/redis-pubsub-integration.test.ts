@@ -34,7 +34,6 @@ function memoryRedisKey(uuid: string): string {
   return `${KAIROS_REDIS_PREFIX}${MEMORY_CACHE_KEY_PREFIX}${uuid}`;
 }
 
-const TEST_REDIS_URL = REDIS_URL || 'redis://127.0.0.1:6379';
 const describeRedis = REDIS_URL ? describe : describe.skip;
 
 describeRedis('Redis Pub/Sub Integration Tests', () => {
@@ -46,7 +45,7 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
     await keyValueStore.connect();
 
     // Create test Redis client for direct verification
-    testClient = createClient({ url: TEST_REDIS_URL });
+    testClient = createClient({ url: REDIS_URL });
     await testClient.connect();
 
     // Create subscriber client for pub/sub tests
