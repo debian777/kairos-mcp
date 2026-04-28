@@ -3,7 +3,7 @@ import { MemoryQdrantStore } from '../services/memory/store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { keyValueStore } from '../services/key-value-store-factory.js';
 import { getBuildVersion } from '../utils/build-version.js';
-import { AUTH_ENABLED, USE_REDIS } from '../config.js';
+import { AUTH_ENABLED, REDIS_URL } from '../config.js';
 
 /**
  * Set up health check and basic info routes
@@ -13,10 +13,10 @@ import { AUTH_ENABLED, USE_REDIS } from '../config.js';
 export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdrantStore) {
     // Health check endpoint (non-MCP)
     app.get('/health', async (req, res) => {
-        // Qdrant is the critical dependency for store functionality tests.
+        // Configured dependencies are critical for readiness. If the process declares a backend,
+        // /health must fail when that backend is unreachable or unauthenticated.
         const qdrantHealthy = await memoryStore.checkHealth().catch(() => false);
-        // Redis and embedding providers are non-critical for allowing tests to proceed,
-        // but reported for diagnostics.
+        const redisConfigured = REDIS_URL.length > 0;
         const redisHealthy = keyValueStore.isConnected();
         let teiHealth = { healthy: false, message: 'Embedding provider not configured' as string };
 
@@ -45,11 +45,12 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
 
         const teiHealthy = !!teiHealth.healthy;
         const embeddingCfg = embeddingService.getConfig ? embeddingService.getConfig() : ({ provider: 'unknown' } as any);
-
-        // Only treat Qdrant as a blocking failure so tests that exercise store functionality can proceed.
-        const criticalHealthy = qdrantHealthy;
-        const nonCriticalAllHealthy = redisHealthy && teiHealthy;
-        const healthStatus = criticalHealthy ? (nonCriticalAllHealthy ? 'healthy' : 'degraded') : 'unhealthy';
+        const embeddingConfigured = embeddingCfg.provider && embeddingCfg.provider !== 'none';
+        const criticalHealthy =
+            qdrantHealthy &&
+            (!redisConfigured || redisHealthy) &&
+            (!embeddingConfigured || teiHealthy);
+        const healthStatus = criticalHealthy ? 'healthy' : 'unhealthy';
         const statusCode = criticalHealthy ? 200 : 503;
 
         const buildVersion = getBuildVersion();
@@ -57,16 +58,18 @@ export function setupHealthRoutes(app: express.Express, memoryStore: MemoryQdran
 
         const dependencies: Record<string, string> = {
             qdrant: qdrantHealthy ? 'healthy' : 'unhealthy',
-            embedding: teiHealthy ? 'healthy' : 'unhealthy'
+            embedding: embeddingConfigured
+                ? (teiHealthy ? 'healthy' : 'unhealthy')
+                : 'disabled'
         };
-        if (USE_REDIS) {
+        if (redisConfigured) {
             dependencies['redis'] = redisHealthy ? 'healthy' : 'unhealthy';
         } else {
             dependencies['cache'] = 'healthy (memory)';
         }
 
         const details: Record<string, string> = {
-            cacheBackend: USE_REDIS ? 'redis' : 'memory'
+            cacheBackend: redisConfigured ? 'redis' : 'memory'
         };
         if (req.auth?.sub) {
             details['embedding'] = teiHealth.message;

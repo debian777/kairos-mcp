@@ -17,7 +17,14 @@
  * See: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
  */
 import type { Express, Request, Response } from 'express';
-import { AUTH_CALLBACK_BASE_URL, KEYCLOAK_URL, KEYCLOAK_INTERNAL_URL, KEYCLOAK_REALM, KEYCLOAK_CLI_CLIENT_ID } from '../config.js';
+import {
+  AUTH_CALLBACK_BASE_URL,
+  KEYCLOAK_URL,
+  KEYCLOAK_INTERNAL_URL,
+  KEYCLOAK_REALM,
+  KEYCLOAK_CLI_CLIENT_ID,
+  OIDC_SCOPES_SUPPORTED
+} from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 
 export function buildProtectedResourceMetadata(): Record<string, unknown> {
@@ -30,7 +37,7 @@ export function buildProtectedResourceMetadata(): Record<string, unknown> {
   const metadata: Record<string, unknown> = {
     resource,
     authorization_servers: issuer ? [issuer] : [],
-    scopes_supported: ['openid', 'profile', 'email', 'kairos-groups'],
+    scopes_supported: OIDC_SCOPES_SUPPORTED,
     bearer_methods_supported: ['header'],
     resource_name: 'KAIROS MCP'
   };
@@ -82,6 +89,33 @@ function keycloakFetchBase(): string {
   return external;
 }
 
+function rewriteInternalKeycloakUrls<T>(value: T): T {
+  const external = KEYCLOAK_URL ? KEYCLOAK_URL.replace(/\/$/, '') : '';
+  const internal = KEYCLOAK_INTERNAL_URL ? KEYCLOAK_INTERNAL_URL.replace(/\/$/, '') : '';
+  if (!external || !internal || external === internal) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    if (value === internal || value.startsWith(`${internal}/`)) {
+      return `${external}${value.slice(internal.length)}` as T;
+    }
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => rewriteInternalKeycloakUrls(entry)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, rewriteInternalKeycloakUrls(entry)])
+    ) as T;
+  }
+
+  return value;
+}
+
 async function fetchUpstreamAuthServerMetadata(): Promise<Record<string, unknown> | null> {
   const now = Date.now();
   if (authServerMetadataCache && now < authServerMetadataCache.expiresAt) {
@@ -113,7 +147,7 @@ async function fetchUpstreamAuthServerMetadata(): Promise<Record<string, unknown
 }
 
 export function buildAuthorizationServerMetadata(upstream: Record<string, unknown>): Record<string, unknown> {
-  const metadata = { ...upstream };
+  const metadata = rewriteInternalKeycloakUrls({ ...upstream });
 
   // Preserve registration_endpoint from Keycloak — MCP hosts (e.g. Cursor streamable HTTP)
   // require it for Dynamic Client Registration. Stripping it causes:

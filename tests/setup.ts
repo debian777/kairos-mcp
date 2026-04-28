@@ -1,12 +1,7 @@
 // Global Jest setup for KAIROS MCP integration tests
 // Set required env vars before any test file imports config (config throws if missing).
-// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory. Default test env uses Redis (only set when key missing).
-if (process.env.REDIS_URL === undefined || process.env.REDIS_URL === null) {
-  const redisPassword = process.env.REDIS_PASSWORD?.trim();
-  process.env.REDIS_URL = redisPassword
-    ? `redis://:${encodeURIComponent(redisPassword)}@127.0.0.1:6379`
-    : 'redis://127.0.0.1:6379';
-}
+// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory. tests/env-loader already
+// normalizes a bare REDIS_URL with REDIS_PASSWORD when available; do not invent a default here.
 if (!process.env.QDRANT_URL) process.env.QDRANT_URL = 'http://localhost:6333';
 
 // Optional: debug what env the test process sees (DEBUG_TEST_ENV=1 npm run dev:test)
@@ -26,4 +21,3 @@ beforeAll(async () => {
   await refreshTestAuthToken();
 }, 15000);
 export {};
-

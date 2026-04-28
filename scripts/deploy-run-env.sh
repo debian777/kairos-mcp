@@ -279,11 +279,15 @@ start() {
         attempt=1
         while [ $attempt -le $ATTEMPTS ]; do
             print_info "Health check attempt $attempt/$ATTEMPTS..."
-            if curl -s "http://localhost:$PORT/health" >/dev/null 2>&1; then
+            health_body="$(curl -fsS "http://localhost:$PORT/health" 2>/dev/null || true)"
+            if [[ -n "$health_body" ]] && [[ "$health_body" == *'"status":"healthy"'* ]]; then
                 print_success "Server health check passed on attempt $attempt"
                 break
             else
                 if [ $attempt -eq $ATTEMPTS ]; then
+                    if [[ -n "$health_body" ]]; then
+                        print_error "Last /health response: $health_body"
+                    fi
                     print_error "Server health check failed after $ATTEMPTS attempts"
                     exit 1
                 fi
@@ -477,7 +481,7 @@ test() {
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
             # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
-            summary_reporter=()
+            declare -a summary_reporter=()
             if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
                 summary_reporter=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
             fi

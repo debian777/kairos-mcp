@@ -2,16 +2,22 @@ import { beforeAll, describe, expect, it } from '@jest/globals';
 
 let buildProtectedResourceMetadata: () => Record<string, unknown>;
 let buildAuthorizationServerMetadata: (upstream: Record<string, unknown>) => Record<string, unknown>;
+let DEFAULT_OIDC_SCOPES_SUPPORTED: readonly string[];
+let parseOidcScopesSupported: (raw: string | undefined) => readonly string[];
 
 beforeAll(async () => {
     process.env['AUTH_CALLBACK_BASE_URL'] = 'http://localhost:3300';
     process.env['KEYCLOAK_URL'] = 'http://keycloak.local:8180';
+    process.env['KEYCLOAK_INTERNAL_URL'] = 'http://keycloak:8080';
     process.env['KEYCLOAK_REALM'] = 'kairos-dev';
     process.env['KEYCLOAK_CLI_CLIENT_ID'] = 'kairos-cli';
 
     const mod = await import('../../src/http/http-well-known.js');
+    const oidcScopes = await import('../../src/http/oidc-scopes.js');
     buildProtectedResourceMetadata = mod.buildProtectedResourceMetadata;
     buildAuthorizationServerMetadata = mod.buildAuthorizationServerMetadata;
+    DEFAULT_OIDC_SCOPES_SUPPORTED = oidcScopes.DEFAULT_OIDC_SCOPES_SUPPORTED;
+    parseOidcScopesSupported = oidcScopes.parseOidcScopesSupported;
 });
 
 // ---------------------------------------------------------------------------
@@ -39,6 +45,11 @@ describe('Protected Resource Metadata (buildProtectedResourceMetadata)', () => {
         const issuerFromToken = tokenEndpoint.replace(/\/protocol\/openid-connect\/token$/, '');
         expect(servers[0]).toBe(issuerFromToken);
     });
+
+    it('scopes_supported uses the default configured OIDC scopes', () => {
+        const meta = buildProtectedResourceMetadata();
+        expect(meta['scopes_supported']).toEqual(DEFAULT_OIDC_SCOPES_SUPPORTED);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -63,6 +74,32 @@ describe('Authorization Server Metadata (buildAuthorizationServerMetadata)', () 
         expect(result['registration_endpoint']).toBe(UPSTREAM_KEYCLOAK.registration_endpoint);
     });
 
+    it('must rewrite internal Keycloak URLs back to the public issuer', () => {
+        const result = buildAuthorizationServerMetadata({
+            issuer: 'http://keycloak:8080/realms/kairos-dev',
+            authorization_endpoint: 'http://keycloak:8080/realms/kairos-dev/protocol/openid-connect/auth',
+            token_endpoint: 'http://keycloak:8080/realms/kairos-dev/protocol/openid-connect/token',
+            registration_endpoint: 'http://keycloak:8080/realms/kairos-dev/clients-registrations/openid-connect',
+            mtls_endpoint_aliases: {
+                registration_endpoint: 'http://keycloak:8080/realms/kairos-dev/clients-registrations/openid-connect',
+            },
+        });
+
+        expect(result['issuer']).toBe('http://keycloak.local:8180/realms/kairos-dev');
+        expect(result['authorization_endpoint']).toBe(
+            'http://keycloak.local:8180/realms/kairos-dev/protocol/openid-connect/auth'
+        );
+        expect(result['token_endpoint']).toBe(
+            'http://keycloak.local:8180/realms/kairos-dev/protocol/openid-connect/token'
+        );
+        expect(result['registration_endpoint']).toBe(
+            'http://keycloak.local:8180/realms/kairos-dev/clients-registrations/openid-connect'
+        );
+        expect((result['mtls_endpoint_aliases'] as Record<string, unknown>)['registration_endpoint']).toBe(
+            'http://keycloak.local:8180/realms/kairos-dev/clients-registrations/openid-connect'
+        );
+    });
+
     it('must preserve registration_endpoint in mtls_endpoint_aliases', () => {
         const result = buildAuthorizationServerMetadata({ ...UPSTREAM_KEYCLOAK });
         const aliases = result['mtls_endpoint_aliases'] as Record<string, unknown>;
@@ -81,5 +118,29 @@ describe('Authorization Server Metadata (buildAuthorizationServerMetadata)', () 
         expect(result['issuer']).toBe(UPSTREAM_KEYCLOAK.issuer);
         expect(result['authorization_endpoint']).toBe(UPSTREAM_KEYCLOAK.authorization_endpoint);
         expect(result['token_endpoint']).toBe(UPSTREAM_KEYCLOAK.token_endpoint);
+    });
+});
+
+describe('OIDC scopes parser', () => {
+    it('uses the default scopes when env is unset', () => {
+        expect(parseOidcScopesSupported(undefined)).toEqual([
+            'openid',
+            'profile',
+            'email',
+            'kairos-groups',
+        ]);
+    });
+
+    it('accepts env override with trimming and dedupe', () => {
+        expect(parseOidcScopesSupported('openid, profile,offline_access,openid,kairos-groups')).toEqual([
+            'openid',
+            'profile',
+            'offline_access',
+            'kairos-groups',
+        ]);
+    });
+
+    it('falls back to defaults when the env resolves to an empty list', () => {
+        expect(parseOidcScopesSupported(' , , ')).toEqual(DEFAULT_OIDC_SCOPES_SUPPORTED);
     });
 });
