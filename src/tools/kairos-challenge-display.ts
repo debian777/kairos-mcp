@@ -50,7 +50,7 @@ export function buildChallengeShapeForDisplay(proof?: ProofOfWorkDefinition): Re
       }
       const wd = workdir?.trim();
       if (wd) {
-        description += ` Use workdir "${wd}" as the process working directory after expanding env vars (for example export KAIROS_WORK_DIR from the latest activate/forward/next response field kairos_work_dir when your shell does not already define it). If the path does not exist, is not a directory, or expansion leaves an empty path, fail with a clear local error.`;
+        description += ` Use workdir "${wd}" as the process working directory after expanding env vars. This is real cwd behavior, not the shared local artifact directory. When a contract also refers to local handoff files, use the latest activate/forward/next response field local_artifact_dir (compat alias: kairos_work_dir) and export KAIROS_LOCAL_ARTIFACT_DIR unless your shell already defines it. If the workdir path does not exist, is not a directory, or expansion leaves an empty path, fail with a clear local error.`;
       }
       result['description'] = description;
       const shellOut: Record<string, unknown> = { cmd, timeout_seconds: timeout };

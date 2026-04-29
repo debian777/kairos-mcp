@@ -5,6 +5,7 @@
  * Added error_code and retry_count for two-phase retry escalation.
  */
 import { z } from 'zod';
+import { deprecationNoticeSchema } from './local-artifact-dir-contract.js';
 
 const layerUriSchema = z
   .string()
@@ -94,8 +95,12 @@ export const nextOutputSchema = z.object({
   message: z.string().optional(),
   error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)'),
-  /** Canonical path: export as `KAIROS_WORK_DIR` before running shell challenges that reference it. */
-  kairos_work_dir: z.string().optional()
+  /** Canonical local artifact directory for this run. Shared across layers and subagents; not a process cwd. */
+  local_artifact_dir: z.string().optional(),
+  /** Compat alias kept for older adapters and clients. Mirrors `local_artifact_dir`. */
+  kairos_work_dir: z.string().optional(),
+  /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
+  deprecations: z.array(deprecationNoticeSchema).optional()
 });
 
 export { layerUriSchema };

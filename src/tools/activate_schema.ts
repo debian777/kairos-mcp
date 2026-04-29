@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
+import { deprecationNoticeSchema } from './local-artifact-dir-contract.js';
 
 const adapterUriSchema = z
   .string()
@@ -48,8 +49,12 @@ export const activateOutputSchema = z.object({
         'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
       )
   })),
-  /** Canonical path: export as `KAIROS_WORK_DIR` before running local shell challenges that reference it. */
-  kairos_work_dir: z.string().optional()
+  /** Canonical local artifact directory for this client/runtime. Not a process cwd or Docker WORKDIR. */
+  local_artifact_dir: z.string().optional(),
+  /** Compat alias kept for older adapters and clients. Mirrors `local_artifact_dir`. */
+  kairos_work_dir: z.string().optional(),
+  /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
+  deprecations: z.array(deprecationNoticeSchema).optional()
 }).strict();
 
 export type ActivateInput = z.infer<typeof activateInputSchema>;
