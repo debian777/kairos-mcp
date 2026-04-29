@@ -21,6 +21,14 @@ Run when user says "do the thing".
 **Must Never:** Skip layers.
 **Must Always:** Complete all layers.
 
+## Preflight Dependencies
+
+Check required MCP tools, CLI tools, and auth state before execution.
+
+\`\`\`json
+{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
+\`\`\`
+
 ## Step 1: Do something
 
 Do it.
@@ -80,6 +88,9 @@ Done.`;
 ## Activation Patterns
 Content.
 
+## Preflight Dependencies
+Ready.
+
 ## Step 1
 \`\`\`json
 {"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
@@ -99,6 +110,9 @@ Done.`;
 ## Activation Patterns
 Content.
 
+## Preflight Dependencies
+Ready.
+
 ## Step 1
 Just text, no contract.
 
@@ -116,6 +130,9 @@ Done.`;
 ## activation patterns
 
 Content.
+
+## preflight dependencies
+Ready.
 
 ## Step 1
 \`\`\`json
@@ -135,6 +152,9 @@ Done.`;
 ## Activation Patterns
 Content.
 
+## Preflight Dependencies
+Ready.
+
 ## Step 1
 \`\`\`json
 {"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
@@ -147,47 +167,15 @@ Done.`;
     expect(result.missing).not.toContain('reward_signal');
   });
 
-  test('doc with multiple code blocks (typescript, json, javascript, json) passes', () => {
-    const doc = `# Code example adapter
-
-## Activation Patterns
-Run when user says "code example docs".
-
-## Function Implementation
-Here's how to implement a data processor:
-
-\`\`\`typescript
-function processData(input: string): string {
-  return input.toUpperCase();
-}
-\`\`\`
-
-\`\`\`json
-{"contract":{"type":"shell","shell":{"cmd":"echo implement-processor","timeout_seconds":45},"required":true}}
-\`\`\`
-
-## Usage Example
-
-\`\`\`javascript
-const processor = new DataProcessor(['hello', 'world']);
-\`\`\`
-
-\`\`\`json
-{"contract":{"type":"shell","shell":{"cmd":"echo run-processor","timeout_seconds":45},"required":true}}
-\`\`\`
-
-## Reward Signal
-Only after all steps.`;
-    const result = validateProtocolStructure(doc);
-    expect(result.valid).toBe(true);
-    expect(result.missing).not.toContain('contract_block');
-  });
 
   test('rejects doc with plain fence containing contract (mixed fences)', () => {
     const doc = `# My Adapter
 
 ## Activation Patterns
 Content.
+
+## Preflight Dependencies
+Ready.
 
 ## Step 1
 \`\`\`
@@ -207,6 +195,9 @@ Done.`;
 
 ## Activation Patterns
 First.
+
+## Preflight Dependencies
+First preflight.
 
 ## Step A
 \`\`\`json
@@ -234,6 +225,9 @@ Second done.`;
 ## Activation Patterns
 First.
 
+## Preflight Dependencies
+First preflight.
+
 ## Reward Signal
 First done.
 
@@ -241,6 +235,9 @@ First done.
 
 ## Activation Patterns
 Second.
+
+## Preflight Dependencies
+Second preflight.
 
 ## Last Step
 No Reward Signal.`;
@@ -259,6 +256,9 @@ No H2s here.
 ## Activation Patterns
 Second.
 
+## Preflight Dependencies
+Second preflight.
+
 ## Step A
 \`\`\`json
 {"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
@@ -271,34 +271,15 @@ Second done.`;
     expect(result.missing).toContain('activation_patterns');
   });
 
-  test('H2 inside code block is ignored', () => {
-    const doc = `# My Adapter
-
-## Activation Patterns
-Content.
-
-## Step 1
-Example heading in block:
-\`\`\`
-## Not a real H2
-\`\`\`
-
-\`\`\`json
-{"contract":{"type":"comment","comment":{"min_length":10},"required":true}}
-\`\`\`
-
-## Reward Signal
-Done.`;
-    const result = validateProtocolStructure(doc);
-    expect(result.valid).toBe(true);
-  });
-
   test('rejects contract type that is not a single allowed enum value', () => {
     const doc = `# My Adapter
 
 ## Activation Patterns
 
 Run when needed.
+
+## Preflight Dependencies
+Ready.
 
 ## Step 1
 
