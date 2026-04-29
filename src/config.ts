@@ -1,7 +1,8 @@
 /**
  * Centralized configuration for environment variables.
  * This file contains all environment variable parsing logic.
- * REDIS_URL: when set (non-empty) → Redis backend; when unset or empty → in-memory backend. QDRANT_URL is always required.
+ * KEY_VALUE_STORE_URL (or REDIS_URL): when set (non-empty) → key-value backend;
+ * when unset or empty → in-memory backend. QDRANT_URL is always required.
  */
 
 import os from 'os';
@@ -49,11 +50,11 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   if (low === 'true' || low === '1' || low === 'yes' || low === 'y') return true;
   return defaultValue;
 }
-// REDIS_URL set (non-empty) → Redis; unset or empty → in-memory backend; inject REDIS_PASSWORD when credentials are missing.
-const REDIS_URL_RAW = getEnvString('REDIS_URL', '');
-const REDIS_PASSWORD = getEnvString('REDIS_PASSWORD', '');
-export const REDIS_URL = normalizeRedisUrl(REDIS_URL_RAW, REDIS_PASSWORD);
-export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_REDIS_PREFIX', 'kairos:');
+// KEY_VALUE_STORE_URL (or REDIS_URL) set (non-empty) → network store.
+const KEY_VALUE_STORE_URL_RAW = getEnvString('KEY_VALUE_STORE_URL', getEnvString('REDIS_URL', ''));
+const KEY_VALUE_STORE_PASSWORD = getEnvString('KEY_VALUE_STORE_PASSWORD', getEnvString('REDIS_PASSWORD', ''));
+export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_STORE_PASSWORD);
+export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
 const TRACE_STORE_DIR_RAW = getEnvString(
   'KAIROS_TRACE_STORE_DIR',
   path.join(os.homedir(), '.local', 'share', 'kairos', 'traces')
@@ -118,7 +119,6 @@ export const HTTP_TRAIN_RAW_BODY_LIMIT = (() => {
   return '2mb';
 })();
 export const HTTP_RATE_LIMIT_WINDOW_MS = getEnvInt('HTTP_RATE_LIMIT_WINDOW_MS', 60_000);
-/** Per-window cap for general HTTP /api traffic. Default is high enough for the full local integration suite on one client; override via HTTP_RATE_LIMIT_MAX for stricter production. */
 export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 10_000);
 export const AUTH_RATE_LIMIT_WINDOW_MS = getEnvInt('AUTH_RATE_LIMIT_WINDOW_MS', 60_000);
 export const AUTH_RATE_LIMIT_MAX = getEnvInt('AUTH_RATE_LIMIT_MAX', 10);

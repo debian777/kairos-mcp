@@ -33,6 +33,8 @@ SECRET_KEYS = [
     "OPENAI_API_KEY",
 ]
 
+KV_URL_KEYS = ("KEY_VALUE_STORE_URL", "REDIS_URL")
+
 # Dev defaults applied when generating .env (merged after template; template can override).
 DEV_DEFAULTS = {
     "MAX_CONCURRENT_MCP_REQUESTS": "10000",
@@ -136,8 +138,10 @@ def main() -> None:
         if not env_file.exists():
             raise SystemExit(".env: file not found")
         data = parse_env_file(env_file)
-        required = SECRET_KEYS + ["REDIS_URL", "QDRANT_URL", "QDRANT_COLLECTION"]
+        required = SECRET_KEYS + ["QDRANT_URL", "QDRANT_COLLECTION"]
         missing = [k for k in required if k not in data or not (data.get(k) or "").strip()]
+        if not any((data.get(k) or "").strip() for k in KV_URL_KEYS):
+            missing.append("KEY_VALUE_STORE_URL|REDIS_URL")
         if missing:
             raise SystemExit(f".env: missing or empty: {', '.join(missing)}")
         print("Verify OK: .env has required keys.")
@@ -162,7 +166,9 @@ def main() -> None:
     print("Wrote .env (fullstack: infra + app + auth).")
 
     data = parse_env_file(env_file)
-    missing = [k for k in SECRET_KEYS + ["REDIS_URL", "QDRANT_URL", "QDRANT_COLLECTION"] if k not in data or not (data.get(k) or "").strip()]
+    missing = [k for k in SECRET_KEYS + ["QDRANT_URL", "QDRANT_COLLECTION"] if k not in data or not (data.get(k) or "").strip()]
+    if not any((data.get(k) or "").strip() for k in KV_URL_KEYS):
+        missing.append("KEY_VALUE_STORE_URL|REDIS_URL")
     if missing:
         raise SystemExit(f".env: missing or empty after write: {', '.join(missing)}")
 

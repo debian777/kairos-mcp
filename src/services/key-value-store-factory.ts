@@ -1,6 +1,7 @@
 /**
  * Single export for cache/proof-of-work key-value store.
- * Uses Redis when REDIS_URL is set (non-empty), in-memory when REDIS_URL is unset or empty.
+ * Uses networked KV backend when KEY_VALUE_STORE_URL is set (non-empty),
+ * in-memory when it is unset or empty.
  */
 
 import { REDIS_URL } from '../config.js';
