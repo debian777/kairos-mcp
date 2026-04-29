@@ -199,6 +199,7 @@ Update one or more adapter or layer URIs.
 
 ```bash
 kairos tune kairos://adapter/<uuid> --file updated.md
+kairos tune kairos://adapter/<uuid> --updates '{"tags":["updated"]}'
 kairos tune kairos://layer/<a> kairos://layer/<b> --files a.md b.md
 kairos tune kairos://layer/<uuid> --updates '{"text":"new content"}'
 ```
@@ -208,6 +209,13 @@ Use one of:
 - `--file`
 - `--files` (one path per URI)
 - `--updates`
+
+Use `tune` for in-place adapter/layer edits. For structural adapter changes
+(for example, changing title identity or layer count), re-train with force:
+
+```bash
+kairos train adapter.md --model "gpt-4.1" --force
+```
 
 ### `delete`
 

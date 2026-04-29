@@ -16,15 +16,24 @@ Releases work **with or without this skill**.
 
 ---
 
-## 1. Choose next version type
+## 1. Choose next version type (AI judgment first)
 
-Inspect commits since the latest tag (or all commits when no tag exists yet):
+Inspect commits since the latest **stable** tag (or all commits when no tag
+exists yet):
 
 ```bash
-TAG=$(git describe --tags --abbrev=0 2>/dev/null); [ -n "$TAG" ] && git log "${TAG}..HEAD" --oneline || git log --oneline
+STABLE_TAG=$(git tag --sort=-v:refname | rg '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+[ -n "$STABLE_TAG" ] && git log "${STABLE_TAG}..HEAD" --oneline || git log --oneline
 ```
 
-Recommend a type from conventional commits:
+Do not perform a mechanical bump. First produce an explicit recommendation with:
+
+1. **Verified facts:** commit categories, changed API/schema surfaces, and
+   release notes signals.
+2. **Inference:** why these facts imply `patch`, `minor`, or `major`.
+3. **Uncertainty:** what is unknown and how it affects confidence.
+
+Semver guidance:
 
 | Signal | Type | npm target |
 |--------|------|------------|
@@ -33,15 +42,29 @@ Recommend a type from conventional commits:
 | `fix:` / `docs:` / `chore:` / `refactor:` / `ci:` / `test:` | **patch** | `release:patch` / `release:bug` |
 | User wants prerelease | **rc** / **beta** / **pre** | `release:rc` / `release:beta` / `release:pre` |
 
-If confidence is below 95%, ask the user.
+When the user asks for "next RC" without specifying semver level:
+
+- Recommend `patch` / `minor` / `major` **before** running release commands.
+- Prefer `minor` when new backward-compatible capability is present.
+- Prefer `major` when there is a likely breaking contract change.
+- Ask the user only when ambiguity remains after code/commit inspection.
+
+Never present a bump choice as fact without evidence.
 
 ---
 
-## 2. User confirmation
+## 2. User confirmation (after recommendation)
 
-**Before any version change, ask the user to confirm the version type (and value
-if helpful).** After confirmation, run the full automation below without further
-questions.
+Present a one-line recommendation in this format:
+
+`Recommended: <patch|minor|major> because <impact summary>.`
+
+Then ask for confirmation of:
+
+- semver level (`patch` / `minor` / `major`)
+- prerelease flavor if requested (`rc` / `beta` / `pre`)
+
+After confirmation, run the full automation below without further questions.
 
 ---
 
