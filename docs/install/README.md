@@ -123,9 +123,9 @@ curl -sS "http://localhost:3000/health"
 - Auth: [CLI](../CLI.md#authentication), [auth overview](../architecture/auth-overview.md)
 - Plugin: `integrations/cursor/plugin` often uses `http://localhost:3300/mcp`
 - Widgets: `spaces` and `forward` use MCP Apps on hosts that support them
-- Optional discovery scopes: set `KAIROS_OIDC_SCOPES_SUPPORTED` when your IdP
-  needs additional advertised OAuth scopes, for example
-  `openid,profile,email,kairos-groups,offline_access`
+- Discovery scopes default to
+  `openid,profile,email,kairos-groups,offline_access`; set
+  `KAIROS_OIDC_SCOPES_SUPPORTED` to override this list for your IdP policy.
 
 If MCP does not connect, verify the health URL first, confirm the host and
 port, and make sure the server has Qdrant plus a working embedding backend.

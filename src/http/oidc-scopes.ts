@@ -2,7 +2,8 @@ export const DEFAULT_OIDC_SCOPES_SUPPORTED: readonly string[] = Object.freeze([
   'openid',
   'profile',
   'email',
-  'kairos-groups'
+  'kairos-groups',
+  'offline_access'
 ]);
 
 export function parseOidcScopesSupported(raw: string | undefined): readonly string[] {
