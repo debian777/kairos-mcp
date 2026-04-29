@@ -23,8 +23,8 @@ Provide the URI and, for continuation calls, a matching solution.
 - `local_artifact_dir` (optional on the start call) — canonical local artifact
   directory to keep stable for this run. Use it when you want a project-local
   handoff directory such as `$PROJECT_DIR/.local/kairos/work`.
-- `kairos_work_dir` (optional on the start call) — compat alias for
-  `local_artifact_dir`. Accepted for compatibility only.
+- `kairos_work_dir` (optional on the start call) — deprecated compat alias for
+  `local_artifact_dir`. Do not use it in new adapters, docs, or flows.
 - `solution` — omit on the **first** call of a run (adapter URI, or layer URI
   **without** `?execution_id=...`) to load the current layer and contract.
   **Do not** send `solution` on that start call, and do not send an empty
@@ -50,8 +50,8 @@ When shell contracts need local handoff files, prefer `local_artifact_dir`.
 Export `KAIROS_LOCAL_ARTIFACT_DIR="<path>"` in your shell if needed. If the
 server-returned path is not usable on your local filesystem, resolve locally to
 `$PROJECT_DIR/.local/kairos/work`, keep it stable for the run, and use that
-directory for local artifacts. The compat alias `KAIROS_WORK_DIR` remains
-accepted, but new adapters and docs must use `KAIROS_LOCAL_ARTIFACT_DIR`.
+directory for local artifacts. `KAIROS_WORK_DIR` is a deprecated compat alias;
+new adapters and docs must use `KAIROS_LOCAL_ARTIFACT_DIR`.
 
 **Flow**
 

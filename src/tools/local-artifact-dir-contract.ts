@@ -24,11 +24,11 @@ export function buildLocalArtifactDirDeprecationNotice(): DeprecationNotice {
     replacement_name: LOCAL_ARTIFACT_DIR_ENV,
     status: 'deprecated',
     migration_message:
-      `${COMPAT_LOCAL_ARTIFACT_DIR_ENV} remains accepted as a compat alias, ` +
-      `but new adapters, protocol text, and agent flows must use ` +
-      `${LOCAL_ARTIFACT_DIR_ENV} / ${LOCAL_ARTIFACT_DIR_FIELD}. Continue the ` +
-      `current run with the resolved directory and ask the user for permission ` +
-      `before updating stored adapters, protocols, or docs.`,
+      `${COMPAT_LOCAL_ARTIFACT_DIR_ENV} is a deprecated compat alias and is ` +
+      `not acceptable for new adapters, protocol text, or agent flows. Use ` +
+      `${LOCAL_ARTIFACT_DIR_ENV} / ${LOCAL_ARTIFACT_DIR_FIELD} now. Continue ` +
+      `the current run with the resolved directory and ask the user for ` +
+      `permission before updating stored adapters, protocols, or docs.`,
     requires_user_permission: true,
     suggested_next_action:
       `Keep using the current local artifact directory for this run, then ask ` +

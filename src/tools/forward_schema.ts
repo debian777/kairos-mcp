@@ -149,7 +149,7 @@ export const forwardInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Compat alias for local_artifact_dir. Accepted for compatibility only; prefer local_artifact_dir on new clients and adapters.'
+      'Deprecated compat alias for local_artifact_dir. Do not use it in new clients, adapters, or docs.'
     ),
   solution: forwardSolutionSchema
     .optional()
@@ -231,7 +231,7 @@ export const forwardMcpWireInputSchema = z
     kairos_work_dir: z
       .string()
       .optional()
-      .describe('Compat alias for local_artifact_dir. Accepted for compatibility only.'),
+      .describe('Deprecated compat alias for local_artifact_dir. Do not use it in new clients, adapters, or docs.'),
     solution: forwardWireSolutionSchema
       .optional()
       .describe('Only for continuation calls; omit on start. Must include solution.type and the matching payload object.')
@@ -269,7 +269,7 @@ export const forwardOutputSchema = z.object({
   adapter_layer_count: z.number().int().positive().optional(),
   /** Canonical local artifact directory for this run. Shared across layers and subagents; not a process cwd. */
   local_artifact_dir: z.string().optional(),
-  /** Compat alias kept for older adapters and clients. Mirrors `local_artifact_dir`. */
+  /** Deprecated compat alias kept only for transition. Mirrors `local_artifact_dir`. */
   kairos_work_dir: z.string().optional(),
   /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
   deprecations: z.array(deprecationNoticeSchema).optional()

@@ -51,7 +51,7 @@ export const activateOutputSchema = z.object({
   })),
   /** Canonical local artifact directory for this client/runtime. Not a process cwd or Docker WORKDIR. */
   local_artifact_dir: z.string().optional(),
-  /** Compat alias kept for older adapters and clients. Mirrors `local_artifact_dir`. */
+  /** Deprecated compat alias kept only for transition. Mirrors `local_artifact_dir`. */
   kairos_work_dir: z.string().optional(),
   /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
   deprecations: z.array(deprecationNoticeSchema).optional()
