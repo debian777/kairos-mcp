@@ -20,7 +20,10 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 
 **Output:** `status: stored` and `items` with `layer_uuid`, `adapter_uri`, `layer` URIs, labels, tags.
 
-**After train:** Use **`activate`** / **`forward`** to execute; use **`tune`** to edit stored layers; **`export`** to dump markdown or datasets.
+**After train:** Use **`activate`** / **`forward`** to execute; use **`tune`**
+for in-place adapter/layer edits (non-structural); use **`train`** with
+`force_update: true` for structural adapter replacement; use **`export`** to
+dump markdown or datasets.
 
 For contract shapes and examples, call **`forward`** with
 `kairos://adapter/create-new-protocol` and omit `solution` on the first call of

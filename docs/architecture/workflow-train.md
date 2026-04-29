@@ -286,7 +286,7 @@ and do not claim success.
 
 - [export workflow](workflow-export.md) — inspect existing
   content before overwriting
-- [tune workflow](workflow-tune.md) — update individual
-  steps
+- [tune workflow](workflow-tune.md) — in-place adapter/layer
+  updates
 - [activate workflow](workflow-activate.md) — find existing
   adapters before training a duplicate

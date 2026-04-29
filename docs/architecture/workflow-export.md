@@ -61,8 +61,9 @@ Training exports apply the stored reward gate:
 1. After **`activate`**, pick the adapter you need to inspect.
 2. Call **`export`** with that **`kairos://adapter/{uuid}`** (or a specific
    layer URI).
-3. Edit the returned **`content`**, then apply changes with **`tune`** (or
-   re-register via **`train`** when replacing whole adapter text).
+3. Edit the returned **`content`**, then apply changes with **`tune`** for
+   in-place adapter/layer updates. Use **`train`** with `force_update: true`
+   when making structural adapter replacements.
 
 ## See also
 
