@@ -9,8 +9,16 @@ import { buildChallenge, type ProofOfWorkSubmission } from './next-pow-helpers.j
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
-import { KAIROS_WORK_DIR } from '../config.js';
+import {
+  KAIROS_LOCAL_ARTIFACT_DIR,
+  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
+} from '../config.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
+import {
+  appendLocalArtifactDirDeprecationMessage,
+  buildLocalArtifactDirFields,
+  maybeBuildLocalArtifactDirDeprecations
+} from './local-artifact-dir-contract.js';
 
 export function extractUuid(uri: string): string {
   return uri.split('/').pop()?.split('?')[0] ?? '';
@@ -231,6 +239,10 @@ export async function buildForwardView(
 
   const meta = await forwardRuntimeStore.getExecution(executionId);
   const slugNote = options?.slugDisambiguationNote ?? meta?.slug_disambiguation_note;
+  const localArtifactDir = meta?.local_artifact_dir ?? KAIROS_LOCAL_ARTIFACT_DIR;
+  const compatAliasUsed =
+    meta?.artifact_dir_compat_alias_used ?? KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS;
+  const deprecations = maybeBuildLocalArtifactDirDeprecations(compatAliasUsed);
 
   return {
     must_obey: options?.mustObey ?? true,
@@ -238,16 +250,19 @@ export async function buildForwardView(
     contract,
     ...(tensorIn && Object.keys(tensorIn).length > 0 ? { tensor_in: tensorIn } : {}),
     ...buildForwardUiSummary(memory),
-    kairos_work_dir: KAIROS_WORK_DIR,
+    ...buildLocalArtifactDirFields(localArtifactDir),
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
       : `call forward with ${layer.uri} and solution.type="${contract.type}" plus solution.${contract.type} (include nonce/proof_hash when present)`,
     execution_id: executionId,
     ...(options?.proofHash && { proof_hash: options.proofHash }),
-    ...(options?.message && { message: options.message }),
+    ...(appendLocalArtifactDirDeprecationMessage(options?.message, compatAliasUsed)
+      ? { message: appendLocalArtifactDirDeprecationMessage(options?.message, compatAliasUsed) }
+      : {}),
     ...(options?.errorCode && { error_code: options.errorCode }),
     ...(options?.retryCount !== undefined && { retry_count: options.retryCount }),
-    ...(slugNote ? { slug_disambiguation_note: slugNote } : {})
+    ...(slugNote ? { slug_disambiguation_note: slugNote } : {}),
+    ...(deprecations ? { deprecations } : {})
   };
 }
 

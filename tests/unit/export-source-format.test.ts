@@ -40,6 +40,38 @@ describe('export source format', () => {
     expect(out.content).toBe('print("ok")');
   });
 
+  it('exports artifact content from kairos://artifact URI without source format override', async () => {
+    const memoryStore = {
+      getMemory: async (id: string) =>
+        id === '11111111-2222-3333-4444-555555555555'
+          ? ({
+              memory_uuid: id,
+              label: 'artifact.py',
+              tags: ['artifact', 'x-python'],
+              text: 'print("ok")',
+              llm_model_id: 'test-model',
+              created_at: new Date().toISOString(),
+              content_type: 'text/x-python',
+              adapter: { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', name: 'Parent Adapter' }
+            } as any)
+          : null,
+      getQdrantAccess: () => ({
+        client: { scroll: async () => ({ points: [], next_page_offset: null }) },
+        collection: 'kairos'
+      })
+    } as any;
+
+    const out = await executeExport(memoryStore, undefined, {
+      uri: 'kairos://artifact/11111111-2222-3333-4444-555555555555',
+      format: 'markdown',
+      include_reward: true
+    });
+
+    expect(out.format).toBe('source');
+    expect(out.content_type).toBe('text/x-python');
+    expect(out.content).toBe('print("ok")');
+  });
+
   it('lists adapter artifacts when source export uses adapter URI', async () => {
     const memoryStore = {
       getMemory: async () => null,

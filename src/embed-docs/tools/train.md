@@ -8,6 +8,9 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 - `protocol_version` (optional) — version string (e.g. semver) stored on the adapter.
 - `space` (optional) — `"personal"` or a full group path such as `"{{KAIROS_GROUP_SPACE_PATH_EXAMPLE}}"` (target space for the new adapter).
 - `source_adapter_uri` (optional) — `kairos://adapter/{uuid}` to **fork**: export that adapter’s markdown and **train** a **new** adapter (new ids). If you also pass `content`, that text is used instead of the export (customize before calling **`train`**).
+- `mime` (optional) — content MIME type. Defaults to `text/markdown`.
+- `artifact_name` (required when `mime` is not `text/markdown`) — file name shown when listing adapter artifacts.
+- `adapter_uri` (required when `mime` is not `text/markdown`) — `kairos://adapter/{uuid}` or `kairos://adapter/{slug}` target adapter for the artifact attachment.
 
 **Required structure (validated before store)**
 
@@ -17,6 +20,7 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 - At least one fenced **` ```json `** block whose JSON has a top-level
   **`contract`** object.
 - Contract fences must use the `json` language tag only (no plain ``` blocks holding contract JSON).
+- Non-markdown artifacts (`mime` not `text/markdown`) are stored as adapter-linked artifacts instead of protocol layers.
 
 **Output:** `status: stored` and `items` with `layer_uuid`, `adapter_uri`, `layer` URIs, labels, tags.
 
