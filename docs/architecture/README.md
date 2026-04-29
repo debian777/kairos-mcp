@@ -59,7 +59,7 @@ docs.
 | [forward](../../src/embed-docs/tools/forward.md) | Run adapter layers; contracts and solutions. |
 | [reward](../../src/embed-docs/tools/reward.md) | Finalize a run (replaces older attest). |
 | [train](../../src/embed-docs/tools/train.md) | Store adapter markdown. |
-| [tune](../../src/embed-docs/tools/tune.md) | Edit stored layers / structure. |
+| [tune](../../src/embed-docs/tools/tune.md) | Edit stored adapter/layer content in place. |
 | [export](../../src/embed-docs/tools/export.md) | Export markdown or datasets. |
 | [delete](../../src/embed-docs/tools/delete.md) | Delete memories by URI. |
 | [spaces](../../src/embed-docs/tools/spaces.md) | List usable space names. |

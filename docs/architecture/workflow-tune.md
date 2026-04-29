@@ -47,10 +47,19 @@ body (see server implementation).
 2. Edit offline.
 3. **`tune`** with the same target URIs and parallel **`markdown_doc`** entries.
 
+## When to use `tune` vs `train`
+
+Use **`tune`** for in-place updates to existing adapter/layer records.
+
+Use **`train`** with `force_update: true` when the change is structural (for
+example, a changed H1 that resolves to a different adapter id, or a different
+layer count than the stored adapter).
+
 ## Recovery hint
 
 When **`forward`** returns **`must_obey: false`** after retries, **`next_action`**
-may mention **`tune`** as a way to repair broken stored layers before new runs.
+may mention **`tune`** as a way to repair broken stored adapter/layer content
+before new runs.
 
 ## See also
 
