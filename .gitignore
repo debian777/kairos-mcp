@@ -31,6 +31,7 @@ storybook-static/
 
 # Environment variables
 .env
+.env.test
 .env.local
 .env.development.local
 .env.test.local
@@ -73,13 +74,8 @@ coverage/
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
 # Dependency directories
-node_modules/
 jspm_packages/
 
 # Optional npm cache directory
@@ -104,8 +100,6 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-.env.test
 .env*.local
 
 # parcel-bundler cache (https://parceljs.org/)
@@ -113,14 +107,11 @@ jspm_packages/
 
 # Next.js build output
 .next
-out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby / Next build output (root only; src/ui/public is Vite app assets, tracked)
-.cache/
 /public
 
 # Storybook build outputs
@@ -176,7 +167,6 @@ test-*.js
 # Vector database storage (Qdrant)
 storage/
 data/**/qdrant/snapshots/*.snapshot
-data/**/qdrant/snapshosts/*.snapshot
 
 # Docker
 docker-compose.override.yml
@@ -192,9 +182,11 @@ helm/kairos-mcp/charts/*.tgz
 *.tfstate.*
 .terraform/
 
-# Local configuration overrides
+# Local configuration and runtime overrides (canonical local root)
 .local/
+# Legacy local roots kept for backward compatibility
 local/
+var/
 
 # Non-public repo content (not published)
 non-public/
@@ -225,7 +217,7 @@ reports/
 .env.*
 !.env.dev_simple
 !scripts/env/.env.template
-docs/.obsidian .kilocodeignore
+.kilocodeignore
 docs/.obsidian
 .obsidian
 # Archive docs

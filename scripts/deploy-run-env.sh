@@ -144,6 +144,20 @@ check_metrics() {
         || print_warning "Metrics DOWN (port ${METRICS_PORT})"
 }
 
+ensure_runtime_dirs() {
+    # Create baseline local runtime root when using in-repo defaults.
+    mkdir -p "$PROJECT_DIR/.local"
+
+    # Ensure snapshot directory exists when configured (supports absolute and project-relative paths).
+    if [[ -n "${QDRANT_SNAPSHOT_DIR:-}" ]]; then
+        if [[ "${QDRANT_SNAPSHOT_DIR}" = /* ]]; then
+            mkdir -p "${QDRANT_SNAPSHOT_DIR}"
+        else
+            mkdir -p "${PROJECT_DIR}/${QDRANT_SNAPSHOT_DIR}"
+        fi
+    fi
+}
+
 # URLs overview per environment
 show_urls() {
     local base="http://localhost:${PORT:-0}"
@@ -209,6 +223,7 @@ build() {
 start() {
     print_info "Starting $ENV environment..."
     cd "$PROJECT_DIR"
+    ensure_runtime_dirs
 
     # Logging configuration
     LOG_TARGET="${LOG_TARGET:-file}"
@@ -422,6 +437,7 @@ status() {
 test() {
     print_info "Running tests for $ENV..."
     cd "$PROJECT_DIR"
+    ensure_runtime_dirs
 
     # Collect extra args passed after the 'test' command (e.g. tests file paths or jest flags)
     args=("$@")
@@ -448,7 +464,7 @@ test() {
 
     LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
     # Use REPORT_LOG_FILE from environment if provided, otherwise generate timestamped filename
-    REPORT_LOG_FILE="${REPORT_LOG_FILE:-reports/tests/test-$(date +%Y%m%d-%H%M%S).log}"
+    REPORT_LOG_FILE="${REPORT_LOG_FILE:-.local/reports/tests/test-$(date +%Y%m%d-%H%M%S).log}"
     mkdir -p "$(dirname "$REPORT_LOG_FILE")"
     echo "$LAST_COMMIT" > "$REPORT_LOG_FILE"
     echo "--------------------------------" >> "$REPORT_LOG_FILE"
@@ -571,16 +587,22 @@ ensure_coding_rules() {
   
   print_success "Working tree is clean (AI coding rules -> CLEAN WORKING TREE REQUIRED)"
 
-  # Check if test reports exist (simplified check - just verify reports/tests/ directory has recent files)
+  # Check if test reports exist (prefer .local/reports/tests; fallback to reports/tests)
   latest_test_report=""
-  if [ ! -d "reports/tests" ]; then
-    print_warning "No reports/tests/ directory found (test reports may not have been generated)"
+  report_root=""
+  if [ -d ".local/reports/tests" ]; then
+    report_root=".local/reports/tests"
+  elif [ -d "reports/tests" ]; then
+    report_root="reports/tests"
+  fi
+  if [ -z "$report_root" ]; then
+    print_warning "No .local/reports/tests or reports/tests directory found (test reports may not have been generated)"
   else
     commit_hash=$(git rev-parse HEAD)
 
-    mapfile -t all_log_files < <(find reports/tests -type f -name "*.log")
+    mapfile -t all_log_files < <(find "$report_root" -type f -name "*.log")
     if [ ${#all_log_files[@]} -eq 0 ]; then
-      print_error "No test report files found in reports/tests/ (run tests to generate proof)."
+      print_error "No test report files found in $report_root (run tests to generate proof)."
       exit 1
     fi
 
@@ -598,7 +620,7 @@ ensure_coding_rules() {
 
     # Check the newest proof-of-work report for failures
     if [ -n "$latest_test_report" ]; then
-      print_success "Test reports found in reports/tests/ directory"
+      print_success "Test reports found in $report_root"
       # Check if latest report contains "Test Suites:" (indicates test run completed)
       if grep -q "Test Suites:" "$latest_test_report" 2>/dev/null; then
         print_success "Test report contains Test Suites information: $latest_test_report"
@@ -613,7 +635,7 @@ ensure_coding_rules() {
         print_warning "Latest test report may not be complete: $latest_test_report"
       fi
     else
-      print_warning "No test report files found in reports/tests/"
+      print_warning "No test report files found in $report_root"
     fi
   fi
 
