@@ -102,6 +102,7 @@ Missing blobs often need **`git fetch`** from a complete remote or repair of the
 
 ## Agent execution notes
 
-- Prefer **`GIT_EDITOR=true`** for any Git command that might open an editor.
+- Reuse **`../git-terminal-no-gui/SKILL.md`** for any Git command that might
+  open an editor (`GIT_EDITOR=true`, `GIT_SEQUENCE_EDITOR=true`).
 - Do not force-add ignored local config dirs unless the user explicitly wants them committed.
 - If the index is corrupt for paths other than known offenders, repair manually (**read-tree** + targeted **`git add`** + **`write-tree`**) before committing.

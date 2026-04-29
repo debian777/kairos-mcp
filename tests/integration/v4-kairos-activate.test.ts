@@ -76,7 +76,7 @@ Done.`;
     const content = buildMinimalProtocolBody(title);
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
+      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
     });
   }
 
@@ -90,7 +90,7 @@ slug: ${routingSlug}
 ${buildMinimalProtocolBody(title)}`;
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
+      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
     });
   }
 

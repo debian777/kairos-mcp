@@ -15,7 +15,7 @@ compatibility: >-
   `compose.yaml`; and run Docker Compose plus Node.js 25+ commands.
 metadata:
   author: kairos-mcp
-  doc-source: github-main
+  doc-source: bundled-references
   scope: install-config-auth
 ---
 

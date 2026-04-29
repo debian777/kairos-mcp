@@ -40,7 +40,7 @@ Done.`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        markdown_doc: markdown,
+        content: markdown,
         llm_model_id: 'test-model',
         force_update: true,
         space: 'personal'

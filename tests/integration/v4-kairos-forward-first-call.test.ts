@@ -30,7 +30,7 @@ describe('v4-forward first-call response schema', () => {
     ])}`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
     const parsed = parseMcpJson(storeResult, 'v4-forward first-call train');
     expect(parsed.status).toBe('stored');
@@ -174,7 +174,7 @@ Do the thing.
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { markdown_doc: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
     });
     const stored = parseMcpJson(storeResult, 'v4-forward first-call single train');
     const uri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;

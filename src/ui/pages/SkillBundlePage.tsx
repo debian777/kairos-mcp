@@ -40,14 +40,14 @@ export function SkillBundlePage() {
     );
   }
 
-  const { title } = parseProtocolMarkdown(data.markdown_doc);
+  const { title } = parseProtocolMarkdown(data.content);
   const displayName = skillName.trim() || title;
   const safeName = displayName.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "skill";
   const folderSlug = `${safeName}-skill`;
 
   const handleDownload = () => {
     const refs = includeReferences ? "\n\n## References\n\nBundled protocol: see `references/KAIROS.md` in a full zip export.\n" : "";
-    const skillMd = `# ${displayName}\n\n${description.trim() || title}\n\n## When to use it\n\n${whenToUse.trim() || "Use when this protocol applies."}\n${refs}\n## Protocol\n\n${data.markdown_doc}`;
+    const skillMd = `# ${displayName}\n\n${description.trim() || title}\n\n## When to use it\n\n${whenToUse.trim() || "Use when this protocol applies."}\n${refs}\n## Protocol\n\n${data.content}`;
     const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

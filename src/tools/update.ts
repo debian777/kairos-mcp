@@ -7,9 +7,9 @@ export async function executeUpdate(
   qdrantService: QdrantService,
   input: UpdateInput
 ): Promise<UpdateOutput> {
-  const { uris, markdown_doc: markdownDoc, updates } = input;
-  if (markdownDoc && markdownDoc.length !== uris.length) {
-    throw new Error('markdown_doc array length must match uris array length');
+  const { uris, content, updates } = input;
+  if (content && content.length !== uris.length) {
+    throw new Error('content array length must match uris array length');
   }
   const results: UpdateOutput['results'] = [];
   let totalUpdated = 0;
@@ -22,9 +22,9 @@ export async function executeUpdate(
       if (!uuid) {
         throw new Error('Invalid URI format');
       }
-      const markdown = Array.isArray(markdownDoc) ? markdownDoc[index] : undefined;
-      if (typeof markdown === 'string' && markdown.trim().length > 0) {
-        const body = extractMemoryBody(markdown);
+      const valueAtIndex = Array.isArray(content) ? content[index] : undefined;
+      if (typeof valueAtIndex === 'string' && valueAtIndex.trim().length > 0) {
+        const body = extractMemoryBody(valueAtIndex);
         await qdrantService.updateMemory(uuid, { text: body });
       } else if (updates && Object.keys(updates).length > 0) {
         if (typeof updates['text'] === 'string' && hasMemoryBodyMarkers(updates['text'])) {
@@ -34,7 +34,7 @@ export async function executeUpdate(
           await qdrantService.updateMemory(uuid, updates);
         }
       } else {
-        throw new Error('Provide markdown_doc or updates');
+        throw new Error('Provide content or updates');
       }
       results.push({
         uri,

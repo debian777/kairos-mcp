@@ -49,7 +49,8 @@ files; they are authoritative.
 - Use Context7 when you need library/API documentation or setup steps.
 - Add a `contract` JSON block to every verifiable step when authoring for **`train`**.
 - Use space names in tool parameters; the backend resolves to IDs.
-- Deploy to dev before testing: `npm run dev:deploy && npm run dev:test`.
+- Follow repo build/test contract from **[`CONTRIBUTING.md`](CONTRIBUTING.md)** and
+  **[`.cursor/skills/repo-build-test/SKILL.md`](.cursor/skills/repo-build-test/SKILL.md)**.
 
 ## MUST NEVER (repo context)
 
@@ -81,16 +82,29 @@ local development environment and **live** refers to the production KAIROS
 deployment.
 
 All code changes are expected to be validated in dev before any live promotion.
-In this repo that means: establish baseline expectations, run the relevant
-tests, deploy to dev first (`npm run dev:deploy`), and validate against the dev
-server before treating a change as production-ready.
+In this repo that means: establish baseline expectations, run relevant tests,
+deploy to dev first, and validate against the running dev server before
+treating a change as production-ready.
 
 | Environment | Purpose |
 |-------------|---------|
 | dev | Local development and integration testing |
 | live | Production (KAIROS LIVE) |
 
-Validate all code changes in dev before promoting to live. Deploy: `npm run dev:deploy && npm run dev:test`
+Primary command path:
+
+```bash
+npm run dev:deploy
+npm run dev:test -- tests/integration/<file>.test.ts
+```
+
+Then run full tests:
+
+```bash
+npm run dev:test
+```
+
+Do not use ad hoc direct Jest execution as the default path in this repository.
 
 ## Runtime authority split
 

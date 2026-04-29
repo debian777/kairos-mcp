@@ -24,12 +24,12 @@ describe('workflow eval harness: reward export readiness', () => {
 
   async function trainSingleStepAdapter(label: string): Promise<{ adapterUri: string }> {
     const trainArgs: {
-      markdown_doc: string;
+      content: string;
       llm_model_id: string;
       force_update: boolean;
       space?: string;
     } = {
-      markdown_doc: buildProofMarkdown(label, [
+      content: buildProofMarkdown(label, [
         { heading: 'Step One', body: `Complete the task for ${label}.`, proofCmd: 'echo done' }
       ]),
       llm_model_id: 'test-reward-export-evals',

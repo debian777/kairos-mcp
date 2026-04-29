@@ -9,14 +9,19 @@ const layerUriSchema = z
   .string()
   .regex(LAYER_URI_INPUT_REGEX, 'must match kairos://layer/{uuid}[?execution_id={uuid}]');
 
-const adapterOrLayerUriSchema = z.union([adapterUriSchema, layerUriSchema]);
+const artifactUriSchema = z
+  .string()
+  .regex(/^kairos:\/\/artifact\/[0-9a-f-]{36}$/i, 'must match kairos://artifact/{uuid}');
+
+const adapterOrLayerUriSchema = z.union([adapterUriSchema, layerUriSchema, artifactUriSchema]);
 
 export const exportFormatSchema = z.enum([
   'markdown',
   'trace_jsonl',
   'reward_jsonl',
   'sft_jsonl',
-  'preference_jsonl'
+  'preference_jsonl',
+  'source'
 ]);
 
 export const exportInputSchema = z.object({

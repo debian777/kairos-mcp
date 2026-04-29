@@ -41,7 +41,7 @@ Only after all steps.`;
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test',
         force_update: true
       }
@@ -101,7 +101,7 @@ Only after all steps.`;
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'test',
         force_update: true
       }

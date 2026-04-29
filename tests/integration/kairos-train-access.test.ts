@@ -63,7 +63,7 @@ describe('Kairos train accessibility', () => {
     const mintCall = {
       name: 'train',
       arguments: {
-        markdown_doc: markdownDoc,
+        content: markdownDoc,
         llm_model_id: 'test-ai-coding-rules',
         force_update: true
       }

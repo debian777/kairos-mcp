@@ -147,7 +147,7 @@ New reward text after tune.
 
     const output = await executeTune(fakeQdrant as any, {
       uris: [`kairos://adapter/${adapterId}`],
-      markdown_doc: [nextMarkdown]
+      content: [nextMarkdown]
     });
 
     expect(output.total_updated).toBe(1);
@@ -186,7 +186,7 @@ New reward text after tune.
 
     const output = await executeTune(fakeQdrant as any, {
       uris: [`kairos://adapter/${adapterId}`],
-      markdown_doc: [wrongMarkdown]
+      content: [wrongMarkdown]
     });
 
     expect(output.total_updated).toBe(0);

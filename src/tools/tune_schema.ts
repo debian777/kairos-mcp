@@ -14,27 +14,27 @@ const tuneUriSchema = z.union([adapterUriSchema, layerUriSchema]);
 export const tuneInputSchema = z
   .object({
     uris: z.array(tuneUriSchema).nonempty().describe('Non-empty array of adapter or layer URIs to update'),
-    markdown_doc: z.array(z.string().min(1)).optional().describe('Updated adapter markdown bodies'),
-    updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer markdown_doc for content changes'),
+    content: z.array(z.string().min(1)).optional().describe('Updated content bodies (one per URI)'),
+    updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer content for body changes'),
     space: z
       .union([z.literal('personal'), z.string()])
       .optional()
       .describe('Move all layers of each target adapter to this space ("personal" or group name), optionally after content updates')
   })
   .superRefine((value, ctx) => {
-    if (value.markdown_doc && value.markdown_doc.length !== value.uris.length) {
+    if (value.content && value.content.length !== value.uris.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['markdown_doc'],
-        message: 'markdown_doc must have the same number of entries as uris'
+        path: ['content'],
+        message: 'content must have the same number of entries as uris'
       });
     }
     const hasSpace = typeof value.space === 'string' && value.space.trim().length > 0;
-    if (!value.markdown_doc && !value.updates && !hasSpace) {
+    if (!value.content && !value.updates && !hasSpace) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['markdown_doc'],
-        message: 'Provide markdown_doc, updates, or space'
+        path: ['content'],
+        message: 'Provide content, updates, or space'
       });
     }
   });

@@ -79,7 +79,7 @@ export function setupTrainRawRoute(
         undefined;
 
       const bodyInput = {
-        markdown_doc: markdown,
+        content: markdown,
         llm_model_id,
         force_update,
         ...(protocol_version && { protocol_version }),
@@ -185,7 +185,7 @@ export function setupTrainRawRoute(
       structuredLogger.error('✗ Store failed', error);
       res.status(500).json({
         error: 'STORE_FAILED',
-        message: 'Failed to store adapter markdown'
+        message: 'Failed to store adapter content'
       });
     }
   });

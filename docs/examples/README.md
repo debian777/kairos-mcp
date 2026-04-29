@@ -22,7 +22,7 @@ Each file below is a complete adapter (H1 + H2 steps with ````json` challenge bl
 
 - **Imports:** Train each example below via **`train`** (e.g. from integration tests or an agent). See [Workflow test README](../../tests/workflow-test/README.md).
 - **Activate + run:** After training, use **`activate`** → pick a choice → **`forward`** (loop with `solution` per layer) until **`reward`** completes the run.
-- **Update layer / update adapter:** Use **`activate`** or an existing URI, **`export`** for content, then **`tune`** with edited `markdown_doc` (one layer or multiple URIs).
+- **Update layer / update adapter:** Use **`activate`** or an existing URI, **`export`** for content, then **`tune`** with edited `content` (one layer or multiple URIs).
 
 When running **MCP-only** workflow tests (no shell, no filesystem except `reports/`), use only the MCP-only adapters above or adapters you train that contain no shell step.
 

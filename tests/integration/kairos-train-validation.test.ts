@@ -39,7 +39,7 @@ Done.`;
     const result = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: incompleteMd,
+        content: incompleteMd,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -78,7 +78,7 @@ Done.`;
     const result = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: badTypeMd,
+        content: badTypeMd,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -109,7 +109,7 @@ Only after all steps.`;
     const result = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: validMd,
+        content: validMd,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -124,22 +124,22 @@ Only after all steps.`;
     expect(body.items[0].adapter_uri).toMatch(/^kairos:\/\/adapter\//);
   });
 
-  test('train reports clear error for empty markdown_doc', async () => {
+  test('train reports clear error for empty content', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: '',
+        content: '',
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
 
-    // Empty markdown_doc fails strict train input validation; handler returns INVALID_TOOL_INPUT JSON (not SDK-only text).
+    // Empty content fails strict train input validation; handler returns INVALID_TOOL_INPUT JSON (not SDK-only text).
     expect(result).toBeDefined();
     expect(result.isError).toBe(true);
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
     expect(result.content[0].text).toContain('Input validation error');
-    expect(result.content[0].text).toContain('markdown_doc');
+    expect(result.content[0].text).toContain('content');
     const emptyMdBody = JSON.parse(result.content[0].text);
     expect(emptyMdBody.error).toBe('INVALID_TOOL_INPUT');
     expect(emptyMdBody.next_action).toBeDefined();
@@ -155,14 +155,14 @@ Only after all steps.`;
     });
     expect(result1.isError).toBe(true);
     expect(result1.content[0].text).toContain('Input validation error');
-    expect(result1.content[0].text).toContain('markdown_doc');
+    expect(result1.content[0].text).toContain('content');
     expect(JSON.parse(result1.content[0].text).error).toBe('INVALID_TOOL_INPUT');
 
     // Test missing llm_model_id
     const result2 = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: 'test content'
+        content: 'test content'
       }
     });
     expect(result2.isError).toBe(true);
@@ -174,7 +174,7 @@ Only after all steps.`;
     const result3 = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: 'test content',
+        content: 'test content',
         llm_model_id: ''
       }
     });

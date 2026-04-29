@@ -13,12 +13,21 @@ import { KairosError } from '../../types/index.js';
 import { storeHeaderBasedAdapter } from './store-adapter-header-handler.js';
 import { storeDefaultAdapter } from './store-adapter-default-handler.js';
 import { checkSimilarAdapterByTitle } from './store-adapter-helpers.js';
+import { storeArtifact as storeArtifactPoint } from './store-artifact.js';
 
 export interface StoreAdapterOptions {
   forceUpdate?: boolean;
   protocolVersion?: string;
   /** When true (train fork from `source_adapter_uri`), mint a new adapter id instead of title-derived v5. */
   forkNewAdapter?: boolean;
+}
+
+export interface StoreArtifactOptions {
+  mime: string;
+  name: string;
+  adapterUri: string;
+  llmModelId: string;
+  forceUpdate?: boolean;
 }
 
 export class MemoryQdrantStoreAdapter {
@@ -134,5 +143,9 @@ export class MemoryQdrantStoreAdapter {
     } finally {
       timer({ tenant_id: tenantId });
     }
+  }
+
+  async storeArtifact(content: string, options: StoreArtifactOptions): Promise<Memory[]> {
+    return storeArtifactPoint(this.client, this.collection, content, options);
   }
 }

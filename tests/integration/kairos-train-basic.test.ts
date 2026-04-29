@@ -54,7 +54,7 @@ describe('Train basic functionality', () => {
     const result = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -112,7 +112,7 @@ Only after all steps.`;
     const first = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -126,7 +126,7 @@ Only after all steps.`;
     const second = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -154,7 +154,7 @@ Only after all steps.`;
     const third = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -185,7 +185,7 @@ Only after all steps.`;
     const first = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }
@@ -196,7 +196,7 @@ Only after all steps.`;
     const second = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: md,
+        content: md,
         llm_model_id: 'minimax/minimax-m2:free'
       }
     });
@@ -269,7 +269,7 @@ Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        markdown_doc: codeContent,
+        content: codeContent,
         llm_model_id: 'minimax/minimax-m2:free',
         force_update: true
       }

@@ -208,17 +208,17 @@ export async function executeTune(qdrantService: QdrantService, input: TuneInput
     }
   }
 
-  const hasMarkdown =
-    Array.isArray(input.markdown_doc) &&
-    input.markdown_doc.some((s) => typeof s === 'string' && s.trim().length > 0);
+  const hasContent =
+    Array.isArray(input.content) &&
+    input.content.some((s) => typeof s === 'string' && s.trim().length > 0);
   const hasUpdates = input.updates && Object.keys(input.updates).length > 0;
-  const hasContent = Boolean(hasMarkdown || hasUpdates);
+  const hasPayload = Boolean(hasContent || hasUpdates);
 
-  if (!hasContent && !targetSpaceId) {
-    throw new Error('Provide markdown_doc, updates, or space');
+  if (!hasPayload && !targetSpaceId) {
+    throw new Error('Provide content, updates, or space');
   }
 
-  if (!hasContent && targetSpaceId) {
+  if (!hasPayload && targetSpaceId) {
     const results: TuneOutput['results'] = [];
     let total_updated = 0;
     let total_failed = 0;
@@ -254,11 +254,11 @@ export async function executeTune(qdrantService: QdrantService, input: TuneInput
 
   for (let i = 0; i < input.uris.length; i++) {
     const originalUri = input.uris[i]!;
-    const markdownAtIndex = Array.isArray(input.markdown_doc) ? input.markdown_doc[i] : undefined;
+    const contentAtIndex = Array.isArray(input.content) ? input.content[i] : undefined;
     const parsedUri = parseKairosUri(originalUri);
     try {
-      if (parsedUri.kind === 'adapter' && typeof markdownAtIndex === 'string' && markdownAtIndex.trim().length > 0) {
-        const layerUri = await tuneAdapterMarkdownInPlace(qdrantService, originalUri, markdownAtIndex);
+      if (parsedUri.kind === 'adapter' && typeof contentAtIndex === 'string' && contentAtIndex.trim().length > 0) {
+        const layerUri = await tuneAdapterMarkdownInPlace(qdrantService, originalUri, contentAtIndex);
         results.push({
           uri: layerUri,
           status: 'updated',
@@ -271,7 +271,7 @@ export async function executeTune(qdrantService: QdrantService, input: TuneInput
       const normalizedUri = await normalizeTuneUri(qdrantService, originalUri);
       const perUriUpdate = await executeUpdate(qdrantService, {
         uris: [normalizedUri] as any,
-        markdown_doc: typeof markdownAtIndex === 'string' ? [markdownAtIndex] : undefined,
+        content: typeof contentAtIndex === 'string' ? [contentAtIndex] : undefined,
         updates: input.updates
       });
       const entry = perUriUpdate.results[0];
