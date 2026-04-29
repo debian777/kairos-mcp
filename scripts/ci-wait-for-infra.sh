@@ -8,7 +8,7 @@ ENV_FILE="${ENV_FILE:-.env}"
 wait_valkey() {
   for i in $(seq 1 30); do
     docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" --profile fullstack exec -T valkey \
-      sh -c 'redis-cli -a "$REDIS_PASSWORD" ping' 2>/dev/null | grep -q PONG && return 0
+      redis-cli -a "${REDIS_PASSWORD:-}" ping 2>/dev/null | grep -q PONG && return 0
     [ "$i" -eq 30 ] && return 1
     sleep 2
   done
