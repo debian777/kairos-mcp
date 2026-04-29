@@ -128,6 +128,7 @@ describe('OIDC scopes parser', () => {
             'profile',
             'email',
             'kairos-groups',
+            'offline_access',
         ]);
     });
 

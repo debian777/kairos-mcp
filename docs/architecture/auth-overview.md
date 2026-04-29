@@ -19,9 +19,9 @@ works for API and MCP clients.
   clients can build login URLs without hitting 401 first. In production, serve
   the app (and well-known) over HTTPS.
 - **Advertised scopes:** `scopes_supported` defaults to
-  `openid,profile,email,kairos-groups`. Override with
+  `openid,profile,email,kairos-groups,offline_access`. Override with
   `KAIROS_OIDC_SCOPES_SUPPORTED` when operators need discovery to include or
-  omit optional scopes such as `offline_access`.
+  omit scopes for their IdP policy.
 
 Group spaces depend on the `groups` claim in the access token. The Keycloak
 deploy script attaches a shared `kairos-groups` client scope as a **default
