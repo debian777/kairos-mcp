@@ -3,10 +3,13 @@ import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/me
 import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
-import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS } from '../config.js';
+import {
+  COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS,
+  KAIROS_LOCAL_ARTIFACT_DIR,
+  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
+} from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { KAIROS_WORK_DIR } from '../config.js';
 import type {
   BuildChallengeOptions,
   ElicitResult,
@@ -16,6 +19,11 @@ import type {
 } from './next-proof-types.js';
 import { validateMcpSubmissionAgainstContract } from './mcp-contract-match.js';
 import { buildChallengeShapeForDisplay } from './next-pow-challenge-shape.js';
+import {
+  appendLocalArtifactDirDeprecationMessage,
+  buildLocalArtifactDirFields,
+  maybeBuildLocalArtifactDirDeprecations
+} from './local-artifact-dir-contract.js';
 export type {
   BuildChallengeOptions,
   ElicitResult,
@@ -134,10 +142,20 @@ function buildErrorPayload(
     must_obey: !maxExceeded,
     current_step,
     challenge,
-    kairos_work_dir: KAIROS_WORK_DIR,
-    message: maxExceeded
-      ? `Step failed ${retryCount} times. Use your judgment to recover.`
-      : message,
+    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR),
+    ...(maybeBuildLocalArtifactDirDeprecations(KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS)
+      ? {
+          deprecations: maybeBuildLocalArtifactDirDeprecations(
+            KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
+          )
+        }
+      : {}),
+    message: appendLocalArtifactDirDeprecationMessage(
+      maxExceeded
+        ? `Step failed ${retryCount} times. Use your judgment to recover.`
+        : message,
+      KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
+    ),
     error_code: maxExceeded ? 'MAX_RETRIES_EXCEEDED' : errorCode,
     retry_count: retryCount
   };

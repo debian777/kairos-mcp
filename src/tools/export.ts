@@ -15,6 +15,8 @@ import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../servic
 import type { RewardRecord, TensorValue } from '../types/memory.js';
 import { executeExportSource } from './export-source.js';
 
+const ARTIFACT_URI_REGEX = /^kairos:\/\/artifact\/[0-9a-f-]{36}$/i;
+
 interface RegisterExportOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -147,6 +149,11 @@ export async function executeExport(
   qdrantService: QdrantService | undefined,
   input: ExportInput
 ): Promise<ExportOutput> {
+  const isArtifactUri = ARTIFACT_URI_REGEX.test(input.uri.trim());
+  if (isArtifactUri) {
+    return executeExportSource(memoryStore, qdrantService, input.uri, resolveAdapter);
+  }
+
   if (input.format === 'source') {
     return executeExportSource(memoryStore, qdrantService, input.uri, resolveAdapter);
   }

@@ -10,8 +10,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseOidcScopesSupported } from './http/oidc-scopes.js';
 import { normalizeRedisUrl } from './utils/normalize-redis-url.js';
-import { resolveKairosWorkDir } from './utils/kairos-work-dir-resolve.js';
-
+import {
+  resolveLocalArtifactDir,
+  KAIROS_LOCAL_ARTIFACT_DIR_ENV,
+  KAIROS_WORK_DIR_ENV
+} from './utils/kairos-work-dir-resolve.js';
 export { DEFAULT_OIDC_SCOPES_SUPPORTED, parseOidcScopesSupported } from './http/oidc-scopes.js';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
@@ -24,25 +27,21 @@ function getEnvRequired(key: string, errorMessage?: string): string {
   }
   return trimmed;
 }
-
 function getEnvString(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
 }
-
 function getEnvInt(key: string, defaultValue: number): number {
   const val = process.env[key];
   if (val === undefined) return defaultValue;
   const parsed = parseInt(val, 10);
   return isNaN(parsed) ? defaultValue : parsed;
 }
-
 function getEnvFloat(key: string, defaultValue: number): number {
   const val = process.env[key];
   if (val === undefined) return defaultValue;
   const parsed = parseFloat(val);
   return isNaN(parsed) ? defaultValue : parsed;
 }
-
 function getEnvBoolean(key: string, defaultValue: boolean): boolean {
   const val = process.env[key];
   if (val === undefined) return defaultValue;
@@ -53,15 +52,9 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 }
 // KEY_VALUE_STORE_URL (or REDIS_URL) set (non-empty) → network store.
 const KEY_VALUE_STORE_URL_RAW = getEnvString('KEY_VALUE_STORE_URL', getEnvString('REDIS_URL', ''));
-const KEY_VALUE_STORE_PASSWORD = getEnvString(
-  'KEY_VALUE_STORE_PASSWORD',
-  getEnvString('REDIS_PASSWORD', '')
-);
+const KEY_VALUE_STORE_PASSWORD = getEnvString('KEY_VALUE_STORE_PASSWORD', getEnvString('REDIS_PASSWORD', ''));
 export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_STORE_PASSWORD);
-export const KAIROS_REDIS_PREFIX = getEnvString(
-  'KAIROS_KEY_VALUE_PREFIX',
-  getEnvString('KAIROS_REDIS_PREFIX', 'kairos:')
-);
+export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
 const TRACE_STORE_DIR_RAW = getEnvString(
   'KAIROS_TRACE_STORE_DIR',
   path.join(os.homedir(), '.local', 'share', 'kairos', 'traces')
@@ -69,12 +62,16 @@ const TRACE_STORE_DIR_RAW = getEnvString(
 export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
   ? TRACE_STORE_DIR_RAW
   : path.resolve(TRACE_STORE_DIR_RAW);
-
 /** Directory of this module (`src/config.ts` or `dist/config.js`) for repo-root discovery when `process.cwd()` is outside the checkout. */
 const KAIROS_CONFIG_MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-
-/** Canonical shell / authoring work directory; created at server startup. */
-export const KAIROS_WORK_DIR = resolveKairosWorkDir({ runtimeDir: KAIROS_CONFIG_MODULE_DIR });
+const KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED = resolveLocalArtifactDir({
+  runtimeDir: KAIROS_CONFIG_MODULE_DIR
+});
+export const KAIROS_LOCAL_ARTIFACT_DIR = KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED.path;
+export const KAIROS_WORK_DIR = `${KAIROS_LOCAL_ARTIFACT_DIR}`;
+export const KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS =
+  KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED.usedCompatAlias;
+export { KAIROS_LOCAL_ARTIFACT_DIR_ENV, KAIROS_WORK_DIR_ENV };
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
@@ -127,8 +124,14 @@ export const AUTH_RATE_LIMIT_WINDOW_MS = getEnvInt('AUTH_RATE_LIMIT_WINDOW_MS', 
 export const AUTH_RATE_LIMIT_MAX = getEnvInt('AUTH_RATE_LIMIT_MAX', 10);
 export const MCP_RATE_LIMIT_WINDOW_MS = getEnvInt('MCP_RATE_LIMIT_WINDOW_MS', 60_000);
 export const MCP_RATE_LIMIT_MAX = getEnvInt('MCP_RATE_LIMIT_MAX', 1000);
+/**
+ * When true, served MCP App widget HTML skips `ui/initialize` / `initialized` and ignores
+ * tool-result notifications (static chrome only). Use to isolate host crashes tied to the bridge.
+ */
 export const KAIROS_MCP_WIDGET_PRESENTATION_ONLY = getEnvBoolean('KAIROS_MCP_WIDGET_PRESENTATION_ONLY', false);
-// Auth (Keycloak OIDC): explicit AUTH_ENABLED=true requires auth env vars at startup.
+// Auth (Keycloak OIDC). One Keycloak per env: each env file sets KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID.
+// AUTH_ENABLED defaults to true. If it is explicitly set to true, missing auth env is a startup error.
+// If it is left unset and auth env is incomplete, the server stays fail-closed at request time.
 export const AUTH_ENABLED = getEnvBoolean('AUTH_ENABLED', true);
 export const KEYCLOAK_URL = getEnvString('KEYCLOAK_URL', '');
 /** When set, used for server-side calls (e.g. token exchange). When unset, KEYCLOAK_URL is used. Use keycloak:8080 in Docker. */

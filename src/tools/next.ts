@@ -18,7 +18,16 @@ import { buildMissingProofPayload } from './next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
-import { KAIROS_WORK_DIR } from '../config.js';
+import {
+  KAIROS_LOCAL_ARTIFACT_DIR,
+  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
+} from '../config.js';
+import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
+import {
+  appendLocalArtifactDirDeprecationMessage,
+  buildLocalArtifactDirFields,
+  maybeBuildLocalArtifactDirDeprecations
+} from './local-artifact-dir-contract.js';
 
 async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
   const cached = await redisCacheService.getMemoryResource(uuid);
@@ -63,18 +72,30 @@ async function buildNextPayload(
 ) {
   const current_step = buildCurrentStep(memory, requestedUri, executionId);
   const challenge = await buildChallenge(memory, proof);
+  const executionMeta = executionId
+    ? await forwardRuntimeStore.getExecution(executionId)
+    : null;
+  const localArtifactDir = executionMeta?.local_artifact_dir ?? KAIROS_LOCAL_ARTIFACT_DIR;
+  const compatAliasUsed =
+    executionMeta?.artifact_dir_compat_alias_used ??
+    KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS;
+  const deprecations = maybeBuildLocalArtifactDirDeprecations(compatAliasUsed);
 
   const payload: any = {
     must_obey: true as const,
     current_step,
     challenge,
-    kairos_work_dir: KAIROS_WORK_DIR
+    ...buildLocalArtifactDirFields(localArtifactDir),
+    ...(deprecations ? { deprecations } : {})
   };
 
   if (nextStepId) {
     payload.next_action = `call forward with ${buildLayerUri(nextStepId, executionId)} and solution.type="${challenge.type}" plus solution.${challenge.type}`;
   } else {
-    payload.message = 'Adapter layers complete. Call reward to finalize.';
+    payload.message = appendLocalArtifactDirDeprecationMessage(
+      'Adapter layers complete. Call reward to finalize.',
+      compatAliasUsed
+    );
     payload.next_action = `call reward with ${requestedUri} and outcome (success or failure) and feedback to complete the adapter`;
   }
 
@@ -242,12 +263,27 @@ async function _executeNext(
         qdrantService,
         executionId
       );
+      const executionMetaForReturn = executionId
+        ? await forwardRuntimeStore.getExecution(executionId)
+        : null;
+      const localArtifactDirForReturn =
+        executionMetaForReturn?.local_artifact_dir ?? KAIROS_LOCAL_ARTIFACT_DIR;
+      const compatAliasUsedForReturn =
+        executionMetaForReturn?.artifact_dir_compat_alias_used ??
+        KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS;
+      const deprecationsForReturn = maybeBuildLocalArtifactDirDeprecations(
+        compatAliasUsedForReturn
+      );
       return {
         must_obey: payload.retry_count < 3,
         current_step: payload.current_step,
         challenge: payload.challenge,
-        kairos_work_dir: KAIROS_WORK_DIR,
-        message: previousBlock.message,
+        ...buildLocalArtifactDirFields(localArtifactDirForReturn),
+        ...(deprecationsForReturn ? { deprecations: deprecationsForReturn } : {}),
+        message: appendLocalArtifactDirDeprecationMessage(
+          previousBlock.message,
+          compatAliasUsedForReturn
+        ),
         next_action: payload.next_action,
         error_code: previousBlock.error_code || 'MISSING_PROOF',
         retry_count: payload.retry_count
