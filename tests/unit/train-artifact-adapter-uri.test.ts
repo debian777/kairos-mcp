@@ -38,7 +38,7 @@ describe('executeTrain artifact adapter_uri mapping', () => {
     expect(output.status).toBe('stored');
     expect(output.items).toHaveLength(1);
     expect(output.items[0]?.artifact_uuid).toBe(artifactUuid);
-    expect(output.items[0]?.uri).toBe(`kairos://mem/${artifactUuid}`);
+    expect(output.items[0]?.uri).toBe(`kairos://artifact/${artifactUuid}`);
     expect(output.items[0]?.adapter_uri).toBe(parentAdapterUri);
   });
 });

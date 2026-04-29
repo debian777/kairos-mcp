@@ -106,7 +106,7 @@ async function resolveContentForTrain(
   const layers = await qdrantService.getAdapterLayers(adapterId);
   const headUuid = layers[0]?.uuid ?? adapterId;
   const dump = await executeDump(memoryStore, qdrantService, {
-    uri: `kairos://mem/${headUuid}`,
+    uri: buildLayerUri(headUuid),
     protocol: true
   });
   const dumped = typeof dump['content'] === 'string' ? dump['content'].trim() : '';
@@ -178,7 +178,7 @@ export async function executeTrain(
 
       return {
         uri: item.content_type && item.content_type !== 'text/markdown'
-          ? `kairos://mem/${storedId}`
+          ? `kairos://artifact/${storedId}`
           : buildLayerUri(storedId || ''),
         ...(item.layer_uuid && { layer_uuid: item.layer_uuid }),
         ...(item.artifact_uuid && { artifact_uuid: item.artifact_uuid }),

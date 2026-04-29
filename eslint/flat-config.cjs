@@ -320,6 +320,12 @@ function createFlatConfig(rootDir) {
         'kairos-forbidden-text/review-protocol-wording': 'off',
       },
     },
+    {
+      files: ['.github/workflows/README.md'],
+      rules: {
+        'kairos-forbidden-text/review-protocol-wording': 'off',
+      },
+    },
 
     // -------------------------------------------------------------------------
     // 3da. All shell scripts (stub parser; no code rules)

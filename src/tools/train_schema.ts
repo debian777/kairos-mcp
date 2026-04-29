@@ -88,7 +88,7 @@ export type TrainOutput = z.infer<typeof trainOutputSchema>;
 /** Internal: validated markdown + model for the low-level store step (after fork resolution). */
 const memoryUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .regex(/^kairos:\/\/(layer|artifact)\/[0-9a-f-]{36}$/i, 'must match kairos://layer/{uuid} or kairos://artifact/{uuid}');
 
 export const trainStoreInputSchema = z.object({
   content: z.string().min(1).describe('Content to store'),

@@ -13,6 +13,8 @@ import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js'
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
 import { isRewardEligibleForPreference, isRewardEligibleForSft } from '../services/reward-evals.js';
 import type { RewardRecord, TensorValue } from '../types/memory.js';
+import { executeExportSource } from './export-source.js';
+
 interface RegisterExportOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -145,11 +147,15 @@ export async function executeExport(
   qdrantService: QdrantService | undefined,
   input: ExportInput
 ): Promise<ExportOutput> {
+  if (input.format === 'source') {
+    return executeExportSource(memoryStore, qdrantService, input.uri, resolveAdapter);
+  }
+
   const { adapterId, layerId } = await resolveAdapter(memoryStore, qdrantService, input.uri);
 
   if (input.format === 'markdown') {
     const dump = await executeDump(memoryStore, qdrantService, {
-      uri: `kairos://mem/${layerId}`,
+      uri: `kairos://layer/${layerId}`,
       protocol: true
     });
     const headMemory = await memoryStore.getMemory(layerId);
@@ -175,23 +181,6 @@ export async function executeExport(
       adapter_name: typeof dump['label'] === 'string' ? dump['label'] : null,
       adapter_version: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null,
       ...spaceFields
-    };
-  }
-
-  if (input.format === 'source') {
-    const memory = await memoryStore.getMemory(layerId);
-    if (!memory) {
-      throw new Error('Artifact not found');
-    }
-    const ct = memory.content_type || 'text/markdown';
-    return {
-      uri: input.uri,
-      format: input.format,
-      content_type: ct,
-      content: memory.text,
-      item_count: 1,
-      adapter_name: memory.adapter?.name ?? null,
-      adapter_version: memory.adapter?.protocol_version ?? null
     };
   }
 

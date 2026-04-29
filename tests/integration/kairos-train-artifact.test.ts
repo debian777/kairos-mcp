@@ -1,0 +1,157 @@
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import { createMcpConnection } from '../utils/mcp-client-utils.js';
+import { parseMcpJson } from '../utils/expect-with-raw.js';
+
+const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
+
+function postJson<T>(urlString: string, payload: unknown): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const requestImpl = url.protocol === 'https:' ? httpsRequest : httpRequest;
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (QDRANT_API_KEY) headers['api-key'] = QDRANT_API_KEY;
+
+    const req = requestImpl(url, { method: 'POST', headers }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(data ? JSON.parse(data) : ({} as T));
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`Qdrant request failed (${res.statusCode}): ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify(payload));
+    req.end();
+  });
+}
+
+describe('Train artifact storage and source export', () => {
+  let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
+
+  beforeAll(async () => {
+    mcpConnection = await createMcpConnection();
+  }, 30000);
+
+  afterAll(async () => {
+    if (mcpConnection) await mcpConnection.close();
+  });
+
+  test('stores artifact outside activate search and exports via source format', async () => {
+    const ts = Date.now().toString();
+    const artifactName = `artifact-${ts}.py`;
+    const artifactBody = `print("artifact-${ts}")`;
+
+    const adapterMarkdown = `# Artifact Parent ${ts}
+
+## Activation Patterns
+Run when user asks for artifact test.
+
+## Step 1
+Parent step.
+
+\`\`\`json
+{"contract":{"type":"comment","description":"parent"}}
+\`\`\`
+
+## Reward Signal
+Done.`;
+
+    const trainAdapter = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        content: adapterMarkdown,
+        llm_model_id: 'test-model',
+        force_update: true
+      }
+    });
+    const adapterParsed = parseMcpJson(trainAdapter, 'train adapter');
+    expect(adapterParsed.status).toBe('stored');
+    const adapterUri = adapterParsed.items?.[0]?.adapter_uri as string;
+    expect(adapterUri).toMatch(/^kairos:\/\/adapter\//);
+
+    const trainArtifact = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        content: artifactBody,
+        llm_model_id: 'test-model',
+        mime: 'text/x-python',
+        artifact_name: artifactName,
+        adapter_uri: adapterUri
+      }
+    });
+    const artifactParsed = parseMcpJson(trainArtifact, 'train artifact');
+    expect(artifactParsed.status).toBe('stored');
+    const artifactUri = artifactParsed.items?.[0]?.uri as string;
+    expect(artifactUri).toMatch(/^kairos:\/\/artifact\//);
+    const artifactUuid = artifactParsed.items?.[0]?.artifact_uuid as string;
+    expect(artifactUuid).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(artifactParsed.items?.[0]?.content_type).toBe('text/x-python');
+
+    const qdrantPoint = await postJson<{
+      result?: { points?: Array<{ vector?: Record<string, number[]>; payload?: Record<string, unknown> }> };
+    }>(`${QDRANT_URL}/collections/${QDRANT_COLLECTION}/points/scroll`, {
+      filter: {
+        must: [{ key: 'content_type', match: { value: 'text/x-python' } }, { key: 'label', match: { value: artifactName } }]
+      },
+      limit: 5,
+      with_vector: true
+    });
+    const point = qdrantPoint.result?.points?.[0];
+    expect(point).toBeDefined();
+    expect(point?.payload?.['content_type']).toBe('text/x-python');
+    const vectors = point?.vector ?? {};
+    const primary = Object.values(vectors)[0];
+    expect(Array.isArray(primary)).toBe(true);
+    expect((primary as number[]).every((v) => v === 0)).toBe(true);
+
+    const activate = await mcpConnection.client.callTool({
+      name: 'activate',
+      arguments: { query: artifactName }
+    });
+    const activateParsed = parseMcpJson(activate, 'activate artifact');
+    const labels = Array.isArray(activateParsed.choices)
+      ? activateParsed.choices.map((c: any) => String(c?.label ?? ''))
+      : [];
+    expect(labels.some((l: string) => l.includes(artifactName))).toBe(false);
+
+    const exportMarkdown = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri: adapterUri, format: 'markdown' }
+    });
+    const markdownParsed = parseMcpJson(exportMarkdown, 'export markdown');
+    expect(markdownParsed.content_type).toBe('text/markdown');
+    expect(String(markdownParsed.content)).not.toContain(artifactBody);
+
+    const exportSourceArtifact = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri: artifactUri, format: 'source' }
+    });
+    const sourceArtifactParsed = parseMcpJson(exportSourceArtifact, 'export source artifact');
+    expect(sourceArtifactParsed.content_type).toBe('text/x-python');
+    expect(sourceArtifactParsed.content).toBe(artifactBody);
+
+    const exportSourceAdapter = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri: adapterUri, format: 'source' }
+    });
+    const sourceAdapterParsed = parseMcpJson(exportSourceAdapter, 'export source adapter');
+    expect(sourceAdapterParsed.content_type).toBe('application/json');
+    const listed = JSON.parse(String(sourceAdapterParsed.content)) as {
+      artifacts: Array<{ artifact_uuid: string; uri: string; label: string }>;
+    };
+    expect(Array.isArray(listed.artifacts)).toBe(true);
+    expect(listed.artifacts.some((a) => a.artifact_uuid === artifactUuid && a.uri === artifactUri)).toBe(true);
+  }, 60000);
+});

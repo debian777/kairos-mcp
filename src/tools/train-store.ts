@@ -3,6 +3,7 @@ import type { Memory } from '../types/memory.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
+import { buildLayerUri } from './kairos-uri.js';
 
 const ALLOWED_ARTIFACT_MIMES = new Set([
   'text/x-python',
@@ -66,7 +67,7 @@ export async function executeTrainStore(
     );
     return {
       items: memories.map((memory) => ({
-        uri: `kairos://mem/${memory.memory_uuid}`,
+        uri: `kairos://artifact/${memory.memory_uuid}`,
         artifact_uuid: memory.memory_uuid,
         adapter_uri: input.adapter_uri!,
         label: memory.label,
@@ -95,7 +96,7 @@ export async function executeTrainStore(
   );
   return {
     items: memories.map((memory) => ({
-      uri: `kairos://mem/${memory.memory_uuid}`,
+      uri: buildLayerUri(memory.memory_uuid),
       layer_uuid: memory.memory_uuid,
       label: memory.label,
       tags: memory.tags,
