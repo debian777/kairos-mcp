@@ -4,6 +4,43 @@ import { OPENAI_EMBEDDING_MODEL, OPENAI_ENDPOINT, TEI_EMBEDDING_ENDPOINT, setRes
 import { getRequestIdFromStorage, getTenantId } from '../../utils/tenant-context.js';
 import { structuredLogger } from '../../utils/structured-logger.js';
 
+const EMBEDDING_FETCH_MAX_RETRIES = 2;
+const EMBEDDING_FETCH_RETRY_DELAY_MS = 300;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetriableNetworkError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (
+        message.includes('fetch failed') ||
+        message.includes('timed out') ||
+        message.includes('econnreset') ||
+        message.includes('econnrefused') ||
+        message.includes('enotfound') ||
+        message.includes('eai_again')
+    );
+}
+
+async function fetchWithRetries(url: string, init: RequestInit, provider: 'openai' | 'tei'): Promise<Response> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= EMBEDDING_FETCH_MAX_RETRIES; attempt++) {
+        try {
+            return await fetch(url, init);
+        } catch (error) {
+            lastError = error;
+            if (!isRetriableNetworkError(error) || attempt === EMBEDDING_FETCH_MAX_RETRIES) {
+                throw error;
+            }
+            const delayMs = EMBEDDING_FETCH_RETRY_DELAY_MS * (attempt + 1);
+            logger.warn(`[EmbeddingService] ${provider} fetch failed (attempt ${attempt + 1}), retrying in ${delayMs}ms: ${error instanceof Error ? error.message : String(error)}`);
+            await sleep(delayMs);
+        }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 function auditProviderCall(payload: {
     provider: 'openai' | 'tei';
     model: string;
@@ -46,11 +83,11 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
     };
 
-    const res = await fetch(OPENAI_ENDPOINT, {
+    const res = await fetchWithRetries(OPENAI_ENDPOINT, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
-    });
+    }, 'openai');
 
     const data: any = await res.json().catch((err) => {
         logger.error('[EmbeddingService] Failed to parse OpenAI response as JSON', err);
@@ -118,11 +155,11 @@ async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> 
     if (TEI_API_KEY) headers['x-api-key'] = TEI_API_KEY;
 
     const url = TEI_EMBEDDING_ENDPOINT || TEI_BASE_URL;
-    const res = await fetch(url, {
+    const res = await fetchWithRetries(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
-    });
+    }, 'tei');
 
     const data: any = await res.json().catch((err) => {
         logger.error('[EmbeddingService] Failed to parse TEI response as JSON', err);
