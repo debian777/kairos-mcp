@@ -17,9 +17,14 @@ describe('HTTP REST API Activate Endpoint', () => {
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as Record<string, unknown>;
-      // Activate HTTP response keeps canonical top-level keys; kairos_work_dir is env-dependent.
+      // Activate HTTP response keeps canonical top-level keys; artifact-dir aliases are optional.
       const baseSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
-      expect(Object.keys(data).sort()).toEqual([...(('kairos_work_dir' in data) ? [...baseSearchKeys, 'kairos_work_dir'] : baseSearchKeys)].sort());
+      const optionalKeys = [
+        ...('local_artifact_dir' in data ? ['local_artifact_dir'] : []),
+        ...('kairos_work_dir' in data ? ['kairos_work_dir'] : []),
+        ...('deprecations' in data ? ['deprecations'] : [])
+      ];
+      expect(Object.keys(data).sort()).toEqual([...baseSearchKeys, ...optionalKeys].sort());
       expect(data.must_obey).toBe(true);
       expect(Array.isArray(data.choices)).toBe(true);
       expect(typeof data.message).toBe('string');
