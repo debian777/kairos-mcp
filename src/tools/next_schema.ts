@@ -97,7 +97,7 @@ export const nextOutputSchema = z.object({
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)'),
   /** Canonical local artifact directory for this run. Shared across layers and subagents; not a process cwd. */
   local_artifact_dir: z.string().optional(),
-  /** Compat alias kept for older adapters and clients. Mirrors `local_artifact_dir`. */
+  /** Deprecated compat alias kept only for transition. Mirrors `local_artifact_dir`. */
   kairos_work_dir: z.string().optional(),
   /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
   deprecations: z.array(deprecationNoticeSchema).optional()
