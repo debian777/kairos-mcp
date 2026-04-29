@@ -3,6 +3,10 @@ import { MCP_WIDGET_CHROME_INLINE_CSS } from './mcp-widget-chrome-inline-css.js'
 import { minifyInlineWidgetCss } from './widget-inline-minify.js';
 
 const FORWARD_WIDGET_SPECIFIC_INLINE_CSS = `
+    html,
+    body {
+      background: transparent;
+    }
     #out {
       flex: 0 1 auto;
       max-height: none;
