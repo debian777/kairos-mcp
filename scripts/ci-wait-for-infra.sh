@@ -8,8 +8,12 @@ REDIS_PASSWORD_FROM_ENV="$(awk -F= '/^REDIS_PASSWORD=/{print $2}' "$ENV_FILE" | 
 
 wait_valkey() {
   for i in $(seq 1 30); do
+    if docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" --profile fullstack exec -T valkey \
+      redis-cli -a "$REDIS_PASSWORD_FROM_ENV" ping 2>/dev/null | grep -q PONG; then
+      return 0
+    fi
     docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" --profile fullstack exec -T valkey \
-      redis-cli -a "$REDIS_PASSWORD_FROM_ENV" ping 2>/dev/null | grep -q PONG && return 0
+      redis-cli ping 2>/dev/null | grep -q PONG && return 0
     [ "$i" -eq 30 ] && return 1
     sleep 2
   done
