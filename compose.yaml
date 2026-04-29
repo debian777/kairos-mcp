@@ -3,47 +3,47 @@
 #
 # Default (mini): Qdrant + app only. No profile needed.
 #   docker compose -p kairos-mcp up -d
-# Fullstack: add Redis, Postgres, Keycloak (use with fullstack .env).
+# Fullstack: add Valkey, Postgres, Keycloak (use with fullstack .env).
 #   docker compose -p kairos-mcp --profile fullstack up -d
 # Optional UI (only with fullstack): docker compose -p kairos-mcp --profile fullstack --profile infra-ui up -d
 
 services:
-  redis:
+  valkey:
     profiles:
       - fullstack
-    image: redis:8.4-alpine@sha256:f08de4b9a28a18f804b650c41a44c65917ab2da69c9b08ed8b11b2633547f4ea
+    image: valkey/valkey:8.1-alpine
     pull_policy: missing
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      KEY_VALUE_STORE_PASSWORD: ${KEY_VALUE_STORE_PASSWORD:-${REDIS_PASSWORD:-}}
     command: >
-      sh -c 'if [ -z "$$REDIS_PASSWORD" ]; then echo "REDIS_PASSWORD must be set when fullstack profile enables redis" >&2; exit 1; fi; exec redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+      sh -c 'if [ -z "$$KEY_VALUE_STORE_PASSWORD" ]; then echo "KEY_VALUE_STORE_PASSWORD (or REDIS_PASSWORD legacy alias) must be set when fullstack profile enables valkey" >&2; exit 1; fi; exec valkey-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes --requirepass "$$KEY_VALUE_STORE_PASSWORD"'
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - valkey-data:/data
     networks:
       - kairos-network
     healthcheck:
-      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping" ]
+      test: [ "CMD-SHELL", "valkey-cli -a \"$$KEY_VALUE_STORE_PASSWORD\" ping" ]
       interval: 10s
       timeout: 3s
       retries: 3
     restart: unless-stopped
 
-  # Optional UI for Redis; use with fullstack. Start with: --profile fullstack --profile infra-ui
+  # Optional UI for Valkey/Redis-compatible stores; use with fullstack.
   redisinsight:
     profiles:
       - infra-ui
     image: redis/redisinsight:3.2.0@sha256:55542a762210bb1cd681410282642bac0970f780f39bc134565394a81b1f1fd9
     pull_policy: missing
     depends_on:
-      - redis
+      - valkey
     ports:
       - "5540:5540"
     environment:
-      - RI_REDIS_HOST*=redis
+      - RI_REDIS_HOST*=valkey
       - RI_REDIS_PORT*=6379
-      - RI_REDIS_ALIAS*=kairosRedis
+      - RI_REDIS_ALIAS*=kairosKeyValue
     volumes:
       - redisinsight-data:/data
     networks:
@@ -152,7 +152,7 @@ services:
       - METRICS_PORT=${METRICS_PORT:-9090}
       # Snapshot backup dir (volume mount); omit to disable backup (503 on POST /api/snapshot)
       - QDRANT_SNAPSHOT_DIR=/snapshots
-      # REDIS_URL and KEYCLOAK_INTERNAL_URL from .env (set for fullstack; omit for mini)
+      # KEY_VALUE_STORE_URL/REDIS_URL and KEYCLOAK_INTERNAL_URL from .env (set for fullstack; omit for mini)
     volumes:
       - snapshots-prod:/snapshots
     depends_on:
@@ -175,7 +175,7 @@ networks:
     driver: bridge
 
 volumes:
-  redis-data:
+  valkey-data:
   redisinsight-data:
   qdrant-data:
   postgres-data:
