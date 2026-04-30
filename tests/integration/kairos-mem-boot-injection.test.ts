@@ -10,7 +10,15 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 const KAIROS_APP_SPACE_NAME = 'Kairos app';
-const EXPECTED_BOOT_ADAPTER_COUNT = 2;
+const EXPECTED_BOOT_ADAPTER_COUNT = 6;
+const STATIC_SYSTEM_ADAPTERS: Array<{ slug: string; uuid: string }> = [
+  { slug: 'create-new-protocol', uuid: '00000000-0000-0000-0000-000000002001' },
+  { slug: 'refine-search', uuid: '00000000-0000-0000-0000-000000002002' },
+  { slug: 'create-new-protocol-review', uuid: '00000000-0000-0000-0000-000000002003' },
+  { slug: 'challenge-type-guide', uuid: '00000000-0000-0000-0000-000000002004' },
+  { slug: 'phase-critic', uuid: '00000000-0000-0000-0000-000000002005' },
+  { slug: 'protocol-linking-guide', uuid: '00000000-0000-0000-0000-000000002006' },
+];
 
 describe('Mem boot injection', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
@@ -23,7 +31,7 @@ describe('Mem boot injection', () => {
     if (mcpConnection) await mcpConnection.close();
   });
 
-  test('spaces shows Kairos app space with at least 2 adapters (boot-injected mem)', async () => {
+  test('spaces shows Kairos app space with static system adapters (boot-injected mem)', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'spaces',
       arguments: { include_adapter_titles: true }
@@ -45,5 +53,27 @@ describe('Mem boot injection', () => {
       EXPECTED_BOOT_ADAPTER_COUNT,
       `Kairos app space should have at least ${EXPECTED_BOOT_ADAPTER_COUNT} adapters from mem boot (mem/ dir)`
     );
+
+  }, 30000);
+
+  test('static system adapters are exportable by canonical UUID', async () => {
+    for (const expected of STATIC_SYSTEM_ADAPTERS) {
+      const uri = `kairos://adapter/${expected.uuid}`;
+      const result = await mcpConnection.client.callTool({
+        name: 'export',
+        arguments: { uri, format: 'markdown' }
+      });
+
+      if (result.isError === true && result.content?.[0]) {
+        const errText = (result.content[0] as { text?: string }).text ?? String(result.content[0]);
+        throw new Error(`export failed for ${expected.slug} (${expected.uuid}): ${errText}`);
+      }
+
+      expect(result.isError).not.toBe(true);
+      const parsed = parseMcpJson(result, 'export');
+      expect(parsed.uri).toBe(uri);
+      expect(typeof parsed.content).toBe('string');
+      expect(parsed.content.length).toBeGreaterThan(100);
+    }
   }, 30000);
 });
