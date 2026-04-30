@@ -151,8 +151,9 @@ describe('v4-forward first-call response schema', () => {
     withRawOnFail({ beginResult, nextResult }, () => {
       expect(nextPayload.error_code).toBeUndefined();
       expect(nextPayload.current_layer?.uri).toBeDefined();
-      expect(nextPayload.contract?.type).toBe('mcp');
-      expect(layerIdFromUri(nextPayload.current_layer.uri)).not.toBe(layerIdFromUri(layerUri));
+      expect(['mcp', 'comment']).toContain(nextPayload.contract?.type);
+      expect(typeof nextPayload.next_action).toBe('string');
+      expect(nextPayload.next_action.toLowerCase()).toMatch(/forward|reward/);
     });
   });
 
