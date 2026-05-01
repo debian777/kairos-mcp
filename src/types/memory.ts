@@ -107,6 +107,12 @@ export interface Memory {
   llm_model_id: string;
   created_at: string;
   content_type?: string;
+  artifact?: {
+    slug: string;
+    version: string;
+    name: string;
+    sha256: string;
+  };
   adapter?: AdapterInfo;
   inference_contract?: InferenceContractDefinition;
 }

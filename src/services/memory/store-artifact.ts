@@ -11,6 +11,7 @@ import { redisCacheService } from '../redis-cache.js';
 import { parseKairosUri } from '../../tools/kairos-uri.js';
 import type { Memory } from '../../types/memory.js';
 import type { StoreArtifactOptions } from './store-adapter.js';
+import { extractArtifactMetadata } from './artifact-metadata.js';
 
 export async function storeArtifact(
   client: QdrantClient,
@@ -19,10 +20,12 @@ export async function storeArtifact(
   options: StoreArtifactOptions
 ): Promise<Memory[]> {
   const parsed = parseKairosUri(options.adapterUri);
-  if (parsed.kind !== 'adapter') {
+  if (parsed.kind !== 'adapter' || parsed.idKind !== 'uuid') {
     throw new Error('adapterUri must be a kairos://adapter/{uuid} URI');
   }
   const adapterId = parsed.id;
+  const artifact = extractArtifactMetadata(content, options.name);
+  const sha256 = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
   const vectorSize = getEmbeddingDimension();
   const zeroVector = Array.from({ length: vectorSize }, () => 0);
   const context = getSpaceContext();
@@ -30,7 +33,22 @@ export async function storeArtifact(
   const actorId = context.userId || 'system';
   const now = new Date().toISOString();
   const memoryUuid = crypto.randomUUID();
-  const tags = ['artifact', options.mime.replace('text/', '')];
+  const tags = ['artifact', options.mime.replace('text/', ''), `artifact:${artifact.slug}`];
+
+  const duplicate = await client.scroll(collection, {
+    filter: {
+      must: [
+        { key: 'space_id', match: { value: spaceId } },
+        { key: 'artifact.slug', match: { value: artifact.slug } }
+      ]
+    },
+    limit: 2,
+    with_payload: true,
+    with_vector: false
+  });
+  if (Array.isArray(duplicate.points) && duplicate.points.length > 0) {
+    throw new Error(`Artifact slug "${artifact.slug}" already exists in this space`);
+  }
 
   await client.upsert(collection, {
     points: [{
@@ -51,6 +69,12 @@ export async function storeArtifact(
         modified_at: now,
         modified_by: actorId,
         content_type: options.mime,
+        artifact: {
+          slug: artifact.slug,
+          version: artifact.version,
+          name: options.name,
+          sha256
+        },
         adapter: {
           id: adapterId,
           name: options.name
@@ -69,6 +93,12 @@ export async function storeArtifact(
     llm_model_id: options.llmModelId,
     created_at: now,
     content_type: options.mime,
+    artifact: {
+      slug: artifact.slug,
+      version: artifact.version,
+      name: options.name,
+      sha256
+    },
     adapter: {
       id: adapterId,
       name: options.name,

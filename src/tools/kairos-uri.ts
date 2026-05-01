@@ -2,16 +2,21 @@ import { KairosError } from '../types/index.js';
 import { normalizeAuthorSlug } from '../utils/protocol-slug.js';
 
 const UUID_PATTERN = '[0-9a-f-]{36}';
-const SLUG_PATTERN = '[a-z0-9]+(?:-[a-z0-9]+)*';
+const SLUG_PATTERN = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?';
 
 const UUID_REGEX = new RegExp(`^${UUID_PATTERN}$`, 'i');
 const ADAPTER_URI_BODY_REGEX = /^kairos:\/\/adapter\/([^/?#]+)$/i;
+const ARTIFACT_URI_BODY_REGEX = /^kairos:\/\/artifact\/([^/?#]+)$/i;
 export const ADAPTER_UUID_URI_REGEX = new RegExp(
   `^kairos://adapter/(${UUID_PATTERN})$`,
   'i'
 );
 export const ADAPTER_URI_INPUT_REGEX = new RegExp(
   `^kairos://adapter/(${UUID_PATTERN}|${SLUG_PATTERN})$`,
+  'i'
+);
+export const ARTIFACT_URI_INPUT_REGEX = new RegExp(
+  `^kairos://artifact/(${UUID_PATTERN}|${SLUG_PATTERN})$`,
   'i'
 );
 export const LAYER_URI_INPUT_REGEX = new RegExp(
@@ -21,6 +26,7 @@ export const LAYER_URI_INPUT_REGEX = new RegExp(
 
 export type ParsedKairosUri =
   | { kind: 'adapter'; id: string; idKind: 'uuid' | 'slug'; raw: string }
+  | { kind: 'artifact'; id: string; idKind: 'uuid' | 'slug'; raw: string }
   | { kind: 'layer'; id: string; executionId?: string; raw: string };
 
 export function buildAdapterUri(adapterId: string): string {
@@ -68,7 +74,31 @@ export function parseKairosUri(value: string): ParsedKairosUri {
     };
   }
 
-  throw new Error('Invalid KAIROS URI. Expected kairos://adapter/{uuid|slug} or kairos://layer/{uuid}');
+  const artifactMatch = normalized.match(ARTIFACT_URI_BODY_REGEX);
+  if (artifactMatch?.[1]) {
+    if (UUID_REGEX.test(artifactMatch[1])) {
+      return {
+        kind: 'artifact',
+        id: artifactMatch[1],
+        idKind: 'uuid',
+        raw: normalized
+      };
+    }
+
+    const normalizedSlug = normalizeAuthorSlug(artifactMatch[1]);
+    if (normalizedSlug) {
+      return {
+        kind: 'artifact',
+        id: normalizedSlug,
+        idKind: 'slug',
+        raw: normalized
+      };
+    }
+  }
+
+  throw new Error(
+    'Invalid KAIROS URI. Expected kairos://adapter/{uuid|slug}, kairos://artifact/{uuid|slug}, or kairos://layer/{uuid}'
+  );
 }
 
 export function parseKairosUriOrThrow(value: string): ParsedKairosUri {

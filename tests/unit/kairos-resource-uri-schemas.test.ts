@@ -6,6 +6,7 @@ const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
 const ADAPTER_WITH_EXEC = `${ADAPTER_URI}?execution_id=00000000-0000-0000-0000-000000000099`;
 const LAYER_URI = 'kairos://layer/00000000-0000-0000-0000-000000000002';
 const LAYER_WITH_EXEC = `${LAYER_URI}?execution_id=00000000-0000-0000-0000-000000000003`;
+const ARTIFACT_SLUG_URI = 'kairos://artifact/sort-jira-py';
 
 describe('resource URI schemas', () => {
   test('tune rejects execution_id on adapter URIs', () => {
@@ -39,6 +40,15 @@ describe('resource URI schemas', () => {
     const result = exportInputSchema.safeParse({
       uri: LAYER_WITH_EXEC,
       format: 'markdown'
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  test('export accepts artifact slug URIs', () => {
+    const result = exportInputSchema.safeParse({
+      uri: ARTIFACT_SLUG_URI,
+      format: 'source'
     });
 
     expect(result.success).toBe(true);

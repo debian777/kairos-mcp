@@ -76,6 +76,7 @@ docs.
 | [workflow-tune](workflow-tune.md) | **`tune`** (edit stored bodies / fields). |
 | [workflow-delete](workflow-delete.md) | **`delete`** (adapter or layer URIs). |
 | [workflow-export](workflow-export.md) | **`export`** and related inspection; see embedded docs. |
+| [artifacts](artifacts.md) | Artifact lifecycle across MCP, API, CLI, and UI. |
 | [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
 
 ## Agent recovery UX

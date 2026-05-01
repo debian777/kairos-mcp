@@ -18,6 +18,7 @@ import {
 import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+import { resolveCanonicalAdapterUriForArtifact } from './train-artifact-adapter-uri.js';
 
 interface RegisterTrainOptions {
   toolName?: string;
@@ -96,13 +97,31 @@ async function resolveContentForTrain(
       { must_obey: true }
     );
   }
-  const adapterMatch = /^kairos:\/\/adapter\/([0-9a-f-]{36})$/i.exec(sourceUri);
-  if (!adapterMatch?.[1]) {
-    throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid}', {
+  let adapterId = '';
+  try {
+    const parsed = parseKairosUri(sourceUri);
+    if (parsed.kind !== 'adapter') {
+      throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid|slug}', {
+        must_obey: true
+      });
+    }
+    if (parsed.idKind === 'uuid') {
+      adapterId = parsed.id;
+    } else {
+      const resolved = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
+      if (!resolved.layerUuid) {
+        throw new TrainError('SOURCE_ADAPTER_NOT_FOUND', `source_adapter_uri adapter slug "${parsed.id}" was not found.`, {
+          must_obey: true
+        });
+      }
+      adapterId = resolved.layerUuid;
+    }
+  } catch (error) {
+    if (error instanceof TrainError) throw error;
+    throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid|slug}', {
       must_obey: true
     });
   }
-  const adapterId = adapterMatch[1]!;
   const layers = await qdrantService.getAdapterLayers(adapterId);
   const headUuid = layers[0]?.uuid ?? adapterId;
   const dump = await executeDump(memoryStore, qdrantService, {
@@ -130,6 +149,10 @@ export async function executeTrain(
       must_obey: true
     });
   }
+  const isArtifactTrain = typeof input.mime === 'string' && input.mime.trim().length > 0 && input.mime !== 'text/markdown';
+  const canonicalAdapterUri = isArtifactTrain
+    ? await resolveCanonicalAdapterUriForArtifact(input.adapter_uri, qdrantService)
+    : input.adapter_uri;
   const forkedFromSource = typeof input.source_adapter_uri === 'string' && input.source_adapter_uri.trim().length > 0;
   const storePayload = {
     content,
@@ -139,7 +162,7 @@ export async function executeTrain(
     ...(input.space !== undefined && { space: input.space }),
     ...(input.mime !== undefined && { mime: input.mime }),
     ...(input.artifact_name !== undefined && { artifact_name: input.artifact_name }),
-    ...(input.adapter_uri !== undefined && { adapter_uri: input.adapter_uri }),
+    ...(canonicalAdapterUri !== undefined && { adapter_uri: canonicalAdapterUri }),
     ...(forkedFromSource && { fork_new_adapter: true })
   };
   const result = await executeTrainStore(
@@ -164,9 +187,9 @@ export async function executeTrain(
           /* ignore invalid uri */
         }
       }
-      if (!adapterId && isArtifactRow && typeof input.adapter_uri === 'string' && input.adapter_uri.trim().length > 0) {
+      if (!adapterId && isArtifactRow && typeof canonicalAdapterUri === 'string' && canonicalAdapterUri.trim().length > 0) {
         try {
-          const parsed = parseKairosUri(input.adapter_uri.trim());
+          const parsed = parseKairosUri(canonicalAdapterUri.trim());
           if (parsed.kind === 'adapter') adapterId = parsed.id;
         } catch {
           /* ignore invalid uri */
@@ -176,9 +199,19 @@ export async function executeTrain(
         adapterId = storedId;
       }
 
+      const tagSlug = Array.isArray(item.tags)
+        ? item.tags.find((tag) => typeof tag === 'string' && tag.startsWith('artifact:'))?.slice('artifact:'.length)
+        : undefined;
+      const artifactSlug = typeof memory?.artifact?.slug === 'string'
+        ? memory.artifact.slug.trim()
+        : (typeof tagSlug === 'string' ? tagSlug.trim() : '');
+      const artifactUri = artifactSlug.length > 0
+        ? `kairos://artifact/${artifactSlug}`
+        : `kairos://artifact/${storedId}`;
+
       return {
         uri: item.content_type && item.content_type !== 'text/markdown'
-          ? `kairos://artifact/${storedId}`
+          ? artifactUri
           : buildLayerUri(storedId || ''),
         ...(item.layer_uuid && { layer_uuid: item.layer_uuid }),
         ...(item.artifact_uuid && { artifact_uuid: item.artifact_uuid }),

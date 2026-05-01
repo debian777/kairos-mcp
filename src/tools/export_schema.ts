@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ADAPTER_UUID_URI_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
+import { ADAPTER_URI_INPUT_REGEX, ARTIFACT_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(ADAPTER_UUID_URI_REGEX, 'must match kairos://adapter/{uuid}');
+  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}');
 
 const layerUriSchema = z
   .string()
@@ -11,7 +11,7 @@ const layerUriSchema = z
 
 const artifactUriSchema = z
   .string()
-  .regex(/^kairos:\/\/artifact\/[0-9a-f-]{36}$/i, 'must match kairos://artifact/{uuid}');
+  .regex(ARTIFACT_URI_INPUT_REGEX, 'must match kairos://artifact/{uuid|slug}');
 
 const adapterOrLayerUriSchema = z.union([adapterUriSchema, layerUriSchema, artifactUriSchema]);
 
