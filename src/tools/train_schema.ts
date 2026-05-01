@@ -1,12 +1,13 @@
 import { z } from 'zod';
+import { ADAPTER_URI_INPUT_REGEX } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
+  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}');
 
 const sourceAdapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}')
+  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}')
   .describe('Optional fork source: export markdown from this adapter, then train into target space');
 
 export const trainInputSchema = z

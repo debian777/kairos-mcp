@@ -16,7 +16,8 @@ to a specific call.
 **MISSION:** Produce a single Markdown bug report for the latest MCP
 interaction (or a user-specified one). Keep an exact 1-to-1 mapping
 between the structure below and the report: every section in this order,
-with no extra top-level sections.
+with no extra top-level sections. The Calls and responses section must be
+a **raw JSON trace** of each request and response, with redaction only.
 
 **STRUCTURE (exact order, never skip):**
 1. Summary
@@ -38,6 +39,9 @@ infrastructure component status needed for the Environment section.
   (server, tool/resource, arguments) **immediately followed by** its
   response in fenced `json` (full payload or error). Preserve
   chronological order.
+  - **Raw trace rule:** Request and response blocks must be raw,
+    verbatim JSON payloads from execution (except redaction of secrets).
+    Do not paraphrase, normalize, summarize, or rewrite JSON fields.
   - **Retry rule:** When a flow ends in `MAX_RETRIES_EXCEEDED` or
     similar retry exhaustion, include **every** retry attempt
     (request + response), not just the first and last. If `retry_count`
@@ -77,6 +81,8 @@ infrastructure component status needed for the Environment section.
 - Emit all six sections in order.
 - Use fenced code blocks with language `json` for every request and
   response.
+- Keep request and response blocks as **raw/verbatim JSON trace**
+  (redaction-only edits are allowed).
 - Redact secrets, tokens, cookies, and API keys in any JSON.
 - Save under `reports/` as
   `mcp-bug-<server>-<short-description>-<date>.md`.
@@ -93,6 +99,8 @@ infrastructure component status needed for the Environment section.
   stale nonce, targeted the wrong URI, or ignored `next_action`, the
   Reasoning section must classify this as agent error.
 - Put request/response in plain text or non-JSON code blocks.
+- Paraphrase, normalize, or rewrite request/response JSON instead of
+  preserving a raw trace (except redaction).
 - Include unredacted secrets, tokens, cookies, or API keys.
 
 ---
@@ -103,7 +111,7 @@ infrastructure component status needed for the Environment section.
   sentence.
 - [ ] Every MCP call in the flow has both request **and** response JSON
   blocks — including **all retry attempts** (no skipped intermediate
-  responses), with secrets redacted.
+  responses), with secrets redacted and raw/verbatim JSON preserved.
 - [ ] Reasoning includes explicit fault attribution for each failed
   attempt (agent error / server error / unclear) with evidence.
 - [ ] Environment includes KAIROS MCP version and infrastructure

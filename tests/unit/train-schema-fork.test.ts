@@ -46,6 +46,17 @@ describe('trainInputSchema fork fields', () => {
     expect(bad.success).toBe(false);
   });
 
+  it('accepts adapter slug URI when mime is non-markdown', () => {
+    const ok = trainInputSchema.safeParse({
+      llm_model_id: 'm',
+      content: 'print("ok")',
+      mime: 'text/x-python',
+      artifact_name: 'artifact.py',
+      adapter_uri: 'kairos://adapter/daily-briefing-generation-multi-source-work-dashboard'
+    });
+    expect(ok.success).toBe(true);
+  });
+
   it('rejects unsupported artifact mime in store branch', async () => {
     const memoryStore = {
       storeArtifact: async () => {

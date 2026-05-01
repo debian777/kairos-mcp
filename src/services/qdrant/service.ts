@@ -83,6 +83,10 @@ export class QdrantService {
     return retrieval.findFirstStepMemoryUuidBySlug(this.conn, slug);
   }
 
+  findArtifactMemoryUuidBySlug(slug: string) {
+    return retrieval.findArtifactMemoryUuidBySlug(this.conn, slug);
+  }
+
   updateMemoryByUUID(uuid: string, updatesPayload: any) {
     return updateMemoryByUUID(this.conn, uuid, updatesPayload);
   }

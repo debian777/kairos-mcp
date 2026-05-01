@@ -13,9 +13,33 @@ const ALLOWED_ARTIFACT_MIMES = [
   'text/plain'
 ] as const;
 
-function parseArtifactUri(uri: string): string | null {
-  const match = /^kairos:\/\/artifact\/([0-9a-f-]{36})$/i.exec((uri || '').trim());
-  return match?.[1] ?? null;
+interface ArtifactUriResolution {
+  requestedUri: string;
+  artifactUuid: string;
+  uri: string;
+}
+
+async function resolveArtifactUri(qdrantService: QdrantService | undefined, uri: string): Promise<ArtifactUriResolution | null> {
+  const parsed = parseKairosUri((uri || '').trim());
+  if (parsed.kind !== 'artifact') return null;
+  if (parsed.idKind === 'uuid') {
+    return { requestedUri: uri, artifactUuid: parsed.id, uri };
+  }
+  if (!qdrantService) {
+    throw new Error('Artifact slug lookup is unavailable');
+  }
+  const resolved = await qdrantService.findArtifactMemoryUuidBySlug(parsed.id);
+  if (resolved.disambiguation_note) {
+    throw new Error(resolved.disambiguation_note);
+  }
+  if (!resolved.artifactUuid) {
+    throw new Error(`Artifact slug "${parsed.id}" not found`);
+  }
+  return {
+    requestedUri: uri,
+    artifactUuid: resolved.artifactUuid,
+    uri
+  };
 }
 
 async function sourceFromMemory(memoryStore: MemoryQdrantStore, uri: string, memoryId: string): Promise<ExportOutput> {
@@ -38,8 +62,13 @@ async function sourceListForAdapter(memoryStore: MemoryQdrantStore, uri: string,
   const { client, collection } = memoryStore.getQdrantAccess();
   const artifacts: Array<{
     uri: string;
+    uuid_uri: string;
     artifact_uuid: string;
     label: string;
+    slug: string;
+    version: string;
+    sha256: string;
+    name: string;
     content_type: string;
     tags: string[];
   }> = [];
@@ -63,10 +92,26 @@ async function sourceListForAdapter(memoryStore: MemoryQdrantStore, uri: string,
       const idRaw = point?.id;
       const id = typeof idRaw === 'string' ? idRaw : typeof idRaw === 'number' ? String(idRaw) : '';
       if (!id) continue;
+      const artifactPayload = (payload['artifact'] ?? {}) as Record<string, unknown>;
+      const slug = typeof artifactPayload['slug'] === 'string' && artifactPayload['slug'].trim().length > 0
+        ? artifactPayload['slug']
+        : id;
+      const version = typeof artifactPayload['version'] === 'string' && artifactPayload['version'].trim().length > 0
+        ? artifactPayload['version']
+        : '1';
+      const sha256 = typeof artifactPayload['sha256'] === 'string' ? artifactPayload['sha256'] : '';
+      const name = typeof artifactPayload['name'] === 'string' && artifactPayload['name'].trim().length > 0
+        ? artifactPayload['name']
+        : (typeof payload['label'] === 'string' ? payload['label'] : id);
       artifacts.push({
-        uri: `kairos://artifact/${id}`,
+        uri: `kairos://artifact/${slug}`,
+        uuid_uri: `kairos://artifact/${id}`,
         artifact_uuid: id,
         label: typeof payload['label'] === 'string' ? payload['label'] : id,
+        slug,
+        version,
+        sha256,
+        name,
         content_type: typeof payload['content_type'] === 'string' ? payload['content_type'] : 'text/plain',
         tags: Array.isArray(payload['tags']) ? payload['tags'].map((t) => String(t)) : []
       });
@@ -92,14 +137,15 @@ export async function executeExportSource(
   uri: string,
   resolveAdapter: (memoryStore: MemoryQdrantStore, qdrantService: QdrantService | undefined, uri: string) => Promise<{ adapterId: string; layerId: string }>
 ): Promise<ExportOutput> {
-  const parsedArtifactId = parseArtifactUri(uri);
-  if (parsedArtifactId) {
-    return sourceFromMemory(memoryStore, uri, parsedArtifactId);
+  const parsedArtifact = await resolveArtifactUri(qdrantService, uri);
+  if (parsedArtifact) {
+    return sourceFromMemory(memoryStore, parsedArtifact.uri, parsedArtifact.artifactUuid);
   }
 
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'adapter') {
-    return sourceListForAdapter(memoryStore, uri, parsed.id);
+    const { adapterId } = await resolveAdapter(memoryStore, qdrantService, uri);
+    return sourceListForAdapter(memoryStore, uri, adapterId);
   }
 
   const { layerId } = await resolveAdapter(memoryStore, qdrantService, uri);

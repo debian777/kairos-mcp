@@ -50,10 +50,21 @@ describe('Train artifact storage and source export', () => {
 
   test('stores artifact outside activate search and exports via source format', async () => {
     const ts = Date.now().toString();
+    const adapterSlug = `artifact-parent-${ts}`;
     const artifactName = `artifact-${ts}.py`;
-    const artifactBody = `print("artifact-${ts}")`;
+    const artifactSlug = `artifact-${ts}-py`;
+    const artifactBody = `#!/usr/bin/env python3
+# kairos-artifact:
+#   slug: ${artifactSlug}
+#   version: 1
 
-    const adapterMarkdown = `# Artifact Parent ${ts}
+print("artifact-${ts}")`;
+
+    const adapterMarkdown = `---
+slug: ${adapterSlug}
+---
+
+# Artifact Parent ${ts}
 
 ## Activation Patterns
 Run when user asks for artifact test.
@@ -88,15 +99,15 @@ Done.`;
         llm_model_id: 'test-model',
         mime: 'text/x-python',
         artifact_name: artifactName,
-        adapter_uri: adapterUri
+        adapter_uri: `kairos://adapter/${adapterSlug}`
       }
     });
     const artifactParsed = parseMcpJson(trainArtifact, 'train artifact');
     expect(artifactParsed.status).toBe('stored');
     const artifactUri = artifactParsed.items?.[0]?.uri as string;
-    expect(artifactUri).toMatch(/^kairos:\/\/artifact\//);
     const artifactUuid = artifactParsed.items?.[0]?.artifact_uuid as string;
     expect(artifactUuid).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(artifactUri).toBe(`kairos://artifact/${artifactSlug}`);
     expect(artifactParsed.items?.[0]?.content_type).toBe('text/x-python');
 
     const qdrantPoint = await postJson<{
@@ -111,6 +122,10 @@ Done.`;
     const point = qdrantPoint.result?.points?.[0];
     expect(point).toBeDefined();
     expect(point?.payload?.['content_type']).toBe('text/x-python');
+    const artifactPayload = point?.payload?.['artifact'] as Record<string, unknown> | undefined;
+    expect(artifactPayload?.['slug']).toBe(artifactSlug);
+    expect(artifactPayload?.['version']).toBe('1');
+    expect(typeof artifactPayload?.['sha256']).toBe('string');
     const vectors = point?.vector ?? {};
     const primary = Object.values(vectors)[0];
     expect(Array.isArray(primary)).toBe(true);
@@ -136,22 +151,49 @@ Done.`;
 
     const exportSourceArtifact = await mcpConnection.client.callTool({
       name: 'export',
-      arguments: { uri: artifactUri, format: 'source' }
+      arguments: { uri: `kairos://artifact/${artifactUuid}`, format: 'source' }
     });
     const sourceArtifactParsed = parseMcpJson(exportSourceArtifact, 'export source artifact');
     expect(sourceArtifactParsed.content_type).toBe('text/x-python');
     expect(sourceArtifactParsed.content).toBe(artifactBody);
 
+    const exportSourceArtifactSlug = await mcpConnection.client.callTool({
+      name: 'export',
+      arguments: { uri: `kairos://artifact/${artifactSlug}`, format: 'source' }
+    });
+    const sourceArtifactSlugParsed = parseMcpJson(exportSourceArtifactSlug, 'export source artifact slug');
+    expect(sourceArtifactSlugParsed.content_type).toBe('text/x-python');
+    expect(sourceArtifactSlugParsed.content).toBe(artifactBody);
+
     const exportSourceAdapter = await mcpConnection.client.callTool({
       name: 'export',
-      arguments: { uri: adapterUri, format: 'source' }
+      arguments: { uri: `kairos://adapter/${adapterSlug}`, format: 'source' }
     });
     const sourceAdapterParsed = parseMcpJson(exportSourceAdapter, 'export source adapter');
     expect(sourceAdapterParsed.content_type).toBe('application/json');
     const listed = JSON.parse(String(sourceAdapterParsed.content)) as {
-      artifacts: Array<{ artifact_uuid: string; uri: string; label: string }>;
+      artifacts: Array<{
+        artifact_uuid: string;
+        uri: string;
+        uuid_uri: string;
+        label: string;
+        slug: string;
+        version: string;
+        sha256: string;
+      }>;
     };
     expect(Array.isArray(listed.artifacts)).toBe(true);
-    expect(listed.artifacts.some((a) => a.artifact_uuid === artifactUuid && a.uri === artifactUri)).toBe(true);
+    expect(
+      listed.artifacts.some(
+        (a) =>
+          a.artifact_uuid === artifactUuid &&
+          a.uri === `kairos://artifact/${artifactSlug}` &&
+          a.uuid_uri === `kairos://artifact/${artifactUuid}` &&
+          a.slug === artifactSlug &&
+          a.version === '1' &&
+          typeof a.sha256 === 'string' &&
+          a.sha256.length > 0
+      )
+    ).toBe(true);
   }, 60000);
 });

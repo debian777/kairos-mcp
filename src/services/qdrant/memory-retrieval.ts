@@ -213,6 +213,11 @@ export interface SlugResolveOutcome {
   disambiguation_note?: string;
 }
 
+export interface ArtifactSlugResolveOutcome {
+  artifactUuid: string | null;
+  disambiguation_note?: string;
+}
+
 function getSlugSpacePrecedence(spaceId: string): number {
   if (spaceId.startsWith('user:')) return 0;
   if (spaceId.startsWith('group:')) return 1;
@@ -299,5 +304,43 @@ export async function findFirstStepMemoryUuidBySlug(
     const note = `Slug "${normalized}" matched ${unique.length} adapters; selected "${adapterHint}" from "${winnerSpaceId}" by precedence (personal > group > app/system, then stable id). Candidates: ${contenderSummary}. Prefer an explicit adapter URI such as kairos://adapter/${adapterHint} to avoid ambiguity.`;
     structuredLogger.warn(`[slug-resolve] ${note}`);
     return { layerUuid: chosenId, disambiguation_note: note };
+  });
+}
+
+export async function findArtifactMemoryUuidBySlug(
+  conn: QdrantConnection,
+  slug: string
+): Promise<ArtifactSlugResolveOutcome> {
+  return conn.executeWithReconnect(async () => {
+    const normalized = (slug || '').trim().toLowerCase();
+    if (!normalized) return { artifactUuid: null };
+    const filter = buildSpaceFilter(getSearchSpaceIds(), {
+      must: [{ key: 'artifact.slug', match: { value: normalized } }]
+    });
+
+    const allPts: any[] = [];
+    let offset: any = undefined;
+    do {
+      const page = await conn.client.scroll(conn.collectionName, {
+        filter,
+        limit: 64,
+        offset,
+        with_payload: true,
+        with_vector: false
+      } as any);
+      const pts = page.points || [];
+      allPts.push(...pts);
+      offset = page.next_page_offset;
+    } while (offset);
+
+    if (allPts.length === 0) return { artifactUuid: null };
+    if (allPts.length > 1) {
+      const candidates = allPts.map((point) => String(point.id)).join(', ');
+      return {
+        artifactUuid: null,
+        disambiguation_note: `Artifact slug "${normalized}" is ambiguous. Matching artifact UUIDs: ${candidates}`
+      };
+    }
+    return { artifactUuid: String(allPts[0]!.id) };
   });
 }
