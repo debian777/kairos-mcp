@@ -1,8 +1,10 @@
 /**
- * Local disk write helpers for `skill_zip` CLI downloads: validate payload and resolve output paths
- * without using unsanitized remote filename strings as path segments (CodeQL js/http-to-file-access).
+ * Path and size checks for `skill_zip` CLI downloads. Same trust model as other `export` formats:
+ * the CLI already emits API-returned markdown (and users redirect to files); ZIP is persisted via
+ * `--zip-out` or a default basename under cwd after the same authenticated export flow.
  */
 
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_EXPORT_SKILL_ZIP_FILENAME } from '../config/export-zip-settings.js';
 
@@ -65,4 +67,10 @@ export function assertSkillZipBufferAllowedForDiskWrite(data: Buffer): void {
   if (!pk) {
     throw new Error('Export download did not look like a ZIP file (missing PK signature).');
   }
+}
+
+/** Write validated ZIP bytes after export (download_ref GET or inline base64 decode). */
+export function writeExportedSkillZipToFile(outputPath: string, source: Buffer): void {
+  assertSkillZipBufferAllowedForDiskWrite(source);
+  writeFileSync(outputPath, source);
 }
