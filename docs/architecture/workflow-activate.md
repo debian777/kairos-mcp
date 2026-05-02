@@ -1,19 +1,57 @@
-# activate workflow
+# Activate workflow
 
-> **Current MCP tool:** **`activate`**. See
+> **MCP tool:** **`activate`**. Agent-facing reference:
 > [`activate.md`](../../src/embed-docs/tools/activate.md).
 
-**`activate`** ranks stored **adapters** for the user’s intent. Every response
-has **`must_obey: true`**. Each choice includes an **`adapter` URI**
+This document defines the **architecture** of **`activate`**: semantic ranking of
+stored adapters for the caller’s intent, choice rows with **`next_action`**, and
+parity with HTTP. Binding schemas live in
+[`activate_schema.ts`](../../src/tools/activate_schema.ts).
+
+---
+
+## Role
+
+**`activate`** ranks stored **adapters** for the user’s intent. Every successful
+response has **`must_obey: true`**. Each choice includes an **`adapter` URI**
 (`kairos://adapter/{uuid}`), **`activation_score`**, **`adapter_name`**, and a
 per-choice **`next_action`** (typically **`forward`** on that adapter URI with
-no `solution`, **`train`** for create, or **`forward`** on the refine adapter).
+no **`solution`**, **`train`** for create, or **`forward`** on the refine
+adapter).
 
-## Input schema
+```mermaid
+flowchart LR
+  q[query] --> act[activate]
+  act --> ch[choices]
+  ch --> m[match rows]
+  ch --> r[refine]
+  ch --> c[create]
+  m --> na[next_action]
+  r --> na
+  c --> na
+  na --> fwd[forward or train]
+```
 
-Every call requires a short `query` string that summarizes the user’s intent.
-Use 3-8 words. Optional `space` / `space_id` narrows the search, and
-`max_choices` caps the result count.
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** Use the connected server’s **`activate`** `inputSchema`,
+  `outputSchema`, and description as the runtime contract.
+- **This repository:** [`activate_schema.ts`](../../src/tools/activate_schema.ts).
+  HTTP [`http-api-begin.ts`](../../src/http/http-api-begin.ts) validates
+  **`POST /api/activate`** with the same input shape.
+
+### Shipped input
+
+| Field | Type | Required | Notes |
+|-------|------|----------|--------|
+| **`query`** | string | yes | Short intent string (minimum 1 character). |
+| **`space`** | string | no | Scope: `"personal"`, group path, `Group: …`, or space id. |
+| **`space_id`** | string | no | Alias for **`space`**. |
+| **`max_choices`** | integer | no | Clamped to server min or max search cap. |
 
 ```json
 {
@@ -21,7 +59,21 @@ Use 3-8 words. Optional `space` / `space_id` narrows the search, and
 }
 ```
 
-## Unified response schema
+### Shipped output
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`must_obey`** | boolean | Always **`true`** on success. |
+| **`message`**, **`next_action`**, **`query`** | string | Global and echoed query. |
+| **`choices`** | array | Non-empty; see per-choice shape below. |
+| **`local_artifact_dir`** | string | optional |
+| **`kairos_work_dir`** | string | optional; compat alias |
+| **`deprecations`** | array | optional |
+
+**Each choice:** **`uri`**, **`label`**, **`adapter_name`**, **`activation_score`**
+(0.0 to 1.0 or null), **`role`** (`match` \| `refine` \| `create`), **`tags`**,
+**`next_action`**, **`adapter_version`**, optional **`activation_patterns`**,
+**`space_name`**, **`slug`**.
 
 ```json
 {
@@ -41,32 +93,40 @@ Use 3-8 words. Optional `space` / `space_id` narrows the search, and
       "adapter_version": "<string or null>",
       "activation_patterns": ["<string>"],
       "space_name": "<string or null>",
-      "slug": "<routing slug or null — null for refine/create or when absent>"
+      "slug": "<string or null>"
     }
   ]
 }
 ```
 
-**`next_action` patterns** (see `src/tools/activate.ts`):
+### HTTP
 
-- **match:** `call forward with kairos://adapter/<uuid> and no solution to
-  start this adapter`
-- **refine:** `call forward with kairos://adapter/<uuid> and no solution to
-  start the refine adapter`
+- **`POST /api/activate`** — JSON body: same properties as **Shipped input**.
+
+---
+
+## Choice roles and ordering
+
+**`next_action` patterns** (see [`activate.ts`](../../src/tools/activate.ts)):
+
+- **match:** `call forward with kairos://adapter/<uuid> and no solution to start this adapter`
+- **refine:** `call forward with kairos://adapter/<uuid> and no solution to start the refine adapter`
 - **create:** `call train with adapter markdown to register a new adapter`
 
-Roles:
-
-- **`match`** — **`activation_score`** 0.0–1.0
-- **`refine`** — built-in refine adapter; **`activation_score`: null**
-- **`create`** — no stored adapter yet; **`activation_score`: null**
+- **`match`** — **`activation_score`** 0.0 to 1.0
+- **`refine`** — built-in refine adapter; **`activation_score`**: null
+- **`create`** — no stored adapter yet; **`activation_score`**: null
 
 Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 **`create`**.
 
-## Scenario 1: single match
+---
 
-### Input
+## Scenarios
+
+### Scenario 1: single match
+
+#### Input
 
 ```json
 {
@@ -74,7 +134,7 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 }
 ```
 
-### Expected output (illustrative)
+#### Expected output (illustrative)
 
 ```json
 {
@@ -97,14 +157,14 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
-1. Obey the chosen row’s **`next_action`** (here: **`forward`** with that
-   adapter URI, omit **`solution`**).
+1. Obey the chosen row’s **`next_action`** (here: **`forward`** with that adapter
+   URI, omit **`solution`**).
 
-## Scenario 2: multiple matches + refine + create
+### Scenario 2: multiple matches + refine + create
 
-### Expected output (illustrative)
+#### Expected output (illustrative)
 
 ```json
 {
@@ -147,31 +207,35 @@ Ordering: all **`match`** rows first, then at most one **`refine`**, then one
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
-1. Pick one choice using **`label`**, **`adapter_name`**,
-   **`activation_score`**, and **`tags`**.
+1. Pick one choice using **`label`**, **`adapter_name`**, **`activation_score`**,
+   and **`tags`**.
 2. For **create**, call **`train`** with markdown—there is no adapter run yet.
 
-## Scenario 3: weak matches
+### Scenario 3: weak matches
 
-When scores are low, prefer **refine** once before **create**, if that fits
-the user’s goal.
+When scores are low, prefer **refine** once before **create**, if that fits the
+user’s goal.
 
-## Scenario 4: no strong matches
+### Scenario 4: no strong matches
 
 Only **refine** and **create** may appear. Follow the same **`next_action`**
 rules.
 
+---
+
 ## Validation rules
 
-1. **`must_obey`** is always **`true`**.
+1. **`must_obey`** is always **`true`** on success.
 2. **`choices`** is non-empty.
 3. Every choice has **`uri`**, **`label`**, **`adapter_name`**,
    **`activation_score`**, **`role`**, **`tags`**, **`next_action`**,
    **`adapter_version`** (nullable).
 4. **`uri`** values exposed to agents are **`kairos://adapter/{uuid}`**
-   (including well-known refine/create IDs when present).
+   (including well-known refine or create ids when present).
+
+---
 
 ## See also
 

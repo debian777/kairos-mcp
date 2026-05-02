@@ -10,6 +10,7 @@ import { type TuneInput, type TuneOutput } from './tune_schema.js';
 import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { buildTuneResultMessage } from './tune-messages.js';
 import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
+import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
 
 type AdapterLayerPoint = { uuid: string; payload: any };
 
@@ -70,13 +71,13 @@ function assertWritableTuneLayers(layers: AdapterLayerPoint[]): void {
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string, preferredSpaceId?: string): Promise<string> {
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'layer') {
-    return `kairos://mem/${parsed.id}`;
+    return buildLayerUri(parsed.id, parsed.executionId);
   }
 
   const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
   assertWritableTuneLayers(layers);
   const head = layers[0]?.uuid ?? parsed.id;
-  return `kairos://mem/${head}`;
+  return buildLayerUri(head);
 }
 
 async function collectLayerMemoryUuidsForTune(
@@ -123,6 +124,11 @@ async function tuneAdapterMarkdownInPlace(
   const currentModel = existingLayers[0]?.payload?.llm_model_id;
   const llmModelId =
     typeof currentModel === 'string' && currentModel.trim().length > 0 ? currentModel.trim() : 'tune-in-place';
+
+  const fullDocCheck = validateAdapterMarkdownSize(markdownDoc);
+  if (!fullDocCheck.ok) {
+    throw new Error(`${fullDocCheck.message} (${fullDocCheck.code})`);
+  }
 
   const parsedDoc = parseFrontmatter(markdownDoc);
   const adapterMarkdown = parsedDoc.body.length > 0 ? parsedDoc.body : markdownDoc;

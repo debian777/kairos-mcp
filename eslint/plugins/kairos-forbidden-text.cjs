@@ -124,6 +124,17 @@ function kairosForbiddenStandaloneV10Message(matched) {
   return `Disallowed standalone version tag (matched "${matched}", case-insensitive). Use neutral wording (current protocol surface, adapter API). \`v10-*\` prefixes (e.g. module paths, test labels) are allowed; bare "v10" is not.`;
 }
 
+/**
+ * @returns {string}
+ */
+function kairosForbiddenDeprecatedLayerRowUriSchemeMessage() {
+  return (
+    'Disallowed ambiguous URI scheme for stored layer rows: use kairos://layer/{uuid} (and optional ?execution_id=). ' +
+    'Do not emit the older overloaded surface; build transitional parsing with string concat if ingest must accept it. ' +
+    'Distinguish adapter id (kairos://adapter/…) from layer row (kairos://layer/…).'
+  );
+}
+
 /** Full-source scan; keep this module outside matched lint globs or it would self-match list entries. */
 const kairosForbiddenTextPlugin = {
   rules: {
@@ -190,6 +201,22 @@ const kairosForbiddenTextPlugin = {
             context.report({
               loc: { start, end },
               message: kairosForbiddenStandaloneV10Message(m[0]),
+            });
+          }
+        }
+        {
+          const deprecatedLayerRowUriPrefix = ['kairos', '://', 'me', 'm'].join('');
+          const re = new RegExp(escapeRegExp(deprecatedLayerRowUriPrefix), 'gi');
+          let m;
+          while ((m = re.exec(text)) !== null) {
+            const at = m.index;
+            if (seenAt.has(at)) continue;
+            seenAt.add(at);
+            const start = sourceCode.getLocFromIndex(at);
+            const end = sourceCode.getLocFromIndex(at + m[0].length);
+            context.report({
+              loc: { start, end },
+              message: kairosForbiddenDeprecatedLayerRowUriSchemeMessage(),
             });
           }
         }

@@ -18,6 +18,7 @@ import type {
   ProofOfWorkSubmission
 } from './next-proof-types.js';
 import { validateMcpSubmissionAgainstContract } from './mcp-contract-match.js';
+import { buildLayerUri } from './kairos-uri.js';
 import { buildChallengeShapeForDisplay } from './next-pow-challenge-shape.js';
 import {
   appendLocalArtifactDirDeprecationMessage,
@@ -135,7 +136,7 @@ function buildErrorPayload(
   retryCount: number
 ): any {
   const uuid = memory?.memory_uuid;
-  const uri = uuid ? `kairos://mem/${uuid}` : '';
+  const uri = uuid ? buildLayerUri(uuid) : '';
   const maxExceeded = retryCount >= MAX_RETRIES;
 
   const payload: any = {
@@ -189,7 +190,7 @@ export async function handleProofSubmission(
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     const retryKey = storedNonce ?? uuid;
     const retryCount = await proofOfWorkStore.incrementRetry(retryKey);
-    const current = currentStep || { uri: `kairos://mem/${uuid}`, content: '', mimeType: 'text/markdown' };
+    const current = currentStep || { uri: buildLayerUri(uuid), content: '', mimeType: 'text/markdown' };
     let challengePayload =
       challengeObj ||
       (storedNonce != null

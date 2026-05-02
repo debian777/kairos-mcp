@@ -1,18 +1,62 @@
 # Forward: first call (adapter URI)
 
-> **There is no separate “begin” tool.** To load the first layer of an adapter
-> run, call **`forward`** once with a **`kairos://adapter/{uuid}`** or
-> **`kairos://adapter/{slug}`** from
-> **`activate`** and **omit** `solution`. See
+> **MCP tool:** **`forward`**. Agent-facing reference:
 > [`forward.md`](../../src/embed-docs/tools/forward.md).
 
+There is no separate **begin** tool. To load the first layer of an adapter run,
+call **`forward`** once with a **`kairos://adapter/{uuid}`** or
+**`kairos://adapter/{slug}`** from **`activate`** and **omit** **`solution`**.
+
+This page covers **first** calls only. Binding schemas live in
+[`forward_schema.ts`](../../src/tools/forward_schema.ts). HTTP:
+[`http-api-begin-step.ts`](../../src/http/http-api-begin-step.ts) (**`POST /api/forward`**).
+
+---
+
+## Role
+
 The server returns the first **`contract`**, optional **`current_layer`**
-(markdown + layer URI), **`execution_id`** when a new run starts, and
+(markdown and layer URI), **`execution_id`** when a new run starts, and
 **`next_action`** (usually another **`forward`** on the layer URI with
 **`solution.type`** plus the matching payload object, or **`reward`** on a
 single-layer adapter).
 
-## Response shape (illustrative)
+```mermaid
+flowchart LR
+  a[adapter uri] --> f1[forward no solution]
+  f1 --> layer[layer plus contract]
+  layer --> next[next_action]
+```
+
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** Connected **`forward`** tool schemas and descriptions.
+- **This repository:** [`forward_schema.ts`](../../src/tools/forward_schema.ts).
+  **`POST /api/forward`** uses the same **`forwardInputSchema`**.
+
+### Shipped input (first call)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`uri`** | string | **`kairos://adapter/{uuid\|slug}`** (or layer entry per server rules). **No** **`solution`**. |
+| **`local_artifact_dir`** | string | optional; stable handoff directory for the run |
+| **`kairos_work_dir`** | string | optional; deprecated alias |
+
+```json
+{
+  "uri": "kairos://adapter/aaa11111-1111-1111-1111-111111111111"
+}
+```
+
+### Shipped output (illustrative)
+
+Responses include **`must_obey`**, optional **`current_layer`**, **`contract`**,
+**`next_action`**, optional **`execution_id`**, optional **`proof_hash`**, and
+deprecation or artifact-dir fields per strict output schema.
 
 ```json
 {
@@ -41,29 +85,32 @@ Contract **`type`** is one of **`tensor`**, **`shell`**, **`mcp`**,
 **`user_input`**, **`comment`**. Echo server **`nonce`** and **`proof_hash`**
 when the contract requires them.
 
-## First call input
+### HTTP
 
-```json
-{
-  "uri": "kairos://adapter/aaa11111-1111-1111-1111-111111111111"
-}
-```
+- **`POST /api/forward`** — JSON body: **`uri`** (and optional fields) as above;
+  omit **`solution`** on the first call.
 
-No `solution` field on this call.
+---
 
-You can also start with a stored slug URI such as
+## Slug entry
+
+You can start with a stored slug URI such as
 `kairos://adapter/create-merge-request`. The server resolves it to the adapter
 entry layer before returning the current layer.
 
-## AI behavior
+---
 
-1. `must_obey: true` → follow **`next_action`**.
+## Agent behavior
+
+1. **`must_obey: true`** → follow **`next_action`**.
 2. Read **`current_layer.content`** for human-facing instructions.
 3. Read **`contract`** for the proof you must satisfy.
-4. Call **`forward`** again with the **layer** URI from `current_layer.uri`
-   (include `?execution_id=` when the server returned one) and a **`solution`**
+4. Call **`forward`** again with the **layer** URI from **`current_layer.uri`**
+   (include **`?execution_id=`** when the server returned one) and a **`solution`**
    whose **`type`** matches **`contract.type`**, plus the matching payload
    object such as **`solution.shell`**.
+
+---
 
 ## Single-layer run
 
@@ -72,16 +119,20 @@ If the adapter has one layer, the first **`forward`** may already point to
 **`forward`** (with a solution) when needed; **`reward`** uses the **final
 layer** URI from the tool text, with optional **`?execution_id=`**.
 
-## Non–step-1 entry (redirect)
+---
 
-If you mistakenly pass a **layer** URI as the first call where the server
-expects the adapter entry layer, resolution behavior is defined in **`forward`** /
-store logic; always prefer the **adapter** URI from **`activate`**.
+## Non–step-1 entry
+
+If you pass a **layer** URI as the first call where the server expects the
+adapter entry layer, resolution behavior is defined in **`forward`** and store
+logic; always prefer the **adapter** URI from **`activate`**.
+
+---
 
 ## Validation rules
 
-1. First call uses **`kairos://adapter/{uuid}`** or
-   **`kairos://adapter/{slug}`**; omit **`solution`**.
+1. First call uses **`kairos://adapter/{uuid}`** or **`kairos://adapter/{slug}`**;
+   omit **`solution`**.
 2. **`contract`** is always present; **`current_layer`** may be null in edge
    cases—obey **`next_action`** regardless.
 3. Continuation calls use the layer URI with **`?execution_id=`** and include
@@ -89,6 +140,8 @@ store logic; always prefer the **adapter** URI from **`activate`**.
 4. **`next_action`** is authoritative for the next tool invocation.
 5. Prefer **`execution_id`** continuity across layer **`forward`** calls when
    the URI or docs say to include it.
+
+---
 
 ## See also
 

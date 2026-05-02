@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { CHALLENGE_TYPE_LABEL } from "@/components/ChallengeCard";
 import { SurfaceCard } from "@/components/SurfaceCard";
-import { buildMarkdownFromForm, type ProtocolFormState } from "@/hooks/useProtocol";
+import { fetchSkillZipBundle, suggestedSkillZipFilename, triggerFileDownload } from "@/lib/export-skill-zip";
 
 export type ProtocolPreviewModel = {
   title: string;
@@ -14,7 +15,6 @@ export type ProtocolPreviewModel = {
 type ProtocolEditPreviewColumnProps = {
   t: TFunction;
   preview: ProtocolPreviewModel;
-  form: ProtocolFormState;
   skillFolderSlug: string;
   isNew: boolean;
   decodedUri: string | undefined;
@@ -23,11 +23,13 @@ type ProtocolEditPreviewColumnProps = {
 export function ProtocolEditPreviewColumn({
   t,
   preview,
-  form,
   skillFolderSlug,
   isNew,
   decodedUri,
 }: ProtocolEditPreviewColumnProps) {
+  const [zipBusy, setZipBusy] = useState(false);
+  const [zipError, setZipError] = useState<string | null>(null);
+
   return (
     <div className="space-y-4" aria-label={t("protocolEdit.previewLabel")}>
       <SurfaceCard title={t("protocolEdit.previewRenderedTitle")} subtitle={t("protocolEdit.previewRenderedSubtitle")}>
@@ -84,20 +86,32 @@ export function ProtocolEditPreviewColumn({
             </Link>
             <button
               type="button"
+              disabled={zipBusy}
               onClick={() => {
-                const md = `# ${preview.title}\n\n${buildMarkdownFromForm(form)}`;
-                const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${skillFolderSlug}-skill.md`;
-                a.click();
-                URL.revokeObjectURL(url);
+                void (async () => {
+                  if (!decodedUri) return;
+                  setZipError(null);
+                  setZipBusy(true);
+                  try {
+                    const { blob, skill_bundle_manifest } = await fetchSkillZipBundle(decodedUri);
+                    const name = suggestedSkillZipFilename(skill_bundle_manifest, skillFolderSlug);
+                    triggerFileDownload(blob, name);
+                  } catch (e) {
+                    setZipError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setZipBusy(false);
+                  }
+                })();
               }}
-              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 disabled:opacity-60"
             >
               {t("protocol.downloadAsSkill")}
             </button>
+            {zipError ? (
+              <p className="mt-2 m-0 text-xs text-[var(--color-error)]" role="alert">
+                {zipError}
+              </p>
+            ) : null}
           </div>
         </SurfaceCard>
       ) : null}

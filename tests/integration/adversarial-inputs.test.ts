@@ -85,7 +85,10 @@ describe('Adversarial and robustness inputs', () => {
     const response = await apiFetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uri: `kairos://layer/${probeUuid}`, format: 'markdown' })
+      body: JSON.stringify({
+        uri: `kairos://layer/${probeUuid}`,
+        format: 'markdown'
+      })
     });
 
     expectNoServerCrash(response);

@@ -150,9 +150,9 @@ function teachingExport(error: ZodError): Record<string, unknown> {
     tool: 'export',
     must_obey: true,
     message:
-      'Input validation error: `export` requires `uri` (adapter or layer). Optional `format` (markdown, trace_jsonl, reward_jsonl, sft_jsonl, preference_jsonl) defaults to markdown; optional `include_reward` boolean.',
+      'Input validation error: `export` requires exactly one selection: `uri`, or non-empty `adapters`, or `all_adapters`+`space_name`. Default `format` is `skill_zip`; use `format: markdown` for flat single-file adapter Markdown. Optional `include_reward`.',
     next_action:
-      'Call export with {"uri":"kairos://adapter/<uuid>","format":"markdown"} using the target from forward or activate.',
+      'Call export with {"uri":"kairos://adapter/<uuid>","format":"skill_zip"} or for flat Markdown {"uri":"kairos://adapter/<uuid>","format":"markdown"}.',
     invalid_fields: paths
   };
 }

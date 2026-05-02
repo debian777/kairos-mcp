@@ -7,7 +7,7 @@ import { readdir, readFile } from 'fs/promises';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
-/** Mem markdown whose basename (no .md) is a UUID — inject as kairos://mem/{uuid}. */
+/** Mem markdown whose basename (no .md) is a UUID — inject as a layer-row URI (`kairos://layer/{uuid}`). */
 const MEM_FILE_UUID_KEY =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

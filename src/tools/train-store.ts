@@ -2,6 +2,10 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
 import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import {
+  validateAdapterMarkdownSize,
+  validateArtifactContentSize
+} from '../services/memory/validate-adapter-markdown-size.js';
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
 import { buildLayerUri } from './kairos-uri.js';
 
@@ -56,6 +60,10 @@ export async function executeTrainStore(
         allowed: [...ALLOWED_ARTIFACT_MIMES]
       });
     }
+    const artifactSize = validateArtifactContentSize(input.content);
+    if (!artifactSize.ok) {
+      throw new TrainError(artifactSize.code, artifactSize.message, artifactSize.details);
+    }
     const memories = await runStore(() =>
       memoryStore.storeArtifact(input.content, {
         mime,
@@ -79,6 +87,10 @@ export async function executeTrainStore(
   }
 
   const docForStore = input.fork_new_adapter ? markdownWithoutAuthorSlugForFork(input.content) : input.content;
+  const sizeCheck = validateAdapterMarkdownSize(docForStore);
+  if (!sizeCheck.ok) {
+    throw new TrainError(sizeCheck.code, sizeCheck.message, sizeCheck.details);
+  }
   const validation = validateProtocolStructure(docForStore);
   if (!validation.valid) {
     throw new TrainError('PROTOCOL_STRUCTURE_INVALID', validation.message, {

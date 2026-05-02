@@ -13,6 +13,15 @@ import { executeExportSource } from './export-source.js';
 import { resolveExportAdapter } from './export-resolve-adapter.js';
 import { buildPreferenceJsonlItems, buildRewardJsonlItems, buildSftJsonlItems, stringifyLines } from './export-reward-jsonl.js';
 import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
+import { collectSkillExportItemsForZip } from './export-skill-items.js';
+import { resolveExportUris } from './export-selection.js';
+import { flattenSkillItemsToZipPaths, zipSkillFiles } from './skill-export/zip-bundle.js';
+import { sha256Hex } from './skill-export/sha256.js';
+import {
+  finalizeExportObservation,
+  runExportTelemetryContext,
+  setSkillZipDecodedBytes
+} from './export-telemetry.js';
 
 interface RegisterExportOptions {
   toolName?: string;
@@ -28,18 +37,42 @@ export async function executeExport(
   qdrantService: QdrantService | undefined,
   input: ExportInput
 ): Promise<ExportOutput> {
-  const parsedUri = parseKairosUri(input.uri.trim());
-  if (parsedUri.kind === 'artifact') {
+  return runExportTelemetryContext(async () => {
+    const t0 = process.hrtime.bigint();
+    let result: ExportOutput | undefined;
+    let caught: unknown;
+    try {
+      result = await executeExportImpl(memoryStore, qdrantService, input);
+      return result;
+    } catch (e) {
+      caught = e;
+      throw e;
+    } finally {
+      finalizeExportObservation(input, result, t0, caught);
+    }
+  });
+}
+
+async function executeExportImpl(
+  memoryStore: MemoryQdrantStore,
+  qdrantService: QdrantService | undefined,
+  input: ExportInput
+): Promise<ExportOutput> {
+  if (typeof input.uri === 'string' && parseKairosUri(input.uri.trim()).kind === 'artifact') {
     return executeExportSource(memoryStore, qdrantService, input.uri, resolveExportAdapter);
   }
 
-  if (input.format === 'source') {
+  if (input.format === 'source' && typeof input.uri === 'string') {
     return executeExportSource(memoryStore, qdrantService, input.uri, resolveExportAdapter);
   }
 
-  const { adapterId, layerId } = await resolveExportAdapter(memoryStore, qdrantService, input.uri);
+  const adapterUris = await resolveExportUris(memoryStore, input);
 
   if (input.format === 'markdown') {
+    if (adapterUris.length !== 1 || !input.uri) {
+      throw new Error('Flat markdown export requires a single `uri`.');
+    }
+    const { layerId } = await resolveExportAdapter(memoryStore, qdrantService, input.uri);
     const dump = await executeDump(memoryStore, qdrantService, {
       uri: `kairos://layer/${layerId}`,
       protocol: true
@@ -60,7 +93,7 @@ export async function executeExport(
           };
     return {
       uri: input.uri,
-      format: input.format,
+      format: 'markdown',
       content_type: 'text/markdown',
       content: toCurrentMarkdown(String(dump['content'] ?? '')),
       item_count: 1,
@@ -70,51 +103,126 @@ export async function executeExport(
     };
   }
 
-  const pairs = await executionTraceStore.buildTrainingPairsForAdapter(
-    adapterId,
-    input.format === 'reward_jsonl' ? true : input.include_reward
+  if (
+    input.format === 'trace_jsonl' ||
+    input.format === 'reward_jsonl' ||
+    input.format === 'sft_jsonl' ||
+    input.format === 'preference_jsonl'
+  ) {
+    if (adapterUris.length !== 1) {
+      throw new Error(`Training format ${input.format} requires a single adapter uri.`);
+    }
+    const { adapterId } = await resolveExportAdapter(memoryStore, qdrantService, adapterUris[0]!);
+    const pairs = await executionTraceStore.buildTrainingPairsForAdapter(
+      adapterId,
+      input.format === 'reward_jsonl' ? true : input.include_reward
+    );
+
+    if (input.format === 'trace_jsonl') {
+      return {
+        uri: adapterUris[0]!,
+        format: input.format,
+        content_type: 'application/x-ndjson',
+        content: stringifyLines(pairs),
+        item_count: pairs.length
+      };
+    }
+
+    if (input.format === 'reward_jsonl') {
+      const rewardItems = buildRewardJsonlItems(pairs);
+      return {
+        uri: adapterUris[0]!,
+        format: input.format,
+        content_type: 'application/x-ndjson',
+        content: stringifyLines(rewardItems),
+        item_count: rewardItems.length
+      };
+    }
+
+    if (input.format === 'sft_jsonl') {
+      const sftItems = buildSftJsonlItems(pairs, input.include_reward);
+      return {
+        uri: adapterUris[0]!,
+        format: input.format,
+        content_type: 'application/x-ndjson',
+        content: stringifyLines(sftItems),
+        item_count: sftItems.length
+      };
+    }
+
+    const preferenceItems = buildPreferenceJsonlItems(pairs);
+    return {
+      uri: adapterUris[0]!,
+      format: input.format,
+      content_type: 'application/x-ndjson',
+      content: stringifyLines(preferenceItems),
+      item_count: preferenceItems.length
+    };
+  }
+
+  if (input.format === 'skill_tree' || input.format === 'skill_zip') {
+    const { items, primaryUri } = await collectSkillExportItemsForZip(memoryStore, qdrantService, adapterUris);
+
+    if (input.format === 'skill_tree') {
+      const tree = {
+        format: 'skill_tree' as const,
+        version: 1,
+        skills: items.map((it) => ({
+          slug: it.slug,
+          kairos_uri: it.kairosUri,
+          files: it.files.map((f) => ({ path: f.path, content: typeof f.content === 'string' ? f.content : f.content.toString('utf8') })),
+          diagnostics: it.diagnostics
+        }))
+      };
+      const json = JSON.stringify(tree, null, 2);
+      return {
+        uri: primaryUri,
+        format: 'skill_tree',
+        content_type: 'application/json',
+        content: json,
+        item_count: items.length,
+        export_adapter_count: items.length,
+        adapter_name: items.length === 1 ? items[0]!.name : null,
+        adapter_version: items.length === 1 ? items[0]!.adapterVersion ?? null : null
+      };
+    }
+
+    const flat = flattenSkillItemsToZipPaths(
+      items.map((it) => ({ slug: it.slug, files: it.files }))
+    );
+    const buf = await zipSkillFiles(flat);
+    setSkillZipDecodedBytes(buf.length);
+    const b64 = buf.toString('base64');
+    const digest = sha256Hex(buf);
+    const shaLabel = `sha256:${digest}`;
+    const manifest = {
+      type: 'skill_bundle',
+      format: 'zip',
+      bundle_sha256: shaLabel,
+      skills: items.map((it) => ({
+        slug: it.slug,
+        entrypoint: `${it.slug}/SKILL.md`,
+        artifacts: it.files.filter((f) => f.path.startsWith('artifacts/')).map((f) => `${it.slug}/${f.path}`)
+      }))
+    };
+    return {
+      uri: primaryUri,
+      format: 'skill_zip',
+      content_type: 'application/zip',
+      content: b64,
+      content_encoding: 'base64',
+      bundle_sha256: shaLabel,
+      item_count: items.length,
+      export_adapter_count: items.length,
+      skill_bundle_manifest: JSON.stringify(manifest),
+      adapter_name: items.length === 1 ? items[0]!.name : null,
+      adapter_version: items.length === 1 ? items[0]!.adapterVersion ?? null : null
+    };
+  }
+
+  throw new Error(
+    `Unsupported export format "${input.format}" for this selection. Use skill_tree, skill_zip, training JSONL, source, or flat markdown (format: markdown).`
   );
-
-  if (input.format === 'trace_jsonl') {
-    return {
-      uri: input.uri,
-      format: input.format,
-      content_type: 'application/x-ndjson',
-      content: stringifyLines(pairs),
-      item_count: pairs.length
-    };
-  }
-
-  if (input.format === 'reward_jsonl') {
-    const rewardItems = buildRewardJsonlItems(pairs);
-    return {
-      uri: input.uri,
-      format: input.format,
-      content_type: 'application/x-ndjson',
-      content: stringifyLines(rewardItems),
-      item_count: rewardItems.length
-    };
-  }
-
-  if (input.format === 'sft_jsonl') {
-    const sftItems = buildSftJsonlItems(pairs, input.include_reward);
-    return {
-      uri: input.uri,
-      format: input.format,
-      content_type: 'application/x-ndjson',
-      content: stringifyLines(sftItems),
-      item_count: sftItems.length
-    };
-  }
-
-  const preferenceItems = buildPreferenceJsonlItems(pairs);
-  return {
-    uri: input.uri,
-    format: input.format,
-    content_type: 'application/x-ndjson',
-    content: stringifyLines(preferenceItems),
-    item_count: preferenceItems.length
-  };
 }
 
 export function registerExportTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterExportOptions = {}) {
@@ -161,4 +269,3 @@ export function registerExportTool(server: any, memoryStore: MemoryQdrantStore, 
     }
   );
 }
-

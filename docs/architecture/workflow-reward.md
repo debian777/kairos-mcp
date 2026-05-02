@@ -1,13 +1,48 @@
-# reward workflow
+# Reward workflow
 
-> **Current MCP tool:** **`reward`**. Finalizes an adapter run on the **final
-> layer** URI. See [`reward.md`](../../src/embed-docs/tools/reward.md).
+> **MCP tool:** **`reward`**. Agent-facing reference:
+> [`reward.md`](../../src/embed-docs/tools/reward.md).
+
+This document defines the **architecture** of **`reward`**: finalizing an adapter
+run on the **final layer** URI, recording outcome and optional evaluator fields.
+Binding schemas live in [`reward_schema.ts`](../../src/tools/reward_schema.ts).
+HTTP: [`http-api-attest.ts`](../../src/http/http-api-attest.ts) (**`POST /api/reward`**).
+
+---
+
+## Role
 
 **`reward`** runs after **`forward`** has validated the last layer’s contract
 and **`next_action`** tells you to finalize. It records outcome (and optional
 evaluator fields) and completes the run.
 
-## Input schema
+```mermaid
+flowchart LR
+  fwd[forward last layer]
+  rw[reward]
+  done[run complete]
+  fwd --> rw --> done
+```
+
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** **`reward`** input and output schemas on the connected server.
+- **This repository:** [`reward_schema.ts`](../../src/tools/reward_schema.ts).
+  **`POST /api/reward`** validates the same **`rewardInputSchema`**.
+
+### Shipped input
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`uri`** | string | **Layer** URI (include **`?execution_id=`** when the run used it). |
+| **`outcome`** | enum | **`success`** or **`failure`**. |
+| **`score`** | number | optional; 0 to 1 |
+| **`feedback`** | string | optional; min length 1 when present |
+| **`rater`**, **`rubric_version`**, **`llm_model_id`** | string | optional |
 
 ```json
 {
@@ -21,18 +56,14 @@ evaluator fields) and completes the run.
 }
 ```
 
-Fields:
+Do not substitute an adapter URI unless the tool description explicitly allows it.
 
-- **`uri`** — **layer** URI from **`forward`** (include **`?execution_id=`**
-  when the run used it). Do not substitute an adapter URI unless the tool
-  description explicitly allows it.
-- **`outcome`** — **`success`** or **`failure`**.
-- **`feedback`** — optional evaluator note. If omitted, the runtime stores a
-  default summary for Qdrant quality propagation.
-- **`score`**, **`rater`**, **`rubric_version`**, **`llm_model_id`** —
-  optional evaluator metadata per schema.
+### Shipped output
 
-## Response schema
+| Field | Type | Notes |
+|-------|------|--------|
+| **`results`** | array | One row per rated layer with eligibility and blockers. |
+| **`total_rated`**, **`total_failed`** | number | Aggregate counts |
 
 ```json
 {
@@ -59,22 +90,32 @@ Fields:
 }
 ```
 
-## Scenario: success
+### HTTP
+
+- **`POST /api/reward`** — JSON body: same properties as **Shipped input**.
+
+---
+
+## Scenarios
+
+### Success
 
 After **`reward`**, the run is complete; you may answer the end user.
 
-## Scenario: failure
+### Failure
 
 Use **`outcome: "failure"`** and explain what went wrong in **`feedback`**.
 This still records a reward row when the call succeeds. **`total_failed`**
 tracks reward write failures, not adapter outcomes.
 
-## Operational failures
+### Operational failures
 
 If KAIROS cannot persist the reward or propagate the quality update, the
 **`reward`** call fails instead of returning contradictory **`results`**
 and aggregate counters. Retry the same **`reward`** call for the same
 layer URI after the storage path is healthy.
+
+---
 
 ## Export eligibility
 
@@ -90,6 +131,8 @@ training exports.
 - **`sft_blockers`** and **`preference_blockers`** explain why a reward is
   not exportable yet.
 
+---
+
 ## Validation rules
 
 1. **`results`** is non-empty when the call succeeds.
@@ -98,10 +141,11 @@ training exports.
 4. **`exportable_for_sft`** and **`exportable_for_preference`** reflect the
    blocker arrays in the same result row.
 
+---
+
 ## See also
 
 - [forward (subsequent calls)](workflow-forward-continue.md)
 - [Full execution workflow](workflow-full-execution.md)
-- [Search query architecture](search-query.md) — ranking may use success /
-  failure signals on stored adapters.
+- [Search query architecture](search-query.md)
 - [Quality metadata](quality-metadata.md)

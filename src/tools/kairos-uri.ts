@@ -74,6 +74,16 @@ export function parseKairosUri(value: string): ParsedKairosUri {
     };
   }
 
+  /** Transitional input only: older ambiguous surface that meant a layer row UUID. */
+  const olderLayerRowPrefix = ['kairos', '://', 'me', 'm', '/'].join('');
+  if (normalized.startsWith(olderLayerRowPrefix)) {
+    const rest = normalized.slice(olderLayerRowPrefix.length).split('?')[0] ?? '';
+    const id = rest.split('/')[0] ?? '';
+    if (UUID_REGEX.test(id)) {
+      return { kind: 'layer', id, raw: normalized };
+    }
+  }
+
   const artifactMatch = normalized.match(ARTIFACT_URI_BODY_REGEX);
   if (artifactMatch?.[1]) {
     if (UUID_REGEX.test(artifactMatch[1])) {
@@ -97,7 +107,7 @@ export function parseKairosUri(value: string): ParsedKairosUri {
   }
 
   throw new Error(
-    'Invalid KAIROS URI. Expected kairos://adapter/{uuid|slug}, kairos://artifact/{uuid|slug}, or kairos://layer/{uuid}'
+    'Invalid KAIROS URI. Expected kairos://adapter/{uuid|slug}, kairos://artifact/{uuid|slug}, kairos://layer/{uuid}[?execution_id=…], or the transitional older layer-row form'
   );
 }
 

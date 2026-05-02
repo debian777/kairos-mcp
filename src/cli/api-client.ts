@@ -15,7 +15,7 @@ import type { ForwardOutput } from '../tools/forward_schema.js';
 import type { RewardOutput } from '../tools/reward_schema.js';
 import type { TrainOutput } from '../tools/train_schema.js';
 import type { TuneOutput } from '../tools/tune_schema.js';
-import type { ExportOutput } from '../tools/export_schema.js';
+import type { ExportInput, ExportOutput } from '../tools/export_schema.js';
 import type { DeleteOutput } from '../tools/delete_schema.js';
 
 const PROACTIVE_REFRESH_SKEW_SEC = 60;
@@ -325,13 +325,10 @@ export class ApiClient {
         });
     }
 
-    async export(
-        uri: string,
-        format: 'markdown' | 'trace_jsonl' | 'reward_jsonl' | 'sft_jsonl' | 'preference_jsonl' = 'markdown'
-    ): Promise<ExportOutput> {
+    async export(input: ExportInput): Promise<ExportOutput> {
         return this.request<ExportOutput>('/api/export', {
             method: 'POST',
-            body: JSON.stringify({ uri, format }),
+            body: JSON.stringify(input),
         });
     }
 

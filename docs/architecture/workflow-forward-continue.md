@@ -1,16 +1,67 @@
 # Forward: subsequent calls (layer URI + solution)
 
-> **Current MCP tool:** **`forward`** with a **`kairos://layer/{uuid}`** URI
-> (and **`?execution_id=`** when the run uses it) and a **`solution`** whose
-> **`type`** matches **`contract.type`** and includes the matching payload
-> object. See
+> **MCP tool:** **`forward`**. Agent-facing reference:
 > [`forward.md`](../../src/embed-docs/tools/forward.md).
 
-Use this after the **first** **`forward`** (adapter URI, no solution). Each
+Use this after the **first** **`forward`** (adapter URI, no **`solution`**). Each
 response exposes a **`contract`** for the current layer and a **`next_action`**
 that names the next **`forward`** or **`reward`**.
 
-## Response schema (illustrative)
+Binding schemas live in [`forward_schema.ts`](../../src/tools/forward_schema.ts).
+HTTP: **`POST /api/forward`** with a **layer** URI and **`solution`**.
+
+---
+
+## Role
+
+Continuation calls use **`kairos://layer/{uuid}`** with **`?execution_id=`**
+when the run uses it, plus a **`solution`** whose **`type`** matches
+**`contract.type`** and includes the matching payload object.
+
+```mermaid
+flowchart TD
+  L[layer uri plus execution_id] --> sol[solution]
+  sol --> f2[forward]
+  f2 --> contract[contract plus next_action]
+  contract --> again[forward again or reward]
+```
+
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** **`forward`** continuation rules and solution shape.
+- **This repository:** [`forward_schema.ts`](../../src/tools/forward_schema.ts).
+  **`solution`** is **required** when the URI is a layer URI with
+  **`execution_id`**.
+
+### Shipped input (continuation)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`uri`** | string | **`kairos://layer/{uuid}?execution_id=...`** |
+| **`solution`** | object | **`type`** plus payload (**`shell`**, **`comment`**, …). Echo **`nonce`** / **`proof_hash`** when required. |
+
+```json
+{
+  "uri": "kairos://layer/bbb22222-2222-2222-2222-222222222222?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "solution": {
+    "type": "shell",
+    "nonce": "a1b2c3d4e5f6",
+    "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
+    "shell": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "duration_seconds": 0.1
+    }
+  }
+}
+```
+
+### Shipped output (illustrative)
 
 ```json
 {
@@ -32,34 +83,21 @@ that names the next **`forward`** or **`reward`**.
 }
 ```
 
-## Example: shell solution
+### HTTP
 
-### Input
+- **`POST /api/forward`** — same JSON body as MCP.
 
-```json
-{
-  "uri": "kairos://layer/bbb22222-2222-2222-2222-222222222222?execution_id=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-  "solution": {
-    "type": "shell",
-    "nonce": "a1b2c3d4e5f6",
-    "proof_hash": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
-    "shell": {
-      "exit_code": 0,
-      "stdout": "",
-      "stderr": "",
-      "duration_seconds": 0.1
-    }
-  }
-}
-```
+---
 
-### AI behavior
+## Agent behavior
 
-1. `must_obey: true` → follow **`next_action`**.
+1. **`must_obey: true`** → follow **`next_action`**.
 2. Use the **layer** URI from the previous response (not the adapter URI).
 3. Echo **`nonce`** / **`proof_hash`** exactly when the contract requires them.
 4. Include **`solution.type`** and the matching payload object, such as
    **`solution.shell`**.
+
+---
 
 ## Last layer → reward
 
@@ -73,8 +111,9 @@ When **`next_action`** directs you to **`reward`**:
 }
 ```
 
-Use only **layer** URIs for **`reward`** (see
-[`reward.md`](../../src/embed-docs/tools/reward.md)).
+Use only **layer** URIs for **`reward`** (see [`reward.md`](../../src/embed-docs/tools/reward.md)).
+
+---
 
 ## Errors and retries
 
@@ -87,14 +126,18 @@ When **`must_obey`** is **`false`** (for example, max retries), **`next_action`*
 may list options such as **`tune`** to fix stored content, **`reward`** with
 **`failure`**, or asking the user—follow that text.
 
+---
+
 ## Validation rules
 
 1. **`solution.type`** must match **`contract.type`**.
 2. Include the matching payload object, such as **`solution.shell`** or
    **`solution.comment`**.
-3. **`current_layer.uri`** is always a **`kairos://layer/...`** URI.
+3. **`current_layer.uri`** is always a **`kairos://layer/...`** URI when present.
 4. **`proof_hash`** in the response is for chaining proofs; echo the correct
    hash source described in **`forward`** / **`next_action`**.
+
+---
 
 ## See also
 

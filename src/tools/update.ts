@@ -1,6 +1,8 @@
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { UpdateInput, UpdateOutput } from './update_schema.js';
 import { extractMemoryBody, hasMemoryBodyMarkers } from '../utils/memory-body.js';
+import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
+import { buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 
 /** Shared execute: update memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeUpdate(
@@ -18,16 +20,25 @@ export async function executeUpdate(
   for (let index = 0; index < uris.length; index++) {
     const uri = uris[index]!;
     try {
-      const uuid = typeof uri === 'string' ? uri.split('/').pop() : undefined;
-      if (!uuid) {
-        throw new Error('Invalid URI format');
+      const parsed = parseKairosUriOrThrow(uri);
+      if (parsed.kind !== 'layer') {
+        throw new Error('update requires a layer URI (stored layer row), not an adapter or artifact URI');
       }
+      const uuid = parsed.id;
       const valueAtIndex = Array.isArray(content) ? content[index] : undefined;
       if (typeof valueAtIndex === 'string' && valueAtIndex.trim().length > 0) {
+        const layerCheck = validateAdapterMarkdownSize(valueAtIndex, { enforceMaxLineCount: false });
+        if (!layerCheck.ok) {
+          throw new Error(`${layerCheck.message} (${layerCheck.code})`);
+        }
         const body = extractMemoryBody(valueAtIndex);
         await qdrantService.updateMemory(uuid, { text: body });
       } else if (updates && Object.keys(updates).length > 0) {
         if (typeof updates['text'] === 'string' && hasMemoryBodyMarkers(updates['text'])) {
+          const layerCheck = validateAdapterMarkdownSize(updates['text'], { enforceMaxLineCount: false });
+          if (!layerCheck.ok) {
+            throw new Error(`${layerCheck.message} (${layerCheck.code})`);
+          }
           const body = extractMemoryBody(updates['text']);
           await qdrantService.updateMemory(uuid, { text: body });
         } else {
@@ -37,9 +48,9 @@ export async function executeUpdate(
         throw new Error('Provide content or updates');
       }
       results.push({
-        uri,
+        uri: buildLayerUri(uuid, parsed.executionId),
         status: 'updated',
-        message: `Memory ${uri} updated successfully`
+        message: `Adapter layer ${buildLayerUri(uuid, parsed.executionId)} updated successfully`
       });
       totalUpdated++;
     } catch (error) {

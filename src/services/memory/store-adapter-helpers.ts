@@ -61,7 +61,7 @@ export async function handleDuplicateAdapter(
     if (!forceUpdate) {
       const items = (dup.points || []).map((p: any) => ({
         label: (p.payload?.label as string) || 'Memory',
-        uri: `kairos://mem/${String(p.id)}`
+        uri: buildLayerUri(String(p.id))
       }));
       throw new KairosError('Duplicate adapter', 'DUPLICATE_ADAPTER', 409, { adapter_id: adapterUuid, items });
     }
@@ -71,7 +71,7 @@ export async function handleDuplicateAdapter(
     if (protectedEntries.length > 0) {
       const items = protectedEntries.map((p: any) => ({
         label: (p.payload?.label as string) || 'Memory',
-        uri: `kairos://mem/${String(p.id)}`,
+        uri: buildLayerUri(String(p.id)),
         space_id: typeof p?.payload?.space_id === 'string' ? p.payload.space_id : undefined
       }));
       const firstSpaceId =
@@ -147,7 +147,7 @@ export async function checkSimilarAdapterByTitle(
       score: bestScore,
       layer_count: bestMatch.adapter?.layer_count ?? 1
     };
-    const next_action = `call export with ${adapterUri} and format "markdown" to inspect the similar adapter. If your markdown uses the same adapter id, call train with force_update: true to replace that adapter; otherwise pick a distinct adapter title (H1)`;
+    const next_action = `call export with ${adapterUri} and format "markdown" for flat Markdown to inspect the similar adapter. If your markdown uses the same adapter id, call train with force_update: true to replace that adapter; otherwise pick a distinct adapter title (H1)`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
 
     const matchedAdapterName = bestMatch.adapter?.name ?? bestMatch.label;
@@ -215,7 +215,7 @@ export async function allocateAdapterSlugForMint(
       if (adapterId && adapterId !== newAdapterUuid) {
         return {
           otherAdapterId: adapterId,
-          sample_uri: `kairos://mem/${String(h.id)}`
+          sample_uri: buildLayerUri(String(h.id))
         };
       }
     }

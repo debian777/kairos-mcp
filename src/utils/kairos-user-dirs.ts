@@ -19,3 +19,17 @@ export function getKairosConfigDir(env: NodeJS.ProcessEnv = process.env): string
   const base = env['XDG_CONFIG_HOME'] || join(homedir(), '.config');
   return join(base, CONFIG_DIR_NAME);
 }
+
+/**
+ * Base directory for locally installed skill mirrors (flat Markdown or unzipped bundles),
+ * under the same tree as CLI config (`config.json`). Not created automatically.
+ */
+export function getKairosSkillsInstallBaseDir(env: NodeJS.ProcessEnv = process.env): string {
+  return join(getKairosConfigDir(env), 'skills');
+}
+
+/** Suggested install path for one skill slug (e.g. after `export` + unzip). */
+export function getKairosSkillInstallDirForSlug(slug: string, env: NodeJS.ProcessEnv = process.env): string {
+  const safe = slug.replace(/[/\\]/g, '_');
+  return join(getKairosSkillsInstallBaseDir(env), safe);
+}

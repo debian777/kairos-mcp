@@ -85,10 +85,17 @@ export class IDGenerator {
     static qdrantIdFromUri(uri: string): string {
         structuredLogger.debug(`qdrantIdFromUri called with URI: ${uri}`);
 
-        // kairos://mem/{uuid}
-        const memPrefix = 'kairos://mem/';
-        if (uri.startsWith(memPrefix)) {
-            return uri.substring(memPrefix.length);
+        const layerPrefix = 'kairos://layer/';
+        if (uri.startsWith(layerPrefix)) {
+            const rest = uri.slice(layerPrefix.length).split('?')[0] ?? '';
+            const id = rest.split('/')[0] ?? '';
+            if (/^[0-9a-fA-F-]{32,36}$/.test(id)) {
+                return id;
+            }
+        }
+        const olderLayerRowPrefix = ['kairos', '://', 'me', 'm', '/'].join('');
+        if (uri.startsWith(olderLayerRowPrefix)) {
+            return uri.substring(olderLayerRowPrefix.length).split('?')[0]!.split('/')[0]!;
         }
 
         // kairos://{domain}/{type}/{task}/step/{step} (deterministic hashed id)

@@ -20,7 +20,9 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 - At least one fenced **` ```json `** block whose JSON has a top-level
   **`contract`** object.
 - Contract fences must use the `json` language tag only (no plain ``` blocks holding contract JSON).
-- Non-markdown artifacts (`mime` not `text/markdown`) are stored as adapter-linked artifacts instead of protocol layers.
+- Non-markdown artifacts (`mime` not `text/markdown`) are stored as adapter-linked artifacts instead of stored Markdown layers.
+
+**Size limits (safety):** Before structure checks, the server rejects oversized Markdown and artifact bodies (max logical lines, max UTF-8 bytes per line, and a total-byte ceiling from env — default line cap **350**, default per-line bytes **8192**, safety factor **1.15**). See architecture [Train workflow](../../../docs/architecture/workflow-train.md#adapter-markdown-size-limits-safety).
 
 **Output:** `status: stored` and `items` with `layer_uuid`, `adapter_uri`, `layer` URIs, labels, tags.
 
