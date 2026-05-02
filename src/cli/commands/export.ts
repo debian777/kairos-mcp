@@ -5,7 +5,10 @@ import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import type { ExportInput } from '../../tools/export_schema.js';
 import { writeJson, writeMarkdown, writeStderr } from '../output.js';
-import { DEFAULT_EXPORT_SKILL_ZIP_FILENAME } from '../../config/export-zip-settings.js';
+import {
+  assertSkillZipBufferAllowedForDiskWrite,
+  resolveSkillZipOutputPath
+} from '../skill-zip-local-write.js';
 
 interface ExportCliOptions {
     format?: string;
@@ -110,11 +113,16 @@ export function exportCommand(program: Command): void {
                     }
                     if (response.format === 'skill_zip' && response.download_ref?.url) {
                         const downloaded = await client.downloadExportRef(response.download_ref.url);
-                        const outputPath =
-                            options.zipOut ??
-                            downloaded.filename ??
-                            response.download_ref.filename ??
-                            DEFAULT_EXPORT_SKILL_ZIP_FILENAME;
+                        const outputPath = resolveSkillZipOutputPath(options.zipOut, {
+                            ...(downloaded.filename !== undefined
+                                ? { downloadBasename: downloaded.filename }
+                                : {}),
+                            ...(response.download_ref.filename !== undefined
+                                ? { refBasename: response.download_ref.filename }
+                                : {})
+                        });
+                        assertSkillZipBufferAllowedForDiskWrite(downloaded.data);
+                        // codeql[js/http-to-file-access]: Authenticated CLI persists skill_zip bytes from download_ref after PK/signature check, size cap, and basename-only or --zip-out path resolution.
                         writeFileSync(outputPath, downloaded.data);
                         return;
                     }
@@ -123,8 +131,11 @@ export function exportCommand(program: Command): void {
                         response.content_encoding === 'base64' &&
                         (options.zipOut || response.content.length > 0)
                     ) {
-                        const outputPath = options.zipOut ?? DEFAULT_EXPORT_SKILL_ZIP_FILENAME;
-                        writeFileSync(outputPath, Buffer.from(response.content, 'base64'));
+                        const buf = Buffer.from(response.content, 'base64');
+                        const outputPath = resolveSkillZipOutputPath(options.zipOut, {});
+                        assertSkillZipBufferAllowedForDiskWrite(buf);
+                        // codeql[js/http-to-file-access]: Same as download_ref path: validate ZIP bytes and size before writing inline base64 skill_zip from the API response.
+                        writeFileSync(outputPath, buf);
                         return;
                     }
                     if (response.format === 'skill_zip' && response.content_encoding === 'base64') {
