@@ -5,6 +5,9 @@
 /** zlib default: good size vs CPU balance for text-heavy skill bundles (same family as many zip tools’ default). */
 export const DEFAULT_EXPORT_ZIP_COMPRESSION_LEVEL = 6;
 
+/** Stable default filename for skill ZIP HTTP downloads. */
+export const DEFAULT_EXPORT_SKILL_ZIP_FILENAME = 'kairos-skills-export.zip';
+
 /**
  * Zlib compression level for **`skill_zip`** archives: **0** = store only (fastest, larger files),
  * **9** = maximum compression (slowest). Default **{@link DEFAULT_EXPORT_ZIP_COMPRESSION_LEVEL}**.

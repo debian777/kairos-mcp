@@ -120,11 +120,17 @@ export interface ExportSkillZipResponse {
   format: 'skill_zip';
   content_type: string;
   content: string;
-  content_encoding: 'base64';
-  bundle_sha256: string;
+  content_encoding?: 'base64';
+  bundle_sha256?: string;
   item_count: number;
   export_adapter_count: number;
   skill_bundle_manifest: string;
+  download_ref?: {
+    url: string;
+    expires_at: string;
+    filename?: string;
+    content_type?: string;
+  };
 }
 
 export interface ExportSkillTreeResponse {
@@ -139,6 +145,21 @@ export interface ExportSkillTreeResponse {
 export interface SkillBundleManifest {
   type: 'skill_bundle';
   format: 'zip';
-  bundle_sha256: string;
+  bundle_sha256?: string;
   skills: Array<{ slug: string; entrypoint: string; artifacts: string[] }>;
+}
+
+export async function downloadSkillZip(data: ExportSkillZipResponse): Promise<Buffer> {
+  if (data.download_ref?.url) {
+    const res = await fetch(data.download_ref.url);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`download_ref failed (${res.status}): ${text}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
+  if (data.content_encoding === 'base64') {
+    return Buffer.from(data.content, 'base64');
+  }
+  throw new Error(`skill_zip response missing download_ref or inline base64: ${JSON.stringify(data)}`);
 }

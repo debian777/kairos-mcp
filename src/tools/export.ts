@@ -17,6 +17,7 @@ import { collectSkillExportItemsForZip } from './export-skill-items.js';
 import { resolveExportUris } from './export-selection.js';
 import { flattenSkillItemsToZipPaths, zipSkillFiles } from './skill-export/zip-bundle.js';
 import { sha256Hex } from './skill-export/sha256.js';
+import { mintExportDownloadCapability } from '../services/export-download-capability.js';
 import {
   finalizeExportObservation,
   runExportTelemetryContext,
@@ -28,6 +29,10 @@ interface RegisterExportOptions {
   qdrantService?: QdrantService;
 }
 
+export interface ExecuteExportOptions {
+  downloadBaseUrl?: string;
+}
+
 function toCurrentMarkdown(markdownDoc: string): string {
   return markdownDoc.replaceAll('"challenge":', '"contract":');
 }
@@ -35,14 +40,15 @@ function toCurrentMarkdown(markdownDoc: string): string {
 export async function executeExport(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
-  input: ExportInput
+  input: ExportInput,
+  options: ExecuteExportOptions = {}
 ): Promise<ExportOutput> {
   return runExportTelemetryContext(async () => {
     const t0 = process.hrtime.bigint();
     let result: ExportOutput | undefined;
     let caught: unknown;
     try {
-      result = await executeExportImpl(memoryStore, qdrantService, input);
+      result = await executeExportImpl(memoryStore, qdrantService, input, options);
       return result;
     } catch (e) {
       caught = e;
@@ -56,7 +62,8 @@ export async function executeExport(
 async function executeExportImpl(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
-  input: ExportInput
+  input: ExportInput,
+  options: ExecuteExportOptions
 ): Promise<ExportOutput> {
   if (typeof input.uri === 'string' && parseKairosUri(input.uri.trim()).kind === 'artifact') {
     return executeExportSource(memoryStore, qdrantService, input.uri, resolveExportAdapter);
@@ -187,34 +194,62 @@ async function executeExportImpl(
       };
     }
 
-    const flat = flattenSkillItemsToZipPaths(
-      items.map((it) => ({ slug: it.slug, files: it.files }))
-    );
-    const buf = await zipSkillFiles(flat);
-    setSkillZipDecodedBytes(buf.length);
-    const b64 = buf.toString('base64');
-    const digest = sha256Hex(buf);
-    const shaLabel = `sha256:${digest}`;
     const manifest = {
       type: 'skill_bundle',
       format: 'zip',
-      bundle_sha256: shaLabel,
       skills: items.map((it) => ({
         slug: it.slug,
         entrypoint: `${it.slug}/SKILL.md`,
         artifacts: it.files.filter((f) => f.path.startsWith('artifacts/')).map((f) => `${it.slug}/${f.path}`)
       }))
     };
+    if (input.delivery === 'inline_base64') {
+      const flat = flattenSkillItemsToZipPaths(
+        items.map((it) => ({ slug: it.slug, files: it.files }))
+      );
+      const buf = await zipSkillFiles(flat);
+      setSkillZipDecodedBytes(buf.length);
+      const b64 = buf.toString('base64');
+      const digest = sha256Hex(buf);
+      const shaLabel = `sha256:${digest}`;
+      const inlineManifest = {
+        ...manifest,
+        bundle_sha256: shaLabel
+      };
+      return {
+        uri: primaryUri,
+        format: 'skill_zip',
+        content_type: 'application/zip',
+        content: b64,
+        content_encoding: 'base64',
+        bundle_sha256: shaLabel,
+        item_count: items.length,
+        export_adapter_count: items.length,
+        skill_bundle_manifest: JSON.stringify(inlineManifest),
+        adapter_name: items.length === 1 ? items[0]!.name : null,
+        adapter_version: items.length === 1 ? items[0]!.adapterVersion ?? null : null
+      };
+    }
+
+    const manifestJson = JSON.stringify(manifest);
+    const downloadRef = await mintExportDownloadCapability({
+      adapterUris,
+      primaryUri,
+      itemCount: items.length,
+      adapterName: items.length === 1 ? items[0]!.name : null,
+      adapterVersion: items.length === 1 ? items[0]!.adapterVersion ?? null : null,
+      skillBundleManifest: manifestJson,
+      ...(options.downloadBaseUrl ? { baseUrl: options.downloadBaseUrl } : {})
+    });
     return {
       uri: primaryUri,
       format: 'skill_zip',
       content_type: 'application/zip',
-      content: b64,
-      content_encoding: 'base64',
-      bundle_sha256: shaLabel,
+      content: '',
       item_count: items.length,
       export_adapter_count: items.length,
-      skill_bundle_manifest: JSON.stringify(manifest),
+      skill_bundle_manifest: manifestJson,
+      download_ref: downloadRef,
       adapter_name: items.length === 1 ? items[0]!.name : null,
       adapter_version: items.length === 1 ? items[0]!.adapterVersion ?? null : null
     };

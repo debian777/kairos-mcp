@@ -32,6 +32,8 @@ export const exportFormatSchema = z.enum([
   'skill_zip'
 ]);
 
+export const exportDeliverySchema = z.enum(['download_ref', 'inline_base64']);
+
 const TRAINING_FORMATS = new Set([
   'trace_jsonl',
   'reward_jsonl',
@@ -46,6 +48,7 @@ export const exportInputSchema = z
     all_adapters: z.boolean().optional(),
     space_name: z.string().optional(),
     format: exportFormatSchema.optional().default('skill_zip'),
+    delivery: exportDeliverySchema.optional(),
     include_reward: z.boolean().optional().default(true)
   })
   .superRefine((data, ctx) => {
@@ -100,9 +103,23 @@ export const exportInputSchema = z
         });
       }
     }
+
+    if (data.delivery !== undefined && data.format !== 'skill_zip') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '`delivery` is only valid with `format: skill_zip`.'
+      });
+    }
   });
 
 const spaceTypeSchema = z.enum(['personal', 'group', 'app', 'other']);
+
+export const exportDownloadRefSchema = z.object({
+  url: z.string(),
+  expires_at: z.string(),
+  filename: z.string().optional(),
+  content_type: z.string().optional()
+});
 
 export const exportOutputSchema = z.object({
   uri: z.string(),
@@ -123,7 +140,9 @@ export const exportOutputSchema = z.object({
   /** Number of adapters included in a multi-export bundle. */
   export_adapter_count: z.number().optional(),
   /** Optional compact manifest JSON string for skill bundles. */
-  skill_bundle_manifest: z.string().optional()
+  skill_bundle_manifest: z.string().optional(),
+  /** Short-lived capability URL for downloading ZIP bytes outside `/api`. */
+  download_ref: exportDownloadRefSchema.optional()
 });
 
 export type ExportInput = z.infer<typeof exportInputSchema>;

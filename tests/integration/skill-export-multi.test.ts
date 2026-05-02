@@ -1,8 +1,8 @@
 /**
  * Multi-adapter and all_adapters coverage for skill_zip exports.
  *
- *  - skill_zip with a stored artifact: artifacts/<name> populated, bundle_sha256 matches
- *    decoded bytes, SHA256SUMS lists the artifact's true content hash
+ *  - skill_zip with a stored artifact: artifacts/<name> populated and SHA256SUMS
+ *    lists the artifact's true content hash
  *  - skill_zip multi-adapter via adapters[]: each adapter is its own top-level folder
  *  - all_adapters + space_name on a **group** space (full dev: `/shared/ci-test`; skipped in
  *    `ENV=dev_simple` because simple/single mode has no shared `/shared/...` spaces)
@@ -16,6 +16,7 @@ import { indexZipEntriesByPath } from '../utils/zip-parser.js';
 import {
   SKILL_EXPORT_BASE_URL,
   buildAdapterMarkdown,
+  downloadSkillZip,
   exportJson,
   exportRaw,
   trainAdapterMarkdown,
@@ -66,8 +67,8 @@ describe('skill-export multi-adapter coverage', () => {
     await trainArtifact(a.adapterUri, artifactName, 'text/x-python', artifactBody);
 
     const data = await exportJson<ExportSkillZipResponse>({ uri: a.adapterUri, format: 'skill_zip' });
-    const buf = Buffer.from(data.content, 'base64');
-    expect(createHash('sha256').update(buf).digest('hex')).toBe(data.bundle_sha256.replace(/^sha256:/, ''));
+    expect(data.download_ref?.url).toContain('/export/skill-zip/');
+    const buf = await downloadSkillZip(data);
 
     const manifest = JSON.parse(data.skill_bundle_manifest) as SkillBundleManifest;
     expect(manifest.skills.length).toBe(1);
@@ -115,7 +116,7 @@ describe('skill-export multi-adapter coverage', () => {
     const slugs = manifest.skills.map((s) => s.slug).sort();
     expect(slugs).toEqual([slugA, slugB, slugC].sort());
 
-    const buf = Buffer.from(data.content, 'base64');
+    const buf = await downloadSkillZip(data);
     const entries = indexZipEntriesByPath(buf);
     for (const slug of [slugA, slugB, slugC]) {
       expect(entries.has(`${slug}/SKILL.md`)).toBe(true);
@@ -191,7 +192,7 @@ describe('skill-export multi-adapter coverage', () => {
     expect(slugs).toContain(slugA);
     expect(slugs).toContain(slugB);
 
-    const buf = Buffer.from(data.content, 'base64');
+    const buf = await downloadSkillZip(data);
     const entries = indexZipEntriesByPath(buf);
     expect(entries.has(`${slugA}/SKILL.md`)).toBe(true);
     expect(entries.has(`${slugB}/SKILL.md`)).toBe(true);

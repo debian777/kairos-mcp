@@ -12,6 +12,7 @@ import { setupWellKnown } from './http-well-known.js';
 import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupUiStatic } from './http-ui-static.js';
+import { setupExportDownloadRoutes } from './http-export-download-routes.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
@@ -29,8 +30,9 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
 
     app.use(authMiddleware);
 
-    // Protected route handlers (require auth when AUTH_ENABLED)
+    // Route handlers after auth middleware; capability download is outside `/api` auth.
     setupHealthRoutes(app, memoryStore);
+    setupExportDownloadRoutes(app, memoryStore, qdrantService);
     setupApiRoutes(app, memoryStore, { qdrantService });
     setupMcpRoutes(app, memoryStore);
     setupUiStatic(app);

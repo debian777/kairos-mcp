@@ -5,6 +5,7 @@ import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import type { ExportInput } from '../../tools/export_schema.js';
 import { writeJson, writeMarkdown, writeStderr } from '../output.js';
+import { DEFAULT_EXPORT_SKILL_ZIP_FILENAME } from '../../config/export-zip-settings.js';
 
 interface ExportCliOptions {
     format?: string;
@@ -13,6 +14,8 @@ interface ExportCliOptions {
     adapters?: string[];
     allAdapters?: boolean;
     spaceName?: string;
+    jsonOnly?: boolean;
+    noDownload?: boolean;
 }
 
 function appendRepeatable(value: string, previous?: string[]): string[] {
@@ -88,8 +91,10 @@ export function exportCommand(program: Command): void {
         .option('--output <mode>', 'text to print raw exported content, json to print full response', 'text')
         .option(
             '--zip-out <file>',
-            'when format is skill_zip and --output text, write decoded ZIP bytes to this path'
+            'when format is skill_zip and --output text, write downloaded ZIP bytes to this path'
         )
+        .option('--json-only', 'for skill_zip, print JSON response and do not follow download_ref')
+        .option('--no-download', 'for skill_zip, do not follow download_ref (alias for --json-only)')
         .action(
             async (
                 uri: string | undefined,
@@ -99,21 +104,39 @@ export function exportCommand(program: Command): void {
                     const input = buildExportInput(uri, options);
                     const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                     const response = await client.export(input);
-                    if (options.output === 'json') {
+                    if (options.output === 'json' || options.jsonOnly || options.noDownload) {
                         writeJson(response);
+                        return;
+                    }
+                    if (response.format === 'skill_zip' && response.download_ref?.url) {
+                        const downloaded = await client.downloadExportRef(response.download_ref.url);
+                        const outputPath =
+                            options.zipOut ??
+                            downloaded.filename ??
+                            response.download_ref.filename ??
+                            DEFAULT_EXPORT_SKILL_ZIP_FILENAME;
+                        writeFileSync(outputPath, downloaded.data);
                         return;
                     }
                     if (
                         response.format === 'skill_zip' &&
                         response.content_encoding === 'base64' &&
-                        options.zipOut
+                        (options.zipOut || response.content.length > 0)
                     ) {
-                        writeFileSync(options.zipOut, Buffer.from(response.content, 'base64'));
+                        const outputPath = options.zipOut ?? DEFAULT_EXPORT_SKILL_ZIP_FILENAME;
+                        writeFileSync(outputPath, Buffer.from(response.content, 'base64'));
                         return;
                     }
                     if (response.format === 'skill_zip' && response.content_encoding === 'base64') {
                         writeStderr(
-                            'skill_zip returns binary data: use --zip-out <path> to write the ZIP, or --output json.'
+                            'skill_zip returned inline binary data but no content was available; use --output json to inspect the response.'
+                        );
+                        process.exitCode = 1;
+                        return;
+                    }
+                    if (response.format === 'skill_zip') {
+                        writeStderr(
+                            'skill_zip response did not include download_ref or inline content; use --output json to inspect the response.'
                         );
                         process.exitCode = 1;
                         return;
