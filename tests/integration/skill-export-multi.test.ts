@@ -4,7 +4,8 @@
  *  - skill_zip with a stored artifact: artifacts/<name> populated, bundle_sha256 matches
  *    decoded bytes, SHA256SUMS lists the artifact's true content hash
  *  - skill_zip multi-adapter via adapters[]: each adapter is its own top-level folder
- *  - all_adapters + space_name=personal positive path includes our freshly trained adapters
+ *  - all_adapters + space_name on a **group** space (full dev: `/shared/ci-test`; skipped in
+ *    `ENV=dev_simple` because simple/single mode has no shared `/shared/...` spaces)
  *
  * Single-adapter shape and layout-independence cases live in skill-export-coverage.test.ts.
  */
@@ -22,6 +23,9 @@ import {
   type ExportSkillZipResponse,
   type SkillBundleManifest
 } from './skill-export-shared.js';
+
+/** Integration Simple (`ENV=dev_simple`) exposes only personal/app surfaces, not group spaces. */
+const allAdaptersSpaceExportSupported = process.env.ENV !== 'dev_simple';
 
 describe('skill-export multi-adapter coverage', () => {
   let serverAvailable = false;
@@ -125,13 +129,16 @@ describe('skill-export multi-adapter coverage', () => {
     expect([...topLevels].sort()).toEqual([slugA, slugB, slugC].sort());
   }, 90000);
 
-  test('all_adapters + space_name positive path includes freshly trained adapters', async () => {
+  (allAdaptersSpaceExportSupported ? test : test.skip)(
+    'all_adapters + space_name positive path includes freshly trained adapters',
+    async () => {
     expect(serverAvailable).toBe(true);
     // Use the ci-test group space rather than personal: kairos-tester accumulates adapters in
     // personal across runs, and at scale it exceeds EXPORT_MAX_ADAPTERS=256 which is a separate
     // contract we test as a unit rejection elsewhere. The ci-test group is purpose-built for
     // integration runs and stays well under cap. The handler still rejects an over-cap space
     // with a 4xx, which we surface as an actionable failure if it ever happens here too.
+    // Not run under dev_simple: that profile has no `/shared/...` group spaces (Personal + app only).
     const SPACE_NAME = '/shared/ci-test';
     const ts = Date.now().toString();
     const slugA = `all-a-${ts}`;
@@ -188,5 +195,7 @@ describe('skill-export multi-adapter coverage', () => {
     const entries = indexZipEntriesByPath(buf);
     expect(entries.has(`${slugA}/SKILL.md`)).toBe(true);
     expect(entries.has(`${slugB}/SKILL.md`)).toBe(true);
-  }, 120000);
+  },
+  120000
+  );
 });
