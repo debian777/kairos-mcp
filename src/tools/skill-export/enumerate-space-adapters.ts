@@ -1,5 +1,5 @@
 /**
- * List unique adapter URIs in a space for bulk export (markdown protocol layers).
+ * List unique adapter URIs in a space for bulk export.
  */
 
 import type { MemoryQdrantStore } from '../../services/memory/store.js';
@@ -8,16 +8,18 @@ import { buildSpaceFilter } from '../../utils/space-filter.js';
 const SCROLL_LIMIT = 512;
 
 /**
- * Return `kairos://adapter/{uuid}` for each distinct adapter in the space (markdown layers).
+ * Return `kairos://adapter/{uuid}` for each distinct adapter in the space.
+ *
+ * Adapter layer payloads do not carry a `content_type` field (only artifact memories do),
+ * so we cannot filter on `content_type === 'text/markdown'` at the Qdrant level — that
+ * would exclude every adapter and yield an empty bundle. Instead we scroll the whole
+ * space and dedupe by `adapter.id`, the same shape `tools/spaces.ts` uses to count
+ * adapters per space. Artifact memories share the same `adapter.id` as their parent
+ * adapter, so they collapse under the existing entry rather than introducing a new one.
  */
 export async function listAdapterUrisInSpace(memoryStore: MemoryQdrantStore, spaceId: string): Promise<string[]> {
   const { client, collection } = memoryStore.getQdrantAccess();
-  const filter = {
-    must: [
-      ...buildSpaceFilter([spaceId]).must,
-      { key: 'content_type', match: { value: 'text/markdown' } }
-    ]
-  };
+  const filter = buildSpaceFilter([spaceId]);
   const seen = new Set<string>();
   const uris: string[] = [];
   let offset: string | number | undefined;

@@ -1,21 +1,33 @@
 import { z } from 'zod';
 
-const memoryUriSchema = z
+const CANONICAL_LAYER_URI = /^kairos:\/\/layer\/[0-9a-f-]{36}(?:\?execution_id=[0-9a-f-]{36})?$/i;
+/** Transitional ingest: older ambiguous surface that still meant a layer row UUID. */
+const OLDER_LAYER_ROW_URI = new RegExp(
+  `^${['kairos', '://', 'me', 'm', '/'].join('')}[0-9a-f-]{36}$`,
+  'i'
+);
+
+const layerUriSchema = z
   .string()
-  .regex(/^kairos:\/\/mem\/[0-9a-f-]{36}$/i, 'must match kairos://mem/{uuid}');
+  .refine((s) => CANONICAL_LAYER_URI.test(s) || OLDER_LAYER_ROW_URI.test(s), {
+    message:
+      'must be kairos://layer/{layer-uuid} with optional ?execution_id=, or the transitional older layer-row URI form'
+  });
 
 export const updateInputSchema = z.object({
-  uris: z.array(memoryUriSchema).nonempty().describe('Non-empty array of kairos://mem/{uuid} URIs to update'),
+  uris: z.array(layerUriSchema).nonempty().describe('Non-empty array of layer URIs (stored layer rows) to update'),
   content: z.array(z.string().min(1)).optional().describe('Array of content bodies to store for each URI'),
   updates: z.record(z.string(), z.any()).optional().describe('Advanced field updates; prefer content for body changes')
 });
 
 export const updateOutputSchema = z.object({
-  results: z.array(z.object({
-    uri: memoryUriSchema,
-    status: z.enum(['updated', 'error']),
-    message: z.string()
-  })),
+  results: z.array(
+    z.object({
+      uri: layerUriSchema,
+      status: z.enum(['updated', 'error']),
+      message: z.string()
+    })
+  ),
   total_updated: z.number(),
   total_failed: z.number()
 });

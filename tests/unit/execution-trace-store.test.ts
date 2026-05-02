@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { ExecutionTrace } from '../../src/types/memory.js';
 import { ExecutionTraceStore } from '../../src/services/execution-trace-store.js';
+import { buildLayerUri } from '../../src/tools/kairos-uri.js';
 
 function buildTrace(params: {
   executionId: string;
@@ -15,7 +16,7 @@ function buildTrace(params: {
   return {
     execution_id: executionId,
     adapter_uri: adapterUri,
-    layer_uri: `kairos://mem/${layerId}/${executionId}`,
+    layer_uri: buildLayerUri(layerId, executionId),
     layer_index: layerIndex,
     created_at: createdAt,
     layer_instructions: `Layer ${layerIndex} instructions`,

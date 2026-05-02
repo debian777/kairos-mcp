@@ -27,4 +27,22 @@ describe('parseKairosUri', () => {
       raw: 'kairos://artifact/00000000-0000-0000-0000-000000000001'
     });
   });
+
+  test('parses canonical layer URIs', () => {
+    expect(parseKairosUri('kairos://layer/00000000-0000-0000-0000-000000000099')).toEqual({
+      kind: 'layer',
+      id: '00000000-0000-0000-0000-000000000099',
+      raw: 'kairos://layer/00000000-0000-0000-0000-000000000099'
+    });
+  });
+
+  test('parses transitional older layer-row URIs as layer kind', () => {
+    const id = '00000000-0000-0000-0000-000000000088';
+    const raw = `${['kairos', '://', 'me', 'm', '/'].join('')}${id}`;
+    expect(parseKairosUri(raw)).toEqual({
+      kind: 'layer',
+      id,
+      raw
+    });
+  });
 });

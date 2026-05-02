@@ -71,13 +71,13 @@ function assertWritableTuneLayers(layers: AdapterLayerPoint[]): void {
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string, preferredSpaceId?: string): Promise<string> {
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'layer') {
-    return `kairos://mem/${parsed.id}`;
+    return buildLayerUri(parsed.id, parsed.executionId);
   }
 
   const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
   assertWritableTuneLayers(layers);
   const head = layers[0]?.uuid ?? parsed.id;
-  return `kairos://mem/${head}`;
+  return buildLayerUri(head);
 }
 
 async function collectLayerMemoryUuidsForTune(

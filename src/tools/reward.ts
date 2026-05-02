@@ -4,7 +4,7 @@ import { getTenantId, getSpaceContextFromStorage } from '../utils/tenant-context
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { applyRewardMetrics, type RewardMetricsResult } from '../services/reward-metrics.js';
 import { rewardInputSchema, rewardOutputSchema, type RewardInput, type RewardOutput } from './reward_schema.js';
-import { parseKairosUriOrThrow } from './kairos-uri.js';
+import { buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
 import { KairosError } from '../types/index.js';
@@ -42,7 +42,7 @@ export async function executeReward(
   });
 
   const rewardMetricsInput: Parameters<typeof applyRewardMetrics>[1] = {
-    uri: `kairos://mem/${parsed.id}`,
+    uri: buildLayerUri(parsed.id, parsed.executionId),
     outcome: input.outcome,
     feedback: input.feedback ?? `${input.outcome} reward`,
     qualityBonus: evaluation.qualityBonus

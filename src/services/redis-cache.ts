@@ -3,6 +3,7 @@ import { logger } from '../utils/structured-logger.js';
 import { keyValueStore } from './key-value-store-factory.js';
 import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
+import { buildLayerUri } from '../tools/kairos-uri.js';
 
 export interface SearchResult {
   memories: Memory[];
@@ -56,7 +57,7 @@ export class RedisCacheService {
       const ttl = 300; // 5 minutes
       const cachedResult: CachedSearchResult = {
         results: result.memories.map((memory, index) => ({
-          uri: `kairos://mem/${memory.memory_uuid}`,
+          uri: buildLayerUri(memory.memory_uuid),
           label: memory.label,
           score: result.scores[index] ?? 0
         }))

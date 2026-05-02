@@ -6,14 +6,64 @@ import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import type { ExportInput } from '../../tools/export_schema.js';
 import { writeJson, writeMarkdown, writeStderr } from '../output.js';
 
-function buildExportInput(uri: string, format: string | undefined): ExportInput {
-    const f = (format ?? 'markdown').trim();
-    if (f === 'markdown') {
-        return { uri, format: 'markdown', include_reward: true };
+interface ExportCliOptions {
+    format?: string;
+    output?: string;
+    zipOut?: string;
+    adapters?: string[];
+    allAdapters?: boolean;
+    spaceName?: string;
+}
+
+function appendRepeatable(value: string, previous?: string[]): string[] {
+    return [...(previous ?? []), value];
+}
+
+/**
+ * Build the same selection union as MCP/HTTP from CLI flags. Mutually exclusive with the
+ * positional `<uri>`; passing more (or fewer) than one selection mode is rejected here so the
+ * server returns a clean message instead of a Zod parse error.
+ */
+export function buildExportInput(uri: string | undefined, options: ExportCliOptions): ExportInput {
+    const format = (options.format ?? 'markdown').trim();
+    const trimmedUri = typeof uri === 'string' ? uri.trim() : '';
+    const hasUri = trimmedUri.length > 0;
+    const hasAdapters = (options.adapters?.length ?? 0) > 0;
+    const hasAll = options.allAdapters === true;
+
+    const modes = (hasUri ? 1 : 0) + (hasAdapters ? 1 : 0) + (hasAll ? 1 : 0);
+    if (modes === 0) {
+        throw new Error(
+            'Export requires a selection: <uri> positional, --adapters <uri-or-slug> (repeatable), or --all-adapters --space-name <name>.'
+        );
+    }
+    if (modes > 1) {
+        throw new Error(
+            'Choose exactly one selection mode: <uri> positional, --adapters, or --all-adapters. They cannot be combined.'
+        );
+    }
+
+    if (hasAll) {
+        const sn = options.spaceName?.trim() ?? '';
+        if (sn.length === 0) {
+            throw new Error('--all-adapters requires --space-name <name>.');
+        }
+    } else if (options.spaceName !== undefined) {
+        throw new Error('--space-name is only valid with --all-adapters.');
+    }
+
+    const baseFormat = format as ExportInput['format'];
+
+    if (hasUri) {
+        return { uri: trimmedUri, format: baseFormat, include_reward: true };
+    }
+    if (hasAdapters) {
+        return { adapters: options.adapters!, format: baseFormat, include_reward: true };
     }
     return {
-        uri,
-        format: f as ExportInput['format'],
+        all_adapters: true,
+        space_name: options.spaceName!.trim(),
+        format: baseFormat,
         include_reward: true
     };
 }
@@ -22,7 +72,14 @@ export function exportCommand(program: Command): void {
     program
         .command('export')
         .description('Export a KAIROS adapter (flat markdown, skill zip/tree, training JSONL, or source)')
-        .argument('<uri>', 'KAIROS adapter or layer URI')
+        .argument('[uri]', 'KAIROS adapter or layer URI (single-selection mode)')
+        .option(
+            '--adapters <uri-or-slug>',
+            'Adapter URI or slug (repeat the flag to select multiple)',
+            appendRepeatable
+        )
+        .option('--all-adapters', 'Export every adapter in --space-name')
+        .option('--space-name <name>', 'Space name (human label, not raw id) — required with --all-adapters')
         .option(
             '--format <format>',
             'markdown (flat single-file adapter Markdown), skill_zip, skill_tree, source, trace_jsonl, reward_jsonl, sft_jsonl, preference_jsonl',
@@ -35,12 +92,13 @@ export function exportCommand(program: Command): void {
         )
         .action(
             async (
-                uri: string,
-                options: { format?: string; output?: string; zipOut?: string }
+                uri: string | undefined,
+                options: ExportCliOptions
             ) => {
                 try {
+                    const input = buildExportInput(uri, options);
                     const client = new ApiClient(getResolvedApiBaseFromProgram(program));
-                    const response = await client.export(buildExportInput(uri, options.format));
+                    const response = await client.export(input);
                     if (options.output === 'json') {
                         writeJson(response);
                         return;
@@ -67,4 +125,3 @@ export function exportCommand(program: Command): void {
             }
         );
 }
-

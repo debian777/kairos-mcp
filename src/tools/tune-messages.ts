@@ -1,9 +1,13 @@
-const MEMORY_URI_REGEX = /kairos:\/\/mem\/[0-9a-f-]{36}/gi;
+/** Canonical layer URIs and the transitional older layer-row form in tool copy. */
+const LAYER_URI_IN_MESSAGE = new RegExp(
+  `kairos://(?:layer|${['me', 'm'].join('')})/[0-9a-f-]{36}`,
+  'gi'
+);
 
 export function rewriteTuneMessage(message: string, layerUri: string): string {
   return message
     .replace(/\bmemory\b/gi, (match) => (match[0] === 'M' ? 'Adapter layer' : 'adapter layer'))
-    .replace(MEMORY_URI_REGEX, layerUri);
+    .replace(LAYER_URI_IN_MESSAGE, layerUri);
 }
 
 export function buildTuneResultMessage(

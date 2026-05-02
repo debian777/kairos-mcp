@@ -68,7 +68,7 @@ Only after all steps.`;
       expect(parsed.must_obey).toBe(true);
       expect(typeof parsed.message).toBe('string');
       expect(typeof parsed.next_action).toBe('string');
-      // New format: global directive "choice's next_action"; old format: next_action contains kairos://mem/
+      // New format: global directive "choice's next_action"; old format: next_action may cite a layer URI (`kairos://…`).
       expect(
         parsed.next_action.includes("choice's next_action") ||
           parsed.next_action.includes('kairos://') ||
