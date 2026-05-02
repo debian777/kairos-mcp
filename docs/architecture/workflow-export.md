@@ -47,12 +47,12 @@ flowchart LR
 | Selection union (`uri` / `adapters` / `all_adapters` + `space_name`) | **Shipped** | [`export_schema.ts`](../../src/tools/export_schema.ts) |
 | **`skill_tree`**, **`skill_zip`**, **`format: markdown`** (flat, single **`uri`**) | **Shipped** | [`export.ts`](../../src/tools/export.ts) |
 | Per-skill **`SHA256SUMS`**, artifact digests, sanitization diagnostics | **Shipped** | [`skill-export/`](../../src/tools/skill-export/) |
-| MCP **`skill_zip`** (JSON + base64 + **`bundle_sha256`**) | **Shipped** | Full ZIP buffered for base64 (expected trade-off). |
-| HTTP **`POST /api/export`** + **`Accept: application/zip`** | **Shipped** | Streams ZIP to the client; no server-local staging file. |
+| MCP/API **`skill_zip`** (JSON + **`download_ref`**) | **Shipped** | Compact JSON; ZIP bytes fetched from capability GET. |
+| **`delivery: inline_base64`** for **`skill_zip`** | **Shipped** | Explicit opt-in for small bundles or scripts that need embedded bytes. |
 | UI **Download as Skill** | **Shipped** | Backend export, not client-only assembly. |
 | Metrics / slow-export logging | **Shipped** | See performance note below. |
 | **Incremental Qdrant → ZIP** (never hold full **`files[]`**) | **Not shipped** | Optional heap optimization; needs a lazy pipeline and likely a second pass or streaming hash for **`SHA256SUMS`**. |
-| **Manifest + `download_url`** (object storage) | **Not shipped** | Optional; security model in **Optional extensions** below. |
+| Object-storage-backed downloads | **Not shipped** | Optional scale-out extension; current download refs are served by the app. |
 
 **Release bar:** The rows marked **Shipped** are the supported contract for operators and agents. Rows **Not shipped** are **not** required for a correct, secure export—only for scale or ergonomics at very large bundle sizes.
 
@@ -100,7 +100,7 @@ flowchart TD
   fmt --> jsonl["trace_jsonl reward_jsonl sft_jsonl preference_jsonl"]
   fmt --> sourceFmt[source]
   fmt --> skillFmt["skill_tree or skill_zip"]
-  skillFmt --> delivery["ZIP bytes or manifest plus download_url"]
+  skillFmt --> delivery["JSON tree or ZIP download_ref"]
   jsonl --> outTrain[NDJSON response]
   sourceFmt --> outSrc[artifact payload]
   delivery --> outBundle[skill package]
@@ -132,9 +132,9 @@ Adapter-facing exports build a **skill package** view of stored Markdown:
 - **`skill_zip`** — ZIP bytes for the same tree, including optional
   **`<slug>/artifacts/`** and optional per-export manifest files.
 
-**Delivery:** prefer a **compact** MCP or HTTP response for large bundles
-(short-lived **`download_url`**, **`bundle_sha256`**, expiry). Inline base64 in
-JSON may remain supported for small bundles.
+**Delivery:** default **`skill_zip`** returns compact JSON with **`download_ref`**
+(`url`, `expires_at`, `filename`, `content_type`). Inline base64 is explicit
+opt-in with **`delivery: inline_base64`**.
 
 Example manifest shape (field names may vary in implementation):
 
@@ -142,9 +142,12 @@ Example manifest shape (field names may vary in implementation):
 {
   "type": "skill_bundle",
   "format": "zip",
-  "expires_in_seconds": 900,
-  "download_url": "https://example.com/api/exports/exp_abc123/download",
-  "bundle_sha256": "sha256:...",
+  "download_ref": {
+    "url": "https://example.com/export/skill-zip/<opaque>",
+    "expires_at": "2026-05-02T17:30:00.000Z",
+    "filename": "kairos-skills-export.zip",
+    "content_type": "application/zip"
+  },
   "skills": [
     {
       "slug": "ui-ux-design-review-protocol",
@@ -297,7 +300,7 @@ Flat Markdown for **`tune`** / inspection:
 
 ### Shipped output (current code)
 
-**`exportOutputSchema`** includes **`uri`**, **`format`**, **`content_type`**, **`content`**, optional counts, adapter metadata, optional space fields for flat Markdown exports, and optional **`content_encoding`**, **`bundle_sha256`**, **`export_adapter_count`**, **`skill_bundle_manifest`** for skill bundles.
+**`exportOutputSchema`** includes **`uri`**, **`format`**, **`content_type`**, **`content`**, optional counts, adapter metadata, optional space fields for flat Markdown exports, optional **`download_ref`** for default skill ZIP downloads, and optional **`content_encoding`**, **`bundle_sha256`**, **`export_adapter_count`**, **`skill_bundle_manifest`** for skill bundles.
 
 | Field | Type | Notes |
 |-------|------|--------|
@@ -306,6 +309,7 @@ Flat Markdown for **`tune`** / inspection:
 | **`content_type`** | string | For example `text/markdown`, `application/zip`, `application/x-ndjson`. |
 | **`content`** | string | Body, or base64 when **`content_encoding`** is set. |
 | **`content_encoding`** | `"base64"` | Optional; ZIP skill bundles. |
+| **`download_ref`** | object | Optional; default **`skill_zip`** delivery with `url`, `expires_at`, `filename`, and `content_type`. |
 | **`bundle_sha256`** | string | Optional; digest label for decoded bytes. |
 | **`skill_bundle_manifest`** | string | Optional; JSON manifest for skill ZIP. |
 | **`item_count`**, **`export_adapter_count`** | number | Optional. |
@@ -318,20 +322,18 @@ Flat Markdown for **`tune`** / inspection:
   Success: **200** with a JSON object matching **Shipped output** (or the
   server’s current strict superset). Validation errors: **400** with
   `INVALID_INPUT` where implemented.
-- **`skill_zip` + `Accept: application/zip`:** response is **binary** **`application/zip`**
-  (streamed, not base64 JSON). Includes headers **`X-KAIROS-Skill-Bundle-Manifest`**
-  (base64 UTF-8 JSON, manifest without `bundle_sha256` until after stream; integrity
-  is in logs / MCP JSON path), **`X-KAIROS-Primary-Export-Uri`**, **`X-KAIROS-Export-Adapter-Count`**,
-  **`X-KAIROS-Export-Binary: 1`**. Omit **`Accept: application/zip`** to receive the
-  JSON **`skill_zip`** body with base64 **`content`** (MCP-compatible).
+- **`skill_zip`:** **`POST /api/export`** returns JSON with **`download_ref`** by
+  default. Fetch **`download_ref.url`** with **`GET /export/skill-zip/{opaque}`**
+  to receive **`application/zip`** bytes. There is no separate binary POST
+  contract to preserve.
 
 ### Performance note (current implementation)
 
-Today’s **`skill_zip`** path builds the full ZIP **in memory**, then **base64-encodes** it into the JSON response. Large selections or many artifacts increase **heap use**, **CPU** (zip + encoding), and **response size**. In a **multi-instance** deployment, each instance performs work independently; there is no shared export cache unless you add one.
+Default **`skill_zip`** returns compact JSON with **`download_ref`**. The ZIP is
+assembled when the short-lived capability URL is fetched, so MCP and JSON API
+responses stay small.
 
 **ZIP compression:** zlib level is configurable via **`KAIROS_EXPORT_ZIP_COMPRESSION_LEVEL`** (**0**–**9**, default **6** — balanced CPU vs size for Markdown/text-heavy bundles). Set **0** for store-only (minimal CPU; larger ZIP bytes) or **9** for maximum compression.
-
-**HTTP streaming (implemented for `POST /api/export`):** when the client sends **`Accept: application/zip`** with **`format: skill_zip`**, the server **pipes** the archiver to the response instead of buffering the full ZIP and base64-encoding it—lower **peak heap** for the ZIP bytes (file contents are still assembled before zip). **MCP** and JSON **`skill_zip`** responses remain base64-in-JSON.
 
 **Not a v1 requirement:** reading each artifact from Qdrant **only** as each ZIP entry is written (incremental assembly). Today the export loads attachment payloads into **`files[]`** before zipping—same **upstream** cost (Qdrant), higher **heap** for huge bundles. See **Shipment status**; optional follow-up only.
 
@@ -339,11 +341,9 @@ Today’s **`skill_zip`** path builds the full ZIP **in memory**, then **base64-
 
 ### Optional extensions (not yet required)
 
-For **very large** bundles, a future design may return a **compact JSON manifest**
-plus a **`download_url`** that yields the ZIP bytes (so MCP context stays small).
-That usually means **object storage** or a **dedicated download host**, not
-server-local temp files on each app instance (see multi-instance note in the
-performance section above).
+For **very large** bundles, a future design may move ZIP bytes to object storage
+or a dedicated download host. The current design keeps the same JSON contract and
+uses a short-lived **`download_ref`** capability served by this app.
 
 #### Download links: security with vs without a separate token
 
@@ -369,7 +369,9 @@ links without sticky sessions.
 
 ### UI
 
-**Download as Skill** uses **`POST /api/export`** with **`format: skill_zip`** (same contract as MCP), decodes the ZIP client-side, and saves a `.zip` file — not client-only Markdown stitching.
+**Download as Skill** uses **`POST /api/export`** with **`format: skill_zip`**
+(same contract as MCP), follows **`download_ref.url`**, and saves a `.zip` file
+— not client-only Markdown stitching.
 
 ---
 
@@ -378,8 +380,8 @@ links without sticky sessions.
 1. After **`activate`**, choose **selection** and **`format`**.
 2. For **flat Markdown** editing with **`tune`**, use **`format: markdown`** with
    a single **`uri`** (fastest path).
-3. For **skill-shaped** distribution, use **`skill_tree`** or **`skill_zip`**
-   (inline or HTTP binary; optional future **`download_url`** is not required).
+3. For **skill-shaped** distribution, use **`skill_tree`** or **`skill_zip`**.
+   For ZIP bytes, follow **`download_ref.url`** from the JSON response.
 4. Apply edits with **`tune`**; use **`train`** with `force_update: true` for
    structural adapter replacements.
 

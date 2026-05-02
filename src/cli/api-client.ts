@@ -17,6 +17,7 @@ import type { TrainOutput } from '../tools/train_schema.js';
 import type { TuneOutput } from '../tools/tune_schema.js';
 import type { ExportInput, ExportOutput } from '../tools/export_schema.js';
 import type { DeleteOutput } from '../tools/delete_schema.js';
+import { downloadExportRef } from './download-export-ref.js';
 
 const PROACTIVE_REFRESH_SKEW_SEC = 60;
 
@@ -330,6 +331,10 @@ export class ApiClient {
             method: 'POST',
             body: JSON.stringify(input),
         });
+    }
+
+    async downloadExportRef(urlOrPath: string): Promise<{ data: Buffer; filename?: string; contentType?: string }> {
+        return downloadExportRef(this.baseUrl, urlOrPath);
     }
 
 }

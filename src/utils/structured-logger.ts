@@ -222,7 +222,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
         : { ...msgOrBindings, category: 'debug' };
       const safeBindings = sanitizeBindingsForAudit(rawBindings);
       const safeMsg = sanitizeLogMessage(message ?? '');
-      pinoInstance.debug(cloneSafeRecordForPino(safeBindings), safeMsg);
+      pinoInstance.debug(cloneSafeRecordForPino(safeBindings), safeMsg.replace(/[\r\n]/g, ''));
     },
 
     info(msgOrBindings: string | Record<string, unknown>, message?: string): void {
@@ -240,7 +240,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
           : { ...msgOrBindings, category: 'info' };
         const bindings = sanitizeBindingsForAudit(rawBindings);
         const finalMessage = sanitizeLogMessage(message ?? '');
-        pinoInstance.info(cloneSafeRecordForPino(bindings), finalMessage);
+        pinoInstance.info(cloneSafeRecordForPino(bindings), finalMessage.replace(/[\r\n]/g, ''));
         maybeWriteAuditLine('info', bindings);
       }
     },
@@ -261,7 +261,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
         : { ...msgOrBindings, category: 'warning' };
       const bindings = sanitizeBindingsForAudit(rawBindings);
       const finalMessage = sanitizeLogMessage(message ?? '');
-      pinoInstance.warn(cloneSafeRecordForPino(bindings), finalMessage);
+      pinoInstance.warn(cloneSafeRecordForPino(bindings), finalMessage.replace(/[\r\n]/g, ''));
       maybeWriteAuditLine('warn', bindings);
     },
 
@@ -281,7 +281,7 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
       }
       const bindings = sanitizeBindingsForAudit(rawBindings);
       const safeMessage = sanitizeLogMessage(message);
-      pinoInstance.error(cloneSafeRecordForPino(bindings), safeMessage);
+      pinoInstance.error(cloneSafeRecordForPino(bindings), safeMessage.replace(/[\r\n]/g, ''));
       maybeWriteAuditLine('error', bindings);
     },
 
@@ -293,13 +293,13 @@ function wrapPino(pinoInstance: pino.Logger): StructuredLoggerApi {
         details,
         category: 'tool_operation'
       });
-      pinoInstance.info(cloneSafeRecordForPino(bindings), msg);
+      pinoInstance.info(cloneSafeRecordForPino(bindings), msg.replace(/[\r\n]/g, ''));
     },
 
     success(operation: string, details: string): void {
       const bindings = sanitizeBindingsForAudit({ operation, details, category: 'success' });
       const msg = sanitizeLogMessage(`[${operation}] ${details}`);
-      pinoInstance.info(cloneSafeRecordForPino(bindings), msg);
+      pinoInstance.info(cloneSafeRecordForPino(bindings), msg.replace(/[\r\n]/g, ''));
     },
 
     requestTimeout(operation: string, timeoutMs: number): void {

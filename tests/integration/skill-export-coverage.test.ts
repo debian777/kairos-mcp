@@ -2,20 +2,20 @@
  * Single-adapter coverage for skill_tree / skill_zip exports.
  *
  *  - skill_tree single-adapter shape (lists SKILL.md and SHA256SUMS, no fabricated artifacts/)
- *  - skill_zip without any stored artifact memories: bundle_sha256 matches decoded bytes,
- *    manifest's `artifacts` is empty (no fabrication for paths only mentioned in the body)
+ *  - skill_zip without any stored artifact memories: JSON returns download_ref,
+ *    downloaded ZIP has no fabricated artifacts/
  *  - layout independence: export resolves stored content via URI without depending on any
  *    on-disk source layout (proven by training a unique slug and round-tripping the body)
  *
  * The multi-adapter and all_adapters cases live in skill-export-multi.test.ts.
  */
 
-import { createHash } from 'node:crypto';
 import { waitForHealthCheck } from '../utils/health-check.js';
 import { indexZipEntriesByPath } from '../utils/zip-parser.js';
 import {
   SKILL_EXPORT_BASE_URL,
   buildAdapterMarkdown,
+  downloadSkillZip,
   exportJson,
   trainAdapterMarkdown,
   type ExportSkillTreeResponse,
@@ -76,7 +76,7 @@ describe('skill-export single-adapter coverage', () => {
     expect(skill.files.find((f) => f.path === 'SKILL.md')!.content).toContain(`# Tree Single ${ts}`);
   }, 60000);
 
-  test('skill_zip with no artifacts: bundle_sha256 matches decoded bytes; no fabricated artifacts/', async () => {
+  test('skill_zip with no artifacts: download_ref ZIP has no fabricated artifacts/', async () => {
     expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `zip-no-art-${ts}`;
@@ -86,15 +86,11 @@ describe('skill-export single-adapter coverage', () => {
 
     const data = await exportJson<ExportSkillZipResponse>({ uri: a.adapterUri, format: 'skill_zip' });
     expect(data.format).toBe('skill_zip');
-    expect(data.content_encoding).toBe('base64');
-
-    const buf = Buffer.from(data.content, 'base64');
-    const computedDigest = createHash('sha256').update(buf).digest('hex');
-    expect(data.bundle_sha256).toBe(`sha256:${computedDigest}`);
+    expect(data.download_ref?.url).toContain('/export/skill-zip/');
+    expect(data.content_encoding).toBeUndefined();
 
     const manifest = JSON.parse(data.skill_bundle_manifest) as SkillBundleManifest;
     expect(manifest.type).toBe('skill_bundle');
-    expect(manifest.bundle_sha256).toBe(data.bundle_sha256);
     expect(manifest.skills.length).toBe(1);
     expect(manifest.skills[0]!.slug).toBe(slug);
     expect(manifest.skills[0]!.entrypoint).toBe(`${slug}/SKILL.md`);
@@ -102,7 +98,7 @@ describe('skill-export single-adapter coverage', () => {
     // even though the markdown body mentions an artifact path.
     expect(manifest.skills[0]!.artifacts).toEqual([]);
 
-    const entries = indexZipEntriesByPath(buf);
+    const entries = indexZipEntriesByPath(await downloadSkillZip(data));
     expect(entries.has(`${slug}/SKILL.md`)).toBe(true);
     expect(entries.has(`${slug}/SHA256SUMS`)).toBe(true);
     for (const path of entries.keys()) {

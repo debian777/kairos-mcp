@@ -10,6 +10,9 @@ works end-to-end and how each MCP tool fits into the flow.
   volume layout, and service wiring — all with Mermaid diagrams.
 - **Full execution:** Walkthrough from **activate** through **reward**
   ([workflow-full-execution.md](workflow-full-execution.md)).
+- **Contract parity:** [Schemas across MCP, API, CLI, and UI](schema-mcp-api-cli-ui.md)
+  — one canonical layer in **`src/tools/`**; MCP and **`/api/*`** validate with
+  the same Zod schemas; CLI and UI call the HTTP API (no parallel schema source).
 - **Tool workflows:** Pages named `workflow-<tool>.md` (for example
   **`workflow-activate.md`**, **`workflow-forward-first-call.md`**) are
   **companion narratives** aligned with the **current** MCP tools:
@@ -76,6 +79,7 @@ docs.
 | [workflow-tune](workflow-tune.md) | **`tune`** (edit stored bodies / fields). |
 | [workflow-delete](workflow-delete.md) | **`delete`** (adapter or layer URIs). |
 | [workflow-export](workflow-export.md) | **`export`** and related inspection; see embedded docs. |
+| [schema-mcp-api-cli-ui](schema-mcp-api-cli-ui.md) | Single source of truth in **`src/tools`**; MCP, HTTP API, CLI, UI. |
 | [artifacts](artifacts.md) | Artifact lifecycle across MCP, API, CLI, and UI. |
 | [quality_metadata](quality-metadata.md) | How `quality_metadata` is used in Qdrant payloads; JSON examples and data flow. |
 

@@ -1,31 +1,18 @@
 import { apiFetch } from "@/lib/api";
 import type { ExportOutput } from "../../tools/export_schema.js";
 
-/** Result of downloading a skill ZIP (binary HTTP or legacy JSON+base64). */
+/** Result of downloading a skill ZIP from a JSON `download_ref` or explicit inline base64. */
 export type SkillZipDownloadResult = {
   blob: Blob;
-  /** JSON string of manifest when available (may omit `bundle_sha256` for streamed binary). */
+  /** JSON string of manifest when available. */
   skill_bundle_manifest?: string;
 };
 
-function manifestFromHeaderBase64(b64: string | null): string | undefined {
-  if (!b64 || b64.length === 0) return undefined;
-  try {
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder("utf-8").decode(bytes);
-  } catch {
-    return undefined;
-  }
-}
-
-/** Request a server-built skill ZIP for a single adapter or layer URI. Prefers `Accept: application/zip` (streamed); falls back to JSON+base64. */
+/** Request a server-built skill ZIP for a single adapter or layer URI. */
 export async function fetchSkillZipBundle(uri: string): Promise<SkillZipDownloadResult> {
   const res = await apiFetch("/api/export", {
     method: "POST",
     headers: {
-      Accept: "application/zip",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ uri, format: "skill_zip" }),
@@ -35,15 +22,19 @@ export async function fetchSkillZipBundle(uri: string): Promise<SkillZipDownload
     const msg = err.message ?? res.statusText;
     throw new Error(msg);
   }
-  const ct = res.headers.get("content-type") ?? "";
-  if (ct.includes("application/zip")) {
-    const blob = await res.blob();
-    const man = manifestFromHeaderBase64(res.headers.get("X-KAIROS-Skill-Bundle-Manifest"));
-    return { blob, skill_bundle_manifest: man };
-  }
   const json = (await res.json()) as ExportOutput;
+  if (json.format === "skill_zip" && json.download_ref?.url) {
+    const downloadRes = await fetch(json.download_ref.url, { credentials: "same-origin" });
+    if (!downloadRes.ok) {
+      throw new Error(`Download failed: ${downloadRes.statusText}`);
+    }
+    return {
+      blob: await downloadRes.blob(),
+      skill_bundle_manifest: json.skill_bundle_manifest,
+    };
+  }
   if (json.format !== "skill_zip" || json.content_encoding !== "base64") {
-    throw new Error("Expected a skill_zip export with base64-encoded content.");
+    throw new Error("Expected a skill_zip export with download_ref or base64-encoded content.");
   }
   const blob = base64ToBlob(json.content, json.content_type || "application/zip");
   return { blob, skill_bundle_manifest: json.skill_bundle_manifest };
