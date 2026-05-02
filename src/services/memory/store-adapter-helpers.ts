@@ -147,7 +147,7 @@ export async function checkSimilarAdapterByTitle(
       score: bestScore,
       layer_count: bestMatch.adapter?.layer_count ?? 1
     };
-    const next_action = `call export with ${adapterUri} and format "markdown" to inspect the similar adapter. If your markdown uses the same adapter id, call train with force_update: true to replace that adapter; otherwise pick a distinct adapter title (H1)`;
+    const next_action = `call export with ${adapterUri} and format "markdown" for flat Markdown to inspect the similar adapter. If your markdown uses the same adapter id, call train with force_update: true to replace that adapter; otherwise pick a distinct adapter title (H1)`;
     const content_preview = [bestMatch.label, bestMatch.text].filter(Boolean).join('\n').slice(0, 300);
 
     const matchedAdapterName = bestMatch.adapter?.name ?? bestMatch.label;

@@ -1,32 +1,98 @@
-# train workflow
+# Train workflow
 
-> **Current MCP tool:** **`train`**. See [`train.md`](../../src/embed-docs/tools/train.md).
+> **MCP tool:** **`train`**. Agent-facing reference:
+> [`train.md`](../../src/embed-docs/tools/train.md).
 
-`train` stores adapter markdown (H1 = adapter title; H2 = layers). Use it when
-the user wants to create, register, or replace stored adapter text. For
-executable adapters, end each verifiable layer with a fenced JSON block using
-`{"contract": ...}` (see embedded **`train`** doc) so runs can be driven by
-**`activate` → forward → reward`**.
+This document defines the **architecture** of **`train`**: storing adapter
+markdown (H1 = adapter title; H2 = layers) and optional artifacts. Binding
+schemas live in [`train_schema.ts`](../../src/tools/train_schema.ts). HTTP:
+**`POST /api/train`** (JSON) and **`POST /api/train/raw`** (raw markdown) per
+[`http-api-train-json.ts`](../../src/http/http-api-train-json.ts) and
+[`http-api-train-raw.ts`](../../src/http/http-api-train-raw.ts).
 
-## Input schema
+---
+
+## Role
+
+**`train`** persists adapter or artifact content for later **`activate` →
+forward → reward`** runs. End each verifiable layer with a fenced JSON block
+using **`{"contract": ...}`** (see embedded **`train`** doc).
+
+```mermaid
+flowchart LR
+  body[content plus model] --> train[train]
+  train --> items[items plus status stored]
+```
+
+---
+
+## Adapter markdown size limits (safety)
+
+Before structure validation, **`train`** rejects oversized adapter Markdown to limit
+**one-line injection** (huge single lines) and pathological payloads. Limits are
+**configurable** (environment variables) and combine:
+
+1. **Maximum line count** — default **350** (aligned with repository authoring and
+   ESLint `max-lines` guidance).
+2. **Maximum UTF-8 byte length per line** — default **8192** (stops megabyte-wide
+   lines while allowing long prose).
+3. **Maximum total UTF-8 size** — `ceil(max_lines × max_line_bytes × safety_factor)`;
+   default **safety factor 1.15** leaves slack for newlines and normalization.
+
+| Variable | Default | Role |
+|----------|---------|------|
+| **`KAIROS_ADAPTER_MARKDOWN_MAX_LINES`** | `350` | Reject documents with more logical lines. |
+| **`KAIROS_ADAPTER_MARKDOWN_MAX_LINE_BYTES`** | `8192` | Reject any single line over this UTF-8 byte length. |
+| **`KAIROS_ADAPTER_MARKDOWN_SIZE_SAFETY_FACTOR`** | `1.15` | Multiplier on `max_lines × max_line_bytes` for the total-byte ceiling. |
+
+Non-markdown **artifacts** use the same **total-byte** ceiling only (no line-count
+rule). Oversized bodies fail **`train`** with a structured error (see
+[`validate-adapter-markdown-size.ts`](../../src/services/memory/validate-adapter-markdown-size.ts)).
+
+**`tune`** applies the same rules for full-adapter Markdown updates; layer-only
+body updates enforce **total bytes** and **per-line bytes** without the **full-document
+line count** (see [Tune workflow](workflow-tune.md)).
+
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** **`train`** on the connected server.
+- **This repository:** [`train_schema.ts`](../../src/tools/train_schema.ts).
+
+### Shipped input (MCP / JSON HTTP)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`content`** | string | optional if **`source_adapter_uri`** supplies fork source; adapter markdown or artifact body |
+| **`llm_model_id`** | string | required; non-empty |
+| **`force_update`** | boolean | default false; overwrite same-label adapter |
+| **`protocol_version`** | string | optional |
+| **`space`** | string | optional; **`personal`** or group name |
+| **`source_adapter_uri`** | string | optional; fork from existing adapter |
+| **`mime`** | string | optional; omit or **`text/markdown`** for adapters |
+| **`artifact_name`** | string | required when **`mime`** is non-markdown |
+| **`adapter_uri`** | string | required when storing an artifact (**`mime`** non-markdown) |
 
 ```json
 {
-  "content": "<string, non-empty>",
+  "content": "<string>",
   "llm_model_id": "<string, non-empty>",
-  "force_update": "<boolean, optional, default false>"
+  "force_update": false
 }
 ```
 
-Fields:
+### Shipped output (success)
 
-- `content` — the markdown document to store (H1 = adapter title, H2 =
-  steps).
-- `llm_model_id` — LLM model ID used for embedding and storage context.
-- `force_update` — when `true`, overwrite an existing adapter with the same
-  label. Otherwise duplicate and similarity checks apply.
+| Field | Type | Notes |
+|-------|------|--------|
+| **`items`** | array | One row per stored layer or artifact |
+| **`status`** | literal | **`stored`** |
 
-## Success response schema
+Each item: **`uri`**, optional **`layer_uuid`** / **`artifact_uuid`**, optional
+**`adapter_uri`**, **`label`**, **`tags`**, optional **`content_type`**.
 
 ```json
 {
@@ -43,22 +109,24 @@ Fields:
 }
 ```
 
-Fields:
+### HTTP
 
-- `items` — one row per stored layer (see [`train_schema.ts`](../../src/tools/train_schema.ts)).
-- `status` — always `"stored"` on success.
+- **`POST /api/train`** — JSON body aligned with **`trainInputSchema`**.
+- **`POST /api/train/raw`** — raw markdown body with query or headers supplying
+  **`llm_model_id`** and options (see [`http-api-train-raw.ts`](../../src/http/http-api-train-raw.ts)).
 
-## Challenge types and examples
+---
 
-Add one **contract** per layer as a trailing JSON code block (authoring may
-still show `"challenge"` in older examples; the runtime surface uses
-**`contract`**). Use a fenced ` ```json ` block at the end of a layer.
+## Contract types (examples)
+
+Add one **contract** per layer as a trailing JSON code block. Use a fenced
+` ```json ` block at the end of a layer.
 
 **Shell:**
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "shell",
     "shell": {
       "cmd": "npm test",
@@ -73,7 +141,7 @@ still show `"challenge"` in older examples; the runtime surface uses
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "comment",
     "comment": { "min_length": 50 },
     "required": true
@@ -85,7 +153,7 @@ still show `"challenge"` in older examples; the runtime surface uses
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "user_input",
     "user_input": { "prompt": "Approve deployment?" },
     "required": true
@@ -97,7 +165,7 @@ still show `"challenge"` in older examples; the runtime surface uses
 
 ```json
 {
-  "challenge": {
+  "contract": {
     "type": "mcp",
     "mcp": { "tool_name": "train" },
     "required": true
@@ -108,14 +176,17 @@ still show `"challenge"` in older examples; the runtime surface uses
 When both an older inline challenge block and a JSON block are present in a layer,
 the JSON block takes precedence.
 
-## Scenario 1: store new adapter
+---
+
+## Scenarios
+
+### Scenario 1: store new adapter
 
 The document is new. All steps are stored and URIs are returned.
 
-### Input
+#### Input
 
-Example `content` (actual request body uses `\n` for newlines in
-JSON):
+Example **`content`** (actual request body uses `\n` for newlines in JSON):
 
 ````
 # Deploy Checklist
@@ -125,7 +196,7 @@ JSON):
 Run tests.
 
 ```json
-{"challenge":{"type":"shell","shell":{"cmd":"npm test","timeout_seconds":60},"required":true}}
+{"contract":{"type":"shell","shell":{"cmd":"npm test","timeout_seconds":60},"required":true}}
 ```
 
 ## Step 2: Deploy
@@ -133,7 +204,7 @@ Run tests.
 Deploy to staging.
 
 ```json
-{"challenge":{"type":"comment","comment":{"min_length":20},"required":true}}
+{"contract":{"type":"comment","comment":{"min_length":20},"required":true}}
 ```
 ````
 
@@ -144,20 +215,20 @@ Deploy to staging.
 }
 ```
 
-### Expected output
+#### Expected output
 
 ```json
 {
   "items": [
     {
       "uri": "kairos://layer/aaa11111-1111-1111-1111-111111111111",
-      "memory_uuid": "aaa11111-1111-1111-1111-111111111111",
+      "layer_uuid": "aaa11111-1111-1111-1111-111111111111",
       "label": "Step 1: Build",
       "tags": ["deploy", "build", "test"]
     },
     {
       "uri": "kairos://layer/bbb22222-2222-2222-2222-222222222222",
-      "memory_uuid": "bbb22222-2222-2222-2222-222222222222",
+      "layer_uuid": "bbb22222-2222-2222-2222-222222222222",
       "label": "Step 2: Deploy",
       "tags": ["deploy", "staging"]
     }
@@ -166,17 +237,17 @@ Deploy to staging.
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
-Use the returned URIs for search/begin or to inform the user. To run the
-adapter, call `activate` with a query matching the adapter label, then
-follow `next_action`.
+Use the returned URIs for search or to inform the user. To run the adapter, call
+**`activate`** with a query matching the adapter label, then follow
+**`next_action`**.
 
-## Scenario 2: force_update overwrites existing adapter
+### Scenario 2: force_update overwrites existing adapter
 
-An adapter with the same label exists. Set `force_update: true` to replace it.
+An adapter with the same label exists. Set **`force_update: true`** to replace it.
 
-### Input
+#### Input
 
 ```json
 {
@@ -186,23 +257,23 @@ An adapter with the same label exists. Set `force_update: true` to replace it.
 }
 ```
 
-### Expected output
+#### Expected output
 
-Same shape as scenario 1: `items` for each step (possibly new UUIDs after
-replace), `status: "stored"`.
+Same shape as scenario 1: **`items`** for each step (possibly new UUIDs after
+replace), **`status: "stored"`**.
 
-### AI behavior
+#### Agent behavior
 
-Only use `force_update: true` after the user or agent has confirmed that
-the existing adapter must be replaced (for example, after using
-`export` to compare content).
+Only use **`force_update: true`** after the user or agent has confirmed that
+the existing adapter must be replaced (for example, after using **`export`** to
+compare content).
 
-## Scenario 3: error - `DUPLICATE_ADAPTER`
+### Scenario 3: error — DUPLICATE_ADAPTER
 
 The store detected an existing adapter with the same identity and
-`force_update` was not set.
+**`force_update`** was not set.
 
-### Expected output (error body)
+#### Expected output (error body)
 
 ```json
 {
@@ -212,19 +283,15 @@ The store detected an existing adapter with the same identity and
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
 Inform the user that an adapter with this content already exists. Offer to
 run it via **`activate`** / **`forward`**, or replace it with **`train`** and
 **`force_update: true`** after the user confirms.
 
-## Scenario 4: error — SIMILAR_MEMORY_FOUND
+### Scenario 4: error — SIMILAR_MEMORY_FOUND
 
-Another memory is very similar by title or label (above the similarity
-threshold). The server returns a structured error so the agent can compare
-and decide.
-
-### Expected output (error body)
+#### Expected output (error body)
 
 ```json
 {
@@ -245,21 +312,18 @@ and decide.
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
-1. `must_obey: true` — follow `next_action`: call **`export`** with the
-   adapter or layer URI from `existing_memory.uri` and default **`format:
-   markdown`** to retrieve serialized markdown in **`content`**.
+1. **`must_obey: true`** — follow **`next_action`**: call **`export`** with the
+   adapter URI from **`existing_memory.uri`** and default **`format: markdown`**
+   to retrieve serialized markdown in **`content`**.
 2. Compare the existing content with the intended train payload.
-3. Either call `train` with `force_update: true` to replace, or
-   change the document (title or content) to make it distinct and call
-   `train` again.
+3. Either call **`train`** with **`force_update: true`** to replace, or change the
+   document and call **`train`** again.
 
-## Scenario 5: error — STORE_FAILED
+### Scenario 5: error — STORE_FAILED
 
-A generic storage or processing failure occurred.
-
-### Expected output (error body)
+#### Expected output (error body)
 
 ```json
 {
@@ -268,25 +332,26 @@ A generic storage or processing failure occurred.
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
-Retry if the failure is transient. Otherwise report the error to the user
-and do not claim success.
+Retry if the failure is transient. Otherwise report the error to the user and do
+not claim success.
+
+---
 
 ## Validation rules
 
-1. On success, `items` is a non-empty array and `status` is `"stored"`.
-2. Each item has `uri`, `memory_uuid`, `label`, and `tags`.
-3. Error responses are returned as MCP error content with a JSON body
-   containing `error` and scenario-specific fields.
-4. For `SIMILAR_MEMORY_FOUND`, `existing_memory` includes `uri` and
-   `next_action` is present when the agent must follow a recovery path.
+1. On success, **`items`** is non-empty and **`status`** is **`stored`**.
+2. Each item has **`uri`**, **`label`**, and **`tags`** (and optional ids per schema).
+3. Error responses are returned as MCP error content with a JSON body containing
+   **`error`** and scenario-specific fields.
+4. For **`SIMILAR_MEMORY_FOUND`**, **`existing_memory`** includes **`uri`** and
+   **`next_action`** is present when the agent must follow a recovery path.
+
+---
 
 ## See also
 
-- [export workflow](workflow-export.md) — inspect existing
-  content before overwriting
-- [tune workflow](workflow-tune.md) — in-place adapter/layer
-  updates
-- [activate workflow](workflow-activate.md) — find existing
-  adapters before training a duplicate
+- [export workflow](workflow-export.md)
+- [tune workflow](workflow-tune.md)
+- [activate workflow](workflow-activate.md)

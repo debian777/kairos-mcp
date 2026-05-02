@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown, type ParsedStep } from "@/hooks/useProtocol";
+import { fetchSkillZipBundle, suggestedSkillZipFilename, triggerFileDownload } from "@/lib/export-skill-zip";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { CopyButton } from "@/components/CopyButton";
 import { RenderedMarkdown } from "@/components/RenderedMarkdown";
@@ -16,6 +18,8 @@ export function ProtocolDetailPage() {
   const { uri } = useParams<{ uri: string }>();
   const decodedUri = uri ? decodeURIComponent(uri) : undefined;
   const { data, isLoading, isError, error } = useProtocol(decodedUri, true);
+  const [skillDownloadBusy, setSkillDownloadBusy] = useState(false);
+  const [skillDownloadError, setSkillDownloadError] = useState<string | null>(null);
 
   if (isLoading && !data) {
     return <p className="text-[var(--color-text-muted)]">{t("protocol.loading")}</p>;
@@ -35,9 +39,9 @@ export function ProtocolDetailPage() {
   }
 
   const { title, steps, triggers, completion } = parseProtocolMarkdown(data.content);
+  const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
 
   const handleDownloadMarkdown = () => {
-    const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
     const blob = new Blob([data.content], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -47,16 +51,19 @@ export function ProtocolDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadSkill = () => {
-    const safeName = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "protocol";
-    const skillMd = `# ${title}\n\n${data.content}`;
-    const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeName}-skill.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadSkill = async () => {
+    if (!data?.uri) return;
+    setSkillDownloadError(null);
+    setSkillDownloadBusy(true);
+    try {
+      const { blob, skill_bundle_manifest } = await fetchSkillZipBundle(data.uri);
+      const name = suggestedSkillZipFilename(skill_bundle_manifest, safeName);
+      triggerFileDownload(blob, name);
+    } catch (e) {
+      setSkillDownloadError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSkillDownloadBusy(false);
+    }
   };
 
   const secondaryBtn =
@@ -125,12 +132,18 @@ export function ProtocolDetailPage() {
             </button>
             <button
               type="button"
-              onClick={handleDownloadSkill}
-              className="mt-1 flex min-h-[44px] w-full items-center justify-between rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)]"
+              onClick={() => void handleDownloadSkill()}
+              disabled={skillDownloadBusy}
+              className="mt-1 flex min-h-[44px] w-full items-center justify-between rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-elevated)] disabled:opacity-60"
             >
               <span>{t("protocol.downloadAsSkill")}</span>
-              <span className="text-[var(--color-text-muted)]">.md</span>
+              <span className="text-[var(--color-text-muted)]">.zip</span>
             </button>
+            {skillDownloadError ? (
+              <p className="mt-2 text-xs text-[var(--color-error)] m-0" role="alert">
+                {skillDownloadError}
+              </p>
+            ) : null}
             <Link
               to={`/protocols/${encodeURIComponent(data.uri)}/skill`}
               className="mt-1 flex min-h-[44px] w-full items-center justify-between rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--color-text)] no-underline hover:bg-[var(--color-surface-elevated)]"

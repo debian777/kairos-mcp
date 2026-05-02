@@ -118,6 +118,7 @@ export const HTTP_TRAIN_RAW_BODY_LIMIT = (() => {
   }
   return '2mb';
 })();
+
 export const HTTP_RATE_LIMIT_WINDOW_MS = getEnvInt('HTTP_RATE_LIMIT_WINDOW_MS', 60_000);
 export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 10_000);
 export const AUTH_RATE_LIMIT_WINDOW_MS = getEnvInt('AUTH_RATE_LIMIT_WINDOW_MS', 60_000);
@@ -340,11 +341,9 @@ export const AUTH_ALLOWED_AUDIENCES =
   _hasKeycloakRealm && !_authAudBase.includes('account')
     ? [..._authAudBase, 'account']
     : _authAudBase;
-/** Space for embedded mem docs and default when AUTH_ENABLED=false. Included in search scope for all users. Must follow space model (e.g. space:kairos-app). */
+/** Embedded mem / default search space when AUTH_ENABLED=false; must follow space model (e.g. space:kairos-app). */
 export const KAIROS_APP_SPACE_ID = getEnvString('KAIROS_APP_SPACE_ID', 'space:kairos-app');
 /** Simple-mode writable personal space id when AUTH_ENABLED=false and UUIDv5 seed override is not provided. */
 export const KAIROS_SIMPLE_PERSONAL_SPACE_ID = getEnvString('KAIROS_SIMPLE_PERSONAL_SPACE_ID', 'space:personal');
-/** Optional simple-mode realm slug used when deriving personal space id from UUIDv5 seed. */
 export const KAIROS_SIMPLE_PERSONAL_REALM = getEnvString('KAIROS_SIMPLE_PERSONAL_REALM', 'kairos-simple');
-/** Optional simple-mode seed for deterministic UUIDv5 personal space id (intentionally undocumented). */
 export const KAIROS_SIMPLE_PERSONAL_UUIDV5_SEED = getEnvString('KAIROS_SIMPLE_PERSONAL_UUIDV5_SEED', '').trim();

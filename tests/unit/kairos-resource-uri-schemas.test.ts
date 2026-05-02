@@ -45,6 +45,22 @@ describe('resource URI schemas', () => {
     expect(result.success).toBe(true);
   });
 
+  test('export accepts flat markdown with single uri', () => {
+    const result = exportInputSchema.safeParse({
+      uri: ADAPTER_URI,
+      format: 'markdown'
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('export rejects markdown format with adapters list', () => {
+    const result = exportInputSchema.safeParse({
+      adapters: [ADAPTER_URI],
+      format: 'markdown'
+    });
+    expect(result.success).toBe(false);
+  });
+
   test('export accepts artifact slug URIs', () => {
     const result = exportInputSchema.safeParse({
       uri: ARTIFACT_SLUG_URI,

@@ -326,7 +326,6 @@ export function ProtocolEditPage() {
           <ProtocolEditPreviewColumn
             t={t}
             preview={preview}
-            form={form}
             skillFolderSlug={skillFolderSlug}
             isNew={isNew}
             decodedUri={decodedUri}

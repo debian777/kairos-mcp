@@ -1,6 +1,7 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
+import { tryStreamSkillZipHttpResponse } from './export-skill-zip-http.js';
 import { executeExport } from '../tools/export.js';
 import { exportInputSchema } from '../tools/export_schema.js';
 import { structuredLogger } from '../utils/structured-logger.js';
@@ -24,15 +25,36 @@ export function setupDumpRoute(
         return;
       }
       structuredLogger.info(
-        { uri: parsed.data.uri, format: parsed.data.format, event: 'export_request' },
-        '-> POST /api/export'
+        {
+          event: 'export_http_request',
+          format: parsed.data.format,
+          uri: parsed.data.uri,
+          adapters_len: parsed.data.adapters?.length,
+          all_adapters: parsed.data.all_adapters,
+          space_name: parsed.data.space_name
+        },
+        'POST /api/export'
       );
+      const streamed = await tryStreamSkillZipHttpResponse(
+        req.get('accept'),
+        res,
+        memoryStore,
+        qdrantService,
+        parsed.data
+      );
+      if (streamed) {
+        return;
+      }
       const payload = await executeExport(memoryStore, qdrantService, parsed.data);
       res.status(200).json(payload);
     } catch (error: unknown) {
       const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
       const message = error instanceof Error ? error.message : String(error);
       structuredLogger.debug(`export HTTP error: ${error instanceof Error ? error.message : String(error)}`);
+      if (res.headersSent) {
+        res.end();
+        return;
+      }
       res.status(statusCode).json({ error: statusCode === 404 ? 'NOT_FOUND' : 'EXPORT_FAILED', message });
     }
   });

@@ -10,6 +10,7 @@ import { type TuneInput, type TuneOutput } from './tune_schema.js';
 import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { buildTuneResultMessage } from './tune-messages.js';
 import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
+import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
 
 type AdapterLayerPoint = { uuid: string; payload: any };
 
@@ -123,6 +124,11 @@ async function tuneAdapterMarkdownInPlace(
   const currentModel = existingLayers[0]?.payload?.llm_model_id;
   const llmModelId =
     typeof currentModel === 'string' && currentModel.trim().length > 0 ? currentModel.trim() : 'tune-in-place';
+
+  const fullDocCheck = validateAdapterMarkdownSize(markdownDoc);
+  if (!fullDocCheck.ok) {
+    throw new Error(`${fullDocCheck.message} (${fullDocCheck.code})`);
+  }
 
   const parsedDoc = parseFrontmatter(markdownDoc);
   const adapterMarkdown = parsedDoc.body.length > 0 ? parsedDoc.body : markdownDoc;

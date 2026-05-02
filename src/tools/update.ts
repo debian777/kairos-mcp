@@ -1,6 +1,7 @@
 import type { QdrantService } from '../services/qdrant/service.js';
 import type { UpdateInput, UpdateOutput } from './update_schema.js';
 import { extractMemoryBody, hasMemoryBodyMarkers } from '../utils/memory-body.js';
+import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
 
 /** Shared execute: update memories by URIs. Used by MCP tool and HTTP route. */
 export async function executeUpdate(
@@ -24,10 +25,18 @@ export async function executeUpdate(
       }
       const valueAtIndex = Array.isArray(content) ? content[index] : undefined;
       if (typeof valueAtIndex === 'string' && valueAtIndex.trim().length > 0) {
+        const layerCheck = validateAdapterMarkdownSize(valueAtIndex, { enforceMaxLineCount: false });
+        if (!layerCheck.ok) {
+          throw new Error(`${layerCheck.message} (${layerCheck.code})`);
+        }
         const body = extractMemoryBody(valueAtIndex);
         await qdrantService.updateMemory(uuid, { text: body });
       } else if (updates && Object.keys(updates).length > 0) {
         if (typeof updates['text'] === 'string' && hasMemoryBodyMarkers(updates['text'])) {
+          const layerCheck = validateAdapterMarkdownSize(updates['text'], { enforceMaxLineCount: false });
+          if (!layerCheck.ok) {
+            throw new Error(`${layerCheck.message} (${layerCheck.code})`);
+          }
           const body = extractMemoryBody(updates['text']);
           await qdrantService.updateMemory(uuid, { text: body });
         } else {

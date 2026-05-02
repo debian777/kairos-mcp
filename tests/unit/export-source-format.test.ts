@@ -73,8 +73,19 @@ describe('export source format', () => {
   });
 
   it('lists adapter artifacts when source export uses adapter URI', async () => {
+    const adapterId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const memoryStore = {
-      getMemory: async () => null,
+      getMemory: async (id: string) =>
+        id === adapterId
+          ? ({
+              memory_uuid: adapterId,
+              label: 'Adapter head',
+              text: '',
+              tags: [],
+              llm_model_id: 'test-model',
+              created_at: new Date().toISOString()
+            } as any)
+          : null,
       getQdrantAccess: () => ({
         client: {
           scroll: async () => ({
@@ -96,7 +107,7 @@ describe('export source format', () => {
     } as any;
 
     const out = await executeExport(memoryStore, undefined, {
-      uri: 'kairos://adapter/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      uri: `kairos://adapter/${adapterId}`,
       format: 'source',
       include_reward: true
     });

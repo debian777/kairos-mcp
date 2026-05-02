@@ -1,0 +1,79 @@
+/**
+ * Build one SkillExportItem from resolved adapter markdown (normalized).
+ */
+
+import type { MemoryQdrantStore } from '../../services/memory/store.js';
+import type { QdrantService } from '../../services/qdrant/service.js';
+import { executeDump } from '../dump.js';
+import { buildSkillMdFile } from './build-skill-md.js';
+import { deriveSkillMetadata } from './derive-metadata.js';
+import { sha256Hex } from './sha256.js';
+import { scanMarkdownForDiagnostics } from './scan-diagnostics.js';
+import type { SkillExportItem } from './types.js';
+
+function toCurrentMarkdown(markdownDoc: string): string {
+  return markdownDoc.replaceAll('"challenge":', '"contract":');
+}
+
+export interface AssembleSkillItemParams {
+  memoryStore: MemoryQdrantStore;
+  qdrantService: QdrantService | undefined;
+  /** Resolved first layer id for protocol dump. */
+  layerId: string;
+  /** Request URI echoed in output metadata. */
+  requestUri: string;
+  /** Adapter id for label lookup. */
+  adapterId: string;
+}
+
+/**
+ * Load protocol markdown via dump, normalize vocabulary, derive metadata, emit SKILL.md file list.
+ */
+export async function assembleSkillExportItem(params: AssembleSkillItemParams): Promise<SkillExportItem> {
+  const dump = await executeDump(params.memoryStore, params.qdrantService, {
+    uri: `kairos://layer/${params.layerId}`,
+    protocol: true
+  });
+  const headMemory = await params.memoryStore.getMemory(params.layerId);
+  const label = typeof dump['label'] === 'string' ? dump['label'] : 'Adapter';
+  const adapterName = headMemory?.adapter?.name ?? null;
+  const memorySlug =
+    typeof headMemory?.slug === 'string' && headMemory.slug.trim().length > 0 ? headMemory.slug.trim() : null;
+
+  const rawMd = toCurrentMarkdown(String(dump['content'] ?? ''));
+  const meta = deriveSkillMetadata({
+    protocolMarkdown: rawMd,
+    label,
+    memorySlug,
+    adapterName,
+    kairosUri: params.requestUri
+  });
+
+  const skillBody = buildSkillMdFile(meta, rawMd);
+  const skillPath = 'SKILL.md';
+  const hash = sha256Hex(skillBody);
+
+  const kairosUri =
+    typeof dump['uri'] === 'string' && dump['uri'].startsWith('kairos://')
+      ? dump['uri']
+      : params.requestUri.startsWith('kairos://')
+        ? params.requestUri
+        : `kairos://adapter/${params.adapterId}`;
+
+  return {
+    slug: meta.slug,
+    name: meta.name,
+    description: meta.description,
+    kairosUri,
+    adapterVersion: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null,
+    files: [
+      {
+        path: skillPath,
+        content: skillBody,
+        contentType: 'text/markdown',
+        sha256: hash
+      }
+    ],
+    diagnostics: scanMarkdownForDiagnostics(skillBody)
+  };
+}

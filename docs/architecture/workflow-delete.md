@@ -1,13 +1,42 @@
-# delete workflow
+# Delete workflow
 
-> **Current MCP tool:** **`delete`**. See [`delete.md`](../../src/embed-docs/tools/delete.md).
+> **MCP tool:** **`delete`**. Agent-facing reference:
+> [`delete.md`](../../src/embed-docs/tools/delete.md).
 
-`delete` removes one or more **adapter** or **layer** resources by URI (see
-[`delete_schema.ts`](../../src/tools/delete_schema.ts)). Resolve targets first
-(for example via **`activate`** or **`export`**). Each URI is processed
-independently; partial success is possible.
+This document defines the **architecture** of **`delete`**: removing one or more
+adapter or layer resources by URI. Binding schemas live in
+[`delete_schema.ts`](../../src/tools/delete_schema.ts). HTTP:
+[`http-api-delete.ts`](../../src/http/http-api-delete.ts) (**`POST /api/delete`**).
 
-## Input schema
+---
+
+## Role
+
+**`delete`** removes memories by URI. Resolve targets first (for example via
+**`activate`** or **`export`**). Each URI is processed independently; partial
+success is possible.
+
+```mermaid
+flowchart TD
+  u[uris array] --> d[delete]
+  d --> r1[result per uri]
+  r1 --> ok[deleted or error]
+```
+
+---
+
+## Tool and API schema
+
+### Authority
+
+- **Live MCP:** **`delete`** on the connected server.
+- **This repository:** [`delete_schema.ts`](../../src/tools/delete_schema.ts).
+
+### Shipped input
+
+| Field | Type | Notes |
+|-------|------|--------|
+| **`uris`** | array | Non-empty; **`kairos://adapter/{uuid}`** or **`kairos://layer/{uuid}`** (optional **`?execution_id=`**). |
 
 ```json
 {
@@ -15,12 +44,12 @@ independently; partial success is possible.
 }
 ```
 
-Fields:
+### Shipped output
 
-- `uris` — non-empty array of **`kairos://adapter/{uuid}`** or
-  **`kairos://layer/{uuid}`** (optional **`?execution_id=`**) URIs to delete.
-
-## Response schema
+| Field | Type | Notes |
+|-------|------|--------|
+| **`results`** | array | **`uri`**, **`status`** (`deleted` \| `error`), **`message`** |
+| **`total_deleted`**, **`total_failed`** | number | Counts |
 
 ```json
 {
@@ -36,18 +65,17 @@ Fields:
 }
 ```
 
-Fields:
+### HTTP
 
-- `results` — one entry per URI; `status` is `"deleted"` or `"error"`.
-- `total_deleted` — count of URIs successfully deleted.
-- `total_failed` — count of URIs that failed to delete.
+- **`POST /api/delete`** — JSON body: **`uris`** array.
 
-## Scenario 1: delete one memory
+---
 
-The user asks to remove a single memory. The agent has the URI (for
-example, from search or from a layer in an adapter).
+## Scenarios
 
-### Input
+### Delete one memory
+
+#### Input
 
 ```json
 {
@@ -55,7 +83,7 @@ example, from search or from a layer in an adapter).
 }
 ```
 
-### Expected output
+#### Expected output
 
 ```json
 {
@@ -71,18 +99,15 @@ example, from search or from a layer in an adapter).
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
 Confirm deletion to the user. If the URI was a layer in an adapter, note that
 other layers of the same adapter are not automatically deleted. Delete them
 explicitly when the user wants the whole adapter removed.
 
-## Scenario 2: delete multiple memories (full adapter)
+### Delete multiple memories
 
-The agent deletes all layers of an adapter. URIs come from search
-plus adapter navigation.
-
-### Input
+#### Input
 
 ```json
 {
@@ -94,7 +119,7 @@ plus adapter navigation.
 }
 ```
 
-### Expected output
+#### Expected output
 
 ```json
 {
@@ -120,17 +145,12 @@ plus adapter navigation.
 }
 ```
 
-### AI behavior
+#### Agent behavior
 
 Confirm how many memories were deleted. When the user asked to remove an
 adapter, verify that all step URIs for that adapter were included.
 
-## Scenario 3: partial failure
-
-Some URIs are deleted; others fail (for example, UUID not found, or already
-deleted). Each result has its own `status` and `message`.
-
-### Expected output
+### Partial failure
 
 ```json
 {
@@ -151,23 +171,22 @@ deleted). Each result has its own `status` and `message`.
 }
 ```
 
-### AI behavior
-
 Report which URIs were deleted and which failed. Do not claim full success
-when `total_failed` > 0.
+when **`total_failed`** is greater than zero.
+
+---
 
 ## Validation rules
 
-1. `uris` must be a non-empty array of valid **`kairos://adapter/{uuid}`** or **`kairos://layer/{uuid}`** strings (see schema).
-2. `total_deleted` + `total_failed` equals `results.length`.
-3. Each result has `uri`, `status` (`"deleted"` or `"error"`), and
-   `message`.
-4. Deleting a memory does not automatically delete other layers in the same
+1. **`uris`** must be a non-empty array of valid adapter or layer URIs (see schema).
+2. **`total_deleted`** + **`total_failed`** equals **`results.length`**.
+3. Each result has **`uri`**, **`status`**, and **`message`**.
+4. Deleting one memory does not automatically delete other layers in the same
    adapter. Pass all layer URIs to remove an entire adapter chain.
+
+---
 
 ## See also
 
-- [activate workflow](workflow-activate.md) — obtain URIs before
-  deleting
-- [export workflow](workflow-export.md) — inspect content before
-  deleting
+- [activate workflow](workflow-activate.md)
+- [export workflow](workflow-export.md)

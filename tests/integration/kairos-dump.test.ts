@@ -133,7 +133,10 @@ Only after all steps.`;
   test('export with non-existent URI returns error', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'export',
-      arguments: { uri: 'kairos://layer/00000000-0000-0000-0000-000000000099', format: 'markdown' }
+      arguments: {
+        uri: 'kairos://layer/00000000-0000-0000-0000-000000000099',
+        format: 'markdown'
+      }
     });
     expect(result.isError).toBe(true);
     expect(result.content).toBeDefined();

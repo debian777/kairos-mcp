@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown } from "@/hooks/useProtocol";
+import { fetchSkillZipBundle, suggestedSkillZipFilename, triggerFileDownload } from "@/lib/export-skill-zip";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { SurfaceCard } from "@/components/SurfaceCard";
 
@@ -22,6 +23,8 @@ export function SkillBundlePage() {
   const [description, setDescription] = useState("");
   const [whenToUse, setWhenToUse] = useState("");
   const [includeReferences, setIncludeReferences] = useState(true);
+  const [zipBusy, setZipBusy] = useState(false);
+  const [zipError, setZipError] = useState<string | null>(null);
 
   if (isLoading && !data) {
     return <p className="text-[var(--color-text-muted)]">{t("protocol.loading")}</p>;
@@ -45,16 +48,18 @@ export function SkillBundlePage() {
   const safeName = displayName.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "skill";
   const folderSlug = `${safeName}-skill`;
 
-  const handleDownload = () => {
-    const refs = includeReferences ? "\n\n## References\n\nBundled protocol: see `references/KAIROS.md` in a full zip export.\n" : "";
-    const skillMd = `# ${displayName}\n\n${description.trim() || title}\n\n## When to use it\n\n${whenToUse.trim() || "Use when this protocol applies."}\n${refs}\n## Protocol\n\n${data.content}`;
-    const blob = new Blob([skillMd], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeName}-skill.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    setZipError(null);
+    setZipBusy(true);
+    try {
+      const { blob, skill_bundle_manifest } = await fetchSkillZipBundle(data.uri);
+      const name = suggestedSkillZipFilename(skill_bundle_manifest, safeName);
+      triggerFileDownload(blob, name);
+    } catch (e) {
+      setZipError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setZipBusy(false);
+    }
   };
 
   return (
@@ -115,11 +120,17 @@ export function SkillBundlePage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={handleDownload}
-              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 font-medium text-white hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
+              onClick={() => void handleDownload()}
+              disabled={zipBusy}
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 font-medium text-white hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2 disabled:opacity-60"
             >
               {t("skill.downloadAsSkill")}
             </button>
+            {zipError ? (
+              <p className="m-0 text-sm text-[var(--color-error)]" role="alert">
+                {zipError}
+              </p>
+            ) : null}
             <Link
               to={`/protocols/${encodeURIComponent(data.uri)}`}
               className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 font-medium text-[var(--color-text)] no-underline hover:bg-[var(--color-surface-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
