@@ -1,14 +1,10 @@
-import { writeFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import type { ExportInput } from '../../tools/export_schema.js';
 import { writeJson, writeMarkdown, writeStderr } from '../output.js';
-import {
-  assertSkillZipBufferAllowedForDiskWrite,
-  resolveSkillZipOutputPath
-} from '../skill-zip-local-write.js';
+import { resolveSkillZipOutputPath, writeExportedSkillZipToFile } from '../skill-zip-local-write.js';
 
 interface ExportCliOptions {
     format?: string;
@@ -121,9 +117,7 @@ export function exportCommand(program: Command): void {
                                 ? { refBasename: response.download_ref.filename }
                                 : {})
                         });
-                        assertSkillZipBufferAllowedForDiskWrite(downloaded.data);
-                        // codeql[js/http-to-file-access]: Authenticated CLI persists skill_zip bytes from download_ref after PK/signature check, size cap, and basename-only or --zip-out path resolution.
-                        writeFileSync(outputPath, downloaded.data);
+                        writeExportedSkillZipToFile(outputPath, downloaded.data);
                         return;
                     }
                     if (
@@ -133,9 +127,7 @@ export function exportCommand(program: Command): void {
                     ) {
                         const buf = Buffer.from(response.content, 'base64');
                         const outputPath = resolveSkillZipOutputPath(options.zipOut, {});
-                        assertSkillZipBufferAllowedForDiskWrite(buf);
-                        // codeql[js/http-to-file-access]: Same as download_ref path: validate ZIP bytes and size before writing inline base64 skill_zip from the API response.
-                        writeFileSync(outputPath, buf);
+                        writeExportedSkillZipToFile(outputPath, buf);
                         return;
                     }
                     if (response.format === 'skill_zip' && response.content_encoding === 'base64') {
