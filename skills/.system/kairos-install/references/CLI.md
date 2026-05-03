@@ -17,6 +17,31 @@ Run once without global installation:
 npx @debian777/kairos-mcp --help
 ```
 
+## Run the server locally (`serve`)
+
+The `kairos` binary can start the same HTTP/MCP process as `node dist/index.js`
+after a build, or from the published package when dependencies and environment
+match your deployment. You still need Qdrant (and embedding-related variables
+in `.env`) the same way as [Docker Compose — simple stack](install/docker-compose-simple.md).
+
+```bash
+kairos serve
+npx @debian777/kairos-mcp serve --env-file .env
+kairos serve --port 3300 --metrics-port 9091
+```
+
+- **`--env-file`** — if the path exists, it is loaded with `dotenv` before the
+  server reads configuration. If the file is missing, the command continues
+  (environment-only startup).
+- **`--port` / `--metrics-port`** — set `PORT` and `METRICS_PORT` for this process
+  before configuration is read.
+
+The root **`--url`** option applies to **client** commands (it sets
+`KAIROS_API_URL`); it does **not** change the HTTP bind address for `serve`. For
+supported full-stack installation, prefer **Docker Compose** in
+[install/README.md](install/README.md); use `serve` when you already run backing
+services and want a single Node entrypoint.
+
 ## Select the server URL
 
 The CLI resolves the API base URL in this order:

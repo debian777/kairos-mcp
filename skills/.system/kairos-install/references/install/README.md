@@ -82,6 +82,10 @@ If you do not want a global installation, run the package with `npx`:
 npx @debian777/kairos-mcp --help
 ```
 
+To start the HTTP/MCP server from the CLI when Qdrant and `.env` are already in
+place (same expectations as Compose), see **Run the server locally (`serve`)** in
+[CLI](../CLI.md) (`kairos serve` / `npx @debian777/kairos-mcp serve`).
+
 For URL selection, authentication, and the full command surface, see
 [CLI](../CLI.md).
 

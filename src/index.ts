@@ -23,8 +23,21 @@ import {
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
 import { probeEmbeddingDimension } from './services/embedding/service.js';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 // Import system metrics to ensure they're initialized
 import './services/metrics/system-metrics.js';
+
+/** True when this file is the process entrypoint (e.g. `node dist/index.js`, container CMD). */
+function isDirectRun(): boolean {
+    const entry = process.argv[1];
+    if (!entry) return false;
+    try {
+        return import.meta.url === pathToFileURL(path.resolve(entry)).href;
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Wait for Qdrant to be available with retries
@@ -55,7 +68,8 @@ async function waitForQdrant(memoryStore: MemoryQdrantStore, maxRetries: number 
     throw new Error(`Qdrant did not become available after ${maxRetries} attempts (${maxRetries * intervalMs / 1000}s)`);
 }
 
-async function main(): Promise<void> {
+/** Boot the HTTP/MCP application (same path as `node dist/index.js`). Safe to import when not the entry script. */
+export async function runKairosServer(): Promise<void> {
     try {
         // Install once at startup to capture any background errors/warnings
         installGlobalErrorHandlers();
@@ -121,4 +135,6 @@ async function main(): Promise<void> {
     }
 }
 
-await main();
+if (isDirectRun()) {
+    await runKairosServer();
+}
