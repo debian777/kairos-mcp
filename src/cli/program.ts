@@ -11,6 +11,7 @@ import { exportCommand } from './commands/export.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { tokenCommand } from './commands/token.js';
+import { serveCommand } from './commands/serve.js';
 import { getCliApiUrlDefault } from './config.js';
 
 const loadPackageJson = createRequire(import.meta.url);
@@ -36,6 +37,9 @@ export function createProgram(): Command {
     .option('--no-browser', 'do not open browser when auth is required (e.g. in tests or scripts)')
     .hook('preAction', (_thisCommand, actionCommand) => {
       // optsWithGlobals merges root --url / --no-browser for nested commands (e.g. kairos --url … train …).
+      if (actionCommand.name() === 'serve') {
+        return;
+      }
       const opts = actionCommand.optsWithGlobals() as { url?: string; browser?: boolean };
       if (opts.url) {
         process.env['KAIROS_API_URL'] = opts.url;
@@ -54,6 +58,7 @@ export function createProgram(): Command {
   deleteCommand(program); // delete
   rewardCommand(program); // reward
   exportCommand(program); // export
+  serveCommand(program);
   loginCommand(program);
   logoutCommand(program);
   tokenCommand(program);
