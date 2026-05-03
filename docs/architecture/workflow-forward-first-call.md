@@ -43,8 +43,7 @@ flowchart LR
 | Field | Type | Notes |
 |-------|------|--------|
 | **`uri`** | string | **`kairos://adapter/{uuid\|slug}`** (or layer entry per server rules). **No** **`solution`**. |
-| **`local_artifact_dir`** | string | optional; stable handoff directory for the run |
-| **`kairos_work_dir`** | string | optional; deprecated alias |
+| **`kairos_local_artifact_dir`** | string | optional; stable handoff directory for the run |
 
 ```json
 {

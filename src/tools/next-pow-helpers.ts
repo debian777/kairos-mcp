@@ -3,11 +3,7 @@ import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/me
 import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
-import {
-  COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS,
-  KAIROS_LOCAL_ARTIFACT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-} from '../config.js';
+import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS, KAIROS_LOCAL_ARTIFACT_DIR } from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type {
@@ -20,11 +16,7 @@ import type {
 import { validateMcpSubmissionAgainstContract } from './mcp-contract-match.js';
 import { buildLayerUri } from './kairos-uri.js';
 import { buildChallengeShapeForDisplay } from './next-pow-challenge-shape.js';
-import {
-  appendLocalArtifactDirDeprecationMessage,
-  buildLocalArtifactDirFields,
-  maybeBuildLocalArtifactDirDeprecations
-} from './local-artifact-dir-contract.js';
+import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
 export type {
   BuildChallengeOptions,
   ElicitResult,
@@ -144,19 +136,9 @@ function buildErrorPayload(
     current_step,
     challenge,
     ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR),
-    ...(maybeBuildLocalArtifactDirDeprecations(KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS)
-      ? {
-          deprecations: maybeBuildLocalArtifactDirDeprecations(
-            KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-          )
-        }
-      : {}),
-    message: appendLocalArtifactDirDeprecationMessage(
-      maxExceeded
-        ? `Step failed ${retryCount} times. Use your judgment to recover.`
-        : message,
-      KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-    ),
+    message: maxExceeded
+      ? `Step failed ${retryCount} times. Use your judgment to recover.`
+      : message,
     error_code: maxExceeded ? 'MAX_RETRIES_EXCEEDED' : errorCode,
     retry_count: retryCount
   };

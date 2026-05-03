@@ -38,18 +38,14 @@ export type ResolveKairosWorkDirOptions = {
 };
 
 export const KAIROS_LOCAL_ARTIFACT_DIR_ENV = 'KAIROS_LOCAL_ARTIFACT_DIR';
-export const KAIROS_WORK_DIR_ENV = 'KAIROS_WORK_DIR';
 
 export type LocalArtifactDirResolution = {
   path: string;
-  source: 'canonical_env' | 'compat_env' | 'repo_default' | 'user_config_default';
-  usedCompatAlias: boolean;
+  source: 'canonical_env' | 'repo_default' | 'user_config_default';
 };
 
 /**
  * - If `KAIROS_LOCAL_ARTIFACT_DIR` is set: resolve (relative paths against `cwd`).
- * - Else if compat alias `KAIROS_WORK_DIR` is set: resolve it the same way and
- *   mark the compat alias as used.
  * - Else if this checkout is the kairos-mcp repo: `<repo>/.local/kairos/work`
  * - Else: `<getKairosConfigDir()>/work`
  */
@@ -64,17 +60,7 @@ export function resolveLocalArtifactDir(
   if (canonicalRaw) {
     return {
       path: isAbsolute(canonicalRaw) ? canonicalRaw : resolve(cwd, canonicalRaw),
-      source: 'canonical_env',
-      usedCompatAlias: false
-    };
-  }
-
-  const compatRaw = env[KAIROS_WORK_DIR_ENV]?.trim();
-  if (compatRaw) {
-    return {
-      path: isAbsolute(compatRaw) ? compatRaw : resolve(cwd, compatRaw),
-      source: 'compat_env',
-      usedCompatAlias: true
+      source: 'canonical_env'
     };
   }
 
@@ -84,15 +70,13 @@ export function resolveLocalArtifactDir(
   if (repoRoot) {
     return {
       path: join(repoRoot, '.local', 'kairos', 'work'),
-      source: 'repo_default',
-      usedCompatAlias: false
+      source: 'repo_default'
     };
   }
 
   return {
     path: join(getKairosConfigDir(env), 'work'),
-    source: 'user_config_default',
-    usedCompatAlias: false
+    source: 'user_config_default'
   };
 }
 

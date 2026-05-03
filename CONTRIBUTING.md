@@ -431,6 +431,10 @@ When goals conflict:
 3. Changes that simplify the agent-facing surface over moving complexity
   into agents.
 
+## Consumer migrations (MCP / HTTP)
+
+Tool and REST responses expose the local handoff path only as **`kairos_local_artifact_dir`** (lowercase snake of env **`KAIROS_LOCAL_ARTIFACT_DIR`**). Migrate any client or shell automation still using older env aliases or the superseded short JSON key for that path; the repository forbids reintroducing those symbols in source (see the identifier list in `eslint/plugins/kairos-forbidden-text.cjs`).
+
 ## Reporting issues
 
 Include:

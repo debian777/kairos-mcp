@@ -16,9 +16,7 @@ import {
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS,
-  KAIROS_WORK_DIR
+  KAIROS_LOCAL_ARTIFACT_DIR
 } from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
@@ -76,12 +74,6 @@ export async function runKairosServer(): Promise<void> {
 
         mkdirSync(KAIROS_LOCAL_ARTIFACT_DIR, { recursive: true });
         structuredLogger.info(`KAIROS_LOCAL_ARTIFACT_DIR: ${KAIROS_LOCAL_ARTIFACT_DIR}`);
-        structuredLogger.info(`KAIROS_WORK_DIR (compat alias): ${KAIROS_WORK_DIR}`);
-        if (KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS) {
-            structuredLogger.warn(
-                'Deprecated compat alias detected: KAIROS_WORK_DIR. Switch to KAIROS_LOCAL_ARTIFACT_DIR for future server versions.'
-            );
-        }
 
         const memoryStore = new MemoryQdrantStore();
 

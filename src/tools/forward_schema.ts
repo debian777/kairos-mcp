@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { ADAPTER_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
-import { deprecationNoticeSchema } from './local-artifact-dir-contract.js';
 
 const adapterUriSchema = z
   .string()
@@ -139,17 +138,11 @@ export const FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE =
 
 export const forwardInputSchema = z.object({
   uri: forwardUriSchema.describe('Adapter or layer URI'),
-  local_artifact_dir: z
+  kairos_local_artifact_dir: z
     .string()
     .optional()
     .describe(
-      'Optional canonical local artifact directory for this run. Use only on the start call when you want a project-local handoff directory that stays stable across layers and subagents.'
-    ),
-  kairos_work_dir: z
-    .string()
-    .optional()
-    .describe(
-      'Deprecated compat alias for local_artifact_dir. Do not use it in new clients, adapters, or docs.'
+      'Optional canonical local artifact directory for this run (JSON field name matches lowercase snake of env KAIROS_LOCAL_ARTIFACT_DIR). Use only on the start call when you want a project-local handoff directory that stays stable across layers and subagents.'
     ),
   solution: forwardSolutionSchema
     .optional()
@@ -224,14 +217,10 @@ export const forwardMcpWireInputSchema = z
       .string()
       .optional()
       .describe('Adapter or layer URI. Use adapter or layer without execution_id to start; use layer with execution_id to continue.'),
-    local_artifact_dir: z
+    kairos_local_artifact_dir: z
       .string()
       .optional()
       .describe('Optional canonical local artifact directory to pin for a new run.'),
-    kairos_work_dir: z
-      .string()
-      .optional()
-      .describe('Deprecated compat alias for local_artifact_dir. Do not use it in new clients, adapters, or docs.'),
     solution: forwardWireSolutionSchema
       .optional()
       .describe('Only for continuation calls; omit on start. Must include solution.type and the matching payload object.')
@@ -267,12 +256,8 @@ export const forwardOutputSchema = z.object({
   adapter_layer_index: z.number().int().positive().optional(),
   /** Total layers in the adapter (widget progress). */
   adapter_layer_count: z.number().int().positive().optional(),
-  /** Canonical local artifact directory for this run. Shared across layers and subagents; not a process cwd. */
-  local_artifact_dir: z.string().optional(),
-  /** Deprecated compat alias kept only for transition. Mirrors `local_artifact_dir`. */
-  kairos_work_dir: z.string().optional(),
-  /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
-  deprecations: z.array(deprecationNoticeSchema).optional()
+  /** Canonical local artifact directory for this run (same path as env KAIROS_LOCAL_ARTIFACT_DIR). */
+  kairos_local_artifact_dir: z.string().optional()
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

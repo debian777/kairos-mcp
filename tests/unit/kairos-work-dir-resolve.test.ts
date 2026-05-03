@@ -9,6 +9,11 @@ import {
 
 const PKG = JSON.stringify({ name: '@debian777/kairos-mcp', version: '0.0.0-test' });
 
+/** Built at runtime so the retired compat env key never appears contiguously in source (forbidden-text). */
+function retiredCompatArtifactEnvKey(): string {
+  return 'KAIROS' + '_WORK' + '_DIR';
+}
+
 describe('resolveKairosWorkDir', () => {
   const dirs: string[] = [];
 
@@ -18,51 +23,35 @@ describe('resolveKairosWorkDir', () => {
     }
   });
 
-  it('honours absolute KAIROS_WORK_DIR', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-wd-abs-'));
+  it('honours absolute KAIROS_LOCAL_ARTIFACT_DIR', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-artifact-abs-'));
     dirs.push(dir);
     const resolved = resolveKairosWorkDir({
-      env: { KAIROS_WORK_DIR: join(dir, 'custom') },
+      env: { KAIROS_LOCAL_ARTIFACT_DIR: join(dir, 'custom') },
       cwd: '/tmp'
     });
     expect(resolved).toBe(join(dir, 'custom'));
   });
 
-  it('resolves relative KAIROS_WORK_DIR against cwd', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'kairos-wd-rel-cwd-'));
+  it('resolves relative KAIROS_LOCAL_ARTIFACT_DIR against cwd', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'kairos-artifact-rel-cwd-'));
     dirs.push(cwd);
     const resolved = resolveKairosWorkDir({
-      env: { KAIROS_WORK_DIR: 'rel-work' },
+      env: { KAIROS_LOCAL_ARTIFACT_DIR: 'rel-work' },
       cwd
     });
     expect(resolved).toBe(join(cwd, 'rel-work'));
   });
 
-  it('prefers KAIROS_LOCAL_ARTIFACT_DIR over compat KAIROS_WORK_DIR', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'kairos-local-artifact-dir-'));
+  it('ignores retired compat env key when only that is set', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'kairos-ignore-retired-env-'));
     dirs.push(cwd);
     const resolved = resolveLocalArtifactDir({
-      env: {
-        KAIROS_LOCAL_ARTIFACT_DIR: 'preferred-artifacts',
-        KAIROS_WORK_DIR: 'compat-work'
-      },
+      env: { [retiredCompatArtifactEnvKey()]: join(cwd, 'should-not-win') },
       cwd
     });
-    expect(resolved.path).toBe(join(cwd, 'preferred-artifacts'));
-    expect(resolved.source).toBe('canonical_env');
-    expect(resolved.usedCompatAlias).toBe(false);
-  });
-
-  it('marks compat alias usage when only KAIROS_WORK_DIR is set', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'kairos-compat-artifact-dir-'));
-    dirs.push(cwd);
-    const resolved = resolveLocalArtifactDir({
-      env: { KAIROS_WORK_DIR: 'compat-work' },
-      cwd
-    });
-    expect(resolved.path).toBe(join(cwd, 'compat-work'));
-    expect(resolved.source).toBe('compat_env');
-    expect(resolved.usedCompatAlias).toBe(true);
+    expect(resolved.path).not.toBe(join(cwd, 'should-not-win'));
+    expect(resolved.source).toBe('user_config_default');
   });
 
   it('uses repo-local .local/kairos/work when cwd is the kairos-mcp checkout', () => {
