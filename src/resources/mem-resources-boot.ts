@@ -190,7 +190,8 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
     userId: '',
     groupIds: [],
     allowedSpaceIds: [KAIROS_APP_SPACE_ID],
-    defaultWriteSpaceId: KAIROS_APP_SPACE_ID
+    defaultWriteSpaceId: KAIROS_APP_SPACE_ID,
+    personalSpaceId: ''
   };
 
   await runWithSpaceContextAsync(appSpaceContext, async () => {

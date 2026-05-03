@@ -14,7 +14,8 @@ function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
       userId: '',
       groupIds: [],
       allowedSpaceIds: [KAIROS_APP_SPACE_ID],
-      defaultWriteSpaceId: KAIROS_APP_SPACE_ID
+      defaultWriteSpaceId: KAIROS_APP_SPACE_ID,
+      personalSpaceId: ''
     },
     fn
   );

@@ -249,7 +249,8 @@ New reward text after tune.
         userId: 'u1',
         groupIds: [],
         allowedSpaceIds: ['user:test-space'],
-        defaultWriteSpaceId: 'user:test-space'
+        defaultWriteSpaceId: 'user:test-space',
+        personalSpaceId: 'user:test-space'
       },
       async () =>
         executeTune(fakeQdrant as any, {

@@ -74,7 +74,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const sourceUri = stored.items[0].adapter_uri as string;
     const sourceId = parseAdapterUuidFromUri(sourceUri);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
     let loc = locationsForAdapterTitle(spaces, title);
     withRawOnFail({ call: trainGroupCall, result: trainGroupRes }, () => {
@@ -100,7 +100,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const copyId = parseAdapterUuidFromUri(copyUri);
     expect(copyId).not.toBe(sourceId);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     spaces = await loadSpacesViaMcp();
     loc = locationsForAdapterTitle(spaces, title);
     withRawOnFail({ call: forkCall, result: forkRes }, () => {
@@ -141,7 +141,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const sourceUri = stored.items[0]!.adapter_uri;
     const sourceId = parseAdapterUuidFromUri(sourceUri);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
 
     const fr = await apiFetch('/train', {
       method: 'POST',
@@ -158,7 +158,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const copyId = parseAdapterUuidFromUri(forked.items[0]!.adapter_uri);
     expect(copyId).not.toBe(sourceId);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     const spaces = await loadSpacesViaMcp();
     const loc = locationsForAdapterTitle(spaces, title);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);
@@ -201,7 +201,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const sourceUri = stored.items[0]!.adapter_uri;
     const sourceId = parseAdapterUuidFromUri(sourceUri);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
 
     const forkOut = await execAsync(
       `node ${CLI_PATH} train --url ${BASE_URL} --model test-space-fork-cli-p --force --source-adapter-uri "${sourceUri}" --space personal`,
@@ -212,7 +212,7 @@ describe('Adapter fork copy (group → personal)', () => {
     const copyId = parseAdapterUuidFromUri(forked.items[0]!.adapter_uri);
     expect(copyId).not.toBe(sourceId);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     const spaces = await loadSpacesViaMcp();
     const loc = locationsForAdapterTitle(spaces, title);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);

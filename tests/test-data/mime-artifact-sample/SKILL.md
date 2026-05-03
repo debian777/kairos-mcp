@@ -1,6 +1,6 @@
 ---
 name: mime-artifact-sample
-description: Sample adapter with one artifact per allowed non-markdown MIME type
+description: MIME artifact sample
 ---
 
 # MIME artifact sample

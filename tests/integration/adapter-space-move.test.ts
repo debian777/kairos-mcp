@@ -80,7 +80,7 @@ describe('Adapter space move (personal → group)', () => {
     const adapterUri = trained.items[0].adapter_uri as string;
     const sourceId = parseAdapterUuidFromUri(adapterUri);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
     let locBefore = locationsForAdapterTitle(spaces, title);
     withRawOnFail({ call: trainCall, result: trainRes }, () => {
@@ -98,7 +98,7 @@ describe('Adapter space move (personal → group)', () => {
       expect(tuned.results?.[0]?.status).toBe('updated');
     });
 
-    await sleepMs(2000);
+    await sleepMs(3000);
     spaces = await loadSpacesViaMcp();
     const locAfter = locationsForAdapterTitle(spaces, title);
     withRawOnFail({ call: tuneCall, result: tuneRes }, () => {
@@ -141,7 +141,7 @@ describe('Adapter space move (personal → group)', () => {
     const adapterUri = trained.items[0]!.adapter_uri;
     const sourceId = parseAdapterUuidFromUri(adapterUri);
 
-    await sleepMs(3500);
+    await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
     expect(locationsForAdapterTitle(spaces, title).some((l) => l.type === 'personal')).toBe(true);
 
@@ -154,7 +154,7 @@ describe('Adapter space move (personal → group)', () => {
     const tuned = (await tu.json()) as { total_updated: number };
     expect(tuned.total_updated).toBeGreaterThanOrEqual(1);
 
-    await sleepMs(2000);
+    await sleepMs(3000);
     spaces = await loadSpacesViaMcp();
     const locAfter = locationsForAdapterTitle(spaces, title);
     expect(locAfter.some((l) => l.type === 'group')).toBe(true);
@@ -184,7 +184,7 @@ describe('Adapter space move (personal → group)', () => {
     try {
       writeFileSync(mdPath, buildSpaceMoveMarkdown(title), 'utf8');
       const mint = await execAsync(
-        `node ${CLI_PATH} train --url ${BASE_URL} --force --model test-space-move-cli "${mdPath}"`,
+        `node ${CLI_PATH} train --url ${BASE_URL} --force --model test-space-move-cli --space personal "${mdPath}"`,
         { timeout: 60000 }
       );
       expect(mint.stderr).toBe('');
@@ -192,7 +192,7 @@ describe('Adapter space move (personal → group)', () => {
       const adapterUri = minted.items[0]!.adapter_uri;
       const sourceId = parseAdapterUuidFromUri(adapterUri);
 
-      await sleepMs(3500);
+      await sleepMs(5000);
       let spaces = await loadSpacesViaMcp();
       expect(locationsForAdapterTitle(spaces, title).some((l) => l.type === 'personal')).toBe(true);
 
@@ -204,7 +204,7 @@ describe('Adapter space move (personal → group)', () => {
       const tuned = JSON.parse(tuneOut.stdout) as { total_updated: number };
       expect(tuned.total_updated).toBeGreaterThanOrEqual(1);
 
-      await sleepMs(2000);
+      await sleepMs(3000);
       spaces = await loadSpacesViaMcp();
       const locAfter = locationsForAdapterTitle(spaces, title);
       expect(locAfter.some((l) => l.type === 'group')).toBe(true);

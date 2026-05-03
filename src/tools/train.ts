@@ -255,8 +255,17 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
       const spaceParam = rawSpace.toLowerCase();
       let resolvedSpaceId: string;
 
-      if ((params as any)?.space === undefined || rawSpace === '' || spaceParam === 'personal') {
+      if ((params as any)?.space === undefined || rawSpace === '') {
         resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+      } else if (spaceParam === 'personal') {
+        const r = resolveSpaceParamForContext(ctx, rawSpace);
+        if (!r.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: 'SPACE_NOT_FOUND', message: r.message }) }]
+          };
+        }
+        resolvedSpaceId = r.spaceId;
       } else {
         const r = resolveSpaceParamForContext(ctx, rawSpace);
         if (!r.ok) {

@@ -34,7 +34,8 @@ describe('findFirstStepMemoryUuidBySlug precedence', () => {
         userId: 'u',
         groupIds: [],
         allowedSpaceIds: ['user:realm:user-1', 'group:realm:team', KAIROS_APP_SPACE_ID],
-        defaultWriteSpaceId: 'group:realm:team'
+        defaultWriteSpaceId: 'group:realm:team',
+        personalSpaceId: 'user:realm:user-1'
       },
       () => findFirstStepMemoryUuidBySlug(conn as never, 'demo-slug')
     );
@@ -53,7 +54,8 @@ describe('findFirstStepMemoryUuidBySlug precedence', () => {
         userId: 'u',
         groupIds: [],
         allowedSpaceIds: ['group:realm:team', KAIROS_APP_SPACE_ID],
-        defaultWriteSpaceId: KAIROS_APP_SPACE_ID
+        defaultWriteSpaceId: KAIROS_APP_SPACE_ID,
+        personalSpaceId: ''
       },
       () => findFirstStepMemoryUuidBySlug(conn as never, 'demo-slug')
     );
@@ -72,7 +74,8 @@ describe('findFirstStepMemoryUuidBySlug precedence', () => {
         userId: 'u',
         groupIds: [],
         allowedSpaceIds: ['user:realm:user-1', 'group:realm:team'],
-        defaultWriteSpaceId: 'group:realm:team'
+        defaultWriteSpaceId: 'group:realm:team',
+        personalSpaceId: 'user:realm:user-1'
       },
       () => findFirstStepMemoryUuidBySlug(conn as never, 'demo-slug')
     );

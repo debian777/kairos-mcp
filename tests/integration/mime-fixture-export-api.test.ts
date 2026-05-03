@@ -24,6 +24,10 @@ import {
 } from '../utils/skill-bundle-to-train-input.js';
 import { cleanupViaApi } from '../utils/artifact-fixture-cleanup.js';
 import { loadMimeArtifactContract, readMimeFixtureUtf8 } from '../utils/mime-artifact-fixture-contract.js';
+import {
+  dumpMimeFixtureExport,
+  ensureMimeFixtureExportDumpRootCleanBeforeMimeTests
+} from '../utils/mime-fixture-export-dump.js';
 
 async function exportBundle(
   adapterUri: string,
@@ -100,6 +104,7 @@ async function retrainFromBundle(
 
 describe('mime fixture export parity via API transport', () => {
   beforeAll(async () => {
+    ensureMimeFixtureExportDumpRootCleanBeforeMimeTests();
     await waitForHealthCheck({ url: `${SKILL_EXPORT_BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
   }, 60000);
 
@@ -110,6 +115,14 @@ describe('mime fixture export parity via API transport', () => {
       const fixtureRows = loadFixtureSums();
       const stage0 = await stage0TrainFixture();
       const b0 = await exportBundle(stage0.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'api',
+        format,
+        stage: 0,
+        slug: b0.slug,
+        files: b0.files,
+        sumsBody: b0.sumsBody
+      });
       assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, contract.artifactPaths);
       assertBundleSelfVerifies(b0.files, b0.sumsBody);
 
@@ -126,6 +139,14 @@ describe('mime fixture export parity via API transport', () => {
       await cleanupViaApi(stage0.adapterUri, stage0.artifactUris);
       const stage1 = await retrainFromBundle(format, b0.slug, stage1TrainInput);
       const b1 = await exportBundle(stage1.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'api',
+        format,
+        stage: 1,
+        slug: b1.slug,
+        files: b1.files,
+        sumsBody: b1.sumsBody
+      });
       assertSumsBodyByteIdentical(b0.sumsBody, b1.sumsBody);
       assertBundleSelfVerifies(b1.files, b1.sumsBody);
 
@@ -137,6 +158,14 @@ describe('mime fixture export parity via API transport', () => {
       await cleanupViaApi(stage1.adapterUri, stage1.artifactUris);
       const stage2 = await retrainFromBundle(format, b1.slug, stage2Input);
       const b2 = await exportBundle(stage2.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'api',
+        format,
+        stage: 2,
+        slug: b2.slug,
+        files: b2.files,
+        sumsBody: b2.sumsBody
+      });
       assertSumsBodyByteIdentical(b1.sumsBody, b2.sumsBody);
       assertBundleSelfVerifies(b2.files, b2.sumsBody);
 

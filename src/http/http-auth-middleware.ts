@@ -208,10 +208,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         res.status(403).json({ error: 'forbidden', message: 'Requested space is not in your allowed spaces' });
         return;
       }
+      const personalSnapshot =
+        ctx.personalSpaceId && ctx.personalSpaceId.trim().length > 0
+          ? ctx.personalSpaceId
+          : ctx.defaultWriteSpaceId?.startsWith('user:')
+            ? ctx.defaultWriteSpaceId
+            : '';
       ctx = {
         ...ctx,
         allowedSpaceIds: [spaceParam],
-        defaultWriteSpaceId: spaceParam
+        defaultWriteSpaceId: spaceParam,
+        ...(personalSnapshot && { personalSpaceId: personalSnapshot })
       };
     }
     req.spaceContext = ctx;

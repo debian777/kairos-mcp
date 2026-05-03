@@ -15,6 +15,10 @@ import {
 } from '../utils/skill-bundle-to-train-input.js';
 import { cleanupViaMcp } from '../utils/artifact-fixture-cleanup.js';
 import { loadMimeArtifactContract, readMimeFixtureUtf8 } from '../utils/mime-artifact-fixture-contract.js';
+import {
+  dumpMimeFixtureExport,
+  ensureMimeFixtureExportDumpRootCleanBeforeMimeTests
+} from '../utils/mime-fixture-export-dump.js';
 
 async function trainStage0Fixture(mcp: Awaited<ReturnType<typeof createMcpConnection>>) {
   const contract = loadMimeArtifactContract();
@@ -119,6 +123,7 @@ describe('mime fixture export parity via MCP transport', () => {
   let mcp: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
+    ensureMimeFixtureExportDumpRootCleanBeforeMimeTests();
     mcp = await createMcpConnection();
   }, 60000);
 
@@ -133,6 +138,14 @@ describe('mime fixture export parity via MCP transport', () => {
       const fixtureRows = loadFixtureSums();
       const stage0 = await trainStage0Fixture(mcp);
       const b0 = await exportBundle(mcp, stage0.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'mcp',
+        format,
+        stage: 0,
+        slug: b0.slug,
+        files: b0.files,
+        sumsBody: b0.sumsBody
+      });
       assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, contract.artifactPaths);
       assertBundleSelfVerifies(b0.files, b0.sumsBody);
 
@@ -167,6 +180,14 @@ describe('mime fixture export parity via MCP transport', () => {
       await cleanupViaMcp(mcp, stage0.adapterUri, stage0.artifactUris);
       const stage1 = await retrainFromBundle(mcp, format, b0.slug, stage1Input);
       const b1 = await exportBundle(mcp, stage1.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'mcp',
+        format,
+        stage: 1,
+        slug: b1.slug,
+        files: b1.files,
+        sumsBody: b1.sumsBody
+      });
       assertSumsBodyByteIdentical(b0.sumsBody, b1.sumsBody);
       assertBundleSelfVerifies(b1.files, b1.sumsBody);
 
@@ -192,6 +213,14 @@ describe('mime fixture export parity via MCP transport', () => {
       await cleanupViaMcp(mcp, stage1.adapterUri, stage1.artifactUris);
       const stage2 = await retrainFromBundle(mcp, format, b1.slug, stage2Input);
       const b2 = await exportBundle(mcp, stage2.adapterUri, format);
+      dumpMimeFixtureExport({
+        transport: 'mcp',
+        format,
+        stage: 2,
+        slug: b2.slug,
+        files: b2.files,
+        sumsBody: b2.sumsBody
+      });
       assertSumsBodyByteIdentical(b1.sumsBody, b2.sumsBody);
       assertBundleSelfVerifies(b2.files, b2.sumsBody);
 

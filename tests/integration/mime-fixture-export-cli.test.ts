@@ -29,6 +29,10 @@ import {
 } from '../utils/skill-bundle-sha-assert.js';
 import { cleanupViaCli } from '../utils/artifact-fixture-cleanup.js';
 import { loadMimeArtifactContract, readMimeFixtureUtf8 } from '../utils/mime-artifact-fixture-contract.js';
+import {
+  dumpMimeFixtureExport,
+  ensureMimeFixtureExportDumpRootCleanBeforeMimeTests
+} from '../utils/mime-fixture-export-dump.js';
 
 async function pretrainFixtureViaApi(): Promise<{ adapterUri: string; artifactLayerUris: string[] }> {
   const contract = loadMimeArtifactContract();
@@ -52,6 +56,7 @@ describe('mime fixture export parity via CLI transport', () => {
   let artifactLayerUris: string[] = [];
 
   beforeAll(async () => {
+    ensureMimeFixtureExportDumpRootCleanBeforeMimeTests();
     serverAvailable = await setupServerCheck();
     cliLoggedIn = await setupCliConfigWithLogin();
     requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
@@ -83,6 +88,14 @@ describe('mime fixture export parity via CLI transport', () => {
     const treeFiles = new Map<string, Buffer>();
     for (const f of treeParsed.skills[0]!.files) treeFiles.set(f.path, Buffer.from(f.content, 'utf8'));
     assertBundleSelfVerifies(treeFiles, tree.body);
+    dumpMimeFixtureExport({
+      transport: 'cli',
+      format: 'skill_tree',
+      stage: 0,
+      slug,
+      files: treeFiles,
+      sumsBody: tree.body
+    });
 
     const outDir = mkdtempSync(join(tmpdir(), 'mime-fixture-cli-'));
     const zipOut = join(outDir, 'bundle.zip');
@@ -91,6 +104,14 @@ describe('mime fixture export parity via CLI transport', () => {
     const zip = extractSumsFromZip(zipBytes, slug);
     assertArtifactSumsMatchFixture(zip.rows, fixtureRows, contract.artifactPaths);
     assertBundleSelfVerifies(zip.files, zip.body);
+    dumpMimeFixtureExport({
+      transport: 'cli',
+      format: 'skill_zip',
+      stage: 0,
+      slug,
+      files: zip.files,
+      sumsBody: zip.body
+    });
 
     expect(zip.body).toBe(tree.body);
   }, 120000);

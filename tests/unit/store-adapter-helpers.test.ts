@@ -20,7 +20,8 @@ describe('handleDuplicateAdapter protected-space guard', () => {
           userId: 'u1',
           groupIds: [],
           allowedSpaceIds: ['space:personal', 'space:kairos-app'],
-          defaultWriteSpaceId: 'space:personal'
+          defaultWriteSpaceId: 'space:personal',
+          personalSpaceId: 'space:personal'
         },
         async () => handleDuplicateAdapter(client as any, 'kairos', 'adapter-uuid', true)
       )
@@ -44,7 +45,8 @@ describe('handleDuplicateAdapter protected-space guard', () => {
         userId: 'u1',
         groupIds: [],
         allowedSpaceIds: ['user:realm:uuid', 'group:realm:group-uuid'],
-        defaultWriteSpaceId: 'user:realm:uuid'
+        defaultWriteSpaceId: 'user:realm:uuid',
+        personalSpaceId: 'user:realm:uuid'
       },
       async () => handleDuplicateAdapter(client as any, 'kairos', 'adapter-uuid', true)
     );

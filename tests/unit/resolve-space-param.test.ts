@@ -4,17 +4,34 @@ import { resolveSpaceParamForContext } from '../../src/utils/resolve-space-param
 import type { SpaceContext } from '../../src/utils/tenant-context.js';
 
 function ctx(partial: Partial<SpaceContext> & Pick<SpaceContext, 'allowedSpaceIds' | 'defaultWriteSpaceId'>): SpaceContext {
+  const dw = partial.defaultWriteSpaceId;
+  const personal =
+    partial.personalSpaceId ??
+    (dw.startsWith('user:') ? dw : partial.allowedSpaceIds.find((id) => id.startsWith('user:')) ?? '');
   return {
     userId: 'u',
     groupIds: [],
     allowedSpaceIds: partial.allowedSpaceIds,
     defaultWriteSpaceId: partial.defaultWriteSpaceId,
+    personalSpaceId: personal,
     spaceNamesById: partial.spaceNamesById,
     requestId: partial.requestId
   };
 }
 
 describe('resolveSpaceParamForContext', () => {
+  it('maps personal to JWT personal when default write is narrowed to a group', () => {
+    const userId = 'user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a';
+    const groupId = 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc';
+    const c = ctx({
+      allowedSpaceIds: [groupId],
+      defaultWriteSpaceId: groupId,
+      personalSpaceId: userId,
+      spaceNamesById: { [groupId]: '/team' }
+    });
+    expect(resolveSpaceParamForContext(c, 'personal')).toEqual({ ok: true, spaceId: userId });
+  });
+
   it('maps personal to default write space', () => {
     const c = ctx({
       allowedSpaceIds: ['user:r:6a4a7375-e6a6-5f7e-b972-f4fbf31a5e0a', 'group:r:7d75dbf1-07e1-5182-b95c-89e4ea7d89cc'],
