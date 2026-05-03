@@ -66,9 +66,7 @@ flowchart LR
 | **`must_obey`** | boolean | Always **`true`** on success. |
 | **`message`**, **`next_action`**, **`query`** | string | Global and echoed query. |
 | **`choices`** | array | Non-empty; see per-choice shape below. |
-| **`local_artifact_dir`** | string | optional |
-| **`kairos_work_dir`** | string | optional; compat alias |
-| **`deprecations`** | array | optional |
+| **`kairos_local_artifact_dir`** | string | optional; absolute handoff path (JSON key matches lowercase snake of `KAIROS_LOCAL_ARTIFACT_DIR`) |
 
 **Each choice:** **`uri`**, **`label`**, **`adapter_name`**, **`activation_score`**
 (0.0 to 1.0 or null), **`role`** (`match` \| `refine` \| `create`), **`tags`**,

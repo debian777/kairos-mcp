@@ -9,6 +9,9 @@
 // Banned wording: drop obsolete code/shims; rephrase comments (older format, transitional, compat)—never strip useful docs just to silence a hit.
 const KAIROS_FORBIDDEN_LEGACY_REFERENCE_NAMES = [
   'KAIROS_BEARER_TOKEN',
+  'KAIROS_WORK_DIR',
+  'kairos_work_dir',
+  'local_artifact_dir',
   'kairos_begin',
   'kairos_attest',
   'kairos_delete',
@@ -92,6 +95,15 @@ function escapeRegExp(s) {
 function kairosForbiddenLegacyReferenceMessage(canonical, matched) {
   if (canonical === 'KAIROS_BEARER_TOKEN') {
     return `Disallowed legacy env key "${matched}" (same as ${canonical}, case-insensitive). Use the config file for tokens; authenticate (e.g. kairos login or OAuth PKCE) instead of embedding this in source.`;
+  }
+  if (canonical === 'KAIROS_WORK_DIR') {
+    return `Disallowed retired local-artifact env key "${matched}" (same as ${canonical}, case-insensitive). Use KAIROS_LOCAL_ARTIFACT_DIR only.`;
+  }
+  if (canonical === 'kairos_work_dir') {
+    return `Disallowed retired JSON field name "${matched}" (same as ${canonical}, case-insensitive). Use kairos_local_artifact_dir only (lowercase snake of KAIROS_LOCAL_ARTIFACT_DIR).`;
+  }
+  if (canonical === 'local_artifact_dir') {
+    return `Disallowed retired short JSON key for the local artifact path (matched "${matched}", case-insensitive). Use kairos_local_artifact_dir only (lowercase snake of KAIROS_LOCAL_ARTIFACT_DIR).`;
   }
   if (canonical === 'legacy') {
     return `Disallowed prior-era wording (matched "${matched}", case-insensitive substring). AI: remove obsolete code paths, compatibility shims, and dual implementations—leave a single supported path. Reword identifiers and prose accordingly (e.g. older format, transitional, compat); do not delete useful documentation only to pass lint. Third-party APIs whose identifiers contain this substring: build the key or value at runtime (e.g. string concat) so the forbidden substring does not appear contiguously in source.`;

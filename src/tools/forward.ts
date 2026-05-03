@@ -98,17 +98,15 @@ export async function executeForward(
   const adapterId = getAdapterId(memory);
   const adapterUri = buildAdapterUri(adapterId);
   const executionId = parsed.kind === 'layer' && parsed.executionId ? parsed.executionId : crypto.randomUUID();
-  const requestedLocalArtifactDir = input.local_artifact_dir?.trim() || input.kairos_work_dir?.trim() || '';
+  const requestedLocalArtifactDir = input.kairos_local_artifact_dir?.trim() || '';
   const localArtifactDir = requestedLocalArtifactDir || KAIROS_LOCAL_ARTIFACT_DIR;
-  const artifactDirCompatAliasUsed = !input.local_artifact_dir && !!input.kairos_work_dir;
 
   if (!(parsed.kind === 'layer' && parsed.executionId)) {
     await forwardRuntimeStore.startExecution({
       execution_id: executionId,
       adapter_id: adapterId,
       adapter_uri: adapterUri,
-      local_artifact_dir: localArtifactDir,
-      ...(artifactDirCompatAliasUsed ? { artifact_dir_compat_alias_used: true } : {}),
+      kairos_local_artifact_dir: localArtifactDir,
       merge_depth: 0,
       created_at: new Date().toISOString(),
       ...(loaded.slug_disambiguation_note

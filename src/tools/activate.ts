@@ -11,15 +11,8 @@ import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { KAIROS_CREATION_FOOTER_NEXT_ACTION } from '../constants/builtin-search-meta.js';
-import {
-  KAIROS_LOCAL_ARTIFACT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-} from '../config.js';
-import {
-  appendLocalArtifactDirDeprecationMessage,
-  buildLocalArtifactDirFields,
-  maybeBuildLocalArtifactDirDeprecations
-} from './local-artifact-dir-contract.js';
+import { KAIROS_LOCAL_ARTIFACT_DIR } from '../config.js';
+import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -76,21 +69,14 @@ async function mapSearchToActivate(
 
   const groundingReminder =
     'Protocols are interfaces for AI agents. Choose the adapter that serves the human\'s real need, follow it exactly, and never fabricate proof.';
-  const deprecations = maybeBuildLocalArtifactDirDeprecations(
-    KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-  );
 
   return {
     must_obey: true,
-    message: appendLocalArtifactDirDeprecationMessage(
-      `${groundingReminder}\n\n${searchOutput.message}`,
-      KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS
-    ) ?? `${groundingReminder}\n\n${searchOutput.message}`,
+    message: `${groundingReminder}\n\n${searchOutput.message}`,
     next_action: "Pick one choice and follow that choice's next_action.",
     query,
     choices,
-    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR),
-    ...(deprecations ? { deprecations } : {})
+    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR)
   };
 }
 

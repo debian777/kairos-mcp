@@ -10,11 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseOidcScopesSupported } from './http/oidc-scopes.js';
 import { normalizeRedisUrl } from './utils/normalize-redis-url.js';
-import {
-  resolveLocalArtifactDir,
-  KAIROS_LOCAL_ARTIFACT_DIR_ENV,
-  KAIROS_WORK_DIR_ENV
-} from './utils/kairos-work-dir-resolve.js';
+import { resolveLocalArtifactDir, KAIROS_LOCAL_ARTIFACT_DIR_ENV } from './utils/kairos-work-dir-resolve.js';
 export { DEFAULT_OIDC_SCOPES_SUPPORTED, parseOidcScopesSupported } from './http/oidc-scopes.js';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
@@ -68,10 +64,7 @@ const KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED = resolveLocalArtifactDir({
   runtimeDir: KAIROS_CONFIG_MODULE_DIR
 });
 export const KAIROS_LOCAL_ARTIFACT_DIR = KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED.path;
-export const KAIROS_WORK_DIR = `${KAIROS_LOCAL_ARTIFACT_DIR}`;
-export const KAIROS_LOCAL_ARTIFACT_DIR_USED_COMPAT_ALIAS =
-  KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED.usedCompatAlias;
-export { KAIROS_LOCAL_ARTIFACT_DIR_ENV, KAIROS_WORK_DIR_ENV };
+export { KAIROS_LOCAL_ARTIFACT_DIR_ENV };
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');

@@ -5,7 +5,6 @@
  * Added error_code and retry_count for two-phase retry escalation.
  */
 import { z } from 'zod';
-import { deprecationNoticeSchema } from './local-artifact-dir-contract.js';
 
 const layerUriSchema = z
   .string()
@@ -96,11 +95,7 @@ export const nextOutputSchema = z.object({
   error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)'),
   /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
-  local_artifact_dir: z.string().optional(),
-  /** Deprecated compat alias kept only for transition. Mirrors `local_artifact_dir`. */
-  kairos_work_dir: z.string().optional(),
-  /** Optional machine-readable compatibility warnings for compat artifact-dir aliases. */
-  deprecations: z.array(deprecationNoticeSchema).optional()
+  kairos_local_artifact_dir: z.string().optional()
 });
 
 export { layerUriSchema };
