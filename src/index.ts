@@ -66,7 +66,11 @@ async function waitForQdrant(memoryStore: MemoryQdrantStore, maxRetries: number 
     throw new Error(`Qdrant did not become available after ${maxRetries} attempts (${maxRetries * intervalMs / 1000}s)`);
 }
 
-/** Boot the HTTP/MCP application (same path as `node dist/index.js`). Safe to import when not the entry script. */
+/**
+ * Boot the HTTP/MCP application.
+ * Invoked when `node dist/index.js` is the process entrypoint, or after `dist/bootstrap.js` loads this module
+ * (bootstrap is not `index.js`, so `isDirectRun()` is false there and bootstrap must call this explicitly).
+ */
 export async function runKairosServer(): Promise<void> {
     try {
         // Install once at startup to capture any background errors/warnings
