@@ -1,5 +1,10 @@
 /**
  * CLI `train` command (single file or directory batch).
+ *
+ * TODO(artifact-cli-train): CLI currently accepts only markdown inputs.
+ * Add non-markdown artifact ingest (`--mime`, `--artifact-name`,
+ * `--relative-path` and/or skill-directory walker) for full parity with API/MCP.
+ * See docs/specs/artifact-export-parity-spec.md.
  */
 
 import { Command } from 'commander';

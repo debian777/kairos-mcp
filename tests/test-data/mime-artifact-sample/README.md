@@ -1,23 +1,54 @@
 # mime-artifact-sample
 
-Fixture adapter for integration tests: one **non-markdown** artifact per allowed `content_type` (`train-store` allowlist), plus valid adapter Markdown.
+This fixture is the byte-level contract for MIME artifact end-to-end export
+parity tests.
 
-Layout (skill root = this directory):
+It contains one non-markdown artifact for each currently allowed train MIME,
+plus valid adapter markdown in `SKILL.md`.
+
+## fixture layout
+
+Use this directory as the skill root during fixture-driven tests.
 
 | Path | Purpose |
 | --- | --- |
-| `SKILL.md` | Train with `POST /api/train/raw` (or MCP **`train`**) — adapter Markdown. |
-| `notes.txt` | Source for the **`text/plain`** artifact (upload body). |
-| `conf/app-config.toml`, `conf/routes.yaml` | Config artifacts (`text/x-toml`, `text/yaml`). |
-| `scripts/hello.*` | Runnable scripts (`text/x-python`, `text/x-shellscript`, `text/javascript`, `text/x-perl`). |
+| `SHA256SUMS` | GNU-style checksums for this fixture. Run `shasum -a 256 -c SHA256SUMS` from this directory. |
+| `SKILL.md` | Adapter markdown input for `POST /api/train/raw` or MCP `train`. |
+| `notes.txt` | Artifact source for `text/plain`. |
+| `conf/app-config.toml`, `conf/routes.yaml` | Artifact sources for `text/x-toml` and `text/yaml`. |
+| `scripts/hello.*` | Artifact sources for `text/x-python`, `text/x-shellscript`, `text/javascript`, and `text/x-perl`. |
 
-`SKILL.md` uses **four** `shell` proof-of-work layers (one per `hello.*`), each with its own **`interpreter`** / **`flags`** / **`args`** / **`cmd`** / **`timeout_seconds`** — no `grep`; exit code only.
+## byte contract
 
-Attach non-markdown files via `POST /api/train` JSON (or MCP **`train`**) with `mime`, `artifact_name`, `adapter_uri`, and `content` read from the paths above.
+The fixture files are train-input bytes.
 
-Set `KAIROS_MIME_SAMPLE_ROOT` to the absolute path of this directory when running scripts from another cwd; otherwise run from the skill root.
+- Artifact files in this fixture must not carry trailing whitespace or trailing
+  newline bytes.
+- `SHA256SUMS` uses bytewise path sort order to match export behavior.
+- `SHA256SUMS` is expected to pass `shasum -a 256 -c` from this directory.
 
-| Source file | `mime` for `POST /api/train` |
+Stage 0 export contract:
+
+- The seven non-markdown artifact rows in exported `<slug>/SHA256SUMS` must
+  match the corresponding rows in this fixture.
+- The `SKILL.md` row can differ at Stage 0 because export regenerates markdown
+  shape (`buildSkillMdFile`), and this is expected.
+
+Stage 1+ export contract:
+
+- Retraining from Stage 0 output and exporting again must produce a
+  byte-identical `SHA256SUMS` body across rounds, including the `SKILL.md` row.
+
+## train inputs
+
+Attach non-markdown files through `POST /api/train` JSON (or MCP `train`) with
+`mime`, `artifact_name`, `adapter_uri`, and `content` read from the paths
+listed below.
+
+Set `KAIROS_MIME_SAMPLE_ROOT` to this directory when running scripts from
+another working directory.
+
+| Source file | `mime` for artifact train |
 | --- | --- |
 | `scripts/hello.py` | `text/x-python` |
 | `scripts/hello.sh` | `text/x-shellscript` |
