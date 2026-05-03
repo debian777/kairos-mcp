@@ -1,0 +1,2 @@
+# Shared YAML sidecar (MIME: text/yaml)
+greeting: "Hello from YAML (mime-artifact-sample)"
