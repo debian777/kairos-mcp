@@ -1,21 +1,11 @@
 ---
 name: kairos
 description: >-
-  KAIROS action routing for operational requests.
-  Use this skill when the user's message asks the agent to carry out an action,
-  task, workflow, or procedure.
-  Route those requests through KAIROS before implementation tools so the agent
-  follows approved adapters and workflows instead of ad hoc execution.
-  Trigger on ANY action intent: write, draft, compose, create, build, implement, 
-  code, fix, debug, resolve, deploy, publish, migrate, configure, set up, install, 
-  upgrade, update, edit, rewrite, refactor, improve, review, audit, check, validate, 
-  test, standardize, automate, generate, report, plan, design, document, file, 
-  submit, open, close, merge, push, commit, sync, clone, export, import, send, 
-  notify, schedule, assign, prioritize, triage, do, perform, execute, handle, 
-  run, process, complete, finish, start — or when the user describes a
-  procedure or asks “how to” perform an operation.
-  If no protocol exists, KAIROS can refine the search or create one.
-  Normal flow: detect → activate → follow next_action exactly → reward → respond.
+  KAIROS action routing for operational requests. Use when the user wants an action,
+  task, workflow, or procedure (typical verbs: write, fix, test, merge, deploy, review,
+  publish, commit, configure, migrate, and similar). Call activate before implementation
+  tools; follow next_action through forward to reward. If nothing matches, refine the query
+  or register new adapter markdown via train.
 
 metadata:
   version: "4.3.0-rc.3"
