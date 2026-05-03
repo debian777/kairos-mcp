@@ -1,0 +1,2 @@
+# Shared config consumed by hello scripts (MIME: text/x-toml)
+message = "Hello from TOML (mime-artifact-sample)"
