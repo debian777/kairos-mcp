@@ -1,5 +1,33 @@
 import { z } from 'zod';
+import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
 import { ADAPTER_URI_INPUT_REGEX } from './kairos-uri.js';
+
+function refineTrainRelativePath(
+  value: { mime?: string | undefined; relative_path?: string | undefined },
+  ctx: z.RefinementCtx
+): void {
+  const mime = typeof value.mime === 'string' ? value.mime.trim() : '';
+  const rawRp = typeof value.relative_path === 'string' ? value.relative_path.trim() : '';
+  if (!rawRp) {
+    return;
+  }
+  if (!mime || mime === 'text/markdown') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['relative_path'],
+      message: 'relative_path is only allowed when mime is a non-markdown artifact type'
+    });
+    return;
+  }
+  if (!normalizeArtifactRelativePath(rawRp)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['relative_path'],
+      message:
+        'relative_path must be a skill-root-relative path without .. segments (use forward slashes)'
+    });
+  }
+}
 
 const adapterUriSchema = z
   .string()
@@ -38,7 +66,13 @@ export const trainInputSchema = z
     ,
     adapter_uri: adapterUriSchema
       .optional()
-      .describe('Attach artifact to an existing adapter. Required when mime is non-markdown.')
+      .describe('Attach artifact to an existing adapter. Required when mime is non-markdown.'),
+    relative_path: z
+      .string()
+      .optional()
+      .describe(
+        'Optional path relative to the skill root for this artifact (preserved on skill export). Forward slashes; no .. segments.'
+      )
   })
   .superRefine((value, ctx) => {
     const md = typeof value.content === 'string' ? value.content.trim() : '';
@@ -68,6 +102,8 @@ export const trainInputSchema = z
         });
       }
     }
+
+    refineTrainRelativePath(value, ctx);
   });
 
 export const trainOutputSchema = z.object({
@@ -103,8 +139,15 @@ export const trainStoreInputSchema = z.object({
   fork_new_adapter: z
     .boolean()
     .optional()
-    .describe('Internal: mint new adapter id (train fork from source_adapter_uri)')
-});
+    .describe('Internal: mint new adapter id (train fork from source_adapter_uri)'),
+  relative_path: z
+    .string()
+    .optional()
+    .describe('Normalized skill-root-relative path for artifact storage (internal)')
+})
+  .superRefine((value, ctx) => {
+    refineTrainRelativePath(value, ctx);
+  });
 
 export const trainStoreOutputSchema = z.object({
   items: z.array(

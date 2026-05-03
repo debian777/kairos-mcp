@@ -8,6 +8,7 @@ import { executeTrainStore, TrainError } from './train-store.js';
 import { executeDump } from './dump.js';
 import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
 import { buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
+import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
 import {
   trainInputSchema,
   trainOutputSchema,
@@ -154,6 +155,10 @@ export async function executeTrain(
     ? await resolveCanonicalAdapterUriForArtifact(input.adapter_uri, qdrantService)
     : input.adapter_uri;
   const forkedFromSource = typeof input.source_adapter_uri === 'string' && input.source_adapter_uri.trim().length > 0;
+  const normalizedArtifactRelativePath =
+    typeof input.relative_path === 'string' && input.relative_path.trim().length > 0
+      ? normalizeArtifactRelativePath(input.relative_path.trim())
+      : undefined;
   const storePayload = {
     content,
     llm_model_id: input.llm_model_id,
@@ -163,7 +168,10 @@ export async function executeTrain(
     ...(input.mime !== undefined && { mime: input.mime }),
     ...(input.artifact_name !== undefined && { artifact_name: input.artifact_name }),
     ...(canonicalAdapterUri !== undefined && { adapter_uri: canonicalAdapterUri }),
-    ...(forkedFromSource && { fork_new_adapter: true })
+    ...(forkedFromSource && { fork_new_adapter: true }),
+    ...(normalizedArtifactRelativePath !== undefined && normalizedArtifactRelativePath !== null && {
+      relative_path: normalizedArtifactRelativePath
+    })
   };
   const result = await executeTrainStore(
     memoryStore,

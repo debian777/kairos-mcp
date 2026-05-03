@@ -52,18 +52,23 @@ export async function trainArtifact(
   adapterUri: string,
   name: string,
   mime: string,
-  body: string
+  body: string,
+  options?: { relative_path?: string }
 ): Promise<string> {
+  const payload: Record<string, unknown> = {
+    llm_model_id: 'test-model',
+    content: body,
+    mime,
+    artifact_name: name,
+    adapter_uri: adapterUri
+  };
+  if (typeof options?.relative_path === 'string' && options.relative_path.trim().length > 0) {
+    payload.relative_path = options.relative_path.trim();
+  }
   const res = await fetch(`${SKILL_EXPORT_API_BASE}/train`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({
-      llm_model_id: 'test-model',
-      content: body,
-      mime,
-      artifact_name: name,
-      adapter_uri: adapterUri
-    })
+    body: JSON.stringify(payload)
   });
   if (!res.ok) {
     const text = await res.text();

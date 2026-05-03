@@ -9,6 +9,7 @@ import {
   type ArtifactSanitizationRule
 } from './artifact-sanitization/index.js';
 import type { SkillExportDiagnostic, SkillExportFile } from './types.js';
+import { normalizeArtifactRelativePath } from '../artifact-relative-path.js';
 import { sha256Hex } from './sha256.js';
 
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
@@ -69,7 +70,23 @@ export async function loadArtifactFilesForAdapter(
       const text = typeof payload['text'] === 'string' ? payload['text'] : '';
       const ct = typeof payload['content_type'] === 'string' ? payload['content_type'] : 'text/plain';
       const safeName = name.replace(/[/\\]/g, '_');
-      const rel = `artifacts/${safeName}`;
+      const storedRel =
+        typeof artifactPayload['relative_path'] === 'string' ? artifactPayload['relative_path'].trim() : '';
+      const normalizedStored = storedRel.length > 0 ? normalizeArtifactRelativePath(storedRel) : null;
+      let rel: string;
+      if (normalizedStored) {
+        rel = normalizedStored;
+      } else {
+        if (storedRel.length > 0) {
+          diagnostics.push({
+            severity: 'warning',
+            code: 'artifact_relative_path_invalid',
+            message:
+              `Ignoring invalid artifact.relative_path for "${name}"; falling back to artifacts/${safeName}.`
+          });
+        }
+        rel = `artifacts/${safeName}`;
+      }
       diagnostics.push(
         ...runArtifactSanitization({ relativePath: rel, declaredContentType: ct }, rules)
       );

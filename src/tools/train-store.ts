@@ -70,7 +70,11 @@ export async function executeTrainStore(
         name: input.artifact_name!,
         adapterUri: input.adapter_uri!,
         llmModelId: input.llm_model_id,
-        forceUpdate: !!input.force_update
+        forceUpdate: !!input.force_update,
+        ...(typeof input.relative_path === 'string' &&
+          input.relative_path.trim().length > 0 && {
+            relativePath: input.relative_path.trim()
+          })
       })
     );
     return {

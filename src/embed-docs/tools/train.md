@@ -11,6 +11,7 @@ Register a new **adapter** from markdown (one H1 = one adapter; each verifiable 
 - `mime` (optional) — content MIME type. Defaults to `text/markdown`.
 - `artifact_name` (required when `mime` is not `text/markdown`) — file name shown when listing adapter artifacts.
 - `adapter_uri` (required when `mime` is not `text/markdown`) — `kairos://adapter/{uuid}` or `kairos://adapter/{slug}` target adapter for the artifact attachment.
+- `relative_path` (optional, non-markdown artifacts only) — path relative to the skill bundle root (forward slashes; no `..` segments). When set, **`export`** **`skill_zip`** and **`skill_tree`** place the file at this path instead of the default **`artifacts/<sanitized artifact name>`** layout.
 
 **Required structure (validated before store)**
 
