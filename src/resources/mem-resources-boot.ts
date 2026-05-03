@@ -77,7 +77,12 @@ async function readMemFiles(memDir?: string): Promise<Record<string, string>> {
   return memResources;
 }
 
-async function removeAppSpaceSystemProtocolDuplicates(memoryStore: MemoryQdrantStore): Promise<void> {
+/**
+ * Boot dedup helper (currently not called). Compared Qdrant point id to canonical filename UUID;
+ * only layer 1 is remapped to that id, so sibling layers were wrongly deleted as "duplicates".
+ * Re-enable after fixing to dedupe by `adapter.id`, not point id.
+ */
+async function _removeAppSpaceSystemProtocolDuplicates(memoryStore: MemoryQdrantStore): Promise<void> {
   const { client, collection } = memoryStore.getQdrantAccess();
   let totalRemoved = 0;
 
@@ -275,7 +280,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
 
     structuredLogger.info(`[mem-resources-boot] Successfully injected ${injectedCount} mem resources into Qdrant`);
 
-    await removeAppSpaceSystemProtocolDuplicates(memoryStore);
+    // await _removeAppSpaceSystemProtocolDuplicates(memoryStore); // see docstring on _removeAppSpaceSystemProtocolDuplicates
     await assertSystemProtocolStaticUuids(memoryStore);
     structuredLogger.info('[mem-resources-boot] Verified static UUID invariant for bundled system protocols');
 
