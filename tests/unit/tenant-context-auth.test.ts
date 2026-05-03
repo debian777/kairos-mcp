@@ -17,6 +17,7 @@ describe('tenant-context auth-derived spaces', () => {
     const b = getSpaceContext(req);
 
     expect(a.defaultWriteSpaceId).toBe(b.defaultWriteSpaceId);
+    expect(a.personalSpaceId).toBe(a.defaultWriteSpaceId);
     expect(a.allowedSpaceIds).toEqual(b.allowedSpaceIds);
     expect(a.allowedSpaceIds).toHaveLength(3);
     expect(a.defaultWriteSpaceId).toMatch(/^user:kairos-dev:/);

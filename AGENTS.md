@@ -50,7 +50,13 @@ files; they are authoritative.
 - Add a `contract` JSON block to every verifiable step when authoring for **`train`**.
 - Use space names in tool parameters; the backend resolves to IDs.
 - Follow repo build/test contract from **[`CONTRIBUTING.md`](CONTRIBUTING.md)** and
-  **[`.cursor/skills/repo-build-test/SKILL.md`](.cursor/skills/repo-build-test/SKILL.md)**.
+  **[`.agent/skills/kmcp-dev-build-test/SKILL.md`](.agent/skills/kmcp-dev-build-test/SKILL.md)**.
+- For **maintainer E2E QA of MCP tools** against dev (MCP-only phase, then
+  `.local/` trace reports, failing tests, plan/fix), follow
+  **[`.agent/skills/kmcp-dev-mcp-qa-e2e/SKILL.md`](.agent/skills/kmcp-dev-mcp-qa-e2e/SKILL.md)**.
+- For **repo-local maintainer workflows** (build, release, Git safety, UI specs,
+  MCP QA, bug ship), see **[`.agent/skills/README.md`](.agent/skills/README.md)**
+  — skills there use YAML `name` prefix **`kmcp-dev-`** (Kairos MCP development).
 
 ## MUST NEVER (repo context)
 

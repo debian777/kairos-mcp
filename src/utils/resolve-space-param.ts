@@ -42,7 +42,11 @@ export function resolveSpaceParamForContext(
 
   const spaceParam = trimmed.toLowerCase();
   if (spaceParam === 'personal') {
-    const spaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+    const fromJwt =
+      typeof ctx.personalSpaceId === 'string' && ctx.personalSpaceId.trim().length > 0
+        ? ctx.personalSpaceId.trim()
+        : '';
+    const spaceId = fromJwt || ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
     if (!spaceId) {
       return { ok: false, code: 'SPACE_NOT_FOUND', message: 'No personal or default space in context.' };
     }

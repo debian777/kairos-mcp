@@ -28,6 +28,8 @@ export interface StoreArtifactOptions {
   adapterUri: string;
   llmModelId: string;
   forceUpdate?: boolean;
+  /** Skill-root-relative path (normalized); used for slug uniqueness and skill export layout. */
+  relativePath?: string;
 }
 
 export class MemoryQdrantStoreAdapter {

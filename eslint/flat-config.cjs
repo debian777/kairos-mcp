@@ -87,6 +87,8 @@ function createFlatConfig(rootDir) {
         '**/.kilocodeignore',
         '**/*.disabled',
         '**/*.py',
+        // Fixture trees: mixed extensions; exclude whole dir from **/*.* max-lines + parsers.
+        'tests/test-data/**',
         '**/__pycache__/**',
         '**/*.pyc',
         '**/.cursorrules',

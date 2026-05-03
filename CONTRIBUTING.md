@@ -375,7 +375,7 @@ lint automatically; version-bump commits (only `package.json` and
 version/skills checks when relevant, `lint:skills` when `skills/` is staged,
 then drops any staged paths whose blob is missing from the object database
 immediately before and after `**npm run lint**`. For worktree index issues,
-see `**.cursor/skills/git-worktree-index-repair/SKILL.md**`. Hook history:
+see `**.agent/skills/kmcp-dev-git-index-repair/SKILL.md**`. Hook history:
 `git log -- .husky/pre-commit`.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for

@@ -24,7 +24,11 @@ export async function storeArtifact(
     throw new Error('adapterUri must be a kairos://adapter/{uuid} URI');
   }
   const adapterId = parsed.id;
-  const artifact = extractArtifactMetadata(content, options.name);
+  const slugSource =
+    typeof options.relativePath === 'string' && options.relativePath.trim().length > 0
+      ? options.relativePath.trim()
+      : options.name;
+  const artifact = extractArtifactMetadata(content, slugSource);
   const sha256 = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
   const vectorSize = getEmbeddingDimension();
   const zeroVector = Array.from({ length: vectorSize }, () => 0);
@@ -73,7 +77,10 @@ export async function storeArtifact(
           slug: artifact.slug,
           version: artifact.version,
           name: options.name,
-          sha256
+          sha256,
+          ...(typeof options.relativePath === 'string' && options.relativePath.trim().length > 0
+            ? { relative_path: options.relativePath.trim() }
+            : {})
         },
         adapter: {
           id: adapterId,
@@ -97,7 +104,10 @@ export async function storeArtifact(
       slug: artifact.slug,
       version: artifact.version,
       name: options.name,
-      sha256
+      sha256,
+      ...(typeof options.relativePath === 'string' && options.relativePath.trim().length > 0
+        ? { relative_path: options.relativePath.trim() }
+        : {})
     },
     adapter: {
       id: adapterId,

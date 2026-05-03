@@ -10,6 +10,7 @@ describe('getSearchSpaceIds', () => {
       groupIds: [],
       allowedSpaceIds: ['user:r:sub1'],
       defaultWriteSpaceId: 'user:r:sub1',
+      personalSpaceId: 'user:r:sub1',
       activateSpaceScope: ['user:r:sub1']
     };
     runWithSpaceContext(scoped, () => {
@@ -22,7 +23,8 @@ describe('getSearchSpaceIds', () => {
       userId: 'u',
       groupIds: [],
       allowedSpaceIds: ['user:r:sub1'],
-      defaultWriteSpaceId: 'user:r:sub1'
+      defaultWriteSpaceId: 'user:r:sub1',
+      personalSpaceId: 'user:r:sub1'
     };
     runWithSpaceContext(full, () => {
       const ids = getSearchSpaceIds();
@@ -37,6 +39,7 @@ describe('getSearchSpaceIds', () => {
       groupIds: [],
       allowedSpaceIds: [KAIROS_APP_SPACE_ID],
       defaultWriteSpaceId: 'user:r:sub1',
+      personalSpaceId: 'user:r:sub1',
       activateSpaceScope: [KAIROS_APP_SPACE_ID]
     };
     runWithSpaceContext(appScoped, () => {

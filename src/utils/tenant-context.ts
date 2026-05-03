@@ -25,6 +25,12 @@ export interface SpaceContext {
   groupIds: string[];
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
+  /**
+   * User personal space id (`user:…`) from JWT, unchanged when `?space=` narrows
+   * `allowedSpaceIds` / `defaultWriteSpaceId` to a group. Used to resolve explicit
+   * `space: "personal"` on train/tune so it cannot alias to the query-scoped group.
+   */
+  personalSpaceId: string;
   /** Human labels for currently allowed spaces (token/session-derived only). */
   spaceNamesById?: Record<string, string>;
   requestId?: string;
@@ -41,6 +47,7 @@ const NO_CONTEXT_SENTINEL: SpaceContext = {
   groupIds: [],
   allowedSpaceIds: [],
   defaultWriteSpaceId: '',
+  personalSpaceId: '',
   spaceNamesById: {},
   requestId: ''
 };
@@ -55,6 +62,7 @@ function defaultSpaceContext(): SpaceContext {
     groupIds: [],
     allowedSpaceIds: [personalSpaceId, appSpaceId],
     defaultWriteSpaceId: personalSpaceId,
+    personalSpaceId: personalSpaceId,
     spaceNamesById: { [personalSpaceId]: 'Personal', [appSpaceId]: 'Kairos app' },
     requestId: ''
   };
@@ -67,6 +75,7 @@ function noDefaultSpaceContext(): SpaceContext {
     groupIds: [],
     allowedSpaceIds: [],
     defaultWriteSpaceId: NO_AUTH_SPACE_ID,
+    personalSpaceId: '',
     spaceNamesById: {},
     requestId: ''
   };
@@ -158,6 +167,7 @@ export async function runWithOptionalSpaceAsync<T>(spaceParam: string | undefine
     ...ctx,
     allowedSpaceIds: [spaceId],
     defaultWriteSpaceId: readOnlyAppScope ? ctx.defaultWriteSpaceId : spaceId,
+    personalSpaceId: ctx.personalSpaceId,
     activateSpaceScope: [spaceId]
   };
   return runWithSpaceContextAsync(narrowed, fn);
@@ -208,6 +218,7 @@ function fromAuthPayload(
   allowedSpaceIds: string[];
   defaultWriteSpaceId: string;
   spaceNamesById: Record<string, string>;
+  personalSpaceId: string;
 } {
   const realmSlug = normalizeRealmSlug(realm);
   const issuerKey = normalizeIssuer(iss, realmSlug);
@@ -228,7 +239,7 @@ function fromAuthPayload(
   }
   const allowedSpaceIds = [personal, ...groupSpaces];
   const defaultWriteSpaceId = personal;
-  return { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById };
+  return { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById, personalSpaceId: personal };
 }
 
 /**
@@ -245,7 +256,7 @@ export function getSpaceContext(request?: {
 }): SpaceContext {
   if (request?.spaceContext) return request.spaceContext;
   const stored = spaceStorage.getStore();
-  if (stored) return stored;
+  if (stored && stored !== NO_CONTEXT_SENTINEL) return stored;
   const requestId =
     typeof request?.requestId === 'string'
       ? request.requestId
@@ -257,7 +268,7 @@ export function getSpaceContext(request?: {
   if (!auth?.sub) return { ...noDefaultSpaceContext(), requestId };
   const realm = auth.realm ?? 'default';
   const iss = auth.iss ?? `realm:${realm}`;
-  const { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById } = fromAuthPayload(
+  const { allowedSpaceIds, defaultWriteSpaceId, spaceNamesById, personalSpaceId } = fromAuthPayload(
     auth.sub,
     auth.groups ?? [],
     realm,
@@ -268,6 +279,7 @@ export function getSpaceContext(request?: {
     groupIds: auth.groups ?? [],
     allowedSpaceIds,
     defaultWriteSpaceId,
+    personalSpaceId,
     spaceNamesById,
     requestId
   };

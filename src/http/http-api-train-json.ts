@@ -70,8 +70,19 @@ export function setupTrainJsonRoute(
       const rawSpace = typeof parsed.data.space === 'string' ? parsed.data.space.trim() : '';
       const spaceParam = rawSpace.toLowerCase();
       let resolvedSpaceId: string;
-      if (parsed.data.space === undefined || rawSpace === '' || spaceParam === 'personal') {
+      if (parsed.data.space === undefined || rawSpace === '') {
         resolvedSpaceId = ctx.defaultWriteSpaceId || ctx.allowedSpaceIds[0] || '';
+      } else if (spaceParam === 'personal') {
+        const r = resolveSpaceParamForContext(ctx, rawSpace);
+        if (!r.ok) {
+          res.status(400).json({
+            error: 'SPACE_NOT_FOUND',
+            message: r.message,
+            available_spaces: listWritableSpaceDisplayNames(ctx)
+          });
+          return;
+        }
+        resolvedSpaceId = r.spaceId;
       } else {
         const r = resolveSpaceParamForContext(ctx, rawSpace);
         if (!r.ok) {

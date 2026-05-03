@@ -200,7 +200,9 @@ async function executeExportImpl(
       skills: items.map((it) => ({
         slug: it.slug,
         entrypoint: `${it.slug}/SKILL.md`,
-        artifacts: it.files.filter((f) => f.path.startsWith('artifacts/')).map((f) => `${it.slug}/${f.path}`)
+        artifacts: it.files
+          .filter((f) => f.path !== 'SKILL.md' && f.path !== 'SHA256SUMS')
+          .map((f) => `${it.slug}/${f.path}`)
       }))
     };
     if (input.delivery === 'inline_base64') {

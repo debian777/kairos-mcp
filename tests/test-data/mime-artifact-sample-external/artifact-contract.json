@@ -1,0 +1,29 @@
+{
+  "artifactPaths": [
+    "scripts/hello.py",
+    "scripts/hello.sh",
+    "scripts/hello.cjs",
+    "scripts/hello.pl",
+    "conf/app-config.toml",
+    "conf/routes.yaml",
+    "notes.txt"
+  ],
+  "mimeByPath": {
+    "scripts/hello.py": "text/x-python",
+    "scripts/hello.sh": "text/x-shellscript",
+    "scripts/hello.cjs": "text/javascript",
+    "scripts/hello.pl": "text/x-perl",
+    "conf/app-config.toml": "text/x-toml",
+    "conf/routes.yaml": "text/yaml",
+    "notes.txt": "text/plain"
+  },
+  "expectedArtifactSlugs": [
+    "scripts-hello-py",
+    "scripts-hello-sh",
+    "scripts-hello-cjs",
+    "scripts-hello-pl",
+    "conf-app-config-toml",
+    "conf-routes-yaml",
+    "notes-txt"
+  ]
+}

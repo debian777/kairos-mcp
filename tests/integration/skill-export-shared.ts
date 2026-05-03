@@ -14,6 +14,23 @@ interface TrainItem {
   artifact_uuid?: string;
 }
 
+/** Result of POST /api/train for a single artifact row (used by parity tests and cleanup URIs). */
+export interface TrainArtifactResult {
+  layerUri: string;
+  artifactUuid?: string;
+}
+
+/** Layer URI for delete cleanup (`kairos://layer/{uuid}`) from a train-artifact response. */
+export function trainArtifactCleanupUri(result: TrainArtifactResult): string {
+  if (result.artifactUuid && /^[0-9a-f-]{36}$/i.test(result.artifactUuid)) {
+    return `kairos://layer/${result.artifactUuid}`;
+  }
+  if (result.layerUri.startsWith('kairos://layer/')) {
+    return result.layerUri;
+  }
+  throw new Error(`train artifact response missing usable layer id: ${JSON.stringify(result)}`);
+}
+
 interface TrainResponse {
   status: string;
   items: TrainItem[];
@@ -52,18 +69,23 @@ export async function trainArtifact(
   adapterUri: string,
   name: string,
   mime: string,
-  body: string
-): Promise<string> {
+  body: string,
+  options?: { relative_path?: string }
+): Promise<TrainArtifactResult> {
+  const payload: Record<string, unknown> = {
+    llm_model_id: 'test-model',
+    content: body,
+    mime,
+    artifact_name: name,
+    adapter_uri: adapterUri
+  };
+  if (typeof options?.relative_path === 'string' && options.relative_path.trim().length > 0) {
+    payload.relative_path = options.relative_path.trim();
+  }
   const res = await fetch(`${SKILL_EXPORT_API_BASE}/train`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({
-      llm_model_id: 'test-model',
-      content: body,
-      mime,
-      artifact_name: name,
-      adapter_uri: adapterUri
-    })
+    body: JSON.stringify(payload)
   });
   if (!res.ok) {
     const text = await res.text();
@@ -74,7 +96,11 @@ export async function trainArtifact(
   if (!item?.uri) {
     throw new Error(`train artifact response missing uri: ${JSON.stringify(data)}`);
   }
-  return item.uri;
+  const artifactUuid =
+    typeof item.artifact_uuid === 'string' && item.artifact_uuid.trim().length > 0
+      ? item.artifact_uuid.trim()
+      : undefined;
+  return { layerUri: item.uri, artifactUuid };
 }
 
 export async function exportRaw(input: Record<string, unknown>): Promise<Response> {

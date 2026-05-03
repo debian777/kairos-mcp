@@ -112,6 +112,8 @@ export interface Memory {
     version: string;
     name: string;
     sha256: string;
+    /** Skill-root-relative path when trained with relative_path (skill export layout). */
+    relative_path?: string;
   };
   adapter?: AdapterInfo;
   inference_contract?: InferenceContractDefinition;

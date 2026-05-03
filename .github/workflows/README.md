@@ -168,7 +168,7 @@ sequenceDiagram
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration** and **Integration Simple** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on both workflows being `success` for the same head SHA. Human version bumps follow [.cursor/skills/version-bump-release/SKILL.md](../../.cursor/skills/version-bump-release/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
+`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration** and **Integration Simple** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on both workflows being `success` for the same head SHA. Human version bumps follow [.agent/skills/kmcp-dev-release-semver/SKILL.md](../../.agent/skills/kmcp-dev-release-semver/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
 
 - **Main:** Full releases (`vX.Y.Z`) and pre-releases (e.g. `vX.Y.Z-rc.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing **stable** tag (`X.Y.Z` only) **and** `v<package.json version>` does not already exist (local or on `origin`). Repeat Integration runs for the same version exit cleanly instead of failing on duplicate `git tag`.
 - **`ci/**`:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist (local or on `origin`). Full/pre releases are not created from non-main branches.

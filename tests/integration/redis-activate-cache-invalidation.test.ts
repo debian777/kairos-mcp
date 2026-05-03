@@ -16,7 +16,8 @@ async function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
       userId: '',
       groupIds: [],
       allowedSpaceIds: [spaceId],
-      defaultWriteSpaceId: spaceId
+      defaultWriteSpaceId: spaceId,
+      personalSpaceId: ''
     },
     fn
   );
