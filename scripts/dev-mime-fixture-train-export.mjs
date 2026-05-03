@@ -7,18 +7,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const fixtureRoot = path.join(repoRoot, 'tests/test-data/mime-artifact-sample');
+const contractPath = path.join(fixtureRoot, 'artifact-contract.json');
 const baseUrl = (process.env.KAIROS_BASE_URL || 'http://localhost:3300').replace(/\/$/, '');
 const token = process.env.AUTH_BEARER_TOKEN || '';
 
-const artifactPaths = [
-  ['scripts/hello.py', 'text/x-python'],
-  ['scripts/hello.sh', 'text/x-shellscript'],
-  ['scripts/hello.cjs', 'text/javascript'],
-  ['scripts/hello.pl', 'text/x-perl'],
-  ['conf/app-config.toml', 'text/x-toml'],
-  ['conf/routes.yaml', 'text/yaml'],
-  ['notes.txt', 'text/plain']
-];
+/** Same paths and MIME types as integration tests (`artifact-contract.json`). */
+function loadArtifactContract() {
+  const raw = JSON.parse(readFileSync(contractPath, 'utf8'));
+  const paths = raw.artifactPaths;
+  const mimeByPath = raw.mimeByPath;
+  if (!Array.isArray(paths) || !mimeByPath || typeof mimeByPath !== 'object') {
+    throw new Error('artifact-contract.json: expected artifactPaths array and mimeByPath object');
+  }
+  return paths.map((relPath) => {
+    const mime = mimeByPath[relPath];
+    if (typeof mime !== 'string') throw new Error(`artifact-contract.json: missing mime for ${relPath}`);
+    return [relPath, mime];
+  });
+}
 
 const headers = {
   ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -60,7 +66,7 @@ async function main() {
   const adapterUri = adapterTrain.items?.[0]?.adapter_uri;
   if (!adapterUri) throw new Error('train/raw response missing adapter_uri');
 
-  for (const [relPath, mime] of artifactPaths) {
+  for (const [relPath, mime] of loadArtifactContract()) {
     await postJson('/api/train', {
       llm_model_id: 'dev-script',
       content: fixture(relPath),

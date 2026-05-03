@@ -1,6 +1,19 @@
 import { getAuthHeaders, getTestAuthBaseUrl } from './auth-headers.js';
 import type { McpClientConnection } from './mcp-client-utils.js';
+import { parseMcpJson } from './expect-with-raw.js';
 import { BASE_URL, CLI_PATH, execAsync } from '../integration/cli-commands-shared.js';
+
+interface DeletePayload {
+  total_deleted: number;
+  total_failed: number;
+  results: Array<{ uri: string; status: string; message: string }>;
+}
+
+function assertDeleteOk(payload: DeletePayload, label: string): void {
+  if (typeof payload.total_failed !== 'number' || payload.total_failed > 0) {
+    throw new Error(`${label}: delete failed or invalid payload: ${JSON.stringify(payload)}`);
+  }
+}
 
 const API_BASE = `${getTestAuthBaseUrl()}/api`;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
@@ -37,6 +50,8 @@ export async function cleanupViaApi(adapterUri: string, artifactUris: string[]):
     const body = await res.text();
     throw new Error(`API cleanup failed (${res.status}): ${body}`);
   }
+  const payload = (await res.json()) as DeletePayload;
+  assertDeleteOk(payload, 'API cleanup');
 }
 
 export async function cleanupViaMcp(
@@ -45,7 +60,9 @@ export async function cleanupViaMcp(
   artifactUris: string[]
 ): Promise<void> {
   const uris = cleanupUris(adapterUri, artifactUris);
-  await mcp.client.callTool({ name: 'delete', arguments: { uris } });
+  const result = await mcp.client.callTool({ name: 'delete', arguments: { uris } });
+  const payload = parseMcpJson(result, 'artifact fixture cleanup delete') as DeletePayload;
+  assertDeleteOk(payload, 'MCP cleanup');
 }
 
 export async function cleanupViaCli(
@@ -55,5 +72,11 @@ export async function cleanupViaCli(
 ): Promise<void> {
   const uris = cleanupUris(adapterUri, artifactUris);
   const cmd = `node ${CLI_PATH} delete --url ${BASE_URL} ${uris.join(' ')}`;
-  await runExec(cmd);
+  const { stdout, stderr } = await runExec(cmd);
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    throw new Error(`CLI cleanup empty stdout (stderr: ${stderr})`);
+  }
+  const payload = JSON.parse(trimmed) as DeletePayload;
+  assertDeleteOk(payload, 'CLI cleanup');
 }

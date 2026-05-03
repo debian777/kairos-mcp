@@ -18,6 +18,24 @@ The parity contract covers three transport families:
 CLI cannot ingest non-markdown artifacts today, so CLI coverage is export-only.
 The CLI test pre-trains fixture data via API in `beforeAll`.
 
+### CLI export flags (parity tests)
+
+- `skill_tree`: `kairos export --format skill_tree <adapterUri>` prints JSON to stdout; tests parse that string.
+- `skill_zip`: use **`--zip-out <path>`** so the ZIP bytes are written to a file. Without a zip output path, behavior follows normal CLI help (stdout may not carry raw ZIP for all hosts); parity tests require an on-disk file for `SHA256SUMS` extraction.
+
+### Canonical manifest
+
+`tests/test-data/mime-artifact-sample/artifact-contract.json` is the single source
+for ordered artifact paths, MIME types, and expected artifact slugs. Integration
+tests and `scripts/dev-mime-fixture-train-export.mjs` load it so lists cannot drift.
+
+### Auth for manual dev script
+
+`scripts/dev-mime-fixture-train-export.mjs` reads **`KAIROS_BASE_URL`** (default
+`http://localhost:3300`) and optional **`AUTH_BEARER_TOKEN`** for `Authorization:
+Bearer …`. Integration tests use the same bearer source as other dev tests via
+`getAuthHeaders()` / `.test-auth-env.<env>.json` (see repo test setup docs).
+
 ## stage model
 
 The test flow has three stages for API and MCP, and one stage for CLI.
@@ -77,6 +95,11 @@ Each test must clean up Stage N adapter data before training Stage N+1.
 - API tests use API delete endpoints only.
 - MCP tests use MCP delete tool only.
 - CLI tests use CLI delete command only.
+
+Shared helpers in `tests/utils/artifact-fixture-cleanup.ts` must treat cleanup as
+part of the contract: after a successful HTTP status, **`total_failed` must be
+zero** on the delete JSON body (same shape as MCP `delete` and CLI `delete`
+stdout). MCP responses are parsed with the same JSON path as other MCP tests.
 
 Cleanup must remove the stage adapter and related artifact memories to avoid
 artifact slug collisions in subsequent stages.

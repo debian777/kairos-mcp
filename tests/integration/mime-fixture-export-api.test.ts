@@ -1,16 +1,15 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { waitForHealthCheck } from '../utils/health-check.js';
 import {
-  SKILL_EXPORT_API_BASE,
   type ExportSkillTreeResponse,
   type ExportSkillZipResponse,
   SKILL_EXPORT_BASE_URL,
   downloadSkillZip,
   exportJson,
-  trainAdapterMarkdown
+  trainAdapterMarkdown,
+  trainArtifact,
+  trainArtifactCleanupUri
 } from './skill-export-shared.js';
-import { getAuthHeaders } from '../utils/auth-headers.js';
 import {
   assertArtifactSumsMatchFixture,
   assertBundleSelfVerifies,
@@ -24,39 +23,7 @@ import {
   skillZipToTrainInput
 } from '../utils/skill-bundle-to-train-input.js';
 import { cleanupViaApi } from '../utils/artifact-fixture-cleanup.js';
-
-const FIXTURE_ROOT = path.resolve('tests/test-data/mime-artifact-sample');
-const ARTIFACT_PATHS = [
-  'scripts/hello.py',
-  'scripts/hello.sh',
-  'scripts/hello.cjs',
-  'scripts/hello.pl',
-  'conf/app-config.toml',
-  'conf/routes.yaml',
-  'notes.txt'
-];
-const MIME_BY_PATH = new Map<string, string>([
-  ['scripts/hello.py', 'text/x-python'],
-  ['scripts/hello.sh', 'text/x-shellscript'],
-  ['scripts/hello.cjs', 'text/javascript'],
-  ['scripts/hello.pl', 'text/x-perl'],
-  ['conf/app-config.toml', 'text/x-toml'],
-  ['conf/routes.yaml', 'text/yaml'],
-  ['notes.txt', 'text/plain']
-]);
-const EXPECTED_ARTIFACT_SLUGS = [
-  'scripts-hello-py',
-  'scripts-hello-sh',
-  'scripts-hello-cjs',
-  'scripts-hello-pl',
-  'conf-app-config-toml',
-  'conf-routes-yaml',
-  'notes-txt'
-];
-
-function fixture(relPath: string): string {
-  return readFileSync(path.join(FIXTURE_ROOT, relPath), 'utf8');
-}
+import { loadMimeArtifactContract, readMimeFixtureUtf8 } from '../utils/mime-artifact-fixture-contract.js';
 
 async function exportBundle(
   adapterUri: string,
@@ -97,26 +64,16 @@ async function stage0TrainFixture(): Promise<{
   adapterUri: string;
   artifactUris: string[];
 }> {
-  const adapter = await trainAdapterMarkdown(fixture('SKILL.md'));
+  const contract = loadMimeArtifactContract();
+  const adapter = await trainAdapterMarkdown(readMimeFixtureUtf8('SKILL.md'));
   const artifactUris: string[] = [];
-  for (const relPath of ARTIFACT_PATHS) {
-    const res = await fetch(`${SKILL_EXPORT_API_BASE}/train`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({
-        llm_model_id: 'test-model',
-        content: fixture(relPath),
-        mime: MIME_BY_PATH.get(relPath)!,
-        artifact_name: path.basename(relPath),
-        adapter_uri: adapter.adapterUri,
-        relative_path: relPath
-      })
+  for (const relPath of contract.artifactPaths) {
+    const mime = contract.mimeByPath[relPath];
+    if (!mime) throw new Error(`missing mime for ${relPath}`);
+    const r = await trainArtifact(adapter.adapterUri, path.basename(relPath), mime, readMimeFixtureUtf8(relPath), {
+      relative_path: relPath
     });
-    if (!res.ok) throw new Error(`artifact train failed (${relPath}): ${res.status} ${await res.text()}`);
-    const data = (await res.json()) as { items?: Array<{ artifact_uuid?: string }> };
-    const uuid = data.items?.[0]?.artifact_uuid;
-    if (!uuid) throw new Error(`artifact train response missing artifact_uuid for ${relPath}`);
-    artifactUris.push(`kairos://layer/${uuid}`);
+    artifactUris.push(trainArtifactCleanupUri(r));
   }
   return { adapterUri: adapter.adapterUri, artifactUris };
 }
@@ -133,27 +90,10 @@ async function retrainFromBundle(
   const adapter = await trainAdapterMarkdown(trainInput.skillMd);
   const artifactUris: string[] = [];
   for (const artifact of trainInput.artifacts) {
-    const res = await fetch(`${SKILL_EXPORT_API_BASE}/train`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({
-        llm_model_id: 'test-model',
-        content: artifact.content,
-        mime: artifact.mime,
-        artifact_name: artifact.artifact_name,
-        adapter_uri: adapter.adapterUri,
-        relative_path: artifact.relative_path
-      })
+    const r = await trainArtifact(adapter.adapterUri, artifact.artifact_name, artifact.mime, artifact.content, {
+      relative_path: artifact.relative_path
     });
-    if (!res.ok) {
-      throw new Error(
-        `roundtrip artifact train failed (${artifact.relative_path}): ${res.status} ${await res.text()}`
-      );
-    }
-    const data = (await res.json()) as { items?: Array<{ artifact_uuid?: string }> };
-    const uuid = data.items?.[0]?.artifact_uuid;
-    if (!uuid) throw new Error(`roundtrip train missing artifact_uuid for ${artifact.relative_path}`);
-    artifactUris.push(`kairos://layer/${uuid}`);
+    artifactUris.push(trainArtifactCleanupUri(r));
   }
   return { adapterUri: adapter.adapterUri, artifactUris };
 }
@@ -166,16 +106,17 @@ describe('mime fixture export parity via API transport', () => {
   test.each(['skill_tree', 'skill_zip'] as const)(
     'Stage 0/1/2 SHA contract for %s',
     async (format) => {
+      const contract = loadMimeArtifactContract();
       const fixtureRows = loadFixtureSums();
       const stage0 = await stage0TrainFixture();
       const b0 = await exportBundle(stage0.adapterUri, format);
-      assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, ARTIFACT_PATHS);
+      assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, contract.artifactPaths);
       assertBundleSelfVerifies(b0.files, b0.sumsBody);
 
       const source = await exportJson<{ content: string }>({ uri: stage0.adapterUri, format: 'source' });
       const sourcePayload = JSON.parse(source.content) as { artifacts?: Array<{ slug: string }> };
       const sourceSlugs = (sourcePayload.artifacts ?? []).map((a) => a.slug).sort();
-      expect(sourceSlugs).toEqual(EXPECTED_ARTIFACT_SLUGS.sort());
+      expect(sourceSlugs).toEqual([...contract.expectedArtifactSlugs].sort());
 
       const stage1TrainInput =
         format === 'skill_tree'

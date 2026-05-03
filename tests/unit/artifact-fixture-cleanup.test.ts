@@ -12,7 +12,14 @@ describe('artifact-fixture-cleanup', () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init });
-      return new Response('{}', { status: 200 });
+      return new Response(
+        JSON.stringify({
+          results: [],
+          total_deleted: 3,
+          total_failed: 0
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }) as typeof fetch;
 
     try {
@@ -33,7 +40,22 @@ describe('artifact-fixture-cleanup', () => {
     const calls: unknown[] = [];
     const callTool = async (args: unknown) => {
       calls.push(args);
-      return { content: [] };
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              results: [
+                { uri: adapterUri, status: 'deleted', message: 'ok' },
+                { uri: 'kairos://layer/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', status: 'deleted', message: 'ok' },
+                { uri: 'kairos://layer/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', status: 'deleted', message: 'ok' }
+              ],
+              total_deleted: 3,
+              total_failed: 0
+            })
+          }
+        ]
+      };
     };
     const mcp = { client: { callTool } } as Parameters<typeof cleanupViaMcp>[0];
     await cleanupViaMcp(mcp, adapterUri, artifactUris);
@@ -54,7 +76,14 @@ describe('artifact-fixture-cleanup', () => {
     const execCalls: string[] = [];
     await cleanupViaCli(adapterUri, artifactUris, async (cmd: string) => {
       execCalls.push(cmd);
-      return { stdout: '', stderr: '' };
+      return {
+        stdout: JSON.stringify({
+          results: [],
+          total_deleted: 3,
+          total_failed: 0
+        }),
+        stderr: ''
+      };
     });
     expect(execCalls).toHaveLength(1);
     expect(execCalls[0]).toContain(' delete ');

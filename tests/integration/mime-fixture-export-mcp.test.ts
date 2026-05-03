@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
@@ -15,61 +14,32 @@ import {
   skillZipToTrainInput
 } from '../utils/skill-bundle-to-train-input.js';
 import { cleanupViaMcp } from '../utils/artifact-fixture-cleanup.js';
-
-const FIXTURE_ROOT = path.resolve('tests/test-data/mime-artifact-sample');
-const ARTIFACT_PATHS = [
-  'scripts/hello.py',
-  'scripts/hello.sh',
-  'scripts/hello.cjs',
-  'scripts/hello.pl',
-  'conf/app-config.toml',
-  'conf/routes.yaml',
-  'notes.txt'
-];
-const MIME_BY_PATH = new Map<string, string>([
-  ['scripts/hello.py', 'text/x-python'],
-  ['scripts/hello.sh', 'text/x-shellscript'],
-  ['scripts/hello.cjs', 'text/javascript'],
-  ['scripts/hello.pl', 'text/x-perl'],
-  ['conf/app-config.toml', 'text/x-toml'],
-  ['conf/routes.yaml', 'text/yaml'],
-  ['notes.txt', 'text/plain']
-]);
-const EXPECTED_ARTIFACT_SLUGS = [
-  'scripts-hello-py',
-  'scripts-hello-sh',
-  'scripts-hello-cjs',
-  'scripts-hello-pl',
-  'conf-app-config-toml',
-  'conf-routes-yaml',
-  'notes-txt'
-];
-
-function fixture(relPath: string): string {
-  return readFileSync(path.join(FIXTURE_ROOT, relPath), 'utf8');
-}
+import { loadMimeArtifactContract, readMimeFixtureUtf8 } from '../utils/mime-artifact-fixture-contract.js';
 
 async function trainStage0Fixture(mcp: Awaited<ReturnType<typeof createMcpConnection>>) {
+  const contract = loadMimeArtifactContract();
   const trainAdapter = await mcp.client.callTool({
     name: 'train',
-    arguments: { content: fixture('SKILL.md'), llm_model_id: 'test-model', force_update: true }
+    arguments: { content: readMimeFixtureUtf8('SKILL.md'), llm_model_id: 'test-model', force_update: true }
   });
   const adapterParsed = parseMcpJson(trainAdapter, 'mcp stage0 train adapter');
   const adapterUri = adapterParsed.items?.[0]?.adapter_uri as string;
   const artifactUris: string[] = [];
-  for (const relPath of ARTIFACT_PATHS) {
-    const trainArtifact = await mcp.client.callTool({
+  for (const relPath of contract.artifactPaths) {
+    const mime = contract.mimeByPath[relPath];
+    if (!mime) throw new Error(`missing mime for ${relPath}`);
+    const trainArtifactRes = await mcp.client.callTool({
       name: 'train',
       arguments: {
-        content: fixture(relPath),
+        content: readMimeFixtureUtf8(relPath),
         llm_model_id: 'test-model',
-        mime: MIME_BY_PATH.get(relPath)!,
+        mime,
         artifact_name: path.basename(relPath),
         adapter_uri: adapterUri,
         relative_path: relPath
       }
     });
-    const artifactParsed = parseMcpJson(trainArtifact, `mcp stage0 train artifact ${relPath}`);
+    const artifactParsed = parseMcpJson(trainArtifactRes, `mcp stage0 train artifact ${relPath}`);
     const artifactUuid = String(artifactParsed.items?.[0]?.artifact_uuid ?? '');
     if (!artifactUuid) throw new Error(`missing artifact_uuid for ${relPath}`);
     artifactUris.push(`kairos://layer/${artifactUuid}`);
@@ -126,7 +96,7 @@ async function retrainFromBundle(
   const adapterUri = adapterParsed.items?.[0]?.adapter_uri as string;
   const artifactUris: string[] = [];
   for (const artifact of input.artifacts) {
-    const trainArtifact = await mcp.client.callTool({
+    const trainArtifactRes = await mcp.client.callTool({
       name: 'train',
       arguments: {
         content: artifact.content,
@@ -137,7 +107,7 @@ async function retrainFromBundle(
         relative_path: artifact.relative_path
       }
     });
-    const artifactParsed = parseMcpJson(trainArtifact, `mcp roundtrip train artifact ${artifact.relative_path}`);
+    const artifactParsed = parseMcpJson(trainArtifactRes, `mcp roundtrip train artifact ${artifact.relative_path}`);
     const artifactUuid = String(artifactParsed.items?.[0]?.artifact_uuid ?? '');
     if (!artifactUuid) throw new Error(`missing artifact_uuid for ${artifact.relative_path}`);
     artifactUris.push(`kairos://layer/${artifactUuid}`);
@@ -159,10 +129,11 @@ describe('mime fixture export parity via MCP transport', () => {
   test.each(['skill_tree', 'skill_zip'] as const)(
     'Stage 0/1/2 SHA contract for %s',
     async (format) => {
+      const contract = loadMimeArtifactContract();
       const fixtureRows = loadFixtureSums();
       const stage0 = await trainStage0Fixture(mcp);
       const b0 = await exportBundle(mcp, stage0.adapterUri, format);
-      assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, ARTIFACT_PATHS);
+      assertArtifactSumsMatchFixture(b0.sumsRows, fixtureRows, contract.artifactPaths);
       assertBundleSelfVerifies(b0.files, b0.sumsBody);
 
       const sourceRes = await mcp.client.callTool({
@@ -172,7 +143,7 @@ describe('mime fixture export parity via MCP transport', () => {
       const source = parseMcpJson(sourceRes, 'mcp export source');
       const sourcePayload = JSON.parse(String(source.content)) as { artifacts?: Array<{ slug: string }> };
       const sourceSlugs = (sourcePayload.artifacts ?? []).map((a) => a.slug).sort();
-      expect(sourceSlugs).toEqual(EXPECTED_ARTIFACT_SLUGS.sort());
+      expect(sourceSlugs).toEqual([...contract.expectedArtifactSlugs].sort());
 
       const stage1Input =
         format === 'skill_tree'

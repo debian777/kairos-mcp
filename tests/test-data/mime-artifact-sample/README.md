@@ -12,6 +12,7 @@ Use this directory as the skill root during fixture-driven tests.
 
 | Path | Purpose |
 | --- | --- |
+| `artifact-contract.json` | Canonical ordered artifact paths, MIME map, and expected train slugs for tests and `scripts/dev-mime-fixture-train-export.mjs`. |
 | `SHA256SUMS` | GNU-style checksums for this fixture. Run `shasum -a 256 -c SHA256SUMS` from this directory. |
 | `SKILL.md` | Adapter markdown input for `POST /api/train/raw` or MCP `train`. |
 | `notes.txt` | Artifact source for `text/plain`. |
@@ -40,6 +41,9 @@ Stage 1+ export contract:
   byte-identical `SHA256SUMS` body across rounds, including the `SKILL.md` row.
 
 ## train inputs
+
+Prefer **`artifact-contract.json`** as the single list of paths and MIME types;
+the table below mirrors that file for human readers.
 
 Attach non-markdown files through `POST /api/train` JSON (or MCP `train`) with
 `mime`, `artifact_name`, `adapter_uri`, and `content` read from the paths
