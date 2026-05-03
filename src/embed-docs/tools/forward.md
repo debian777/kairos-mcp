@@ -20,10 +20,7 @@ Use these URIs to start or continue a run.
 Provide the URI and, for continuation calls, a matching solution.
 
 - `uri` — adapter or layer URI as above.
-- `kairos_local_artifact_dir` (optional on the start call) — canonical local artifact
-  directory to keep stable for this run (same path as env `KAIROS_LOCAL_ARTIFACT_DIR`;
-  the JSON key is lowercase snake of that env name). Use it when you want a project-local
-  handoff directory such as `$PROJECT_DIR/.local/kairos/work`.
+- `kairos_local_artifact_dir` (optional, start call only) — stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`.
 - `solution` — omit on the **first** call of a run (adapter URI, or layer URI
   **without** `?execution_id=...`) to load the current layer and contract.
   **Do not** send `solution` on that start call, and do not send an empty
@@ -39,16 +36,12 @@ The tool returns `must_obey`, `current_layer` (markdown body), `contract`
 proof layers, echo server `nonce` / `proof_hash` in the solution when present),
 optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`,
 optional `slug_disambiguation_note` when a slug URI matched multiple adapters,
-optional `kairos_local_artifact_dir` (canonical local artifact directory for the run),
+optional `kairos_local_artifact_dir` (stable handoff dir for the run; same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`),
 optional `activation_space_name`, `context_adapter_name`, `current_layer_label`,
 `adapter_layer_index`, `adapter_layer_count` (widget progress), and error fields
 on retry paths.
 
-When shell contracts need local handoff files, use `kairos_local_artifact_dir` from the response and
-`export KAIROS_LOCAL_ARTIFACT_DIR="<path>"` in your shell if needed. If the
-server-returned path is not usable on your local filesystem, resolve locally to
-`$PROJECT_DIR/.local/kairos/work`, keep it stable for the run, and use that
-directory for local artifacts.
+When shell contracts need handoff files, use `kairos_local_artifact_dir` from the response and `export KAIROS_LOCAL_ARTIFACT_DIR="<path>"` if needed.
 
 **Flow**
 

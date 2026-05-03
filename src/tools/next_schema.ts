@@ -94,7 +94,7 @@ export const nextOutputSchema = z.object({
   message: z.string().optional(),
   error_code: z.string().optional().describe('Machine-readable error code (e.g., NONCE_MISMATCH, MAX_RETRIES_EXCEEDED)'),
   retry_count: z.number().optional().describe('Number of retries on this step (present on error responses)'),
-  /** Canonical local artifact directory for this run (same path as env KAIROS_LOCAL_ARTIFACT_DIR). */
+  /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
   kairos_local_artifact_dir: z.string().optional()
 });
 

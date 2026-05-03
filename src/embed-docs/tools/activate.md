@@ -11,14 +11,9 @@ even if the user never says "KAIROS". Always pass a short `query` summary.
   prefix), or your raw `space_id` (same forms as **`train`** / **`tune`** `space`).
 - `max_choices` (optional) — cap on match rows returned.
 
-**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, for **`match`** rows `space_name` — where the adapter is stored, for example `Personal`, `Group: …`, `Kairos app`; `null` for refine/create — and `slug` — stored routing slug when present so you can **`forward`** with `kairos://adapter/{slug}`; `null` for refine/create or when the adapter has no slug), plus `message`, a global `next_action`, optional `kairos_local_artifact_dir` (absolute path; JSON field name is lowercase snake of env `KAIROS_LOCAL_ARTIFACT_DIR`), and optional host metadata.
+**Output:** Always `must_obey: true`. Includes `choices` (each with `uri` = `kairos://adapter/{uuid}`, `label`, `adapter_name`, `activation_score`, `role`, `tags`, `next_action`, optional `adapter_version`, optional `activation_patterns`, for **`match`** rows `space_name` — where the adapter is stored, for example `Personal`, `Group: …`, `Kairos app`; `null` for refine/create — and `slug` — stored routing slug when present so you can **`forward`** with `kairos://adapter/{slug}`; `null` for refine/create or when the adapter has no slug), plus `message`, a global `next_action`, optional `kairos_local_artifact_dir`, and optional host metadata.
 
-**Shell mapping:** the path in `kairos_local_artifact_dir` is what you must `export KAIROS_LOCAL_ARTIFACT_DIR='<path>'` to before shell challenges when your shell does not already define the env var.
-
-`kairos_local_artifact_dir` is the shared local artifact directory for this run. Use it for
-drafts, review outputs, raw API responses, generated code, checksums, and other
-temporary handoff files between layers and subagents. It is not shell cwd and
-not Docker `WORKDIR`.
+**`kairos_local_artifact_dir`** — stable handoff dir for this run (drafts, review outputs, generated files, checksums shared between layers and subagents). Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. Not a shell cwd, not a Docker `WORKDIR`.
 
 When several spaces contain similar adapters, the server prefers your **default write space** (usually **Personal**) on ties so a personal copy can override a group template.
 

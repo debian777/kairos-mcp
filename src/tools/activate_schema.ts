@@ -48,7 +48,7 @@ export const activateOutputSchema = z.object({
         'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
       )
   })),
-  /** Canonical local artifact directory for this client/runtime (same path as env KAIROS_LOCAL_ARTIFACT_DIR). */
+  /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
   kairos_local_artifact_dir: z.string().optional()
 }).strict();
 

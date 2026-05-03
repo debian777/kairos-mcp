@@ -142,7 +142,7 @@ export const forwardInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Optional canonical local artifact directory for this run (JSON field name matches lowercase snake of env KAIROS_LOCAL_ARTIFACT_DIR). Use only on the start call when you want a project-local handoff directory that stays stable across layers and subagents.'
+      'Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same directory as env `KAIROS_LOCAL_ARTIFACT_DIR`.'
     ),
   solution: forwardSolutionSchema
     .optional()
@@ -220,7 +220,9 @@ export const forwardMcpWireInputSchema = z
     kairos_local_artifact_dir: z
       .string()
       .optional()
-      .describe('Optional canonical local artifact directory to pin for a new run.'),
+      .describe(
+        'Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same directory as env `KAIROS_LOCAL_ARTIFACT_DIR`.'
+      ),
     solution: forwardWireSolutionSchema
       .optional()
       .describe('Only for continuation calls; omit on start. Must include solution.type and the matching payload object.')
@@ -256,7 +258,7 @@ export const forwardOutputSchema = z.object({
   adapter_layer_index: z.number().int().positive().optional(),
   /** Total layers in the adapter (widget progress). */
   adapter_layer_count: z.number().int().positive().optional(),
-  /** Canonical local artifact directory for this run (same path as env KAIROS_LOCAL_ARTIFACT_DIR). */
+  /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
   kairos_local_artifact_dir: z.string().optional()
 }).strict();
 
