@@ -18,8 +18,7 @@ import { buildMissingProofPayload } from './next-missing-proof-payload.js';
 import { modelStats } from '../services/stats/model-stats.js';
 import { kairosQualityUpdateErrors } from '../services/metrics/mcp-metrics.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
-import { KAIROS_LOCAL_ARTIFACT_DIR } from '../config.js';
-import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
+import { KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
 import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
 
 async function loadMemoryWithCache(memoryStore: MemoryQdrantStore, uuid: string): Promise<Memory | null> {
@@ -65,16 +64,12 @@ async function buildNextPayload(
 ) {
   const current_step = buildCurrentStep(memory, requestedUri, executionId);
   const challenge = await buildChallenge(memory, proof);
-  const executionMeta = executionId
-    ? await forwardRuntimeStore.getExecution(executionId)
-    : null;
-  const localArtifactDir = executionMeta?.kairos_local_artifact_dir ?? KAIROS_LOCAL_ARTIFACT_DIR;
 
   const payload: any = {
     must_obey: true as const,
     current_step,
     challenge,
-    ...buildLocalArtifactDirFields(localArtifactDir)
+    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS)
   };
 
   if (nextStepId) {
@@ -248,16 +243,11 @@ async function _executeNext(
         qdrantService,
         executionId
       );
-      const executionMetaForReturn = executionId
-        ? await forwardRuntimeStore.getExecution(executionId)
-        : null;
-      const localArtifactDirForReturn =
-        executionMetaForReturn?.kairos_local_artifact_dir ?? KAIROS_LOCAL_ARTIFACT_DIR;
       return {
         must_obey: payload.retry_count < 3,
         current_step: payload.current_step,
         challenge: payload.challenge,
-        ...buildLocalArtifactDirFields(localArtifactDirForReturn),
+        ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS),
         message: previousBlock.message,
         next_action: payload.next_action,
         error_code: previousBlock.error_code || 'MISSING_PROOF',

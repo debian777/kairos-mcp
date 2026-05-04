@@ -48,8 +48,14 @@ export const activateOutputSchema = z.object({
         'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
       )
   })),
-  /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
-  kairos_local_artifact_dir: z.string().optional()
+  /**
+   * Ordered URI hints (preferred first) for the run's local handoff dir. Resolve **on the client**:
+   * `project://<rel>` → `<client project root>/<rel>`; `user://<rel>` → `<client home or $XDG_CONFIG_HOME>/<rel>`.
+   * Use `project://` when you have exactly one project context; fall through to `user://` when your session
+   * spans multiple projects. Export the resolved absolute path as `KAIROS_LOCAL_ARTIFACT_DIR` for shell
+   * challenges. The server never resolves these to a path on its own filesystem.
+   */
+  kairos_local_artifact_dir: z.array(z.string()).optional()
 }).strict();
 
 export type ActivateInput = z.infer<typeof activateInputSchema>;

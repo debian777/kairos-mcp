@@ -20,7 +20,6 @@ Use these URIs to start or continue a run.
 Provide the URI and, for continuation calls, a matching solution.
 
 - `uri` — adapter or layer URI as above.
-- `kairos_local_artifact_dir` (optional, start call only) — stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`.
 - `solution` — omit on the **first** call of a run (adapter URI, or layer URI
   **without** `?execution_id=...`) to load the current layer and contract.
   **Do not** send `solution` on that start call, and do not send an empty
@@ -36,12 +35,12 @@ The tool returns `must_obey`, `current_layer` (markdown body), `contract`
 proof layers, echo server `nonce` / `proof_hash` in the solution when present),
 optional `tensor_in`, `next_action`, optional `execution_id`, `proof_hash`,
 optional `slug_disambiguation_note` when a slug URI matched multiple adapters,
-optional `kairos_local_artifact_dir` (stable handoff dir for the run; same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`),
+optional `kairos_local_artifact_dir` (ordered URI hints for the run's local handoff dir; see below),
 optional `activation_space_name`, `context_adapter_name`, `current_layer_label`,
 `adapter_layer_index`, `adapter_layer_count` (widget progress), and error fields
 on retry paths.
 
-When shell contracts need handoff files, use `kairos_local_artifact_dir` from the response and `export KAIROS_LOCAL_ARTIFACT_DIR="<path>"` if needed.
+**`kairos_local_artifact_dir`** is an ordered array of URI hints (preferred first), e.g. `["project://.local/kairos/work","user://.config/kairos/work"]`. Resolve **on your machine**: `project://<rel>` → `<your project root>/<rel>`; `user://<rel>` → `<your home or $XDG_CONFIG_HOME>/<rel>`. Pick `project://` when you have exactly one project context; fall through to `user://` when your session spans multiple projects. For shell challenges that need handoff files, `export KAIROS_LOCAL_ARTIFACT_DIR="<absolute>"` after resolving (skip if your shell already defines it). The server never names a path on its own filesystem.
 
 **Flow**
 

@@ -435,6 +435,8 @@ When goals conflict:
 
 Tool and REST responses expose the local handoff path only as **`kairos_local_artifact_dir`** (lowercase snake of env **`KAIROS_LOCAL_ARTIFACT_DIR`**). Migrate any client or shell automation still using older env aliases or the superseded short JSON key for that path; the repository forbids reintroducing those symbols in source (see the identifier list in `eslint/plugins/kairos-forbidden-text.cjs`).
 
+The field's value is an **ordered array** of client-resolvable URI hints (preferred first), e.g. `["project://.local/kairos/work","user://.config/kairos/work"]`. Schemes resolved on the client only: `project://<rel>` → `<client project root>/<rel>`; `user://<rel>` → `<client home or $XDG_CONFIG_HOME>/<rel>`. The server never emits a path on its own filesystem, so the same value is correct for stdio and remote (HTTP / Docker) transports. The client picks one hint by scope rule (`project://` when there is exactly one project context; otherwise `user://`), resolves locally, and exports `KAIROS_LOCAL_ARTIFACT_DIR` for shell challenges. The field is **output-only**; clients no longer pass it as input. Server defaults are configurable via the comma-separated env **`KAIROS_LOCAL_ARTIFACT_DIRS`** (each entry must be a `project://<rel>` or `user://<rel>` URI; absolute paths and `..` segments are rejected at boot).
+
 ## Reporting issues
 
 Include:

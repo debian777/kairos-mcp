@@ -10,13 +10,12 @@ import { MemoryQdrantStore } from './services/memory/store.js';
 import { startServer } from './http/http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
-import { mkdirSync } from 'fs';
 import {
   PORT,
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIR
+  KAIROS_LOCAL_ARTIFACT_DIRS
 } from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
@@ -76,8 +75,9 @@ export async function runKairosServer(): Promise<void> {
         // Install once at startup to capture any background errors/warnings
         installGlobalErrorHandlers();
 
-        mkdirSync(KAIROS_LOCAL_ARTIFACT_DIR, { recursive: true });
-        structuredLogger.info(`KAIROS_LOCAL_ARTIFACT_DIR: ${KAIROS_LOCAL_ARTIFACT_DIR}`);
+        structuredLogger.info(
+          `KAIROS_LOCAL_ARTIFACT_DIRS (client-resolvable hints): ${KAIROS_LOCAL_ARTIFACT_DIRS.join(', ')}`
+        );
 
         const memoryStore = new MemoryQdrantStore();
 

@@ -28,6 +28,21 @@ describe('HTTP REST API Activate Endpoint', () => {
       expect(typeof data.message).toBe('string');
       expect(typeof data.next_action).toBe('string');
       expect(data.query).toBe(query);
+      if ('kairos_local_artifact_dir' in data) {
+        const hints = data.kairos_local_artifact_dir;
+        // Field is now an ordered array of client-resolvable URI hints; never a server filesystem path.
+        expect(Array.isArray(hints)).toBe(true);
+        expect((hints as unknown[]).length).toBeGreaterThan(0);
+        for (const hint of hints as unknown[]) {
+          expect(typeof hint).toBe('string');
+          expect(hint as string).toMatch(/^(project|user):\/\/[^/]/);
+          // Regression guard: server must never leak its own filesystem (Docker container `/app/...`,
+          // host absolute paths, or any node_modules path).
+          expect(hint as string).not.toMatch(/^\//);
+          expect(hint as string).not.toContain('node_modules');
+          expect(hint as string).not.toContain('/app/');
+        }
+      }
       if (data.metadata && typeof data.metadata === 'object' && data.metadata !== null && 'duration_ms' in data.metadata) {
         expect(typeof (data.metadata as { duration_ms?: number }).duration_ms).toBe('number');
       }

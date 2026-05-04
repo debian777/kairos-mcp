@@ -3,7 +3,7 @@ import type { Memory, ProofOfWorkDefinition, ProofOfWorkType } from '../types/me
 import { proofOfWorkStore, MAX_RETRIES, type ProofOfWorkResultRecord } from '../services/proof-of-work-store.js';
 import { embeddingService } from '../services/embedding/service.js';
 import { getInferenceContract } from '../services/memory/memory-accessors.js';
-import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS, KAIROS_LOCAL_ARTIFACT_DIR } from '../config.js';
+import { COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS, KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import type {
@@ -135,7 +135,7 @@ function buildErrorPayload(
     must_obey: !maxExceeded,
     current_step,
     challenge,
-    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR),
+    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS),
     message: maxExceeded
       ? `Step failed ${retryCount} times. Use your judgment to recover.`
       : message,

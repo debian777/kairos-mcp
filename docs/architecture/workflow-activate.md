@@ -66,7 +66,7 @@ flowchart LR
 | **`must_obey`** | boolean | Always **`true`** on success. |
 | **`message`**, **`next_action`**, **`query`** | string | Global and echoed query. |
 | **`choices`** | array | Non-empty; see per-choice shape below. |
-| **`kairos_local_artifact_dir`** | string | optional; absolute handoff path (JSON key matches lowercase snake of `KAIROS_LOCAL_ARTIFACT_DIR`) |
+| **`kairos_local_artifact_dir`** | string[] | optional; ordered URI hints (preferred first) for the run's local handoff dir (`project://<rel>`, `user://<rel>`); resolve on the client and export `KAIROS_LOCAL_ARTIFACT_DIR` |
 
 **Each choice:** **`uri`**, **`label`**, **`adapter_name`**, **`activation_score`**
 (0.0 to 1.0 or null), **`role`** (`match` \| `refine` \| `create`), **`tags`**,

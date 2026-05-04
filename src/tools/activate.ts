@@ -11,7 +11,7 @@ import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { KAIROS_CREATION_FOOTER_NEXT_ACTION } from '../constants/builtin-search-meta.js';
-import { KAIROS_LOCAL_ARTIFACT_DIR } from '../config.js';
+import { KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
 import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
 
 interface RegisterActivateOptions {
@@ -76,7 +76,7 @@ async function mapSearchToActivate(
     next_action: "Pick one choice and follow that choice's next_action.",
     query,
     choices,
-    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIR)
+    ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS)
   };
 }
 
