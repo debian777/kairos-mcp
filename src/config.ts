@@ -90,11 +90,11 @@ export const EMBEDDING_NORM_MAX = getEnvFloat('EMBEDDING_NORM_MAX', 2.0);
 export const COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS = getEnvInt('COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS', 10_000);
 export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESHOLD', 0.1);
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
-export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
+export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'json');
 export const AUDIT_LOG_FILE = getEnvString('AUDIT_LOG_FILE', '').trim();
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
-export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');
+export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '1');
 export const KAIROS_SEARCH_MAX_FETCH = getEnvInt('KAIROS_SEARCH_MAX_FETCH', 200);
 /** Default number of match choices returned by search when the agent omits max_choices. */
 export const KAIROS_SEARCH_MAX_CHOICES = getEnvInt('KAIROS_SEARCH_MAX_CHOICES', 10);
@@ -102,7 +102,7 @@ export const KAIROS_SEARCH_MAX_CHOICES = getEnvInt('KAIROS_SEARCH_MAX_CHOICES', 
 export const KAIROS_SEARCH_LIMIT_CAP = getEnvInt('KAIROS_SEARCH_LIMIT_CAP', 50);
 /** Minimum match choices when agent passes max_choices. */
 export const KAIROS_SEARCH_LIMIT_MIN = getEnvInt('KAIROS_SEARCH_LIMIT_MIN', 5);
-export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_COLLAPSE', true);
+export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_COLLAPSE', false);
 export const HTTP_JSON_BODY_LIMIT = getEnvString('HTTP_JSON_BODY_LIMIT', '1mb');
 /** Max body size for POST /api/train/raw. `HTTP_TRAIN_RAW_BODY_LIMIT` overrides; else `HTTP_MINT_RAW_BODY_LIMIT` if set. */
 export const HTTP_TRAIN_RAW_BODY_LIMIT = (() => {
@@ -286,7 +286,7 @@ export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
 export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
 
 // Transport: stdio | http. Logging and server use this single source.
-const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'http');
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 

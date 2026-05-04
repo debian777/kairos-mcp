@@ -91,8 +91,8 @@ logger.tool('reward', 'rate', `rated ${uri}`);
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LOG_LEVEL` | `info` | Minimum level: `trace`, `debug`, `info`, `warn`, `error`. |
-| `LOG_FORMAT` | `text` | `text` (human-readable) or `json` (one JSON object per line). |
-| `TRANSPORT_TYPE` | `stdio` | Log-stream routing hint used by the logger: `stdio` sends text logs to stderr, `http` sends text logs to stdout. The application runtime itself is HTTP-only; this variable does not enable a second MCP transport. |
+| `LOG_FORMAT` | `json` | `text` (human-readable) or `json` (one JSON object per line). |
+| `TRANSPORT_TYPE` | `http` | Log-stream routing hint used by the logger: `stdio` sends text logs to stderr, `http` sends text logs to stdout. The application runtime itself is HTTP-only; this variable does not enable a second MCP transport. |
 | `TRUSTED_PROXY_CIDRS` | (empty) | Comma-separated CIDRs for proxy-safe client IP from `X-Forwarded-For`. |
 
 See [install/](../install/) for env examples. All env vars and defaults are in
@@ -125,11 +125,11 @@ for the full error code list.
 ## Verifying
 
 ```bash
-# Enable JSON logs and debug level, then deploy
-LOG_LEVEL=debug LOG_FORMAT=json TRANSPORT_TYPE=http npm run dev:deploy
+# Debug level (defaults are already JSON + http transport routing)
+LOG_LEVEL=debug npm run dev:deploy
 
 # Trigger a few MCP or HTTP requests and inspect output
-# (one JSON object per line)
+# (one JSON object per line when LOG_FORMAT=json)
 ```
 
 Sample JSON log line:

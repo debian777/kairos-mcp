@@ -228,7 +228,8 @@ start() {
     # Logging configuration
     LOG_TARGET="${LOG_TARGET:-file}"
     LOG_LEVEL="${LOG_LEVEL:-info}"
-    LOG_FORMAT="${LOG_FORMAT:-text}"
+    LOG_FORMAT="${LOG_FORMAT:-json}"
+    TRANSPORT_TYPE="${TRANSPORT_TYPE:-http}"
 
     case "$ENV" in
         dev|dev_simple)
@@ -671,7 +672,8 @@ help() {
     echo "  KAIROS_REDIS_PREFIX    - Redis key prefix for namespacing (default kb:)"
     echo "  LOG_TARGET         - Log output target (file|stdout|both, default: file)"
     echo "  LOG_LEVEL          - Log level filter (info|debug|warn|error, default: info)"
-    echo "  LOG_FORMAT         - Log output format (text|json, default: text)"
+    echo "  LOG_FORMAT         - Log output format (text|json, default: json)"
+    echo "  TRANSPORT_TYPE     - Log stream routing (stdio|http, default: http)"
     echo ""
     echo "COMMANDS:"
     echo "  build    - Build TypeScript"
