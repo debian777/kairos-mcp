@@ -3,6 +3,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { rewardInputSchema } from '../tools/reward_schema.js';
 import { executeReward } from '../tools/reward.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 import { sendToolRouteError } from './http-route-errors.js';
 
 /**
@@ -24,7 +25,7 @@ export function setupRewardRoute(app: express.Express, qdrantService: QdrantServ
       }
 
       structuredLogger.info(`-> POST /api/reward (uri: ${parsed.data.uri}, outcome: ${parsed.data.outcome})`);
-      const result = await executeReward(qdrantService, parsed.data);
+      const result = await runHttpApiWithSpaceContext(req, () => executeReward(qdrantService, parsed.data));
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('reward failed', error);

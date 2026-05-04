@@ -11,7 +11,6 @@ import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
-  parseAdapterUuidFromUri,
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import {
@@ -78,11 +77,11 @@ describe('Adapter space move (personal → group)', () => {
       expect(trained.items.length).toBeGreaterThan(0);
     });
     const adapterUri = trained.items[0].adapter_uri as string;
-    const sourceId = parseAdapterUuidFromUri(adapterUri);
 
     await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
     let locBefore = locationsForAdapterTitle(spaces, title);
+    const sourceId = locBefore.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
     withRawOnFail({ call: trainCall, result: trainRes }, () => {
       expect(locBefore.some((l) => l.type === 'personal')).toBe(true);
     });
@@ -139,11 +138,12 @@ describe('Adapter space move (personal → group)', () => {
     const trained = (await tr.json()) as { status: string; items: Array<{ adapter_uri: string }> };
     expect(trained.status).toBe('stored');
     const adapterUri = trained.items[0]!.adapter_uri;
-    const sourceId = parseAdapterUuidFromUri(adapterUri);
 
     await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
-    expect(locationsForAdapterTitle(spaces, title).some((l) => l.type === 'personal')).toBe(true);
+    const beforeLoc = locationsForAdapterTitle(spaces, title);
+    expect(beforeLoc.some((l) => l.type === 'personal')).toBe(true);
+    const sourceId = beforeLoc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
 
     const tu = await apiFetch('/tune', {
       method: 'POST',
@@ -190,11 +190,12 @@ describe('Adapter space move (personal → group)', () => {
       expect(mint.stderr).toBe('');
       const minted = JSON.parse(mint.stdout) as { items: Array<{ adapter_uri: string }> };
       const adapterUri = minted.items[0]!.adapter_uri;
-      const sourceId = parseAdapterUuidFromUri(adapterUri);
 
       await sleepMs(5000);
       let spaces = await loadSpacesViaMcp();
-      expect(locationsForAdapterTitle(spaces, title).some((l) => l.type === 'personal')).toBe(true);
+      const beforeLoc = locationsForAdapterTitle(spaces, title);
+      expect(beforeLoc.some((l) => l.type === 'personal')).toBe(true);
+      const sourceId = beforeLoc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
 
       const tuneOut = await execAsync(
         `node ${CLI_PATH} tune --url ${BASE_URL} --space ${JSON.stringify(groupSpaceName!)} ${JSON.stringify(adapterUri)}`,

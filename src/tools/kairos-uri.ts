@@ -7,12 +7,8 @@ const SLUG_PATTERN = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?';
 const UUID_REGEX = new RegExp(`^${UUID_PATTERN}$`, 'i');
 const ADAPTER_URI_BODY_REGEX = /^kairos:\/\/adapter\/([^/?#]+)$/i;
 const ARTIFACT_URI_BODY_REGEX = /^kairos:\/\/artifact\/([^/?#]+)$/i;
-export const ADAPTER_UUID_URI_REGEX = new RegExp(
-  `^kairos://adapter/(${UUID_PATTERN})$`,
-  'i'
-);
-export const ADAPTER_URI_INPUT_REGEX = new RegExp(
-  `^kairos://adapter/(${UUID_PATTERN}|${SLUG_PATTERN})$`,
+export const ADAPTER_SLUG_URI_INPUT_REGEX = new RegExp(
+  `^kairos://adapter/(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)(${SLUG_PATTERN})$`,
   'i'
 );
 export const ARTIFACT_URI_INPUT_REGEX = new RegExp(
@@ -121,4 +117,27 @@ export function parseKairosUriOrThrow(value: string): ParsedKairosUri {
       400
     );
   }
+}
+
+/**
+ * Wire contract guard for public tool inputs: adapter URIs are slug-only.
+ * Internal storage and resolver code may still parse UUID adapter IDs.
+ */
+export function assertWireAdapterUri(value: string): string {
+  const parsed = parseKairosUri(value);
+  if (parsed.kind !== 'adapter') {
+    throw new KairosError(
+      'Invalid adapter URI. Expected kairos://adapter/{slug}.',
+      'INVALID_URI',
+      400
+    );
+  }
+  if (parsed.idKind === 'uuid') {
+    throw new KairosError(
+      'Adapter URIs are slug-only on the wire. Use kairos://adapter/{slug}.',
+      'INVALID_URI',
+      400
+    );
+  }
+  return buildAdapterUri(parsed.id);
 }

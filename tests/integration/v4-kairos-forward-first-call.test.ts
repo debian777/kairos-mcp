@@ -103,7 +103,7 @@ describe('v4-forward first-call response schema', () => {
     });
   });
 
-  const REFINING_ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002002';
+  const REFINING_ADAPTER_URI = 'kairos://adapter/refine-search';
 
   test('refining protocol: forward with refine adapter returns comment contract', async () => {
     const call = { name: 'forward', arguments: { uri: REFINING_ADAPTER_URI } };

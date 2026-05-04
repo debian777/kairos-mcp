@@ -7,6 +7,7 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
+import { formatNextCallBlock } from '../format-next-call.js';
 
 export function rewardCommand(program: Command): void {
     program
@@ -60,7 +61,8 @@ export function rewardCommand(program: Command): void {
                     feedback,
                     rewardOptions
                 );
-                writeJson(response);
+                const nextCall = formatNextCallBlock(response);
+                writeJson(nextCall ? { ...response, cli_next_call: nextCall } : response);
             } catch (error) {
                 handleApiError(error, !isBrowserDisabled());
             }

@@ -55,6 +55,7 @@ describe('CLI Commands Basic --url Tests', () => {
       // V2 unified response shape
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('choices');
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
 
     test('activate uses -u short form', async () => {
@@ -69,6 +70,7 @@ describe('CLI Commands Basic --url Tests', () => {
       // V2 unified response shape
       expect(result).toHaveProperty('must_obey');
       expect(result).toHaveProperty('choices');
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
   });
 
@@ -87,6 +89,7 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('next_action');
       expect(result).toHaveProperty('contract');
       expect(result.current_layer).toBeDefined();
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
 
     test('forward uses -u short form with URI', async () => {
@@ -103,6 +106,7 @@ describe('CLI Commands Basic --url Tests', () => {
       expect(result).toHaveProperty('next_action');
       expect(result).toHaveProperty('contract');
       expect(result.current_layer).toBeDefined();
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
   });
 

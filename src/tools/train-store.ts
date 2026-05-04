@@ -1,13 +1,14 @@
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { Memory } from '../types/memory.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
-import { validateProtocolStructure, CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import { validateProtocolStructure } from '../services/memory/validate-protocol-structure.js';
 import {
   validateAdapterMarkdownSize,
   validateArtifactContentSize
 } from '../services/memory/validate-adapter-markdown-size.js';
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
-import { buildLayerUri } from './kairos-uri.js';
+import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
+import { KAIROS_CREATION_PROTOCOL_SLUG } from '../constants/builtin-search-meta.js';
 
 const ALLOWED_ARTIFACT_MIMES = new Set([
   'text/x-python',
@@ -100,7 +101,7 @@ export async function executeTrainStore(
     throw new TrainError('PROTOCOL_STRUCTURE_INVALID', validation.message, {
       missing: validation.missing,
       must_obey: true,
-      next_action: `call forward with ${CREATION_PROTOCOL_URI} for guided adapter creation`
+      next_action: `call forward with ${buildAdapterUri(KAIROS_CREATION_PROTOCOL_SLUG)} for guided adapter creation`
     });
   }
   const memories = await runStore(() =>

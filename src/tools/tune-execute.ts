@@ -7,7 +7,7 @@ import { buildHeaderMemoryAdapter } from '../services/memory/adapter-builder.js'
 import { parseFrontmatter } from '../utils/frontmatter.js';
 import { executeUpdate } from './update.js';
 import { type TuneInput, type TuneOutput } from './tune_schema.js';
-import { parseKairosUri, buildLayerUri } from './kairos-uri.js';
+import { assertWireAdapterUri, parseKairosUri, buildLayerUri } from './kairos-uri.js';
 import { buildTuneResultMessage } from './tune-messages.js';
 import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
 import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
@@ -68,15 +68,32 @@ function assertWritableTuneLayers(layers: AdapterLayerPoint[]): void {
   }
 }
 
+async function resolveAdapterIdFromWireUri(
+  qdrantService: QdrantService,
+  uri: string
+): Promise<{ adapterId: string; canonicalAdapterUri: string }> {
+  const canonicalAdapterUri = assertWireAdapterUri(uri);
+  const parsed = parseKairosUri(canonicalAdapterUri);
+  const slugOutcome = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
+  if (!slugOutcome.layerUuid) throw new Error(`Adapter not found: ${canonicalAdapterUri}`);
+  const firstLayer = await qdrantService.getMemoryByUUID(slugOutcome.layerUuid);
+  const adapterId =
+    typeof firstLayer?.adapter?.id === 'string' && firstLayer.adapter.id.trim().length > 0
+      ? firstLayer.adapter.id
+      : slugOutcome.layerUuid;
+  return { adapterId, canonicalAdapterUri };
+}
+
 async function normalizeTuneUri(qdrantService: QdrantService, uri: string, preferredSpaceId?: string): Promise<string> {
   const parsed = parseKairosUri(uri);
   if (parsed.kind === 'layer') {
     return buildLayerUri(parsed.id, parsed.executionId);
   }
 
-  const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
+  const { adapterId } = await resolveAdapterIdFromWireUri(qdrantService, uri);
+  const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(adapterId), preferredSpaceId);
   assertWritableTuneLayers(layers);
-  const head = layers[0]?.uuid ?? parsed.id;
+  const head = layers[0]?.uuid ?? adapterId;
   return buildLayerUri(head);
 }
 
@@ -89,7 +106,8 @@ async function collectLayerMemoryUuidsForTune(
   if (parsed.kind === 'layer') {
     return [parsed.id];
   }
-  const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id), preferredSpaceId);
+  const { adapterId } = await resolveAdapterIdFromWireUri(qdrantService, uri);
+  const layers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(adapterId), preferredSpaceId);
   assertWritableTuneLayers(layers);
   return layers.map((l) => l.uuid);
 }
@@ -110,12 +128,8 @@ async function tuneAdapterMarkdownInPlace(
   adapterUri: string,
   markdownDoc: string
 ): Promise<string> {
-  const parsed = parseKairosUri(adapterUri);
-  if (parsed.kind !== 'adapter') {
-    throw new Error('tuneAdapterMarkdownInPlace requires an adapter URI');
-  }
-
-  const existingLayers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(parsed.id));
+  const { adapterId } = await resolveAdapterIdFromWireUri(qdrantService, adapterUri);
+  const existingLayers = selectAdapterLayerSet(await qdrantService.getAdapterLayers(adapterId));
   assertWritableTuneLayers(existingLayers);
   if (existingLayers.length === 0) {
     throw new Error(`Adapter not found: ${adapterUri}`);
@@ -143,9 +157,9 @@ async function tuneAdapterMarkdownInPlace(
     throw new Error('Invalid adapter markdown: missing adapter title (H1)');
   }
   const expectedAdapterId = IDGenerator.generateAdapterUUIDv5(nextAdapterName);
-  if (expectedAdapterId !== parsed.id) {
+  if (expectedAdapterId !== adapterId) {
     throw new Error(
-      `Adapter title "${nextAdapterName}" resolves to ${expectedAdapterId}, but tune target is ${parsed.id}. Keep the H1 unchanged when tuning by adapter URI.`
+      `Adapter title "${nextAdapterName}" resolves to ${expectedAdapterId}, but tune target is ${adapterId}. Keep the H1 unchanged when tuning by adapter URI.`
     );
   }
 
@@ -176,7 +190,7 @@ async function tuneAdapterMarkdownInPlace(
 
     const adapterUpdate: Record<string, unknown> = {
       ...existingAdapter,
-      id: parsed.id,
+      id: adapterId,
       name: nextAdapter?.name ?? existingAdapter['name'],
       layer_index: i + 1,
       layer_count: nextLayers.length,

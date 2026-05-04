@@ -4,7 +4,7 @@ import type { Memory } from '../../src/types/memory.js';
 
 describe('executeTrain artifact adapter_uri mapping', () => {
   it('keeps parent adapter_uri when artifact memory lookup returns null', async () => {
-    const parentAdapterUri = 'kairos://adapter/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const parentAdapterUri = 'kairos://adapter/parent-adapter';
     const artifactUuid = '11111111-2222-3333-4444-555555555555';
 
     const memoryStore = {

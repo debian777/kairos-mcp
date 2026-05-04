@@ -7,6 +7,7 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
+import { formatNextCallBlock } from '../format-next-call.js';
 
 export function activateCommand(program: Command): void {
     program
@@ -17,7 +18,8 @@ export function activateCommand(program: Command): void {
             try {
                 const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 const response = await client.activate(query.join(' '));
-                writeJson(response);
+                const nextCall = formatNextCallBlock(response);
+                writeJson(nextCall ? { ...response, cli_next_call: nextCall } : response);
             } catch (error) {
                 handleApiError(error, !isBrowserDisabled());
             }

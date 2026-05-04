@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
-import { ADAPTER_URI_INPUT_REGEX } from './kairos-uri.js';
+import { ADAPTER_SLUG_URI_INPUT_REGEX } from './kairos-uri.js';
 
 function refineTrainRelativePath(
   value: { mime?: string | undefined; relative_path?: string | undefined },
@@ -31,11 +31,11 @@ function refineTrainRelativePath(
 
 const adapterUriSchema = z
   .string()
-  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}');
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}');
 
 const sourceAdapterUriSchema = z
   .string()
-  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}')
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}')
   .describe('Optional fork source: export markdown from this adapter, then train into target space');
 
 export const trainInputSchema = z

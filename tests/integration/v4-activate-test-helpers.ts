@@ -33,16 +33,22 @@ export function expectConfidencePercentInMessage(message: string): void {
 
 /**
  * Match rows may be `null` when no slug is stored — use train+echo test to prove slug plumbing.
+ * Create footer rows include the built-in creation adapter slug (`create-new-protocol`), not null.
  */
 export function expectActivateChoiceSlugField(choice: ActivateChoice): void {
   expect(choice.slug === null || typeof choice.slug === 'string').toBe(true);
 
-  if (choice.role === 'refine' || choice.role === 'create') {
-    expect(choice.slug).toBeNull();
+  if (choice.role === 'create') {
+    if (choice.slug === null) return;
+    const slug = choice.slug as string;
+    expect(slug.length).toBeGreaterThan(0);
+    expect(slug.length).toBeLessThanOrEqual(MAX_PROTOCOL_SLUG_LENGTH);
+    expect(slug).toBe(slug.trim());
+    expect(slug).toMatch(AUTHOR_SLUG_RE);
     return;
   }
 
-  if (choice.role !== 'match') {
+  if (choice.role !== 'match' && choice.role !== 'refine') {
     throw new Error(`unexpected activate choice role: ${String(choice.role)}`);
   }
 

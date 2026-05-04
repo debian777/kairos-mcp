@@ -3,7 +3,53 @@ import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
+  .regex(
+    /^kairos:\/\/adapter\/(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i,
+    'must match kairos://adapter/{slug}'
+  );
+const adapterSlugUriSchema = z
+  .string()
+  .regex(
+    /^kairos:\/\/adapter\/(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i,
+    'must match kairos://adapter/{slug}'
+  );
+const forwardFirstCallSchema = z
+  .object({
+    uri: adapterSlugUriSchema
+  })
+  .strict();
+const activateChoiceCommonSchema = z.object({
+  uri: adapterUriSchema,
+  label: z.string().describe('Display label for the adapter choice'),
+  adapter_name: z.string().nullable().describe('Adapter title when this choice maps to a stored adapter'),
+  activation_score: z.number().min(0).max(1).nullable().describe('Normalized 0.0-1.0 confidence for matches, null for refine/create'),
+  tags: z.array(z.string()),
+  next_action: z.string().describe('Instruction for this choice, typically a forward call'),
+  adapter_version: z.string().nullable().describe('Stored adapter version when present'),
+  activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter'),
+  space_name: z
+    .string()
+    .nullable()
+    .describe('Human-readable space where the adapter is stored; null for refine/create choices'),
+  slug: z
+    .string()
+    .nullable()
+    .describe(
+      'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
+    )
+});
+const activateMatchChoiceSchema = activateChoiceCommonSchema.extend({
+  role: z.literal('match'),
+  forward_first_call: forwardFirstCallSchema
+});
+const activateRefineChoiceSchema = activateChoiceCommonSchema.extend({
+  role: z.literal('refine'),
+  forward_first_call: forwardFirstCallSchema
+});
+const activateCreateChoiceSchema = activateChoiceCommonSchema.extend({
+  role: z.literal('create'),
+  forward_first_call: z.null()
+});
 
 export const activateInputSchema = z.object({
   query: z.string().min(1).describe('Activation query used to find the best matching adapter'),
@@ -27,27 +73,13 @@ export const activateOutputSchema = z.object({
   next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
   /** Echo of the request query for MCP App / HTTP clients (human-facing headers). */
   query: z.string().describe('Same string as the activate input query.'),
-  choices: z.array(z.object({
-    uri: adapterUriSchema,
-    label: z.string().describe('Display label for the adapter choice'),
-    adapter_name: z.string().nullable().describe('Adapter title when this choice maps to a stored adapter'),
-    activation_score: z.number().min(0).max(1).nullable().describe('Normalized 0.0-1.0 confidence for matches, null for refine/create'),
-    role: z.enum(['match', 'refine', 'create']),
-    tags: z.array(z.string()),
-    next_action: z.string().describe('Instruction for this choice, typically a forward call'),
-    adapter_version: z.string().nullable().describe('Stored adapter version when present'),
-    activation_patterns: z.array(z.string()).optional().describe('Activation phrases associated with this adapter'),
-    space_name: z
-      .string()
-      .nullable()
-      .describe('Human-readable space where the adapter is stored; null for refine/create choices'),
-    slug: z
-      .string()
-      .nullable()
-      .describe(
-        'Adapter routing slug when stored (use with kairos://adapter/{slug} in forward); null for refine/create or when absent'
-      )
-  })),
+  choices: z.array(
+    z.discriminatedUnion('role', [
+      activateMatchChoiceSchema,
+      activateRefineChoiceSchema,
+      activateCreateChoiceSchema
+    ])
+  ),
   /**
    * Ordered URI hints (preferred first) for the run's local handoff dir. Resolve **on the client**:
    * `project://<rel>` → `<client project root>/<rel>`; `user://<rel>` → `<client home or $XDG_CONFIG_HOME>/<rel>`.

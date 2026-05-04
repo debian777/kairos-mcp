@@ -4,6 +4,7 @@ import { IDGenerator } from '../../src/services/id-generator.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 
 type LayerPayload = {
+  slug?: string;
   space_id: string;
   label: string;
   text: string;
@@ -44,6 +45,25 @@ class FakeQdrantService {
     return rows;
   }
 
+  async findFirstStepMemoryUuidBySlug(slug: string): Promise<{ layerUuid: string | null }> {
+    const normalized = slug.trim().toLowerCase();
+    for (const layer of this.layerByUuid.values()) {
+      const pSlug =
+        typeof layer.payload.slug === 'string' ? layer.payload.slug.trim().toLowerCase() : '';
+      const li = layer.payload.adapter?.layer_index;
+      if (pSlug === normalized && li === 1) {
+        return { layerUuid: layer.uuid };
+      }
+    }
+    return { layerUuid: null };
+  }
+
+  async getMemoryByUUID(uuid: string): Promise<(LayerPayload & { memory_uuid: string }) | null> {
+    const layer = this.layerByUuid.get(uuid);
+    if (!layer) return null;
+    return { ...layer.payload, memory_uuid: uuid };
+  }
+
   async updateMemory(id: string, updates: Record<string, unknown>): Promise<void> {
     const layer = this.layerByUuid.get(id);
     if (!layer) {
@@ -63,13 +83,14 @@ class FakeQdrantService {
   }
 }
 
-function buildInitialLayers(adapterId: string, adapterName: string): LayerRecord[] {
+function buildInitialLayers(adapterId: string, adapterName: string, slug: string): LayerRecord[] {
   const layer1Uuid = '11111111-1111-4111-8111-111111111111';
   const layer2Uuid = '22222222-2222-4222-8222-222222222222';
   return [
     {
       uuid: layer1Uuid,
       payload: {
+        slug,
         space_id: 'user:test-space',
         label: 'Activation Patterns',
         text: 'Old trigger text',
@@ -90,6 +111,7 @@ function buildInitialLayers(adapterId: string, adapterName: string): LayerRecord
     {
       uuid: layer2Uuid,
       payload: {
+        slug,
         space_id: 'user:test-space',
         label: 'Do Work',
         text: 'Old work step',
@@ -114,7 +136,8 @@ describe('executeTune adapter markdown updates', () => {
   test('updates all adapter layers in place and refreshes adapter metadata', async () => {
     const adapterName = 'Tune Export Regression Adapter';
     const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
-    const layers = buildInitialLayers(adapterId, adapterName);
+    const adapterSlug = 'tune-export-regression-adapter';
+    const layers = buildInitialLayers(adapterId, adapterName, adapterSlug);
     const fakeQdrant = new FakeQdrantService(layers);
 
     const nextMarkdown = `---
@@ -146,7 +169,7 @@ New reward text after tune.
 `;
 
     const output = await executeTune(fakeQdrant as any, {
-      uris: [`kairos://adapter/${adapterId}`],
+      uris: [`kairos://adapter/${adapterSlug}`],
       content: [nextMarkdown]
     });
 
@@ -170,7 +193,8 @@ New reward text after tune.
   test('rejects markdown that maps to a different adapter id', async () => {
     const adapterName = 'Tune Export Regression Adapter';
     const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
-    const layers = buildInitialLayers(adapterId, adapterName);
+    const adapterSlug = 'tune-export-regression-adapter';
+    const layers = buildInitialLayers(adapterId, adapterName, adapterSlug);
     const fakeQdrant = new FakeQdrantService(layers);
 
     const wrongMarkdown = `# Different Adapter Title
@@ -185,7 +209,7 @@ New reward text after tune.
 `;
 
     const output = await executeTune(fakeQdrant as any, {
-      uris: [`kairos://adapter/${adapterId}`],
+      uris: [`kairos://adapter/${adapterSlug}`],
       content: [wrongMarkdown]
     });
 
@@ -199,7 +223,8 @@ New reward text after tune.
   test('blocks tune updates for app/system-backed adapters', async () => {
     const adapterName = 'Tune Protected Adapter';
     const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
-    const appOnlyLayers = buildInitialLayers(adapterId, adapterName).map((layer) => ({
+    const adapterSlug = 'tune-protected-adapter';
+    const appOnlyLayers = buildInitialLayers(adapterId, adapterName, adapterSlug).map((layer) => ({
       ...layer,
       payload: {
         ...layer.payload,
@@ -209,7 +234,7 @@ New reward text after tune.
     const fakeQdrant = new FakeQdrantService(appOnlyLayers);
 
     const output = await executeTune(fakeQdrant as any, {
-      uris: [`kairos://adapter/${adapterId}`],
+      uris: [`kairos://adapter/${adapterSlug}`],
       updates: { tags: ['blocked'] }
     });
 
@@ -223,7 +248,8 @@ New reward text after tune.
   test('still updates writable personal override when app and personal layers share adapter id', async () => {
     const adapterName = 'Tune Mixed Space Adapter';
     const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
-    const personalLayers = buildInitialLayers(adapterId, adapterName).map((layer) => ({
+    const adapterSlug = 'tune-mixed-space-adapter';
+    const personalLayers = buildInitialLayers(adapterId, adapterName, adapterSlug).map((layer) => ({
       ...layer,
       payload: {
         ...layer.payload,
@@ -234,7 +260,7 @@ New reward text after tune.
       '33333333-3333-4333-8333-333333333333',
       '44444444-4444-4444-8444-444444444444'
     ];
-    const appLayers = buildInitialLayers(adapterId, adapterName).map((layer, index) => ({
+    const appLayers = buildInitialLayers(adapterId, adapterName, adapterSlug).map((layer, index) => ({
       ...layer,
       uuid: appLayerUuids[index]!,
       payload: {
@@ -254,7 +280,7 @@ New reward text after tune.
       },
       async () =>
         executeTune(fakeQdrant as any, {
-          uris: [`kairos://adapter/${adapterId}`],
+          uris: [`kairos://adapter/${adapterSlug}`],
           updates: { tags: ['personal-update'] }
         })
     );

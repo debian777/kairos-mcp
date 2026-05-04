@@ -286,6 +286,18 @@ export function getSpaceContext(request?: {
 }
 
 /**
+ * Persist request-derived space context across async HTTP route handlers.
+ * Auth middleware sets `req.spaceContext` using synchronous `spaceStorage.run`, which does not
+ * keep AsyncLocalStorage active after the handler awaits; wrap the tool body with this helper.
+ */
+export async function runHttpApiWithSpaceContext<T>(
+  request: Parameters<typeof getSpaceContext>[0],
+  fn: () => Promise<T>
+): Promise<T> {
+  return runWithSpaceContextAsync(getSpaceContext(request), fn);
+}
+
+/**
  * Get tenant ID for metrics. Returns default write space id or first allowed space.
  */
 export function getTenantId(request?: any): string {

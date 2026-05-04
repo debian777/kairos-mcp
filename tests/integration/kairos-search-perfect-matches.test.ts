@@ -140,12 +140,21 @@ describe('Kairos Search Perfect Matches', () => {
     expect(Array.isArray(singleParsed.choices)).toBe(true);
     expect(singleParsed.choices.length).toBeGreaterThanOrEqual(1);
 
-    // Each choice must have uri, label, role (match URIs are kairos://adapter/<uuid>)
+    const ADAPTER_SLUG_URI_RE = /^kairos:\/\/adapter\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
+    // Each choice must have uri, label, role (match/refine adapter URIs are kairos://adapter/<slug>)
     const isNewFormat = typeof singleParsed.next_action === 'string' && singleParsed.next_action.includes("choice's next_action");
     for (const choice of singleParsed.choices) {
       expect(choice.uri).toBeDefined();
       expect(typeof choice.uri).toBe('string');
-      expect(choice.uri).toMatch(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i);
+      if (choice.role === 'match' || choice.role === 'refine') {
+        expect(choice.uri).toMatch(ADAPTER_SLUG_URI_RE);
+        expect(choice).toHaveProperty('forward_first_call');
+        expect(choice.forward_first_call).not.toBeNull();
+        expect(choice.forward_first_call.uri).toMatch(ADAPTER_SLUG_URI_RE);
+      } else {
+        expect(choice.role).toBe('create');
+        expect(choice.forward_first_call).toBeNull();
+      }
       expect(choice.label).toBeDefined();
       expect(typeof choice.label).toBe('string');
       if (isNewFormat) expect(choice).toHaveProperty('next_action');

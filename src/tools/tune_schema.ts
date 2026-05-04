@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ADAPTER_UUID_URI_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
+import { ADAPTER_SLUG_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(ADAPTER_UUID_URI_REGEX, 'must match kairos://adapter/{uuid}');
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}');
 
 const layerUriSchema = z
   .string()

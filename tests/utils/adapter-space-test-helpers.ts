@@ -26,12 +26,6 @@ Body.
 Done.`;
 }
 
-export function parseAdapterUuidFromUri(adapterUri: string): string {
-  const m = /^kairos:\/\/adapter\/([0-9a-f-]{36})$/i.exec(adapterUri.trim());
-  if (!m) throw new Error(`Not an adapter URI: ${adapterUri}`);
-  return m[1]!.toLowerCase();
-}
-
 export function locationsForAdapterTitle(
   spaces: SpaceRow[],
   title: string

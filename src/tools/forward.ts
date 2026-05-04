@@ -22,7 +22,7 @@ import {
 } from './next-previous-step.js';
 import { updateStepQuality } from './next.js';
 import { type ForwardInput, type ForwardOutput } from './forward_schema.js';
-import { buildAdapterUri, buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
+import { assertWireAdapterUri, buildAdapterUri, buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import {
   buildForwardView,
   buildCurrentLayerView,
@@ -87,7 +87,11 @@ export async function executeForward(
   qdrantService: QdrantService | undefined,
   input: ForwardInput
 ): Promise<ForwardOutput> {
-  const parsed = parseKairosUriOrThrow(input.uri);
+  const parsedInputUri = parseKairosUriOrThrow(input.uri);
+  const parsed =
+    parsedInputUri.kind === 'adapter'
+      ? parseKairosUriOrThrow(assertWireAdapterUri(input.uri))
+      : parsedInputUri;
   const loaded = await loadMemoryForParsedUri(memoryStore, qdrantService, parsed);
   const memory = loaded.memory;
   if (!memory) {

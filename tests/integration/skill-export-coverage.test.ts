@@ -66,8 +66,10 @@ describe('skill-export single-adapter coverage', () => {
     expect(tree.skills.length).toBe(1);
     const skill = tree.skills[0]!;
     expect(skill.slug).toBe(slug);
-    // skill_tree may carry the adapter id (`kairos://adapter/…`) or the head layer row (`kairos://layer/…`).
-    expect(skill.kairos_uri).toMatch(/^kairos:\/\/(?:adapter|layer)\/[0-9a-f-]/i);
+    // skill_tree may carry the adapter slug (`kairos://adapter/<slug>`) or the head layer row (`kairos://layer/<uuid>`).
+    expect(skill.kairos_uri).toMatch(
+      /^kairos:\/\/(?:adapter\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|layer\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12})/i
+    );
 
     const paths = skill.files.map((f) => f.path);
     expect(paths).toContain('SKILL.md');

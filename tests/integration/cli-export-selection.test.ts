@@ -90,7 +90,7 @@ describe('CLI export selection union (--adapters / --all-adapters)', () => {
 
   test('rejects positional uri combined with --adapters', async () => {
     requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-    const fakeUri = 'kairos://adapter/00000000-0000-0000-0000-0000000000aa';
+    const fakeUri = 'kairos://adapter/fake-adapter-aa';
     await expect(
       execAsync(
         `node ${CLI_PATH} export --url ${BASE_URL} --format skill_zip ${fakeUri} --adapters ${fakeUri}`
@@ -113,7 +113,7 @@ describe('CLI export selection union (--adapters / --all-adapters)', () => {
 
   test('rejects --space-name without --all-adapters', async () => {
     requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-    const fakeUri = 'kairos://adapter/00000000-0000-0000-0000-0000000000bb';
+    const fakeUri = 'kairos://adapter/fake-adapter-bb';
     await expect(
       execAsync(
         `node ${CLI_PATH} export --url ${BASE_URL} --format markdown ${fakeUri} --space-name personal`

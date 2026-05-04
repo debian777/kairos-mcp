@@ -8,7 +8,6 @@ import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
-  parseAdapterUuidFromUri,
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import {
@@ -72,7 +71,6 @@ describe('Adapter fork copy (group → personal)', () => {
       expect(stored.status).toBe('stored');
     });
     const sourceUri = stored.items[0].adapter_uri as string;
-    const sourceId = parseAdapterUuidFromUri(sourceUri);
 
     await sleepMs(5000);
     let spaces = await loadSpacesViaMcp();
@@ -81,6 +79,7 @@ describe('Adapter fork copy (group → personal)', () => {
       expect(loc.filter((l) => l.type === 'group').length).toBe(1);
       expect(loc.some((l) => l.type === 'personal')).toBe(false);
     });
+    const sourceId = loc.find((l) => l.type === 'group')!.adapterId.toLowerCase();
 
     const forkCall = {
       name: 'train',
@@ -96,13 +95,11 @@ describe('Adapter fork copy (group → personal)', () => {
     withRawOnFail({ call: forkCall, result: forkRes }, () => {
       expect(forked.status).toBe('stored');
     });
-    const copyUri = forked.items[0].adapter_uri as string;
-    const copyId = parseAdapterUuidFromUri(copyUri);
-    expect(copyId).not.toBe(sourceId);
-
     await sleepMs(5000);
     spaces = await loadSpacesViaMcp();
     loc = locationsForAdapterTitle(spaces, title);
+    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    expect(copyId).not.toBe(sourceId);
     withRawOnFail({ call: forkCall, result: forkRes }, () => {
       expect(loc.filter((l) => l.type === 'group').length).toBe(1);
       expect(loc.filter((l) => l.type === 'personal').length).toBe(1);
@@ -139,7 +136,6 @@ describe('Adapter fork copy (group → personal)', () => {
     expect(tr.status).toBe(200);
     const stored = (await tr.json()) as { items: Array<{ adapter_uri: string }> };
     const sourceUri = stored.items[0]!.adapter_uri;
-    const sourceId = parseAdapterUuidFromUri(sourceUri);
 
     await sleepMs(5000);
 
@@ -154,13 +150,13 @@ describe('Adapter fork copy (group → personal)', () => {
       })
     });
     expect(fr.status).toBe(200);
-    const forked = (await fr.json()) as { items: Array<{ adapter_uri: string }> };
-    const copyId = parseAdapterUuidFromUri(forked.items[0]!.adapter_uri);
-    expect(copyId).not.toBe(sourceId);
-
+    await fr.json();
     await sleepMs(5000);
     const spaces = await loadSpacesViaMcp();
     const loc = locationsForAdapterTitle(spaces, title);
+    const sourceId = loc.find((l) => l.type === 'group')!.adapterId.toLowerCase();
+    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    expect(copyId).not.toBe(sourceId);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);
     expect(loc.filter((l) => l.type === 'personal').length).toBe(1);
     expect(loc.find((l) => l.type === 'group')?.adapterId.toLowerCase()).toBe(sourceId);
@@ -199,7 +195,6 @@ describe('Adapter fork copy (group → personal)', () => {
     expect(tr.status).toBe(200);
     const stored = (await tr.json()) as { items: Array<{ adapter_uri: string }> };
     const sourceUri = stored.items[0]!.adapter_uri;
-    const sourceId = parseAdapterUuidFromUri(sourceUri);
 
     await sleepMs(5000);
 
@@ -208,13 +203,13 @@ describe('Adapter fork copy (group → personal)', () => {
       { timeout: 60000 }
     );
     expect(forkOut.stderr).toBe('');
-    const forked = JSON.parse(forkOut.stdout) as { items: Array<{ adapter_uri: string }> };
-    const copyId = parseAdapterUuidFromUri(forked.items[0]!.adapter_uri);
-    expect(copyId).not.toBe(sourceId);
-
+    JSON.parse(forkOut.stdout);
     await sleepMs(5000);
     const spaces = await loadSpacesViaMcp();
     const loc = locationsForAdapterTitle(spaces, title);
+    const sourceId = loc.find((l) => l.type === 'group')!.adapterId.toLowerCase();
+    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    expect(copyId).not.toBe(sourceId);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);
     expect(loc.filter((l) => l.type === 'personal').length).toBe(1);
     expect(loc.find((l) => l.type === 'group')?.adapterId.toLowerCase()).toBe(sourceId);

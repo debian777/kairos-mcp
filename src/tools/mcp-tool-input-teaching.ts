@@ -2,6 +2,9 @@ import type { ZodError } from 'zod';
 import { FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE } from './forward_schema.js';
 
 export const MCP_INVALID_TOOL_INPUT = 'INVALID_TOOL_INPUT' as const;
+const MAX_INPUT_RETRIES = 3;
+const RETRY_TTL_MS = 60_000;
+const retryCounters = new Map<string, { count: number; expiresAt: number }>();
 
 export type KairosToolNameForInputTeaching =
   | 'activate'
@@ -21,24 +24,73 @@ function hasTopLevelField(error: ZodError, field: string): boolean {
   return error.issues.some((i) => i.path[0] === field);
 }
 
-function teachingActivate(error: ZodError): Record<string, unknown> {
+function readString(raw: unknown, keys: string[]): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const rec = raw as Record<string, unknown>;
+  for (const key of keys) {
+    const value = rec[key];
+    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  }
+  return null;
+}
+
+function uriExecutionId(raw: unknown): string | null {
+  const uri = readString(raw, ['uri']);
+  if (!uri) return null;
+  const match = uri.match(/^kairos:\/\/layer\/[0-9a-f-]{36}\?execution_id=([0-9a-f-]{36})$/i);
+  return match?.[1] ?? null;
+}
+
+function retryCounter(tool: KairosToolNameForInputTeaching, raw: unknown): { retry_count: number; max_retries: number } {
+  const executionId = uriExecutionId(raw);
+  const scope =
+    executionId ??
+    readString(raw, ['X-Idempotency-Key', 'x-idempotency-key', 'idempotency_key']) ??
+    readString(raw, ['transport_session_id', 'session_id']) ??
+    readString(raw, ['origin_ip', 'ip']) ??
+    'unknown';
+  const key = `kairos:retry:default:${tool}:${scope}`;
+  const now = Date.now();
+  const existing = retryCounters.get(key);
+  const count = existing && existing.expiresAt > now ? existing.count + 1 : 1;
+  retryCounters.set(key, { count, expiresAt: now + RETRY_TTL_MS });
+  return { retry_count: count, max_retries: MAX_INPUT_RETRIES };
+}
+
+function withRetry(tool: KairosToolNameForInputTeaching, raw: unknown, payload: Record<string, unknown>): Record<string, unknown> {
+  const retry = retryCounter(tool, raw);
+  const mustObey = retry.retry_count <= retry.max_retries;
+  return {
+    ...payload,
+    must_obey: mustObey,
+    ...(mustObey
+      ? {}
+      : {
+          next_action:
+            'Stop retrying this exact payload. Ask for clarification or call activate again to regenerate the next step.'
+        }),
+    ...retry
+  };
+}
+
+function teachingActivate(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
   const queryProblem = hasTopLevelField(error, 'query') || paths.some((p) => p.startsWith('query'));
   const message = queryProblem
     ? 'Input validation error: `activate` needs a non-empty `query` string summarizing the user intent (about 3–8 words is enough). Optional: `space` / `space_id` to narrow search; optional `max_choices` within the allowed range.'
     : 'Input validation error: Check `activate` arguments against the tool schema: required `query`; optional `space`, `space_id`, `max_choices`.';
-  return {
+  return withRetry('activate', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'activate',
-    must_obey: true,
     message,
     next_action:
       'Call activate again with {"query":"<short intent from the user message>"}. Use spaces first if you need allowed space names.',
-    invalid_fields: paths
-  };
+    invalid_fields: paths,
+    example: { query: 'review and publish adapter' }
+  });
 }
 
-function teachingForward(error: ZodError): Record<string, unknown> {
+function teachingForward(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
   const uriProblem = hasTopLevelField(error, 'uri');
   const solutionProblem = hasTopLevelField(error, 'solution') || paths.some((p) => p.startsWith('solution'));
@@ -48,52 +100,111 @@ function teachingForward(error: ZodError): Record<string, unknown> {
   const missingSolutionType = error.issues.some(
     (issue) => issue.path.length === 2 && issue.path[0] === 'solution' && issue.path[1] === 'type'
   );
-  let detail: string;
-  if (uriProblem) {
-    detail =
-      'The `uri` argument is required and must be a JSON string (quoted). After activate, copy `choices[].uri` from the row you picked. First forward call of a run: use adapter URI and omit `solution`. Continuation calls in that same execution chain (layer URI with `?execution_id=...`): include `solution.type`, the matching `solution.<type>` object, and any required proof fields from the current contract.';
-  } else if (solutionProblem && forbiddenSolutionOnStart) {
-    detail = FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE;
-  } else if (solutionProblem && missingSolutionType) {
-    detail =
-      '`solution.type` is required on continuation calls (layer URI with `?execution_id=...`). Set it to the current `contract.type`, include the matching payload object (for example, `solution.shell`), and echo `nonce`/`proof_hash` when the contract provides them. If this is the first call, omit `solution` entirely.';
-  } else if (solutionProblem) {
-    detail =
-      '`solution` must match the current `contract.type` (tensor, shell, mcp, user_input, comment). Include `solution.type` plus the matching payload object (`solution.mcp`, `solution.comment`, and so on). Omit `solution` only on the first forward call of a run (adapter URI or layer URI without `?execution_id=...`), not on continuation calls in the same execution chain.';
-  } else {
-    detail =
-      'See the forward tool description: pass `uri` (adapter or layer) and optional `solution` shaped for the active contract.';
+  const rawUri = readString(raw, ['uri']);
+  const adapterUuidOnWire =
+    typeof rawUri === 'string' && /^kairos:\/\/adapter\/[0-9a-f-]{36}$/i.test(rawUri);
+  const memUriMisuse = typeof rawUri === 'string' && /^kairos:\/\/mem\//i.test(rawUri);
+
+  if (uriProblem && adapterUuidOnWire) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message: 'Input validation error: Adapter URIs are slug-only on the wire for forward.',
+      next_action:
+        'Retry forward with {"uri":"kairos://adapter/<slug>"} copied from activate `choices[].forward_first_call.uri`.',
+      invalid_fields: paths,
+      example: { uri: 'kairos://adapter/phase-critic' }
+    });
   }
-  const next_action = forbiddenSolutionOnStart
-    ? 'Retry forward with {"uri":"<adapter or layer uri from activate/forward>"} only — omit `solution`. After you receive `contract` and `execution_id`, submit `solution` on the next call using the layer URI with `?execution_id=...`.'
-    : missingSolutionType
-      ? 'Retry forward with {"uri":"<layer uri with ?execution_id=...>","solution":{"type":"<contract.type>","<type-specific>":{...},"nonce":"<contract.nonce>","proof_hash":"<contract.proof_hash>"}} using the exact URI and fields from the current contract. If you are starting a run, call forward with {"uri":"<adapter or layer uri>"} only.'
-      : 'Retry forward with valid JSON arguments, e.g. {"uri":"kairos://adapter/<uuid>"} with the exact URI string from activate or the prior forward response.';
-  return {
+  if (uriProblem && memUriMisuse) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message: 'Input validation error: memory URIs are for resource reads, not forward.',
+      next_action:
+        'Retry forward with an adapter slug URI for start calls or a layer URI with execution_id for continuation calls.',
+      invalid_fields: paths,
+      example: { uri: 'kairos://adapter/phase-critic' }
+    });
+  }
+  if (uriProblem) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message:
+        'Input validation error: `uri` is required and must be a JSON string using kairos://adapter/<slug> or kairos://layer/<uuid>[?execution_id=<uuid>].',
+      next_action:
+        'Retry forward with {"uri":"kairos://adapter/<slug>"} for start, or the exact layer URI from the previous forward response.',
+      invalid_fields: paths,
+      example: { uri: 'kairos://adapter/phase-critic' }
+    });
+  }
+  if (solutionProblem && forbiddenSolutionOnStart) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message: `Input validation error: ${FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE}`,
+      next_action:
+        'Retry forward with {"uri":"<adapter-slug-or-layer-uri-without-execution_id>"} only. Omit `solution` on start.',
+      invalid_fields: paths,
+      example: { uri: 'kairos://adapter/phase-critic' }
+    });
+  }
+  if (solutionProblem && missingSolutionType) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message:
+        'Input validation error: `solution.type` is required on continuation calls and must match the current contract.type.',
+      next_action:
+        'Retry with the same layer URI including execution_id and provide solution.type plus the matching payload object.',
+      invalid_fields: paths,
+      example: {
+        uri: 'kairos://layer/<uuid>?execution_id=<uuid>',
+        solution: { type: 'comment', comment: { text: 'done' } }
+      }
+    });
+  }
+  if (solutionProblem) {
+    return withRetry('forward', raw, {
+      error: MCP_INVALID_TOOL_INPUT,
+      tool: 'forward',
+      message:
+        'Input validation error: `solution` must include exactly the payload object that matches solution.type.',
+      next_action:
+        'Retry with solution.type set to contract.type and include only solution.<type> plus required proof fields.',
+      invalid_fields: paths,
+      example: {
+        uri: 'kairos://layer/<uuid>?execution_id=<uuid>',
+        solution: { type: 'shell', shell: { exit_code: 0 } }
+      }
+    });
+  }
+  return withRetry('forward', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'forward',
-    must_obey: true,
-    message: `Input validation error: Invalid arguments for tool forward. ${detail}`,
-    next_action,
-    invalid_fields: paths
-  };
+    message: 'Input validation error: Invalid arguments for tool forward.',
+    next_action: 'Retry forward with valid JSON matching the schema.',
+    invalid_fields: paths,
+    example: { uri: 'kairos://adapter/phase-critic' }
+  });
 }
 
-function teachingReward(error: ZodError): Record<string, unknown> {
+function teachingReward(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
-  return {
+  return withRetry('reward', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'reward',
-    must_obey: true,
     message:
       'Input validation error: `reward` needs `uri` = final layer URI from the last forward (`kairos://layer/<uuid>` with `?execution_id=...` when the run used it), plus `outcome` ("success" or "failure"). Optional: score, feedback, rater, rubric_version, llm_model_id.',
     next_action:
       'Call reward with {"uri":"<layer uri from forward>","outcome":"success"|"failure"} — copy the layer uri verbatim from the forward response that told you to reward.',
-    invalid_fields: paths
-  };
+    invalid_fields: paths,
+    example: { uri: 'kairos://layer/<uuid>?execution_id=<uuid>', outcome: 'success' }
+  });
 }
 
-function teachingTrain(error: ZodError): Record<string, unknown> {
+function teachingTrain(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
   const md = hasTopLevelField(error, 'content') || hasTopLevelField(error, 'source_adapter_uri');
   const model = hasTopLevelField(error, 'llm_model_id');
@@ -105,69 +216,69 @@ function teachingTrain(error: ZodError): Record<string, unknown> {
     extra +=
       ' Supply full adapter `content` and/or `source_adapter_uri` (fork) so at least one source of content exists.';
   }
-  return {
+  return withRetry('train', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'train',
-    must_obey: true,
     message: `Input validation error: Invalid arguments for tool train.${extra} See train tool description for optional force_update, protocol_version, space.`,
     next_action:
       'Retry train with {"content":"...","llm_model_id":"..."} or with source_adapter_uri (and optional content override).',
-    invalid_fields: paths
-  };
+    invalid_fields: paths,
+    example: { content: '# My adapter\n\n## Step\n\n```json\n{"contract":{"type":"comment"}}\n```', llm_model_id: 'gpt-5.3-codex' }
+  });
 }
 
-function teachingTune(error: ZodError): Record<string, unknown> {
+function teachingTune(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
-  return {
+  return withRetry('tune', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'tune',
-    must_obey: true,
     message:
       'Input validation error: `tune` requires non-empty `uris` (adapter and/or layer URIs). Provide at least one of: parallel `content` strings (same length as uris), `updates` map, or `space` to move targets.',
     next_action:
-      'Call tune with {"uris":["kairos://adapter/..."],"content":["..."]} or {"uris":[...],"space":"personal"} — URIs must match kairos://adapter/{uuid} or kairos://layer/{uuid}[?execution_id=...].',
-    invalid_fields: paths
-  };
+      'Call tune with {"uris":["kairos://adapter/<slug>"],"content":["..."]} or {"uris":[...],"space":"personal"}.',
+    invalid_fields: paths,
+    example: { uris: ['kairos://adapter/phase-critic'], content: ['# Updated adapter markdown'] }
+  });
 }
 
-function teachingDelete(error: ZodError): Record<string, unknown> {
+function teachingDelete(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
-  return {
+  return withRetry('delete', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'delete',
-    must_obey: true,
     message:
-      'Input validation error: `delete` requires `uris`: a non-empty array of adapter or layer URIs (kairos://adapter/{uuid} or kairos://layer/{uuid}[?execution_id=...]).',
-    next_action: 'Retry delete with {"uris":["kairos://adapter/<uuid>"]} or layer URIs you intend to remove.',
-    invalid_fields: paths
-  };
+      'Input validation error: `delete` requires `uris`: a non-empty array of adapter-slug or layer URIs.',
+    next_action: 'Retry delete with {"uris":["kairos://adapter/<slug>"]} or layer URIs you intend to remove.',
+    invalid_fields: paths,
+    example: { uris: ['kairos://adapter/phase-critic'] }
+  });
 }
 
-function teachingExport(error: ZodError): Record<string, unknown> {
+function teachingExport(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
-  return {
+  return withRetry('export', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'export',
-    must_obey: true,
     message:
       'Input validation error: `export` requires exactly one selection: `uri`, or non-empty `adapters`, or `all_adapters`+`space_name`. Default `format` is `skill_zip`; use `format: markdown` for flat single-file adapter Markdown. Optional `include_reward`.',
     next_action:
-      'Call export with {"uri":"kairos://adapter/<uuid>","format":"skill_zip"} or for flat Markdown {"uri":"kairos://adapter/<uuid>","format":"markdown"}.',
-    invalid_fields: paths
-  };
+      'Call export with {"uri":"kairos://adapter/<slug>","format":"skill_zip"} or for flat Markdown {"uri":"kairos://adapter/<slug>","format":"markdown"}.',
+    invalid_fields: paths,
+    example: { uri: 'kairos://adapter/phase-critic', format: 'skill_zip' }
+  });
 }
 
-function teachingSpaces(error: ZodError): Record<string, unknown> {
+function teachingSpaces(error: ZodError, raw: unknown): Record<string, unknown> {
   const paths = issuePaths(error);
-  return {
+  return withRetry('spaces', raw, {
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'spaces',
-    must_obey: true,
     message:
       'Input validation error: `spaces` accepts optional booleans only: `include_adapter_titles`, `include_widget_html` (both default false).',
     next_action: 'Call spaces with {} or {"include_adapter_titles":true} — use JSON true/false, not strings.',
-    invalid_fields: paths
-  };
+    invalid_fields: paths,
+    example: { include_adapter_titles: true }
+  });
 }
 
 export function buildMcpInputTeachingPayload(
@@ -177,21 +288,21 @@ export function buildMcpInputTeachingPayload(
 ): Record<string, unknown> {
   switch (tool) {
     case 'activate':
-      return teachingActivate(error);
+      return teachingActivate(error, _raw);
     case 'forward':
-      return teachingForward(error);
+      return teachingForward(error, _raw);
     case 'reward':
-      return teachingReward(error);
+      return teachingReward(error, _raw);
     case 'train':
-      return teachingTrain(error);
+      return teachingTrain(error, _raw);
     case 'tune':
-      return teachingTune(error);
+      return teachingTune(error, _raw);
     case 'delete':
-      return teachingDelete(error);
+      return teachingDelete(error, _raw);
     case 'export':
-      return teachingExport(error);
+      return teachingExport(error, _raw);
     case 'spaces':
-      return teachingSpaces(error);
+      return teachingSpaces(error, _raw);
   }
 }
 

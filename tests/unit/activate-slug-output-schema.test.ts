@@ -14,7 +14,7 @@ import { getAdapterSlugForSearchOutput } from '../../src/services/memory/memory-
 import { activateOutputSchema } from '../../src/tools/activate_schema.js';
 import { searchOutputSchema } from '../../src/tools/search_schema.js';
 
-const SAMPLE_ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+const SAMPLE_ADAPTER_URI = 'kairos://adapter/sample-adapter';
 
 function slugWithUnderscoreBetweenSegments(): string {
   return [slugifyFromTitle('Left'), slugifyFromTitle('Right')].join('_');
@@ -159,10 +159,13 @@ describe('activateOutputSchema slug field', () => {
           next_action: 'x',
           adapter_version: '1.0.0',
           space_name: 'Personal',
-          slug: matchSlug
+          slug: matchSlug,
+          forward_first_call: {
+            uri: `kairos://adapter/${matchSlug}`
+          }
         },
         {
-          uri: 'kairos://adapter/00000000-0000-0000-0000-000000002002',
+          uri: 'kairos://adapter/refine-search',
           label: 'refine',
           adapter_name: 'refine',
           activation_score: null,
@@ -171,7 +174,10 @@ describe('activateOutputSchema slug field', () => {
           next_action: 'r',
           adapter_version: null,
           space_name: null,
-          slug: null
+          slug: null,
+          forward_first_call: {
+            uri: 'kairos://adapter/refine-search'
+          }
         }
       ]
     });

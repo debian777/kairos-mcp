@@ -7,6 +7,7 @@ import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
+import { formatNextCallBlock } from '../format-next-call.js';
 
 export function forwardCommand(program: Command): void {
     program
@@ -19,7 +20,8 @@ export function forwardCommand(program: Command): void {
                 const client = new ApiClient(getResolvedApiBaseFromProgram(program));
                 const solution = options.solution ? JSON.parse(options.solution) : undefined;
                 const response = await client.forward(uri, solution);
-                writeJson(response);
+                const nextCall = formatNextCallBlock(response);
+                writeJson(nextCall ? { ...response, cli_next_call: nextCall } : response);
             } catch (error) {
                 handleApiError(error, !isBrowserDisabled());
             }

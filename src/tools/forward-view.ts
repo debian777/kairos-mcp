@@ -204,6 +204,21 @@ function finalContract(): ForwardOutput['contract'] {
   };
 }
 
+function buildEmptySolutionTemplate(contractType: ForwardOutput['contract']['type']): {
+  type: ForwardOutput['contract']['type'];
+  tensor?: Record<string, unknown>;
+  shell?: Record<string, unknown>;
+  mcp?: Record<string, unknown>;
+  user_input?: Record<string, unknown>;
+  comment?: Record<string, unknown>;
+} {
+  if (contractType === 'tensor') return { type: 'tensor', tensor: {} };
+  if (contractType === 'shell') return { type: 'shell', shell: {} };
+  if (contractType === 'mcp') return { type: 'mcp', mcp: {} };
+  if (contractType === 'user_input') return { type: 'user_input', user_input: {} };
+  return { type: 'comment', comment: {} };
+}
+
 export type BuildForwardViewOptions = {
   final?: boolean;
   message?: string;
@@ -232,11 +247,29 @@ export async function buildForwardView(
 
   const meta = await forwardRuntimeStore.getExecution(executionId);
   const slugNote = options?.slugDisambiguationNote ?? meta?.slug_disambiguation_note;
+  const nextCall = final
+    ? {
+        kind: 'reward' as const,
+        args: {
+          uri: layer.uri,
+          outcome_template: {
+            outcome: 'success' as const
+          }
+        }
+      }
+    : {
+        kind: 'forward' as const,
+        args: {
+          uri: layer.uri,
+          solution_template: buildEmptySolutionTemplate(contract.type)
+        }
+      };
 
   return {
     must_obey: options?.mustObey ?? true,
     current_layer: layer,
     contract,
+    next_call: nextCall,
     ...(tensorIn && Object.keys(tensorIn).length > 0 ? { tensor_in: tensorIn } : {}),
     ...buildForwardUiSummary(memory),
     ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS),

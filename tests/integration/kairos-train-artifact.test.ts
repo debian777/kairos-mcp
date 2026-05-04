@@ -127,9 +127,9 @@ Done.`;
     expect(artifactPayload?.['version']).toBe('1');
     expect(typeof artifactPayload?.['sha256']).toBe('string');
     const vectors = point?.vector ?? {};
-    const primary = Object.values(vectors)[0];
-    expect(Array.isArray(primary)).toBe(true);
-    expect((primary as number[]).every((v) => v === 0)).toBe(true);
+    const denseZeroArrays = Object.values(vectors).filter((v): v is number[] => Array.isArray(v));
+    expect(denseZeroArrays.length).toBeGreaterThan(0);
+    expect(denseZeroArrays.every((arr) => arr.every((v) => v === 0))).toBe(true);
 
     const activate = await mcpConnection.client.callTool({
       name: 'activate',

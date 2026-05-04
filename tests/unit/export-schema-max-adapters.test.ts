@@ -2,8 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { EXPORT_MAX_ADAPTERS, exportInputSchema } from '../../src/tools/export_schema.js';
 
 function makeAdapterUri(index: number): string {
-  const hex = index.toString(16).padStart(12, '0');
-  return `kairos://adapter/00000000-0000-0000-0000-${hex}`;
+  return `kairos://adapter/export-cap-test-${index}`;
 }
 
 describe('exportInputSchema EXPORT_MAX_ADAPTERS cap', () => {

@@ -3,6 +3,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { executeTune } from '../tools/tune.js';
 import { tuneInputSchema } from '../tools/tune_schema.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 
 /**
  * Set up API route for tune.
@@ -19,7 +20,7 @@ export function setupUpdateRoute(app: express.Express, qdrantService: QdrantServ
         return;
       }
       structuredLogger.info(`→ POST /api/tune (${input.data.uris.length} URI(s))`);
-      const result = await executeTune(qdrantService, input.data);
+      const result = await runHttpApiWithSpaceContext(req, () => executeTune(qdrantService, input.data));
       structuredLogger.info(`✓ tune completed (${result.total_updated} updated, ${result.total_failed} failed)`);
       res.status(200).json(result);
     } catch (error) {

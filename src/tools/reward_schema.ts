@@ -43,7 +43,8 @@ export const rewardOutputSchema = z.object({
     rated_at: z.string()
   })),
   total_rated: z.number(),
-  total_failed: z.number()
+  total_failed: z.number(),
+  next_call: z.null()
 }).strict();
 
 export type RewardInput = z.infer<typeof rewardInputSchema>;

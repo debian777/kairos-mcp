@@ -3,6 +3,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { executeDelete } from '../tools/delete.js';
 import { deleteInputSchema } from '../tools/delete_schema.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 
 /**
  * Set up API route for delete. Uses shared executeDelete; returns same shape as MCP (no metadata).
@@ -20,7 +21,7 @@ export function setupDeleteRoute(app: express.Express, qdrantService: QdrantServ
       }
 
       structuredLogger.info(`→ POST /api/delete (${input.data.uris.length} URI(s))`);
-      const result = await executeDelete(qdrantService, input.data);
+      const result = await runHttpApiWithSpaceContext(req, () => executeDelete(qdrantService, input.data));
       structuredLogger.info(`✓ delete completed (${result.total_deleted} deleted, ${result.total_failed} failed)`);
       res.status(200).json(result);
     } catch (error) {

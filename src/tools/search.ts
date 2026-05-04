@@ -22,13 +22,15 @@ import { logSearchAnomaly } from '../services/embedding/audit.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import {
   KAIROS_CREATION_FOOTER_NEXT_ACTION,
+  KAIROS_CREATION_PROTOCOL_SLUG,
   KAIROS_CREATION_PROTOCOL_UUID,
+  KAIROS_REFINING_PROTOCOL_SLUG,
   KAIROS_REFINING_PROTOCOL_UUID
 } from '../constants/builtin-search-meta.js';
 import { buildAdapterUri } from './kairos-uri.js';
 
-const CREATION_PROTOCOL_URI = buildAdapterUri(KAIROS_CREATION_PROTOCOL_UUID);
-const REFINING_PROTOCOL_URI = buildAdapterUri(KAIROS_REFINING_PROTOCOL_UUID);
+const CREATION_PROTOCOL_URI = buildAdapterUri(KAIROS_CREATION_PROTOCOL_SLUG);
+const REFINING_PROTOCOL_URI = buildAdapterUri(KAIROS_REFINING_PROTOCOL_SLUG);
 const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to execute the refine adapter`;
 const CREATE_NEXT_ACTION = KAIROS_CREATION_FOOTER_NEXT_ACTION;
 
@@ -37,8 +39,10 @@ function queryForSearch(query: string): string {
   let q = (query || '').trim();
   for (const token of [
     REFINING_PROTOCOL_URI,
+    KAIROS_REFINING_PROTOCOL_SLUG,
     KAIROS_REFINING_PROTOCOL_UUID,
     CREATION_PROTOCOL_URI,
+    KAIROS_CREATION_PROTOCOL_SLUG,
     KAIROS_CREATION_PROTOCOL_UUID
   ]) {
     q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');

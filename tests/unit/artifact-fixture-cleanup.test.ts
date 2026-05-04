@@ -1,7 +1,7 @@
 import { cleanupViaApi, cleanupViaCli, cleanupViaMcp } from '../utils/artifact-fixture-cleanup.js';
 
 describe('artifact-fixture-cleanup', () => {
-  const adapterUri = 'kairos://adapter/11111111-1111-1111-1111-111111111111';
+  const adapterUri = 'kairos://adapter/artifact-fixture-parent';
   const artifactUris = [
     'kairos://artifact/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'kairos://layer/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'

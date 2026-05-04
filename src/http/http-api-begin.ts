@@ -4,6 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { activateInputSchema } from '../tools/activate_schema.js';
 import { executeActivate } from '../tools/activate.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 import { sendToolRouteError } from './http-route-errors.js';
 
 /**
@@ -26,7 +27,9 @@ export function setupActivateRoute(app: express.Express, memoryStore: MemoryQdra
       }
 
       structuredLogger.info(`-> POST /api/activate (query: ${parsed.data.query})`);
-      const result = await executeActivate(memoryStore, qdrantService, parsed.data);
+      const result = await runHttpApiWithSpaceContext(req, () =>
+        executeActivate(memoryStore, qdrantService, parsed.data)
+      );
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('activate failed', error);
