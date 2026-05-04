@@ -11,6 +11,8 @@ import { spacesOutputSchema } from '../../src/tools/spaces_schema.js';
 import { activateOutputSchema } from '../../src/tools/activate_schema.js';
 import { exportOutputSchema } from '../../src/tools/export_schema.js';
 import { deleteOutputSchema } from '../../src/tools/delete_schema.js';
+import { forwardOutputSchema } from '../../src/tools/forward_schema.js';
+import { rewardOutputSchema } from '../../src/tools/reward_schema.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;
@@ -198,6 +200,77 @@ describe('API-MCP parity: identical response shapes', () => {
       const mcpParsed = parseMcpJson(mcpResult, 'delete MCP');
       const parsed = deleteOutputSchema.safeParse(mcpParsed);
       expect(parsed.success).toBe(true);
+    });
+
+    test('activate includes forward_first_call parity and slug URI format', async () => {
+      const query = 'refine search';
+      const mcpResult = await mcpConnection.client.callTool({
+        name: 'activate',
+        arguments: { query }
+      });
+      const mcpParsed = parseMcpJson(mcpResult, 'activate MCP parity next-call');
+      const httpRes = await httpFetch(`${API_BASE}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const httpParsed = (await httpRes.json()) as Record<string, unknown>;
+      expect(sortedKeys(mcpParsed)).toEqual(sortedKeys(httpParsed));
+      for (const choice of (mcpParsed.choices as Array<Record<string, unknown>>)) {
+        if (choice.role === 'create') {
+          expect(choice.forward_first_call).toBeNull();
+          continue;
+        }
+        const f = choice.forward_first_call as Record<string, unknown>;
+        expect(typeof f?.uri).toBe('string');
+        expect(String(f.uri)).toMatch(/^kairos:\/\/adapter\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i);
+      }
+    });
+
+    test('forward start/middle/terminal include next_call parity', async () => {
+      const beginMcp = await mcpConnection.client.callTool({
+        name: 'forward',
+        arguments: { uri: 'kairos://adapter/refine-search' }
+      });
+      const beginPayload = parseMcpJson(beginMcp, 'forward MCP begin parity');
+      const beginHttpRes = await httpFetch(`${API_BASE}/forward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uri: 'kairos://adapter/refine-search' })
+      });
+      const beginHttpPayload = (await beginHttpRes.json()) as Record<string, unknown>;
+      expect(forwardOutputSchema.safeParse(beginPayload).success).toBe(true);
+      expect(forwardOutputSchema.safeParse(beginHttpPayload).success).toBe(true);
+      expect((beginPayload.next_call as Record<string, unknown>).kind).toBe(
+        (beginHttpPayload.next_call as Record<string, unknown>).kind
+      );
+      const beginUri = String((beginPayload.next_call as any).args.uri);
+      expect(beginUri).toMatch(/^kairos:\/\/layer\/[0-9a-f-]{36}\?execution_id=[0-9a-f-]{36}$/i);
+
+      const middleMcp = await mcpConnection.client.callTool({
+        name: 'forward',
+        arguments: {
+          uri: beginUri,
+          solution: { type: 'comment', comment: { text: 'parity check solution text' } }
+        }
+      });
+      const middlePayload = parseMcpJson(middleMcp, 'forward MCP middle parity');
+      expect(forwardOutputSchema.safeParse(middlePayload).success).toBe(true);
+      const middleNextCall = middlePayload.next_call as Record<string, unknown>;
+      expect(typeof (middleNextCall.args as Record<string, unknown>).uri).toBe('string');
+      expect(String((middleNextCall.args as Record<string, unknown>).uri)).toMatch(
+        /^kairos:\/\/layer\/[0-9a-f-]{36}\?execution_id=[0-9a-f-]{36}$/i
+      );
+      if (middleNextCall.kind === 'reward') {
+        const rewardUri = String((middleNextCall.args as Record<string, unknown>).uri);
+        const rewardMcp = await mcpConnection.client.callTool({
+          name: 'reward',
+          arguments: { uri: rewardUri, outcome: 'success' }
+        });
+        const rewardPayload = parseMcpJson(rewardMcp, 'reward MCP terminal parity');
+        expect(rewardOutputSchema.safeParse(rewardPayload).success).toBe(true);
+        expect(rewardPayload.next_call).toBeNull();
+      }
     });
   });
 });

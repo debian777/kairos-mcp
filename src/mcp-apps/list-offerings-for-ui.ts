@@ -4,9 +4,8 @@
  * listings (SEP-1865 / MCP Apps).
  */
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
-import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-compat.js';
-import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
+import { zodToInputJsonSchema, zodToOutputJsonSchema } from '../utils/zod-to-jsonschema.js';
 import { listPromptOfferings } from '../resources/prompt-resources.js';
 import { activateInputSchema, activateOutputSchema } from '../tools/activate_schema.js';
 import { forwardInputSchema, forwardOutputSchema } from '../tools/forward_schema.js';
@@ -28,26 +27,6 @@ import {
 const SPACES_TOOL_NAME = 'spaces';
 const FORWARD_TOOL_NAME = 'forward';
 const ACTIVATE_TOOL_NAME = 'activate';
-
-function zodToInputJsonSchema(
-  schema: typeof spacesInputSchema | typeof forwardInputSchema | typeof activateInputSchema
-): Record<string, unknown> {
-  const obj = normalizeObjectSchema(schema);
-  if (!obj) {
-    return { type: 'object', properties: {} };
-  }
-  return toJsonSchemaCompat(obj, { strictUnions: true, pipeStrategy: 'input' }) as Record<string, unknown>;
-}
-
-function zodToOutputJsonSchema(
-  schema: typeof spacesOutputSchema | typeof forwardOutputSchema | typeof activateOutputSchema
-): Record<string, unknown> {
-  const obj = normalizeObjectSchema(schema);
-  if (!obj) {
-    return { type: 'object', properties: {} };
-  }
-  return toJsonSchemaCompat(obj, { strictUnions: true, pipeStrategy: 'output' }) as Record<string, unknown>;
-}
 
 /** Tool entry aligned with tools/list for the spaces tool including MCP Apps metadata. */
 export function buildSpacesToolOffering(): Record<string, unknown> {

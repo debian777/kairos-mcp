@@ -4,6 +4,7 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { executeExport } from '../tools/export.js';
 import { exportInputSchema } from '../tools/export_schema.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 
 function requestBaseUrl(req: express.Request): string | undefined {
   const host = req.get('x-forwarded-host') ?? req.get('host');
@@ -42,11 +43,8 @@ export function setupDumpRoute(
         'POST /api/export'
       );
       const baseUrl = requestBaseUrl(req);
-      const payload = await executeExport(
-        memoryStore,
-        qdrantService,
-        parsed.data,
-        baseUrl ? { downloadBaseUrl: baseUrl } : {}
+      const payload = await runHttpApiWithSpaceContext(req, () =>
+        executeExport(memoryStore, qdrantService, parsed.data, baseUrl ? { downloadBaseUrl: baseUrl } : {})
       );
       res.status(200).json(payload);
     } catch (error: unknown) {

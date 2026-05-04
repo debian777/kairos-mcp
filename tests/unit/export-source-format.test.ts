@@ -74,6 +74,19 @@ describe('export source format', () => {
 
   it('lists adapter artifacts when source export uses adapter URI', async () => {
     const adapterId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const adapterSlug = 'test-export-source-slug';
+    const qdrantService = {
+      async findFirstStepMemoryUuidBySlug(slug: string) {
+        if (slug.trim().toLowerCase() === adapterSlug) {
+          return { layerUuid: adapterId };
+        }
+        return { layerUuid: null };
+      },
+      async getAdapterLayers(id: string) {
+        if (id === adapterId) return [{ uuid: adapterId }];
+        return [];
+      }
+    };
     const memoryStore = {
       getMemory: async (id: string) =>
         id === adapterId
@@ -83,7 +96,8 @@ describe('export source format', () => {
               text: '',
               tags: [],
               llm_model_id: 'test-model',
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
+              adapter: { id: adapterId, name: 'Test' }
             } as any)
           : null,
       getQdrantAccess: () => ({
@@ -106,8 +120,8 @@ describe('export source format', () => {
       })
     } as any;
 
-    const out = await executeExport(memoryStore, undefined, {
-      uri: `kairos://adapter/${adapterId}`,
+    const out = await executeExport(memoryStore, qdrantService as any, {
+      uri: `kairos://adapter/${adapterSlug}`,
       format: 'source',
       include_reward: true
     });

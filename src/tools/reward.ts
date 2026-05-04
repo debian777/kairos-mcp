@@ -100,7 +100,8 @@ export async function executeReward(
       rated_at: ratedAt
     })),
     total_rated: rewardMetricsResult.total_rated,
-    total_failed: rewardMetricsResult.total_failed
+    total_failed: rewardMetricsResult.total_failed,
+    next_call: null
   };
 }
 

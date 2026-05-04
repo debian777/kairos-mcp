@@ -13,7 +13,7 @@ describe('trainInputSchema fork fields', () => {
   it('accepts source_adapter_uri without content', () => {
     const ok = trainInputSchema.safeParse({
       llm_model_id: 'm',
-      source_adapter_uri: 'kairos://adapter/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      source_adapter_uri: 'kairos://adapter/source-adapter'
     });
     expect(ok.success).toBe(true);
   });
@@ -31,7 +31,7 @@ describe('trainInputSchema fork fields', () => {
       llm_model_id: 'm',
       content: 'print("ok")',
       mime: 'text/x-python',
-      adapter_uri: 'kairos://adapter/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      adapter_uri: 'kairos://adapter/source-adapter'
     });
     expect(bad.success).toBe(false);
   });
@@ -71,7 +71,7 @@ describe('trainInputSchema fork fields', () => {
           llm_model_id: 'm',
           mime: 'text/html',
           artifact_name: 'bad.html',
-          adapter_uri: 'kairos://adapter/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+          adapter_uri: 'kairos://adapter/source-adapter'
         } as any,
         async (fn) => fn()
       )

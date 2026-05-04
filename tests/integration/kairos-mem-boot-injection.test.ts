@@ -56,9 +56,9 @@ describe('Mem boot injection', () => {
 
   }, 30000);
 
-  test('static system adapters are exportable by canonical UUID', async () => {
+  test('static system adapters are exportable by slug URI', async () => {
     for (const expected of STATIC_SYSTEM_ADAPTERS) {
-      const uri = `kairos://adapter/${expected.uuid}`;
+      const uri = `kairos://adapter/${expected.slug}`;
       const result = await mcpConnection.client.callTool({
         name: 'export',
         arguments: { uri, format: 'markdown' }

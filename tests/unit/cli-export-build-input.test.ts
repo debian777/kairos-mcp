@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import { buildExportInput } from '../../src/cli/commands/export.js';
 
-const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
-const ADAPTER_URI_2 = 'kairos://adapter/00000000-0000-0000-0000-000000000002';
+const ADAPTER_URI = 'kairos://adapter/sample-adapter-a';
+const ADAPTER_URI_2 = 'kairos://adapter/sample-adapter-b';
 
 describe('cli buildExportInput selection union', () => {
   it('builds single-uri selection from positional argument', () => {

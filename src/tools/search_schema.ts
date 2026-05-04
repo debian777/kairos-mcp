@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
+import { ADAPTER_SLUG_URI_INPUT_REGEX } from './kairos-uri.js';
 
-const adapterUriSchema = z
+const adapterSlugUriSchema = z
   .string()
-  .regex(/^kairos:\/\/adapter\/[0-9a-f-]{36}$/i, 'must match kairos://adapter/{uuid}');
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}');
 
-const choiceUriSchema = adapterUriSchema;
+const choiceUriSchema = adapterSlugUriSchema;
 
 export const searchInputSchema = z.object({
   query: z.string().min(1).describe('Search query for adapter matches'),

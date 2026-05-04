@@ -5,7 +5,7 @@ import { getSpaceContextFromStorage, getTenantId } from '../utils/tenant-context
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { executeDump } from './dump.js';
 import { exportInputSchema, exportOutputSchema, type ExportInput, type ExportOutput } from './export_schema.js';
-import { parseKairosUri } from './kairos-uri.js';
+import { assertWireAdapterUri, parseKairosUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-display.js';
@@ -65,6 +65,12 @@ async function executeExportImpl(
   input: ExportInput,
   options: ExecuteExportOptions
 ): Promise<ExportOutput> {
+  if (typeof input.uri === 'string') {
+    const parsedUri = parseKairosUri(input.uri.trim());
+    if (parsedUri.kind === 'adapter') {
+      input.uri = assertWireAdapterUri(input.uri.trim());
+    }
+  }
   if (typeof input.uri === 'string' && parseKairosUri(input.uri.trim()).kind === 'artifact') {
     return executeExportSource(memoryStore, qdrantService, input.uri, resolveExportAdapter);
   }

@@ -4,6 +4,7 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { forwardInputSchema } from '../tools/forward_schema.js';
 import { executeForward } from '../tools/forward.js';
+import { runHttpApiWithSpaceContext } from '../utils/tenant-context.js';
 import { sendToolRouteError } from './http-route-errors.js';
 
 /**
@@ -25,7 +26,9 @@ export function setupForwardRoute(app: express.Express, memoryStore: MemoryQdran
       }
 
       structuredLogger.info(`-> POST /api/forward (uri: ${parsed.data.uri})`);
-      const result = await executeForward(null, memoryStore, qdrantService, parsed.data);
+      const result = await runHttpApiWithSpaceContext(req, () =>
+        executeForward(null, memoryStore, qdrantService, parsed.data)
+      );
       res.status(200).json(result);
     } catch (error) {
       structuredLogger.error('forward failed', error);

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerCapabilities } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { structuredLogger } from './utils/structured-logger.js';
 import { registerDocsResources } from './resources/docs-resources.js';
 import { registerPromptResources } from './resources/prompt-resources.js';
@@ -22,6 +23,103 @@ import { registerTrainTool } from './tools/train.js';
 import { registerRewardTool } from './tools/reward.js';
 import { registerTuneTool } from './tools/tune.js';
 import { registerExportTool } from './tools/export.js';
+import { activateInputSchema, activateOutputSchema } from './tools/activate_schema.js';
+import { deleteInputSchema, deleteOutputSchema } from './tools/delete_schema.js';
+import { exportInputSchema, exportOutputSchema } from './tools/export_schema.js';
+import { forwardInputSchema, forwardOutputSchema } from './tools/forward_schema.js';
+import { rewardInputSchema, rewardOutputSchema } from './tools/reward_schema.js';
+import { spacesInputSchema, spacesOutputSchema } from './tools/spaces_schema.js';
+import { trainInputSchema, trainOutputSchema } from './tools/train_schema.js';
+import { tuneInputSchema, tuneOutputSchema } from './tools/tune_schema.js';
+import { resolveToolDoc } from './utils/mcp-tool-doc-runtime.js';
+import { zodToInputJsonSchema, zodToOutputJsonSchema } from './utils/zod-to-jsonschema.js';
+import {
+  KAIROS_ACTIVATE_TOOL_UI_META,
+  KAIROS_FORWARD_TOOL_UI_META,
+  KAIROS_SPACES_TOOL_UI_META
+} from './mcp-apps/kairos-ui-constants.js';
+
+const KAIROS_TOOL_REGISTRY = [
+  {
+    name: 'activate',
+    title: 'Activate the best adapter',
+    uiMeta: KAIROS_ACTIVATE_TOOL_UI_META,
+    description:
+      resolveToolDoc('activate') ||
+      'Find the best adapter for the current input and return ranked activation choices.',
+    strictInputSchema: activateInputSchema,
+    outputSchema: activateOutputSchema
+  },
+  {
+    name: 'forward',
+    title: 'Run adapter forward pass',
+    uiMeta: KAIROS_FORWARD_TOOL_UI_META,
+    description:
+      resolveToolDoc('forward') ||
+      'Run the first or next adapter layer. Omit `solution` on the first call in a run.',
+    strictInputSchema: forwardInputSchema,
+    outputSchema: forwardOutputSchema
+  },
+  {
+    name: 'train',
+    title: 'Register a new adapter',
+    description: resolveToolDoc('train') || 'Store a new adapter from markdown.',
+    strictInputSchema: trainInputSchema,
+    outputSchema: trainOutputSchema
+  },
+  {
+    name: 'reward',
+    title: 'Record adapter reward',
+    description: resolveToolDoc('reward') || 'Attach a reward signal after adapter execution completes.',
+    strictInputSchema: rewardInputSchema,
+    outputSchema: rewardOutputSchema
+  },
+  {
+    name: 'tune',
+    title: 'Update adapter content',
+    description: resolveToolDoc('tune') || 'Update adapter layer content.',
+    strictInputSchema: tuneInputSchema,
+    outputSchema: tuneOutputSchema
+  },
+  {
+    name: 'delete',
+    title: 'Delete KAIROS adapter resource',
+    description: resolveToolDoc('delete') || 'Delete an adapter or layer by URI.',
+    strictInputSchema: deleteInputSchema,
+    outputSchema: deleteOutputSchema
+  },
+  {
+    name: 'export',
+    title: 'Export adapter or training data',
+    description: resolveToolDoc('export') || 'Export adapter markdown or training datasets.',
+    strictInputSchema: exportInputSchema,
+    outputSchema: exportOutputSchema
+  },
+  {
+    name: 'spaces',
+    title: 'List spaces and adapter counts',
+    uiMeta: KAIROS_SPACES_TOOL_UI_META,
+    description:
+      resolveToolDoc('spaces') ??
+      "List the agent's available spaces with human-readable names and adapter counts. Optionally include adapter titles and layer counts per space.",
+    strictInputSchema: spacesInputSchema,
+    outputSchema: spacesOutputSchema
+  }
+] as const;
+
+function installStrictToolsListHandler(server: McpServer): void {
+  server.server.removeRequestHandler('tools/list');
+  server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: KAIROS_TOOL_REGISTRY.map((tool) => ({
+      name: tool.name,
+      title: tool.title,
+      description: tool.description,
+      inputSchema: zodToInputJsonSchema(tool.strictInputSchema),
+      outputSchema: zodToOutputJsonSchema(tool.outputSchema),
+      ...('uiMeta' in tool && tool.uiMeta ? { _meta: tool.uiMeta } : {})
+    }))
+  }));
+}
 
 // Create and configure the MCP server
 export function createServer(memoryStore: MemoryQdrantStore): McpServer {
@@ -49,6 +147,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerDeleteTool(server, 'delete');
     registerExportTool(server, memoryStore, { qdrantService });
     registerSpacesTool(server, memoryStore, { toolName: 'spaces' });
+    installStrictToolsListHandler(server);
     registerSpacesUiResources(server);
     registerForwardUiResources(server);
     registerActivateUiResources(server);

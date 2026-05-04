@@ -7,7 +7,6 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
-  parseAdapterUuidFromUri,
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import { CI_TEST_SPACE_PARAM } from '../utils/space-test-constants.js';
@@ -240,10 +239,11 @@ describe('Space CRUD per space (MCP)', () => {
     const trained = parseMcpJson(trainRes, 'train-move-chain');
     expect(trained.status).toBe('stored');
     const adapterUri = trained.items[0].adapter_uri as string;
-    const id = parseAdapterUuidFromUri(adapterUri);
 
     await sleepMs(2500);
     let spaces = await loadSpacesViaMcp();
+    const id = locationsForAdapterTitle(spaces, title).find((l) => l.type === 'personal')?.adapterId.toLowerCase();
+    expect(id).toBeDefined();
     expect(locationsForAdapterTitle(spaces, title).some((l) => l.type === 'personal')).toBe(true);
 
     const toGroup = {

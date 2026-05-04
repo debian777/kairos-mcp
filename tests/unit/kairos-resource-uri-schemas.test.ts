@@ -2,7 +2,7 @@ import { deleteInputSchema } from '../../src/tools/delete_schema.js';
 import { exportInputSchema } from '../../src/tools/export_schema.js';
 import { tuneInputSchema } from '../../src/tools/tune_schema.js';
 
-const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+const ADAPTER_URI = 'kairos://adapter/sample-adapter';
 const ADAPTER_WITH_EXEC = `${ADAPTER_URI}?execution_id=00000000-0000-0000-0000-000000000099`;
 const LAYER_URI = 'kairos://layer/00000000-0000-0000-0000-000000000002';
 const LAYER_WITH_EXEC = `${LAYER_URI}?execution_id=00000000-0000-0000-0000-000000000003`;

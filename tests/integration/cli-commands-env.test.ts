@@ -174,7 +174,7 @@ describe('CLI Commands Environment & Error Tests', () => {
       // URI can be any; we are asserting the client rejects when server URL is invalid
       await expect(
         execAsync(
-          `node ${CLI_PATH} forward --url http://invalid-url:9999 "kairos://adapter/00000000-0000-0000-0000-000000000000"`
+          `node ${CLI_PATH} forward --url http://invalid-url:9999 "kairos://adapter/invalid-adapter-slug"`
         )
       ).rejects.toThrow();
     }, 30000);

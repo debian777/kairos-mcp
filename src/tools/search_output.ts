@@ -8,7 +8,6 @@ import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveAdapterEntry } from '../services/adapter-navigation.js';
 import {
   getActivationPatterns,
-  getAdapterId,
   getAdapterInfo,
   getAdapterName,
   getAdapterSlugForSearchOutput,
@@ -20,10 +19,26 @@ import { spaceIdToDisplayName } from '../utils/space-display.js';
 import { getSpaceContextFromStorage } from '../utils/tenant-context.js';
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import {
+  KAIROS_CREATION_PROTOCOL_SLUG,
   KAIROS_CREATION_FOOTER_LABEL,
+  KAIROS_REFINING_PROTOCOL_SLUG,
   KAIROS_REFINING_FOOTER_LABEL
 } from '../constants/builtin-search-meta.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { normalizeAuthorSlug, slugifyFromTitle } from '../utils/protocol-slug.js';
+
+/** Slug-form `kairos://adapter/{slug}` for search/activate wire (never UUID adapter segments). */
+function adapterWireUriFromMemory(memory: Memory): string {
+  const stored = getAdapterSlugForSearchOutput(memory);
+  if (stored) return buildAdapterUri(stored);
+  const title = (getAdapterName(memory) || memory.label || '').trim();
+  let s = normalizeAuthorSlug(title);
+  if (!s) {
+    const basis = title.length > 0 ? title : (memory.memory_uuid || 'adapter');
+    s = slugifyFromTitle(basis);
+  }
+  return buildAdapterUri(s);
+}
 
 export interface Candidate {
   memory: Memory;
@@ -68,7 +83,7 @@ export function createResults(
     .map(({ memory, score }) => ({
       memory,
       score: normalizePublicSearchScore(score),
-      uri: buildAdapterUri(getAdapterId(memory)),
+      uri: adapterWireUriFromMemory(memory),
       label: memory.label,
       tags: memory.tags || [],
       layer_count: getLayerCount(memory)
@@ -80,11 +95,12 @@ export async function resolveHead(
   memory: Memory,
   qdrantService?: QdrantService
 ): Promise<{ uri: string; label: string }> {
-  const head = (await resolveAdapterEntry(memory, qdrantService)) ?? {
-    uri: buildAdapterUri(getAdapterId(memory)),
-    label: memory.label
-  };
-  return head;
+  const resolved = await resolveAdapterEntry(memory, qdrantService);
+  const uri = adapterWireUriFromMemory(memory);
+  if (resolved) {
+    return { uri, label: resolved.label };
+  }
+  return { uri, label: memory.label };
 }
 
 export interface GenerateUnifiedOutputOpts {
@@ -129,8 +145,7 @@ export async function generateUnifiedOutput(
         if (rootOutcome.layerUuid) {
           const rootPoint = await qdrantService.getMemoryByUUID(rootOutcome.layerUuid);
           if (rootPoint) {
-            const rootAdapterId = typeof rootPoint.adapter?.id === 'string' ? rootPoint.adapter.id : rootOutcome.layerUuid;
-            const rootUri = buildAdapterUri(rootAdapterId);
+            const rootUri = adapterWireUriFromMemory(rootPoint);
             const rootLabel = typeof rootPoint.adapter?.name === 'string' ? rootPoint.adapter.name : (rootPoint.label || choiceLabel);
             choiceUri = rootUri;
             choiceLabel = rootLabel;
@@ -183,7 +198,7 @@ export async function generateUnifiedOutput(
         next_action: refiningNextAction,
         adapter_version: refiningProtocolVersion,
         space_name: null,
-        slug: null
+        slug: KAIROS_REFINING_PROTOCOL_SLUG
       },
       {
         uri: createUri,
@@ -195,7 +210,7 @@ export async function generateUnifiedOutput(
         next_action: createNextAction,
         adapter_version: createProtocolVersion,
         space_name: null,
-        slug: null
+        slug: KAIROS_CREATION_PROTOCOL_SLUG
       }
     );
   }

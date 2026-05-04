@@ -1,6 +1,6 @@
 import { forwardInputSchema } from '../../src/tools/forward_schema.js';
 
-const ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+const ADAPTER_URI = 'kairos://adapter/sample-adapter';
 const ADAPTER_SLUG_URI = 'kairos://adapter/create-merge-request';
 const LAYER_URI = 'kairos://layer/00000000-0000-0000-0000-000000000002';
 const LAYER_WITH_EXEC = `${LAYER_URI}?execution_id=00000000-0000-0000-0000-000000000003`;

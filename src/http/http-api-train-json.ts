@@ -7,7 +7,7 @@ import { TrainError } from '../tools/train-store.js';
 import { executeTrain } from '../tools/train.js';
 import { trainInputSchema } from '../tools/train_schema.js';
 import { buildAdapterUri } from '../tools/kairos-uri.js';
-import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
+import { KAIROS_CREATION_PROTOCOL_SLUG } from '../constants/builtin-search-meta.js';
 import { KairosError } from '../types/index.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { listWritableSpaceDisplayNames, resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
@@ -37,8 +37,7 @@ function sanitizeTrainDetails(details?: Record<string, unknown>): Record<string,
 }
 
 function creationAdapterUri(): string {
-  const uuid = CREATION_PROTOCOL_URI.split('/').pop() ?? '';
-  return buildAdapterUri(uuid);
+  return buildAdapterUri(KAIROS_CREATION_PROTOCOL_SLUG);
 }
 
 /**
@@ -96,16 +95,14 @@ export function setupTrainJsonRoute(
         }
         resolvedSpaceId = r.spaceId;
       }
+      // Keep full allowedSpaceIds so source_adapter_uri / slug lookups see group adapters while
+      // defaultWriteSpaceId scopes new points to the requested target space.
       const narrowedContext = {
         ...ctx,
-        allowedSpaceIds: [resolvedSpaceId],
         defaultWriteSpaceId: resolvedSpaceId
       };
-      const result = await executeTrain(
-        memoryStore,
-        parsed.data,
-        (fn) => runWithSpaceContextAsync(narrowedContext, fn),
-        qdrantService
+      const result = await runWithSpaceContextAsync(narrowedContext, () =>
+        executeTrain(memoryStore, parsed.data, (fn) => fn(), qdrantService)
       );
       res.status(200).json(result);
     } catch (error) {

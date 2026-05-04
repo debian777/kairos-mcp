@@ -4,9 +4,11 @@ import { parseFrontmatter } from '../utils/frontmatter.js';
 
 /** Refine-help protocol; always appended as an **activate** footer choice (not a vector match). */
 export const KAIROS_REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
+export const KAIROS_REFINING_PROTOCOL_SLUG = 'refine-search';
 
 /** Built-in adapter authoring flow; always appended as an **activate** footer choice (not a vector match). */
 export const KAIROS_CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
+export const KAIROS_CREATION_PROTOCOL_SLUG = 'create-new-protocol';
 
 function getMetaDocTitle(slug: string, fallbackTitle: string): string {
   const doc = getMetaDoc(slug);
@@ -27,11 +29,11 @@ function getMetaDocTitle(slug: string, fallbackTitle: string): string {
 
 /** Footer labels come from built-in meta docs, not hardcoded strings. */
 export const KAIROS_REFINING_FOOTER_LABEL = getMetaDocTitle(
-  'refine-search',
+  KAIROS_REFINING_PROTOCOL_SLUG,
   'Get help refining your search'
 );
 export const KAIROS_CREATION_FOOTER_LABEL = getMetaDocTitle(
-  'create-new-protocol',
+  KAIROS_CREATION_PROTOCOL_SLUG,
   'Create New KAIROS Protocol'
 );
 export const KAIROS_CREATION_FOOTER_NEXT_ACTION =

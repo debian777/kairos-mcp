@@ -126,6 +126,7 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('results');
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
 
     test('reward uses -u short form', async () => {
@@ -140,6 +141,7 @@ describe('CLI Commands Advanced --url Tests', () => {
       expect(stderr).toBe('');
       const result = JSON.parse(stdout);
       expect(result).toHaveProperty('results');
+      expect(result).toHaveProperty('cli_next_call');
     }, 30000);
 
     test('reward with --url and --score', async () => {

@@ -4,7 +4,7 @@ import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { deleteInputSchema, deleteOutputSchema, type DeleteInput, type DeleteOutput } from './delete_schema.js';
-import { parseKairosUri } from './kairos-uri.js';
+import { assertWireAdapterUri, parseKairosUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 
@@ -22,7 +22,18 @@ export async function executeDelete(
     try {
       const parsed = parseKairosUri(uri);
       if (parsed.kind === 'adapter') {
-        const layers = await qdrantService.getAdapterLayers(parsed.id);
+        const canonicalAdapterUri = assertWireAdapterUri(uri);
+        const canonicalParsed = parseKairosUri(canonicalAdapterUri);
+        const slugOutcome = await qdrantService.findFirstStepMemoryUuidBySlug(canonicalParsed.id);
+        if (!slugOutcome.layerUuid) {
+          throw new Error(`Adapter not found: ${canonicalAdapterUri}`);
+        }
+        const firstLayer = await qdrantService.getMemoryByUUID(slugOutcome.layerUuid);
+        const adapterId =
+          typeof firstLayer?.adapter?.id === 'string' && firstLayer.adapter.id.trim().length > 0
+            ? firstLayer.adapter.id
+            : slugOutcome.layerUuid;
+        const layers = await qdrantService.getAdapterLayers(adapterId);
         for (const layer of layers) {
           await qdrantService.deleteMemory(layer.uuid);
           totalDeleted++;

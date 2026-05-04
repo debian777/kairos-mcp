@@ -6,9 +6,10 @@ import { getTenantId, getSpaceContextFromStorage, runWithSpaceContextAsync } fro
 import { resolveSpaceParamForContext } from '../utils/resolve-space-param.js';
 import { executeTrainStore, TrainError } from './train-store.js';
 import { executeDump } from './dump.js';
-import { CREATION_PROTOCOL_URI } from '../services/memory/validate-protocol-structure.js';
-import { buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
+import { KAIROS_CREATION_PROTOCOL_SLUG } from '../constants/builtin-search-meta.js';
+import { assertWireAdapterUri, buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
 import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
+import { resolveTrainOutputAdapterUri } from './train-output-adapter-uri.js';
 import {
   trainInputSchema,
   trainOutputSchema,
@@ -27,8 +28,7 @@ interface RegisterTrainOptions {
 }
 
 function creationAdapterUri(): string {
-  const uuid = CREATION_PROTOCOL_URI.split('/').pop() ?? '';
-  return buildAdapterUri(uuid);
+  return buildAdapterUri(KAIROS_CREATION_PROTOCOL_SLUG);
 }
 
 const TRAIN_ERROR_DETAIL_KEYS = new Set([
@@ -100,26 +100,18 @@ async function resolveContentForTrain(
   }
   let adapterId = '';
   try {
-    const parsed = parseKairosUri(sourceUri);
-    if (parsed.kind !== 'adapter') {
-      throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid|slug}', {
+    const canonicalAdapterUri = assertWireAdapterUri(sourceUri);
+    const parsed = parseKairosUri(canonicalAdapterUri);
+    const resolved = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
+    if (!resolved.layerUuid) {
+      throw new TrainError('SOURCE_ADAPTER_NOT_FOUND', `source_adapter_uri adapter slug "${parsed.id}" was not found.`, {
         must_obey: true
       });
     }
-    if (parsed.idKind === 'uuid') {
-      adapterId = parsed.id;
-    } else {
-      const resolved = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
-      if (!resolved.layerUuid) {
-        throw new TrainError('SOURCE_ADAPTER_NOT_FOUND', `source_adapter_uri adapter slug "${parsed.id}" was not found.`, {
-          must_obey: true
-        });
-      }
-      adapterId = resolved.layerUuid;
-    }
+    adapterId = resolved.layerUuid;
   } catch (error) {
     if (error instanceof TrainError) throw error;
-    throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{uuid|slug}', {
+    throw new TrainError('INVALID_SOURCE_URI', 'source_adapter_uri must be kairos://adapter/{slug}', {
       must_obey: true
     });
   }
@@ -206,6 +198,13 @@ export async function executeTrain(
       if (!adapterId && !isArtifactRow && storedId) {
         adapterId = storedId;
       }
+      const outputAdapterUri = resolveTrainOutputAdapterUri({
+        memorySlug: memory?.slug,
+        memoryAdapterName: memory?.adapter?.name,
+        itemAdapterUri: item.adapter_uri,
+        inputAdapterUri: input.adapter_uri,
+        adapterId
+      });
 
       const tagSlug = Array.isArray(item.tags)
         ? item.tags.find((tag) => typeof tag === 'string' && tag.startsWith('artifact:'))?.slice('artifact:'.length)
@@ -223,7 +222,7 @@ export async function executeTrain(
           : buildLayerUri(storedId || ''),
         ...(item.layer_uuid && { layer_uuid: item.layer_uuid }),
         ...(item.artifact_uuid && { artifact_uuid: item.artifact_uuid }),
-        ...(adapterId && { adapter_uri: buildAdapterUri(adapterId) }),
+        ...(outputAdapterUri && { adapter_uri: outputAdapterUri }),
         label: item.label,
         tags: item.tags,
         ...(item.content_type && { content_type: item.content_type })
@@ -282,7 +281,6 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
       const timer = mcpToolDuration.startTimer({ tool: toolName, tenant_id: tenantId });
       const narrowedContext = {
         ...ctx,
-        allowedSpaceIds: [resolvedSpaceId],
         defaultWriteSpaceId: resolvedSpaceId
       };
 

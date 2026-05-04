@@ -6,21 +6,32 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { getTenantId, runWithOptionalSpaceAsync } from '../utils/tenant-context.js';
 import { executeSearch } from './search.js';
 import { activateInputSchema, activateOutputSchema, type ActivateInput, type ActivateOutput } from './activate_schema.js';
-import { buildAdapterUri } from './kairos-uri.js';
+import { buildAdapterUri, parseKairosUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { KAIROS_CREATION_FOOTER_NEXT_ACTION } from '../constants/builtin-search-meta.js';
 import { KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
 import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
+import { normalizeAuthorSlug } from '../utils/protocol-slug.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
   qdrantService?: QdrantService;
 }
 
-function extractUuid(uri: string): string {
-  return uri.split('/').pop()?.split('?')[0] ?? '';
+function canonicalizeAdapterUri(
+  uri: string,
+  options?: { slug?: string | null }
+): string {
+  if (options?.slug) {
+    return buildAdapterUri(options.slug);
+  }
+  const parsed = parseKairosUri(uri);
+  if (parsed.kind === 'adapter' && parsed.idKind === 'slug') {
+    return buildAdapterUri(parsed.id);
+  }
+  throw new Error(`Adapter URI must be slug-form at emit time: ${uri}`);
 }
 
 async function mapSearchToActivate(
@@ -29,9 +40,10 @@ async function mapSearchToActivate(
 ): Promise<ActivateOutput> {
   const choices = await Promise.all(
     searchOutput.choices.map(async (choice) => {
-      if (choice.role !== 'match') {
-        const fallbackId = extractUuid(choice.uri);
-        const adapterUri = buildAdapterUri(fallbackId);
+      const adapterUri = canonicalizeAdapterUri(choice.uri, {
+        slug: choice.slug ?? normalizeAuthorSlug(choice.adapter_name ?? choice.label)
+      });
+      if (choice.role === 'create') {
         return {
           uri: adapterUri,
           label: choice.label,
@@ -45,11 +57,29 @@ async function mapSearchToActivate(
           adapter_version: choice.adapter_version,
           activation_patterns: [],
           space_name: choice.space_name ?? null,
-          slug: choice.slug ?? null
+          slug: choice.slug ?? null,
+          forward_first_call: null
+        };
+      }
+      if (choice.role === 'refine') {
+        return {
+          uri: adapterUri,
+          label: choice.label,
+          adapter_name: choice.adapter_name,
+          activation_score: choice.score,
+          role: choice.role,
+          tags: choice.tags,
+          next_action: `call forward with ${adapterUri} and no solution to start the refine adapter`,
+          adapter_version: choice.adapter_version,
+          activation_patterns: [],
+          space_name: choice.space_name ?? null,
+          slug: choice.slug ?? null,
+          forward_first_call: {
+            uri: adapterUri
+          }
         };
       }
 
-      const adapterUri = choice.uri;
       const adapterLabel = choice.adapter_name ?? choice.label;
       return {
         uri: adapterUri,
@@ -62,7 +92,10 @@ async function mapSearchToActivate(
         adapter_version: choice.adapter_version,
         activation_patterns: choice.activation_patterns ?? [],
         space_name: choice.space_name ?? null,
-        slug: choice.slug ?? null
+        slug: choice.slug ?? null,
+        forward_first_call: {
+          uri: adapterUri
+        }
       };
     })
   );

@@ -9,7 +9,8 @@ Finalize an adapter run with an outcome and optional evaluator metadata.
 - Optional: `score` (0–1), `feedback`, `rater`, `rubric_version`, `llm_model_id`.
 
 **Output:** Per-layer result rows with `rated_at`, normalized grading
-metadata (`grader_kind`, `evaluation_label`), and export eligibility
-flags plus blocker lists for `sft_jsonl` and `preference_jsonl`.
+metadata (`grader_kind`, `evaluation_label`), export eligibility
+flags plus blocker lists for `sft_jsonl` and `preference_jsonl`, and
+`next_call: null` as the explicit terminal marker.
 
 **Rules:** Use only layer URIs returned by **`forward`**. Do not substitute adapter URIs here unless the tool schema explicitly allows it (this tool expects a layer URI).

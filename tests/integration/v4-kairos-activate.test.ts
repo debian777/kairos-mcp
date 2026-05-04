@@ -20,11 +20,11 @@ import {
   sleep
 } from './v4-activate-test-helpers.js';
 
-/** Built-in meta adapters (fixed UUIDs). */
-const URI_REFINE_SEARCH = 'kairos://adapter/00000000-0000-0000-0000-000000002002' as const;
-const URI_CREATE_PROTOCOL = 'kairos://adapter/00000000-0000-0000-0000-000000002001' as const;
+/** Built-in meta adapters (slug routing URIs). */
+const URI_REFINE_SEARCH = 'kairos://adapter/refine-search' as const;
+const URI_CREATE_PROTOCOL = 'kairos://adapter/create-new-protocol' as const;
 
-const RE_ADAPTER_URI = /^kairos:\/\/adapter\/[0-9a-f-]{36}$/i;
+const RE_ADAPTER_URI = /^kairos:\/\/adapter\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 
 const TRAIN_LLM_MODEL_ID = 'test-v4-activate';
 
@@ -231,7 +231,7 @@ ${buildMinimalProtocolBody(title)}`;
       expect(refineChoice!.uri).toBe(URI_REFINE_SEARCH);
       expect(typeof refineChoice!.next_action).toBe('string');
       expect(refineChoice!.next_action).toContain('forward');
-      expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.next_action).toContain('refine-search');
       expect(refineChoice!.label).toBe('Get help refining your search');
       if (createChoice!.next_action !== undefined) {
         expect(typeof createChoice!.next_action).toBe('string');
@@ -298,7 +298,7 @@ ${buildMinimalProtocolBody(title)}`;
       expect(createChoice).toBeDefined();
       expect(refineChoice!.uri).toBe(URI_REFINE_SEARCH);
       expect(refineChoice!.next_action).toContain('forward');
-      expect(refineChoice!.next_action).toContain('00000000-0000-0000-0000-000000002002');
+      expect(refineChoice!.next_action).toContain('refine-search');
       expect(createChoice!.uri).toBe(URI_CREATE_PROTOCOL);
       expect(createChoice!.next_action).toContain('train');
     });

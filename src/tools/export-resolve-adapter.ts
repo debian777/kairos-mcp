@@ -18,7 +18,8 @@ export async function resolveExportAdapter(
       if (!outcome.layerUuid) {
         throw new Error('Adapter not found');
       }
-      const adapterId = outcome.layerUuid;
+      const firstLayer = await memoryStore.getMemory(outcome.layerUuid);
+      const adapterId = firstLayer ? getAdapterId(firstLayer) : outcome.layerUuid;
       const layers = await qdrantService.getAdapterLayers(adapterId);
       const firstLayerId = layers[0]?.uuid ?? adapterId;
       return { adapterId, layerId: firstLayerId };

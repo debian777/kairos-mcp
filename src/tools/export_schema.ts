@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import {
-  ADAPTER_URI_INPUT_REGEX,
+  ADAPTER_SLUG_URI_INPUT_REGEX,
   ARTIFACT_URI_INPUT_REGEX,
   LAYER_URI_INPUT_REGEX
 } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid|slug}');
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}');
 
 const layerUriSchema = z
   .string()

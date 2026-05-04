@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ADAPTER_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
+import { ADAPTER_SLUG_URI_INPUT_REGEX, LAYER_URI_INPUT_REGEX } from './kairos-uri.js';
 
 const adapterUriSchema = z
   .string()
-  .regex(ADAPTER_URI_INPUT_REGEX, 'must match kairos://adapter/{uuid} or kairos://adapter/{slug}');
+  .regex(ADAPTER_SLUG_URI_INPUT_REGEX, 'must match kairos://adapter/{slug}');
 
 const layerUriSchema = z
   .string()
@@ -50,6 +50,71 @@ export const forwardContractSchema = z.object({
     min_length: z.number().optional()
   }).optional()
 });
+
+const solutionTypeSchema = z.enum(['tensor', 'shell', 'mcp', 'user_input', 'comment']);
+
+const solutionTemplateSchema = z
+  .object({
+    type: solutionTypeSchema,
+    tensor: z.record(z.string(), z.unknown()).optional(),
+    shell: z.record(z.string(), z.unknown()).optional(),
+    mcp: z.record(z.string(), z.unknown()).optional(),
+    user_input: z.record(z.string(), z.unknown()).optional(),
+    comment: z.record(z.string(), z.unknown()).optional()
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const typeToField: Record<z.infer<typeof solutionTypeSchema>, keyof Omit<typeof value, 'type'>> = {
+      tensor: 'tensor',
+      shell: 'shell',
+      mcp: 'mcp',
+      user_input: 'user_input',
+      comment: 'comment'
+    };
+    const expectedField = typeToField[value.type];
+    const providedFields = (Object.keys(typeToField) as Array<keyof typeof typeToField>).filter((type) => {
+      const field = typeToField[type];
+      return value[field] !== undefined;
+    });
+    if (!providedFields.includes(value.type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `solution_template.${expectedField} is required for type "${value.type}".`
+      });
+      return;
+    }
+    if (providedFields.some((field) => field !== value.type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'solution_template must include only the payload field matching solution_template.type.'
+      });
+    }
+  });
+
+const forwardNextCallSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('forward'),
+    args: z
+      .object({
+        uri: layerUriSchema,
+        solution_template: solutionTemplateSchema
+      })
+      .strict()
+  }),
+  z.object({
+    kind: z.literal('reward'),
+    args: z
+      .object({
+        uri: layerUriSchema,
+        outcome_template: z
+          .object({
+            outcome: z.literal('success')
+          })
+          .strict()
+      })
+      .strict()
+  })
+]);
 
 /** Canonical comment proof after input parsing; only this shape is used past the schema boundary. */
 const forwardCommentSolutionCanonicalSchema = z.object({
@@ -125,7 +190,7 @@ function isLayerUriWithExecutionId(uri: string): boolean {
 
 /** First forward in a run: adapter URI or layer URI without `?execution_id=...` (new execution). */
 function isStartingNewForwardRun(uri: string): boolean {
-  if (ADAPTER_URI_INPUT_REGEX.test(uri)) {
+  if (ADAPTER_SLUG_URI_INPUT_REGEX.test(uri)) {
     return true;
   }
   const match = uri.match(LAYER_URI_INPUT_REGEX);
@@ -236,6 +301,7 @@ export const forwardOutputSchema = z.object({
     .string()
     .optional()
     .describe('When forward started from a slug that matched multiple adapters, explains which was chosen'),
+  next_call: forwardNextCallSchema,
   /** Human-readable space for the current layer (when payload carries space_id). */
   activation_space_name: z.string().optional(),
   /** Adapter title for the run (activator / H1). */

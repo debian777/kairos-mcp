@@ -13,6 +13,18 @@ export function isLikelyToolInputJsonSchema(schema: unknown): boolean {
   return false;
 }
 
+/**
+ * MCP SDK `tools/list` normalizes Zod to an object schema before JSON Schema conversion.
+ * A top-level `z.union` (for example `mcpLooseToolInput(strict)`) is not treated as an object, so the
+ * listed input schema becomes `{ type: 'object', properties: {} }` with no field hints.
+ */
+export function isMcpListedEmptyObjectParamsSchema(schema: unknown): boolean {
+  if (!schema || typeof schema !== 'object') return false;
+  const s = schema as Record<string, unknown>;
+  if (s.type !== 'object' || !s.properties || typeof s.properties !== 'object') return false;
+  return Object.keys(s.properties as Record<string, unknown>).length === 0;
+}
+
 /** True if some object branch of the schema defines all given property names. */
 export function schemaHasObjectBranchWithProps(schema: unknown, propNames: string[]): boolean {
   if (!schema || typeof schema !== 'object') return false;
