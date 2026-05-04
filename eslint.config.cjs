@@ -2,7 +2,7 @@
 // Forbidden tokens + protocol wording review: eslint/plugins/kairos-forbidden-text.cjs
 // CodeQL `// codeql[js/…]:` line integrity: eslint/plugins/kairos-codeql-line-comments.cjs
 // MCP Apps widgets (handshake + HTML shell): eslint/plugins/kairos-mcp-widget.cjs
-// Scope: src/, scripts/, tests/ code + **/*.md + context7.json (see eslint/flat-config.cjs)
+// Scope: src/, scripts/, tests/ code + **/*.md + context7.json; kairos-forbidden-text off for .agent/skills/**/*.md and CONTRIBUTING.md (see eslint/flat-config.cjs)
 // Inline eslint-disable / file comments cannot change rules (linterOptions.noInlineConfig).
 
 'use strict';

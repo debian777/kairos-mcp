@@ -14,6 +14,9 @@ execution, not human aesthetics.
 many possible actions.
 - **Teach in the interface.** Tool descriptions, schemas, and errors
 must explain what to do next.
+- **Schemas match enforcement.** What hosts show in JSON Schema and what
+`src/embed-docs/tools/` describe must agree with runtime validation for the
+same tool; agents plan from schemas—drift becomes systematic mis-calls.
 - **Server generates; agent echoes.** Identifiers, nonces, and proof
 hashes are server-owned. The agent copies them back exactly.
 - **Backend orchestrates complexity.** Validation, retries, state,
@@ -61,7 +64,7 @@ names to space **IDs** for Qdrant filters and Redis keys.
 - **Embed URIs in `next_action`.** Prefer `next_action` with exact URIs
 and instructions the agent can copy.
 - **Always provide an actionable next step** on success.
-- `**must_obey` semantics:** `must_obey: true` means the agent must
+- **must_obey semantics:** `must_obey: true` means the agent must
 follow `next_action`; `must_obey: false` means the agent may choose
 among options.
 - **Unify response shapes** across tools to reduce patterns the agent
@@ -71,6 +74,9 @@ must learn.
 
 - **Errors are recoverable by default.** Include fresh challenge data
 on error so the agent can retry without re-fetching.
+- **Field-level rejection.** For invalid tool arguments, surface paths
+  (for example as `invalid_fields`) and distinguish missing fields from wrong
+  types or pattern violations so the model can edit one key and retry.
 - **Include `next_action` in errors** with exact retry instructions.
 - **Use structured error codes** for monitoring and agent branching.
 - **Retry escalation:** Retries 1–N use `must_obey: true` with a
@@ -84,18 +90,52 @@ allows repair, abort, or escalation.
 max retries).
 - When **activate** finds no match, offer a deterministic **train**
 (create adapter) path.
-- Keep `**reward`** a simple finalization; make the last layer a normal
+- Keep **`reward`** a simple finalization; make the last layer a normal
 verification step.
 
-### 7. Checklist for new or changed APIs
+### 7. Contract, schema parity, and vocabulary
+
+Agents plan from **JSON Schema** (`tools/list`), **tool descriptions**, and
+**the last response body**. Those three must not contradict the runtime
+validator (for example Zod `safeParse` in the tool handler). If the SDK needs a
+loose envelope so malformed calls still reach the handler, the **published**
+schema and docs must still describe the **strict** contract agents should aim
+for—never the reverse.
+
+- **Structured contract first.** Anything required for correctness belongs in
+  structured fields (`contract`, tool args, `error_code`, `invalid_fields`).
+  Natural-language `next_action` **supplements** the contract; it does not
+  replace it.
+- **Ground every proof in server output.** Nonces, `proof_hash`, `execution_id`,
+  and canonical URIs returned by the previous step are the anchors agents must
+  echo. Instructions that can be satisfied without reading the last response
+  train fabrication, not compliance.
+- **Disambiguate URI lanes in errors and docs.** Adapter execution uses
+  `kairos://adapter/...` and `kairos://layer/...`. Do not reuse phrasing that
+  suggests other URI families (for example `kairos://mem/...` protocol chains)
+  apply to **`forward`** unless this server truly accepts them there.
+- **Surgical validation errors.** Prefer machine-oriented paths
+  (`invalid_fields`), stable `error_code` values, and messages that distinguish
+  **missing** vs **wrong JSON type** vs **pattern or enum mismatch**, plus one
+  copy-paste-safe retry example that matches the schema.
+- **Localized recovery.** Prefer errors that let the agent **fix one argument
+  and retry the same tool** with the same run identifiers, instead of implying a
+  full restart unless the run is invalid.
+- **Depth belongs in resources.** Keep tool descriptions scannable; put long
+  narratives in `src/embed-docs/tools/` (and link or name them in the tool doc).
+
+### 8. Checklist for new or changed APIs
 
 - Outputs use LLM-friendly, consistent field names.
 - `next_action` embeds exact URIs and instructions.
+- **`tools/list` input schema matches runtime validation** for required fields,
+  types, and patterns (or the docs explicitly state the strict contract when the
+  wire schema is intentionally permissive).
 - Errors include recovery instructions and fresh data to retry.
 - Two-phase error handling: retry first, then grant autonomy.
 - No redundant fields; single source of truth for each concept.
 - Server generates identifiers and hashes; agent echoes them.
-- Self-correction paths (for example, `**tune**` / `**train**`) are
+- Self-correction paths (for example, **`tune`** / **`train`**) are
 exposed and documented.
 - A creation fallback exists when no match is found.
 
