@@ -1,10 +1,10 @@
 ---
 name: kmcp-dev-release-semver
 description: >-
-  kairos-mcp: deterministic semver release. Inspect commits since last stable v*
-  tag; recommend patch/minor/major with evidence; user confirms; release/* branch,
-  npm run release:<type>, PR to main, no manual v* tag (CI tags after merge).
-  Triggers: bump version, cut release, version-bump PR, release branch.
+  kairos-mcp: semver release through npm/Docker — evidence-based bump, user confirms,
+  branch + commit + PR to main, babysit CI until merge, then confirm tag + Release
+  workflow (no manual v* push). Triggers: bump version, cut release, RC, version PR,
+  “publish”, “released”.
 ---
 
 # Version bump and release (kairos-mcp)
@@ -14,10 +14,35 @@ description: >-
 **[`.github/workflows/README.md`](../../../.github/workflows/README.md)**).
 **Build/test after merge:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).
 
-Releases work **with or without** stepping through every narrative below.
+---
 
-- **Minimal path:** `npm version <type> --no-git-tag-version` or **`npm run release:<type>`**, then **`npm run version:sync-skills`** when you did not use a **`release:*`** script → branch, commit, push, open PR yourself.
-- **Full skill path:** judgment on semver → confirmation → scripted branch + PR + explicit “no local tag” reminder.
+## Expected outcome (definition of done)
+
+**Released** means the package (and container image, when Release succeeds end-to-end)
+is published from CI — not merely that `package.json` changed locally.
+
+| Stage | Done when |
+|-------|-----------|
+| Version bump | `npm run release:<type>` (or equivalent) and **`npm run version:sync`** artifacts are correct. |
+| Land on `main` | Version-bump commit is merged to **`main`** (pre-commit may forbid committing directly to `main`; use a branch + PR). |
+| Tag | **`Release tag on version bump`** creates **`v${version}`** after required Integration workflows succeed (see workflows README). |
+| Publish | **`Release`** runs on that tag: npm publish, Docker, GitHub Release. |
+
+**Do not treat “commit + push” as the end state** when the user asked for a **released**
+RC or stable: continue through **open PR → green checks → merge → confirm tag and
+Release workflow → verify on npm** (section 3.4).
+
+**npm dist-tag:** In **`.github/workflows/reusable-publish-npm.yml`**, any version
+string containing **`-`** is published with dist-tag **`beta`**; plain **`X.Y.Z`**
+uses **`latest`**. Consumers may pin **`@debian777/kairos-mcp@<exact-version>`** or
+use **`@beta`** where appropriate.
+
+---
+
+## Paths
+
+- **Minimal (version bump only):** If the user explicitly wants **only** a local/working-tree bump (no registry), run **`npm run release:<type>`** (includes **`version:sync`**) and stop after stating that nothing ships until merged to **`main`**.
+- **Default (ship a version):** Full path below: bump → branch → commit → push → PR → **babysit** (3.4) until **`npm view`** shows the version.
 
 ---
 
@@ -36,8 +61,8 @@ Deliver before any bump:
 2. **Inference** — why **`patch`**, **`minor`**, or **`major`** (or prerelease).
 3. **Uncertainty** — what would change the call.
 
-| Signal | Type | npm target |
-|--------|------|------------|
+| Signal | Type | `npm run` target |
+|--------|------|------------------|
 | `BREAKING CHANGE` / `feat!:` / `fix!:` | **major** | `release:major` |
 | `feat:` (backward-compatible) | **minor** | `release:minor` |
 | `fix:` / `docs:` / `chore:` / `refactor:` / `ci:` / `test:` | **patch** | `release:patch` / `release:bug` |
@@ -55,7 +80,9 @@ One-line format:
 
 `Recommended: <patch|minor|major> because <impact>.`
 
-Confirm semver level and prerelease flavor if any. After confirmation, run **§3** without re-asking.
+Confirm semver level and prerelease flavor if any. After confirmation, run **section 3**
+without re-asking. If the user already stated **“released” / “publish” / “to npm”**,
+assume **ship** (full definition of done), not bump-only.
 
 ---
 
@@ -85,24 +112,43 @@ VERSION=$(node -p "require('./package.json').version")
 git branch -m release/next "release/$VERSION"
 ```
 
+Branch names **`release/<version>`** or **`chore/bump-<version>`** are both fine;
+**`main`** is the merge target for shipping.
+
 ### 3.3 Commit, push, PR
 
+Stage everything **`release:*`** / **`version:sync`** touched (at minimum **`package.json`**, **`package-lock.json`**, **`compose.yaml`**, **`src/embed-docs/mem/`**, top-level **`skills/*/SKILL.md`** as applicable):
+
 ```bash
-git add package.json package-lock.json src/embed-docs/mem/ skills/
+git add package.json package-lock.json compose.yaml src/embed-docs/mem/ skills/
+git status
 git commit -m "release: $VERSION"
-git push -u origin "release/$VERSION"
-gh pr create --base main --head "release/$VERSION" \
+git push -u origin "$(git branch --show-current)"
+gh pr create --base main --head "$(git branch --show-current)" \
   --title "release: $VERSION" \
-  --body "Version bump to $VERSION."
+  --body "Version bump to $VERSION. Merges to \`main\` so **Release tag on version bump** can tag \`v$VERSION\` and run the **Release** workflow (npm + Docker)."
 ```
 
-Present the **PR URL** clearly. Optional:
+Present the **PR URL** clearly:
 
 ```bash
 gh pr view --json url -q .url
 ```
 
 **Do not create or push `refs/tags/v*`.** Tags are created after merge when Integration succeeds; **pre-push** blocks manual tags.
+
+### 3.4 Babysit until published
+
+Until **`npm view @debian777/kairos-mcp@${VERSION} version`** returns **`${VERSION}`**, the release is not finished.
+
+1. **PR exists** — If the branch is pushed but no PR: `gh pr create` as in 3.3, or `gh pr list --head '<branch>'`.
+2. **Checks** — Watch **Integration** and **Integration Simple** on the PR; fix failures or ask the user only for blockers you cannot clear (branch protection, secrets).
+3. **Merge** — When policy allows, prefer **`gh pr merge <n> --squash --auto --subject "release: $VERSION"`** so merge happens when required checks pass. If **`--auto`** is disallowed, tell the user exactly what is blocking (reviews, required statuses).
+4. **Post-merge** — Confirm **`Release tag on version bump`** ran and pushed **`v$VERSION`**, then **Release** completed (Actions UI or `gh run list --workflow=release.yml`).
+5. **Verify registry** — `npm view @debian777/kairos-mcp@${VERSION} version` (and Docker only if that is part of the user’s ask).
+
+Treat this loop like a **merge-ready PR babysit**: no silent stop after “pushed branch”
+when the stated outcome is **released**.
 
 ---
 
@@ -126,6 +172,7 @@ Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**
 - **Prerelease → stable** — often **`npm run release:patch`** from an `-rc` line (npm semantics apply).
 - **`version:check-skills` fails** — `git fetch --tags`; **`npm run version:sync-skills`**; re-stage **`skills/`**, **`src/embed-docs/mem/`**, version files; re-run check.
 - **New skill under `skills/<dir>/`** — ensure **`version:`** metadata line exists where the script expects.
+- **Tag skipped on main** — **Release tag on version bump** compares **`package.json`** to the latest **stable** `vX.Y.Z` tag only; if logic skips tagging, read the workflow log and **`.github/workflows/README.md`** before changing version strategy.
 
 ---
 

@@ -19,7 +19,7 @@ ids, npm-only tests).
 | [`kmcp-dev-build-test`](kmcp-dev-build-test/SKILL.md) | `kmcp-dev-build-test` | Build, deploy, lint, integration tests — always **`npm run`**; never default to bare Jest. |
 | [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **DEVELOPMENT_KAIROS**; `.local/` trace reports. |
 | [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Live reproduce → failing test → fix → PR → CI green → merge-ready. |
-| [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Semver bump, `release/*` branch, PR, tag policy (no manual `v*` push). |
+| [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Bump through npm/Docker: PR to `main`, babysit CI/merge, tag + Release workflow (no manual `v*` push). |
 | [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |
 | [`kmcp-dev-git-editor-safe`](kmcp-dev-git-editor-safe/SKILL.md) | `kmcp-dev-git-editor-safe` | Agent shell Git without opening `code --wait` editor. |
 | [`kmcp-dev-git-index-repair`](kmcp-dev-git-index-repair/SKILL.md) | `kmcp-dev-git-index-repair` | Invalid object / tree build failures; Husky bisect; index repair. |
