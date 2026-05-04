@@ -138,12 +138,6 @@ export const FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE =
 
 export const forwardInputSchema = z.object({
   uri: forwardUriSchema.describe('Adapter or layer URI'),
-  kairos_local_artifact_dir: z
-    .string()
-    .optional()
-    .describe(
-      'Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same directory as env `KAIROS_LOCAL_ARTIFACT_DIR`.'
-    ),
   solution: forwardSolutionSchema
     .optional()
     .describe(
@@ -217,12 +211,6 @@ export const forwardMcpWireInputSchema = z
       .string()
       .optional()
       .describe('Adapter or layer URI. Use adapter or layer without execution_id to start; use layer with execution_id to continue.'),
-    kairos_local_artifact_dir: z
-      .string()
-      .optional()
-      .describe(
-        'Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`) — same scope choice as MCP configs and skills. Same directory as env `KAIROS_LOCAL_ARTIFACT_DIR`.'
-      ),
     solution: forwardWireSolutionSchema
       .optional()
       .describe('Only for continuation calls; omit on start. Must include solution.type and the matching payload object.')
@@ -258,8 +246,14 @@ export const forwardOutputSchema = z.object({
   adapter_layer_index: z.number().int().positive().optional(),
   /** Total layers in the adapter (widget progress). */
   adapter_layer_count: z.number().int().positive().optional(),
-  /** Stable handoff dir for this run. Project-scoped (`$PROJECT_DIR/.local/kairos/work`) or user-scoped (`~/.config/kairos/work`); same dir as env `KAIROS_LOCAL_ARTIFACT_DIR`. */
-  kairos_local_artifact_dir: z.string().optional()
+  /**
+   * Ordered URI hints (preferred first) for the run's local handoff dir. Resolve **on the client**:
+   * `project://<rel>` → `<client project root>/<rel>`; `user://<rel>` → `<client home or $XDG_CONFIG_HOME>/<rel>`.
+   * Use `project://` when you have exactly one project context; fall through to `user://` when your session
+   * spans multiple projects. Export the resolved absolute path as `KAIROS_LOCAL_ARTIFACT_DIR` for shell
+   * challenges. The server never resolves these to a path on its own filesystem.
+   */
+  kairos_local_artifact_dir: z.array(z.string()).optional()
 }).strict();
 
 export type ForwardInput = z.infer<typeof forwardInputSchema>;

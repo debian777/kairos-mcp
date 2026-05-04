@@ -7,11 +7,14 @@
 
 import os from 'os';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { parseOidcScopesSupported } from './http/oidc-scopes.js';
 import { normalizeRedisUrl } from './utils/normalize-redis-url.js';
-import { resolveLocalArtifactDir, KAIROS_LOCAL_ARTIFACT_DIR_ENV } from './utils/kairos-work-dir-resolve.js';
+import {
+  KAIROS_LOCAL_ARTIFACT_DIRS_DEFAULT,
+  parseLocalArtifactDirHints
+} from './utils/kairos-local-artifact-dirs.js';
 export { DEFAULT_OIDC_SCOPES_SUPPORTED, parseOidcScopesSupported } from './http/oidc-scopes.js';
+export { parseLocalArtifactDirHints } from './utils/kairos-local-artifact-dirs.js';
 
 /** Throws if key is missing or empty (after trim). Use for vars that must be set. */
 function getEnvRequired(key: string, errorMessage?: string): string {
@@ -58,13 +61,15 @@ const TRACE_STORE_DIR_RAW = getEnvString(
 export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
   ? TRACE_STORE_DIR_RAW
   : path.resolve(TRACE_STORE_DIR_RAW);
-/** Directory of this module (`src/config.ts` or `dist/config.js`) for repo-root discovery when `process.cwd()` is outside the checkout. */
-const KAIROS_CONFIG_MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED = resolveLocalArtifactDir({
-  runtimeDir: KAIROS_CONFIG_MODULE_DIR
-});
-export const KAIROS_LOCAL_ARTIFACT_DIR = KAIROS_LOCAL_ARTIFACT_DIR_RESOLVED.path;
-export { KAIROS_LOCAL_ARTIFACT_DIR_ENV };
+/**
+ * Ordered URI hints emitted as the `kairos_local_artifact_dir` response field
+ * (preferred first). The client resolves a hint on its own filesystem and
+ * exports `KAIROS_LOCAL_ARTIFACT_DIR` for shell challenges. Override the
+ * defaults via the comma-separated env `KAIROS_LOCAL_ARTIFACT_DIRS`.
+ */
+export const KAIROS_LOCAL_ARTIFACT_DIRS: readonly string[] = parseLocalArtifactDirHints(
+  getEnvString('KAIROS_LOCAL_ARTIFACT_DIRS', KAIROS_LOCAL_ARTIFACT_DIRS_DEFAULT)
+);
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
