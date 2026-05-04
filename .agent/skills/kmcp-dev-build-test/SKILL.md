@@ -19,6 +19,7 @@ execution path for agents in this worktree.
 
 ## Core rules (source of truth)
 
+- In a **git worktree**, ensure **`.env*`** exists or will be copied from main, and that **`PORT`** / **`METRICS_PORT`** do not clash with another checkout on the same host; see **[`kmcp-dev-worktree-env`](../kmcp-dev-worktree-env/SKILL.md)** (first **`npm run dev:*`** that uses **`deploy-run-env.sh`** copies **`.env`** when missing).
 - Always install dependencies with **`npm ci`** before first build/test.
 - Always **deploy before tests**: integration tests expect a running dev stack.
 - Use **npm scripts** as the only default interface for build, deploy, test, lint.
@@ -66,6 +67,7 @@ Same policy for forks: deploy-before-test, npm scripts. If script names differ, 
 
 ## Related maintainer skills
 
+- **[`kmcp-dev-worktree-env`](../kmcp-dev-worktree-env/SKILL.md)** — `.env*` in worktrees; sync from main.
 - **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — MCP-first QA against DEVELOPMENT_KAIROS.
 - **[`kmcp-dev-bugfix-ship`](../kmcp-dev-bugfix-ship/SKILL.md)** — bug report → fix → PR → CI.
 - **[`kmcp-dev-release-semver`](../kmcp-dev-release-semver/SKILL.md)** — semver release branch flow.

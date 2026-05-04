@@ -23,6 +23,7 @@ ids, npm-only tests).
 | [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |
 | [`kmcp-dev-git-editor-safe`](kmcp-dev-git-editor-safe/SKILL.md) | `kmcp-dev-git-editor-safe` | Agent shell Git without opening `code --wait` editor. |
 | [`kmcp-dev-git-index-repair`](kmcp-dev-git-index-repair/SKILL.md) | `kmcp-dev-git-index-repair` | Invalid object / tree build failures; Husky bisect; index repair. |
+| [`kmcp-dev-worktree-env`](kmcp-dev-worktree-env/SKILL.md) | `kmcp-dev-worktree-env` | Worktree **`.env*`** not shared with main; unique **`PORT`** / **`METRICS_PORT`** per checkout on one host; **`deploy-copy-env-from-main.sh`**; Run Task **Copy .env from main**. |
 | [`kmcp-dev-mcp-host-bridge-pointer`](kmcp-dev-mcp-host-bridge-pointer/SKILL.md) | `kmcp-dev-mcp-host-bridge-pointer` | Router only → **`.agents/skills/mcp-host-bridge`**. |
 
 ## Default flow (muscle memory)
@@ -34,7 +35,8 @@ ids, npm-only tests).
 5. **Release** → **`kmcp-dev-release-semver`** (see also `.github/workflows/README.md`).
 6. **UI work** → **`kmcp-dev-ui-spec`**.
 7. **Git pain** → **`kmcp-dev-git-editor-safe`** + **`kmcp-dev-git-index-repair`**.
-8. **MCP server id / auth errors** → **`kmcp-dev-mcp-host-bridge-pointer`** (canonical bridge skill).
+8. **New worktree / missing `.env`** → **`kmcp-dev-worktree-env`** (sync from main before dev commands if needed).
+9. **MCP server id / auth errors** → **`kmcp-dev-mcp-host-bridge-pointer`** (canonical bridge skill).
 
 ## Authoring rules
 

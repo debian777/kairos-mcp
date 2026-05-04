@@ -59,15 +59,10 @@ lines should stay as one adapter with 6 H2 layers.
 
 ### How forward + slug works
 
-System adapters chain using static UUIDs in `next_action`:
+Both system and user-authored adapters chain using slugs in `next_action`:
 
 ```text
-call forward with kairos://adapter/00000000-0000-0000-0000-000000002005 and no solution to start the phase critic
-```
-
-For user-authored adapters, use the slug instead:
-
-```text
+call forward with kairos://adapter/phase-critic and no solution to start the phase critic
 call forward with kairos://adapter/implement-terraform and no solution to start this adapter
 ```
 
