@@ -152,7 +152,9 @@ services:
       - METRICS_PORT=${METRICS_PORT:-9090}
       # Snapshot backup dir (volume mount); omit to disable backup (503 on POST /api/snapshot)
       - QDRANT_SNAPSHOT_DIR=/snapshots
-      # KEY_VALUE_STORE_URL/REDIS_URL and KEYCLOAK_INTERNAL_URL from .env (set for fullstack; omit for mini)
+      # JWKS/token introspection from inside the container; browser-facing KEYCLOAK_URL stays in .env
+      - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
+      # KEY_VALUE_STORE_URL/REDIS_URL from .env (set for fullstack; omit for mini)
     volumes:
       - snapshots-prod:/snapshots
     depends_on:
