@@ -90,7 +90,7 @@
     "lint": "eslint . && npm run lint:skills",
     "lint:skills": "python3 scripts/lint-agent-skills.py",
     "skills:sync-install-refs": "python3 scripts/sync-kairos-install-references.py",
-    "compose:sync-app-tag": "node -e \"const fs=require('fs');const p='compose.yaml';const v=require('./package.json').version;let s=fs.readFileSync(p,'utf8');s=s.replace(/(^\\s*image:\\s*debian777\\/kairos-mcp:)(\\S+)/m,(_,prefix)=>prefix+'v'+v);fs.writeFileSync(p,s);\"",
+    "compose:sync-app-tag": "node -e \"const fs=require('fs');const p='compose.yaml';const v=require('./package.json').version;let s=fs.readFileSync(p,'utf8');s=s.replace(/(^\\s*image:\\s*debian777\\/kairos-mcp:)(\\S+)/m,(_,prefix)=>prefix+v);fs.writeFileSync(p,s);\"",
     "version:sync": "npm run version:sync-skills && npm run compose:sync-app-tag",
     "version:sync-skills": "node scripts/build-sync-skill-versions.mjs",
     "version:check-skills": "node scripts/build-sync-skill-versions.mjs --check",
