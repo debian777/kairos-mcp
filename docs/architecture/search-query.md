@@ -175,7 +175,7 @@ The store returns `{ memories, scores }`. The tool layer then:
 
 ## Cache
 
-- **Key:** `activate:v4:{spaceId}:{searchQuery}:{enableGroupCollapse}:{limit}`.
+- **Key:** `activate:v6:{spaceId}:{searchQuery}:{enableGroupCollapse}:{limit}`.
 - **Value:** Full unified JSON response (stringified).
 - **TTL:** 300 seconds (configurable where the cache is set).
 - Cache is written after a successful search and read at the start of the request when the key exists.
@@ -185,7 +185,8 @@ The store returns `{ memories, scores }`. The tool layer then:
 | Env / config | Purpose |
 |--------------|--------|
 | `SCORE_THRESHOLD` | Minimum raw Qdrant score for a result to appear as a match (default 0.3). The same threshold is normalized before public scores are returned. |
-| `KAIROS_ENABLE_GROUP_COLLAPSE` | When true, first search uses collapse; fallback without collapse if few chains. |
+| `KAIROS_ENABLE_GROUP_COLLAPSE` | Default `false`. When `true`, the tool layer may run a second search pass if the first pass yields too few candidates (collapse flag threaded through the stack and activate cache keys). |
+| `KAIROS_SEARCH_OVERFETCH_FACTOR` | Default `1` (string). Included in startup debug config; not yet consumed by the Qdrant hybrid limit math in `store-methods.ts`. |
 | `MIN_ATTEST_RUNS`, `RUNS_FULL_CONFIDENCE`, `ATTEST_BOOST_MAX` | Used when writing the reward-derived Qdrant boost payload. |
 | `KAIROS_APP_SPACE_ID` | System space ID included in search scope. |
 
