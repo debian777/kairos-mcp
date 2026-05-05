@@ -16,3 +16,7 @@ dependencies:
     version: "1.17.0"
     repository: https://qdrant.github.io/qdrant-helm
     condition: qdrant.enabled
+  - name: valkey
+    version: "3.0.1"
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: valkey.enabled

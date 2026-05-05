@@ -40,7 +40,7 @@ app:
   port: 3000
   metricsPort: 9090
   image:
-    repository: "debian777/kairos-mcp"
+    repository: "quay.io/debian777/kairos-mcp"
     tag: "latest"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
@@ -140,6 +140,15 @@ redisCluster:
   sentinelReplicas: 3
   replicas: 3
   customSpec: {}
+
+valkey:
+  enabled: false
+  architecture: replication
+  replica:
+    replicaCount: 2
+  dataStorage:
+    enabled: true
+    requestedSize: 1Gi
 
 keycloakInstance:
   enabled: false
