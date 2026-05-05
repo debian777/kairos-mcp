@@ -73,6 +73,22 @@ spec:
   additionalOptions:
     - name: http-relative-path
       value: {{ $relativePath | quote }}
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              seccompProfile:
+                type: RuntimeDefault
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
   {{- else }}
   {{- toYaml $spec | nindent 2 }}
   {{- end }}

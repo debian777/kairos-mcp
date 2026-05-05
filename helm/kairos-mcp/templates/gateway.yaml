@@ -11,8 +11,13 @@ metadata:
   name: {{ $gw.gatewayName | default "kairos-gateway" }}
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
+  annotations:
+    proxy.istio.io/config: '{"seccompProfile":{"type":"RuntimeDefault"}}'
 spec:
   gatewayClassName: {{ $gw.gatewayClassName }}
+  infrastructure:
+    annotations:
+      proxy.istio.io/config: '{"seccompProfile":{"type":"RuntimeDefault"}}'
   listeners:
     {{- if or (not $hasTLS) $allowHttpWithTLS }}
     - name: http

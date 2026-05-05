@@ -179,6 +179,11 @@ docker-compose.override.yml
 # Helm chart dependencies (run: helm dependency update in helm/kairos-mcp)
 helm/kairos-mcp/charts/*.tgz
 
+# Helm environment-specific values
+helm/values.prelive-*.yaml
+helm/helm-prelive-*.sh
+helm/kairos-mcp/files/*prelive*.json
+
 # Terraform
 *.tfstate
 *.tfstate.*

@@ -24,8 +24,10 @@
 {{- fail "keycloakRealmImport.enabled requires one of: keycloakRealmImport.publicBaseUrl, app.auth.callbackBaseUrl, keycloakRealmImport.publicHost, or gateway.hostname" }}
 {{- end }}
 {{- $host := default $gwHost $publicHost }}
-{{- $raw := .Files.Get "files/kairos-realm.json" | replace "__KAIROS_PUBLIC_ORIGIN__" $origin | replace "__KAIROS_PUBLIC_HOST__" $host }}
+{{- $realmFile := default "kairos-realm.json" .Values.keycloakRealmImport.realmFile }}
+{{- $raw := .Files.Get (printf "files/%s" $realmFile) | replace "__KAIROS_PUBLIC_ORIGIN__" $origin | replace "__KAIROS_PUBLIC_HOST__" $host }}
 {{- $realm := mustFromJson $raw }}
+{{- $smtp := default dict .Values.keycloakInstance.smtp }}
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: KeycloakRealmImport
 metadata:
@@ -36,6 +38,29 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   keycloakCRName: {{ .Values.keycloakInstance.name | quote }}
+  {{- if $smtp.enabled }}
+  placeholders:
+    SMTP_HOST:
+      secret:
+        name: {{ $smtp.secretName }}
+        key: host
+    SMTP_PORT:
+      secret:
+        name: {{ $smtp.secretName }}
+        key: port
+    SMTP_FROM:
+      secret:
+        name: {{ $smtp.secretName }}
+        key: from
+    SMTP_USER:
+      secret:
+        name: {{ $smtp.secretName }}
+        key: user
+    SMTP_PASSWORD:
+      secret:
+        name: {{ $smtp.secretName }}
+        key: password
+  {{- end }}
   realm:
     {{- toYaml $realm | nindent 4 }}
 {{- end }}
