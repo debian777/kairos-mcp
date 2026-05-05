@@ -45,7 +45,21 @@
       "attributes": {
         "post.logout.redirect.uris": "http://127.0.0.1/auth/continue-signin##__KAIROS_PUBLIC_ORIGIN__/auth/continue-signin",
         "logout.confirmation.enabled": "false"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
     },
     {
       "clientId": "kairos-cli",
@@ -58,7 +72,21 @@
       "webOrigins": ["__KAIROS_PUBLIC_ORIGIN__"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
     }
   ],
   "components": {
