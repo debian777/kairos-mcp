@@ -32,26 +32,17 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "redirectUris": [
-        "http://localhost:3300/auth/callback",
-        "http://localhost:3301/auth/callback",
-        "http://127.0.0.1:3300/auth/callback",
-        "http://127.0.0.1:3301/auth/callback",
-        "http://localhost:3300/auth/continue-signin",
-        "http://localhost:3301/auth/continue-signin",
-        "http://127.0.0.1:3300/auth/continue-signin",
-        "http://127.0.0.1:3301/auth/continue-signin",
-        "https://__KAIROS_PUBLIC_HOST__/auth/callback",
-        "https://__KAIROS_PUBLIC_HOST__/auth/continue-signin"
+        "http://127.0.0.1/auth/callback",
+        "http://127.0.0.1/auth/continue-signin",
+        "__KAIROS_PUBLIC_ORIGIN__/auth/callback",
+        "__KAIROS_PUBLIC_ORIGIN__/auth/continue-signin"
       ],
       "webOrigins": [
-        "http://localhost:3300",
-        "http://localhost:3301",
-        "http://127.0.0.1:3300",
-        "http://127.0.0.1:3301",
-        "https://__KAIROS_PUBLIC_HOST__"
+        "http://127.0.0.1",
+        "__KAIROS_PUBLIC_ORIGIN__"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:3300/auth/continue-signin##http://localhost:3301/auth/continue-signin##http://127.0.0.1:3300/auth/continue-signin##http://127.0.0.1:3301/auth/continue-signin##https://__KAIROS_PUBLIC_HOST__/auth/continue-signin",
+        "post.logout.redirect.uris": "http://127.0.0.1/auth/continue-signin##__KAIROS_PUBLIC_ORIGIN__/auth/continue-signin",
         "logout.confirmation.enabled": "false"
       }
     },
@@ -62,8 +53,8 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:*", "http://localhost:*/callback", "http://localhost:*/callback/*", "http://localhost:*/*", "http://127.0.0.1:*", "http://127.0.0.1:*/callback", "http://127.0.0.1:*/callback/*", "https://__KAIROS_PUBLIC_HOST__/*"],
-      "webOrigins": ["http://localhost", "https://__KAIROS_PUBLIC_HOST__"],
+      "redirectUris": ["http://localhost:*", "http://localhost:*/callback", "http://localhost:*/callback/*", "http://localhost:*/*", "http://127.0.0.1:*", "http://127.0.0.1:*/callback", "http://127.0.0.1:*/callback/*", "__KAIROS_PUBLIC_ORIGIN__/*"],
+      "webOrigins": ["__KAIROS_PUBLIC_ORIGIN__"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       }

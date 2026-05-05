@@ -14,7 +14,24 @@ credentials:
   name: "kairos-mcp-credentials"
 
 ha:
-  spreadAcrossNodes: true
+  antiAffinity:
+    # hard | soft | none
+    # hard: requiredDuringSchedulingIgnoredDuringExecution
+    # soft: preferredDuringSchedulingIgnoredDuringExecution
+    # none: disable chart-managed pod anti-affinity
+    mode: "hard"
+    # Topology keys used for pod anti-affinity matching.
+    # For hyperscalers, optionally add: topology.kubernetes.io/zone
+    topologyKeys:
+      - "kubernetes.io/hostname"
+    # Example (hyperscaler multi-zone):
+    # topologyKeys:
+    #   - "kubernetes.io/hostname"
+    #   - "topology.kubernetes.io/zone"
+    #
+    # Example overrides:
+    # mode: "soft"   # prefer spreading, allow co-location if needed
+    # mode: "none"   # disable chart-managed anti-affinity
 
 app:
   enabled: false
@@ -67,12 +84,18 @@ app:
 
 gateway:
   enabled: true
+  mode: "auto"
   createGateway: false
   gatewayName: "kairos-gateway"
   existingGatewayName: ""
   existingGatewayNamespace: ""
   gatewayClassName: "ngrok"
   hostname: ""
+  httpPort: 80
+  httpsPort: 443
+  # When TLS is enabled, also expose HTTP listener (useful for local dev).
+  allowHttpWithTls: false
+  ingressClassName: ""
   tls:
     secretName: ""
     certManager:
@@ -148,7 +171,11 @@ keycloakInstance:
 keycloakRealmImport:
   enabled: false
   name: "kairos-realm-import"
+  # Preferred explicit public origin (scheme + host [+ optional port]), e.g. http://localhost or https://kairos.example.com.
+  # If empty, template falls back to app.auth.callbackBaseUrl, then publicHost/gateway.hostname with inferred scheme.
+  publicBaseUrl: ""
   # If empty, uses gateway.hostname for https://… redirect URIs / webOrigins in the bundled realm JSON.
+  # Backward-compatible host-only override. Prefer publicBaseUrl for new configs.
   publicHost: ""
 
 postgresCluster:

@@ -23,17 +23,39 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.ha.spreadAcrossNodes }}
+      {{- $ha := default dict .Values.ha }}
+      {{- $aa := default dict $ha.antiAffinity }}
+      {{- $mode := default "hard" $aa.mode }}
+      {{- $topologyKeys := default (list "kubernetes.io/hostname") $aa.topologyKeys }}
+      {{- if not (or (eq $mode "hard") (eq $mode "soft") (eq $mode "none")) }}
+      {{- $_ := fail "ha.antiAffinity.mode must be one of: hard, soft, none" }}
+      {{- end }}
+      {{- if and (ne $mode "none") (or (not (kindIs "slice" $topologyKeys)) (eq (len $topologyKeys) 0)) }}
+      {{- $_ := fail "ha.antiAffinity.topologyKeys must be a non-empty list when anti-affinity is enabled" }}
+      {{- end }}
+      {{- if eq $mode "hard" }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            {{- range $key := $topologyKeys }}
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {{ $.Values.app.name | default "kairos-mcp" }}
+              topologyKey: {{ $key | quote }}
+            {{- end }}
+      {{- else if eq $mode "soft" }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
+            {{- range $key := $topologyKeys }}
             - weight: 100
               podAffinityTerm:
                 labelSelector:
                   matchLabels:
-                    app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
-                topologyKey: kubernetes.io/hostname
-      {{- else }}
+                    app.kubernetes.io/name: {{ $.Values.app.name | default "kairos-mcp" }}
+                topologyKey: {{ $key | quote }}
+            {{- end }}
+      {{- else if eq $mode "none" }}
       {{- with .Values.app.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
