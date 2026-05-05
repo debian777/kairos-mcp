@@ -46,6 +46,9 @@ jobs:
       - name: Build package (tgz)
         run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
 
+      - name: Test package install (clean tgz smoke)
+        run: node scripts/ci-github-step-summary.mjs "Test package install (clean tgz smoke)" -- npm run test:tgz
+
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:

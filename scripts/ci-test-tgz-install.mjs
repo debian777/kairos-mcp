@@ -4,7 +4,8 @@
  * Ensures the package can be installed and the CLI runs. Used before publish.
  */
 import { spawnSync } from "child_process";
-import { mkdirSync, existsSync } from "fs";
+import { mkdtempSync, existsSync, rmSync } from "fs";
+import { tmpdir } from "os";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
@@ -16,7 +17,8 @@ const pkg = require(join(root, "package.json"));
 const version = pkg.version;
 const tgzName = `debian777-kairos-mcp-${version}.tgz`;
 const tgzPath = join(root, "dist", tgzName);
-const testDir = join(root, ".tmp", "tgz-install-test");
+// Use OS temp dir so Node cannot resolve missing deps from repo-root node_modules.
+const testDir = mkdtempSync(join(tmpdir(), "kairos-tgz-install-test-"));
 
 function run(cmd, args, cwd = root, desc) {
   const r = spawnSync(cmd, args, { cwd, stdio: "inherit", shell: false });
@@ -31,10 +33,13 @@ if (!existsSync(tgzPath)) {
   process.exit(1);
 }
 
-mkdirSync(testDir, { recursive: true });
-run("npm", ["init", "-y"], testDir, "npm init");
-run("npm", ["install", tgzPath], testDir, "npm install <tgz>");
-run("npx", ["kairos", "--version"], testDir, "npx kairos --version");
-run("npx", ["kairos", "serve", "--help"], testDir, "npx kairos serve --help");
+try {
+  run("npm", ["init", "-y"], testDir, "npm init");
+  run("npm", ["install", tgzPath], testDir, "npm install <tgz>");
+  run("npx", ["kairos", "--version"], testDir, "npx kairos --version");
+  run("npx", ["kairos", "serve", "--help"], testDir, "npx kairos serve --help");
+} finally {
+  rmSync(testDir, { recursive: true, force: true });
+}
 
 console.log("test:tgz OK — install, kairos --version, and kairos serve --help succeeded.");
