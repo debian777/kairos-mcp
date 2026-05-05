@@ -6,6 +6,7 @@
 #   ./helm/.dev/helm-deploy.sh                      # default profile
 #   ./helm/.dev/helm-deploy.sh --profile tls        # HTTPS via cert-manager
 #   ./helm/.dev/helm-deploy.sh --profile tls-redis  # HTTPS + Valkey
+#   ./helm/.dev/helm-deploy.sh --profile full       # Full stack (KC + PG + Ollama)
 #   ./helm/.dev/helm-deploy.sh --profile tls -- --wait
 set -euo pipefail
 
@@ -18,50 +19,34 @@ KEYCLOAK_OPERATOR_VERSION="${KEYCLOAK_OPERATOR_VERSION:-26.5.6}"
 PERCONA_PG_OPERATOR_VERSION="${PERCONA_PG_OPERATOR_VERSION:-2.8.2}"
 
 install_keycloak_operator() {
-  echo "  Installing Keycloak operator (fallback mode)"
-  kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  local target_ns="${1:-${NS}}"
+  echo "  Installing Keycloak operator into namespace: ${target_ns}"
+  kubectl create namespace "${target_ns}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloaks.k8s.keycloak.org-v1.yml" >/dev/null
   kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloakrealmimports.k8s.keycloak.org-v1.yml" >/dev/null
-  kubectl -n keycloak apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/kubernetes.yml" >/dev/null
-  kubectl create namespace "${NS}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  kubectl apply -f - <<EOF >/dev/null
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: keycloak-operator-watch
-  namespace: ${NS}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: keycloakcontroller-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: keycloak-operator
-    namespace: keycloak
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: keycloak-realmimport-watch
-  namespace: ${NS}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: keycloakrealmimportcontroller-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: keycloak-operator
-    namespace: keycloak
-EOF
-  kubectl -n keycloak set env deployment/keycloak-operator \
-    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES="${NS}" \
-    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES="${NS}" >/dev/null
-  kubectl rollout status deployment/keycloak-operator -n keycloak --timeout=120s
+  kubectl -n "${target_ns}" apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/kubernetes.yml" >/dev/null
+
+  # Patch for restricted PSA
+  kubectl -n "${target_ns}" patch deployment keycloak-operator --type=json -p='[
+    {"op":"add","path":"/spec/template/spec/containers/0/securityContext","value":{
+      "runAsNonRoot":true,"allowPrivilegeEscalation":false,
+      "capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}
+    }},
+    {"op":"add","path":"/spec/template/spec/securityContext","value":{
+      "runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}
+    }}
+  ]' 2>/dev/null || true
+
+  # Scope operator to target namespace
+  kubectl -n "${target_ns}" set env deployment/keycloak-operator \
+    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES="${target_ns}" \
+    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES="${target_ns}" >/dev/null
+  kubectl rollout status deployment/keycloak-operator -n "${target_ns}" --timeout=120s
 }
 
 install_percona_pg_operator() {
-  echo "  Installing Percona PostgreSQL operator (fallback mode)"
-  helm repo add percona https://percona.github.io/percona-helm-charts/ >/dev/null
+  echo "  Installing Percona PostgreSQL operator"
+  helm repo add percona https://percona.github.io/percona-helm-charts/ >/dev/null 2>&1 || true
   helm repo update >/dev/null
   helm upgrade --install pg-operator percona/pg-operator \
     -n "${NS}" \
@@ -76,10 +61,17 @@ usage() {
 Usage: ${0##*/} [OPTIONS] [-- HELM_ARGS...]
 
 Options:
-  -p, --profile NAME   Profile to deploy (default, tls, tls-redis, ...)
+  -p, --profile NAME   Profile to deploy (default, tls, tls-redis, full, ...)
   -c, --context NAME   Kubernetes context (default: rancher-desktop)
   -n, --namespace NS   Target namespace (default: kairos)
+      --skip-infra     Skip infrastructure/operator setup
   -h, --help           Show this help
+
+Environment:
+  KAIROS_NAMESPACE            Override namespace (default: kairos)
+  KUBE_CONTEXT                Override kube context (default: rancher-desktop)
+  KEYCLOAK_OPERATOR_VERSION   Keycloak operator version (default: 26.5.6)
+  PERCONA_PG_OPERATOR_VERSION Percona PG operator version (default: 2.8.2)
 EOF
   exit 0
 }
@@ -96,13 +88,14 @@ infer_profile_from_release() {
   local vals
   vals="$(helm get values kairos -n "${NS}" -a -o json 2>/dev/null || echo '{}')"
 
-  local gw_enabled tls_cm valkey_enabled kc_enabled pg_enabled realm_enabled
+  local gw_enabled tls_cm valkey_enabled kc_enabled pg_enabled realm_enabled ollama_enabled
   gw_enabled="$(jq -r '.gateway.enabled // false' <<<"${vals}")"
   tls_cm="$(jq -r '.gateway.tls.certManager.enabled // false' <<<"${vals}")"
   valkey_enabled="$(jq -r '.valkey.enabled // false' <<<"${vals}")"
   kc_enabled="$(jq -r '.keycloakInstance.enabled // false' <<<"${vals}")"
   pg_enabled="$(jq -r '.postgresCluster.enabled // false' <<<"${vals}")"
   realm_enabled="$(jq -r '.keycloakRealmImport.enabled // false' <<<"${vals}")"
+  ollama_enabled="$(jq -r '.ollama.enabled // false' <<<"${vals}")"
 
   if [[ "${kc_enabled}" == "true" && "${pg_enabled}" == "true" && "${realm_enabled}" == "true" ]]; then
     echo "full"
@@ -119,12 +112,14 @@ infer_profile_from_release() {
 
 # ── parse args ───────────────────────────────────────────────────────────────
 PROFILE=""
+SKIP_INFRA=false
 HELM_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -p|--profile) PROFILE="$2"; shift 2 ;;
     -c|--context) KUBE_CONTEXT="$2"; shift 2 ;;
     -n|--namespace) NS="$2"; shift 2 ;;
+    --skip-infra)   SKIP_INFRA=true; shift ;;
     -h|--help)      usage ;;
     --)             shift; HELM_ARGS+=("$@"); break ;;
     *)              HELM_ARGS+=("$1"); shift ;;
@@ -157,6 +152,10 @@ echo "═══ Profile: ${PROFILE:-default}  Context: ${KUBE_CONTEXT}  Namespac
 echo ""
 kubectl config use-context "${KUBE_CONTEXT}" 2>/dev/null || true
 
+if [[ "${SKIP_INFRA}" == "true" ]]; then
+  echo "▸ Skipping infrastructure setup (--skip-infra)"
+else
+
 # ── Traefik Gateway API ───────────────────────────────────────────────────
 echo "▸ Traefik GatewayClass"
 if [[ -d "${REPO_ROOT}/argocd/infrastructure/overlays/traefik" ]]; then
@@ -185,8 +184,6 @@ EOF
   kubectl rollout status deployment/traefik -n kube-system --timeout=60s
 fi
 
-# ── TLS/cert-manager in .dev is intentionally disabled for now ─────────────
-
 # ── Operators (profiles containing "full") ─────────────────────────────
 if [[ "$PROFILE" == *full* ]]; then
   echo "▸ Operators (Keycloak, Postgres)"
@@ -194,8 +191,8 @@ if [[ "$PROFILE" == *full* ]]; then
     echo "  Applied argocd/operators kustomization."
   else
     echo "  argocd/operators unavailable or broken, using helm/.dev fallback installer."
-    if ! kubectl get crd keycloaks.k8s.keycloak.org >/dev/null 2>&1 || ! kubectl -n keycloak get deployment keycloak-operator >/dev/null 2>&1; then
-      install_keycloak_operator
+    if ! kubectl get crd keycloaks.k8s.keycloak.org >/dev/null 2>&1 || ! kubectl -n "${NS}" get deployment keycloak-operator >/dev/null 2>&1; then
+      install_keycloak_operator "${NS}"
     else
       echo "  Keycloak operator already installed."
     fi
@@ -207,9 +204,16 @@ if [[ "$PROFILE" == *full* ]]; then
   fi
 fi
 
+fi # end SKIP_INFRA
+
 # ── Secrets ────────────────────────────────────────────────────────────────
 echo "▸ Secrets"
-if ! kubectl get secret kairos-mcp-embedding -n "${NS}" &>/dev/null; then
+kubectl create namespace "${NS}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+# Embedding secret (not needed when using Ollama)
+if helm get values kairos -n "${NS}" -o json 2>/dev/null | jq -e '.ollama.enabled == true' >/dev/null 2>&1; then
+  echo "  Ollama enabled — skipping OpenAI embedding secret."
+elif ! kubectl get secret kairos-mcp-embedding -n "${NS}" &>/dev/null; then
   if [[ -x "${REPO_ROOT}/argocd/secrets/setup-secrets.sh" ]]; then
     "${REPO_ROOT}/argocd/secrets/setup-secrets.sh"
   else
@@ -226,6 +230,18 @@ if ! kubectl get secret kairos-mcp-embedding -n "${NS}" &>/dev/null; then
   fi
 else
   echo "  Already provisioned. Run argocd/secrets/setup-secrets.sh --update to change."
+fi
+
+# SMTP secret for Keycloak (optional)
+if [[ -n "${KAIROS_SMTP_HOST:-}" ]] && ! kubectl get secret keycloak-smtp -n "${NS}" &>/dev/null; then
+  kubectl create secret generic keycloak-smtp -n "${NS}" \
+    --from-literal=host="${KAIROS_SMTP_HOST}" \
+    --from-literal=port="${KAIROS_SMTP_PORT:-587}" \
+    --from-literal=from="${KAIROS_SMTP_FROM:-kairos@bsdigital.com}" \
+    --from-literal=user="${KAIROS_SMTP_USER:-}" \
+    --from-literal=password="${KAIROS_SMTP_PASSWORD:-}" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  echo "  Created keycloak-smtp secret."
 fi
 
 # ── Helm ───────────────────────────────────────────────────────────────────
