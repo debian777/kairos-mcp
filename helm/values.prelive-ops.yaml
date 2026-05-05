@@ -1,0 +1,111 @@
+# values.prelive-ops.yaml
+# KAIROS MCP — prelive-ops environment (vd-1042-rancl01-ops / kairos-mcp namespace)
+# Exposed via Cloudflare Tunnels at kairos.prelive.engine-two.com (no ingress/gateway needed).
+#
+# MISSING OPERATORS (install before helm install):
+#   1. Keycloak Operator — CRD: keycloaks.k8s.keycloak.org
+#
+# Present: Percona PG Operator, Gateway API (Istio), cert-manager, Prometheus Operator.
+# Valkey replaces Redis — deployed as Helm subchart (no operator needed).
+
+global:
+  name: "kairos"
+  hostname: "kairos.prelive.engine-two.com"
+
+app:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: quay.io/debian777/kairos-mcp
+    tag: latest
+    pullPolicy: IfNotPresent
+  redisUrl: redis://kairos-mcp-valkey-master:6379
+  qdrantUrl: http://kairos-qdrant:6333
+  keycloakUrl: https://kairos.prelive.engine-two.com/sso
+  keycloakInternalUrl: http://keycloak-service:8080/sso
+  auth:
+    enabled: true
+    realm: kairos
+    clientId: kairos-mcp
+    callbackBaseUrl: https://kairos.prelive.engine-two.com
+    oidcGroupsAllowlist: "/shared/"
+  embedding:
+    openai:
+      existingSecret: kairos-mcp-embedding
+      secretKey: OPENAI_API_KEY
+      model: text-embedding-3-small
+  extraEnv: []
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+ha:
+  antiAffinity:
+    mode: soft
+
+# Cloudflare Tunnel handles external exposure — no Gateway/Ingress needed.
+gateway:
+  enabled: false
+
+qdrant:
+  enabled: true
+  replicaCount: 3
+
+valkey:
+  enabled: true
+  architecture: replication
+  replica:
+    replicaCount: 2
+  dataStorage:
+    enabled: true
+    requestedSize: 2Gi
+
+keycloakInstance:
+  enabled: true
+  name: keycloak
+  replicas: 2
+  http:
+    httpEnabled: true
+    httpPort: 8080
+  hostname:
+    url: https://kairos.prelive.engine-two.com/sso
+    strict: false
+  httpRelativePath: /sso
+
+keycloakRealmImport:
+  enabled: true
+  name: kairos-realm-import
+  publicBaseUrl: https://kairos.prelive.engine-two.com
+
+postgresCluster:
+  enabled: true
+  name: kairos-postgres
+  instances: 2
+  storage: 5Gi
+  backupStorage: 5Gi
+  pgBouncerReplicas: 2
+  defaultUser:
+    name: keycloak
+    database: keycloak
+
+monitoring:
+  serviceMonitor:
+    app:
+      enabled: true
+      interval: 30s
+    qdrant:
+      enabled: true
+      interval: 30s
+    redis:
+      enabled: true
+      interval: 30s
+    keycloak:
+      enabled: true
+      interval: 30s
+    postgres:
+      enabled: true
+      interval: 30s

@@ -15,7 +15,7 @@ app:
   enabled: true
   replicaCount: 2
   image:
-    repository: debian777/kairos-mcp
+    repository: quay.io/debian777/kairos-mcp
     tag: dev
     pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>

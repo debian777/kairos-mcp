@@ -2,5 +2,8 @@ dependencies:
 - name: qdrant
   repository: https://qdrant.github.io/qdrant-helm
   version: 1.17.0
-digest: sha256:6d2760f80f1175e04f6d450ff5e6b21ba7d9090704e3b439e763b1c92f655a88
-generated: "2026-03-02T08:26:12.149142+01:00"
+- name: valkey
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 3.0.1
+digest: sha256:e328155c829ccaeb1cf39f49b5d5d53810bda53066f6d2d55aa0936c72c667bf
+generated: "2026-05-05T12:09:31.553885+02:00"
