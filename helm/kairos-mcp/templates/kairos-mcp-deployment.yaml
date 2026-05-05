@@ -99,8 +99,10 @@ spec:
               value: {{ .Values.app.qdrantUrl | quote }}
             - name: KEYCLOAK_URL
               value: {{ .Values.app.keycloakUrl | quote }}
+            {{- if .Values.app.keycloakInternalUrl }}
             - name: KEYCLOAK_INTERNAL_URL
               value: {{ .Values.app.keycloakInternalUrl | quote }}
+            {{- end }}
             - name: AUTH_ENABLED
               value: {{ ternary "true" "false" .Values.app.auth.enabled | quote }}
             {{- if .Values.app.auth.enabled }}
