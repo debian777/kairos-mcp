@@ -22,7 +22,7 @@ app:
   redisUrl: redis://rfr-kairos-redis:6379
   qdrantUrl: http://kairos-qdrant:6333
   keycloakUrl: https://landyn-frictional-brylee.ngrok-free.dev/sso
-  keycloakInternalUrl: http://keycloak-service:8080/sso
+  keycloakInternalUrl: http://keycloak-service:8080
   auth:
     enabled: true
     realm: kairos
