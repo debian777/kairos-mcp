@@ -12,6 +12,7 @@ import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
   let mcpConnection;
+  const FETCH_FAILED_RETRY_ATTEMPTS = 3;
 
   beforeAll(async () => {
     mcpConnection = await createMcpConnection();
@@ -25,6 +26,31 @@ describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
 
   function expectValidJsonResult(result) {
     return parseMcpJson(result, '[train heading sanitization] raw MCP result');
+  }
+  function isTransientFetchFailure(result: unknown): boolean {
+    if (!result || typeof result !== 'object') return false;
+    const r = result as { isError?: unknown; content?: unknown };
+    if (r.isError !== true || !Array.isArray(r.content) || r.content.length === 0) return false;
+    const entry = r.content[0] as { type?: unknown; text?: unknown } | undefined;
+    return entry?.type === 'text' && entry?.text === 'fetch failed';
+  }
+  async function callTrainWithRetry(markdown: string) {
+    let lastResult: unknown;
+    for (let attempt = 1; attempt <= FETCH_FAILED_RETRY_ATTEMPTS; attempt += 1) {
+      const result = await mcpConnection.client.callTool({
+        name: 'train',
+        arguments: {
+          content: markdown,
+          llm_model_id: 'test-model',
+          force_update: true
+        }
+      });
+      lastResult = result;
+      if (!isTransientFetchFailure(result) || attempt === FETCH_FAILED_RETRY_ATTEMPTS) {
+        return result;
+      }
+    }
+    return lastResult;
   }
   const shellBlock = (cmd: string, timeout = 20) =>
     `\n\`\`\`json\n{"contract":{"type":"shell","shell":{"cmd":"${cmd}","timeout_seconds":${timeout}},"required":true}}\n\`\`\``;
@@ -56,14 +82,7 @@ ${shellBlock('echo final-step')}
 Only after all steps.
 `;
 
-    const result = await mcpConnection.client.callTool({
-      name: 'train',
-      arguments: {
-        content: markdown,
-        llm_model_id: 'test-model',
-        force_update: true
-      }
-    });
+    const result = await callTrainWithRetry(markdown);
 
     const parsed = expectValidJsonResult(result);
     expect(parsed.status).toBe('stored');
@@ -137,14 +156,7 @@ ${shellBlock('echo third-1', 15)}
 Only after all steps.
 `;
 
-    const result = await mcpConnection.client.callTool({
-      name: 'train',
-      arguments: {
-        content: markdown,
-        llm_model_id: 'test-model',
-        force_update: true
-      }
-    });
+    const result = await callTrainWithRetry(markdown);
 
     const parsed = expectValidJsonResult(result);
     expect(parsed.status).toBe('stored');
@@ -212,14 +224,7 @@ ${shellBlock('echo normal', 25)}
 Only after all steps.
 `;
 
-    const result = await mcpConnection.client.callTool({
-      name: 'train',
-      arguments: {
-        content: markdown,
-        llm_model_id: 'test-model',
-        force_update: true
-      }
-    });
+    const result = await callTrainWithRetry(markdown);
 
     const parsed = expectValidJsonResult(result);
     expect(parsed.status).toBe('stored');
@@ -273,14 +278,7 @@ ${shellBlock('echo normal-step', 25)}
 Only after all steps.
 `;
 
-    const result = await mcpConnection.client.callTool({
-      name: 'train',
-      arguments: {
-        content: markdown,
-        llm_model_id: 'test-model',
-        force_update: true
-      }
-    });
+    const result = await callTrainWithRetry(markdown);
 
     const parsed = expectValidJsonResult(result);
     expect(parsed.status).toBe('stored');
