@@ -1,20 +1,30 @@
-{{- $gateway := default dict .Values.gateway }}
-{{- $tls := default dict $gateway.tls }}
+{{- $gw := default dict .Values.gateway }}
+{{- $tls := default dict $gw.tls }}
 {{- $certManager := default dict $tls.certManager }}
-{{- if and $gateway.enabled $gateway.createGateway $gateway.hostname }}
+{{- $hasTLS := or $certManager.enabled $tls.secretName }}
+{{- $allowHttpWithTLS := default false $gw.allowHttpWithTls }}
+{{- $mode := include "kairos.ingressMode" . | trim }}
+{{- if and $gw.enabled $gw.createGateway $gw.hostname (eq $mode "gateway") }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: {{ $gateway.gatewayName }}
+  name: {{ $gw.gatewayName | default "kairos-gateway" }}
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
 spec:
-  gatewayClassName: {{ $gateway.gatewayClassName }}
+  gatewayClassName: {{ $gw.gatewayClassName }}
   listeners:
+    {{- if or (not $hasTLS) $allowHttpWithTLS }}
+    - name: http
+      protocol: HTTP
+      port: {{ $gw.httpPort | default 80 }}
+      hostname: {{ $gw.hostname }}
+    {{- end }}
+    {{- if $hasTLS }}
     - name: https
       protocol: HTTPS
-      port: 443
-      hostname: {{ $gateway.hostname }}
+      port: {{ $gw.httpsPort | default 443 }}
+      hostname: {{ $gw.hostname }}
       {{- if $certManager.enabled }}
       tls:
         mode: Terminate
@@ -28,4 +38,5 @@ spec:
           - kind: Secret
             name: {{ $tls.secretName }}
       {{- end }}
+    {{- end }}
 {{- end }}
