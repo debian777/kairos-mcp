@@ -9,7 +9,7 @@ app:
   image:
     repository: quay.io/debian777/kairos-mcp
   keycloakUrl: http://localhost/sso
-  keycloakInternalUrl: http://keycloak-service:8080/sso
+  keycloakInternalUrl: http://keycloak-service:8080
   auth:
     enabled: true
     callbackBaseUrl: http://localhost

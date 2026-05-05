@@ -50,6 +50,7 @@
     }
   ],
   "defaultDefaultClientScopes": ["groups"],
+  "defaultGroups": ["/shared/operator"],
   "clients": [
     {
       "clientId": "kairos-mcp",
@@ -88,5 +89,19 @@
         "pkce.code.challenge.method": "S256"
       }
     }
-  ]
+  ],
+  "components": {
+    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+      {
+        "name": "Trusted Hosts",
+        "providerId": "trusted-hosts",
+        "subType": "anonymous",
+        "config": {
+          "host-sending-registration-request-must-match": ["true"],
+          "client-uris-must-match": ["false"],
+          "trusted-hosts": ["localhost", "127.0.0.1", "__KAIROS_HOSTNAME__"]
+        }
+      }
+    ]
+  }
 }
