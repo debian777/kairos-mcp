@@ -2,7 +2,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 
 /**
- * Kairos Mint integration tests (integration with other tools).
+ * Kairos Train integration tests (integration with other tools).
  *
  * Goals:
  * - Verify integration with forward and resource reading.
@@ -10,7 +10,7 @@ import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Kairos Mint Integration', () => {
+describe('Kairos Train Integration', () => {
   let mcpConnection;
 
   beforeAll(async () => {

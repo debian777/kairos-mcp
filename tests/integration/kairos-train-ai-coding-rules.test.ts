@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
-describe('Kairos Mint AI_CODING_RULES.md Import', () => {
+describe('Kairos Train AI_CODING_RULES.md Import', () => {
   let mcpConnection;
 
   beforeAll(async () => {

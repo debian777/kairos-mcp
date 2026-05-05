@@ -75,25 +75,25 @@ describe('reward scoring: propagation and score boost', () => {
     return null;
   }
 
-  /** Mint a 2-step protocol, walk forward twice, return label and last layer URI for reward. */
-  async function mintAndComplete(uniqueLabel: string): Promise<{ chainLabel: string; completionLayerUri: string }> {
+  /** Train a 2-step adapter, walk forward twice, return label and last layer URI for reward. */
+  async function trainAndComplete(uniqueLabel: string): Promise<{ chainLabel: string; completionLayerUri: string }> {
     const doc = buildProofMarkdown(uniqueLabel, [
       { heading: 'Step One', body: `First for ${uniqueLabel}.`, proofCmd: 'echo step1' },
       { heading: 'Step Two', body: `Second for ${uniqueLabel}.`, proofCmd: 'echo step2' }
     ]);
-    const mintArgs: { content: string; llm_model_id: string; force_update: boolean; space?: string } = {
+    const trainArgs: { content: string; llm_model_id: string; force_update: boolean; space?: string } = {
       content: doc,
       llm_model_id: 'test-attest-scoring',
       force_update: true
     };
     const spaceId = getTestSpaceId();
-    if (spaceId) mintArgs.space = 'personal';
+    if (spaceId) trainArgs.space = 'personal';
     const storeResult = await mcpConnection!.client.callTool({
       name: 'train',
-      arguments: mintArgs
+      arguments: trainArgs
     });
     const stored = parseMcpJson(storeResult, 'attest-scoring train');
-    withRawOnFail({ call: { name: 'train', arguments: mintArgs }, result: storeResult, parsed: stored }, () => {
+    withRawOnFail({ call: { name: 'train', arguments: trainArgs }, result: storeResult, parsed: stored }, () => {
       expect(stored.status).toBe('stored');
       expect(Array.isArray(stored.items)).toBe(true);
       expect(stored.items.length).toBeGreaterThan(0);
@@ -145,14 +145,14 @@ describe('reward scoring: propagation and score boost', () => {
   test('positive reward: search score increases after MIN_ATTEST_RUNS successes', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringPositive ${ts}`;
-    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await trainAndComplete(uniqueLabel);
 
     const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     const parsedBefore = await searchFn(uniqueLabel);
     const scoreBefore = getScoreForChain(parsedBefore, chainLabel);
     const matchChoicesBefore = parsedBefore.choices?.filter((c: { role: string }) => c.role === 'match') ?? [];
     if (matchChoicesBefore.length === 0) {
-      const msg = `Minted protocol "${chainLabel}" not in activate results (0 matches). Ensure dev server is running and train/activate use the same space.`;
+      const msg = `Trained adapter "${chainLabel}" not in activate results (0 matches). Ensure dev server is running and train/activate use the same space.`;
       throw new Error(msg);
     }
     const matchSummary = matchChoicesBefore.slice(0, 5).map((c: { label?: string; adapter_name?: string | null }) =>
@@ -180,7 +180,7 @@ describe('reward scoring: propagation and score boost', () => {
   test('negative reward: search score decreases or stays same after failure', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNegative ${ts}`;
-    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await trainAndComplete(uniqueLabel);
 
     const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     for (let i = 0; i < MIN_ATTEST_RUNS; i++) {
@@ -207,7 +207,7 @@ describe('reward scoring: propagation and score boost', () => {
   test('no boost when runs < MIN_ATTEST_RUNS: one success does not change score', async () => {
     const ts = Date.now();
     const uniqueLabel = `AttestScoringNoBoost ${ts}`;
-    const { chainLabel, completionLayerUri } = await mintAndComplete(uniqueLabel);
+    const { chainLabel, completionLayerUri } = await trainAndComplete(uniqueLabel);
 
     const searchFn = getTestSpaceId() ? activateQuery : activateAllSpaces;
     const parsedBefore = await searchFn(uniqueLabel);

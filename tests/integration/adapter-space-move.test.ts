@@ -183,13 +183,13 @@ describe('Adapter space move (personal → group)', () => {
     const mdPath = join(dir, 'proto.md');
     try {
       writeFileSync(mdPath, buildSpaceMoveMarkdown(title), 'utf8');
-      const mint = await execAsync(
+      const train = await execAsync(
         `node ${CLI_PATH} train --url ${BASE_URL} --force --model test-space-move-cli --space personal "${mdPath}"`,
         { timeout: 60000 }
       );
-      expect(mint.stderr).toBe('');
-      const minted = JSON.parse(mint.stdout) as { items: Array<{ adapter_uri: string }> };
-      const adapterUri = minted.items[0]!.adapter_uri;
+      expect(train.stderr).toBe('');
+      const trained = JSON.parse(train.stdout) as { items: Array<{ adapter_uri: string }> };
+      const adapterUri = trained.items[0]!.adapter_uri;
 
       await sleepMs(5000);
       let spaces = await loadSpacesViaMcp();

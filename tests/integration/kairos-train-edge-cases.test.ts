@@ -1,7 +1,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 
 /**
- * Kairos Mint integration tests (edge cases).
+ * Kairos Train integration tests (edge cases).
  *
  * Goals:
  * - Verify fallback behavior and caching.
@@ -9,7 +9,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
  *   instead of wrapping it in an extra "Failed to parse..." error.
  */
 
-describe('Kairos Mint Edge Cases', () => {
+describe('Kairos Train Edge Cases', () => {
   let mcpConnection;
 
   beforeAll(async () => {

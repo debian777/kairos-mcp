@@ -1,5 +1,5 @@
 /**
- * Kairos Mint integration tests for docs/examples (workflow test — imports scenario).
+ * Kairos Train integration tests for docs/examples (workflow test — imports scenario).
  *
  * Trains each example adapter from docs/examples/ via train. Used in dev/qa
  * to validate that canonical examples can be imported; complements agent-driven
@@ -11,7 +11,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
-describe('Kairos Mint Docs Examples (docs/examples)', () => {
+describe('Kairos Train Docs Examples (docs/examples)', () => {
   let mcpConnection;
 
   beforeAll(async () => {
