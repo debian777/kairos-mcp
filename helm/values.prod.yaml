@@ -9,7 +9,7 @@
 
 app:
   enabled: true
-  replicaCount: 2
+  replicaCount: 3
   # Image defaults are set in the chart (helm/kairos-mcp/values.yaml) and always
   # track the latest stable release. Uncomment to pin a specific version:
   # image:
@@ -28,6 +28,18 @@ app:
     # Public origin for OIDC redirect_uri (no trailing slash); must match gateway hostname.
     callbackBaseUrl: https://landyn-frictional-brylee.ngrok-free.dev
     oidcGroupsAllowlist: /shared/
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
   embedding:
     openai:
       existingSecret: kairos-mcp-embedding
@@ -36,7 +48,8 @@ app:
   extraEnv: []
 
 ha:
-  spreadAcrossNodes: false
+  antiAffinity:
+    mode: soft
 
 gateway:
   enabled: true
@@ -85,9 +98,9 @@ postgresCluster:
   enabled: true
   name: kairos-postgres
   instances: 3
-  backupStorage: 1Gi
-  pgBouncerReplicas: 1
-  storage: 1Gi
+  backupStorage: 5Gi
+  pgBouncerReplicas: 2
+  storage: 5Gi
   defaultUser:
     name: keycloak
     database: keycloak
