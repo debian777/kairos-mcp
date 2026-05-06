@@ -1,12 +1,11 @@
 # Repo-local overlay for k3d local-ha-cluster.
 #
-# Full stack (infra + app + Keycloak + Gateway routes on ngrok): load the key
-# into the shell, then run k3b (it creates the Secret from $OPENAI_API_KEY):
-#   set -a && source .env && set +a && ./helm/k3b.sh
+# Full stack (infra + app + Keycloak + Gateway routes on ngrok):
+#   set -a && source .env && set +a && ./helm/.dev/k3b.sh
 # If your reserved ngrok hostname differs from gateway.hostname below:
-#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/k3b.sh
+#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/.dev/k3b.sh
 # Operators + ngrok only (no Helm release):
-#   KAIROS_SKIP_CHART=1 ./helm/k3b.sh
+#   KAIROS_SKIP_CHART=1 ./helm/.dev/k3b.sh
 #
 # The app image (see app.image below) must exist in the cluster; for k3d build
 # and import, for example: npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev
@@ -16,7 +15,7 @@ app:
   replicaCount: 2
   image:
     repository: quay.io/debian777/kairos-mcp
-    tag: dev
+    tag: latest
     pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>
   redisUrl: redis://rfr-kairos-redis:6379
@@ -32,10 +31,12 @@ app:
     oidcGroupsAllowlist: /shared/
   embedding:
     openai:
-      existingSecret: kairos-mcp-embedding
-      secretKey: OPENAI_API_KEY
-      model: text-embedding-3-small
-  extraEnv: []
+      model: nomic-embed-text
+  extraEnv:
+    - name: OPENAI_API_URL
+      value: http://ollama:11434
+    - name: OPENAI_API_KEY
+      value: "ollama"
 
 ha:
   spreadAcrossNodes: false
@@ -93,3 +94,6 @@ postgresCluster:
   defaultUser:
     name: keycloak
     database: keycloak
+
+ollama:
+  enabled: true

@@ -1,23 +1,21 @@
-# Repo-local overlay for k3d local-ha-cluster.
+# Production overlay example.
 #
-# Full stack (infra + app + Keycloak + Gateway routes on ngrok): load the key
-# into the shell, then run k3b (it creates the Secret from $OPENAI_API_KEY):
-#   set -a && source .env && set +a && ./helm/k3b.sh
-# If your reserved ngrok hostname differs from gateway.hostname below:
-#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/k3b.sh
-# Operators + ngrok only (no Helm release):
-#   KAIROS_SKIP_CHART=1 ./helm/k3b.sh
+# Copy this file and customize for your environment. Install operators first:
+#   ./helm/prerequisites/install-keycloak-operator.sh
+#   ./helm/prerequisites/install-pg-operator.sh
 #
-# The app image (see app.image below) must exist in the cluster; for k3d build
-# and import, for example: npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev
+# Then install the chart:
+#   helm upgrade --install kairos helm/kairos-mcp -n kairos -f my-values.yaml --wait
 
 app:
   enabled: true
   replicaCount: 2
-  image:
-    repository: quay.io/debian777/kairos-mcp
-    tag: dev
-    pullPolicy: IfNotPresent
+  # Image defaults are set in the chart (helm/kairos-mcp/values.yaml) and always
+  # track the latest stable release. Uncomment to pin a specific version:
+  # image:
+  #   repository: quay.io/debian777/kairos-mcp
+  #   tag: "4.3.1"
+  #   pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>
   redisUrl: redis://rfr-kairos-redis:6379
   qdrantUrl: http://kairos-qdrant:6333

@@ -27,6 +27,7 @@
 {{- $realmFile := default "kairos-realm.json" .Values.keycloakRealmImport.realmFile }}
 {{- $raw := .Files.Get (printf "files/%s" $realmFile) | replace "__KAIROS_PUBLIC_ORIGIN__" $origin | replace "__KAIROS_PUBLIC_HOST__" $host }}
 {{- $realm := mustFromJson $raw }}
+{{- if .Release.IsInstall }}
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: KeycloakRealmImport
 metadata:
@@ -35,8 +36,13 @@ metadata:
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: post-install
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   keycloakCRName: {{ .Values.keycloakInstance.name | quote }}
   realm:
     {{- toYaml $realm | nindent 4 }}
+{{- end }}
 {{- end }}
