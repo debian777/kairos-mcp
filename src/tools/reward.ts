@@ -8,8 +8,17 @@ import { buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
 import { KairosError } from '../types/index.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+
+function traceFireAndForget(op: Promise<void>): void {
+  op.catch((err) => {
+    structuredLogger.warn(
+      `[trace] Persistence failed, data lost: ${err instanceof Error ? err.message : String(err)}`
+    );
+  });
+}
 
 interface RegisterRewardOptions {
   toolName?: string;
@@ -63,7 +72,7 @@ export async function executeReward(
 
   const ratedAt = new Date().toISOString();
   if (parsed.executionId) {
-    await executionTraceStore.setReward(parsed.executionId, {
+    traceFireAndForget(executionTraceStore.setReward(parsed.executionId, {
       outcome: input.outcome,
       score: evaluation.normalizedScore,
       signed_score: evaluation.signedScore,
@@ -79,7 +88,7 @@ export async function executeReward(
       sft_blockers: evaluation.sftEligibility.blockers,
       preference_blockers: evaluation.preferenceEligibility.blockers,
       rated_at: ratedAt
-    });
+    }));
   }
 
   return {

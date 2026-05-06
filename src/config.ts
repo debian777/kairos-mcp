@@ -5,7 +5,6 @@
  * when unset or empty → in-memory backend. QDRANT_URL is always required.
  */
 
-import os from 'os';
 import path from 'path';
 import { parseOidcScopesSupported } from './http/oidc-scopes.js';
 import { normalizeRedisUrl } from './utils/normalize-redis-url.js';
@@ -54,13 +53,6 @@ const KEY_VALUE_STORE_URL_RAW = getEnvString('KEY_VALUE_STORE_URL', getEnvString
 const KEY_VALUE_STORE_PASSWORD = getEnvString('KEY_VALUE_STORE_PASSWORD', getEnvString('REDIS_PASSWORD', ''));
 export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_STORE_PASSWORD);
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
-const TRACE_STORE_DIR_RAW = getEnvString(
-  'KAIROS_TRACE_STORE_DIR',
-  path.join(os.tmpdir(), 'kairos', 'traces')
-).trim();
-export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
-  ? TRACE_STORE_DIR_RAW
-  : path.resolve(TRACE_STORE_DIR_RAW);
 /**
  * Ordered URI hints emitted as the `kairos_local_artifact_dir` response field
  * (preferred first). The client resolves a hint on its own filesystem and

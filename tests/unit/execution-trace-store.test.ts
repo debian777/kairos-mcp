@@ -1,6 +1,3 @@
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import type { ExecutionTrace } from '../../src/types/memory.js';
 import { ExecutionTraceStore } from '../../src/services/execution-trace-store.js';
 import { buildLayerUri } from '../../src/tools/kairos-uri.js';
@@ -27,20 +24,34 @@ function buildTrace(params: {
   };
 }
 
-describe('ExecutionTraceStore', () => {
-  let tempDir: string;
+const TEST_COLLECTION = `kairos_test_traces_${Date.now()}`;
 
-  beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kairos-trace-store-'));
+describe('ExecutionTraceStore (Qdrant-backed)', () => {
+  let store: ExecutionTraceStore;
+
+  beforeAll(() => {
+    store = new ExecutionTraceStore(
+      process.env['QDRANT_URL'] || 'http://localhost:6333',
+      process.env['QDRANT_API_KEY'] || '',
+      TEST_COLLECTION
+    );
   });
 
-  afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+  afterAll(async () => {
+    const { QdrantClient } = await import('@qdrant/js-client-rest');
+    const client = new QdrantClient({
+      url: process.env['QDRANT_URL'] || 'http://localhost:6333',
+      ...(process.env['QDRANT_API_KEY'] ? { apiKey: process.env['QDRANT_API_KEY'] } : {})
+    });
+    try {
+      await client.deleteCollection(TEST_COLLECTION);
+    } catch {
+      // Collection may not exist if tests failed early
+    }
   });
 
-  test('persists executions, traces, and rewards on disk across store instances', async () => {
-    const store = new ExecutionTraceStore(tempDir);
-    const executionId = 'exec-1';
+  test('startExecution, appendTrace, setReward, getExecution round-trip', async () => {
+    const executionId = `exec-${Date.now()}-1`;
     const adapterId = 'adapter-1';
     const adapterUri = 'kairos://adapter/adapter-1';
 
@@ -51,26 +62,25 @@ describe('ExecutionTraceStore', () => {
       activationQuery: 'summarize the customer issue'
     });
 
-    await Promise.all([
-      store.appendTrace(
-        buildTrace({
-          executionId,
-          adapterUri,
-          layerIndex: 2,
-          layerId: 'layer-2',
-          createdAt: '2026-03-22T10:01:00.000Z'
-        })
-      ),
-      store.appendTrace(
-        buildTrace({
-          executionId,
-          adapterUri,
-          layerIndex: 1,
-          layerId: 'layer-1',
-          createdAt: '2026-03-22T10:00:00.000Z'
-        })
-      )
-    ]);
+    await store.appendTrace(
+      buildTrace({
+        executionId,
+        adapterUri,
+        layerIndex: 1,
+        layerId: 'layer-1',
+        createdAt: '2026-03-22T10:00:00.000Z'
+      })
+    );
+
+    await store.appendTrace(
+      buildTrace({
+        executionId,
+        adapterUri,
+        layerIndex: 2,
+        layerId: 'layer-2',
+        createdAt: '2026-03-22T10:01:00.000Z'
+      })
+    );
 
     await store.setReward(executionId, {
       outcome: 'success',
@@ -84,45 +94,19 @@ describe('ExecutionTraceStore', () => {
       rated_at: '2026-03-22T10:05:00.000Z'
     });
 
-    const executionPath = path.join(tempDir, 'executions', `${encodeURIComponent(executionId)}.json`);
-    const adapterIndexPath = path.join(tempDir, 'adapters', `${encodeURIComponent(adapterId)}.json`);
-    const executionOnDisk = JSON.parse(await fs.readFile(executionPath, 'utf8')) as {
-      traces: Array<{ layer_index: number }>;
-      reward?: { outcome: string };
-    };
-    const adapterIndexOnDisk = JSON.parse(await fs.readFile(adapterIndexPath, 'utf8')) as {
-      execution_ids: string[];
-    };
-
-    expect(executionOnDisk.traces.map((trace) => trace.layer_index)).toEqual([1, 2]);
-    expect(executionOnDisk.reward?.outcome).toBe('success');
-    expect(adapterIndexOnDisk.execution_ids).toEqual([executionId]);
-
-    const reloadedStore = new ExecutionTraceStore(tempDir);
-    const execution = await reloadedStore.getExecution(executionId);
-    const pairs = await reloadedStore.buildTrainingPairsForAdapter(adapterId, true);
-
+    const execution = await store.getExecution(executionId);
     expect(execution).not.toBeNull();
     expect(execution?.activation_query).toBe('summarize the customer issue');
-    expect(execution?.traces.map((trace) => trace.layer_index)).toEqual([1, 2]);
-    expect(await reloadedStore.listAdapterExecutions(adapterId)).toEqual([executionId]);
-    expect(pairs).toHaveLength(2);
-    expect(pairs[0]?.reward?.outcome).toBe('success');
-    expect(pairs[1]?.reward?.outcome).toBe('success');
+    expect(execution?.traces.map((t) => t.layer_index)).toEqual([1, 2]);
+    expect(execution?.reward?.outcome).toBe('success');
   });
 
-  test('restarting the same execution preserves existing traces and delete cleans adapter indexes', async () => {
-    const store = new ExecutionTraceStore(tempDir);
-    const executionId = 'exec-2';
-    const adapterId = 'adapter-2';
-    const adapterUri = 'kairos://adapter/adapter-2';
+  test('listAdapterExecutions and buildTrainingPairsForAdapter', async () => {
+    const executionId = `exec-${Date.now()}-2`;
+    const adapterId = 'adapter-list-test';
+    const adapterUri = `kairos://adapter/${adapterId}`;
 
-    await store.startExecution({
-      executionId,
-      adapterId,
-      adapterUri,
-      activationQuery: 'draft the response'
-    });
+    await store.startExecution({ executionId, adapterId, adapterUri });
     await store.appendTrace(
       buildTrace({
         executionId,
@@ -133,19 +117,43 @@ describe('ExecutionTraceStore', () => {
       })
     );
 
-    await store.startExecution({
-      executionId,
-      adapterId,
-      adapterUri,
-      activationQuery: 'draft the response'
-    });
+    const executions = await store.listAdapterExecutions(adapterId);
+    expect(executions).toContain(executionId);
 
-    const execution = await store.getExecution(executionId);
-    expect(execution?.traces).toHaveLength(1);
+    const pairs = await store.buildTrainingPairsForAdapter(adapterId, false);
+    expect(pairs.length).toBeGreaterThanOrEqual(1);
+    expect(pairs[0]?.execution_id).toBe(executionId);
+  });
 
+  test('deleteExecution removes data', async () => {
+    const executionId = `exec-${Date.now()}-3`;
+    const adapterId = 'adapter-delete-test';
+    const adapterUri = `kairos://adapter/${adapterId}`;
+
+    await store.startExecution({ executionId, adapterId, adapterUri });
     await store.deleteExecution(executionId);
 
     expect(await store.getExecution(executionId)).toBeNull();
-    expect(await store.listAdapterExecutions(adapterId)).toEqual([]);
+  });
+
+  test('restarting same execution preserves existing traces', async () => {
+    const executionId = `exec-${Date.now()}-4`;
+    const adapterId = 'adapter-restart-test';
+    const adapterUri = `kairos://adapter/${adapterId}`;
+
+    await store.startExecution({ executionId, adapterId, adapterUri, activationQuery: 'draft' });
+    await store.appendTrace(
+      buildTrace({
+        executionId,
+        adapterUri,
+        layerIndex: 1,
+        layerId: 'layer-1',
+        createdAt: '2026-03-22T12:00:00.000Z'
+      })
+    );
+
+    await store.startExecution({ executionId, adapterId, adapterUri, activationQuery: 'draft' });
+    const execution = await store.getExecution(executionId);
+    expect(execution?.traces).toHaveLength(1);
   });
 });

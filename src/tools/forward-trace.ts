@@ -8,9 +8,18 @@ import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
 import { extractMemoryBody } from '../utils/memory-body.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { buildForwardView } from './forward-view.js';
+
+function traceFireAndForget(op: Promise<void>): void {
+  op.catch((err) => {
+    structuredLogger.warn(
+      `[trace] Persistence failed, data lost: ${err instanceof Error ? err.message : String(err)}`
+    );
+  });
+}
 
 function tensorProofHash(executionId: string, layerId: string, tensor: TensorValue): string {
   return crypto
@@ -54,7 +63,7 @@ export async function appendExecutionTrace(
   tensorOut?: TensorValue
 ): Promise<void> {
   const adapterId = getAdapterId(memory);
-  await executionTraceStore.appendTrace({
+  traceFireAndForget(executionTraceStore.appendTrace({
     execution_id: executionId,
     adapter_uri: buildAdapterUri(adapterId),
     layer_uri: buildLayerUri(memory.memory_uuid, executionId),
@@ -67,7 +76,7 @@ export async function appendExecutionTrace(
     ...(solution.trace && { trace: solution.trace }),
     raw_solution: solution,
     merge_depth: 0
-  });
+  }));
 }
 
 function evaluateCondition(condition: string | undefined, tensorIn: Record<string, unknown>): boolean {

@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ExecutionTrace, RewardRecord, TensorValue } from '../types/memory.js';
-import { KAIROS_TRACE_STORE_DIR } from '../config.js';
+import { getQdrantUrl, QDRANT_API_KEY, getQdrantCollection } from '../config.js';
+import { QdrantConnection } from './qdrant/connection.js';
 import { logger } from '../utils/structured-logger.js';
 
 export interface TrainingPair {
@@ -34,13 +34,17 @@ export interface StoredExecutionTrace {
   traces: ExecutionTrace[];
 }
 
-interface AdapterExecutionIndex {
-  adapter_id: string;
-  execution_ids: string[];
+const TRACES_COLLECTION_SUFFIX = '_traces';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function getTracesCollectionName(): string {
+  return `${getQdrantCollection()}${TRACES_COLLECTION_SUFFIX}`;
 }
 
-function safeFileId(id: string): string {
-  return encodeURIComponent(id);
+function toPointId(executionId: string): string {
+  if (UUID_REGEX.test(executionId)) return executionId;
+  return crypto.createHash('md5').update(executionId).digest('hex')
+    .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
 }
 
 function adapterIdFromUri(adapterUri: string): string {
@@ -48,74 +52,48 @@ function adapterIdFromUri(adapterUri: string): string {
 }
 
 export class ExecutionTraceStore {
-  private readonly executionsDir: string;
-  private readonly adaptersDir: string;
+  private conn: QdrantConnection;
+  private readonly collectionName: string;
   private initPromise: Promise<void> | null = null;
-  private atomicWriteDirPromise: Promise<string> | null = null;
   private readonly mutationChains = new Map<string, Promise<void>>();
 
-  constructor(rootDir: string = KAIROS_TRACE_STORE_DIR) {
-    this.executionsDir = path.join(rootDir, 'executions');
-    this.adaptersDir = path.join(rootDir, 'adapters');
+  constructor(
+    qdrantUrl: string = getQdrantUrl(),
+    apiKey: string = QDRANT_API_KEY,
+    collectionName?: string
+  ) {
+    this.collectionName = collectionName ?? getTracesCollectionName();
+    this.conn = new QdrantConnection(qdrantUrl, apiKey, this.collectionName);
   }
 
-  private async ensureReady(): Promise<void> {
+  private get client(): QdrantClient {
+    return this.conn.client;
+  }
+
+  private async ensureCollection(): Promise<void> {
     if (!this.initPromise) {
-      this.initPromise = Promise.all([
-        fs.mkdir(this.executionsDir, { recursive: true, mode: 0o700 }),
-        fs.mkdir(this.adaptersDir, { recursive: true, mode: 0o700 })
-      ]).then(() => undefined);
+      this.initPromise = this.conn.executeWithReconnect(async () => {
+        const collections = await this.client.getCollections();
+        const exists = collections.collections.some((c: any) => c.name === this.collectionName);
+        if (!exists) {
+          logger.info(`[ExecutionTraceStore] Creating collection ${this.collectionName}`);
+          await this.client.createCollection(this.collectionName, {
+            vectors: {},
+            on_disk_payload: true
+          });
+          await this.client.createPayloadIndex(this.collectionName, {
+            field_name: 'adapter_id',
+            field_schema: 'keyword'
+          });
+          await this.client.createPayloadIndex(this.collectionName, {
+            field_name: 'updated_at',
+            field_schema: 'keyword'
+          });
+          logger.info(`[ExecutionTraceStore] Collection ${this.collectionName} ready`);
+        }
+      });
     }
     await this.initPromise;
-  }
-
-  private executionFile(executionId: string): string {
-    return path.join(this.executionsDir, `${safeFileId(executionId)}.json`);
-  }
-
-  private adapterIndexFile(adapterId: string): string {
-    return path.join(this.adaptersDir, `${safeFileId(adapterId)}.json`);
-  }
-
-  private async readJsonFile<T>(filePath: string): Promise<T | null> {
-    try {
-      const raw = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(raw) as T;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return null;
-      }
-      const message = `[ExecutionTraceStore] Failed to read ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
-      logger.error(message);
-      throw new Error(message, { cause: error instanceof Error ? error : undefined });
-    }
-  }
-
-  private async writeJsonFile(filePath: string, value: unknown): Promise<void> {
-    await this.ensureReady();
-    if (!this.atomicWriteDirPromise) {
-      this.atomicWriteDirPromise = fs.mkdtemp(path.join(this.executionsDir, 'write-'));
-    }
-    const atomicDir = await this.atomicWriteDirPromise;
-    const tempFile = path.join(atomicDir, `${crypto.randomUUID()}.tmp`);
-    const serialized = JSON.stringify(value, null, 2);
-    try {
-      const handle = await fs.open(tempFile, 'wx');
-      try {
-        await handle.writeFile(serialized, 'utf8');
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      await fs.rename(tempFile, filePath);
-    } catch (error) {
-      try {
-        await fs.unlink(tempFile);
-      } catch {
-        // Ignore temp cleanup failures; the original write error is the actionable signal.
-      }
-      throw error;
-    }
   }
 
   private async withMutationLock<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -141,36 +119,24 @@ export class ExecutionTraceStore {
     return this.withMutationLock(`execution:${executionId}`, task);
   }
 
-  private async withAdapterMutation<T>(adapterId: string, task: () => Promise<T>): Promise<T> {
-    return this.withMutationLock(`adapter:${adapterId}`, task);
-  }
-
-  private async readAdapterIndex(adapterId: string): Promise<AdapterExecutionIndex> {
-    return (
-      (await this.readJsonFile<AdapterExecutionIndex>(this.adapterIndexFile(adapterId))) ?? {
-        adapter_id: adapterId,
-        execution_ids: []
-      }
-    );
-  }
-  private async writeAdapterIndex(adapterId: string, executionIds: string[]): Promise<void> {
-    const uniqueExecutionIds = Array.from(new Set(executionIds));
-    if (uniqueExecutionIds.length === 0) {
-      try {
-        await fs.unlink(this.adapterIndexFile(adapterId));
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          logger.warn(
-            `[ExecutionTraceStore] Failed to delete adapter index ${adapterId}: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      }
-      return;
-    }
-    await this.writeJsonFile(this.adapterIndexFile(adapterId), {
-      adapter_id: adapterId,
-      execution_ids: uniqueExecutionIds
-    } satisfies AdapterExecutionIndex);
+  private async upsertExecution(data: StoredExecutionTrace): Promise<void> {
+    await this.conn.executeWithReconnect(async () => {
+      await this.client.upsert(this.collectionName, {
+        points: [{
+          id: toPointId(data.execution_id),
+          vector: {},
+          payload: {
+            execution_id: data.execution_id,
+            adapter_id: data.adapter_id,
+            adapter_uri: data.adapter_uri,
+            ...(data.activation_query ? { activation_query: data.activation_query } : {}),
+            ...(data.reward ? { reward: data.reward } : {}),
+            traces: data.traces,
+            updated_at: new Date().toISOString()
+          }
+        }]
+      });
+    });
   }
 
   async startExecution(params: {
@@ -179,106 +145,127 @@ export class ExecutionTraceStore {
     adapterUri: string;
     activationQuery?: string;
   }): Promise<void> {
+    await this.ensureCollection();
     const { executionId, adapterId, adapterUri, activationQuery } = params;
-    await this.withAdapterMutation(adapterId, async () => {
-      await this.withExecutionMutation(executionId, async () => {
-        const existing = await this.getExecution(executionId);
-        const resolvedActivationQuery = activationQuery ?? existing?.activation_query;
-        if (existing && existing.adapter_id !== adapterId) {
-          throw new Error(
-            `Execution ${executionId} already belongs to adapter ${existing.adapter_id}; refusing to reassign it to ${adapterId}`
-          );
-        }
-        const stored: StoredExecutionTrace = {
-          execution_id: executionId,
-          adapter_id: adapterId,
-          adapter_uri: adapterUri,
-          ...(resolvedActivationQuery ? { activation_query: resolvedActivationQuery } : {}),
-          ...(existing?.reward ? { reward: existing.reward } : {}),
-          traces: existing?.traces ?? []
-        };
-        await this.writeJsonFile(this.executionFile(executionId), stored);
-        const adapterIndex = await this.readAdapterIndex(adapterId);
-        await this.writeAdapterIndex(adapterId, [...adapterIndex.execution_ids, executionId]);
-      });
+    await this.withExecutionMutation(executionId, async () => {
+      const existing = await this.getExecution(executionId);
+      const resolvedActivationQuery = activationQuery ?? existing?.activation_query;
+      if (existing && existing.adapter_id !== adapterId) {
+        throw new Error(
+          `Execution ${executionId} already belongs to adapter ${existing.adapter_id}; refusing to reassign it to ${adapterId}`
+        );
+      }
+      const stored: StoredExecutionTrace = {
+        execution_id: executionId,
+        adapter_id: adapterId,
+        adapter_uri: adapterUri,
+        ...(resolvedActivationQuery ? { activation_query: resolvedActivationQuery } : {}),
+        ...(existing?.reward ? { reward: existing.reward } : {}),
+        traces: existing?.traces ?? []
+      };
+      await this.upsertExecution(stored);
     });
   }
+
   async appendTrace(trace: ExecutionTrace): Promise<void> {
+    await this.ensureCollection();
     const adapterId = adapterIdFromUri(trace.adapter_uri);
-    await this.withAdapterMutation(adapterId, async () => {
-      await this.withExecutionMutation(trace.execution_id, async () => {
-        const executionFile = this.executionFile(trace.execution_id);
-        const existing = await this.getExecution(trace.execution_id);
-        if (existing && existing.adapter_uri !== trace.adapter_uri) {
-          throw new Error(
-            `Execution ${trace.execution_id} already points at ${existing.adapter_uri}; refusing to append a trace for ${trace.adapter_uri}`
-          );
-        }
-        const stored: StoredExecutionTrace = existing ?? {
-          execution_id: trace.execution_id,
-          adapter_id: adapterId,
-          adapter_uri: trace.adapter_uri,
-          ...(trace.activation_query ? { activation_query: trace.activation_query } : {}),
-          traces: []
-        };
-        const key = `${trace.layer_index}:${trace.layer_uri}`;
-        const tracesByKey = new Map(
-          stored.traces.map((existingTrace) => [
-            `${existingTrace.layer_index}:${existingTrace.layer_uri}`,
-            existingTrace
-          ])
+    await this.withExecutionMutation(trace.execution_id, async () => {
+      const existing = await this.getExecution(trace.execution_id);
+      if (existing && existing.adapter_uri !== trace.adapter_uri) {
+        throw new Error(
+          `Execution ${trace.execution_id} already points at ${existing.adapter_uri}; refusing to append a trace for ${trace.adapter_uri}`
         );
-        tracesByKey.set(key, trace);
-        await this.writeJsonFile(executionFile, {
-          ...stored,
-          traces: Array.from(tracesByKey.values()).sort((a, b) => a.layer_index - b.layer_index)
-        } satisfies StoredExecutionTrace);
-        const adapterIndex = await this.readAdapterIndex(stored.adapter_id);
-        await this.writeAdapterIndex(stored.adapter_id, [...adapterIndex.execution_ids, trace.execution_id]);
+      }
+      const stored: StoredExecutionTrace = existing ?? {
+        execution_id: trace.execution_id,
+        adapter_id: adapterId,
+        adapter_uri: trace.adapter_uri,
+        ...(trace.activation_query ? { activation_query: trace.activation_query } : {}),
+        traces: []
+      };
+      const key = `${trace.layer_index}:${trace.layer_uri}`;
+      const tracesByKey = new Map(
+        stored.traces.map((t) => [`${t.layer_index}:${t.layer_uri}`, t])
+      );
+      tracesByKey.set(key, trace);
+      await this.upsertExecution({
+        ...stored,
+        traces: Array.from(tracesByKey.values()).sort((a, b) => a.layer_index - b.layer_index)
       });
     });
   }
 
   async setReward(executionId: string, reward: RewardRecord): Promise<void> {
+    await this.ensureCollection();
     await this.withExecutionMutation(executionId, async () => {
       const existing = await this.getExecution(executionId);
       if (!existing) {
         logger.warn(`[ExecutionTraceStore] Skipping reward for missing execution ${executionId}`);
         return;
       }
-      await this.writeJsonFile(this.executionFile(executionId), {
-        ...existing,
-        reward
-      } satisfies StoredExecutionTrace);
+      await this.upsertExecution({ ...existing, reward });
     });
   }
 
   async getExecution(executionId: string): Promise<StoredExecutionTrace | null> {
-    await this.ensureReady();
-    const stored = await this.readJsonFile<StoredExecutionTrace>(this.executionFile(executionId));
-    if (!stored) {
-      return null;
-    }
-    return {
-      ...stored,
-      traces: [...stored.traces].sort((a, b) => a.layer_index - b.layer_index)
-    };
+    await this.ensureCollection();
+    return this.conn.executeWithReconnect(async () => {
+      try {
+        const points = await this.client.retrieve(this.collectionName, {
+          ids: [toPointId(executionId)],
+          with_payload: true,
+          with_vector: false
+        });
+        if (!points || points.length === 0) return null;
+        const payload = points[0]!.payload as Record<string, any>;
+        if (!payload) return null;
+        const traces = (payload['traces'] as ExecutionTrace[] ?? [])
+          .sort((a, b) => a.layer_index - b.layer_index);
+        return {
+          execution_id: payload['execution_id'] as string,
+          adapter_id: payload['adapter_id'] as string,
+          adapter_uri: payload['adapter_uri'] as string,
+          ...(payload['activation_query'] ? { activation_query: payload['activation_query'] as string } : {}),
+          ...(payload['reward'] ? { reward: payload['reward'] as RewardRecord } : {}),
+          traces
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Not found')) return null;
+        throw error;
+      }
+    });
   }
 
   async listAdapterExecutions(adapterId: string): Promise<string[]> {
-    const index = await this.readAdapterIndex(adapterId);
-    return index.execution_ids;
+    await this.ensureCollection();
+    return this.conn.executeWithReconnect(async () => {
+      const executionIds: string[] = [];
+      let offset: any = undefined;
+      do {
+        const page = await this.client.scroll(this.collectionName, {
+          filter: { must: [{ key: 'adapter_id', match: { value: adapterId } }] },
+          limit: 100,
+          offset,
+          with_payload: { include: ['execution_id'] },
+          with_vector: false
+        } as any);
+        for (const point of page.points) {
+          const eid = (point.payload as any)?.execution_id;
+          if (eid) executionIds.push(eid as string);
+        }
+        offset = page.next_page_offset;
+      } while (offset);
+      return executionIds;
+    });
   }
 
   async buildTrainingPairsForAdapter(adapterId: string, includeReward: boolean = true): Promise<TrainingPair[]> {
     const executionIds = await this.listAdapterExecutions(adapterId);
     const pairs: TrainingPair[] = [];
-
     for (const executionId of executionIds) {
       const execution = await this.getExecution(executionId);
-      if (!execution) {
-        continue;
-      }
+      if (!execution) continue;
       for (const trace of execution.traces) {
         pairs.push({
           id: `${execution.execution_id}:${trace.layer_index}`,
@@ -301,48 +288,17 @@ export class ExecutionTraceStore {
         });
       }
     }
-
     return pairs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }
 
   async deleteExecution(executionId: string): Promise<void> {
-    const existing = await this.getExecution(executionId);
-    if (!existing) {
-      await this.withExecutionMutation(executionId, async () => {
-        try {
-          await fs.unlink(this.executionFile(executionId));
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-            logger.warn(
-              `[ExecutionTraceStore] Failed to delete execution ${executionId}: ${error instanceof Error ? error.message : String(error)}`
-            );
-          }
-        }
-      });
-      return;
-    }
-
-    await this.withAdapterMutation(existing.adapter_id, async () => {
-      await this.withExecutionMutation(executionId, async () => {
-        try {
-          const latest = await this.getExecution(executionId);
-          if (latest) {
-            const adapterIndex = await this.readAdapterIndex(latest.adapter_id);
-            await this.writeAdapterIndex(
-              latest.adapter_id,
-              adapterIndex.execution_ids.filter((id) => id !== executionId)
-            );
-          }
-          await fs.unlink(this.executionFile(executionId));
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-            logger.warn(
-              `[ExecutionTraceStore] Failed to delete execution ${executionId}: ${error instanceof Error ? error.message : String(error)}`
-            );
-          }
-        }
+    await this.ensureCollection();
+    await this.withExecutionMutation(executionId, async () => {
+      await this.conn.executeWithReconnect(async () => {
+        await this.client.delete(this.collectionName, { points: [toPointId(executionId)] });
       });
     });
   }
 }
+
 export const executionTraceStore = new ExecutionTraceStore();

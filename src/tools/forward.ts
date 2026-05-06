@@ -7,6 +7,7 @@ import { executionTraceStore } from '../services/execution-trace-store.js';
 import { forwardRuntimeStore } from '../services/forward-runtime-store.js';
 import { getAdapterId, getInferenceContract, getLayerIndex } from '../services/memory/memory-accessors.js';
 import { proofOfWorkStore } from '../services/proof-of-work-store.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 import {
   GENESIS_HASH,
   handleProofSubmission,
@@ -32,6 +33,14 @@ import {
 } from './forward-view.js';
 import { appendExecutionTrace, handleTensorForward, solutionToTensorValue } from './forward-trace.js';
 import { KairosError } from '../types/index.js';
+
+function traceFireAndForget(op: Promise<void>): void {
+  op.catch((err) => {
+    structuredLogger.warn(
+      `[trace] Persistence failed, data lost: ${err instanceof Error ? err.message : String(err)}`
+    );
+  });
+}
 
 async function loadLayer(memoryStore: MemoryQdrantStore, layerId: string | undefined): Promise<Awaited<ReturnType<MemoryQdrantStore['getMemory']>>> {
   return layerId ? memoryStore.getMemory(layerId) : null;
@@ -113,11 +122,11 @@ export async function executeForward(
         ? { slug_disambiguation_note: loaded.slug_disambiguation_note }
         : {})
     });
-    await executionTraceStore.startExecution({
+    traceFireAndForget(executionTraceStore.startExecution({
       executionId,
       adapterId,
       adapterUri
-    });
+    }));
   }
 
   if (!input.solution) {
