@@ -80,4 +80,32 @@ describe('validateBearerToken group extraction', () => {
     expect(auth).not.toBeNull();
     expect(auth?.groups).toEqual(['/SHARED/PE-TEAM']);
   });
+
+  test('returns empty groups when DCR token has no groups and userinfo also lacks groups mapper', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sub: 'user-1',
+        email_verified: true,
+        name: 'Test User',
+        preferred_username: 'test@example.com',
+        email: 'test@example.com'
+      })
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const issuer = 'https://kc.example/realms/kairos';
+    const token = tokenFor({
+      iss: issuer,
+      sub: 'user-1',
+      aud: ['account'],
+      azp: '01361763-d756-4c79-a124-0180e58e3f8e',
+      scope: 'openid email profile'
+    });
+
+    const auth = await validateBearerToken(token, [issuer], ['kairos-mcp', 'kairos-cli', 'account']);
+    expect(fetchMock).toHaveBeenCalled();
+    expect(auth).not.toBeNull();
+    expect(auth?.groups).toEqual([]);
+  });
 });
