@@ -63,6 +63,27 @@ kairos search "release checklist"
 
 When the server requires auth, the CLI uses a stored Bearer token.
 
+### Timeout and retry
+
+By default each HTTP request times out after **15 seconds** and failed requests
+are retried up to **2 times** on transient network errors (connection refused,
+reset, timeout). Both can be overridden:
+
+```bash
+kairos --timeout 120 train ./adapters --force --recursive
+kairos --timeout 120 --retries 5 train ./adapters --force --recursive
+kairos --retries 0 spaces   # disable retry, fail fast
+```
+
+Environment variables (useful in CI / scripts):
+
+| Variable | Description |
+|----------|-------------|
+| `KAIROS_TIMEOUT_MS` | Request timeout in milliseconds (e.g. `120000`) |
+| `KAIROS_RETRIES` | Max network-error retries (e.g. `5`, or `0` to disable) |
+
+Precedence: CLI flag > env var > default.
+
 ### Storage model
 
 The CLI and MCP hosts share the same local config path:
