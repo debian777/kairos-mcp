@@ -12,10 +12,10 @@ description: >-
   create one. Flow: detect intent → activate → follow next_action → reward
   → respond.
 
-always_active: true
 metadata:
   version: "4.3.1"
   author: kairos-mcp
+  always_active: true
 allowed-tools: activate forward reward train tune export delete spaces
 ---
 
