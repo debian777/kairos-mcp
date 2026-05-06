@@ -25,6 +25,8 @@ export function browseAdaptersFromSpaces(spaces: SpaceInfo[] | undefined): {
         adapter_id: adapter.adapter_id,
         title: adapter.title,
         layer_count: adapter.layer_count,
+        slug: adapter.slug,
+        uri: adapter.uri,
         space_name: space.name,
         space_type: space.type
       });

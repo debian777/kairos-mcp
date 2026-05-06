@@ -18,7 +18,9 @@ export const spacesInputSchema = z.object({
 const adapterInfoSchema = z.object({
   adapter_id: z.string(),
   title: z.string(),
-  layer_count: z.number()
+  layer_count: z.number(),
+  slug: z.string().nullable(),
+  uri: z.string().describe('Ready-to-use kairos://adapter/{slug} URI for export, forward, etc.')
 });
 
 const spaceInfoSchema = z.object({
