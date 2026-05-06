@@ -13,7 +13,7 @@ description: >-
   → respond.
 
 metadata:
-  version: "4.4.0-rc.0"
+  version: "4.4.0-rc.1"
   author: kairos-mcp
   always_active: true
 allowed-tools: activate forward reward train tune export delete spaces
