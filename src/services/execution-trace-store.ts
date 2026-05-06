@@ -61,8 +61,8 @@ export class ExecutionTraceStore {
   private async ensureReady(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = Promise.all([
-        fs.mkdir(this.executionsDir, { recursive: true }),
-        fs.mkdir(this.adaptersDir, { recursive: true })
+        fs.mkdir(this.executionsDir, { recursive: true, mode: 0o700 }),
+        fs.mkdir(this.adaptersDir, { recursive: true, mode: 0o700 })
       ]).then(() => undefined);
     }
     await this.initPromise;
@@ -95,7 +95,7 @@ export class ExecutionTraceStore {
     const tempFile = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
     const serialized = JSON.stringify(value, null, 2);
     try {
-      const handle = await fs.open(tempFile, 'w');
+      const handle = await fs.open(tempFile, 'wx'); // exclusive create: no symlink races under shared tmp
       try {
         await handle.writeFile(serialized, 'utf8');
         await handle.sync();
@@ -103,11 +103,11 @@ export class ExecutionTraceStore {
         await handle.close();
       }
       await fs.rename(tempFile, filePath);
-      const dirHandle = await fs.open(path.dirname(filePath), 'r');
+      const destHandle = await fs.open(filePath, 'r');
       try {
-        await dirHandle.sync();
+        await destHandle.sync();
       } finally {
-        await dirHandle.close();
+        await destHandle.close();
       }
     } catch (error) {
       try {
@@ -347,4 +347,3 @@ export class ExecutionTraceStore {
   }
 }
 export const executionTraceStore = new ExecutionTraceStore();
-
