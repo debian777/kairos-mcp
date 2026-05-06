@@ -30,6 +30,26 @@ stack only when the user explicitly asks for the operator-managed profile. Do
 not treat Keycloak or identity-provider administration as part of the normal
 install flow.
 
+## Recommended default installation
+
+Unless the user explicitly chooses a different profile, recommend **both** of
+these together:
+
+1. **Runtime — Docker:** Bring up KAIROS with the **simple Compose** stack from
+   bundled references (`.env`, then `docker compose up`). The npm package is not
+   a substitute for running the service in containers. In **enterprise**
+   environments, the parallel default is usually **Helm** (or another
+   operator-managed chart) instead of local Compose; the same **CLI** guidance
+   below still applies to operators targeting that deployment.
+2. **CLI — `@debian777/kairos-mcp`:** Install globally (`npm install -g @debian777/kairos-mcp`, then `kairos` on PATH) for day-to-day use, or run `npx @debian777/kairos-mcp` when the user declines a global install. The CLI is a
+   core part of the ecosystem: it exposes **MCP-oriented workflows with bulk
+   and operational affordances** (for example **`train`**, **`tune`**,
+   **`export`**, token and server targeting) that typical IDE MCP sessions alone
+   do not replace for operators.
+3. **MCP in the IDE:** Optional — only when the user wants an MCP host to call
+   HTTP MCP. **Do not** treat “we use MCP” as a reason to skip installing the
+   CLI when the user will operate adapters, training, or bulk commands.
+
 ## Canonical bundled docs
 
 Use these bundled references before you act:
@@ -79,7 +99,7 @@ Resolve these decisions explicitly:
 3. Which embedding model should be used?
 4. When a prerequisite is missing, install it now or wait?
 5. If the target server requires auth, use browser login flow now?
-6. Does the host actually need MCP configuration, or is the CLI enough?
+6. Does the IDE or another MCP host need HTTP MCP configuration, or is CLI-only access sufficient for this user?
 7. Which repo skills should be present after install/update (`kairos`,
    `kairos-install`, `kairos-bug-report`, or all)?
 
@@ -90,9 +110,11 @@ Keycloak beyond the default app + Qdrant path.
 Treat requests for Redis, Postgres, SSO, Keycloak, or "full stack" as requests
 for this advanced path.
 
-Treat CLI as enough unless the user explicitly wants an IDE or another MCP host
-to connect over HTTP. If the task is only install, health verification, login,
-or normal CLI usage, skip MCP configuration.
+Skip MCP host configuration when the user does not need an IDE or other HTTP MCP
+client. Prefer installing the **CLI** anyway for train/tune/export-style
+workflows. If the task is only install, health verification, login, or routine
+CLI usage, skip MCP **host** configuration — but do not skip CLI installation
+when the user expects operator or bulk workflows.
 
 ## Must always
 

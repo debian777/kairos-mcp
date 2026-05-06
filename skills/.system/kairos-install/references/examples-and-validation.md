@@ -2,6 +2,13 @@
 
 This page keeps extended examples and final checks out of the main skill body.
 
+**Default recommendation:** run the **simple Docker Compose** stack for the
+service, and **install the CLI** (`npm install -g @debian777/kairos-mcp` or
+`npx`) for operator workflows (`train`, `tune`, `export`, tokens). Enterprise
+deployments often use **Helm** instead of local Compose; the same CLI guidance
+applies to operators targeting that cluster. MCP IDE configuration stays
+optional.
+
 ## Worked examples
 
 Use this flow when the user wants the default local install.
