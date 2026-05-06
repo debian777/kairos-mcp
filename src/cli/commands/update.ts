@@ -3,11 +3,10 @@
  */
 
 import { Command } from 'commander';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
 import { readMarkdownUploadFromFile, type SafeMarkdownUpload } from '../upload-guards.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 export function updateCommand(program: Command): void {
     program
@@ -33,7 +32,7 @@ export function updateCommand(program: Command): void {
             }
         ) => {
             try {
-                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+                const client = createClientFromProgram(program);
                 let markdownDoc: SafeMarkdownUpload[] | undefined;
                 let updates: Record<string, any> | undefined;
                 const rawSpace = typeof options.space === 'string' ? options.space.trim() : '';

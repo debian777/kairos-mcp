@@ -14,6 +14,8 @@ import { tokenCommand } from './commands/token.js';
 import { serveCommand } from './commands/serve.js';
 import { getCliApiUrlDefault } from './config.js';
 
+export { createClientFromProgram, resolveClientOptions } from './client-factory.js';
+
 const loadPackageJson = createRequire(import.meta.url);
 const { version } = loadPackageJson('../../package.json') as { version: string };
 
@@ -34,6 +36,8 @@ export function createProgram(): Command {
     .description('CLI tool for interacting with KAIROS REST API')
     .version(version)
     .option('-u, --url <url>', 'KAIROS API base URL', getCliApiUrlDefault())
+    .option('--timeout <seconds>', 'request timeout in seconds (env: KAIROS_TIMEOUT_MS, default: 15)')
+    .option('--retries <n>', 'max retries on network errors (env: KAIROS_RETRIES, default: 2)')
     .option('--no-browser', 'do not open browser when auth is required (e.g. in tests or scripts)')
     .hook('preAction', (_thisCommand, actionCommand) => {
       // optsWithGlobals merges root --url / --no-browser for nested commands (e.g. kairos --url … train …).

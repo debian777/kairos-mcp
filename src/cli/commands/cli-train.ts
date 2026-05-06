@@ -11,11 +11,10 @@
 import { Command } from 'commander';
 import { readdirSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
 import { readMarkdownUploadFromFile } from '../upload-guards.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 /** Directory batch skips `README.md` (human docs); single-file `train path/to/README.md` still works. */
 function isReadmeMarkdownFileName(name: string): boolean {
@@ -77,7 +76,7 @@ export function trainCliCommand(program: Command): void {
         }
       ) => {
         try {
-          const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+          const client = createClientFromProgram(program);
           const src = typeof options.sourceAdapterUri === 'string' ? options.sourceAdapterUri.trim() : '';
           if (src.length > 0) {
             if (target) {

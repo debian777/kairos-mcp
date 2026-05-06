@@ -3,11 +3,10 @@
  */
 
 import { Command } from 'commander';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
 import { formatNextCallBlock } from '../format-next-call.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 export function forwardCommand(program: Command): void {
     program
@@ -17,7 +16,7 @@ export function forwardCommand(program: Command): void {
         .option('--solution <json>', 'Forward solution as JSON string')
         .action(async (uri: string, options: { solution?: string }) => {
             try {
-                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+                const client = createClientFromProgram(program);
                 const solution = options.solution ? JSON.parse(options.solution) : undefined;
                 const response = await client.forward(uri, solution);
                 const nextCall = formatNextCallBlock(response);

@@ -3,11 +3,10 @@
  */
 
 import { Command } from 'commander';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeJson } from '../output.js';
 import { formatNextCallBlock } from '../format-next-call.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 export function activateCommand(program: Command): void {
     program
@@ -16,7 +15,7 @@ export function activateCommand(program: Command): void {
         .argument('<query...>', 'Search query (multiple words allowed)')
         .action(async (query: string[]) => {
             try {
-                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+                const client = createClientFromProgram(program);
                 const response = await client.activate(query.join(' '));
                 const nextCall = formatNextCallBlock(response);
                 writeJson(nextCall ? { ...response, cli_next_call: nextCall } : response);
