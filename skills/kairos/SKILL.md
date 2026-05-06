@@ -5,10 +5,12 @@ description: >-
   When loaded and a KAIROS MCP server is connected, this skill routes action
   intents through the activate → forward → reward chain so that adapters
   provide deterministic, auditable task execution. Trigger on action intents
-  such as write, create, build, fix, deploy, configure, refactor, test,
-  document, or when the user describes a procedure. If no adapter exists,
-  KAIROS offers to create one. Flow: detect intent → activate → follow
-  next_action → reward → respond.
+  such as write, create, build, implement, fix, debug, deploy, publish,
+  migrate, configure, install, update, refactor, review, test, automate,
+  generate, document, plan, or when the user describes a procedure or asks
+  "how to" perform an operation. If no adapter exists, KAIROS offers to
+  create one. Flow: detect intent → activate → follow next_action → reward
+  → respond.
 
 always_active: true
 metadata:
@@ -18,6 +20,10 @@ allowed-tools: activate forward reward train tune export delete spaces
 ---
 
 # KAIROS — Action Routing
+
+**This skill is required for action routing.** When a KAIROS MCP server
+is connected and the user message contains an action intent, route through
+KAIROS before starting implementation.
 
 This skill provides structured workflow routing through a connected KAIROS MCP
 server. When the server is available and authenticated, the agent routes action
@@ -34,14 +40,24 @@ guide task execution with auditable steps.
 5. Respond to the user or continue with implementation as directed by the
    adapter output.
 
+Always complete the full chain before responding to the user or starting
+substantive work. An incomplete chain is not a valid stopping point.
+
 ## When to use KAIROS routing
 
-Route through KAIROS when **all** of these are true:
+Route through KAIROS by checking these conditions in order:
 
-- The user message contains an **action intent** (build, fix, deploy, write,
-  configure, test, refactor, document, etc.).
-- A KAIROS MCP server is **connected and authenticated**.
-- The host environment has **not** restricted MCP tool access for this session.
+1. **Is the user message an action intent?** Look for verbs like build, fix,
+   deploy, write, create, implement, debug, publish, migrate, configure,
+   install, update, edit, refactor, review, audit, test, automate, generate,
+   document, plan, design, or descriptions of a procedure. If no action intent
+   is present, KAIROS routing does not apply.
+2. **Is a KAIROS MCP server connected and authenticated?** If not, follow the
+   unavailability procedure below.
+3. **Has the host environment restricted MCP tool access for this session?** If
+   so, respect that restriction.
+
+If all three conditions pass, KAIROS routing is active for this task.
 
 When KAIROS routing applies, prefer completing the full chain before starting
 substantive implementation. Do not run the user's task in parallel with an
@@ -92,8 +108,8 @@ If the KAIROS MCP server cannot be reached or authentication fails:
   KAIROS routing is active.
 - If `activate` returns no matching adapter, inform the user and offer to
   create one via `train`.
-- When the user explicitly opts out of KAIROS routing for a task (e.g. "skip
-  KAIROS", "just do it directly"), respect that choice for the current task.
+- When the user **explicitly asks to skip KAIROS routing** (using words like
+  "skip KAIROS" or "without KAIROS"), respect that choice for the current task.
 
 ---
 
