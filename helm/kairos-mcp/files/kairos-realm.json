@@ -60,6 +60,33 @@
   ],
   "defaultDefaultClientScopes": ["groups", "openid"],
   "defaultGroups": ["/shared/operator"],
+  "clientScopes": [
+    {
+      "name": "kairos-groups",
+      "description": "Group membership claim — required for KAIROS space isolation",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "kairos-oidc-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": ["kairos-groups"],
   "clients": [
     {
       "clientId": "kairos-mcp",
