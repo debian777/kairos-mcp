@@ -4,13 +4,13 @@ import { KAIROS_SEARCH_LIMIT_CAP, KAIROS_SEARCH_LIMIT_MIN } from '../config.js';
 const adapterUriSchema = z
   .string()
   .regex(
-    /^kairos:\/\/adapter\/(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i,
+    /^kairos:\/\/adapter\/([0-9a-f-]{36}|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$/i,
     'must match kairos://adapter/{slug}'
   );
 const adapterSlugUriSchema = z
   .string()
   .regex(
-    /^kairos:\/\/adapter\/(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i,
+    /^kairos:\/\/adapter\/([0-9a-f-]{36}|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$/i,
     'must match kairos://adapter/{slug}'
   );
 const forwardFirstCallSchema = z

@@ -12,6 +12,8 @@ import { spaceIdToDisplayName, spaceKindFromSpaceId } from '../utils/space-displ
 import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { KAIROS_SPACES_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { normalizeAuthorSlug, slugifyFromTitle } from '../utils/protocol-slug.js';
+import { buildAdapterUri } from './kairos-uri.js';
 import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
@@ -24,6 +26,8 @@ interface AdapterInfo {
   adapter_id: string;
   title: string;
   layer_count: number;
+  slug: string | null;
+  uri: string;
 }
 
 export interface SpaceInfo {
@@ -96,13 +100,22 @@ function buildSpaceInfo(
         | undefined;
       const title = (adapter?.name ?? payload['label'] ?? 'Untitled') as string;
       const adapterId = adapter?.id ?? first?.id ?? '';
+      const storedSlug = typeof payload['slug'] === 'string' && payload['slug'].trim().length > 0
+        ? payload['slug'].trim()
+        : null;
+      let slug: string | null = storedSlug;
+      if (!slug) {
+        slug = normalizeAuthorSlug(title) ?? slugifyFromTitle(title || String(adapterId) || 'adapter');
+      }
       adapters.push({
         adapter_id: String(adapterId),
         title: String(title),
         layer_count:
           typeof adapter?.layer_count === 'number'
             ? adapter.layer_count
-            : adapterPoints.length
+            : adapterPoints.length,
+        slug,
+        uri: buildAdapterUri(slug)
       });
     }
   }

@@ -7,8 +7,6 @@ import { BROWSE_LETTERS } from "@/utils/browse-adapters";
 import { toConfidencePercent } from "@/utils/confidence";
 import type { ActivateOutput } from "../../tools/activate_schema.js";
 
-const PROTOCOL_URI_PREFIX = "kairos://adapter/";
-
 type Choice = ActivateOutput["choices"][number];
 
 /** Default Browse view: A–Z letter blocks with counts; expand to list protocols for that letter. */
@@ -87,7 +85,6 @@ export function KairosBrowseByLabelSection(props: {
               aria-label={t("kairos.labelsStartingWith", { letter: expandedLetter })}
             >
               {adaptersForLetter.map((adapter) => {
-                const uri = `${PROTOCOL_URI_PREFIX}${adapter.adapter_id}`;
                 return (
                   <li
                     key={adapter.adapter_id}
@@ -102,7 +99,7 @@ export function KairosBrowseByLabelSection(props: {
                     </div>
                     <div className="flex-shrink-0">
                       <Link
-                        to={`/protocols/${encodeURIComponent(uri)}`}
+                        to={`/protocols/${encodeURIComponent(adapter.uri)}`}
                         aria-label={t("kairos.viewProtocol", { title: adapter.title })}
                         className="min-h-[var(--layout-touch-target)] min-w-[var(--layout-touch-target)] inline-flex items-center justify-center px-4 py-2 rounded-[var(--radius-md)] font-medium bg-[var(--color-primary)] text-white no-underline hover:bg-[var(--color-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:outline-offset-2"
                       >

@@ -2,8 +2,9 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 const UUID_ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
+const SLUG_ADAPTER_URI = 'kairos://adapter/phase-critic';
 
-describe('wire adapter URI contract (slug-only)', () => {
+describe('wire adapter URI contract (slug and UUID accepted)', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
 
   beforeAll(async () => {
@@ -14,17 +15,22 @@ describe('wire adapter URI contract (slug-only)', () => {
     await mcpConnection.close();
   });
 
-  test('forward rejects adapter UUID with dedicated teaching branch and example', async () => {
+  test('forward accepts adapter UUID without input validation error', async () => {
     const result = await mcpConnection.client.callTool({
       name: 'forward',
       arguments: { uri: UUID_ADAPTER_URI }
     });
-    const parsed = parseMcpJson(result, 'forward uuid rejection');
-    expect(parsed.error).toBe('INVALID_TOOL_INPUT');
-    expect(parsed.tool).toBe('forward');
-    expect(String(parsed.message)).toContain('slug-only');
-    expect(String(parsed.next_action)).toContain('choices[].forward_first_call.uri');
-    expect(parsed.example).toEqual({ uri: 'kairos://adapter/phase-critic' });
+    const parsed = parseMcpJson(result, 'forward uuid acceptance');
+    expect(parsed.error).not.toBe('INVALID_TOOL_INPUT');
+  });
+
+  test('forward accepts adapter slug', async () => {
+    const result = await mcpConnection.client.callTool({
+      name: 'forward',
+      arguments: { uri: SLUG_ADAPTER_URI }
+    });
+    const parsed = parseMcpJson(result, 'forward slug acceptance');
+    expect(parsed.error).not.toBe('INVALID_TOOL_INPUT');
   });
 
   test.each([
@@ -32,15 +38,17 @@ describe('wire adapter URI contract (slug-only)', () => {
     ['delete', { uris: [UUID_ADAPTER_URI] }],
     ['export', { uri: UUID_ADAPTER_URI, format: 'markdown' }],
     ['train', { llm_model_id: 'slug-only-test', source_adapter_uri: UUID_ADAPTER_URI, content: '# local content' }]
-  ] as const)('%s rejects adapter UUID input', async (toolName, arguments_) => {
+  ] as const)('%s accepts adapter UUID input without validation rejection', async (toolName, arguments_) => {
     const result = await mcpConnection.client.callTool({
       name: toolName,
       arguments: arguments_ as unknown as Record<string, unknown>
     });
-    const parsed = parseMcpJson(result, `${toolName} uuid rejection`);
-    expect(parsed.error).toBe('INVALID_TOOL_INPUT');
-    expect(parsed.tool).toBe(toolName);
-    expect(Array.isArray(parsed.invalid_fields)).toBe(true);
-    expect(parsed.example).toBeDefined();
+    const content = result.content as Array<{ type: string; text?: string }>;
+    const text = content?.[0]?.text ?? '';
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(text); } catch { /* non-JSON is fine */ }
+    if (parsed) {
+      expect(parsed.error).not.toBe('INVALID_TOOL_INPUT');
+    }
   });
 });

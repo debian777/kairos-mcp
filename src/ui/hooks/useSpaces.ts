@@ -5,6 +5,8 @@ export interface AdapterSummary {
   adapter_id: string;
   title: string;
   layer_count: number;
+  slug: string | null;
+  uri: string;
 }
 
 export interface SpaceInfo {
