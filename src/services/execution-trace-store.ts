@@ -51,6 +51,7 @@ export class ExecutionTraceStore {
   private readonly executionsDir: string;
   private readonly adaptersDir: string;
   private initPromise: Promise<void> | null = null;
+  private atomicWriteDirPromise: Promise<string> | null = null;
   private readonly mutationChains = new Map<string, Promise<void>>();
 
   constructor(rootDir: string = KAIROS_TRACE_STORE_DIR) {
@@ -92,10 +93,14 @@ export class ExecutionTraceStore {
 
   private async writeJsonFile(filePath: string, value: unknown): Promise<void> {
     await this.ensureReady();
-    const tempFile = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+    if (!this.atomicWriteDirPromise) {
+      this.atomicWriteDirPromise = fs.mkdtemp(path.join(this.executionsDir, 'write-'));
+    }
+    const atomicDir = await this.atomicWriteDirPromise;
+    const tempFile = path.join(atomicDir, `${crypto.randomUUID()}.tmp`);
     const serialized = JSON.stringify(value, null, 2);
     try {
-      const handle = await fs.open(tempFile, 'wx'); // exclusive create: no symlink races under shared tmp
+      const handle = await fs.open(tempFile, 'wx');
       try {
         await handle.writeFile(serialized, 'utf8');
         await handle.sync();
@@ -103,12 +108,6 @@ export class ExecutionTraceStore {
         await handle.close();
       }
       await fs.rename(tempFile, filePath);
-      const destHandle = await fs.open(filePath, 'r');
-      try {
-        await destHandle.sync();
-      } finally {
-        await destHandle.close();
-      }
     } catch (error) {
       try {
         await fs.unlink(tempFile);
