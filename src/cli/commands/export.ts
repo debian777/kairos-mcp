@@ -1,10 +1,9 @@
 import { Command } from 'commander';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import type { ExportInput } from '../../tools/export_schema.js';
 import { writeJson, writeMarkdown, writeStderr } from '../output.js';
 import { resolveSkillZipOutputPath, writeExportedSkillZipToFile } from '../skill-zip-local-write.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 interface ExportCliOptions {
     format?: string;
@@ -101,7 +100,7 @@ export function exportCommand(program: Command): void {
             ) => {
                 try {
                     const input = buildExportInput(uri, options);
-                    const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+                    const client = createClientFromProgram(program);
                     const response = await client.export(input);
                     if (options.output === 'json' || options.jsonOnly || options.noDownload) {
                         writeJson(response);

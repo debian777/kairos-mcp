@@ -3,11 +3,10 @@
  */
 
 import { Command } from 'commander';
-import { ApiClient } from '../api-client.js';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
-import { getResolvedApiBaseFromProgram } from '../resolve-api-base.js';
 import { writeError, writeJson } from '../output.js';
 import { formatNextCallBlock } from '../format-next-call.js';
+import { createClientFromProgram } from '../client-factory.js';
 
 export function rewardCommand(program: Command): void {
     program
@@ -40,7 +39,7 @@ export function rewardCommand(program: Command): void {
                     return;
                 }
 
-                const client = new ApiClient(getResolvedApiBaseFromProgram(program));
+                const client = createClientFromProgram(program);
                 
                 const rewardOptions: { score?: number; rater?: string; rubricVersion?: string; llmModelId?: string } = {};
                 if (score !== undefined) {
