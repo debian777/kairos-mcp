@@ -73,6 +73,11 @@ spec:
   additionalOptions:
     - name: http-relative-path
       value: {{ $relativePath | quote }}
+    {{- $proxyTrusted := default "" $kc.proxy.trustedAddresses | trim }}
+    {{- if ne $proxyTrusted "" }}
+    - name: proxy-trusted-addresses
+      value: {{ $proxyTrusted | quote }}
+    {{- end }}
   unsupported:
     podTemplate:
       spec:

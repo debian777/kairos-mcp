@@ -75,9 +75,18 @@
           }
         }
       ]
+    },
+    {
+      "name": "openid",
+      "description": "OpenID Connect scope — explicit scope for DCR policy compatibility",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      }
     }
   ],
-  "defaultDefaultClientScopes": ["kairos-groups"],
+  "defaultDefaultClientScopes": ["kairos-groups", "openid"],
   "clients": [
     {
       "clientId": "kairos-mcp",
@@ -152,9 +161,26 @@
         "providerId": "trusted-hosts",
         "subType": "anonymous",
         "config": {
-          "host-sending-registration-request-must-match": ["true"],
-          "client-uris-must-match": ["false"],
+          "host-sending-registration-request-must-match": ["false"],
+          "client-uris-must-match": ["true"],
           "trusted-hosts": ["localhost", "127.0.0.1", "__KAIROS_HOSTNAME__"]
+        }
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "anonymous",
+        "config": {
+          "allow-default-scopes": ["true"],
+          "allowed-client-scopes": ["offline_access", "address", "phone", "microprofile-jwt", "organization", "service_account"]
+        }
+      },
+      {
+        "name": "Allowed Client Scopes",
+        "providerId": "allowed-client-templates",
+        "subType": "authenticated",
+        "config": {
+          "allow-default-scopes": ["true"]
         }
       }
     ]

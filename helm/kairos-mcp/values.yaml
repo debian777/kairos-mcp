@@ -181,6 +181,7 @@ keycloakInstance:
     strict: false
   proxy:
     headers: "xforwarded"
+    trustedAddresses: ""
   httpRelativePath: "/sso"
   db:
     host: ""
