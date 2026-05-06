@@ -182,14 +182,6 @@ keycloakInstance:
   proxy:
     headers: "xforwarded"
   httpRelativePath: "/sso"
-  smtp:
-    enabled: false
-    secretName: "keycloak-smtp"
-    host: ""
-    port: "587"
-    from: ""
-    user: ""
-    password: ""
   db:
     host: ""
     port: 5432
