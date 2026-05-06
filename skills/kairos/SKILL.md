@@ -16,6 +16,7 @@ description: >-
   to create one. Zero drift: detect → activate → follow next_action exactly → 
   reward → respond. No other path allowed.
 
+always_active: true
 metadata:
   version: "4.3.1"
   author: kairos-mcp
