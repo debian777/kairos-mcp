@@ -51,6 +51,7 @@ export class ExecutionTraceStore {
   private readonly executionsDir: string;
   private readonly adaptersDir: string;
   private initPromise: Promise<void> | null = null;
+  private atomicWriteDirPromise: Promise<string> | null = null;
   private readonly mutationChains = new Map<string, Promise<void>>();
 
   constructor(rootDir: string = KAIROS_TRACE_STORE_DIR) {
@@ -61,8 +62,8 @@ export class ExecutionTraceStore {
   private async ensureReady(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = Promise.all([
-        fs.mkdir(this.executionsDir, { recursive: true }),
-        fs.mkdir(this.adaptersDir, { recursive: true })
+        fs.mkdir(this.executionsDir, { recursive: true, mode: 0o700 }),
+        fs.mkdir(this.adaptersDir, { recursive: true, mode: 0o700 })
       ]).then(() => undefined);
     }
     await this.initPromise;
@@ -92,10 +93,14 @@ export class ExecutionTraceStore {
 
   private async writeJsonFile(filePath: string, value: unknown): Promise<void> {
     await this.ensureReady();
-    const tempFile = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+    if (!this.atomicWriteDirPromise) {
+      this.atomicWriteDirPromise = fs.mkdtemp(path.join(this.executionsDir, 'write-'));
+    }
+    const atomicDir = await this.atomicWriteDirPromise;
+    const tempFile = path.join(atomicDir, `${crypto.randomUUID()}.tmp`);
     const serialized = JSON.stringify(value, null, 2);
     try {
-      const handle = await fs.open(tempFile, 'w');
+      const handle = await fs.open(tempFile, 'wx');
       try {
         await handle.writeFile(serialized, 'utf8');
         await handle.sync();
@@ -103,12 +108,6 @@ export class ExecutionTraceStore {
         await handle.close();
       }
       await fs.rename(tempFile, filePath);
-      const dirHandle = await fs.open(path.dirname(filePath), 'r');
-      try {
-        await dirHandle.sync();
-      } finally {
-        await dirHandle.close();
-      }
     } catch (error) {
       try {
         await fs.unlink(tempFile);
@@ -347,4 +346,3 @@ export class ExecutionTraceStore {
   }
 }
 export const executionTraceStore = new ExecutionTraceStore();
-

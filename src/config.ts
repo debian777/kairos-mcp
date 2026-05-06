@@ -56,7 +56,7 @@ export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_ST
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
 const TRACE_STORE_DIR_RAW = getEnvString(
   'KAIROS_TRACE_STORE_DIR',
-  path.join(os.homedir(), '.local', 'share', 'kairos', 'traces')
+  path.join(os.tmpdir(), 'kairos', 'traces')
 ).trim();
 export const KAIROS_TRACE_STORE_DIR = path.isAbsolute(TRACE_STORE_DIR_RAW)
   ? TRACE_STORE_DIR_RAW
