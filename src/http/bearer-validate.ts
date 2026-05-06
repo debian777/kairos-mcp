@@ -83,7 +83,14 @@ async function fetchGroupsFromOidcUserinfo(issuer: string, accessToken: string):
       return [];
     }
     const body = (await res.json()) as Record<string, unknown>;
-    return extractGroupsFromPayload(body);
+    const groups = extractGroupsFromPayload(body);
+    if (groups.length === 0) {
+      structuredLogger.info(
+        `[auth] userinfo returned no groups — the issuing client likely lacks a Group Membership protocol mapper. ` +
+        `Add the mapper to the realm's default client scope or the specific client to enable group spaces for DCR/MCP tokens.`
+      );
+    }
+    return groups;
   } catch (err) {
     structuredLogger.debug(
       `[auth] userinfo groups: fetch failed url=${url} err=${err instanceof Error ? err.message : String(err)}`

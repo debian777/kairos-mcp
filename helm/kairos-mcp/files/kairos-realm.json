@@ -23,6 +23,33 @@
       ]
     }
   ],
+  "clientScopes": [
+    {
+      "name": "groups",
+      "description": "Group membership claim — required for KAIROS space isolation",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "group-membership",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": ["groups"],
   "clients": [
     {
       "clientId": "kairos-mcp",
@@ -50,6 +77,7 @@
         "http://127.0.0.1:3301",
         "https://__KAIROS_PUBLIC_HOST__"
       ],
+      "defaultClientScopes": ["groups"],
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3300/auth/continue-signin##http://localhost:3301/auth/continue-signin##http://127.0.0.1:3300/auth/continue-signin##http://127.0.0.1:3301/auth/continue-signin##https://__KAIROS_PUBLIC_HOST__/auth/continue-signin",
         "logout.confirmation.enabled": "false"
@@ -64,6 +92,7 @@
       "directAccessGrantsEnabled": true,
       "redirectUris": ["http://localhost:*", "http://localhost:*/callback", "http://localhost:*/callback/*", "http://localhost:*/*", "http://127.0.0.1:*", "http://127.0.0.1:*/callback", "http://127.0.0.1:*/callback/*", "https://__KAIROS_PUBLIC_HOST__/*"],
       "webOrigins": ["http://localhost", "https://__KAIROS_PUBLIC_HOST__"],
+      "defaultClientScopes": ["groups"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       }
