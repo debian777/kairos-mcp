@@ -8,13 +8,12 @@
 #   helm upgrade --install kairos helm/kairos-mcp -n kairos -f my-values.yaml --wait
 
 app:
-  enabled: true
   replicaCount: 3
   # Image defaults are set in the chart (helm/kairos-mcp/values.yaml) and always
   # track the latest stable release. Uncomment to pin a specific version:
   # image:
   #   repository: quay.io/debian777/kairos-mcp
-  #   tag: "4.3.1"
+  #   tag: "4.4.0"
   #   pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>
   redisUrl: redis://rfr-kairos-redis:6379
@@ -70,25 +69,15 @@ gateway:
       serviceName: keycloak-service
       port: 8080
 
-qdrant:
-  enabled: true
-  replicaCount: 3
-
 redisCluster:
   enabled: true
-  name: kairos-redis
-  replicas: 3
-  sentinelReplicas: 3
 
 # Import kairos realm (redirect URIs include https://<gateway.hostname>/…).
 keycloakRealmImport:
   enabled: true
-  name: kairos-realm-import
 
 keycloakInstance:
   enabled: true
-  name: keycloak
-  replicas: 2
   http:
     httpEnabled: true
     httpPort: 8080
@@ -96,11 +85,9 @@ keycloakInstance:
 
 postgresCluster:
   enabled: true
-  name: kairos-postgres
-  instances: 3
   backupStorage: 5Gi
-  pgBouncerReplicas: 2
   storage: 5Gi
-  defaultUser:
-    name: keycloak
-    database: keycloak
+
+# Monitoring (ServiceMonitor / PrometheusRule): omitted — uses chart defaults in
+# helm/kairos-mcp/values.yaml (disabled). Enable and set `release` to match your
+# Prometheus Operator install when you wire scraping.

@@ -232,18 +232,6 @@ else
   echo "  Already provisioned. Run argocd/secrets/setup-secrets.sh --update to change."
 fi
 
-# SMTP secret for Keycloak (optional)
-if [[ -n "${KAIROS_SMTP_HOST:-}" ]] && ! kubectl get secret keycloak-smtp -n "${NS}" &>/dev/null; then
-  kubectl create secret generic keycloak-smtp -n "${NS}" \
-    --from-literal=host="${KAIROS_SMTP_HOST}" \
-    --from-literal=port="${KAIROS_SMTP_PORT:-587}" \
-    --from-literal=from="${KAIROS_SMTP_FROM:-kairos@bsdigital.com}" \
-    --from-literal=user="${KAIROS_SMTP_USER:-}" \
-    --from-literal=password="${KAIROS_SMTP_PASSWORD:-}" \
-    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  echo "  Created keycloak-smtp secret."
-fi
-
 # ── Helm ───────────────────────────────────────────────────────────────────
 echo ""
 echo "▸ Helm upgrade (${VALUES_FILE##*/})"
