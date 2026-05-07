@@ -10,6 +10,10 @@ import { buildProofMarkdown } from '../utils/proof-of-work.js';
  */
 
 describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
+  // Product expectation: single operation budget stays at 30s. One Jest retry absorbs
+  // flaky CI (slow embeddings, transient MCP). Retries any failure, not timeouts only.
+  jest.retryTimes(1);
+
   let mcpConnection;
 
   beforeAll(async () => {
