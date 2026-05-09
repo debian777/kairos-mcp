@@ -25,43 +25,6 @@
   ],
   "clientScopes": [
     {
-      "name": "groups",
-      "description": "Group membership claim — required for KAIROS space isolation",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      },
-      "protocolMappers": [
-        {
-          "name": "group-membership",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-group-membership-mapper",
-          "consentRequired": false,
-          "config": {
-            "full.path": "true",
-            "userinfo.token.claim": "true",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "claim.name": "groups"
-          }
-        }
-      ]
-    },
-    {
-      "name": "openid",
-      "description": "OpenID Connect scope — explicit scope for DCR policy compatibility",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "false",
-        "display.on.consent.screen": "false"
-      }
-    }
-  ],
-  "defaultDefaultClientScopes": ["groups", "openid"],
-  "defaultGroups": ["/shared/operator"],
-  "clientScopes": [
-    {
       "name": "kairos-groups",
       "description": "Group membership claim — required for KAIROS space isolation",
       "protocol": "openid-connect",
@@ -77,7 +40,69 @@
           "consentRequired": false,
           "config": {
             "full.path": "true",
+            "introspection.token.claim": "true",
             "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    },
+    {
+      "name": "openid",
+      "description": "OpenID Connect scope — explicit scope for DCR policy compatibility",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "basic",
+      "description": "OpenID Connect scope for basic claims — extended with groups mapper for DCR clients",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "auth_time",
+            "jsonType.label": "long"
+          }
+        },
+        {
+          "name": "kairos-groups-always",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
             "id.token.claim": "true",
             "access.token.claim": "true",
             "claim.name": "groups"
@@ -86,7 +111,19 @@
       ]
     }
   ],
-  "defaultDefaultClientScopes": ["kairos-groups"],
+  "defaultDefaultClientScopes": [
+    "role_list",
+    "saml_organization",
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "acr",
+    "basic",
+    "kairos-groups",
+    "openid"
+  ],
+  "defaultGroups": ["/shared/operator"],
   "clients": [
     {
       "clientId": "kairos-mcp",
@@ -105,7 +142,7 @@
         "http://127.0.0.1",
         "__KAIROS_PUBLIC_ORIGIN__"
       ],
-      "defaultClientScopes": ["groups"],
+      "defaultClientScopes": ["basic"],
       "attributes": {
         "post.logout.redirect.uris": "http://127.0.0.1/auth/continue-signin##__KAIROS_PUBLIC_ORIGIN__/auth/continue-signin",
         "logout.confirmation.enabled": "false"
@@ -134,7 +171,7 @@
       "directAccessGrantsEnabled": true,
       "redirectUris": ["http://localhost:*", "http://localhost:*/callback", "http://localhost:*/callback/*", "http://localhost:*/*", "http://127.0.0.1:*", "http://127.0.0.1:*/callback", "http://127.0.0.1:*/callback/*", "__KAIROS_PUBLIC_ORIGIN__/*"],
       "webOrigins": ["http://localhost", "__KAIROS_PUBLIC_ORIGIN__"],
-      "defaultClientScopes": ["groups"],
+      "defaultClientScopes": ["basic"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },
@@ -162,7 +199,7 @@
         "subType": "anonymous",
         "config": {
           "allow-default-scopes": ["true"],
-          "allowed-client-scopes": ["offline_access", "address", "phone", "microprofile-jwt", "organization", "service_account"]
+          "allowed-client-scopes": ["roles", "acr", "phone", "profile", "kairos-groups", "offline_access", "address", "basic", "email", "openid", "web-origins"]
         }
       },
       {
