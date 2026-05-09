@@ -13,6 +13,7 @@ import { setupApiRoutes } from './http-api-routes.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupUiStatic } from './http-ui-static.js';
 import { setupExportDownloadRoutes } from './http-export-download-routes.js';
+import { setupExportArtifactDownloadRoutes } from './http-export-artifact-download-routes.js';
 import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
@@ -33,6 +34,7 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     // Route handlers after auth middleware; capability download is outside `/api` auth.
     setupHealthRoutes(app, memoryStore);
     setupExportDownloadRoutes(app, memoryStore, qdrantService);
+    setupExportArtifactDownloadRoutes(app, memoryStore);
     setupApiRoutes(app, memoryStore, { qdrantService });
     setupMcpRoutes(app, memoryStore);
     setupUiStatic(app);

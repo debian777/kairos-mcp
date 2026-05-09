@@ -15,6 +15,7 @@ import { parseKairosUri, type ParsedKairosUri } from '../../tools/kairos-uri.js'
 import type { Memory } from '../../types/memory.js';
 import type { StoreArtifactOptions } from './store-adapter.js';
 import { extractArtifactMetadata } from './artifact-metadata.js';
+import { ALLOWED_ARTIFACT_MIMES } from '../../tools/artifact-mime.js';
 
 async function resolveAdapterAnchorPointId(
   client: QdrantClient,
@@ -50,6 +51,39 @@ async function resolveAdapterAnchorPointId(
   return ids[0] ?? null;
 }
 
+async function resolveAdapterNameByAdapterId(
+  client: QdrantClient,
+  collectionName: string,
+  adapterId: string
+): Promise<string | null> {
+  const filter = buildSpaceFilter(getSearchSpaceIds(), {
+    must: [
+      { key: 'adapter.id', match: { value: adapterId } },
+      { key: 'adapter.layer_index', match: { value: 1 } }
+    ]
+  });
+  const page = await client.scroll(collectionName, {
+    filter,
+    limit: 1,
+    with_payload: true,
+    with_vector: false
+  } as any);
+  const payload = (page.points?.[0]?.payload ?? {}) as Record<string, unknown>;
+  const adapter = payload['adapter'] as { name?: string } | undefined;
+  if (typeof adapter?.name === 'string' && adapter.name.trim().length > 0) {
+    return adapter.name.trim();
+  }
+  if (typeof payload['label'] === 'string' && payload['label'].trim().length > 0) {
+    return payload['label'].trim();
+  }
+  return null;
+}
+
+interface ResolvedArtifactAdapterRef {
+  adapterId: string;
+  adapterName: string | null;
+}
+
 /**
  * Export and search index artifacts by `payload.adapter.id` (chain id). Train may pass a slug,
  * a layer point id, or a chain id in `kairos://adapter/...`; normalize to the chain id.
@@ -58,23 +92,77 @@ async function resolveChainAdapterIdForArtifacts(
   client: QdrantClient,
   collectionName: string,
   parsed: Extract<ParsedKairosUri, { kind: 'adapter' }>
-): Promise<string> {
+): Promise<ResolvedArtifactAdapterRef> {
   if (parsed.idKind === 'slug') {
     const headPointId = await resolveAdapterAnchorPointId(client, collectionName, parsed.id);
     if (!headPointId) {
       throw new Error(`Adapter slug "${parsed.id}" was not found for artifact attachment`);
     }
     const rows = await client.retrieve(collectionName, { ids: [headPointId], with_payload: true });
-    const adapter = (rows[0]?.payload as { adapter?: { id?: string } } | undefined)?.adapter;
-    if (typeof adapter?.id === 'string' && adapter.id.length > 0) return adapter.id;
-    return headPointId;
+    const payload = (rows[0]?.payload ?? {}) as Record<string, unknown>;
+    const adapter = payload['adapter'] as { id?: string; name?: string } | undefined;
+    const adapterId = typeof adapter?.id === 'string' && adapter.id.length > 0 ? adapter.id : headPointId;
+    const adapterName =
+      typeof adapter?.name === 'string' && adapter.name.trim().length > 0
+        ? adapter.name.trim()
+        : await resolveAdapterNameByAdapterId(client, collectionName, adapterId);
+    return { adapterId, adapterName };
   }
   const rows = await client.retrieve(collectionName, { ids: [parsed.id], with_payload: true });
+  let adapterNameFromRow: string | null = null;
   if (Array.isArray(rows) && rows.length > 0) {
-    const adapter = (rows[0]?.payload as { adapter?: { id?: string } } | undefined)?.adapter;
-    if (typeof adapter?.id === 'string' && adapter.id.length > 0) return adapter.id;
+    const payload = (rows[0]?.payload ?? {}) as Record<string, unknown>;
+    const adapter = payload['adapter'] as { id?: string; name?: string } | undefined;
+    if (typeof adapter?.name === 'string' && adapter.name.trim().length > 0) {
+      adapterNameFromRow = adapter.name.trim();
+    }
+    if (typeof adapter?.id === 'string' && adapter.id.length > 0) {
+      const adapterName = adapterNameFromRow ?? await resolveAdapterNameByAdapterId(client, collectionName, adapter.id);
+      return { adapterId: adapter.id, adapterName };
+    }
   }
-  return parsed.id;
+  const adapterName = adapterNameFromRow ?? await resolveAdapterNameByAdapterId(client, collectionName, parsed.id);
+  return { adapterId: parsed.id, adapterName };
+}
+
+interface ExistingArtifactPoint {
+  id: string;
+  payload: Record<string, unknown>;
+}
+
+async function listExistingArtifactPoints(
+  client: QdrantClient,
+  collection: string,
+  spaceId: string,
+  adapterId: string
+): Promise<ExistingArtifactPoint[]> {
+  const filter = buildSpaceFilter(getSearchSpaceIds(), {
+    must: [
+      { key: 'space_id', match: { value: spaceId } },
+      { key: 'adapter.id', match: { value: adapterId } },
+      { key: 'content_type', match: { any: [...ALLOWED_ARTIFACT_MIMES] } }
+    ]
+  });
+  const points: ExistingArtifactPoint[] = [];
+  let offset: unknown = undefined;
+  do {
+    const page = await client.scroll(collection, {
+      filter,
+      limit: 128,
+      offset,
+      with_payload: true,
+      with_vector: false
+    } as any);
+    const rows = Array.isArray(page.points) ? page.points : [];
+    for (const row of rows) {
+      points.push({
+        id: String(row.id),
+        payload: (row.payload ?? {}) as Record<string, unknown>
+      });
+    }
+    offset = page.next_page_offset;
+  } while (offset);
+  return points;
 }
 
 export async function storeArtifact(
@@ -87,12 +175,12 @@ export async function storeArtifact(
   if (parsed.kind !== 'adapter') {
     throw new Error('adapterUri must be a kairos://adapter/{slug|uuid} URI');
   }
-  const adapterId = await resolveChainAdapterIdForArtifacts(client, collection, parsed);
-  const slugSource =
+  const { adapterId, adapterName } = await resolveChainAdapterIdForArtifacts(client, collection, parsed);
+  const slugSourceInput =
     typeof options.relativePath === 'string' && options.relativePath.trim().length > 0
       ? options.relativePath.trim()
       : options.name;
-  const artifact = extractArtifactMetadata(content, slugSource);
+  const artifact = extractArtifactMetadata(content, slugSourceInput);
   const sha256 = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
   const vectorSize = getEmbeddingDimension();
   const zeroVector = Array.from({ length: vectorSize }, () => 0);
@@ -100,24 +188,34 @@ export async function storeArtifact(
   const spaceId = context.defaultWriteSpaceId;
   const actorId = context.userId || 'system';
   const now = new Date().toISOString();
-  const memoryUuid = crypto.randomUUID();
-  const tags = ['artifact', options.mime.replace('text/', ''), `artifact:${artifact.slug}`];
-
-  const duplicate = await client.scroll(collection, {
-    filter: {
-      must: [
-        { key: 'space_id', match: { value: spaceId } },
-        { key: 'adapter.id', match: { value: adapterId } },
-        { key: 'artifact.slug', match: { value: artifact.slug } }
-      ]
-    },
-    limit: 2,
-    with_payload: true,
-    with_vector: false
+  const normalizedArtifactName = options.name.trim().toLowerCase();
+  const existingPoints = await listExistingArtifactPoints(client, collection, spaceId, adapterId);
+  const matchingPoints = existingPoints.filter((point) => {
+    const artifactPayload = (point.payload['artifact'] ?? {}) as Record<string, unknown>;
+    const existingSlug =
+      typeof artifactPayload['slug'] === 'string' ? artifactPayload['slug'].trim().toLowerCase() : '';
+    const existingName =
+      typeof artifactPayload['name'] === 'string' ? artifactPayload['name'].trim().toLowerCase() : '';
+    if (artifact.slug_source === 'header') {
+      return existingSlug === artifact.slug.toLowerCase();
+    }
+    return existingName === normalizedArtifactName || existingSlug === artifact.slug.toLowerCase();
   });
-  if (Array.isArray(duplicate.points) && duplicate.points.length > 0) {
-    throw new Error(`Artifact slug "${artifact.slug}" already exists on this adapter`);
+  matchingPoints.sort((a, b) => a.id.localeCompare(b.id));
+  if (matchingPoints.length > 0 && !options.forceUpdate) {
+    throw new Error(`Artifact "${options.name}" already exists on this adapter`);
   }
+  const existingPoint = options.forceUpdate ? matchingPoints[0] : undefined;
+  const existingCreatedAt =
+    typeof existingPoint?.payload['created_at'] === 'string' && existingPoint.payload['created_at'].trim().length > 0
+      ? existingPoint.payload['created_at'].trim()
+      : now;
+  const existingCreatedBy =
+    typeof existingPoint?.payload['created_by'] === 'string' && existingPoint.payload['created_by'].trim().length > 0
+      ? existingPoint.payload['created_by'].trim()
+      : actorId;
+  const memoryUuid = existingPoint?.id ?? crypto.randomUUID();
+  const tags = ['artifact', options.mime.replace('text/', ''), `artifact:${artifact.slug}`];
 
   const sparseText = `${options.name}\n${artifact.slug}\n${content.slice(0, 4096)}`;
   const bm25 = bm25Tokenizer.tokenize(sparseText);
@@ -138,8 +236,8 @@ export async function storeArtifact(
       tags,
       text: content,
       llm_model_id: options.llmModelId,
-      created_at: now,
-      created_by: actorId,
+      created_at: existingCreatedAt,
+      created_by: existingCreatedBy,
       modified_at: now,
       modified_by: actorId,
       content_type: options.mime,
@@ -154,7 +252,7 @@ export async function storeArtifact(
       },
       adapter: {
         id: adapterId,
-        name: options.name
+        name: adapterName ?? options.name
       }
     }
   };
@@ -194,7 +292,7 @@ export async function storeArtifact(
     },
     adapter: {
       id: adapterId,
-      name: options.name,
+      name: adapterName ?? options.name,
       layer_index: 0,
       layer_count: 0
     }

@@ -141,6 +141,23 @@ Done.`;
       : [];
     expect(labels.some((l: string) => l.includes(artifactName))).toBe(false);
 
+    const activateParent = await mcpConnection.client.callTool({
+      name: 'activate',
+      arguments: { query: `Artifact Parent ${ts}` }
+    });
+    const activateParentParsed = parseMcpJson(activateParent, 'activate parent artifact');
+    const parentMatch = Array.isArray(activateParentParsed.choices)
+      ? activateParentParsed.choices.find(
+          (choice: any) => choice?.role === 'match' && String(choice?.adapter_name ?? '') === `Artifact Parent ${ts}`
+        )
+      : null;
+    expect(parentMatch).toBeDefined();
+    expect(Array.isArray(parentMatch?.linked_artifacts)).toBe(true);
+    const linked = parentMatch?.linked_artifacts?.[0];
+    expect(linked?.filename).toBe(artifactName);
+    expect(String(linked?.download_url ?? '')).toContain('/export/artifact/');
+    expect(String(linked?.materialize ?? '')).toContain('sha256sum -c');
+
     const exportMarkdown = await mcpConnection.client.callTool({
       name: 'export',
       arguments: { uri: adapterUri, format: 'markdown' }
@@ -195,5 +212,100 @@ Done.`;
           a.sha256.length > 0
       )
     ).toBe(true);
+  }, 60000);
+
+  test('artifact MIME inference + force_update keeps single point and parent adapter name', async () => {
+    const ts = Date.now().toString();
+    const adapterSlug = `artifact-parent-force-${ts}`;
+    const adapterTitle = `Artifact Parent Force ${ts}`;
+    const artifactName = `helper-${ts}.py`;
+    const artifactBodyV1 = `print("v1-${ts}")`;
+    const artifactBodyV2 = `print("v2-${ts}")`;
+
+    const adapterMarkdown = `---
+slug: ${adapterSlug}
+---
+
+# ${adapterTitle}
+
+## Activation Patterns
+Run when user asks for force-update artifact test.
+
+## Step 1
+Parent step.
+
+\`\`\`json
+{"contract":{"type":"comment","description":"parent"}}
+\`\`\`
+
+## Reward Signal
+Done.`;
+
+    const trainAdapter = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        content: adapterMarkdown,
+        llm_model_id: 'test-model',
+        force_update: true
+      }
+    });
+    const adapterParsed = parseMcpJson(trainAdapter, 'train adapter force');
+    expect(adapterParsed.status).toBe('stored');
+
+    const trainArtifactV1 = await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        content: artifactBodyV1,
+        llm_model_id: 'test-model',
+        artifact_name: artifactName,
+        adapter_uri: `kairos://adapter/${adapterSlug}`,
+        relative_path: `scripts/${artifactName}`
+      }
+    });
+    const artifactV1 = parseMcpJson(trainArtifactV1, 'train artifact v1 inferred');
+    expect(artifactV1.status).toBe('stored');
+    expect(artifactV1.items?.[0]?.content_type).toBe('text/x-python');
+
+    await mcpConnection.client.callTool({
+      name: 'train',
+      arguments: {
+        content: artifactBodyV2,
+        llm_model_id: 'test-model',
+        artifact_name: artifactName,
+        adapter_uri: `kairos://adapter/${adapterSlug}`,
+        force_update: true
+      }
+    });
+
+    const qdrantPoint = await postJson<{
+      result?: { points?: Array<{ id?: string | number; payload?: Record<string, unknown> }> };
+    }>(`${QDRANT_URL}/collections/${QDRANT_COLLECTION}/points/scroll`, {
+      filter: {
+        must: [
+          { key: 'content_type', match: { value: 'text/x-python' } },
+          { key: 'artifact.name', match: { value: artifactName } }
+        ]
+      },
+      limit: 20,
+      with_payload: true
+    });
+    const points = (qdrantPoint.result?.points ?? []).filter((point) => {
+      const payload = (point.payload ?? {}) as Record<string, unknown>;
+      const adapter = payload['adapter'] as Record<string, unknown> | undefined;
+      return typeof adapter?.['id'] === 'string';
+    });
+    const matches = points.filter((point) => {
+      const payload = (point.payload ?? {}) as Record<string, unknown>;
+      const adapter = payload['adapter'] as Record<string, unknown> | undefined;
+      const artifact = payload['artifact'] as Record<string, unknown> | undefined;
+      return (
+        adapter?.['id'] !== undefined &&
+        artifact?.['name'] === artifactName &&
+        String(adapter?.['name'] ?? '') === adapterTitle
+      );
+    });
+    expect(matches.length).toBe(1);
+    const matchedPayload = (matches[0]?.payload ?? {}) as Record<string, unknown>;
+    expect(matchedPayload['text']).toBe(artifactBodyV2);
   }, 60000);
 });

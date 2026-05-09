@@ -12,10 +12,14 @@ export function setupSpacesRoute(app: express.Express, memoryStore: MemoryQdrant
   app.post("/api/spaces", async (req, res) => {
     try {
       structuredLogger.info("-> POST /api/spaces");
-      const body = (req.body ?? {}) as { include_adapter_titles?: boolean };
+      const body = (req.body ?? {}) as { include_adapter_titles?: boolean; include_artifacts?: boolean };
       const includeAdapterTitles = Boolean(body.include_adapter_titles);
+      const includeArtifacts = Boolean(body.include_artifacts);
       const payload = await runHttpApiWithSpaceContext(req, () =>
-        executeSpaces(memoryStore, { include_adapter_titles: includeAdapterTitles })
+        executeSpaces(memoryStore, {
+          include_adapter_titles: includeAdapterTitles || includeArtifacts,
+          include_artifacts: includeArtifacts
+        })
       );
       res.status(200).json(payload);
     } catch (error: unknown) {

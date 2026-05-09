@@ -5,6 +5,7 @@ import { getTenantId, getSpaceContext, getSearchSpaceIds } from '../../utils/ten
 import { buildAdapterSiblingScrollFilter, buildSpaceFilter } from '../../utils/space-filter.js';
 import { KAIROS_APP_SPACE_ID } from '../../config.js';
 import { structuredLogger } from '../../utils/structured-logger.js';
+import { ALLOWED_ARTIFACT_MIMES } from '../../tools/artifact-mime.js';
 
 /**
  * Retrieval helpers
@@ -167,15 +168,7 @@ export async function getAdapterLayers(
         {
           key: 'content_type',
           match: {
-            any: [
-              'text/x-python',
-              'text/x-shellscript',
-              'text/javascript',
-              'text/x-perl',
-              'text/x-toml',
-              'text/yaml',
-              'text/plain'
-            ]
+            any: [...ALLOWED_ARTIFACT_MIMES]
           }
         }
       ]

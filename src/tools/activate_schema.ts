@@ -18,6 +18,17 @@ const forwardFirstCallSchema = z
     uri: adapterSlugUriSchema
   })
   .strict();
+const linkedArtifactSchema = z
+  .object({
+    slug: z.string(),
+    filename: z.string(),
+    relative_path: z.string().nullable(),
+    download_url: z.string(),
+    sha256: z.string(),
+    content_type: z.string(),
+    materialize: z.string().describe('Shell command to download + verify this artifact into $KAIROS_LOCAL_ARTIFACT_DIR')
+  })
+  .strict();
 const activateChoiceCommonSchema = z.object({
   uri: adapterUriSchema,
   label: z.string().describe('Display label for the adapter choice'),
@@ -40,7 +51,8 @@ const activateChoiceCommonSchema = z.object({
 });
 const activateMatchChoiceSchema = activateChoiceCommonSchema.extend({
   role: z.literal('match'),
-  forward_first_call: forwardFirstCallSchema
+  forward_first_call: forwardFirstCallSchema,
+  linked_artifacts: z.array(linkedArtifactSchema).optional()
 });
 const activateRefineChoiceSchema = activateChoiceCommonSchema.extend({
   role: z.literal('refine'),
@@ -92,4 +104,3 @@ export const activateOutputSchema = z.object({
 
 export type ActivateInput = z.infer<typeof activateInputSchema>;
 export type ActivateOutput = z.infer<typeof activateOutputSchema>;
-

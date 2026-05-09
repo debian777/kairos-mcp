@@ -1,21 +1,34 @@
 import { z } from 'zod';
 import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
 import { ADAPTER_SLUG_URI_INPUT_REGEX } from './kairos-uri.js';
+import { inferArtifactMimeFromName } from './artifact-mime.js';
 
 function refineTrainRelativePath(
-  value: { mime?: string | undefined; relative_path?: string | undefined },
+  value: {
+    mime?: string | undefined;
+    relative_path?: string | undefined;
+    artifact_name?: string | undefined;
+    adapter_uri?: string | undefined;
+  },
   ctx: z.RefinementCtx
 ): void {
   const mime = typeof value.mime === 'string' ? value.mime.trim() : '';
+  const artifactName = typeof value.artifact_name === 'string' ? value.artifact_name.trim() : '';
+  const adapterUri = typeof value.adapter_uri === 'string' ? value.adapter_uri.trim() : '';
+  const inferredMime = mime.length === 0 ? inferArtifactMimeFromName(artifactName) : null;
+  const artifactMode =
+    (mime.length > 0 && mime !== 'text/markdown') ||
+    (mime.length === 0 && artifactName.length > 0 && adapterUri.length > 0 && typeof inferredMime === 'string');
   const rawRp = typeof value.relative_path === 'string' ? value.relative_path.trim() : '';
   if (!rawRp) {
     return;
   }
-  if (!mime || mime === 'text/markdown') {
+  if (!artifactMode) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['relative_path'],
-      message: 'relative_path is only allowed when mime is a non-markdown artifact type'
+      message:
+        'relative_path is only allowed for artifact train rows (non-markdown mime or inferable artifact_name extension)'
     });
     return;
   }
@@ -57,12 +70,12 @@ export const trainInputSchema = z
       .string()
       .optional()
       .describe(
-        'Content MIME type. Omit or set "text/markdown" for adapters. Use text/x-python, text/x-shellscript, etc. for artifacts.'
+        'Content MIME type. Omit or set "text/markdown" for adapters. For artifacts this is optional when artifact_name has a recognized extension (.py, .sh, .js, .toml, .yaml, .yml, .txt).'
       ),
     artifact_name: z
       .string()
       .optional()
-      .describe('Required when mime is non-markdown. Human-readable artifact name.')
+      .describe('Artifact file name. Required for artifact mode and MIME inference.')
     ,
     adapter_uri: adapterUriSchema
       .optional()
@@ -86,6 +99,9 @@ export const trainInputSchema = z
     }
 
     const mime = typeof value.mime === 'string' ? value.mime.trim() : '';
+    const artifactName = typeof value.artifact_name === 'string' ? value.artifact_name.trim() : '';
+    const adapterUri = typeof value.adapter_uri === 'string' ? value.adapter_uri.trim() : '';
+
     if (mime.length > 0 && mime !== 'text/markdown') {
       if (!value.artifact_name?.trim()) {
         ctx.addIssue({
@@ -101,6 +117,38 @@ export const trainInputSchema = z
           message: 'adapter_uri is required when mime is non-markdown'
         });
       }
+    } else if (mime.length === 0 && (artifactName.length > 0 || adapterUri.length > 0)) {
+      if (artifactName.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['artifact_name'],
+          message: 'artifact_name is required for artifact inference when adapter_uri is provided'
+        });
+      }
+      if (adapterUri.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['adapter_uri'],
+          message: 'adapter_uri is required when training an artifact'
+        });
+      }
+      if (artifactName.length > 0 && adapterUri.length > 0) {
+        const inferred = inferArtifactMimeFromName(artifactName);
+        if (!inferred) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mime'],
+            message:
+              'mime is required when artifact_name extension is unknown (for example use .py, .sh, .js, .toml, .yaml, .yml, .txt)'
+          });
+        }
+      }
+    } else if (mime === 'text/markdown' && (artifactName.length > 0 || adapterUri.length > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mime'],
+        message: 'artifact fields are only valid when mime is a non-markdown artifact type'
+      });
     }
 
     refineTrainRelativePath(value, ctx);

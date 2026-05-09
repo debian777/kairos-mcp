@@ -38,7 +38,7 @@ type SpacesOutput = {
         space_id: string;
         type: 'personal' | 'group' | 'app' | 'other';
         adapter_count: number;
-        adapters?: Array<{ adapter_id: string; title: string; layer_count: number }>;
+        adapters?: Array<{ adapter_id: string; title: string; layer_count: number; artifacts?: Array<{ name: string; slug: string; uri: string; uuid_uri: string; content_type: string; sha256: string; relative_path: string | null }> }>;
     }>;
 };
 
@@ -297,6 +297,10 @@ export class ApiClient {
         source_adapter_uri?: string;
         content?: string;
         protocol_version?: string;
+        mime?: string;
+        artifact_name?: string;
+        adapter_uri?: string;
+        relative_path?: string;
     }): Promise<TrainOutput> {
         return this.request<TrainOutput>('/api/train', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     }
@@ -305,9 +309,10 @@ export class ApiClient {
         return this.request<DeleteOutput>('/api/delete', { method: 'POST', body: JSON.stringify({ uris }) });
     }
 
-    async spaces(options?: { include_adapter_titles?: boolean }): Promise<SpacesOutput> {
+    async spaces(options?: { include_adapter_titles?: boolean; include_artifacts?: boolean }): Promise<SpacesOutput> {
         const body: Record<string, unknown> = {};
         if (options?.include_adapter_titles === true) body['include_adapter_titles'] = true;
+        if (options?.include_artifacts === true) body['include_artifacts'] = true;
         return this.request<SpacesOutput>('/api/spaces', { method: 'POST', body: JSON.stringify(body) });
     }
 

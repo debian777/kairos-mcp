@@ -162,7 +162,19 @@ describe('activateOutputSchema slug field', () => {
           slug: matchSlug,
           forward_first_call: {
             uri: `kairos://adapter/${matchSlug}`
-          }
+          },
+          linked_artifacts: [
+            {
+              slug: 'helper-py',
+              filename: 'helper.py',
+              relative_path: 'artifacts/helper.py',
+              download_url: 'https://example.test/export/artifact/token',
+              sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              content_type: 'text/x-python',
+              materialize:
+                'curl -fsSL https://example.test/export/artifact/token -o "$KAIROS_LOCAL_ARTIFACT_DIR/artifacts/helper.py"'
+            }
+          ]
         },
         {
           uri: 'kairos://adapter/refine-search',

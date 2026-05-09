@@ -45,7 +45,7 @@ describe('CLI usage help', () => {
       expect(stderr).toContain("error: unknown option '--modl'");
       expect(stderr).toContain('(Did you mean --model?)');
       expect(stderr).toContain('Usage: kairos train [options] [path]');
-      expect(stderr).toContain('markdown file');
+      expect(stderr).toContain('markdown/artifact file');
     }
   });
 });

@@ -1,20 +1,15 @@
 /**
  * CLI `train` command (single file or directory batch).
- *
- * TODO(artifact-cli-train): CLI currently accepts only markdown inputs.
- * Add non-markdown artifact ingest (`--mime`, `--artifact-name`,
- * `--relative-path` and/or skill-directory walker) for full parity with API/MCP.
- * See docs/specs/artifact-export-parity-spec.md (manifest:
- * tests/test-data/mime-artifact-sample/artifact-contract.json).
  */
 
 import { Command } from 'commander';
-import { readdirSync, statSync } from 'fs';
-import { join, relative, resolve } from 'path';
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync, statSync } from 'fs';
+import { basename, join, relative, resolve } from 'path';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
 import { readMarkdownUploadFromFile } from '../upload-guards.js';
 import { createClientFromProgram } from '../client-factory.js';
+import { inferArtifactMimeFromName } from '../../tools/artifact-mime.js';
 
 /** Directory batch skips `README.md` (human docs); single-file `train path/to/README.md` still works. */
 function isReadmeMarkdownFileName(name: string): boolean {
@@ -46,13 +41,25 @@ function listMarkdownFiles(dir: string, recursive: boolean): string[] {
   return out.sort((a, b) => relative(base, a).localeCompare(relative(base, b)));
 }
 
+function readUtf8RegularFile(absPath: string): string {
+  const fd = openSync(absPath, 'r');
+  try {
+    if (!fstatSync(fd).isFile()) {
+      throw Object.assign(new Error('Path is not a regular file'), { code: 'ENOTREG' });
+    }
+    return readFileSync(fd, 'utf8');
+  } finally {
+    closeSync(fd);
+  }
+}
+
 export function trainCliCommand(program: Command): void {
   program
     .command('train')
-    .description('Register a new KAIROS adapter from markdown (file or directory of .md files)')
+    .description('Register a new KAIROS adapter from markdown, or attach a text artifact to an adapter')
     .argument(
       '[path]',
-      'Path to a markdown file or a directory of .md files (omit when using --source-adapter-uri)'
+      'Path to a markdown/artifact file, or a directory of .md files (omit when using --source-adapter-uri)'
     )
     .option('--model <model>', 'LLM model ID for attribution (e.g., "gpt-4", "claude-3")')
     .option('--force', 'Force update if an adapter with the same label already exists')
@@ -62,6 +69,10 @@ export function trainCliCommand(program: Command): void {
       'Fork from an existing adapter via POST /api/train (requires --model); optional --space for target space'
     )
     .option('--space <space>', 'Target space for train or fork (personal or group display name)')
+    .option('--adapter <uri>', 'Artifact mode: parent adapter URI (kairos://adapter/{slug})')
+    .option('--artifact-name <name>', 'Artifact mode: artifact filename override (defaults to input basename)')
+    .option('--mime <mime>', 'Artifact mode: MIME override (otherwise inferred from filename extension)')
+    .option('--relative-path <path>', 'Artifact mode: optional skill-root-relative path for export bundles')
     .option('--allow-sensitive-upload', 'Allow uploads that contain token-like or private-key-like text')
     .action(
       async (
@@ -73,6 +84,10 @@ export function trainCliCommand(program: Command): void {
           allowSensitiveUpload?: boolean;
           sourceAdapterUri?: string;
           space?: string;
+          adapter?: string;
+          artifactName?: string;
+          mime?: string;
+          relativePath?: string;
         }
       ) => {
         try {
@@ -122,6 +137,16 @@ export function trainCliCommand(program: Command): void {
           }
 
           if (st.isDirectory()) {
+            if (
+              typeof options.adapter === 'string' ||
+              typeof options.artifactName === 'string' ||
+              typeof options.mime === 'string' ||
+              typeof options.relativePath === 'string'
+            ) {
+              writeError('Artifact flags (--adapter/--artifact-name/--mime/--relative-path) are only supported for single-file train');
+              process.exit(1);
+              return;
+            }
             const files = listMarkdownFiles(abs, Boolean(options.recursive));
             if (files.length === 0) {
               writeError('No .md files found in directory');
@@ -160,6 +185,74 @@ export function trainCliCommand(program: Command): void {
           if (!st.isFile()) {
             writeError(`Not a regular file: ${target}`);
             process.exit(1);
+          }
+
+          const explicitMime = typeof options.mime === 'string' ? options.mime.trim() : '';
+          const inferredFileMime = inferArtifactMimeFromName(basename(abs));
+          const hasArtifactFlags =
+            typeof options.adapter === 'string' ||
+            typeof options.artifactName === 'string' ||
+            typeof options.mime === 'string' ||
+            typeof options.relativePath === 'string';
+          const inferredArtifactByExt =
+            explicitMime.length === 0 && inferredFileMime !== null && !abs.toLowerCase().endsWith('.md');
+          const isArtifactMode =
+            hasArtifactFlags ||
+            (explicitMime.length > 0 && explicitMime !== 'text/markdown') ||
+            inferredArtifactByExt;
+
+          if (isArtifactMode) {
+            const adapterUri = typeof options.adapter === 'string' ? options.adapter.trim() : '';
+            if (!adapterUri) {
+              writeError('Artifact mode requires --adapter kairos://adapter/{slug}');
+              process.exit(1);
+              return;
+            }
+            const model = options.model?.trim();
+            if (!model) {
+              writeError('--model is required for artifact mode');
+              process.exit(1);
+              return;
+            }
+            const artifactName =
+              typeof options.artifactName === 'string' && options.artifactName.trim().length > 0
+                ? options.artifactName.trim()
+                : basename(abs);
+            const artifactMime = explicitMime || inferArtifactMimeFromName(artifactName);
+            if (!artifactMime) {
+              writeError('Cannot infer artifact MIME from filename; pass --mime explicitly');
+              process.exit(1);
+              return;
+            }
+            const content = readUtf8RegularFile(abs);
+            const payload: Record<string, unknown> = {
+              llm_model_id: model,
+              content,
+              force_update: Boolean(options.force),
+              mime: artifactMime,
+              artifact_name: artifactName,
+              adapter_uri: adapterUri
+            };
+            if (typeof options.space === 'string' && options.space.trim().length > 0) {
+              payload['space'] = options.space.trim();
+            }
+            if (typeof options.relativePath === 'string' && options.relativePath.trim().length > 0) {
+              payload['relative_path'] = options.relativePath.trim();
+            }
+            const response = await client.trainJson(payload as {
+              llm_model_id: string;
+              force_update?: boolean;
+              space?: string;
+              source_adapter_uri?: string;
+              content?: string;
+              protocol_version?: string;
+              mime?: string;
+              artifact_name?: string;
+              adapter_uri?: string;
+              relative_path?: string;
+            });
+            writeJson(response);
+            return;
           }
 
           const markdown = readMarkdownUploadFromFile(abs, 'train', Boolean(options.allowSensitiveUpload));

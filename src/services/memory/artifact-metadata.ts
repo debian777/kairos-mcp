@@ -3,6 +3,7 @@ const ARTIFACT_SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 export interface ArtifactMetadata {
   slug: string;
   version: string;
+  slug_source: 'header' | 'name';
 }
 
 function normalizeArtifactSlug(raw: string): string {
@@ -62,6 +63,7 @@ function parseTopHeader(content: string): { slug?: string; version?: string } {
 
 export function extractArtifactMetadata(content: string, artifactName: string): ArtifactMetadata {
   const parsed = parseTopHeader(content);
+  const slugSource = parsed.slug ? 'header' : 'name';
   const slug = normalizeArtifactSlug(parsed.slug ?? deriveSlugFromArtifactName(artifactName));
   if (!ARTIFACT_SLUG_REGEX.test(slug)) {
     throw new Error(`Invalid artifact slug "${slug}". Use lowercase letters, numbers, and hyphens.`);
@@ -69,6 +71,7 @@ export function extractArtifactMetadata(content: string, artifactName: string): 
   const version = parsed.version && parsed.version.trim().length > 0 ? parsed.version.trim() : '1';
   return {
     slug,
-    version
+    version,
+    slug_source: slugSource
   };
 }
