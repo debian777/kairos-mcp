@@ -10,6 +10,7 @@ import { KAIROS_CREATION_PROTOCOL_SLUG } from '../constants/builtin-search-meta.
 import { assertWireAdapterUri, buildAdapterUri, buildLayerUri, parseKairosUri } from './kairos-uri.js';
 import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
 import { resolveTrainOutputAdapterUri } from './train-output-adapter-uri.js';
+import { resolveTrainMime } from './train-mime.js';
 import {
   trainInputSchema,
   trainOutputSchema,
@@ -142,7 +143,8 @@ export async function executeTrain(
       must_obey: true
     });
   }
-  const isArtifactTrain = typeof input.mime === 'string' && input.mime.trim().length > 0 && input.mime !== 'text/markdown';
+  const resolvedMime = resolveTrainMime(input);
+  const isArtifactTrain = typeof resolvedMime === 'string' && resolvedMime !== 'text/markdown';
   const canonicalAdapterUri = isArtifactTrain
     ? await resolveCanonicalAdapterUriForArtifact(input.adapter_uri, qdrantService)
     : input.adapter_uri;
@@ -157,7 +159,7 @@ export async function executeTrain(
     force_update: input.force_update,
     ...(input.protocol_version !== undefined && { protocol_version: input.protocol_version }),
     ...(input.space !== undefined && { space: input.space }),
-    ...(input.mime !== undefined && { mime: input.mime }),
+    ...(resolvedMime !== undefined && { mime: resolvedMime }),
     ...(input.artifact_name !== undefined && { artifact_name: input.artifact_name }),
     ...(canonicalAdapterUri !== undefined && { adapter_uri: canonicalAdapterUri }),
     ...(forkedFromSource && { fork_new_adapter: true }),
@@ -341,4 +343,3 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
     }
   );
 }
-

@@ -9,16 +9,12 @@ import {
 import type { TrainStoreInput, TrainStoreOutput } from './train_schema.js';
 import { buildAdapterUri, buildLayerUri } from './kairos-uri.js';
 import { KAIROS_CREATION_PROTOCOL_SLUG } from '../constants/builtin-search-meta.js';
-
-const ALLOWED_ARTIFACT_MIMES = new Set([
-  'text/x-python',
-  'text/x-shellscript',
-  'text/javascript',
-  'text/x-perl',
-  'text/x-toml',
-  'text/yaml',
-  'text/plain'
-]);
+import {
+  ALLOWED_ARTIFACT_MIMES,
+  inferArtifactMimeFromName,
+  isAllowedArtifactMime,
+  normalizeArtifactMime
+} from './artifact-mime.js';
 
 /** Fork export includes `slug:` in YAML; same author slug in target space collides — allocate fresh. */
 function markdownWithoutAuthorSlugForFork(markdown: string): string {
@@ -53,11 +49,21 @@ export async function executeTrainStore(
   input: TrainStoreInput,
   runStore: (fn: () => Promise<Memory[]>) => Promise<Memory[]>
 ): Promise<TrainStoreOutput> {
-  const mime = input.mime?.trim();
-  const isArtifact = !!mime && mime !== 'text/markdown';
+  const explicitMime = input.mime?.trim();
+  const inferredMime =
+    (!explicitMime || explicitMime.length === 0) &&
+    typeof input.artifact_name === 'string' &&
+    input.artifact_name.trim().length > 0 &&
+    typeof input.adapter_uri === 'string' &&
+    input.adapter_uri.trim().length > 0
+      ? inferArtifactMimeFromName(input.artifact_name.trim())
+      : null;
+  const effectiveMime = explicitMime && explicitMime.length > 0 ? explicitMime : inferredMime ?? undefined;
+  const normalizedMime = typeof effectiveMime === 'string' ? normalizeArtifactMime(effectiveMime) : undefined;
+  const isArtifact = !!normalizedMime && normalizedMime !== 'text/markdown';
   if (isArtifact) {
-    if (!ALLOWED_ARTIFACT_MIMES.has(mime)) {
-      throw new TrainError('UNSUPPORTED_MIME', `Mime type "${mime}" is not in the allowlist`, {
+    if (!normalizedMime || !isAllowedArtifactMime(normalizedMime)) {
+      throw new TrainError('UNSUPPORTED_MIME', `Mime type "${effectiveMime ?? ''}" is not in the allowlist`, {
         allowed: [...ALLOWED_ARTIFACT_MIMES]
       });
     }
@@ -67,7 +73,7 @@ export async function executeTrainStore(
     }
     const memories = await runStore(() =>
       memoryStore.storeArtifact(input.content, {
-        mime,
+        mime: normalizedMime,
         name: input.artifact_name!,
         adapterUri: input.adapter_uri!,
         llmModelId: input.llm_model_id,
@@ -85,7 +91,7 @@ export async function executeTrainStore(
         adapter_uri: input.adapter_uri!,
         label: memory.label,
         tags: memory.tags,
-        content_type: mime
+        content_type: normalizedMime
       })),
       status: 'stored'
     };

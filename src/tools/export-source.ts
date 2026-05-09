@@ -2,16 +2,7 @@ import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { parseKairosUri } from './kairos-uri.js';
 import type { ExportOutput } from './export_schema.js';
-
-const ALLOWED_ARTIFACT_MIMES = [
-  'text/x-python',
-  'text/x-shellscript',
-  'text/javascript',
-  'text/x-perl',
-  'text/x-toml',
-  'text/yaml',
-  'text/plain'
-] as const;
+import { listAdapterArtifacts } from './artifact-catalog.js';
 
 interface ArtifactUriResolution {
   requestedUri: string;
@@ -59,7 +50,6 @@ async function sourceFromMemory(memoryStore: MemoryQdrantStore, uri: string, mem
 }
 
 async function sourceListForAdapter(memoryStore: MemoryQdrantStore, uri: string, adapterId: string): Promise<ExportOutput> {
-  const { client, collection } = memoryStore.getQdrantAccess();
   const artifacts: Array<{
     uri: string;
     uuid_uri: string;
@@ -71,54 +61,24 @@ async function sourceListForAdapter(memoryStore: MemoryQdrantStore, uri: string,
     name: string;
     content_type: string;
     tags: string[];
+    relative_path: string | null;
   }> = [];
-  let offset: string | number | undefined;
-  do {
-    const page = await client.scroll(collection, {
-      filter: {
-        must: [
-          { key: 'adapter.id', match: { value: adapterId } },
-          { key: 'content_type', match: { any: [...ALLOWED_ARTIFACT_MIMES] } }
-        ]
-      },
-      limit: 256,
-      ...(offset !== undefined ? { offset } : {}),
-      with_payload: true,
-      with_vector: false
+  const rows = await listAdapterArtifacts(memoryStore, adapterId);
+  for (const row of rows) {
+    artifacts.push({
+      uri: `kairos://artifact/${row.slug}`,
+      uuid_uri: `kairos://artifact/${row.artifact_uuid}`,
+      artifact_uuid: row.artifact_uuid,
+      label: row.label,
+      slug: row.slug,
+      version: row.version,
+      sha256: row.sha256,
+      name: row.name,
+      content_type: row.content_type,
+      tags: row.tags,
+      relative_path: row.relative_path
     });
-    const points = Array.isArray(page?.points) ? page.points : [];
-    for (const point of points) {
-      const payload = (point?.payload ?? {}) as Record<string, unknown>;
-      const idRaw = point?.id;
-      const id = typeof idRaw === 'string' ? idRaw : typeof idRaw === 'number' ? String(idRaw) : '';
-      if (!id) continue;
-      const artifactPayload = (payload['artifact'] ?? {}) as Record<string, unknown>;
-      const slug = typeof artifactPayload['slug'] === 'string' && artifactPayload['slug'].trim().length > 0
-        ? artifactPayload['slug']
-        : id;
-      const version = typeof artifactPayload['version'] === 'string' && artifactPayload['version'].trim().length > 0
-        ? artifactPayload['version']
-        : '1';
-      const sha256 = typeof artifactPayload['sha256'] === 'string' ? artifactPayload['sha256'] : '';
-      const name = typeof artifactPayload['name'] === 'string' && artifactPayload['name'].trim().length > 0
-        ? artifactPayload['name']
-        : (typeof payload['label'] === 'string' ? payload['label'] : id);
-      artifacts.push({
-        uri: `kairos://artifact/${slug}`,
-        uuid_uri: `kairos://artifact/${id}`,
-        artifact_uuid: id,
-        label: typeof payload['label'] === 'string' ? payload['label'] : id,
-        slug,
-        version,
-        sha256,
-        name,
-        content_type: typeof payload['content_type'] === 'string' ? payload['content_type'] : 'text/plain',
-        tags: Array.isArray(payload['tags']) ? payload['tags'].map((t) => String(t)) : []
-      });
-    }
-    const nextOffset = page?.next_page_offset;
-    offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : undefined;
-  } while (offset !== null && offset !== undefined);
+  }
 
   return {
     uri,

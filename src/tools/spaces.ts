@@ -18,6 +18,7 @@ import { spacesInputSchema, spacesOutputSchema } from './spaces_schema.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { renderSpacesWidgetHtml } from '../mcp-apps/spaces-widget-html.js';
+import { isAllowedArtifactMime } from './artifact-mime.js';
 
 const DEFAULT_TOOL_NAME = 'spaces';
 const SCROLL_LIMIT = 2000;
@@ -28,6 +29,15 @@ interface AdapterInfo {
   layer_count: number;
   slug: string | null;
   uri: string;
+  artifacts?: Array<{
+    name: string;
+    slug: string;
+    uri: string;
+    uuid_uri: string;
+    content_type: string;
+    sha256: string;
+    relative_path: string | null;
+  }>;
 }
 
 export interface SpaceInfo {
@@ -74,6 +84,7 @@ function buildSpaceInfo(
   spaceId: string,
   points: Array<{ id: string; payload?: Record<string, unknown> }>,
   includeAdapterTitles: boolean,
+  includeArtifacts: boolean,
   spaceNamesById: Record<string, string> | undefined
 ): SpaceInfo {
   const name = spaceIdToDisplayName(spaceId, spaceNamesById);
@@ -115,7 +126,48 @@ function buildSpaceInfo(
             ? adapter.layer_count
             : adapterPoints.length,
         slug,
-        uri: buildAdapterUri(slug)
+        uri: buildAdapterUri(slug),
+        ...(includeArtifacts
+          ? {
+              artifacts: adapterPoints
+                .map((point) => {
+                  const payload = (point.payload ?? {}) as Record<string, unknown>;
+                  const idRaw = point.id;
+                  const artifactUuid =
+                    typeof idRaw === 'string' ? idRaw : typeof idRaw === 'number' ? String(idRaw) : '';
+                  const contentType =
+                    typeof payload['content_type'] === 'string' ? payload['content_type'].trim() : '';
+                  const artifactPayload = (payload['artifact'] ?? {}) as Record<string, unknown>;
+                  if (!artifactUuid || !isAllowedArtifactMime(contentType) || typeof artifactPayload['slug'] !== 'string') {
+                    return null;
+                  }
+                  const slugValue = artifactPayload['slug'].trim();
+                  if (!slugValue) return null;
+                  const name =
+                    typeof artifactPayload['name'] === 'string' && artifactPayload['name'].trim().length > 0
+                      ? artifactPayload['name'].trim()
+                      : typeof payload['label'] === 'string' && payload['label'].trim().length > 0
+                        ? payload['label'].trim()
+                        : slugValue;
+                  const sha256 =
+                    typeof artifactPayload['sha256'] === 'string' ? artifactPayload['sha256'] : '';
+                  const relativePath =
+                    typeof artifactPayload['relative_path'] === 'string' && artifactPayload['relative_path'].trim().length > 0
+                      ? artifactPayload['relative_path'].trim()
+                      : null;
+                  return {
+                    name,
+                    slug: slugValue,
+                    uri: `kairos://artifact/${slugValue}`,
+                    uuid_uri: `kairos://artifact/${artifactUuid}`,
+                    content_type: contentType,
+                    sha256,
+                    relative_path: relativePath
+                  };
+                })
+                .filter((row): row is NonNullable<typeof row> => row !== null)
+            }
+          : {})
       });
     }
   }
@@ -137,9 +189,10 @@ function buildSpaceInfo(
  */
 export async function executeSpaces(
   memoryStore: MemoryQdrantStore,
-  options: { include_adapter_titles?: boolean } = {}
+  options: { include_adapter_titles?: boolean; include_artifacts?: boolean } = {}
 ): Promise<{ spaces: SpaceInfo[] }> {
   const includeAdapterTitles = options.include_adapter_titles ?? false;
+  const includeArtifacts = options.include_artifacts ?? false;
   const ctx = getSpaceContextFromStorage();
   const spaceIds = getSpacesToReport();
   const { client, collection } = memoryStore.getQdrantAccess();
@@ -147,7 +200,7 @@ export async function executeSpaces(
 
   for (const spaceId of spaceIds) {
     const points = await scrollSpace(client, collection, spaceId);
-    spaces.push(buildSpaceInfo(spaceId, points, includeAdapterTitles, ctx.spaceNamesById));
+    spaces.push(buildSpaceInfo(spaceId, points, includeAdapterTitles || includeArtifacts, includeArtifacts, ctx.spaceNamesById));
   }
 
   return { spaces };
@@ -186,8 +239,12 @@ export function registerSpacesTool(server: any, memoryStore: MemoryQdrantStore, 
 
       try {
         const wantWidget = paramsOk.include_widget_html ?? false;
-        const includeTitles = wantWidget || (paramsOk.include_adapter_titles ?? false);
-        const output = await executeSpaces(memoryStore, { include_adapter_titles: includeTitles });
+        const includeArtifacts = paramsOk.include_artifacts ?? false;
+        const includeTitles = wantWidget || (paramsOk.include_adapter_titles ?? false) || includeArtifacts;
+        const output = await executeSpaces(memoryStore, {
+          include_adapter_titles: includeTitles,
+          include_artifacts: includeArtifacts
+        });
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         const jsonText = JSON.stringify(output);
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, jsonText.length);
