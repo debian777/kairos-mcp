@@ -172,6 +172,27 @@ the Keycloak Admin UI or via the Realm API after deployment.
 
 ---
 
+## Versioning policy
+
+The chart maintains three independent versioning lanes:
+
+| Lane | What | Updated by |
+|------|------|-----------|
+| **App release** | `Chart.yaml` `appVersion` + default `app.image.tag` in `values.yaml` | Stable repo release (`release:major/minor/patch`) |
+| **Dependencies** | `Chart.yaml` `dependencies[].version`, third-party image tags (Percona, Ollama, etc.) | Renovate PRs |
+| **Chart version** | `Chart.yaml` `version` | Bot auto-bump on every PR that touches `helm/kairos-mcp/` |
+
+**Chart version bump rules:**
+
+- **Minor** bump when the PR is a stable app release (syncs `appVersion`).
+- **Patch** bump for all other chart changes (including Renovate dependency updates).
+
+A CI guardrail enforces that `Chart.yaml` `version` is always incremented when
+chart files change. Override `app.image.tag` in your values to pin a specific
+release independently of the chart default.
+
+---
+
 ## Upgrading
 
 ```sh
@@ -180,7 +201,7 @@ helm dependency build helm/kairos-mcp
 helm upgrade kairos helm/kairos-mcp -n kairos -f my-values.yaml --wait
 ```
 
-The chart `appVersion` in `Chart.yaml` tracks the default image tag. Override
+The chart `appVersion` in `Chart.yaml` tracks the latest stable release. Override
 with `app.image.tag` in your values to pin a specific release.
 
 ---

@@ -1,0 +1,90 @@
+# Auto-bump helm/kairos-mcp/Chart.yaml `version` on PRs that touch the chart.
+# Minor bump for stable app releases (release:stable label or stable package.json bump).
+# Patch bump for all other chart changes (including Renovate dependency updates).
+name: Helm chart version bump
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+    paths:
+      - "helm/kairos-mcp/**"
+
+concurrency:
+  group: helm-version-bump-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    name: Auto-bump Chart.yaml version
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+
+      - name: Determine bump type
+        id: bump_type
+        env:
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          bump="patch"
+
+          # Check for release:stable label
+          if echo "$PR_LABELS" | jq -e 'index("release:stable")' > /dev/null 2>&1; then
+            bump="minor"
+            echo "Detected release:stable label -> minor"
+          else
+            # Check if package.json version on PR HEAD is a stable bump vs main
+            pr_version=$(node -p "require('./package.json').version")
+            main_version=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "0.0.0")
+
+            is_prerelease=false
+            if echo "$pr_version" | grep -q '\-'; then is_prerelease=true; fi
+
+            if [ "$is_prerelease" = "false" ]; then
+              higher=$(printf '%s\n' "$main_version" "$pr_version" | sort -V | tail -n1)
+              if [ "$higher" = "$pr_version" ] && [ "$main_version" != "$pr_version" ]; then
+                bump="minor"
+                echo "Detected stable package.json bump ($main_version -> $pr_version) -> minor"
+              fi
+            fi
+          fi
+
+          echo "type=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Run helm-bump-version
+        id: run_bump
+        env:
+          CHART_VERSION_BASE: ""
+        run: |
+          output=$(node scripts/helm-bump-version.mjs "${{ steps.bump_type.outputs.type }}")
+          echo "$output"
+          if echo "$output" | grep -q "no change"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.run_bump.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/kairos-mcp/Chart.yaml
+          git commit -m "chore(helm): bump chart version (${{ steps.bump_type.outputs.type }})"
+          git push

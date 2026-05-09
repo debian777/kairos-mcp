@@ -211,6 +211,16 @@ The Release workflow uses **npm Trusted Publishers** (OIDC) for publish; no `NPM
 
 Use only for one-off republish or debugging. Normal releases go through the Release workflow only.
 
+## Helm chart versioning
+
+The chart (`helm/kairos-mcp/Chart.yaml`) uses three independent versioning lanes:
+
+1. **App release** (`appVersion` + default `app.image.tag`): synced on stable repo release via `npm run version:sync` → `helm:sync-app-version`.
+2. **Dependencies** (subchart versions, third-party images): managed by Renovate (`deps(helm)` and `deps(helm-images)` groups).
+3. **Chart package version** (`version`): auto-bumped by `helm-version-bump.yml` on every PR that touches `helm/kairos-mcp/**`. Minor for stable release PRs (detected via `release:stable` label or stable `package.json` bump); patch otherwise.
+
+A CI check (`helm-chart.yml` verify-chart-version job) enforces that `Chart.yaml` `version` is greater than `origin/main` when chart files changed.
+
 ## Docker: release vs local dev
 
 - **Release** (CI and `npm run docker:build`): **Dockerfile** installs the published package from npm (`@debian777/kairos-mcp@${PACKAGE_VERSION}`). No source build; version is a required build-arg. The Release workflow passes the tag version.
