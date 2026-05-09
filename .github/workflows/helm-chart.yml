@@ -16,35 +16,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify-chart-version:
-    name: Verify chart version bumped
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check Chart.yaml version vs main
-        run: |
-          set -euo pipefail
-          pr_version=$(grep -E '^version:' helm/kairos-mcp/Chart.yaml | awk '{print $2}')
-          main_version=$(git show origin/main:helm/kairos-mcp/Chart.yaml | grep -E '^version:' | awk '{print $2}')
-
-          if [ -z "$pr_version" ] || [ -z "$main_version" ]; then
-            echo "Could not parse chart versions (pr=$pr_version, main=$main_version)"
-            exit 1
-          fi
-
-          higher=$(printf '%s\n' "$main_version" "$pr_version" | sort -V | tail -n1)
-          if [ "$higher" = "$pr_version" ] && [ "$main_version" != "$pr_version" ]; then
-            echo "Chart version bumped: $main_version -> $pr_version"
-          else
-            echo "::error::Chart version NOT bumped. PR=$pr_version, main=$main_version. The helm-version-bump bot should have committed a bump. If this persists, run: node scripts/helm-bump-version.mjs patch"
-            exit 1
-          fi
-
   helm:
     name: Lint, unittest, ct, kubeconform
     runs-on: ubuntu-latest

@@ -219,7 +219,7 @@ The chart (`helm/kairos-mcp/Chart.yaml`) uses three independent versioning lanes
 2. **Dependencies** (subchart versions, third-party images): managed by Renovate (`deps(helm)` and `deps(helm-images)` groups).
 3. **Chart package version** (`version`): auto-bumped by `helm-version-bump.yml` on every PR that touches `helm/kairos-mcp/**`. Minor for stable release PRs (detected via `release:stable` label or stable `package.json` bump); patch otherwise.
 
-A CI check (`helm-chart.yml` verify-chart-version job) enforces that `Chart.yaml` `version` is greater than `origin/main` when chart files changed.
+A CI check (`helm-version-bump.yml` verify job, runs after the bump) enforces that `Chart.yaml` `version` is greater than `origin/main` when chart files changed.
 
 ## Docker: release vs local dev
 
