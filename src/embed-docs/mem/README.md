@@ -37,7 +37,7 @@ synonyms. Prefer **adapter** in new copy when you are not mirroring user-facing 
 | UUID | Slug | Purpose |
 |------|------|---------|
 | [2004](00000000-0000-0000-0000-000000002004.md) | `challenge-type-guide` | Challenge type selection, interpreter choice, and stronger verification patterns |
-| [2006](00000000-0000-0000-0000-000000002006.md) | `protocol-linking-guide` | Layers vs chains, `activate` vs `forward` + slug, chain-root collapsing, MCP argument validation |
+| [2006](00000000-0000-0000-0000-000000002006.md) | `protocol-linking-guide` | Layers vs chains, `activate` vs `forward` + slug, chaining back/forward, chain-root collapsing, MCP argument validation |
 
 ## Cross-Protocol Linking
 
