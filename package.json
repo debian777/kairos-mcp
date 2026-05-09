@@ -46,6 +46,7 @@
     "dev:qdrant-curl": "ENV=dev ./scripts/deploy-run-env.sh qdrant-curl",
     "dev:redis-cli": "ENV=dev ./scripts/deploy-run-env.sh redis-cli",
     "dev:restart": "ENV=dev ./scripts/deploy-run-env.sh restart",
+    "dev:node": "./scripts/dev-node-use.sh",
     "dev:start": "ENV=dev ./scripts/deploy-run-env.sh start",
     "dev:start:installed": "DOTENV_CONFIG_PATH=.env node -r dotenv/config node_modules/@debian777/kairos-mcp/dist/index.js",
     "dev:status": "ENV=dev ./scripts/deploy-run-env.sh status",
