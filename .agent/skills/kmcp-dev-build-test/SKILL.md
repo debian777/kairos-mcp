@@ -3,7 +3,9 @@ name: kmcp-dev-build-test
 description: >-
   kairos-mcp: authoritative build, deploy, and test path. npm scripts only;
   always dev:deploy before dev:test; never use bare npx jest/jest as default.
-  Invoke for CI parity, integration tests, handoff, or any "run tests" request.
+  Kairos CLI checks against dev must use kairos --url (or KAIROS_API_URL), not
+  bare kairos (last-used server from CLI config). Invoke for CI parity,
+  integration tests, handoff, or any "run tests" request.
 ---
 
 # Build, deploy, and test (kairos-mcp)
@@ -25,6 +27,7 @@ execution path for agents in this worktree.
 - Use **npm scripts** as the only default interface for build, deploy, test, lint.
 - Prefer one integration file while iterating, then broaden.
 - Deep policy: **`CONTRIBUTING.md`** — `## Developer commands`, `## Setup from clone to passing tests`, `## PR requirements`.
+- **Kairos CLI target URL:** When you run the **`kairos`** CLI to exercise or check the **dev** stack (for example `token --validate`, `spaces`, `search`, `activate`), pass an explicit API base on every command: **`kairos --url <http-api-base> …`**. (One-shot **`export KAIROS_API_URL=…`** in the same shell is equivalent.) **Without `--url` / `KAIROS_API_URL`, the CLI uses the last server URL stored in the shared CLI config** (`references/CLI.md` resolution order) — often a different environment than the stack you just deployed. Omit **only** when you intentionally mean “whatever URL is already selected in my CLI config.” Use the HTTP API base (no `/mcp` suffix); local dev often uses port **3300** (see **`docs/install/README.md`** and your `.env` **`PORT`**).
 
 ## Hard stop
 

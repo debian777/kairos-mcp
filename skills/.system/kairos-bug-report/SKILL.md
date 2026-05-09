@@ -32,6 +32,11 @@ a **raw JSON trace** of each request and response, with redaction only.
 and capture the response. This provides the server version and
 infrastructure component status needed for the Environment section.
 
+If reproduction steps use the **`kairos`** CLI, show commands with an explicit
+API base (**`kairos --url …`** or **`KAIROS_API_URL`** for that shell). A bare
+**`kairos`** command uses the CLI’s last-used server from shared config and is
+not reproducible across machines.
+
 **CONTENT TYPES:**
 - **Summary:** One sentence: failure + MCP server name + tool/resource.
 - **Calls and responses:** For **every** call in the failing flow

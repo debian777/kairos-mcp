@@ -487,6 +487,11 @@ server to recover or fix the server health before retrying login.
 
 1. Make sure the CLI points at the correct server URL.
 
+**Important:** A bare **`kairos <subcommand>`** (no **`--url`**, no **`KAIROS_API_URL`**
+in the environment) uses the **last server URL stored in the shared CLI config**,
+not necessarily the stack you mean. For verification and troubleshooting, prefer
+an explicit base URL every time.
+
 Use either of these patterns:
 
 ```bash
@@ -497,22 +502,25 @@ kairos token --validate
 ```bash
 kairos --url http://localhost:3000 search "health"
 ```
-2. Prefer browser PKCE login when the user can open a browser:
+2. Prefer browser PKCE login when the user can open a browser (same explicit API
+   base as above — **`kairos login`** without **`--url`** targets the **last-used**
+   server from CLI config):
 
 ```bash
-kairos login
+kairos --url http://localhost:3000 login
 ```
 
 3. If the browser must not auto-open, offer:
 
 ```bash
-kairos login --no-browser
+kairos --url http://localhost:3000 login --no-browser
 ```
 
-4. Validate the stored token when needed:
+4. Validate the stored token when needed (same shell as **`KAIROS_API_URL`**, or
+   pass **`--url`** — do not rely on “last used” URL alone):
 
 ```bash
-kairos token --validate
+kairos --url http://localhost:3000 token --validate
 ```
 
 Keep the auth guidance focused on Keycloak-backed CLI usage. Identity-provider

@@ -25,6 +25,7 @@ phases so QA does not read implementation source before you intend to.
   workspace folder `kairos-mcp`, a common pattern is
   `project-0-kairos-mcp-DEVELOPMENT_KAIROS` — **do not** treat that as portable.
 - **Auth / missing server:** `.agents/skills/mcp-host-bridge/SKILL.md`.
+- **Kairos CLI:** If this QA workflow uses the **`kairos`** CLI (alongside or instead of MCP), **every** invocation must include **`--url <http-api-base>`** (or **`KAIROS_API_URL`** for that shell). Otherwise the CLI talks to the **last-used server** from shared CLI config, not necessarily **DEVELOPMENT_KAIROS**. See **[`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md)** — **Kairos CLI target URL**.
 
 For **real** tool names, schemas, and descriptions at runtime, treat the
 **connected server** as authority; for **what this branch should do**, use this

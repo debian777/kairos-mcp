@@ -45,6 +45,8 @@ description: >-
 npm run dev:deploy && npm run dev:test
 ```
 
+If you confirm behavior with the **`kairos`** CLI, use **`kairos --url <http-api-base> …`** (or **`KAIROS_API_URL`**) on every command so you do not hit a previously selected server; see **`kmcp-dev-build-test`** — **Kairos CLI target URL**.
+
 Use **`npm run handoff`** or broader gates when the change scope demands it (see **`CONTRIBUTING.md`**).
 
 ### 5. Commit, push, PR
