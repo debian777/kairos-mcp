@@ -3,7 +3,7 @@
  */
 
 import { Command } from 'commander';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, relative, resolve } from 'path';
 import { handleApiError, isBrowserDisabled } from '../auth-error.js';
 import { writeError, writeJson } from '../output.js';
@@ -39,6 +39,18 @@ function listMarkdownFiles(dir: string, recursive: boolean): string[] {
     }
   }
   return out.sort((a, b) => relative(base, a).localeCompare(relative(base, b)));
+}
+
+function readUtf8RegularFile(absPath: string): string {
+  const fd = openSync(absPath, 'r');
+  try {
+    if (!fstatSync(fd).isFile()) {
+      throw Object.assign(new Error('Path is not a regular file'), { code: 'ENOTREG' });
+    }
+    return readFileSync(fd, 'utf8');
+  } finally {
+    closeSync(fd);
+  }
 }
 
 export function trainCliCommand(program: Command): void {
@@ -212,7 +224,7 @@ export function trainCliCommand(program: Command): void {
               process.exit(1);
               return;
             }
-            const content = readFileSync(abs, 'utf8');
+            const content = readUtf8RegularFile(abs);
             const payload: Record<string, unknown> = {
               llm_model_id: model,
               content,
@@ -261,4 +273,3 @@ export function trainCliCommand(program: Command): void {
       }
     );
 }
-
