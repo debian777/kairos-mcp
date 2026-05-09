@@ -20,6 +20,7 @@ import {
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
 import { probeEmbeddingDimension } from './services/embedding/service.js';
+import { installQdrantFetchCompatibility } from './services/qdrant/undici-compat.js';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 // Import system metrics to ensure they're initialized
@@ -72,6 +73,7 @@ async function waitForQdrant(memoryStore: MemoryQdrantStore, maxRetries: number 
  */
 export async function runKairosServer(): Promise<void> {
     try {
+        installQdrantFetchCompatibility();
         // Install once at startup to capture any background errors/warnings
         installGlobalErrorHandlers();
 
