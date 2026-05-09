@@ -26,5 +26,5 @@ export function resolvePublicExportBaseUrl(): string {
   if (explicit) return explicit.replace(/\/$/, '');
   const authCallback = envString('AUTH_CALLBACK_BASE_URL', '');
   if (authCallback) return authCallback.replace(/\/$/, '');
-  return `http://localhost:${envInt('PORT', 3000)}`;
+  return `http://localhost:${envInt('PORT', 3300)}`;
 }

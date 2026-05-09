@@ -1,7 +1,7 @@
 import express from 'express';
 import { MemoryQdrantStore } from '../services/memory/store.js';
 import { structuredLogger } from '../utils/structured-logger.js';
-import { PORT } from '../config.js';
+import { APP_LISTEN_PORT_SPEC } from '../config.js';
 
 // Import modular components
 import { configureMiddleware } from './http-server-config.js';
@@ -17,7 +17,10 @@ import { setupErrorHandlers } from './http-error-handlers.js';
 import { startHttpServerWithErrorHandling } from './http-server-startup.js';
 import { qdrantService } from '../services/qdrant/index.js';
 
-export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
+export async function startHttpServer(
+  listenSpec: number | 'auto',
+  memoryStore: MemoryQdrantStore
+): Promise<number> {
     const app = express();
 
     // Configure middleware
@@ -38,16 +41,18 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     setupUiStatic(app);
     setupErrorHandlers(app);
 
-    // Start server with error handling
-    return startHttpServerWithErrorHandling(app, port);
+    const { listenPort } = await startHttpServerWithErrorHandling(app, listenSpec);
+    return listenPort;
 }
 
-export async function startServer(memoryStore: MemoryQdrantStore) {
-    const httpPort = PORT;
-
+export async function startServer(memoryStore: MemoryQdrantStore): Promise<number> {
     structuredLogger.success('🚀 KAIROS MCP Server starting', 'HTTP transport only');
     structuredLogger.info('HTTP transport: enabled');
-    structuredLogger.info('Port: ' + httpPort);
+    if (APP_LISTEN_PORT_SPEC === 'auto') {
+        structuredLogger.info('Port: AUTO (ephemeral — actual port logged when listen succeeds)');
+    } else {
+        structuredLogger.info('Port: ' + APP_LISTEN_PORT_SPEC);
+    }
 
-    startHttpServer(httpPort, memoryStore);
+    return await startHttpServer(APP_LISTEN_PORT_SPEC, memoryStore);
 }

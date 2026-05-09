@@ -4,7 +4,7 @@
 #
 # Single base .env plus optional .env.<ENV> profile overrides; prod is not managed from this repo
 # (exception: Keycloak realm setup dev/prod).
-# - dev:        Local app (start, stop, test, build). PORT=3300 default. PID/log: .kairos-dev.*
+# - dev:        Local app (start, stop, test, build). PORT defaults to 3300 when unset; PORT=AUTO picks a free port. PID/log: .kairos-dev.*
 # - dev_simple: Local app simple mode profile (auth off, isolated ports). PID/log: .kairos-dev_simple.*
 # - prod: Inspect-only when .env points at prod (health, status, qdrant-curl, redis-cli, logs). App managed elsewhere.
 #
@@ -68,6 +68,18 @@ else
 fi
 PID_FILE="${PROJECT_DIR}/.kairos-${ENV}.pid"
 LOG_FILE="${PROJECT_DIR}/.kairos-${ENV}.log"
+LISTEN_PORT_FILE="${PROJECT_DIR}/.kairos-${ENV}.listen-port"
+
+# After the app binds, Node writes the numeric port here (fixed listen or PORT=AUTO). Used by health checks and MCP_URL for tests.
+sync_app_port_from_listen_file_if_present() {
+    if [[ -f "${LISTEN_PORT_FILE:-}" ]]; then
+        local p
+        p="$(tr -d '[:space:]' <"$LISTEN_PORT_FILE" 2>/dev/null || true)"
+        if [[ "$p" =~ ^[0-9]+$ ]] && (( p >= 1 && p <= 65535 )); then
+            export PORT="$p"
+        fi
+    fi
+}
 
 # In a git worktree, .env* are not shared: copy from main worktree if missing (no-op in main worktree)
 if [ "$FIRST_ARG" != "ensure-coding-rules" ] && [ ! -f "$BASE_ENV_FILE" ]; then
@@ -142,6 +154,38 @@ check_metrics() {
     curl -s "http://localhost:${METRICS_PORT}/health" >/dev/null 2>&1 \
         && print_success "Metrics OK (port ${METRICS_PORT})" \
         || print_warning "Metrics DOWN (port ${METRICS_PORT})"
+}
+
+probe_qdrant_with_runtime_env() {
+    local env_file="$1"
+    local keycloak_export="$2"
+    local mcpr="$3"
+    local probe_timeout="${QDRANT_PRESTART_CURL_TIMEOUT_SEC:-5}"
+    local probe_cmd
+
+    print_info "Pre-start Qdrant probe (same runtime env as app process)"
+    probe_cmd="npx -y dotenv -e \"$env_file\" -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS=\"$mcpr\"} bash -lc '
+        set -euo pipefail
+        qurl=\"\${QDRANT_URL:-http://localhost:6333}\"
+        qurl=\"\${qurl%/}/healthz\"
+        qkey_state=unset
+        if [[ -n \"\${QDRANT_API_KEY:-}\" ]]; then
+            qkey_state=set
+            http_code=\"\$(curl -sS -m \"$probe_timeout\" -o /tmp/kairos-qdrant-prestart-\$\$ -w \"%{http_code}\" -H \"api-key: \${QDRANT_API_KEY}\" \"\$qurl\" || true)\"
+        else
+            http_code=\"\$(curl -sS -m \"$probe_timeout\" -o /tmp/kairos-qdrant-prestart-\$\$ -w \"%{http_code}\" \"\$qurl\" || true)\"
+        fi
+        echo \"[prestart-qdrant] url=\$qurl api_key=\$qkey_state http=\$http_code\"
+        if [[ -s /tmp/kairos-qdrant-prestart-\$\$ ]]; then
+            cat /tmp/kairos-qdrant-prestart-\$\$
+        fi
+        rm -f /tmp/kairos-qdrant-prestart-\$\$ >/dev/null 2>&1 || true
+        [[ \"\$http_code\" =~ ^2[0-9][0-9]\$ ]]
+    '"
+
+    if ! eval "$probe_cmd"; then
+        print_warning "Pre-start Qdrant probe failed in runtime env. App start will continue."
+    fi
 }
 
 ensure_runtime_dirs() {
@@ -245,14 +289,20 @@ start() {
             if [ "$ENV" = "dev" ] && [[ "${KEYCLOAK_URL:-}" =~ ^https?://keycloak: ]]; then
                 keycloak_export="KEYCLOAK_URL=http://localhost:8080"
             fi
-            dev_port="${PORT:-3300}"
+            dev_port="${PORT}"
             mcpr="${MAX_CONCURRENT_MCP_REQUESTS:-}"
+            export KAIROS_DEV_LISTEN_PORT_FILE="$LISTEN_PORT_FILE"
+            rm -f "$LISTEN_PORT_FILE"
+
             # Use compiled dist/bootstrap.js when available (avoids ts-node loader crash on Node 25)
             if [ -f "$PROJECT_DIR/dist/bootstrap.js" ]; then
                 dev_cmd="PORT=$dev_port LOG_LEVEL=debug npx -y dotenv -e $ENV_FILE -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS=\"$mcpr\"} node dist/bootstrap.js"
             else
                 dev_cmd="PORT=$dev_port LOG_LEVEL=debug npx -y dotenv -e $ENV_FILE -- env $keycloak_export ${mcpr:+MAX_CONCURRENT_MCP_REQUESTS=\"$mcpr\"} node --loader ts-node/esm src/bootstrap.ts"
             fi
+
+            probe_qdrant_with_runtime_env "$ENV_FILE" "$keycloak_export" "$mcpr"
+
             case "$LOG_TARGET" in
                 file)
                     eval "$dev_cmd" > "$LOG_FILE" 2>&1 &
@@ -265,9 +315,10 @@ start() {
                     ;;
             esac
 
-            # Resolve actual dev server PID via listening port (like stop target)
-            if command -v lsof >/dev/null 2>&1; then
-                # Give the server a moment to bind to the port
+            # Resolve dev server PID via listening port when PORT is a fixed number (never scan/kill other worktrees' listeners).
+            if [[ "${dev_port}" =~ ^[Aa][Uu][Tt][Oo]$ ]]; then
+                print_info "PORT=AUTO: skipping lsof PID capture (see ${LISTEN_PORT_FILE} after bind)"
+            elif command -v lsof >/dev/null 2>&1; then
                 sleep 1
                 dev_pid="$(lsof -ti :"${dev_port}" 2>/dev/null | head -n1 || true)"
                 if [ -n "${dev_pid:-}" ]; then
@@ -279,8 +330,6 @@ start() {
             else
                 print_error "lsof not available; cannot determine dev server PID (PID file not created)"
             fi
-
-            show_urls
 
             ;;
         prod)
@@ -294,9 +343,24 @@ start() {
         attempt=1
         while [ $attempt -le $ATTEMPTS ]; do
             print_info "Health check attempt $attempt/$ATTEMPTS..."
-            health_body="$(curl -fsS "http://localhost:$PORT/health" 2>/dev/null || true)"
+            sync_app_port_from_listen_file_if_present
+            hp="${PORT:-3300}"
+            if ! [[ "$hp" =~ ^[0-9]+$ ]]; then
+                hp=""
+            fi
+            if [[ -z "$hp" ]]; then
+                if [ $attempt -eq $ATTEMPTS ]; then
+                    print_error "Server health check failed: could not determine numeric app port (set PORT or wait for ${LISTEN_PORT_FILE})"
+                    exit 1
+                fi
+                sleep 2
+                attempt=$((attempt + 1))
+                continue
+            fi
+            health_body="$(curl -fsS "http://localhost:${hp}/health" 2>/dev/null || true)"
             if [[ -n "$health_body" ]] && [[ "$health_body" == *'"status":"healthy"'* ]]; then
                 print_success "Server health check passed on attempt $attempt"
+                export PORT="$hp"
                 break
             else
                 if [ $attempt -eq $ATTEMPTS ]; then
@@ -310,6 +374,10 @@ start() {
             fi
             attempt=$((attempt + 1))
         done
+    fi
+    if [ "$ENV" = "dev" ] || [ "$ENV" = "dev_simple" ]; then
+        sync_app_port_from_listen_file_if_present
+        show_urls
     fi
     # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
     if [ "$ENV" = "dev" ]; then
@@ -331,7 +399,7 @@ stop() {
             if [ -f "$PID_FILE" ]; then
                 dev_pid="$(cat "$PID_FILE")"
                 if kill "$dev_pid" 2>/dev/null; then
-                    rm -f "$PID_FILE"
+                    rm -f "$PID_FILE" "$LISTEN_PORT_FILE"
                     print_success "Dev server stopped (PID: $dev_pid)"
                     return 0
                 else
@@ -339,26 +407,9 @@ stop() {
                     rm -f "$PID_FILE"
                 fi
             else
-                print_warning "No PID file found for dev server"
+                print_warning "No PID file found for dev server (another checkout may own the listener; stop that process manually if needed)"
             fi
-
-            # Fallback: try to locate and stop process by dev port using lsof
-            dev_port="${PORT:-3300}"
-            if command -v lsof >/dev/null 2>&1; then
-                print_info "Attempting fallback stop via lsof -ni :${dev_port}"
-                # Show current listeners for debugging
-                lsof -ni :"${dev_port}" 2>/dev/null || true
-                # Extract PIDs and terminate them
-                dev_pids="$(lsof -ti :"${dev_port}" 2>/dev/null || true)"
-                if [ -n "${dev_pids:-}" ]; then
-                    echo "$dev_pids" | xargs -r kill 2>/dev/null || true
-                    print_success "Stopped process(es) listening on port ${dev_port} via lsof"
-                else
-                    print_warning "No process found listening on port ${dev_port}"
-                fi
-            else
-                print_error "lsof not available; cannot attempt port-based stop for dev server"
-            fi
+            rm -f "$LISTEN_PORT_FILE"
             ;;
         prod)
             print_info "Prod is not stopped from this script."
@@ -400,6 +451,9 @@ status() {
 
     # Check application health - THE MOST IMPORTANT STEP
     print_info "Checking application health..."
+    if [ "$ENV" = "dev" ] || [ "$ENV" = "dev_simple" ]; then
+        sync_app_port_from_listen_file_if_present
+    fi
     if curl -s "http://localhost:$PORT/health" >/dev/null 2>&1; then
         print_success "App OK (port $PORT)"
     else
@@ -483,6 +537,11 @@ test() {
             export XDG_CONFIG_HOME="$CLI_CONFIG_DIR"
             # Forward env so globalSetup and tests see same vars as server (Jest may run globalSetup in a separate process).
             export ENV="${ENV:-dev}"
+            sync_app_port_from_listen_file_if_present
+            if [[ "${PORT}" =~ ^[Aa][Uu][Tt][Oo]$ ]]; then
+                print_error "PORT is still AUTO: start the dev server first (npm run dev:deploy) so ${LISTEN_PORT_FILE} exists, or set a numeric PORT for tests."
+                exit 1
+            fi
             export PORT="${PORT:-3300}"
             export AUTH_ENABLED="${AUTH_ENABLED:-}"
             export KEYCLOAK_URL="${KEYCLOAK_URL:-}"
@@ -496,17 +555,18 @@ test() {
             # In CI, run without --silent so the step log shows which test failed
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
+            declare -a jest_args=()
+            jest_args+=(--runInBand --detectOpenHandles --testTimeout=30000)
             # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
-            declare -a summary_reporter=()
             if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-                summary_reporter=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
+                jest_args+=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
             fi
             # Serial tests (--runInBand): one MCP server; extra Jest workers did not improve wall time and caused queueing unless MAX_CONCURRENT_MCP_REQUESTS is high.
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag "${jest_args[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
-                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag "${jest_args[@]}" "${args[@]}" 2>&1  | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)
@@ -657,12 +717,12 @@ help() {
     echo ""
     echo "Single .env; prod is not managed here (exception: Keycloak realm setup)."
     echo "ENVIRONMENTS:"
-    echo "  dev        - Local app (start, stop, test, build). PORT=3300 default."
-    echo "  dev_simple - Local app simple mode profile. PORT=4300 default."
+    echo "  dev        - Local app (start, stop, test, build). PORT defaults to 3300; use PORT=AUTO for a free port."
+    echo "  dev_simple - Local app simple mode profile. PORT defaults to 4300; PORT=AUTO supported."
     echo "  prod       - Inspect only when .env points at prod (health, status, qdrant-curl, redis-cli, logs)."
     echo ""
     echo "ENV VARS (from .env):"
-    echo "  PORT               - App port"
+    echo "  PORT               - App listen port (unset uses profile default; PORT=AUTO = OS-assigned)"
     echo "  QDRANT_URL         - Qdrant base URL (default http://localhost:6333)"
     echo "  \$QDRANT_API_KEY    - Qdrant API key (sent as 'api-key' header)"
     echo "  QDRANT_COLLECTION  - Qdrant collection name (default kairos)"

@@ -231,8 +231,7 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-// Int configurations
-export const PORT = getEnvInt('PORT', 3000);
+export { APP_LISTEN_PORT_SPEC } from './config/listen-port-env.js';
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
 

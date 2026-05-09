@@ -5,7 +5,7 @@
 import { getDefaultApiUrlFromFile } from './config-file.js';
 
 /**
- * Default API base for Commander --url and fallbacks: KAIROS_API_URL, then saved config defaultUrl, then localhost:3000.
+ * Default API base for Commander --url and fallbacks: KAIROS_API_URL, then saved config defaultUrl, then localhost:3300.
  * Matches docs/CLI.md resolution order (without an explicit --url flag).
  */
 export function getCliApiUrlDefault(): string {
@@ -13,7 +13,7 @@ export function getCliApiUrlDefault(): string {
     if (env) return env;
     const fromFile = getDefaultApiUrlFromFile();
     if (fromFile) return fromFile;
-    return 'http://localhost:3000';
+    return 'http://localhost:3300';
 }
 
 /**

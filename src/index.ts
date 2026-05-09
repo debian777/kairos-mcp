@@ -11,7 +11,6 @@ import { startServer } from './http/http-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import {
-  PORT,
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
@@ -115,10 +114,10 @@ export async function runKairosServer(): Promise<void> {
         // This runs independently from the main application server
         startMetricsServer();
 
-        structuredLogger.info(`Application server: ${PORT}`);
         structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
 
-        await startServer(memoryStore);
+        const listenPort = await startServer(memoryStore);
+        structuredLogger.info(`Application server: http://localhost:${listenPort}`);
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 

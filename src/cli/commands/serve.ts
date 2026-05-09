@@ -14,7 +14,7 @@ export function serveCommand(program: Command): void {
       'Start the KAIROS HTTP/MCP server (Qdrant, embedding env, optional Redis — same contract as Docker Compose / dev:start:installed). Root --url does not set the listen address; use PORT / --port.'
     )
     .option('--env-file <path>', 'Path to dotenv file', '.env')
-    .option('--port <n>', 'HTTP listen port (sets PORT)')
+    .option('--port <n|auto>', 'HTTP listen port (sets PORT), or the literal auto for an OS-assigned free port')
     .option('--metrics-port <n>', 'Metrics listen port (sets METRICS_PORT)')
     .action(async (opts: { envFile?: string; port?: string; metricsPort?: string }) => {
       try {
@@ -23,12 +23,17 @@ export function serveCommand(program: Command): void {
           dotenvConfig({ path: envPath });
         }
         if (opts.port !== undefined && opts.port !== '') {
-          const n = parseInt(opts.port, 10);
-          if (!Number.isFinite(n) || n < 1) {
-            writeStderr(`Invalid --port: ${opts.port}`);
-            process.exit(1);
+          const raw = String(opts.port).trim();
+          if (raw.toLowerCase() === 'auto') {
+            process.env['PORT'] = 'AUTO';
+          } else {
+            const n = parseInt(raw, 10);
+            if (!Number.isFinite(n) || n < 1) {
+              writeStderr(`Invalid --port: ${opts.port}`);
+              process.exit(1);
+            }
+            process.env['PORT'] = String(n);
           }
-          process.env['PORT'] = String(n);
         }
         if (opts.metricsPort !== undefined && opts.metricsPort !== '') {
           const n = parseInt(opts.metricsPort, 10);
