@@ -96,18 +96,8 @@ export const KAIROS_SEARCH_LIMIT_CAP = getEnvInt('KAIROS_SEARCH_LIMIT_CAP', 50);
 export const KAIROS_SEARCH_LIMIT_MIN = getEnvInt('KAIROS_SEARCH_LIMIT_MIN', 5);
 export const KAIROS_ENABLE_GROUP_COLLAPSE = getEnvBoolean('KAIROS_ENABLE_GROUP_COLLAPSE', true);
 export const HTTP_JSON_BODY_LIMIT = getEnvString('HTTP_JSON_BODY_LIMIT', '1mb');
-/** Max body size for POST /api/train/raw. `HTTP_TRAIN_RAW_BODY_LIMIT` overrides; else `HTTP_MINT_RAW_BODY_LIMIT` if set. */
-export const HTTP_TRAIN_RAW_BODY_LIMIT = (() => {
-  const primary = process.env['HTTP_TRAIN_RAW_BODY_LIMIT'];
-  if (primary !== undefined && String(primary).trim() !== '') {
-    return getEnvString('HTTP_TRAIN_RAW_BODY_LIMIT', '2mb');
-  }
-  const alternate = process.env['HTTP_MINT_RAW_BODY_LIMIT'];
-  if (alternate !== undefined && String(alternate).trim() !== '') {
-    return String(alternate).trim();
-  }
-  return '2mb';
-})();
+/** Max body size for POST /api/train/raw (`HTTP_TRAIN_RAW_BODY_LIMIT`, default 2mb). */
+export const HTTP_TRAIN_RAW_BODY_LIMIT = getEnvString('HTTP_TRAIN_RAW_BODY_LIMIT', '2mb');
 
 export const HTTP_RATE_LIMIT_WINDOW_MS = getEnvInt('HTTP_RATE_LIMIT_WINDOW_MS', 60_000);
 export const HTTP_RATE_LIMIT_MAX = getEnvInt('HTTP_RATE_LIMIT_MAX', 10_000);
@@ -267,7 +257,7 @@ export const MAX_CONCURRENT_MCP_REQUESTS_RAW = getEnvInt('MAX_CONCURRENT_MCP_REQ
 
 // Float configurations (tunable via env; relaxed defaults so more results pass into choices)
 export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
-/** Mint: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
+/** Similar-memory: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
 export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 0.9);
 
 /** Attest boost: below this many runs we do not apply boost. */

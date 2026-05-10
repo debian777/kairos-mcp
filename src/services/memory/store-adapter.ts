@@ -18,7 +18,7 @@ import { storeArtifact as storeArtifactPoint } from './store-artifact.js';
 export interface StoreAdapterOptions {
   forceUpdate?: boolean;
   protocolVersion?: string;
-  /** When true (train fork from `source_adapter_uri`), mint a new adapter id instead of title-derived v5. */
+  /** When true (train fork from `source_adapter_uri`), allocate a new adapter id instead of title-derived v5. */
   forkNewAdapter?: boolean;
 }
 
