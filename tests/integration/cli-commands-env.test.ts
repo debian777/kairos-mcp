@@ -16,7 +16,8 @@ import {
 } from './cli-commands-shared.js';
 import { serverRequiresAuth } from '../utils/auth-headers.js';
 
-const AUTH_ERROR_PATTERN = /Authentication required|Unauthorized|Bearer token invalid|expired|login|Log in/i;
+const AUTH_ERROR_PATTERN =
+  /Authentication required|Unauthorized|Bearer token invalid|expired|login|Log in|SSO|invalid_token|sign in/i;
 
 const describeAuthNoToken = serverRequiresAuth() ? describe : describe.skip;
 
