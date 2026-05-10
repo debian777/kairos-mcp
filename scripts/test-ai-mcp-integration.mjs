@@ -137,7 +137,7 @@ async function train(baseUrl, markdown, llmModelId = 'ai-mcp-integration', force
   try {
     data = JSON.parse(body);
   } catch {
-    throw new Error(`Mint non-JSON: ${body.slice(0, 200)}`);
+    throw new Error(`Train raw non-JSON: ${body.slice(0, 200)}`);
   }
   return { status: res.status, data };
 }

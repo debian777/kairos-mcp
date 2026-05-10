@@ -46,7 +46,7 @@ describe('Train basic functionality', () => {
   }
 
   test('train stores single text content successfully', async () => {
-    const md = uniqueMd('Kairos Mint Smoke', [
+    const md = uniqueMd('Kairos Train Smoke', [
       { h2: 'Intro', body: 'Alpha content' },
       { h2: 'Details', body: 'Beta content' }
     ]);

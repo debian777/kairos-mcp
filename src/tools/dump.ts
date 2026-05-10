@@ -53,7 +53,7 @@ async function loadMemory(memoryStore: MemoryQdrantStore, uuid: string): Promise
 
 /**
  * Append ```json for a stored layer contract. Train / validateProtocolStructure require
- * `{"contract": ...}` (same as mint); `{ challenge: ... }` breaks fork-from-source re-train (#278).
+ * `{"contract": ...}` (contract shape train expects); `{ challenge: ... }` breaks fork-from-source re-train (#278).
  */
 function inferenceContractFence(contract: InferenceContractDefinition | undefined): string {
   if (!contract) return '';

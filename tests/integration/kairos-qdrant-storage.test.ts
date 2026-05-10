@@ -111,7 +111,7 @@ describe('Qdrant storage verification', () => {
     const docPath = join(process.cwd(), 'tests', 'test-data', 'AI_CODING_RULES.md');
     const markdownDoc = readFileSync(docPath, 'utf-8');
 
-    const mintCall = {
+    const trainCall = {
       name: 'train',
       arguments: {
         content: markdownDoc,
@@ -119,16 +119,16 @@ describe('Qdrant storage verification', () => {
         force_update: true
       }
     };
-    const mintResult = await mcpConnection.client.callTool(mintCall);
-    const mintPayload = parseMcpJson(mintResult, '[train] AI CODING RULES');
+    const trainResult = await mcpConnection.client.callTool(trainCall);
+    const trainPayload = parseMcpJson(trainResult, '[train] AI CODING RULES');
 
-    withRawOnFail({ call: mintCall, result: mintResult }, () => {
-      expect(mintPayload.status).toBe('stored');
-      expect(Array.isArray(mintPayload.items)).toBe(true);
-      expect(mintPayload.items.length).toBeGreaterThanOrEqual(1);
+    withRawOnFail({ call: trainCall, result: trainResult }, () => {
+      expect(trainPayload.status).toBe('stored');
+      expect(Array.isArray(trainPayload.items)).toBe(true);
+      expect(trainPayload.items.length).toBeGreaterThanOrEqual(1);
     }, '[train] AI CODING RULES raw');
 
-    const firstItem = (mintPayload.items || [])[0];
+    const firstItem = (trainPayload.items || [])[0];
     expect(firstItem).toBeDefined();
 
     await new Promise(resolve => setTimeout(resolve, 3000));

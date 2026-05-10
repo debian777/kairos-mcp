@@ -17,18 +17,18 @@ import {
 describe('CLI Commands Advanced --url Tests', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
-  let cachedMintedUri: string | null = null;
+  let cachedTrainedUri: string | null = null;
 
   beforeAll(async () => {
     serverAvailable = await setupServerCheck();
     cliLoggedIn = await setupCliConfigWithLogin();
     if (serverAvailable && cliLoggedIn) {
-      const mintResult = await execAsync(
+      const trainResult = await execAsync(
         `node ${CLI_PATH} train --url ${BASE_URL} --force "${TEST_FILE}"`
       );
-      const mintData = JSON.parse(mintResult.stdout);
-      if (mintData.items && mintData.items.length > 0) {
-        cachedMintedUri = mintData.items[0].uri;
+      const trainData = JSON.parse(trainResult.stdout);
+      if (trainData.items && trainData.items.length > 0) {
+        cachedTrainedUri = trainData.items[0].uri;
       }
     }
   }, 60000);
@@ -36,8 +36,8 @@ describe('CLI Commands Advanced --url Tests', () => {
   describe('forward command', () => {
     test('forward uses --url parameter with optional solution', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced forward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced forward');
+      const uri = cachedTrainedUri;
 
       const solution = JSON.stringify({
         type: 'comment',
@@ -60,8 +60,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('forward uses -u short form', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced forward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced forward');
+      const uri = cachedTrainedUri;
 
       const solution = JSON.stringify({
         type: 'comment',
@@ -86,8 +86,8 @@ describe('CLI Commands Advanced --url Tests', () => {
   describe('tune command', () => {
     test('tune uses --url parameter', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced tune');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced tune');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} tune --url ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
@@ -100,8 +100,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('tune uses -u short form', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced tune');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced tune');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} tune -u ${BASE_URL} --file "${TEST_FILE}" "${uri}"`
@@ -116,8 +116,8 @@ describe('CLI Commands Advanced --url Tests', () => {
   describe('reward command', () => {
     test('reward uses --url parameter', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced reward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced reward');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test reward"`
@@ -131,8 +131,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('reward uses -u short form', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced reward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced reward');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} reward -u ${BASE_URL} "${uri}" success "Test reward"`
@@ -146,8 +146,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('reward with --url and --score', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced reward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced reward');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test" --score 0.9`
@@ -160,8 +160,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('reward with --url and --model', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced reward');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced reward');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} reward --url ${BASE_URL} "${uri}" success "Test" --model "test-model"`
@@ -176,8 +176,8 @@ describe('CLI Commands Advanced --url Tests', () => {
   describe('delete command', () => {
     test('delete uses --url parameter', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced delete');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced delete');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} delete --url ${BASE_URL} "${uri}"`
@@ -190,8 +190,8 @@ describe('CLI Commands Advanced --url Tests', () => {
 
     test('delete uses -u short form', async () => {
       requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
-      requireCachedLayerUri(cachedMintedUri, 'CLI advanced delete');
-      const uri = cachedMintedUri;
+      requireCachedLayerUri(cachedTrainedUri, 'CLI advanced delete');
+      const uri = cachedTrainedUri;
 
       const { stdout, stderr } = await execAsync(
         `node ${CLI_PATH} delete -u ${BASE_URL} "${uri}"`

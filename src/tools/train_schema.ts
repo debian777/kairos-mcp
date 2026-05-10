@@ -187,7 +187,7 @@ export const trainStoreInputSchema = z.object({
   fork_new_adapter: z
     .boolean()
     .optional()
-    .describe('Internal: mint new adapter id (train fork from source_adapter_uri)'),
+    .describe('Internal: allocate new adapter id (train fork from source_adapter_uri)'),
   relative_path: z
     .string()
     .optional()

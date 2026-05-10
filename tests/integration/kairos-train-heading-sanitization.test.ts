@@ -10,7 +10,7 @@ import { parseMcpJson } from '../utils/expect-with-raw.js';
  * - Adapter layer order remains correct regardless of user input format
  */
 
-describe('Kairos Mint Heading Sanitization and Multiple H1 Support', () => {
+describe('Kairos Train Heading Sanitization and Multiple H1 Support', () => {
   let mcpConnection;
   const FETCH_FAILED_RETRY_ATTEMPTS = 3;
 
