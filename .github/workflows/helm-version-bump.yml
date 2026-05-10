@@ -1,6 +1,7 @@
 # Auto-bump helm/kairos-mcp/Chart.yaml `version` on PRs that touch the chart.
 # Minor bump for stable app releases (release:stable label or stable package.json bump).
 # Patch bump for all other chart changes (including Renovate dependency updates).
+# Uses GH_PAT so the pushed commit triggers downstream workflows (Integration, Helm lint, etc.).
 name: Helm chart version bump
 
 on:
@@ -29,7 +30,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
