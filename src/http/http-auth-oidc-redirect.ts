@@ -85,3 +85,16 @@ export function createOidcLoginUrlForApiResponse(): string {
   pruneOidcStateStore();
   return buildOidcAuthorizationUrl(state, codeChallenge);
 }
+
+/**
+ * Same as {@link createOidcLoginUrlForApiResponse} but returns undefined when OIDC login URLs are not
+ * configured or URL construction fails (never throws).
+ */
+export function safeCreateOidcLoginUrlForApiResponse(): string | undefined {
+  if (!AUTH_CALLBACK_BASE_URL) return undefined;
+  try {
+    return createOidcLoginUrlForApiResponse();
+  } catch {
+    return undefined;
+  }
+}

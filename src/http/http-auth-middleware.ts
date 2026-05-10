@@ -6,7 +6,11 @@
 import type { Request, Response, NextFunction } from 'express';
 import { METHODS } from 'node:http';
 import crypto from 'crypto';
-import { createOidcLoginUrlForApiResponse, redirectBrowserToOidcLogin } from './http-auth-oidc-redirect.js';
+import {
+  createOidcLoginUrlForApiResponse,
+  redirectBrowserToOidcLogin,
+  safeCreateOidcLoginUrlForApiResponse
+} from './http-auth-oidc-redirect.js';
 import { fromBase64url, toBase64url } from '@exodus/bytes/base64.js';
 import { utf8toString } from '@exodus/bytes/utf8.js';
 import {
@@ -27,6 +31,21 @@ export type { AuthPayload };
 
 const SESSION_COOKIE_NAME = 'kairos_session';
 const KNOWN_HTTP_METHODS = new Set<string>(METHODS);
+
+/** Shared remediation hint for MCP/API clients when SSO session or tokens must refresh. */
+export const MCP_SSO_REAUTH_NEXT_STEP =
+  'Open login_url in a browser to complete SSO sign-in when present, then reconnect or restart this MCP connection so the host refreshes cached credentials.';
+
+function jsonInvalidTokenResponse(message: string): Record<string, unknown> {
+  const loginUrl = safeCreateOidcLoginUrlForApiResponse();
+  return {
+    error: 'invalid_token',
+    message,
+    reauth_required: true,
+    next_step: MCP_SSO_REAUTH_NEXT_STEP,
+    ...(loginUrl ? { login_url: loginUrl } : {})
+  };
+}
 
 function getSessionCookie(req: Request): string | null {
   const raw = req.get('cookie');
@@ -267,17 +286,27 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         structuredLogger.info(`[auth] 401 ${req.method} ${req.path} bearer invalid or expired`);
         setWwwAuthenticate(res, {
           error: 'invalid_token',
-          error_description: 'Token expired or invalid; re-authenticate to obtain a new token'
+          error_description:
+            'SSO session or access token rejected; sign in again and reconnect MCP if the host caches tokens'
         });
-        res.status(401).json({ error: 'invalid_token', message: 'Bearer token invalid or expired' });
+        res.status(401).json(
+          jsonInvalidTokenResponse(
+            'Your SSO session or access token is no longer accepted. Sign in again and reconnect this MCP server if your host still uses old credentials.'
+          )
+        );
       }
     } catch {
       structuredLogger.info(`[auth] 401 ${req.method} ${req.path} bearer validation failed`);
       setWwwAuthenticate(res, {
         error: 'invalid_token',
-        error_description: 'Token validation failed; re-authenticate to obtain a new token'
+        error_description:
+          'Could not validate SSO credentials; sign in again and reconnect MCP if the host caches tokens'
       });
-      res.status(401).json({ error: 'invalid_token', message: 'Bearer token validation failed' });
+      res.status(401).json(
+        jsonInvalidTokenResponse(
+          'Your SSO credentials could not be validated. Sign in again and reconnect this MCP server if your host caches tokens.'
+        )
+      );
     }
     return;
   }

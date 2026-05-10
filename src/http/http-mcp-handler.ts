@@ -11,6 +11,7 @@ import {
 } from '../config.js';
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
+import { buildListOfferingsUnauthorizedJsonRpc } from './mcp-ui-offerings-auth-jsonrpc.js';
 import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { buildListOfferingsForUIResult } from '../mcp-apps/list-offerings-for-ui.js';
 import { createServer } from '../server.js';
@@ -159,16 +160,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
             if (AUTH_ENABLED && !resolvedAuth) {
                 setWwwAuthenticate(res, {
                     error: 'invalid_token',
-                    error_description: 'Authentication required for UI offerings'
+                    error_description:
+                        'SSO sign-in required for UI offerings; reconnect MCP after authenticating if the host caches tokens'
                 });
-                res.status(401).json({
-                    jsonrpc: '2.0',
-                    error: {
-                        code: -32001,
-                        message: 'Authentication required for UI offerings'
-                    },
-                    id
-                });
+                res.status(401).json(buildListOfferingsUnauthorizedJsonRpc(id));
                 return;
             }
             res.status(200).json({
