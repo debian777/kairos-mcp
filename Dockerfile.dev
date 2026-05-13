@@ -1,6 +1,7 @@
 # Local dev: build from source (no npm publish required).
 # Use: docker build -f Dockerfile.dev -t kairos-mcp:dev .
 # Release images use Dockerfile and install from npm.
+# Base image stays on Node LTS; Node Current is covered in CI via setup-node, not a separate dev image.
 # Multi-arch support for x64 and ARM64
 FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS builder
 

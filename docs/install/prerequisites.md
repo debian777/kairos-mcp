@@ -28,7 +28,7 @@ kairos --help
 | Source for **`compose.yaml`** | Use the file from the repository, a raw download, or another controlled copy |
 | **Qdrant** | Started by Compose; no separate installation is required for the simple stack |
 | **Identity provider** | Not part of the standard install path; manage it separately if your deployment needs one |
-| **Node.js 24+** + **[KAIROS CLI](../CLI.md)** | Required; the CLI is the primary interface for install, authentication, and verification. Node 24 is the supported LTS baseline; 25/26 run as advisory CI lanes |
+| **Node.js 24+** + **[KAIROS CLI](../CLI.md)** | Required; the CLI is the primary interface for install, authentication, and verification. Node 24 is the supported LTS baseline; CI runs one advisory lane on Node Current (pin in `.github/workflows/`) |
 | **Python 3** | Required only for repository helper scripts or advanced operator workflows |
 
 ### Helm chart path (Kubernetes)

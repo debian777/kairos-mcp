@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 # No static/UI job here: TypeScript, Knip, and UI tests run in Integration (integration.yml) as
-# verify-ui-primary / verify-ui-advisory. This workflow only builds tgz and runs simple-mode integration.
+# verify-ui-primary / verify-ui-advisory (Node 26 Current, advisory). This workflow only builds tgz and runs simple-mode integration.
 
 jobs:
   build-primary:
@@ -43,14 +43,8 @@ jobs:
           path: dist/*.tgz
 
   build-advisory:
-    name: Build npm package (tgz, Node ${{ matrix.node-version }}, advisory)
+    name: Build npm package (tgz, Node 26, Current, advisory)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - node-version: "25"
-          - node-version: "26"
     continue-on-error: true
     steps:
       - name: Checkout
@@ -62,7 +56,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "26"
           cache: "npm"
 
       - name: Install dependencies
@@ -74,7 +68,7 @@ jobs:
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package-simple-node${{ matrix.node-version }}
+          name: npm-package-simple-node26
           path: dist/*.tgz
 
   verify-integration-simple-primary:
@@ -237,15 +231,9 @@ jobs:
           if-no-files-found: ignore
 
   verify-integration-simple-advisory:
-    name: Infra + dev deploy + integration tests (SIMPLE mode, Node ${{ matrix.node-version }}, advisory)
+    name: Infra + dev deploy + integration tests (SIMPLE mode, Node 26, Current, advisory)
     needs: [build-advisory]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - node-version: "25"
-          - node-version: "26"
     continue-on-error: true
 
     steps:
@@ -258,7 +246,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "26"
           cache: "npm"
 
       - name: "Generate .env (base vars, overridden for simple mode)"
@@ -312,7 +300,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package-simple-node${{ matrix.node-version }}
+          name: npm-package-simple-node26
           path: artifact-npm
 
       - name: Restore Playwright browsers cache
@@ -398,11 +386,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-simple-log-node${{ matrix.node-version }}
+          name: kairos-simple-log-node26
           path: var/log/kairos-simple.log
           if-no-files-found: ignore
 
-  # Gates only on Node 24 jobs; advisory 25/26 jobs are not in needs.
+  # Gates only on Node 24 jobs; advisory Node 26 job is not in needs.
   integration-simple-pass:
     name: Integration simple workflow passed
     needs: [build-primary, verify-integration-simple-primary]

@@ -3,11 +3,11 @@
 # See .github/workflows/README.md for gh secret/variable setup.
 #
 # build-primary — Node 24 only (npm ci + pack); artifact npm-package-node24 (merge gate).
-# build-advisory — Node 25/26 matrix, continue-on-error (not in integration-pass needs).
+# build-advisory — single Node Current pin (26), continue-on-error (not in integration-pass needs).
 # verify-ui-primary — static + UI tests, Node 24 only; parallel with build jobs (no tgz); merge gate.
-# verify-ui-advisory — same steps on Node 25/26 matrix; continue-on-error; not in integration-pass needs.
+# verify-ui-advisory — same steps on Node 26 (Current, advisory); continue-on-error; not in integration-pass needs.
 # verify-integration-primary — Node 24 only; needs build-primary.
-# verify-integration-advisory — Node 25/26; needs build-advisory; advisory only.
+# verify-integration-advisory — Node 26; needs build-advisory; advisory only.
 # verify-docker — release-equivalent image + Trivy; needs build-primary.
 # integration-pass — gates only on Node-24 primary jobs + verify-docker (no advisory UI/build/integration).
 name: Integration
@@ -57,14 +57,8 @@ jobs:
           path: dist/*.tgz
 
   build-advisory:
-    name: Build npm package (tgz, Node ${{ matrix.node-version }}, advisory)
+    name: Build npm package (tgz, Node 26, advisory)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - node-version: "25"
-          - node-version: "26"
     continue-on-error: true
     steps:
       - name: Checkout
@@ -76,7 +70,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "26"
           cache: "npm"
 
       - name: Install dependencies
@@ -91,7 +85,7 @@ jobs:
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package-node${{ matrix.node-version }}
+          name: npm-package-node26
           path: dist/*.tgz
 
   verify-ui-primary:
@@ -147,17 +141,9 @@ jobs:
         run: node scripts/ci-parallel-checks.mjs
 
   verify-ui-advisory:
-    name: Static checks + UI tests (Node ${{ matrix.node-version }}, advisory)
+    name: Static checks + UI tests (Node 26, Current, advisory)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - node-version: "25"
-            experimental: true
-          - node-version: "26"
-            experimental: true
-    continue-on-error: ${{ matrix.experimental }}
+    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -169,7 +155,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "26"
           cache: "npm"
 
       - name: Check versions (mem = package.json, skills = last stable)
@@ -185,13 +171,13 @@ jobs:
       # - name: ESLint
       #   run: node scripts/ci-github-step-summary.mjs "ESLint" -- npm run lint
 
-      # Per-Node cache suffix so advisory runners do not fight the Node 24 primary key
+      # Node-version suffix so the advisory runner does not fight the Node 24 primary key
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-ms-playwright-node26-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         id: playwright-install
@@ -202,7 +188,7 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-ms-playwright-node26-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript, Knip, UI tests (parallel)
         run: node scripts/ci-parallel-checks.mjs
@@ -365,15 +351,9 @@ jobs:
           if-no-files-found: ignore
 
   verify-integration-advisory:
-    name: Infra + dev deploy + integration tests (AUTH on, Node ${{ matrix.node-version }}, advisory)
+    name: Infra + dev deploy + integration tests (AUTH on, Node 26, Current, advisory)
     needs: [build-advisory]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - node-version: "25"
-          - node-version: "26"
     continue-on-error: true
 
     steps:
@@ -386,7 +366,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "26"
           cache: "npm"
 
       - name: "Generate .env (fullstack: infra + app + auth)"
@@ -437,7 +417,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package-node${{ matrix.node-version }}
+          name: npm-package-node26
           path: artifact-npm
 
       - name: Restore Playwright browsers cache
@@ -520,7 +500,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-log-node${{ matrix.node-version }}
+          name: kairos-log-node26
           path: var/log/kairos.log
           if-no-files-found: ignore
 
@@ -566,7 +546,7 @@ jobs:
           severity: CRITICAL,HIGH
           trivyignores: .trivyignore
 
-  # Merge gate: Node 24 primary jobs only (build, UI/static, integration, Docker). Node 25/26
+  # Merge gate: Node 24 primary jobs only (build, UI/static, integration, Docker). Node 26
   # advisory jobs (build-advisory, verify-ui-advisory, verify-integration-advisory) are omitted
   # from needs: so they cannot fail this check or block PR merge.
   integration-pass:
