@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate replaces Dependabot: npm, github-actions, Dockerfiles, docker-compose. Disable Dependabot version updates in Settings \u2192 Code security and analysis. GitHub Dependabot vulnerability PRs already ignore global schedule; OSV is enabled for npm so more CVEs get fixes, also without schedule gating via packageRules.",
+  "description": "Renovate replaces Dependabot: npm, github-actions, Dockerfiles, docker-compose. Disable Dependabot version updates in Settings \u2192 Code security and analysis. GitHub Dependabot vulnerability PRs already ignore global schedule; OSV is enabled for npm so more CVEs get fixes, also without schedule gating via packageRules. Advisory CI pins: literal setup-node node-version strings in .github/workflows are not auto-bumped to latest Node Current; follow https://github.com/nodejs/Release and update the YAML manually, or add a Renovate regex/customManager if you want PRs for that pin.",
   "schedule": [
     "before 10am"
   ],

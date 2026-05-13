@@ -2,6 +2,10 @@
 # Used by CI/release; version passed as build-arg. For local dev build-from-source, use Dockerfile.dev.
 # Multi-arch: build for linux/amd64,linux/arm64 (set by buildx).
 #
+# Node policy: this production/runtime image tracks Node LTS (see FROM below). Non-LTS Node Current
+# is exercised in GitHub Actions only (setup-node in workflows), not a second published image unless
+# product explicitly asks for one.
+#
 # Targets:
 #   runtime (default) — npm registry install (Release / publish-container).
 #   runtime-ci — same layers after install, but package from .ci/docker/package.tgz (Integration workflow).
