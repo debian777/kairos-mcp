@@ -26,6 +26,16 @@ spec:
         - path:
             type: PathPrefix
             value: {{ $route.path | default "/sso" }}
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Proto
+                value: https
+              - name: X-Forwarded-Host
+                value: {{ $gateway.hostname }}
+              - name: X-Forwarded-Port
+                value: "443"
       backendRefs:
         - name: {{ $serviceName }}
           namespace: {{ $route.serviceNamespace | default $kc.namespace | default .Release.Namespace }}

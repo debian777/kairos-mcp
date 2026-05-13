@@ -2,5 +2,8 @@ dependencies:
 - name: qdrant
   repository: https://qdrant.github.io/qdrant-helm
   version: 1.17.0
-digest: sha256:6d2760f80f1175e04f6d450ff5e6b21ba7d9090704e3b439e763b1c92f655a88
-generated: "2026-03-02T08:26:12.149142+01:00"
+- name: valkey
+  repository: https://valkey.io/valkey-helm/
+  version: 0.9.4
+digest: sha256:1f0a96eecdf5797507cc640281f61c0778881a4e057940162a0510dc830320a1
+generated: "2026-05-05T12:42:20.020677+02:00"

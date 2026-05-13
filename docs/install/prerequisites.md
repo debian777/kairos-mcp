@@ -2,21 +2,28 @@
 
 Use this page before you create `.env` or start the stack. First confirm the
 local requirements. Then choose the embedding backend that determines which
-variables you place in `.env`.
+variables you place in `.env` or Helm values.
 
-The standard installation path in this directory is
-[Docker Compose — simple stack](docker-compose-simple.md). The repository also
-includes [Docker Compose — full stack (advanced)](docker-compose-full-stack.md)
-for operator-managed deployments, but identity-provider configuration is
-outside the scope of `docs/install/`.
+---
 
 ## Prerequisites
 
-Confirm these requirements before you run `docker compose up`.
+### All installation paths
 
 | Requirement | Details |
 |-------------|---------|
-| **Docker Engine** + **Docker Compose v2** | Required for all Compose-based setups in this directory |
+| **Node.js 25+** + **[KAIROS CLI](../CLI.md)** | Required. Primary interface for auth, bulk management, and verification. Enables KAIROS usage without MCP. |
+
+```sh
+npm install -g @debian777/kairos-mcp
+kairos --help
+```
+
+### Docker Compose path
+
+| Requirement | Details |
+|-------------|---------|
+| **Docker Engine** + **Docker Compose v2** | Required for all Compose-based setups |
 | Working directory with **`compose.yaml`** and writable **`.env`** | Required; a local `git clone` is optional |
 | Source for **`compose.yaml`** | Use the file from the repository, a raw download, or another controlled copy |
 | **Qdrant** | Started by Compose; no separate installation is required for the simple stack |
@@ -24,13 +31,25 @@ Confirm these requirements before you run `docker compose up`.
 | **Node.js 24+** + **[KAIROS CLI](../CLI.md)** | Required; the CLI is the primary interface for install, authentication, and verification. Node 24 is the supported LTS baseline; 25/26 run as advisory CI lanes |
 | **Python 3** | Required only for repository helper scripts or advanced operator workflows |
 
+### Helm chart path (Kubernetes)
+
+| Requirement | Details |
+|-------------|---------|
+| **Kubernetes** 1.28+ | Any conformant cluster |
+| **Helm** v3.14+ | Package manager for Kubernetes |
+| **kubectl** | Configured context targeting the cluster |
+| **Operators** | Install per [Helm prerequisites](helm.md#operators) |
+| **Gateway API CRDs** | Required when `gateway.enabled: true` |
+
 If any requirement is missing, fix it before you continue.
+
+---
 
 ## Embedding backend
 
-Choose the embedding backend before you populate `.env`. The application needs
-a text-embedding service to convert text into vectors for Qdrant, and each
-backend uses a different set of variables.
+Choose the embedding backend before you populate `.env` or configure Helm
+values. The application needs a text-embedding service to convert text into
+vectors for Qdrant, and each backend uses a different set of variables.
 
 ### Why an embedding model?
 
@@ -47,9 +66,6 @@ These examples use OpenAI `text-embedding-3-small`, Ollama
 `nomic-embed-text`, or a self-hosted TEI endpoint.
 
 ### Supported backends
-
-This diagram shows the supported backend options and the primary variables each
-one introduces.
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -70,6 +86,8 @@ flowchart TB
   class T,E3 c
 ```
 
+---
+
 ### OpenAI
 
 Use OpenAI when you want a managed cloud embedding service.
@@ -80,7 +98,7 @@ Use OpenAI when you want a managed cloud embedding service.
 
 ![Restricted key: Embeddings on, rest minimal](openai-key-embeddings-only.png)
 
-Add these variables to the `.env` block in your stack guide:
+**Docker Compose `.env`:**
 
 ```ini
 OPENAI_API_KEY=sk-...
@@ -88,12 +106,25 @@ OPENAI_API_KEY=sk-...
 # OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-If you use a local repository checkout, you can also validate the key with
+**Helm values:**
+
+```yaml
+app:
+  embedding:
+    openai:
+      existingSecret: kairos-mcp-embedding
+      secretKey: OPENAI_API_KEY
+      model: text-embedding-3-small
+```
+
+If you use a local repository checkout, validate the key with
 `npm run dev:test-embedding-key`.
+
+---
 
 ### Ollama
 
-Use Ollama when you want a local embedding service.
+Use Ollama when you want a local embedding service with no external API key.
 
 ```sh
 ollama pull nomic-embed-text
@@ -108,29 +139,64 @@ ollama pull nomic-embed-text
 | Compose on macOS or Windows | Host machine | `http://host.docker.internal:11434` |
 | Compose on Linux | Host machine | Host IP or published port |
 | `npm run dev:*` on the host | Same machine | `http://127.0.0.1:11434` |
+| Helm (in-cluster Ollama) | Same namespace | `http://ollama:11434` |
 
-Use the Ollama block in [simple stack §3](docker-compose-simple.md#3-environment-file).
-For advanced deployments, carry the same embedding variables into your own
-`.env`.
+**Docker Compose `.env`:**
+
+```ini
+OPENAI_API_URL=http://host.docker.internal:11434
+OPENAI_EMBEDDING_MODEL=nomic-embed-text
+OPENAI_API_KEY=ollama
+```
+
+**Helm values** (chart deploys Ollama StatefulSet):
+
+```yaml
+ollama:
+  enabled: true
+app:
+  embedding:
+    openai:
+      model: nomic-embed-text
+  extraEnv:
+    - name: OPENAI_API_URL
+      value: http://ollama:11434
+    - name: OPENAI_API_KEY
+      value: "ollama"
+```
 
 Switching between OpenAI and Ollama can change vector size, which may require a
 Qdrant migration.
 
+---
+
 ### TEI
 
 Use TEI when you already operate a text-embedding inference service.
+
+**Docker Compose `.env`:**
 
 ```ini
 TEI_BASE_URL=http://your-tei:8080
 # TEI_MODEL=...
 ```
 
+**Helm values:**
+
+```yaml
+app:
+  extraEnv:
+    - name: TEI_BASE_URL
+      value: http://your-tei:8080
+```
+
+---
+
 ## Next steps
 
-After you choose the backend, continue with the stack guide.
+After you choose the backend, continue with your deployment path:
 
-1. Populate [simple stack §3](docker-compose-simple.md#3-environment-file) with
-   `QDRANT_API_KEY` plus the variables for your chosen backend.
-2. Start the stack and confirm `/health`.
-3. Use [CLI](../CLI.md) against the running URL.
-4. Add MCP only if your IDE or host requires a streamable HTTP endpoint.
+| Path | Next page |
+|------|-----------|
+| Docker Compose | [Simple stack §3](docker-compose-simple.md#3-environment-file) |
+| Helm chart | [Helm installation](helm.md#3-create-a-values-file) |

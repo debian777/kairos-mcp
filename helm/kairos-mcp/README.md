@@ -53,7 +53,7 @@ When any of `redisCluster.enabled`, `keycloakInstance.enabled`, or `postgresClus
 Set `gateway.enabled: true`, `gateway.hostname`, and
 `gateway.gatewayClassName`. The app route renders only when `app.enabled=true`.
 Keycloak is exposed at `https://<hostname>/sso`. For the repo-local k3d flow,
-`helm/k3b.sh` installs operators, ngrok, `GatewayClass/ngrok`, and by default
+`helm/.dev/k3b.sh` installs operators, ngrok, `GatewayClass/ngrok`, and by default
 the `kairos` Helm release (`helm/values.dev.yaml`) so the MCP app and Keycloak get
 `HTTPRoute`s on that hostname. Set `KAIROS_NGROK_HOSTNAME` if your ngrok domain
 differs from `gateway.hostname` in values. Use `KAIROS_SKIP_CHART=1` for
@@ -76,10 +76,9 @@ When `app.enabled` is true, the process must supply an embedding provider. The
 chart supports OpenAI via `app.embedding.openai.existingSecret` (recommended)
 or `app.extraEnv` for TEI (`TEI_BASE_URL`, `TEI_MODEL`).
 
-For the repo-local k3d profile, `./helm/k3b.sh` applies the full chart by
-default. Put `OPENAI_API_KEY` in the environment first (e.g.
-`set -a && source .env && set +a`); the script creates `kairos-mcp-embedding`
-from that variable. See `helm/values.dev.yaml` (production-oriented: `helm/values.prod.yaml`).
+For the repo-local k3d profile, `./helm/.dev/k3b.sh` applies the full chart by
+default (Ollama embeddings, no API key required). See `helm/values.dev.yaml`
+(production-oriented: `helm/values.prod.yaml`).
 
 In `my-values.yaml`, set at least `app.qdrantUrl`, `app.keycloakUrl`,
 `app.keycloakInternalUrl`, and embedding or `app.extraEnv` when you enable the

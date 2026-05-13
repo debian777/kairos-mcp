@@ -31,7 +31,9 @@ jobs:
           version: v4.0.5
 
       - name: Add helm repos (chart dependencies)
-        run: helm repo add qdrant https://qdrant.github.io/qdrant-helm
+        run: |
+          helm repo add qdrant https://qdrant.github.io/qdrant-helm
+          helm repo add valkey https://valkey.io/valkey-helm/
 
       - name: Helm dependency build
         run: helm dependency build helm/kairos-mcp

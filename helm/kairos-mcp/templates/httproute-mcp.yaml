@@ -20,6 +20,16 @@ spec:
         - path:
             type: PathPrefix
             value: {{ .Values.gateway.routes.mcp.path | default "/" }}
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Proto
+                value: https
+              - name: X-Forwarded-Host
+                value: {{ .Values.gateway.hostname }}
+              - name: X-Forwarded-Port
+                value: "443"
       backendRefs:
         - name: {{ .Values.app.name | default "kairos-mcp" }}
           port: {{ .Values.app.port }}
