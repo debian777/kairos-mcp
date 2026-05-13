@@ -60,17 +60,28 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
       expect(storeResponse.status).toBe('stored');
     }
 
-    // Wait for indexing/caching
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Search with the query string (should match all 3 protocols perfectly)
     const call = {
       name: 'activate',
       arguments: {
         query: queryString
       }
     };
-    const result = await mcpConnection.client.callTool(call);
+
+    // Wait for indexing/caching; poll activate once more if matches are not visible yet (no jest.retryTimes — see v4-activate-test-helpers.ts).
+    const initialIndexWaitMs = 3000;
+    const retryPollWaitMs = 4000;
+    const maxActivatePolls = 2;
+
+    await new Promise((resolve) => setTimeout(resolve, initialIndexWaitMs));
+
+    let result = await mcpConnection.client.callTool(call);
+    for (let poll = 1; poll < maxActivatePolls; poll++) {
+      const peek = expectValidJsonResult(result);
+      const matchCount = (peek.choices ?? []).filter((c) => c.role === 'match').length;
+      if (matchCount >= 2) break;
+      await new Promise((resolve) => setTimeout(resolve, retryPollWaitMs));
+      result = await mcpConnection.client.callTool(call);
+    }
 
     withRawOnFail({ call, result }, () => {
       const parsed = expectValidJsonResult(result);
