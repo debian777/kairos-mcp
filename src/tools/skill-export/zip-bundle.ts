@@ -2,14 +2,14 @@
  * Build a ZIP buffer from skill export files (root contains one folder per slug).
  */
 
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import type { Writable } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import { getExportZipCompressionLevel } from '../../config/export-zip-settings.js';
 import type { SkillExportFile } from './types.js';
 
 function createSkillZipArchive() {
-  return archiver('zip', { zlib: { level: getExportZipCompressionLevel() } });
+  return new ZipArchive({ zlib: { level: getExportZipCompressionLevel() } });
 }
 
 /**
