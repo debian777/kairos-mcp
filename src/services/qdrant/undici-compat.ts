@@ -2,7 +2,7 @@ let patched = false;
 
 /**
  * Qdrant client currently injects `dispatcher` into fetch init.
- * On Node 25, that dispatcher from qdrant's undici v6 is not compatible
+ * On Node 25+, that dispatcher from qdrant's undici v6 is not compatible
  * with the runtime fetch internals and causes `InvalidArgumentError: invalid onError method`.
  * Strip only that field and preserve all other init options.
  */

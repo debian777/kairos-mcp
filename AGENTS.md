@@ -18,7 +18,7 @@ Action routing for agents is defined in **[`skills/kairos/SKILL.md`](skills/kair
 
 ## Architecture
 
-**Tech stack:** TypeScript (Node.js ≥ 25), Qdrant (vector DB), Redis
+**Tech stack:** TypeScript (Node.js 24 LTS minimum), Qdrant (vector DB), Redis
 (state/caching), optional Keycloak (OIDC auth).
 
 | Path | Purpose |

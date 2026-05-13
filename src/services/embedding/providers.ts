@@ -23,6 +23,11 @@ function isRetriableNetworkError(error: unknown): boolean {
     );
 }
 
+/** Transient OpenAI API conditions (same window as EMBEDDING_FETCH_MAX_RETRIES). */
+function isRetriableOpenAiHttpStatus(status: number): boolean {
+    return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
 async function fetchWithRetries(url: string, init: RequestInit, provider: 'openai' | 'tei'): Promise<Response> {
     let lastError: unknown;
     for (let attempt = 0; attempt <= EMBEDDING_FETCH_MAX_RETRIES; attempt++) {
@@ -72,7 +77,6 @@ function auditProviderCall(payload: {
 async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][]> {
     if (!OPENAI_API_KEY || !OPENAI_EMBEDDING_MODEL) throw new Error('OpenAI requires OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL to be configured');
     const inputArray = Array.isArray(input) ? input : [input];
-    const startedAt = Date.now();
     const inputCharLength = inputArray.reduce((sum, value) => sum + value.length, 0);
     const body = {
         model: OPENAI_EMBEDDING_MODEL,
@@ -83,66 +87,91 @@ async function postEmbeddingsOpenAI(input: string[] | string): Promise<number[][
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
     };
 
-    const res = await fetchWithRetries(OPENAI_ENDPOINT, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-    }, 'openai');
+    let lastFailure = '';
 
-    const data: any = await res.json().catch((err) => {
-        logger.error('[EmbeddingService] Failed to parse OpenAI response as JSON', err);
-        throw new Error(`OpenAI embeddings returned non-JSON response (HTTP ${res.status})`);
-    });
+    for (let attempt = 0; attempt <= EMBEDDING_FETCH_MAX_RETRIES; attempt++) {
+        const startedAt = Date.now();
+        const res = await fetchWithRetries(OPENAI_ENDPOINT, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+        }, 'openai');
 
-    if (!res.ok) {
-        const errMsg = (data as any)?.error?.message || (data as any)?.message || `OpenAI embeddings HTTP ${res.status}`;
+        const raw = await res.text();
+        let data: any;
+        try {
+            data = raw.length ? JSON.parse(raw) : {};
+        } catch (parseErr) {
+            logger.error('[EmbeddingService] Failed to parse OpenAI response as JSON', parseErr);
+            lastFailure = `non-JSON body (HTTP ${res.status})`;
+            if (isRetriableOpenAiHttpStatus(res.status) && attempt < EMBEDDING_FETCH_MAX_RETRIES) {
+                const delayMs = EMBEDDING_FETCH_RETRY_DELAY_MS * (attempt + 1);
+                logger.warn(`[EmbeddingService] OpenAI ${lastFailure}, retrying in ${delayMs}ms`);
+                await sleep(delayMs);
+                continue;
+            }
+            throw new Error(`OpenAI embeddings returned non-JSON response (HTTP ${res.status})`);
+        }
+
+        if (!res.ok) {
+            const errMsg = (data as any)?.error?.message || (data as any)?.message || `OpenAI embeddings HTTP ${res.status}`;
+            auditProviderCall({
+                provider: 'openai',
+                model: OPENAI_EMBEDDING_MODEL,
+                status: 'error',
+                inputCount: inputArray.length,
+                inputCharLength,
+                outputDimension: 0,
+                latencyMs: Date.now() - startedAt,
+                httpStatus: res.status,
+                errorMessage: errMsg
+            });
+            if (res.status === 401) {
+                throw new Error(`OpenAI authentication failed (401). Check OPENAI_API_KEY: ${errMsg}`);
+            }
+            lastFailure = errMsg;
+            if (isRetriableOpenAiHttpStatus(res.status) && attempt < EMBEDDING_FETCH_MAX_RETRIES) {
+                const delayMs = EMBEDDING_FETCH_RETRY_DELAY_MS * (attempt + 1);
+                logger.warn(`[EmbeddingService] OpenAI HTTP ${res.status}: ${errMsg}, retrying in ${delayMs}ms`);
+                await sleep(delayMs);
+                continue;
+            }
+            if (res.status === 429) {
+                throw new Error(`OpenAI rate limit (429): ${errMsg}`);
+            }
+            throw new Error(`OpenAI embeddings error (HTTP ${res.status}): ${errMsg}`);
+        }
+
+        if (!Array.isArray((data as any)?.data)) {
+            logger.error('[EmbeddingService] Unexpected OpenAI response shape', data);
+            throw new Error('Unexpected OpenAI embeddings response shape');
+        }
+
+        const embeddings: number[][] = (data as any).data.map((d: any) => {
+            if (!Array.isArray(d?.embedding)) throw new Error('OpenAI returned invalid embedding shape');
+            return d.embedding as number[];
+        });
+
+        if (embeddings.length > 0 && embeddings[0]) {
+            const dim = embeddings[0].length;
+            setResolvedEmbeddingDimension(dim);
+        }
+        const dim = embeddings.length > 0 && embeddings[0] ? embeddings[0].length : 0;
         auditProviderCall({
             provider: 'openai',
             model: OPENAI_EMBEDDING_MODEL,
-            status: 'error',
+            status: 'success',
             inputCount: inputArray.length,
             inputCharLength,
-            outputDimension: 0,
+            outputDimension: dim,
             latencyMs: Date.now() - startedAt,
-            httpStatus: res.status,
-            errorMessage: errMsg
+            httpStatus: res.status
         });
-        if (res.status === 401) {
-            throw new Error(`OpenAI authentication failed (401). Check OPENAI_API_KEY: ${errMsg}`);
-        }
-        if (res.status === 429) {
-            throw new Error(`OpenAI rate limit (429): ${errMsg}`);
-        }
-        throw new Error(`OpenAI embeddings error (HTTP ${res.status}): ${errMsg}`);
+        logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
+        return embeddings;
     }
 
-    if (!Array.isArray((data as any)?.data)) {
-        logger.error('[EmbeddingService] Unexpected OpenAI response shape', data);
-        throw new Error('Unexpected OpenAI embeddings response shape');
-    }
-
-    const embeddings: number[][] = (data as any).data.map((d: any) => {
-        if (!Array.isArray(d?.embedding)) throw new Error('OpenAI returned invalid embedding shape');
-        return d.embedding as number[];
-    });
-
-    if (embeddings.length > 0 && embeddings[0]) {
-        const dim = embeddings[0].length;
-        setResolvedEmbeddingDimension(dim);
-    }
-    const dim = embeddings.length > 0 && embeddings[0] ? embeddings[0].length : 0;
-    auditProviderCall({
-        provider: 'openai',
-        model: OPENAI_EMBEDDING_MODEL,
-        status: 'success',
-        inputCount: inputArray.length,
-        inputCharLength,
-        outputDimension: dim,
-        latencyMs: Date.now() - startedAt,
-        httpStatus: res.status
-    });
-    logger.debug(`[EmbeddingService] Received ${embeddings.length} embeddings (dim=${dim}) [provider=openai]`);
-    return embeddings;
+    throw new Error(`OpenAI embeddings failed after retries: ${lastFailure || 'unknown'}`);
 }
 
 async function postEmbeddingsTEI(input: string[] | string): Promise<number[][]> {

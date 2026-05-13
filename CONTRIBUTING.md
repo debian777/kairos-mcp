@@ -145,7 +145,7 @@ Participants must maintain a respectful and inclusive environment.
 
 ## Prerequisites
 
-- Node.js >= 25.0.0
+- Node.js >= 24.0.0 (Node 24 LTS is the supported baseline; CI also exercises Node 25 and 26 as advisory lanes — see `.github/workflows/integration.yml`)
 - Docker and Docker Compose (v2)
 - Git
 

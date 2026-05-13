@@ -56,8 +56,6 @@ jobs:
     name: Publish Docker image
     needs: publish-npm
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: read
       id-token: write
@@ -151,8 +149,6 @@ jobs:
     needs: [publish-npm, publish-docker]
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref != '')
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: write
 

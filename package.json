@@ -77,8 +77,8 @@
     "docker:publish": "npm run docker:build && npm run docker:push",
     "ui:build": "vite build",
     "design:viewports": "node scripts/test-capture-viewports.mjs",
-    "test:ui": "NODE_OPTIONS='--no-webstorage' vitest run --config vitest.config.ts",
-    "test:ui:watch": "NODE_OPTIONS='--no-webstorage' vitest --config vitest.config.ts",
+    "test:ui": "vitest run --config vitest.config.ts",
+    "test:ui:watch": "vitest --config vitest.config.ts",
     "test:helm": "./scripts/test-helm.sh",
     "pack": "npm run build && npm pack",
     "npm:publish": "npm run build && npm publish --access public",
@@ -153,7 +153,7 @@
     "@types/archiver": "^7.0.0",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.3.0",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
@@ -179,7 +179,7 @@
     "vitest": "^4.1.0"
   },
   "engines": {
-    "node": ">=25.0.0"
+    "node": ">=24.0.0"
   },
   "overrides": {
     "path-to-regexp": "^8.4.0",

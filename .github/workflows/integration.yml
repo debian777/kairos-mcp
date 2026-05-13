@@ -1,12 +1,15 @@
 # Integration workflow: build npm tgz, then verify in parallel (UI/static, npm+infra tests, Docker+Trivy).
-# Secrets: OPENAI_API_KEY (from GitHub secrets). Infra/dev secrets are generated in verify-integration each run.
+# Secrets: OPENAI_API_KEY (from GitHub secrets). Infra/dev secrets are generated in verify-integration-primary each run.
 # See .github/workflows/README.md for gh secret/variable setup.
 #
-# build — no Docker infra (npm ci + pack only).
-# verify-ui — static + UI tests; runs in parallel with build (no tgz required).
-# verify-integration — starts Compose + npm ci before downloading the package artifact; then Playwright, Keycloak, install tgz, dev:test.
-# verify-docker — release-equivalent image + Trivy (release safety net only).
-# integration-pass — single green gate for branch protection / workflow_run.
+# build-primary — Node 24 only (npm ci + pack); artifact npm-package-node24 (merge gate).
+# build-advisory — Node 25/26 matrix, continue-on-error (not in integration-pass needs).
+# verify-ui-primary — static + UI tests, Node 24 only; parallel with build jobs (no tgz); merge gate.
+# verify-ui-advisory — same steps on Node 25/26 matrix; continue-on-error; not in integration-pass needs.
+# verify-integration-primary — Node 24 only; needs build-primary.
+# verify-integration-advisory — Node 25/26; needs build-advisory; advisory only.
+# verify-docker — release-equivalent image + Trivy; needs build-primary.
+# integration-pass — gates only on Node-24 primary jobs + verify-docker (no advisory UI/build/integration).
 name: Integration
 
 on:
@@ -22,11 +25,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build npm package (tgz)
+  build-primary:
+    name: Build npm package (tgz, Node 24)
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +38,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -52,14 +53,50 @@ jobs:
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package
+          name: npm-package-node24
           path: dist/*.tgz
 
-  verify-ui:
-    name: Static checks + UI tests
+  build-advisory:
+    name: Build npm package (tgz, Node ${{ matrix.node-version }}, advisory)
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "25"
+          - node-version: "26"
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      - name: Build package (tgz)
+        run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
+
+      - name: Test package install (clean tgz smoke)
+        run: node scripts/ci-github-step-summary.mjs "Test package install (clean tgz smoke)" -- npm run test:tgz
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-node${{ matrix.node-version }}
+          path: dist/*.tgz
+
+  verify-ui-primary:
+    name: Static checks + UI tests (Node 24)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -71,7 +108,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: "npm"
 
       - name: Check versions (mem = package.json, skills = last stable)
@@ -109,12 +146,18 @@ jobs:
       - name: TypeScript, Knip, UI tests (parallel)
         run: node scripts/ci-parallel-checks.mjs
 
-  verify-integration:
-    name: Infra + dev deploy + integration tests (AUTH on)
-    needs: [build]
+  verify-ui-advisory:
+    name: Static checks + UI tests (Node ${{ matrix.node-version }}, advisory)
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout
@@ -126,7 +169,60 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Check versions (mem = package.json, skills = last stable)
+        run: node scripts/ci-github-step-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
+
+      - name: Lint skills (skills-ref)
+        run: node scripts/ci-github-step-summary.mjs "Lint skills (skills-ref)" -- npm run lint:skills
+
+      - name: Install dependencies
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      # ESLint: matches `npm run lint` / Husky pre-commit — disabled in CI for now.
+      # - name: ESLint
+      #   run: node scripts/ci-github-step-summary.mjs "ESLint" -- npm run lint
+
+      # Per-Node cache suffix so advisory runners do not fight the Node 24 primary key
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        id: playwright-install
+        run: node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - name: TypeScript, Knip, UI tests (parallel)
+        run: node scripts/ci-parallel-checks.mjs
+
+  verify-integration-primary:
+    name: Infra + dev deploy + integration tests (AUTH on, Node 24)
+    needs: [build-primary]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
           cache: "npm"
 
       - name: "Generate .env (fullstack: infra + app + auth)"
@@ -180,10 +276,10 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package
+          name: npm-package-node24
           path: artifact-npm
 
-      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui.
+      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui-primary.
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache-integration
@@ -264,13 +360,175 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-log
+          name: kairos-log-node24
+          path: var/log/kairos.log
+          if-no-files-found: ignore
+
+  verify-integration-advisory:
+    name: Infra + dev deploy + integration tests (AUTH on, Node ${{ matrix.node-version }}, advisory)
+    needs: [build-advisory]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "25"
+          - node-version: "26"
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: "Generate .env (fullstack: infra + app + auth)"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
+
+      - name: Verify .env exists
+        run: ls -la .env
+
+      - name: Restore infra Docker image cache
+        uses: actions/cache/restore@v5
+        id: docker-infra-cache
+        with:
+          path: .cache/docker-infra
+          key: infra-docker-${{ hashFiles('compose.yaml') }}
+
+      - name: Load infra Docker images from cache
+        if: steps.docker-infra-cache.outputs.cache-hit == 'true'
+        run: docker load -i .cache/docker-infra/images.tar
+
+      - name: Start Docker infra and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          docker compose -p kairos-mcp --env-file .env --profile fullstack up -d valkey qdrant postgres keycloak &
+          pid_compose=$!
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_compose || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
+
+      - name: Save infra Docker images for cache
+        if: steps.docker-infra-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache/docker-infra
+          IMAGES=$(docker compose -p kairos-mcp --env-file .env --profile fullstack config --format json | jq -r '.services | to_entries[] | select(.key | test("^(valkey|qdrant|postgres|keycloak)$")) | .value.image')
+          docker save -o .cache/docker-infra/images.tar $IMAGES
+
+      - name: Cache infra Docker images
+        uses: actions/cache/save@v5
+        if: steps.docker-infra-cache.outputs.cache-hit != 'true'
+        with:
+          path: .cache/docker-infra
+          key: infra-docker-${{ hashFiles('compose.yaml') }}
+
+      - name: Download npm package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-package-node${{ matrix.node-version }}
+          path: artifact-npm
+
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache-integration
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers and wait for infra (parallel)
+        id: playwright-install-integration
+        run: |
+          set -euo pipefail
+          ec=0
+          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          pid_pw=$!
+          bash scripts/ci-wait-for-infra.sh &
+          pid_wait=$!
+          wait $pid_pw || ec=1
+          wait $pid_wait || ec=1
+          exit $ec
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache-integration.outputs.cache-hit != 'true' && steps.playwright-install-integration.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Configure Keycloak realms and test user
+        run: node scripts/ci-github-step-summary.mjs "Configure Keycloak realms" -- python3 scripts/deploy-configure-keycloak-realms.py
+
+      - name: Install package from tgz
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
+            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
+
+      - name: Expose installed package dist for CLI tests
+        run: |
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
+
+      - name: Start app (from installed package)
+        env:
+          HEALTH_CHECK_ATTEMPTS: 15
+          KEYCLOAK_INTERNAL_URL: http://localhost:8080
+          QDRANT_SNAPSHOT_DIR: var/snapshots
+        run: |
+          mkdir -p var/log var/snapshots
+          npm run dev:start:installed > var/log/kairos.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:3300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            sleep 2
+          done
+
+      - name: Run auth integration test
+        run: npm run dev:test
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
+
+      - name: Upload kairos log - check
+        if: always() && failure()
+        run: |
+          pwd
+          ls -la var/log 2>/dev/null || true
+          if [ -f var/log/kairos.log ]; then ls -la var/log/kairos.log; cat var/log/kairos.log; else echo "No var/log/kairos.log"; fi
+
+      - name: Upload kairos log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairos-log-node${{ matrix.node-version }}
           path: var/log/kairos.log
           if-no-files-found: ignore
 
   verify-docker:
+    # Docker image FROM is single-Node (24-alpine) — verify-docker is intentionally non-matrix and
+    # downloads the Node 24 tgz only.
     name: Release-equivalent Docker image + Trivy
-    needs: [build]
+    needs: [build-primary]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -287,7 +545,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package
+          name: npm-package-node24
           path: dist
 
       - name: Stage package.tgz and build release-equivalent image
@@ -308,17 +566,20 @@ jobs:
           severity: CRITICAL,HIGH
           trivyignores: .trivyignore
 
+  # Merge gate: Node 24 primary jobs only (build, UI/static, integration, Docker). Node 25/26
+  # advisory jobs (build-advisory, verify-ui-advisory, verify-integration-advisory) are omitted
+  # from needs: so they cannot fail this check or block PR merge.
   integration-pass:
     name: Integration workflow passed
-    needs: [build, verify-ui, verify-integration, verify-docker]
+    needs: [build-primary, verify-ui-primary, verify-integration-primary, verify-docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
-          echo "build=${{ needs.build.result }} verify-ui=${{ needs.verify-ui.result }} verify-integration=${{ needs.verify-integration.result }} verify-docker=${{ needs.verify-docker.result }}"
-          test "${{ needs.build.result }}" = "success"
-          test "${{ needs.verify-ui.result }}" = "success"
-          test "${{ needs.verify-integration.result }}" = "success"
+          echo "build-primary=${{ needs.build-primary.result }} verify-ui-primary=${{ needs.verify-ui-primary.result }} verify-integration-primary=${{ needs.verify-integration-primary.result }} verify-docker=${{ needs.verify-docker.result }}"
+          test "${{ needs.build-primary.result }}" = "success"
+          test "${{ needs.verify-ui-primary.result }}" = "success"
+          test "${{ needs.verify-integration-primary.result }}" = "success"
           test "${{ needs.verify-docker.result }}" = "success"
           echo "All integration jobs passed."

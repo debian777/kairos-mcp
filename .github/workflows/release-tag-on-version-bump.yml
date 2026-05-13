@@ -26,8 +26,6 @@ jobs:
     name: Tag if version bumped
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: write  # push tag
       actions: write  # trigger Release workflow
@@ -81,7 +79,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: "npm"
 
       - name: Get package version

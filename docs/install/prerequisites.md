@@ -21,7 +21,7 @@ Confirm these requirements before you run `docker compose up`.
 | Source for **`compose.yaml`** | Use the file from the repository, a raw download, or another controlled copy |
 | **Qdrant** | Started by Compose; no separate installation is required for the simple stack |
 | **Identity provider** | Not part of the standard install path; manage it separately if your deployment needs one |
-| **Node.js 25+** + **[KAIROS CLI](../CLI.md)** | Required; the CLI is the primary interface for install, authentication, and verification |
+| **Node.js 24+** + **[KAIROS CLI](../CLI.md)** | Required; the CLI is the primary interface for install, authentication, and verification. Node 24 is the supported LTS baseline; 25/26 run as advisory CI lanes |
 | **Python 3** | Required only for repository helper scripts or advanced operator workflows |
 
 If any requirement is missing, fix it before you continue.

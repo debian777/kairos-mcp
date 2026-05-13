@@ -5,7 +5,7 @@
 <img src="logo/kairos-mcp.svg" width="128" alt="KAIROS MCP logo" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen)](https://nodejs.org/)
 
 KAIROS MCP is a TypeScript service for storing and executing reusable protocol
 chains for AI agents. It exposes:
@@ -214,7 +214,7 @@ the scripts used for local development and CI.
 
 ### Install the CLI
 
-Node.js 25 or later is required.
+Node.js 24 or later is required.
 
 Run once without installing globally:
 

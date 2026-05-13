@@ -4,7 +4,7 @@ The `kairos` CLI talks to a running KAIROS server over HTTP.
 
 ## Install
 
-Node.js 25 or later is required.
+Node.js 24 or later is required (Node 24 is the supported LTS baseline; 25 and 26 are exercised as advisory CI lanes).
 
 ```bash
 npm install -g @debian777/kairos-mcp
