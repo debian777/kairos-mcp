@@ -73,19 +73,22 @@ Each workflow is made of one or more **jobs**. Arrows show `needs:` — the targ
 ```mermaid
 flowchart TB
   subgraph INT_WF["Integration (integration.yml)"]
-    subgraph parallel_with_build [Parallel at workflow start]
+    subgraph parallel_start [Parallel at workflow start]
       direction LR
-      J_BLD[build]
+      J_BLD_P[build-primary]
+      J_BLD_A[build-advisory]
       J_UI[verify-ui]
     end
-    J_INT[verify-integration]
+    J_INT_P[verify-integration-primary]
+    J_INT_A[verify-integration-advisory]
     J_DKR[verify-docker]
     J_PASS[integration-pass]
-    J_BLD --> J_INT
-    J_BLD --> J_DKR
-    J_BLD --> J_PASS
+    J_BLD_P --> J_INT_P
+    J_BLD_P --> J_DKR
+    J_BLD_A --> J_INT_A
+    J_BLD_P --> J_PASS
     J_UI --> J_PASS
-    J_INT --> J_PASS
+    J_INT_P --> J_PASS
     J_DKR --> J_PASS
   end
 
@@ -110,13 +113,13 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD,J_UI,J_INT,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD_P,J_BLD_A,J_UI,J_INT_P,J_INT_A,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `build` (Node 24–26 matrix) ∥ `verify-ui` (24); then `verify-integration` (same matrix, needs `build`) ∥ `verify-docker` (Node 24 tgz only); → `integration-pass` | `integration-pass` needs all four jobs |
+| Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui` (24); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui`, `verify-integration-primary`, `verify-docker` (advisory jobs omitted from `needs`) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -134,19 +137,19 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads one artifact per matrix leg: **`npm-package-node24`**, **`npm-package-node25`**, **`npm-package-node26`** (see **Node matrix** below). **`verify-ui`** runs **in parallel with `build`** on **Node 24 only** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) uses the **same Node matrix** as `build`, downloads the matching **`npm-package-node${{ matrix.node-version }}`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-docker`** (`needs: build`, parallel with `verify-integration`) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui`** runs **in parallel** with both build jobs on **Node 24 only** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
 
 ### Node matrix (24 required, 25 and 26 advisory)
 
-- **`build`** and **`verify-integration`** run on **Node 24, 25, and 26** (`setup-node`). **24** is the supported baseline; **25** and **26** are forward-compat signal only.
-- Advisory legs set **`continue-on-error: ${{ matrix.experimental }}`** so failures there **must not** block **`integration-pass`** as long as the **Node 24** leg is green (GitHub treats those job conclusions as successful for `needs.*.result` when `continue-on-error` applies). **Do not** add per-matrix check names to branch protection; keep the single required check **Integration workflow passed** (and the simple workflow analogue).
-- If a future GitHub change ever makes **`integration-pass`** fail when only 25/26 fail, split **Node 24-only** `build` / `verify-integration` into separate job IDs and gate **`integration-pass`** on those only (same pattern for **Integration Simple**).
+- **`build-primary`** / **`verify-integration-primary`** are **Node 24 only** and are the only jobs **`integration-pass`** depends on for multi-Node coverage (plus **`verify-ui`** and **`verify-docker`**).
+- **`build-advisory`** / **`verify-integration-advisory`** run **25** and **26** with **`continue-on-error: true`** and are **omitted** from **`integration-pass`** / **`integration-simple-pass`** `needs` so GitHub’s aggregate matrix result cannot fail the merge gate when 24 is green.
+- **Do not** add per-matrix check names to branch protection; keep the single required checks **Integration workflow passed** and **Integration simple workflow passed**.
 
-**Integration Simple** (`.github/workflows/integration-simple.yml`): the same matrix and artifact naming apply (`npm-package-simple-node24` … **`integration-simple-pass`**).
+**Integration Simple** (`.github/workflows/integration-simple.yml`): same split — **`build-primary`** / **`verify-integration-simple-primary`** (artifact **`npm-package-simple-node24`**) gate **`integration-simple-pass`**; **`build-advisory`** / **`verify-integration-simple-advisory`** for 25/26 are advisory only.
 
-**Caching:** **`verify-ui`** and **`verify-integration`** share the **`~/.cache/ms-playwright`** key. **`verify-integration`** restores/saves **Docker infra** images (`compose.yaml` hash).
+**Caching:** **`verify-ui`**, **`verify-integration-primary`**, and **`verify-integration-advisory`** share the **`~/.cache/ms-playwright`** key. Integration verify jobs restore/save **Docker infra** images (`compose.yaml` hash).
 
-**Note:** `verify-integration` cannot start until **`build`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build time plus later steps.
+**Note:** Primary integration verify cannot start until **`build-primary`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build wall clock plus later steps.
 
 **Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/ci-github-step-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/deploy-run-env.sh`).
 
