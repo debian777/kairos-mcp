@@ -12,10 +12,20 @@ on:
 
 jobs:
   build:
-    name: Build npm package (tgz)
+    # Node 24 is the required baseline; 25/26 advisory legs surface compatibility regressions.
+    name: Build npm package (tgz, Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "24"
+            experimental: false
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +36,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
@@ -38,15 +48,24 @@ jobs:
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package-simple
+          name: npm-package-simple-node${{ matrix.node-version }}
           path: dist/*.tgz
 
   verify-integration-simple:
-    name: Infra + dev deploy + integration tests (SIMPLE mode)
+    name: Infra + dev deploy + integration tests (SIMPLE mode, Node ${{ matrix.node-version }})
     needs: [build]
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "24"
+            experimental: false
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout
@@ -58,7 +77,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: "Generate .env (base vars, overridden for simple mode)"
@@ -112,7 +131,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package-simple
+          name: npm-package-simple-node${{ matrix.node-version }}
           path: artifact-npm
 
       - name: Restore Playwright browsers cache
@@ -198,10 +217,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-simple-log
+          name: kairos-simple-log-node${{ matrix.node-version }}
           path: var/log/kairos-simple.log
           if-no-files-found: ignore
 
+  # Same gating contract as integration.yml integration-pass (Node 24 required; 25/26 advisory).
   integration-simple-pass:
     name: Integration simple workflow passed
     needs: [build, verify-integration-simple]

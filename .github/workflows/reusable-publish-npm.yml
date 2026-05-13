@@ -34,8 +34,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
     permissions:
       contents: read
       id-token: write
@@ -51,7 +49,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: "npm"
           registry-url: "https://registry.npmjs.org"
 

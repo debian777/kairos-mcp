@@ -116,7 +116,7 @@ flowchart TB
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `build` ∥ `verify-ui`; then `verify-integration` ∥ `verify-docker` (both need `build`); → `integration-pass` | `integration-pass` needs all four jobs |
+| Integration | `build` (Node 24–26 matrix) ∥ `verify-ui` (24); then `verify-integration` (same matrix, needs `build`) ∥ `verify-docker` (Node 24 tgz only); → `integration-pass` | `integration-pass` needs all four jobs |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -134,7 +134,15 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads the **`npm-package`** artifact. **`verify-ui`** runs **in parallel with `build`** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) downloads the tgz **after** **Compose is already up and `npm ci` has run** (infra + test harness do not wait on the artifact); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-docker`** (`needs: build`, parallel with `verify-integration`) stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build`** — **no Docker infra**; `npm ci` and `npm run build:tgz`, then uploads one artifact per matrix leg: **`npm-package-node24`**, **`npm-package-node25`**, **`npm-package-node26`** (see **Node matrix** below). **`verify-ui`** runs **in parallel with `build`** on **Node 24 only** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration`** (`needs: build`) uses the **same Node matrix** as `build`, downloads the matching **`npm-package-node${{ matrix.node-version }}`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-docker`** (`needs: build`, parallel with `verify-integration`) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy** — release sanity check only. **`integration-pass`** requires **`build`**, **`verify-ui`**, **`verify-integration`**, and **`verify-docker`** (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+
+### Node matrix (24 required, 25 and 26 advisory)
+
+- **`build`** and **`verify-integration`** run on **Node 24, 25, and 26** (`setup-node`). **24** is the supported baseline; **25** and **26** are forward-compat signal only.
+- Advisory legs set **`continue-on-error: ${{ matrix.experimental }}`** so failures there **must not** block **`integration-pass`** as long as the **Node 24** leg is green (GitHub treats those job conclusions as successful for `needs.*.result` when `continue-on-error` applies). **Do not** add per-matrix check names to branch protection; keep the single required check **Integration workflow passed** (and the simple workflow analogue).
+- If a future GitHub change ever makes **`integration-pass`** fail when only 25/26 fail, split **Node 24-only** `build` / `verify-integration` into separate job IDs and gate **`integration-pass`** on those only (same pattern for **Integration Simple**).
+
+**Integration Simple** (`.github/workflows/integration-simple.yml`): the same matrix and artifact naming apply (`npm-package-simple-node24` … **`integration-simple-pass`**).
 
 **Caching:** **`verify-ui`** and **`verify-integration`** share the **`~/.cache/ms-playwright`** key. **`verify-integration`** restores/saves **Docker infra** images (`compose.yaml` hash).
 

@@ -12,7 +12,7 @@ description: >-
 compatibility: >-
   Requires permission to inspect installed tools, open ports, and the chosen
   working directory; install prerequisites; create or update `.env` next to
-  `compose.yaml`; and run Docker Compose plus Node.js 25+ commands.
+  `compose.yaml`; and run Docker Compose plus Node.js 24+ commands.
 metadata:
   author: kairos-mcp
   doc-source: bundled-references
@@ -125,7 +125,7 @@ Apply these rules on every install run:
 - Check whether required local components already exist before installing
   anything.
 - Identify missing components precisely: Docker, Docker Compose v2, Node.js
-  25+, `kairos` CLI or `npx`, a writable `.env` location, and Ollama only when
+  24+, `kairos` CLI or `npx`, a writable `.env` location, and Ollama only when
   the Ollama path is selected.
 - When a prerequisite is missing and the user approves the fix, install it
   instead of only describing the next step.
@@ -188,7 +188,7 @@ Confirm that the user has:
 
 - Docker Engine and Docker Compose v2
 - a working directory with `compose.yaml` and a writable `.env`
-- Node.js 25 or later
+- Node.js 24 or later
 - the `kairos` CLI, or willingness to use `npx`
 - Ollama only if the Ollama backend is selected
 

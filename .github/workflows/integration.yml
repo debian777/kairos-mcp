@@ -23,10 +23,21 @@ on:
 
 jobs:
   build:
-    name: Build npm package (tgz)
+    # Node 24 is the required baseline (LTS). 25/26 run advisory via continue-on-error so a regression
+    # against newer Node releases is visible without blocking the integration-pass gate.
+    name: Build npm package (tgz, Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "24"
+            experimental: false
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +48,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
@@ -52,14 +63,12 @@ jobs:
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package
+          name: npm-package-node${{ matrix.node-version }}
           path: dist/*.tgz
 
   verify-ui:
     name: Static checks + UI tests
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
 
     steps:
       - name: Checkout
@@ -71,7 +80,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
           cache: "npm"
 
       - name: Check versions (mem = package.json, skills = last stable)
@@ -110,11 +119,22 @@ jobs:
         run: node scripts/ci-parallel-checks.mjs
 
   verify-integration:
-    name: Infra + dev deploy + integration tests (AUTH on)
+    # Node 24 leg is the required gate; 25/26 mirror the build matrix and exercise the test suite
+    # against newer Node releases without blocking branch protection.
+    name: Infra + dev deploy + integration tests (AUTH on, Node ${{ matrix.node-version }})
     needs: [build]
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE25: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "24"
+            experimental: false
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout
@@ -126,7 +146,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: "Generate .env (fullstack: infra + app + auth)"
@@ -180,7 +200,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package
+          name: npm-package-node${{ matrix.node-version }}
           path: artifact-npm
 
       # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui.
@@ -264,11 +284,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kairos-log
+          name: kairos-log-node${{ matrix.node-version }}
           path: var/log/kairos.log
           if-no-files-found: ignore
 
   verify-docker:
+    # Docker image FROM is single-Node (24-alpine) — verify-docker is intentionally non-matrix and
+    # downloads the Node 24 tgz only.
     name: Release-equivalent Docker image + Trivy
     needs: [build]
     runs-on: ubuntu-latest
@@ -287,7 +309,7 @@ jobs:
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
         with:
-          name: npm-package
+          name: npm-package-node24
           path: dist
 
       - name: Stage package.tgz and build release-equivalent image
@@ -308,6 +330,10 @@ jobs:
           severity: CRITICAL,HIGH
           trivyignores: .trivyignore
 
+  # Gate merges on needs.*.result == success. Matrix legs 25/26 use continue-on-error so a failed
+  # advisory run does not fail the composite job result GitHub exposes to needs (24 remains the
+  # merge gate). If that ever regresses on github.com, split Node 24-only build/verify jobs and
+  # point this job at those IDs only (see .github/workflows/README.md § Node matrix).
   integration-pass:
     name: Integration workflow passed
     needs: [build, verify-ui, verify-integration, verify-docker]

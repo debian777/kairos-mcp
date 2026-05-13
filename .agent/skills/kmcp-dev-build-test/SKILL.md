@@ -8,7 +8,7 @@ description: >-
 
 # Build, deploy, and test (kairos-mcp)
 
-**Repository:** `kairos-mcp` — Node ≥25, TypeScript, Qdrant, Redis, optional Keycloak.
+**Repository:** `kairos-mcp` — Node 24 LTS minimum, TypeScript, Qdrant, Redis, optional Keycloak.
 **Agent contract:** [`AGENTS.md`](../../../AGENTS.md). **Adapter execution (shipped skill):**
 [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md). **Skill index:**
 [`.agent/skills/README.md`](../README.md) (`kmcp-dev-*`).

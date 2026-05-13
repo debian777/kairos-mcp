@@ -96,7 +96,7 @@ Paths are relative to the repo root (`scripts/…`). **Used from** lists primary
    Confirm Keycloak is up (`npm run infra:up` or your stack), `KEYCLOAK_URL` matches, and `KEYCLOAK_ADMIN_PASSWORD` is set in `.env`. For realm JSON changes, re-run `python3 scripts/deploy-configure-keycloak-realms.py`.
 
 4. **Node reports wrong version or missing modules**  
-   This repo expects **Node ≥ 25** (`package.json` `engines`). Run `npm ci` at the repo root after pulling; scripts assume dependencies are installed.
+   This repo expects **Node 24 LTS or newer** (`package.json` `engines`). Run `npm ci` at the repo root after pulling; scripts assume dependencies are installed.
 
 5. **CI-only helpers print nothing locally**  
    `ci-github-step-summary.mjs` only appends to `$GITHUB_STEP_SUMMARY` when that variable is set (GitHub Actions). Running it locally still runs the wrapped command; the summary file is simply absent.
