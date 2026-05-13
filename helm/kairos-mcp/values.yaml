@@ -14,17 +14,34 @@ credentials:
   name: "kairos-mcp-credentials"
 
 ha:
-  spreadAcrossNodes: true
+  antiAffinity:
+    # hard | soft | none
+    # hard: requiredDuringSchedulingIgnoredDuringExecution
+    # soft: preferredDuringSchedulingIgnoredDuringExecution
+    # none: disable chart-managed pod anti-affinity
+    mode: "hard"
+    # Topology keys used for pod anti-affinity matching.
+    # For hyperscalers, optionally add: topology.kubernetes.io/zone
+    topologyKeys:
+      - "kubernetes.io/hostname"
+    # Example (hyperscaler multi-zone):
+    # topologyKeys:
+    #   - "kubernetes.io/hostname"
+    #   - "topology.kubernetes.io/zone"
+    #
+    # Example overrides:
+    # mode: "soft"   # prefer spreading, allow co-location if needed
+    # mode: "none"   # disable chart-managed anti-affinity
 
 app:
-  enabled: false
+  enabled: true
   name: "kairos-mcp"
-  replicaCount: 1
+  replicaCount: 2
   port: 3000
   metricsPort: 9090
   image:
-    repository: "debian777/kairos-mcp"
-    tag: "latest"
+    repository: "quay.io/debian777/kairos-mcp"
+    tag: "4.4.0"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
   redisUrl: ""
@@ -52,8 +69,8 @@ app:
   tolerations: []
   hpa:
     enabled: false
-    minReplicas: 1
-    maxReplicas: 3
+    minReplicas: 2
+    maxReplicas: 6
     targetCPUUtilizationPercentage: 80
   vpa:
     enabled: false
@@ -67,12 +84,18 @@ app:
 
 gateway:
   enabled: true
+  mode: "auto"
   createGateway: false
   gatewayName: "kairos-gateway"
   existingGatewayName: ""
   existingGatewayNamespace: ""
   gatewayClassName: "ngrok"
   hostname: ""
+  httpPort: 80
+  httpsPort: 443
+  # When TLS is enabled, also expose HTTP listener (useful for local dev).
+  allowHttpWithTls: false
+  ingressClassName: ""
   tls:
     secretName: ""
     certManager:
@@ -96,8 +119,8 @@ qdrant:
   replicaCount: 3
   hpa:
     enabled: false
-    minReplicas: 1
-    maxReplicas: 3
+    minReplicas: 3
+    maxReplicas: 6
     targetCPUUtilizationPercentage: 80
   vpa:
     enabled: false
@@ -118,12 +141,38 @@ redisCluster:
   replicas: 3
   customSpec: {}
 
+valkey:
+  enabled: false
+  replica:
+    enabled: false
+    replicas: 2
+    persistence:
+      size: 1Gi
+  dataStorage:
+    enabled: true
+
+ollama:
+  enabled: false
+  replicas: 2
+  image:
+    repository: "ollama/ollama"
+    tag: "0.23.0"
+  model: "nomic-embed-text"
+  storageSize: "10Gi"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
 keycloakInstance:
   enabled: false
   useOwnCluster: false
   namespace: ""
   name: "keycloak"
-  replicas: 1
+  replicas: 2
   http:
     httpEnabled: true
     httpPort: 8080
@@ -132,6 +181,7 @@ keycloakInstance:
     strict: false
   proxy:
     headers: "xforwarded"
+    trustedAddresses: ""
   httpRelativePath: "/sso"
   db:
     host: ""
@@ -148,7 +198,12 @@ keycloakInstance:
 keycloakRealmImport:
   enabled: false
   name: "kairos-realm-import"
+  realmFile: "kairos-realm.json"
+  # Preferred explicit public origin (scheme + host [+ optional port]), e.g. http://localhost or https://kairos.example.com.
+  # If empty, template falls back to app.auth.callbackBaseUrl, then publicHost/gateway.hostname with inferred scheme.
+  publicBaseUrl: ""
   # If empty, uses gateway.hostname for https://… redirect URIs / webOrigins in the bundled realm JSON.
+  # Backward-compatible host-only override. Prefer publicBaseUrl for new configs.
   publicHost: ""
 
 postgresCluster:
@@ -161,10 +216,10 @@ postgresCluster:
   pgBackRestImage: "docker.io/percona/percona-pgbackrest:2.57.0-1"
   pgBouncerImage: "docker.io/percona/percona-pgbouncer:1.25.0-1"
   postgresVersion: 17
-  instances: 1
+  instances: 3
   storage: "1Gi"
   backupStorage: "1Gi"
-  pgBouncerReplicas: 1
+  pgBouncerReplicas: 2
   defaultUser:
     name: "keycloak"
     database: "keycloak"

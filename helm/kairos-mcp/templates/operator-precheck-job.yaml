@@ -15,12 +15,21 @@ spec:
       serviceAccountName: {{ .Release.Name }}-operator-precheck
       containers:
         - name: precheck
-          image: bitnami/kubectl:latest
+          image: registry.k8s.io/kubectl:v1.33.0
           command:
             - /bin/sh
             - -c
             - |
               cat /config/check.sh | sh
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: config
               mountPath: /config

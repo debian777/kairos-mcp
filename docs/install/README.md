@@ -1,29 +1,45 @@
 # Install KAIROS
 
-`docs/install/` covers the supported installation flow for a local or
-self-managed KAIROS deployment. Start by confirming the local requirements,
-choose the embedding backend that determines your `.env` values, and then
-complete the simple stack. Use the CLI as the primary interface for
-authentication, verification, and day-to-day operations. Add MCP only when a
-host explicitly requires a streamable HTTP endpoint.
+`docs/install/` covers the supported installation paths for KAIROS. Choose the
+path that matches your environment:
 
-Follow this sequence:
+- **Docker Compose** — local development or single-host deployments
+- **Helm chart** — Kubernetes clusters (dev, staging, production)
+
+For both paths, start by confirming prerequisites and choosing an embedding
+backend. Use the CLI as the primary interface for authentication, verification,
+and day-to-day operations. Add MCP only when a host explicitly requires a
+streamable HTTP endpoint.
+
+---
+
+## Quick start
+
+### Docker Compose (recommended for local)
 
 1. Review **[installation prerequisites](prerequisites.md#prerequisites)**.
 2. Choose an **[embedding backend](prerequisites.md#embedding-backend)** before
    you populate `.env`.
-3. Complete **[Docker Compose — simple stack](docker-compose-simple.md)**, which
-   is the recommended installation path.
-4. Use **`kairos`** against the running server.
+3. Complete **[Docker Compose — simple stack](docker-compose-simple.md)**.
+4. Use **`kairos`** CLI against the running server.
 5. Configure **MCP** only for hosts that need it.
 
-If you need more supporting services, the repository also includes **[Docker
-Compose — full stack (advanced)](docker-compose-full-stack.md)** for
-operator-managed deployments.
+### Helm chart (recommended for Kubernetes)
+
+1. Install **[operator prerequisites](helm.md#operators)**.
+2. Configure a **[values file](helm.md#3-create-a-values-file)** with your
+   embedding backend and hostnames.
+3. Run **`helm upgrade --install`** per **[Helm installation](helm.md)**.
+4. Verify with `kubectl` and `curl /health`.
+
+If you need a broader local Docker environment, the repository also includes
+**[Docker Compose — full stack (advanced)](docker-compose-full-stack.md)**.
+
+---
 
 ## Flow
 
-This diagram summarizes the recommended order.
+This diagram summarizes the recommended order for the Compose path.
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -58,18 +74,22 @@ flowchart LR
   class K,M c3
 ```
 
-The pages in this directory serve distinct roles.
+---
+
+## Pages in this directory
 
 | Doc | Use for |
 |-----|---------|
 | [prerequisites](prerequisites.md) | Local requirements and embedding backend selection before `.env` |
-| [docker-compose-simple](docker-compose-simple.md) | Recommended installation path: application + Qdrant |
-| [docker-compose-full-stack](docker-compose-full-stack.md) | Full stack (advanced) for operator-managed deployments |
+| [docker-compose-simple](docker-compose-simple.md) | Recommended local path: application + Qdrant |
+| [docker-compose-full-stack](docker-compose-full-stack.md) | Full stack (advanced) for broader local environment |
+| [helm](helm.md) | Kubernetes deployment via Helm chart |
 
-## CLI
+## CLI (required for all paths)
 
-Install the CLI first. It is the primary interface for authentication,
-verification, and operational commands.
+Install the CLI first. It is **mandatory** for all installation paths — it
+provides authentication, bulk adapter management, verification, and enables
+using KAIROS without adding MCP to your IDE.
 
 ```sh
 npm install -g @debian777/kairos-mcp

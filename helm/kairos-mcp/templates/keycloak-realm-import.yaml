@@ -1,10 +1,33 @@
 {{- if and .Values.keycloakRealmImport.enabled .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) }}
-{{- $host := .Values.keycloakRealmImport.publicHost | default .Values.gateway.hostname | trim }}
-{{- if eq $host "" }}
-{{- fail "keycloakRealmImport.enabled requires gateway.hostname or keycloakRealmImport.publicHost (ngrok / public host for OIDC redirects)" }}
+{{- $gw := default dict .Values.gateway }}
+{{- $tls := default dict $gw.tls }}
+{{- $certManager := default dict $tls.certManager }}
+{{- $certManagerEnabled := eq (toString (default false $certManager.enabled)) "true" }}
+{{- $tlsSecretName := default "" $tls.secretName | trim }}
+{{- $hasTLS := or $certManagerEnabled (ne $tlsSecretName "") }}
+{{- $defaultScheme := ternary "https" "http" $hasTLS }}
+{{- $callbackBase := .Values.app.auth.callbackBaseUrl | default "" | trim }}
+{{- $publicBaseUrl := .Values.keycloakRealmImport.publicBaseUrl | default "" | trim }}
+{{- $publicHost := .Values.keycloakRealmImport.publicHost | default "" | trim }}
+{{- $gwHost := .Values.gateway.hostname | default "" | trim }}
+{{- $origin := "" }}
+{{- if ne $publicBaseUrl "" }}
+{{- $origin = trimSuffix "/" $publicBaseUrl }}
+{{- else if ne $callbackBase "" }}
+{{- $origin = trimSuffix "/" $callbackBase }}
+{{- else if ne $publicHost "" }}
+{{- $origin = printf "%s://%s" $defaultScheme $publicHost }}
+{{- else if ne $gwHost "" }}
+{{- $origin = printf "%s://%s" $defaultScheme $gwHost }}
 {{- end }}
-{{- $raw := .Files.Get "files/kairos-realm.json" | replace "__KAIROS_PUBLIC_HOST__" $host }}
+{{- if eq $origin "" }}
+{{- fail "keycloakRealmImport.enabled requires one of: keycloakRealmImport.publicBaseUrl, app.auth.callbackBaseUrl, keycloakRealmImport.publicHost, or gateway.hostname" }}
+{{- end }}
+{{- $host := default $gwHost $publicHost }}
+{{- $realmFile := default "kairos-realm.json" .Values.keycloakRealmImport.realmFile }}
+{{- $raw := .Files.Get (printf "files/%s" $realmFile) | replace "__KAIROS_PUBLIC_ORIGIN__" $origin | replace "__KAIROS_PUBLIC_HOST__" $host }}
 {{- $realm := mustFromJson $raw }}
+{{- if .Release.IsInstall }}
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: KeycloakRealmImport
 metadata:
@@ -13,8 +36,13 @@ metadata:
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: post-install
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   keycloakCRName: {{ .Values.keycloakInstance.name | quote }}
   realm:
     {{- toYaml $realm | nindent 4 }}
+{{- end }}
 {{- end }}

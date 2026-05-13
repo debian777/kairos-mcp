@@ -6,6 +6,13 @@
         "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
         "disabled": false,
         "disabledTools": []
+      },
+      "HELM_KAIROS": {
+        "type": "streamable-http",
+        "url": "http://localhost/mcp",
+        "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
+        "disabled": false,
+        "disabledTools": []
       }
     }
 }

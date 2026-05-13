@@ -1,28 +1,25 @@
-# Repo-local overlay for k3d local-ha-cluster.
+# Production overlay example.
 #
-# Full stack (infra + app + Keycloak + Gateway routes on ngrok): load the key
-# into the shell, then run k3b (it creates the Secret from $OPENAI_API_KEY):
-#   set -a && source .env && set +a && ./helm/k3b.sh
-# If your reserved ngrok hostname differs from gateway.hostname below:
-#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/k3b.sh
-# Operators + ngrok only (no Helm release):
-#   KAIROS_SKIP_CHART=1 ./helm/k3b.sh
+# Copy this file and customize for your environment. Install operators first:
+#   ./helm/prerequisites/install-keycloak-operator.sh
+#   ./helm/prerequisites/install-pg-operator.sh
 #
-# The app image (see app.image below) must exist in the cluster; for k3d build
-# and import, for example: npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev
+# Then install the chart:
+#   helm upgrade --install kairos helm/kairos-mcp -n kairos -f my-values.yaml --wait
 
 app:
-  enabled: true
-  replicaCount: 2
-  image:
-    repository: debian777/kairos-mcp
-    tag: dev
-    pullPolicy: IfNotPresent
+  replicaCount: 3
+  # Image defaults are set in the chart (helm/kairos-mcp/values.yaml) and always
+  # track the latest stable release. Uncomment to pin a specific version:
+  # image:
+  #   repository: quay.io/debian777/kairos-mcp
+  #   tag: "4.4.0"
+  #   pullPolicy: IfNotPresent
   # Spotahome RedisFailover: redis service is rfr-<redisCluster.name>
   redisUrl: redis://rfr-kairos-redis:6379
   qdrantUrl: http://kairos-qdrant:6333
   keycloakUrl: https://landyn-frictional-brylee.ngrok-free.dev/sso
-  keycloakInternalUrl: http://keycloak-service:8080/sso
+  keycloakInternalUrl: http://keycloak-service:8080
   auth:
     enabled: true
     realm: kairos
@@ -30,6 +27,18 @@ app:
     # Public origin for OIDC redirect_uri (no trailing slash); must match gateway hostname.
     callbackBaseUrl: https://landyn-frictional-brylee.ngrok-free.dev
     oidcGroupsAllowlist: /shared/
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
   embedding:
     openai:
       existingSecret: kairos-mcp-embedding
@@ -38,7 +47,8 @@ app:
   extraEnv: []
 
 ha:
-  spreadAcrossNodes: false
+  antiAffinity:
+    mode: soft
 
 gateway:
   enabled: true
@@ -59,25 +69,15 @@ gateway:
       serviceName: keycloak-service
       port: 8080
 
-qdrant:
-  enabled: true
-  replicaCount: 3
-
 redisCluster:
   enabled: true
-  name: kairos-redis
-  replicas: 3
-  sentinelReplicas: 3
 
 # Import kairos realm (redirect URIs include https://<gateway.hostname>/…).
 keycloakRealmImport:
   enabled: true
-  name: kairos-realm-import
 
 keycloakInstance:
   enabled: true
-  name: keycloak
-  replicas: 2
   http:
     httpEnabled: true
     httpPort: 8080
@@ -85,11 +85,9 @@ keycloakInstance:
 
 postgresCluster:
   enabled: true
-  name: kairos-postgres
-  instances: 3
-  backupStorage: 1Gi
-  pgBouncerReplicas: 1
-  storage: 1Gi
-  defaultUser:
-    name: keycloak
-    database: keycloak
+  backupStorage: 5Gi
+  storage: 5Gi
+
+# Monitoring (ServiceMonitor / PrometheusRule): omitted — uses chart defaults in
+# helm/kairos-mcp/values.yaml (disabled). Enable and set `release` to match your
+# Prometheus Operator install when you wire scraping.

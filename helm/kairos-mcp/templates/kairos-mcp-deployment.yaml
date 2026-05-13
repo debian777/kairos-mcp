@@ -23,17 +23,39 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.ha.spreadAcrossNodes }}
+      {{- $ha := default dict .Values.ha }}
+      {{- $aa := default dict $ha.antiAffinity }}
+      {{- $mode := default "hard" $aa.mode }}
+      {{- $topologyKeys := default (list "kubernetes.io/hostname") $aa.topologyKeys }}
+      {{- if not (or (eq $mode "hard") (eq $mode "soft") (eq $mode "none")) }}
+      {{- $_ := fail "ha.antiAffinity.mode must be one of: hard, soft, none" }}
+      {{- end }}
+      {{- if and (ne $mode "none") (or (not (kindIs "slice" $topologyKeys)) (eq (len $topologyKeys) 0)) }}
+      {{- $_ := fail "ha.antiAffinity.topologyKeys must be a non-empty list when anti-affinity is enabled" }}
+      {{- end }}
+      {{- if eq $mode "hard" }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            {{- range $key := $topologyKeys }}
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {{ $.Values.app.name | default "kairos-mcp" }}
+              topologyKey: {{ $key | quote }}
+            {{- end }}
+      {{- else if eq $mode "soft" }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
+            {{- range $key := $topologyKeys }}
             - weight: 100
               podAffinityTerm:
                 labelSelector:
                   matchLabels:
-                    app.kubernetes.io/name: {{ .Values.app.name | default "kairos-mcp" }}
-                topologyKey: kubernetes.io/hostname
-      {{- else }}
+                    app.kubernetes.io/name: {{ $.Values.app.name | default "kairos-mcp" }}
+                topologyKey: {{ $key | quote }}
+            {{- end }}
+      {{- else if eq $mode "none" }}
       {{- with .Values.app.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
@@ -47,6 +69,16 @@ spec:
         - name: kairos-mcp
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - name: http
               containerPort: {{ .Values.app.port }}
@@ -67,8 +99,10 @@ spec:
               value: {{ .Values.app.qdrantUrl | quote }}
             - name: KEYCLOAK_URL
               value: {{ .Values.app.keycloakUrl | quote }}
+            {{- if .Values.app.keycloakInternalUrl }}
             - name: KEYCLOAK_INTERNAL_URL
               value: {{ .Values.app.keycloakInternalUrl | quote }}
+            {{- end }}
             - name: AUTH_ENABLED
               value: {{ ternary "true" "false" .Values.app.auth.enabled | quote }}
             {{- if .Values.app.auth.enabled }}
@@ -109,20 +143,27 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
           livenessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 30
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: snapshots
               mountPath: /snapshots

@@ -3,8 +3,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHART_DIR="${SCRIPT_DIR}/kairos-mcp"
-VALUES_FILE="${SCRIPT_DIR}/values.dev.yaml"
+HELM_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CHART_DIR="${HELM_DIR}/kairos-mcp"
+VALUES_FILE="${HELM_DIR}/values.dev.yaml"
 KAIROS_NAMESPACE="${KAIROS_NAMESPACE:-kairos}"
 
 helm dependency update "${CHART_DIR}"

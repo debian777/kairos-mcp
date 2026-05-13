@@ -6,12 +6,21 @@
 {{- $kc := .Values.keycloakInstance }}
 {{- $pg := .Values.postgresCluster }}
 {{- $gateway := default dict .Values.gateway }}
+{{- $tls := default dict $gateway.tls }}
+{{- $certManager := default dict $tls.certManager }}
+{{- $certManagerEnabled := eq (toString (default false $certManager.enabled)) "true" }}
+{{- $tlsSecretName := default "" $tls.secretName | trim }}
+{{- $hasTLS := or $certManagerEnabled (ne $tlsSecretName "") }}
 {{- $routes := default dict $gateway.routes }}
 {{- $kcRoute := default dict $routes.keycloak }}
 {{- $relativePath := default (default "/sso" $kcRoute.path) $kc.httpRelativePath }}
 {{- $hostnameUrl := default "" $kc.hostname.url }}
-{{- if and (eq $hostnameUrl "") $gateway.hostname }}
-{{- $hostnameUrl = printf "https://%s%s" $gateway.hostname $relativePath }}
+{{- $callbackBase := .Values.app.auth.callbackBaseUrl | default "" | trim }}
+{{- if and (eq $hostnameUrl "") (ne $callbackBase "") }}
+{{- $hostnameUrl = printf "%s%s" (trimSuffix "/" $callbackBase) $relativePath }}
+{{- else if and (eq $hostnameUrl "") $gateway.hostname }}
+{{- $scheme := ternary "https" "http" $hasTLS }}
+{{- $hostnameUrl = printf "%s://%s%s" $scheme $gateway.hostname $relativePath }}
 {{- end }}
 {{- $dbHost := default "" $kc.db.host }}
 {{- if and (eq $dbHost "") $pg.enabled (not $pg.useOwnCluster) }}
@@ -64,6 +73,27 @@ spec:
   additionalOptions:
     - name: http-relative-path
       value: {{ $relativePath | quote }}
+    {{- $proxyTrusted := default "" $kc.proxy.trustedAddresses | trim }}
+    {{- if ne $proxyTrusted "" }}
+    - name: proxy-trusted-addresses
+      value: {{ $proxyTrusted | quote }}
+    {{- end }}
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - securityContext:
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              seccompProfile:
+                type: RuntimeDefault
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
   {{- else }}
   {{- toYaml $spec | nindent 2 }}
   {{- end }}
