@@ -10,6 +10,9 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+# No static/UI job here: TypeScript, Knip, and UI tests run in Integration (integration.yml) as
+# verify-ui-primary / verify-ui-advisory. This workflow only builds tgz and runs simple-mode integration.
+
 jobs:
   build-primary:
     name: Build npm package (tgz, Node 24)

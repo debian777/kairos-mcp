@@ -4,11 +4,12 @@
 #
 # build-primary — Node 24 only (npm ci + pack); artifact npm-package-node24 (merge gate).
 # build-advisory — Node 25/26 matrix, continue-on-error (not in integration-pass needs).
-# verify-ui — static + UI tests; runs in parallel with build jobs (no tgz required).
+# verify-ui-primary — static + UI tests, Node 24 only; parallel with build jobs (no tgz); merge gate.
+# verify-ui-advisory — same steps on Node 25/26 matrix; continue-on-error; not in integration-pass needs.
 # verify-integration-primary — Node 24 only; needs build-primary.
 # verify-integration-advisory — Node 25/26; needs build-advisory; advisory only.
 # verify-docker — release-equivalent image + Trivy; needs build-primary.
-# integration-pass — gates only on Node-24-equivalent jobs + verify-ui + verify-docker.
+# integration-pass — gates only on Node-24 primary jobs + verify-docker (no advisory UI/build/integration).
 name: Integration
 
 on:
@@ -93,8 +94,8 @@ jobs:
           name: npm-package-node${{ matrix.node-version }}
           path: dist/*.tgz
 
-  verify-ui:
-    name: Static checks + UI tests
+  verify-ui-primary:
+    name: Static checks + UI tests (Node 24)
     runs-on: ubuntu-latest
 
     steps:
@@ -141,6 +142,67 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: TypeScript, Knip, UI tests (parallel)
+        run: node scripts/ci-parallel-checks.mjs
+
+  verify-ui-advisory:
+    name: Static checks + UI tests (Node ${{ matrix.node-version }}, advisory)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "25"
+            experimental: true
+          - node-version: "26"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Check versions (mem = package.json, skills = last stable)
+        run: node scripts/ci-github-step-summary.mjs "Version check (mem & skills)" -- npm run version:check-skills
+
+      - name: Lint skills (skills-ref)
+        run: node scripts/ci-github-step-summary.mjs "Lint skills (skills-ref)" -- npm run lint:skills
+
+      - name: Install dependencies
+        run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      # ESLint: matches `npm run lint` / Husky pre-commit — disabled in CI for now.
+      # - name: ESLint
+      #   run: node scripts/ci-github-step-summary.mjs "ESLint" -- npm run lint
+
+      # Per-Node cache suffix so advisory runners do not fight the Node 24 primary key
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v5
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        id: playwright-install
+        run: node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v5
+        if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-node${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript, Knip, UI tests (parallel)
         run: node scripts/ci-parallel-checks.mjs
@@ -217,7 +279,7 @@ jobs:
           name: npm-package-node24
           path: artifact-npm
 
-      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui.
+      # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui-primary.
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache-integration
@@ -504,19 +566,20 @@ jobs:
           severity: CRITICAL,HIGH
           trivyignores: .trivyignore
 
-  # Gate merges on Node 24 jobs + verify-ui + verify-docker only. Advisory Node 25/26 jobs are
-  # not listed in needs so their matrix / aggregate result cannot fail this job.
+  # Merge gate: Node 24 primary jobs only (build, UI/static, integration, Docker). Node 25/26
+  # advisory jobs (build-advisory, verify-ui-advisory, verify-integration-advisory) are omitted
+  # from needs: so they cannot fail this check or block PR merge.
   integration-pass:
     name: Integration workflow passed
-    needs: [build-primary, verify-ui, verify-integration-primary, verify-docker]
+    needs: [build-primary, verify-ui-primary, verify-integration-primary, verify-docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
-          echo "build-primary=${{ needs.build-primary.result }} verify-ui=${{ needs.verify-ui.result }} verify-integration-primary=${{ needs.verify-integration-primary.result }} verify-docker=${{ needs.verify-docker.result }}"
+          echo "build-primary=${{ needs.build-primary.result }} verify-ui-primary=${{ needs.verify-ui-primary.result }} verify-integration-primary=${{ needs.verify-integration-primary.result }} verify-docker=${{ needs.verify-docker.result }}"
           test "${{ needs.build-primary.result }}" = "success"
-          test "${{ needs.verify-ui.result }}" = "success"
+          test "${{ needs.verify-ui-primary.result }}" = "success"
           test "${{ needs.verify-integration-primary.result }}" = "success"
           test "${{ needs.verify-docker.result }}" = "success"
           echo "All integration jobs passed."

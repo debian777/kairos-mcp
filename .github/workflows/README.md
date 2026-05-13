@@ -77,7 +77,8 @@ flowchart TB
       direction LR
       J_BLD_P[build-primary]
       J_BLD_A[build-advisory]
-      J_UI[verify-ui]
+      J_UI_P[verify-ui-primary]
+      J_UI_A[verify-ui-advisory]
     end
     J_INT_P[verify-integration-primary]
     J_INT_A[verify-integration-advisory]
@@ -87,7 +88,7 @@ flowchart TB
     J_BLD_P --> J_DKR
     J_BLD_A --> J_INT_A
     J_BLD_P --> J_PASS
-    J_UI --> J_PASS
+    J_UI_P --> J_PASS
     J_INT_P --> J_PASS
     J_DKR --> J_PASS
   end
@@ -113,13 +114,13 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD_P,J_BLD_A,J_UI,J_INT_P,J_INT_A,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD_P,J_BLD_A,J_UI_P,J_UI_A,J_INT_P,J_INT_A,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui` (24); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui`, `verify-integration-primary`, `verify-docker` (advisory jobs omitted from `needs`) |
+| Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui-primary` (24) ∥ `verify-ui-advisory` (25–26, COE); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui-primary`, `verify-integration-primary`, `verify-docker` (all advisory jobs omitted from `needs`) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -137,17 +138,17 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui`** runs **in parallel** with both build jobs on **Node 24 only** (static checks, Playwright, tsc/knip/UI tests — no tgz). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui-primary`** runs **in parallel** with build jobs on **Node 24 only** (version check, lint skills, `npm ci`, Playwright cache, **`ci-parallel-checks.mjs`** — no tgz). **`verify-ui-advisory`** mirrors the same steps on **25** and **26** with per-Node Playwright cache keys and **`continue-on-error`** from the matrix (advisory; not in **`integration-pass`** `needs`). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`**, then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`**. **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui-primary`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
 
 ### Node matrix (24 required, 25 and 26 advisory)
 
-- **`build-primary`** / **`verify-integration-primary`** are **Node 24 only** and are the only jobs **`integration-pass`** depends on for multi-Node coverage (plus **`verify-ui`** and **`verify-docker`**).
-- **`build-advisory`** / **`verify-integration-advisory`** run **25** and **26** with **`continue-on-error: true`** and are **omitted** from **`integration-pass`** / **`integration-simple-pass`** `needs` so GitHub’s aggregate matrix result cannot fail the merge gate when 24 is green.
+- **`build-primary`** / **`verify-ui-primary`** / **`verify-integration-primary`** are **Node 24 only** and are the only jobs **`integration-pass`** depends on for multi-Node coverage (plus **`verify-docker`**).
+- **`build-advisory`** / **`verify-ui-advisory`** / **`verify-integration-advisory`** run **25** and **26** with advisory **`continue-on-error`** and are **omitted** from **`integration-pass`** `needs` so GitHub’s aggregate matrix result cannot fail the merge gate when 24 is green. **`integration-simple-pass`** still omits only **`build-advisory`** / **`verify-integration-simple-advisory`** (no UI job in that workflow).
 - **Do not** add per-matrix check names to branch protection; keep the single required checks **Integration workflow passed** and **Integration simple workflow passed**.
 
-**Integration Simple** (`.github/workflows/integration-simple.yml`): same split — **`build-primary`** / **`verify-integration-simple-primary`** (artifact **`npm-package-simple-node24`**) gate **`integration-simple-pass`**; **`build-advisory`** / **`verify-integration-simple-advisory`** for 25/26 are advisory only.
+**Integration Simple** (`.github/workflows/integration-simple.yml`): **`build-primary`** / **`verify-integration-simple-primary`** (artifact **`npm-package-simple-node24`**) gate **`integration-simple-pass`**; **`build-advisory`** / **`verify-integration-simple-advisory`** for 25/26 are advisory only. There is **no** separate static/UI job in this workflow — those checks live under **Integration** as **`verify-ui-*`**.
 
-**Caching:** **`verify-ui`**, **`verify-integration-primary`**, and **`verify-integration-advisory`** share the **`~/.cache/ms-playwright`** key. Integration verify jobs restore/save **Docker infra** images (`compose.yaml` hash).
+**Caching:** **`verify-ui-primary`** uses the same **`~/.cache/ms-playwright`** key as **`verify-integration-primary`** / **`verify-integration-advisory`** (lockfile hash only). **`verify-ui-advisory`** uses a **Node-version suffix** on the Playwright cache key so 25/26 runners do not contend with the Node 24 primary cache. Integration verify jobs restore/save **Docker infra** images (`compose.yaml` hash).
 
 **Note:** Primary integration verify cannot start until **`build-primary`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build wall clock plus later steps.
 
