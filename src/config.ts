@@ -256,7 +256,7 @@ export const METRICS_PORT = getEnvInt('METRICS_PORT', 9090);
 export const MAX_CONCURRENT_MCP_REQUESTS_RAW = getEnvInt('MAX_CONCURRENT_MCP_REQUESTS', 0);
 
 // Float configurations (tunable via env; relaxed defaults so more results pass into choices)
-export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.3);
+export const SCORE_THRESHOLD = getEnvFloat('SCORE_THRESHOLD', 0.5);
 /** Similar-memory: score >= this value triggers SIMILAR_MEMORY_FOUND. Set SIMILAR_MEMORY_THRESHOLD=1 to effectively disable. */
 export const SIMILAR_MEMORY_THRESHOLD = getEnvFloat('SIMILAR_MEMORY_THRESHOLD', 0.9);
 
