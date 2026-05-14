@@ -102,7 +102,7 @@ spec:
             - name: QDRANT_URL
               value: {{ $qdrantUrl | quote }}
             - name: KEYCLOAK_URL
-              value: {{ .Values.app.keycloakUrl | quote }}
+              value: {{ include "kairos.app.keycloakUrl" . | quote }}
             {{- $kcInternal := include "kairos.app.keycloakInternalUrl" . }}
             {{- if $kcInternal }}
             - name: KEYCLOAK_INTERNAL_URL
@@ -116,7 +116,7 @@ spec:
             - name: KEYCLOAK_CLIENT_ID
               value: {{ .Values.app.auth.clientId | quote }}
             - name: AUTH_CALLBACK_BASE_URL
-              value: {{ .Values.app.auth.callbackBaseUrl | quote }}
+              value: {{ include "kairos.app.publicBaseUrl" . | quote }}
             {{- $allow := .Values.app.auth.oidcGroupsAllowlist | default "" | trim }}
             {{- if ne $allow "" }}
             - name: OIDC_GROUPS_ALLOWLIST

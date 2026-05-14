@@ -94,3 +94,59 @@ Explicit .Values.gateway.mode wins; "auto" picks based on gatewayClassName prese
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "kairos.publicScheme" -}}
+{{- $gw := default dict .Values.gateway -}}
+{{- $tls := default dict $gw.tls -}}
+{{- $cm := default dict $tls.certManager -}}
+{{- $tlsEnabled := or (ne (default "" $tls.secretName | trim) "") (and (default false $cm.enabled) (ne (default "" $cm.secretName | trim) "")) -}}
+{{- ternary "https" "http" $tlsEnabled -}}
+{{- end -}}
+
+{{- define "kairos.publicHost" -}}
+{{- $gw := default dict .Values.gateway -}}
+{{- $host := default "" $gw.hostname | trim -}}
+{{- if and $gw.enabled (ne $host "") -}}
+{{- $host -}}
+{{- else -}}
+{{- .Values.global.hostname -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "kairos.publicPort" -}}
+{{- $scheme := include "kairos.publicScheme" . | trim -}}
+{{- ternary 443 80 (eq $scheme "https") -}}
+{{- end -}}
+
+{{- define "kairos.publicOrigin" -}}
+{{- $scheme := include "kairos.publicScheme" . | trim -}}
+{{- $host := include "kairos.publicHost" . | trim -}}
+{{- printf "%s://%s" $scheme $host -}}
+{{- end -}}
+
+{{- define "kairos.app.publicBaseUrl" -}}
+{{- $callbackBase := .Values.app.auth.callbackBaseUrl | default "" | trim -}}
+{{- if ne $callbackBase "" -}}
+{{- trimSuffix "/" $callbackBase -}}
+{{- else if and .Values.gateway.enabled (ne (default "" .Values.gateway.hostname | trim) "") -}}
+{{- include "kairos.publicOrigin" . | trim -}}
+{{- else -}}
+{{- printf "https://%s" .Values.global.hostname -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "kairos.app.keycloakUrl" -}}
+{{- if .Values.app.keycloakUrl -}}
+{{- .Values.app.keycloakUrl -}}
+{{- else -}}
+{{- $baseUrl := include "kairos.app.publicBaseUrl" . | trim -}}
+{{- $gateway := default dict .Values.gateway -}}
+{{- $routes := default dict $gateway.routes -}}
+{{- $route := default dict $routes.keycloak -}}
+{{- $path := default (default "/sso" .Values.keycloakInstance.httpRelativePath) $route.path -}}
+{{- if not (hasPrefix "/" $path) -}}
+{{- $path = printf "/%s" $path -}}
+{{- end -}}
+{{- printf "%s%s" (trimSuffix "/" $baseUrl) $path -}}
+{{- end -}}
+{{- end -}}

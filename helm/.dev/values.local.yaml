@@ -8,15 +8,10 @@ app:
     repository: debian777/kairos-mcp
     tag: ""
     pullPolicy: IfNotPresent
-  redisUrl: ""
-  qdrantUrl: ""
-  keycloakUrl: http://localhost/sso
-  keycloakInternalUrl: ""
   auth:
     enabled: true
     realm: kairos
     clientId: kairos-mcp
-    callbackBaseUrl: http://localhost
     oidcGroupsAllowlist: /shared/
   embedding:
     openai:
@@ -34,11 +29,8 @@ gateway:
     certManager:
       enabled: false
   routes:
-    mcp:
-      path: /
     keycloak:
       enabled: true
-      path: /sso
       serviceName: keycloak-service
       port: 8080
 

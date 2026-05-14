@@ -25,11 +25,11 @@ spec:
           requestHeaderModifier:
             set:
               - name: X-Forwarded-Proto
-                value: https
+                value: {{ include "kairos.publicScheme" . | trim }}
               - name: X-Forwarded-Host
-                value: {{ .Values.gateway.hostname }}
+                value: {{ include "kairos.publicHost" . | trim }}
               - name: X-Forwarded-Port
-                value: "443"
+                value: {{ include "kairos.publicPort" . | trim | quote }}
       backendRefs:
         - name: {{ .Values.app.name | default "kairos-mcp" }}
           port: {{ .Values.app.port }}
