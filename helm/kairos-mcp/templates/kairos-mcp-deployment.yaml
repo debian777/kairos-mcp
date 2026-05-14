@@ -86,6 +86,10 @@ spec:
             - name: metrics
               containerPort: {{ .Values.app.metricsPort }}
               protocol: TCP
+          {{ $redisUrl := include "kairos.app.redisUrl" . | trim }}
+          {{ $_ := required "KAIROS requires REDIS_URL to be set. Set app.redisUrl or enable valkey/redisCluster." $redisUrl }}
+          {{ $qdrantUrl := include "kairos.app.qdrantUrl" . | trim }}
+          {{ $_ := required "KAIROS requires QDRANT_URL to be set. Set app.qdrantUrl or enable qdrant." $qdrantUrl }}
           env:
             - name: PORT
               value: "{{ .Values.app.port }}"
@@ -94,9 +98,9 @@ spec:
             - name: TRANSPORT_TYPE
               value: "http"
             - name: REDIS_URL
-              value: {{ include "kairos.app.redisUrl" . | quote }}
+              value: {{ $redisUrl | quote }}
             - name: QDRANT_URL
-              value: {{ include "kairos.app.qdrantUrl" . | quote }}
+              value: {{ $qdrantUrl | quote }}
             - name: KEYCLOAK_URL
               value: {{ .Values.app.keycloakUrl | quote }}
             {{- $kcInternal := include "kairos.app.keycloakInternalUrl" . }}

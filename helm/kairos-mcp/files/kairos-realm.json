@@ -111,18 +111,6 @@
       ]
     }
   ],
-  "defaultDefaultClientScopes": [
-    "role_list",
-    "saml_organization",
-    "profile",
-    "email",
-    "roles",
-    "web-origins",
-    "acr",
-    "basic",
-    "kairos-groups",
-    "openid"
-  ],
   "defaultGroups": ["/shared/operator"],
   "clients": [
     {
@@ -190,26 +178,5 @@
         }
       ]
     }
-  ],
-  "components": {
-    "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
-      {
-        "name": "Allowed Client Scopes",
-        "providerId": "allowed-client-templates",
-        "subType": "anonymous",
-        "config": {
-          "allow-default-scopes": ["true"],
-          "allowed-client-scopes": ["roles", "acr", "phone", "profile", "kairos-groups", "offline_access", "address", "basic", "email", "openid", "web-origins"]
-        }
-      },
-      {
-        "name": "Allowed Client Scopes",
-        "providerId": "allowed-client-templates",
-        "subType": "authenticated",
-        "config": {
-          "allow-default-scopes": ["true"]
-        }
-      }
-    ]
-  }
+  ]
 }

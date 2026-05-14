@@ -1,5 +1,19 @@
 {{- $secretName := .Values.credentials.existingSecret | default .Values.credentials.name -}}
-{{- $baseUrl := .Values.app.auth.callbackBaseUrl | default (printf "https://%s" .Values.global.hostname) -}}
+{{- $callbackBaseUrl := .Values.app.auth.callbackBaseUrl | default "" | trim -}}
+{{- $gatewayHost := .Values.gateway.hostname | default "" | trim -}}
+{{- $tls := default dict .Values.gateway.tls -}}
+{{- $cm := default dict $tls.certManager -}}
+{{- $tlsEnabled := or (ne (default "" $tls.secretName | trim) "") (and $cm.enabled (ne (default "" $cm.secretName | trim) "")) -}}
+{{- $scheme := ternary "https" "http" $tlsEnabled -}}
+{{- $baseUrl := "" -}}
+{{- if ne $callbackBaseUrl "" -}}
+{{- $baseUrl = $callbackBaseUrl -}}
+{{- else if and .Values.gateway.enabled (ne $gatewayHost "") -}}
+{{- $baseUrl = printf "%s://%s" $scheme $gatewayHost -}}
+{{- else -}}
+{{- $baseUrl = printf "https://%s" .Values.global.hostname -}}
+{{- end -}}
+{{- $baseUrl = trimSuffix "/" $baseUrl -}}
 KAIROS MCP has been deployed to namespace {{ .Release.Namespace }}.
 
 {{- if .Values.app.enabled }}
@@ -61,7 +75,16 @@ Or individual keys:
   Keycloak
 ─────────────────────────────────────────────────
 
-  Admin console: {{ .Values.keycloakInstance.hostname.url | default (printf "https://%s/sso" .Values.global.hostname) }}/admin/master/console/
+{{ $kcPublicBase := .Values.keycloakInstance.hostname.url | default "" | trim -}}
+{{ if eq $kcPublicBase "" -}}
+{{ $kcRelative := default "/sso" .Values.keycloakInstance.httpRelativePath -}}
+{{ if not (hasPrefix "/" $kcRelative) -}}
+{{ $kcRelative = printf "/%s" $kcRelative -}}
+{{ end -}}
+{{ $kcPublicBase = printf "%s%s" $baseUrl $kcRelative -}}
+{{ end -}}
+{{ $kcPublicBase = trimSuffix "/" $kcPublicBase -}}
+  Admin console: {{ $kcPublicBase }}/admin/master/console/
 
   # Admin credentials
   kubectl -n {{ .Release.Namespace }} get secret keycloak-initial-admin -o jsonpath='{.data.username}' | base64 -d; echo
