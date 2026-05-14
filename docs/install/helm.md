@@ -217,17 +217,18 @@ Postgres, Ollama) are retained by default; delete them manually if needed.
 
 ---
 
-## Developer workflow (k3d)
+## Developer workflow (local cluster)
 
-For local development with k3d, use the all-in-one bootstrap script:
+For local development on a single-node cluster (for example Rancher Desktop),
+use the repo-local helper scripts:
 
 ```sh
-./helm/.dev/k3b.sh
+./helm/.dev/prepare.sh
+./helm/.dev/helm-apply.sh
 ```
 
-This creates a multi-node k3d cluster, installs all operators, and deploys the
-full chart using `helm/values.dev.yaml`. See `helm/.dev/README.md` for profiles
-and advanced usage.
+The default local values file is `helm/.dev/values.local.yaml`. See
+`helm/.dev/README.md` for details.
 
 ---
 

@@ -53,11 +53,8 @@ When any of `redisCluster.enabled`, `keycloakInstance.enabled`, or `postgresClus
 Set `gateway.enabled: true`, `gateway.hostname`, and
 `gateway.gatewayClassName`. The app route renders only when `app.enabled=true`.
 Keycloak is exposed at `https://<hostname>/sso`. For the repo-local k3d flow,
-`helm/.dev/k3b.sh` installs operators, ngrok, `GatewayClass/ngrok`, and by default
-the `kairos` Helm release (`helm/values.dev.yaml`) so the MCP app and Keycloak get
-`HTTPRoute`s on that hostname. Set `KAIROS_NGROK_HOSTNAME` if your ngrok domain
-differs from `gateway.hostname` in values. Use `KAIROS_SKIP_CHART=1` for
-operators only.
+use the repo-local helper scripts in `helm/.dev/` to install operators and apply
+the chart to your local cluster (for example Rancher Desktop) with localhost URLs.
 TLS via cert-manager is used only when
 `gateway.tls.certManager.enabled=true`.
 
@@ -79,6 +76,8 @@ or `app.extraEnv` for TEI (`TEI_BASE_URL`, `TEI_MODEL`).
 For the repo-local k3d profile, `./helm/.dev/k3b.sh` applies the full chart by
 default (Ollama embeddings, no API key required). See `helm/values.dev.yaml`
 (production-oriented: `helm/values.prod.yaml`).
+For local development on a single-node cluster, use `helm/.dev/prepare.sh` and
+`helm/.dev/helm-apply.sh` with `helm/.dev/values.local.yaml`.
 
 In `my-values.yaml`, set at least `app.qdrantUrl`, `app.keycloakUrl`,
 `app.keycloakInternalUrl`, and embedding or `app.extraEnv` when you enable the

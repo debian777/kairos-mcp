@@ -1,0 +1,74 @@
+ha:
+  antiAffinity:
+    mode: soft
+
+app:
+  replicaCount: 1
+  image:
+    repository: debian777/kairos-mcp
+    tag: ""
+    pullPolicy: IfNotPresent
+  redisUrl: ""
+  qdrantUrl: ""
+  keycloakUrl: http://localhost/sso
+  keycloakInternalUrl: http://keycloak-service:8080/sso
+  auth:
+    enabled: true
+    realm: kairos
+    clientId: kairos-mcp
+    callbackBaseUrl: http://localhost
+    oidcGroupsAllowlist: /shared/
+  embedding:
+    openai:
+      existingSecret: kairos-mcp-embedding
+      model: text-embedding-3-small
+
+gateway:
+  enabled: true
+  createGateway: true
+  gatewayName: kairos-gateway
+  gatewayClassName: kairos
+  hostname: localhost
+  httpPort: 8000
+  tls:
+    certManager:
+      enabled: false
+  routes:
+    mcp:
+      path: /
+    keycloak:
+      enabled: true
+      path: /sso
+      serviceName: keycloak-service
+      port: 8080
+
+redisCluster:
+  enabled: false
+
+valkey:
+  enabled: true
+
+qdrant:
+  enabled: true
+  replicaCount: 1
+
+keycloakRealmImport:
+  enabled: true
+
+keycloakInstance:
+  enabled: true
+  replicas: 1
+  http:
+    httpEnabled: true
+    httpPort: 8080
+  httpRelativePath: /sso
+
+postgresCluster:
+  enabled: true
+  instances: 1
+  backupStorage: 1Gi
+  storage: 1Gi
+  pgBouncerReplicas: 1
+
+ollama:
+  enabled: false
