@@ -11,7 +11,7 @@ app:
   redisUrl: ""
   qdrantUrl: ""
   keycloakUrl: http://localhost/sso
-  keycloakInternalUrl: http://keycloak-service:8080/sso
+  keycloakInternalUrl: ""
   auth:
     enabled: true
     realm: kairos

@@ -23,7 +23,9 @@ must still provide an embedding provider configuration.
 - Set `app.extraEnv` to inject your embedding provider. Use either
   `OPENAI_API_KEY` plus `OPENAI_EMBEDDING_MODEL`, or `TEI_BASE_URL` plus
   `TEI_MODEL`. Prefer `valueFrom.secretKeyRef`.
-- Set `app.qdrantUrl`, `app.keycloakUrl`, and `app.keycloakInternalUrl`.
+- Set `app.qdrantUrl`, `app.keycloakUrl`, and `app.keycloakInternalUrl`. When
+  `qdrant.enabled: true`, you can leave `app.qdrantUrl` empty to use the
+  in-cluster Qdrant service.
   Set `app.redisUrl` only when you want Redis.
 - **Browser OIDC:** set `app.auth.enabled: true`, `app.auth.realm` (default
   `kairos`), `app.auth.clientId` (default `kairos-mcp`), and
@@ -52,9 +54,9 @@ When any of `redisCluster.enabled`, `keycloakInstance.enabled`, or `postgresClus
 
 Set `gateway.enabled: true`, `gateway.hostname`, and
 `gateway.gatewayClassName`. The app route renders only when `app.enabled=true`.
-Keycloak is exposed at `https://<hostname>/sso`. For the repo-local k3d flow,
-use the repo-local helper scripts in `helm/.dev/` to install operators and apply
-the chart to your local cluster (for example Rancher Desktop) with localhost URLs.
+Keycloak is exposed at `https://<hostname>/sso`. For local development, use the
+repo-local helper scripts in `helm/.dev/` to install operators and apply the
+chart to your local cluster with localhost URLs.
 TLS via cert-manager is used only when
 `gateway.tls.certManager.enabled=true`.
 
@@ -73,13 +75,11 @@ When `app.enabled` is true, the process must supply an embedding provider. The
 chart supports OpenAI via `app.embedding.openai.existingSecret` (recommended)
 or `app.extraEnv` for TEI (`TEI_BASE_URL`, `TEI_MODEL`).
 
-For the repo-local k3d profile, `./helm/.dev/k3b.sh` applies the full chart by
-default (Ollama embeddings, no API key required). See `helm/values.dev.yaml`
-(production-oriented: `helm/values.prod.yaml`).
 For local development on a single-node cluster, use `helm/.dev/prepare.sh` and
-`helm/.dev/helm-apply.sh` with `helm/.dev/values.local.yaml`.
+`helm/.dev/helm-apply.sh` with `helm/.dev/values.local.yaml`. For a starting
+point for non-local deployments, see `helm/values.prod.yaml`.
 
-In `my-values.yaml`, set at least `app.qdrantUrl`, `app.keycloakUrl`,
-`app.keycloakInternalUrl`, and embedding or `app.extraEnv` when you enable the
-app. Set `app.redisUrl` only when you configure Redis. Set
-`app.auth.callbackBaseUrl` when using auth.
+In `my-values.yaml`, set at least `app.keycloakUrl`, `app.keycloakInternalUrl`,
+and embedding or `app.extraEnv` when you enable the app. Set `app.qdrantUrl`
+when `qdrant.enabled: false`. Set `app.redisUrl` only when you configure Redis.
+Set `app.auth.callbackBaseUrl` when using auth.

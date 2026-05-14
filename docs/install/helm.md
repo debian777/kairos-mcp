@@ -13,7 +13,7 @@ post-install verification.
 | **Kubernetes** 1.28+ | Any conformant cluster (k3d, EKS, GKE, AKS, on-prem) |
 | **Helm** v3.14+ | Package manager for Kubernetes |
 | **kubectl** | Configured context targeting the destination cluster |
-| **Node.js 25+** + **[KAIROS CLI](../CLI.md)** | Required for auth, bulk management, and verification |
+| **Node.js 24+** + **[KAIROS CLI](../CLI.md)** | Required for auth, bulk management, and verification |
 | **Gateway API CRDs** | Required when `gateway.enabled: true`; often bundled by the ingress operator |
 
 ### Operators
@@ -57,12 +57,12 @@ Start from one of the examples:
 
 | File | Description |
 |------|-------------|
-| `helm/values.dev.yaml` | k3d local development (Ollama embeddings, ngrok gateway) |
+| `helm/values.dev.yaml` | Development example (Ollama embeddings, ngrok gateway) |
 | `helm/values.prod.yaml` | Production template (OpenAI embeddings, cert-manager TLS) |
 
 Copy and customise. At minimum, set:
 
-- `app.qdrantUrl` — Qdrant endpoint
+- `app.qdrantUrl` — Qdrant endpoint (leave empty when `qdrant.enabled: true`)
 - `app.keycloakUrl` — public Keycloak URL (if auth enabled)
 - `gateway.hostname` — public hostname for HTTPRoute
 - Embedding backend (Ollama via `ollama.enabled` or OpenAI via

@@ -94,14 +94,15 @@ spec:
             - name: TRANSPORT_TYPE
               value: "http"
             - name: REDIS_URL
-              value: {{ .Values.app.redisUrl | quote }}
+              value: {{ include "kairos.app.redisUrl" . | quote }}
             - name: QDRANT_URL
-              value: {{ .Values.app.qdrantUrl | quote }}
+              value: {{ include "kairos.app.qdrantUrl" . | quote }}
             - name: KEYCLOAK_URL
               value: {{ .Values.app.keycloakUrl | quote }}
-            {{- if .Values.app.keycloakInternalUrl }}
+            {{- $kcInternal := include "kairos.app.keycloakInternalUrl" . }}
+            {{- if $kcInternal }}
             - name: KEYCLOAK_INTERNAL_URL
-              value: {{ .Values.app.keycloakInternalUrl | quote }}
+              value: {{ $kcInternal | quote }}
             {{- end }}
             - name: AUTH_ENABLED
               value: {{ ternary "true" "false" .Values.app.auth.enabled | quote }}
