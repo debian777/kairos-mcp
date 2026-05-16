@@ -1,7 +1,7 @@
 ---
 name: kmcp-dev-git-editor-safe
 description: >-
-  kairos-mcp: run Git from an agent shell without spawning Cursor/VS Code as
+  kairos-mcp: run Git from an agent shell without spawning an interactive editor as
   GIT_EDITOR (e.g. core.editor = code --wait). Use for rebase, merge --continue,
   rebase --continue, interactive rebase todo, or commit advice. Prefix
   GIT_EDITOR=true and GIT_SEQUENCE_EDITOR=true as needed.
@@ -26,7 +26,7 @@ GIT_EDITOR=true git rebase --continue
 
 Use **`git commit -m '…'`** with a real message so no editor is needed for commits.
 
-**Note:** If the host still opens a rebase/merge **UI**, that is Cursor’s Git integration reacting to repo state; the shell cannot disable it. Repo-local `sequence.editor` (below) only affects Git’s subprocess editor.
+**Note:** If the host still opens a rebase/merge **UI**, that is the IDE reacting to repo state; the shell cannot disable it. Repo-local `sequence.editor` (below) only affects Git’s subprocess editor.
 
 ## Repo-local optional setting (this clone only)
 

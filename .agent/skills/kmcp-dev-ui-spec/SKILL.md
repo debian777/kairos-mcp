@@ -158,7 +158,7 @@ Implementation maps to **`src/ui/pages/`**, **`src/ui/components/`**, hooks, i18
 
 **3. Browse (Kairos)** — Activation/search with visible labels; default browse uses **A–Z letter buckets** by protocol title where the product shows that pattern. Results: role badges (match / refine / create), **View** / **Refine** / **Create** as returned by activate. Empty and error states recoverable.
 
-**4. Protocol view** — Title, metadata (URI, read-only). Steps with labels and challenge types. Activation Patterns section. Reward Signal. “How to use”: one line + link (e.g. “Use in Cursor (MCP) or via CLI”). Actions: Edit, Duplicate, and any guided test entry the product exposes.
+**4. Protocol view** — Title, metadata (URI, read-only). Steps with labels and challenge types. Activation Patterns section. Reward Signal. “How to use”: one line + link (for example, “Use via MCP or CLI”). Actions: Edit, Duplicate, and any guided test entry the product exposes.
 
 **5. Protocol create/edit** — Create or edit; markdown + challenge blocks. Save, cancel, validation. Depends on backend train/tune APIs.
 

@@ -1,4 +1,4 @@
-# Cursor skills — kairos-mcp maintainer suite
+# Maintainer skills — kairos-mcp
 
 Canonical path: **`.agent/skills/`** (not installed via `npx skills add`). The same
 tree is linked for hosts as **`.cursor/skills`** and **`.claude/skills`** (repo-root

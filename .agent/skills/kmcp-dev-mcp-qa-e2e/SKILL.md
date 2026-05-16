@@ -20,10 +20,10 @@ phases so QA does not read implementation source before you intend to.
 ## Target MCP server
 
 - **Config key:** `DEVELOPMENT_KAIROS` (see `docs/install/README.md#cursor-and-mcp`).
-- **`call_mcp_tool` `server` argument:** Cursor’s agent-visible id often differs.
-  Resolve it from the error’s **Available servers** list or the MCP panel. With
-  workspace folder `kairos-mcp`, a common pattern is
-  `project-0-kairos-mcp-DEVELOPMENT_KAIROS` — **do not** treat that as portable.
+- **`call_mcp_tool` `server` argument:** the host’s agent-visible id often differs.
+  Resolve it from the error’s **Available servers** list or the host’s MCP panel.
+  A common pattern is `project-0-kairos-mcp-DEVELOPMENT_KAIROS` — **do not** treat
+  that as portable.
 - **Auth / missing server:** `.agents/skills/mcp-host-bridge/SKILL.md`.
 
 For **real** tool names, schemas, and descriptions at runtime, treat the
@@ -55,7 +55,7 @@ MCP bridge.
 
 **Host plumbing (narrow exception)**
 
-- Cursor may surface tool **schemas** as JSON under an MCP cache path. Using
+- Your host may surface tool **schemas** as JSON under an MCP cache path. Using
   those descriptors **only** to shape valid `call_mcp_tool` arguments is host
   plumbing, **not** permission to read `src/` or `tests/` for product logic. If
   unsure, stay MCP-only until the user ends phase 1.
