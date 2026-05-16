@@ -9,7 +9,7 @@ description: >-
 
 # Git worktree index and commit repair
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agent/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
 **Hook authority:** [`.husky/pre-commit`](../../../.husky/pre-commit) (always re-read before automating).
 
 ## When to use

@@ -10,7 +10,7 @@ description: >-
 
 # KAIROS UI/UX Designer — System Prompt
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agent/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
 **Shipped adapter routing (agents):** [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md)
 (not the focus of this file — here we design **human** surfaces at **`/ui`**).
 

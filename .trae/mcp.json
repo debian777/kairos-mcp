@@ -1,18 +1,26 @@
 {
-    "mcpServers": {
-      "KAIROS-DEVELOPMENT": {
+  "mcpServers": {
+    "KAIROS-DEVELOPMENT": {
         "type": "streamable-http",
         "url": "http://localhost:3300/mcp",
-        "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
-        "disabled": false,
+        "alwaysAllow": [
+          "activate",
+          "forward",
+          "train",
+          "reward",
+          "tune",
+          "delete",
+          "export",
+          "spaces"
+        ],
         "disabledTools": []
       },
-      "KAIROS-HELM-INTEGRATION": {
+      "KAIORS-HELM-DEVELOPMENT": {
         "type": "streamable-http",
         "url": "http://localhost/mcp",
         "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
-        "disabled": false,
+        "disabled": true,
         "disabledTools": []
       }
-    }
+  }
 }

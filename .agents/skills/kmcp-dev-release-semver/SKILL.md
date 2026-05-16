@@ -9,7 +9,7 @@ description: >-
 
 # Version bump and release (kairos-mcp)
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agent/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
 **Tag automation:** `.github/workflows/release-tag-on-version-bump.yml` (see
 **[`.github/workflows/README.md`](../../../.github/workflows/README.md)**).
 **Build/test after merge:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).

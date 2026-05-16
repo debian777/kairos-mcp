@@ -8,7 +8,7 @@ description: >-
 
 # MCP host bridge (pointer)
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agent/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
 
 All guidance for **MCP authentication**, **server availability**, and host
 `call_mcp_tool` **server identifier** resolution (config key vs agent-visible id)

@@ -11,7 +11,7 @@ description: >-
 
 **Repository:** `kairos-mcp`. **Agent contract:** [`AGENTS.md`](../../../AGENTS.md).
 **Build/test contract:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).
-**Skill index:** [`.agent/skills/README.md`](../README.md).
+**Skill index:** [`.agents/skills/README.md`](../README.md).
 
 **Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`skills/.system/kairos-bug-report/SKILL.md`](../../../skills/.system/kairos-bug-report/SKILL.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
 
@@ -89,5 +89,5 @@ When checks pass:
 
 ## Related
 
-- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — strict phased MCP QA against **DEVELOPMENT_KAIROS** before filing mergeable reports.
+- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — strict phased MCP QA against **KAIROS-DEVELOPMENT** before filing mergeable reports.
 - **`reports/mcp-bug-*.md`** — public bug report naming.

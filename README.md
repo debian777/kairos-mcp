@@ -190,14 +190,14 @@ URLs.
 See [docs/install/README.md](docs/install/README.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md) for the exact env variables and dev workflow.
 
-### Cursor MCP (`DEVELOPMENT_KAIROS`)
+### Cursor MCP (`KAIROS-DEVELOPMENT`)
 
 This repository ships [`.cursor/mcp.json`](.cursor/mcp.json) with a **streamable
-HTTP** entry keyed **`DEVELOPMENT_KAIROS`**, aimed at local MCP on
+HTTP** entry keyed **`KAIROS-DEVELOPMENT`**, aimed at local MCP on
 `http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `PORT=3300`).
 If you run the minimal Compose stack without overriding `PORT`, point MCP at
 `http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
-server id (for example one ending in `-DEVELOPMENT_KAIROS`); see
+server id (for example one ending in `-KAIROS-DEVELOPMENT`); see
 [AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
 
 When executing over MCP, follow **[Protocol execution](#protocol-execution)**
