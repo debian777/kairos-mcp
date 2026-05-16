@@ -31,7 +31,8 @@ export function collectMetaBySlug(
   log: { info: LogFn; warn: LogFn }
 ): void {
   if (!fs.existsSync(dir)) return;
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'));
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
     if (entry.name.toLowerCase() === 'readme.md') continue;

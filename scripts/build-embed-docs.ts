@@ -22,8 +22,8 @@ import { collectMetaBySlug } from './build-embed-docs-slug-meta.ts';
 
 // Logger shim for build-time embedding (avoid importing runtime logger)
 const logger = {
-  info: (...args) => console.log('[embed-docs]', ...args),
-  warn: (...args) => console.warn('[embed-docs]', ...args)
+  info: (...args: unknown[]) => console.log('[embed-docs]', ...args),
+  warn: (...args: unknown[]) => console.warn('[embed-docs]', ...args)
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -58,7 +58,8 @@ function readMarkdown(filePath: string): string {
 function collectDirFlat(dir: string, result: Record<string, string>): void {
   if (!fs.existsSync(dir)) return;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'));
   
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
@@ -82,7 +83,8 @@ function collectDirFlat(dir: string, result: Record<string, string>): void {
 function collectResourcesRecursive(dir: string, baseDir: string, result: Record<string, any>): void {
   if (!fs.existsSync(dir)) return;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'));
   
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
@@ -147,7 +149,8 @@ function main() {
 
   // Discover any other top-level directories and add them as flat collections
   // NOTE: mem/ directory is excluded - it's read from filesystem at runtime
-  const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+  const entries = fs.readdirSync(baseDir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'));
   const knownDirs = new Set(['prompts', 'tools', 'resources', 'templates', 'mem']);
   
   for (const entry of entries) {
