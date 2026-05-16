@@ -20,6 +20,7 @@ describe('HTTP REST API Activate Endpoint', () => {
       // Activate HTTP response keeps canonical top-level keys; artifact-dir aliases are optional.
       const baseSearchKeys = ['choices', 'message', 'must_obey', 'next_action', 'query'];
       const optionalKeys = [
+        ...('execution_id' in data ? ['execution_id'] : []),
         ...('kairos_local_artifact_dir' in data ? ['kairos_local_artifact_dir'] : [])
       ];
       expect(Object.keys(data).sort()).toEqual([...baseSearchKeys, ...optionalKeys].sort());
@@ -28,6 +29,10 @@ describe('HTTP REST API Activate Endpoint', () => {
       expect(typeof data.message).toBe('string');
       expect(typeof data.next_action).toBe('string');
       expect(data.query).toBe(query);
+      if ('execution_id' in data) {
+        expect(typeof data.execution_id).toBe('string');
+        expect(data.execution_id as string).toMatch(/^[0-9a-f-]{36}$/i);
+      }
       if ('kairos_local_artifact_dir' in data) {
         const hints = data.kairos_local_artifact_dir;
         // Field is now an ordered array of client-resolvable URI hints; never a server filesystem path.
