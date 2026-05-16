@@ -44,12 +44,12 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         run: |
           set -euo pipefail
-          if git diff --quiet -- src/resources/embedded-mcp-resources.ts skills/.system/kairos-install/references dist/embed-docs/mem; then
+          if git diff --quiet -- src/resources/embedded-mcp-resources.ts skills/.system/kairos-install/references; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/resources/embedded-mcp-resources.ts skills/.system/kairos-install/references dist/embed-docs/mem
+          git add src/resources/embedded-mcp-resources.ts skills/.system/kairos-install/references
           if git diff --cached --quiet; then
             exit 0
           fi
@@ -59,9 +59,12 @@ jobs:
       - name: Verify repository clean after build
         run: |
           set -euo pipefail
-          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-            echo "::error::Repository changed during build. Commit or auto-sync generated files."
-            git status --porcelain --untracked-files=no
+          allowed_re='^(dist/embed-docs/mem/|$)'
+          dirty=$(git diff --name-only)
+          unexpected=$(printf '%s\n' "$dirty" | grep -vE "$allowed_re" || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::Repository changed during build outside allowed paths."
+            echo "$unexpected"
             git diff
             exit 1
           fi
