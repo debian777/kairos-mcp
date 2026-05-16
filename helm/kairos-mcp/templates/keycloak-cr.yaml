@@ -19,8 +19,7 @@
 {{- if and (eq $hostnameUrl "") (ne $callbackBase "") }}
 {{- $hostnameUrl = printf "%s%s" (trimSuffix "/" $callbackBase) $relativePath }}
 {{- else if and (eq $hostnameUrl "") $gateway.hostname }}
-{{- $scheme := ternary "https" "http" $hasTLS }}
-{{- $hostnameUrl = printf "%s://%s%s" $scheme $gateway.hostname $relativePath }}
+{{- $hostnameUrl = include "kairos.app.keycloakUrl" . | trim }}
 {{- end }}
 {{- $dbHost := default "" $kc.db.host }}
 {{- if and (eq $dbHost "") $pg.enabled (not $pg.useOwnCluster) }}

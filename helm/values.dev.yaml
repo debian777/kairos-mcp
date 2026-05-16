@@ -1,14 +1,13 @@
-# Repo-local overlay for k3d local-ha-cluster.
+# Repo-local dev values example.
 #
-# Full stack (infra + app + Keycloak + Gateway routes on ngrok):
-#   set -a && source .env && set +a && ./helm/.dev/k3b.sh
-# If your reserved ngrok hostname differs from gateway.hostname below:
-#   KAIROS_NGROK_HOSTNAME=your-name.ngrok-free.dev ./helm/.dev/k3b.sh
-# Operators + ngrok only (no Helm release):
-#   KAIROS_SKIP_CHART=1 ./helm/.dev/k3b.sh
+# This file is a development-oriented values overlay that uses:
+# - Ollama embeddings (no external API key)
+# - an ngrok Gateway hostname for public ingress
 #
-# The app image (see app.image below) must exist in the cluster; for k3d build
-# and import, for example: npm run docker:build:dev && k3d image import debian777/kairos-mcp:dev
+# Install required operators first (see helm/prerequisites/), then apply the
+# chart with:
+#   helm upgrade --install kairos helm/kairos-mcp -n kairos --create-namespace \
+#     -f helm/values.dev.yaml
 
 app:
   image:

@@ -1,9 +1,9 @@
 # Step-by-step operator installation
 
 Install these operators before you install the KAIROS MCP chart when you use
-chart-created clusters. In this repository, `helm/.dev/k3b.sh` performs the same
-bootstrap for `k3d local-ha-cluster`, including the ngrok `GatewayClass`.
-Standalone idempotent scripts are available in `helm/prerequisites/`.
+chart-created clusters. In this repository, `helm/.dev/prepare.sh` installs the
+operators used by the local development workflow. Standalone idempotent scripts
+are available in `helm/prerequisites/`.
 If you install an operator outside the chart release namespace, you must also
 configure that operator to watch the release namespace and grant it RBAC in
 that namespace. The default upstream installs watch only their own namespace.
@@ -27,8 +27,6 @@ Uses the **RedisFailover** CRD. Do **not** use Helm chart **≥3.3.0** (CRDs und
 it keeps the **policy/v1** `PodDisruptionBudget` API required on Kubernetes **1.25+**;
 **3.1.x** controllers hit `the server could not find the requested resource` on
 modern clusters.
-
-`helm/.dev/k3b.sh` pins **3.2.9** for `k3d local-ha-cluster`.
 
 ```bash
 helm upgrade --install redis-operator redis-operator/redis-operator -n redis-operator --create-namespace --version 3.2.9
@@ -116,10 +114,13 @@ Verify: `kubectl get pods -n kairos` and
 
 ## 4. ngrok operator and GatewayClass
 
-For the repo-local `k3d` workflow, run `./helm/.dev/k3b.sh`. It reads ngrok
-credentials from `~/.config/ngrok/ngrok.yml` (or `NGROK_AUTHTOKEN` and
-`NGROK_API_KEY`), installs the ngrok operator, and applies
-`GatewayClass/ngrok`.
+If you use ngrok as your Gateway API controller, install the operator and
+create a `GatewayClass/ngrok` (controller name `ngrok.com/gateway-controller`).
+Use the idempotent script in `helm/prerequisites/`:
+
+```bash
+./helm/prerequisites/install-ngrok-operator.sh
+```
 
 Verify: `kubectl get gatewayclass ngrok`.
 
@@ -133,12 +134,12 @@ helm dependency update
 helm install kairos . -n kairos --create-namespace -f my-values.yaml
 ```
 
-On the repo-local `k3d` profile, export `OPENAI_API_KEY` (for example
-`set -a && source .env && set +a`), then run `./helm/.dev/k3b.sh` for the default
-full Helm install; it creates the embedding Secret from that env var. Use
-`KAIROS_SKIP_CHART=1` if you only want operators and ngrok. Use
-`KAIROS_NGROK_HOSTNAME` when your reserved ngrok hostname does not match
-`helm/values.dev.yaml`.
+For local development on a single-node cluster, run:
+
+```bash
+./helm/.dev/prepare.sh
+./helm/.dev/helm-apply.sh
+```
 
 Set `app.qdrantUrl`, `app.keycloakUrl`, `app.keycloakInternalUrl`, and
 `app.embedding` or `app.extraEnv` when you enable the app. Set `app.redisUrl`

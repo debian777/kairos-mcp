@@ -86,6 +86,10 @@ spec:
             - name: metrics
               containerPort: {{ .Values.app.metricsPort }}
               protocol: TCP
+          {{ $redisUrl := include "kairos.app.redisUrl" . | trim }}
+          {{ $_ := required "KAIROS requires REDIS_URL to be set. Set app.redisUrl or enable valkey/redisCluster." $redisUrl }}
+          {{ $qdrantUrl := include "kairos.app.qdrantUrl" . | trim }}
+          {{ $_ := required "KAIROS requires QDRANT_URL to be set. Set app.qdrantUrl or enable qdrant." $qdrantUrl }}
           env:
             - name: PORT
               value: "{{ .Values.app.port }}"
@@ -94,14 +98,15 @@ spec:
             - name: TRANSPORT_TYPE
               value: "http"
             - name: REDIS_URL
-              value: {{ .Values.app.redisUrl | quote }}
+              value: {{ $redisUrl | quote }}
             - name: QDRANT_URL
-              value: {{ .Values.app.qdrantUrl | quote }}
+              value: {{ $qdrantUrl | quote }}
             - name: KEYCLOAK_URL
-              value: {{ .Values.app.keycloakUrl | quote }}
-            {{- if .Values.app.keycloakInternalUrl }}
+              value: {{ include "kairos.app.keycloakUrl" . | quote }}
+            {{- $kcInternal := include "kairos.app.keycloakInternalUrl" . }}
+            {{- if $kcInternal }}
             - name: KEYCLOAK_INTERNAL_URL
-              value: {{ .Values.app.keycloakInternalUrl | quote }}
+              value: {{ $kcInternal | quote }}
             {{- end }}
             - name: AUTH_ENABLED
               value: {{ ternary "true" "false" .Values.app.auth.enabled | quote }}
@@ -111,7 +116,7 @@ spec:
             - name: KEYCLOAK_CLIENT_ID
               value: {{ .Values.app.auth.clientId | quote }}
             - name: AUTH_CALLBACK_BASE_URL
-              value: {{ .Values.app.auth.callbackBaseUrl | quote }}
+              value: {{ include "kairos.app.publicBaseUrl" . | quote }}
             {{- $allow := .Values.app.auth.oidcGroupsAllowlist | default "" | trim }}
             {{- if ne $allow "" }}
             - name: OIDC_GROUPS_ALLOWLIST
