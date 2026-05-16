@@ -2,36 +2,38 @@
 
 The repository includes an optional `fullstack` Compose profile that adds
 supporting services alongside the KAIROS application and Qdrant. Use it when
-you need a broader local environment or want to model a more production-like
-deployment.
+you need a broader local environment or want to model a production-like
+topology without Kubernetes.
 
-This page is an advanced deployment reference, not a step-by-step
-identity-provider guide. If you enable additional auth services, you are
-responsible for their
-configuration, secrets, networking, and lifecycle.
+For Kubernetes production deployments, use the **[Helm chart](helm.md)**
+instead.
 
-## 1. Scope
+---
 
-This page documents the advanced Compose profile at a high level:
+## When to use this profile
 
-- where `.env` lives,
-- how to start the profile,
-- which other pages to use for infrastructure and CLI access.
+Choose this profile only when the default
+[simple stack](docker-compose-simple.md) is no longer enough.
 
-It does not prescribe Keycloak, realm, client, or TLS configuration.
+Typical reasons:
 
-## 2. When to use this profile
+- Validating a broader service topology locally
+- Running additional stateful services (Redis, Postgres) alongside the app
+- Testing a self-managed authentication architecture (Keycloak)
 
-Choose this profile only when the default [simple stack](docker-compose-simple.md)
-is no longer enough for your deployment or evaluation.
+---
 
-Typical reasons include:
+## Prerequisites
 
-- validating a broader service topology,
-- running additional stateful services alongside the application,
-- testing a self-managed authentication architecture.
+| Requirement | Details |
+|-------------|---------|
+| **Docker Engine** + **Docker Compose v2** | Same as simple stack |
+| **`.env`** file | Embedding variables + any additional service secrets |
+| **[Embedding backend](prerequisites.md#embedding-backend)** | Same selection as simple stack |
 
-## 3. Environment file
+---
+
+## Environment file
 
 Create `.env` next to `compose.yaml`. The required variables depend on which
 services you enable and how you wire authentication, storage, and networking.
@@ -41,29 +43,47 @@ At minimum, keep the embedding variables aligned with your chosen
 profile, use the repository `compose.yaml`, your secret management approach,
 and your infrastructure requirements as the source of truth.
 
-## 4. Start
+---
 
-Start the profile with your chosen project name, environment file, and service
-configuration.
+## Start
 
 ```sh
 docker compose -p kairos-mcp --profile fullstack up -d
 ```
 
-After the stack is running, confirm the application health endpoint on the URL
-you expose.
+After the stack is running, confirm the application health endpoint:
 
-## 5. Access
+```sh
+curl -sS "http://localhost:${PORT:-3000}/health"
+```
+
+---
+
+## Access
 
 Use the [CLI](../CLI.md) as the primary interface after the application is
 healthy. Add MCP only for hosts that require a streamable HTTP endpoint.
 
+---
+
+## Services (fullstack profile)
+
+| Service | Purpose |
+|---------|---------|
+| `app-prod` | KAIROS application |
+| `qdrant` | Vector database |
+| `redis` | State / caching (optional) |
+| `keycloak` | Identity provider (optional) |
+| `postgres` | Keycloak backing store (optional) |
+
+---
+
 ## Related
 
-Use these resources when you operate the advanced profile.
-
-- [Install index](README.md)
-- [Docker Compose — simple stack](docker-compose-simple.md)
-- [CLI](../CLI.md)
-- [Infrastructure](https://github.com/debian777/kairos-mcp/blob/main/docs/architecture/infrastructure.md)
-- [`compose.yaml`](https://github.com/debian777/kairos-mcp/blob/main/compose.yaml)
+| Resource | Use for |
+|----------|---------|
+| [Install index](README.md) | Overview of all installation paths |
+| [Simple stack](docker-compose-simple.md) | Recommended local path (app + Qdrant only) |
+| [Helm chart](helm.md) | Kubernetes production deployment |
+| [CLI](../CLI.md) | Primary interface for operations |
+| [`compose.yaml`](https://github.com/debian777/kairos-mcp/blob/main/compose.yaml) | Source Compose file |
