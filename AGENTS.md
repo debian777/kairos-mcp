@@ -50,12 +50,12 @@ files; they are authoritative.
 - Add a `contract` JSON block to every verifiable step when authoring for **`train`**.
 - Use space names in tool parameters; the backend resolves to IDs.
 - Follow repo build/test contract from **[`CONTRIBUTING.md`](CONTRIBUTING.md)** and
-  **[`.agent/skills/kmcp-dev-build-test/SKILL.md`](.agent/skills/kmcp-dev-build-test/SKILL.md)**.
+  **[`.agents/skills/kmcp-dev-build-test/SKILL.md`](.agents/skills/kmcp-dev-build-test/SKILL.md)**.
 - For **maintainer E2E QA of MCP tools** against dev (MCP-only phase, then
   `.local/` trace reports, failing tests, plan/fix), follow
-  **[`.agent/skills/kmcp-dev-mcp-qa-e2e/SKILL.md`](.agent/skills/kmcp-dev-mcp-qa-e2e/SKILL.md)**.
+  **[`.agents/skills/kmcp-dev-mcp-qa-e2e/SKILL.md`](.agents/skills/kmcp-dev-mcp-qa-e2e/SKILL.md)**.
 - For **repo-local maintainer workflows** (build, release, Git safety, UI specs,
-  MCP QA, bug ship), see **[`.agent/skills/README.md`](.agent/skills/README.md)**
+  MCP QA, bug ship), see **[`.agents/skills/README.md`](.agents/skills/README.md)**
   — skills there use YAML `name` prefix **`kmcp-dev-`** (Kairos MCP development).
 
 ## MUST NEVER (repo context)
@@ -132,18 +132,18 @@ When the connected MCP surface differs from this worktree:
 When using Cursor’s **agent MCP bridge** (`call_mcp_tool`), the **server**
 argument is **not** always the same string as the key in `.cursor/mcp.json`.
 
-- **Config key (human / `mcp.json`):** e.g. `DEVELOPMENT_KAIROS` for local dev
+- **Config key (human / `mcp.json`):** e.g. `KAIROS-DEVELOPMENT` for local dev
   at `http://localhost:3300/mcp` (see `docs/install/README.md#cursor-and-mcp`).
 - **Agent-visible id:** Cursor prefixes or transforms the key. Examples:
   **`project-<n>-<workspace-folder-slug>-<key>`** for workspace-scoped MCP,
   **`user-<Name>`** for user-level servers (e.g. Context7), **`plugin-…`** for
   plugin-supplied MCP, and other forms. With this repo as workspace root
-  `kairos-mcp`, a common KAIROS dev id is `project-0-kairos-mcp-DEVELOPMENT_KAIROS`.
+  `kairos-mcp`, a common KAIROS dev id is `project-0-kairos-mcp-KAIROS-DEVELOPMENT`.
 
 **If `call_mcp_tool` fails with “MCP server does not exist”**, read the error’s
 **Available servers** list (or check Cursor’s MCP panel) and use the entry that
 corresponds to your configured server — often the one ending in
-`-DEVELOPMENT_KAIROS` for local dev. Do not treat any single example string as
+`-KAIROS-DEVELOPMENT` for local dev. Do not treat any single example string as
 portable across workspaces or Cursor versions.
 
 **MCP auth or availability:** If a tool fails with auth errors or the server is

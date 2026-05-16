@@ -1,29 +1,29 @@
 ---
 name: kmcp-dev-mcp-qa-e2e
 description: >-
-  kairos-mcp: phased E2E QA of KAIROS MCP tools against DEVELOPMENT_KAIROS.
+  kairos-mcp: phased E2E QA of KAIROS MCP tools against KAIROS-DEVELOPMENT.
   Phase 1 MCP-only; phase 2 read-only repo + raw JSON trace reports under
   .local/mcp-qa-reports/; phase 3 failing integration tests; phase 4 plan
-  and fix. Not installed via npx skills add (see .agent/skills/README.md).
+  and fix. Not installed via npx skills add (see .agents/skills/README.md).
 ---
 
 # MCP E2E QA (kairos-mcp)
 
 **Repository:** `kairos-mcp`. **Skill namespace:** `kmcp-dev-*` — see
-[`.agent/skills/README.md`](../README.md). **Not** shipped via `npx skills add`
+[`.agents/skills/README.md`](../README.md). **Not** shipped via `npx skills add`
 (skills under **`skills/`** are).
 
 Use this skill for **structured end-to-end verification** of KAIROS MCP tools
-against **local dev** (`DEVELOPMENT_KAIROS` in `.cursor/mcp.json`), with strict
+against **local dev** (`KAIROS-DEVELOPMENT` in `.cursor/mcp.json`), with strict
 phases so QA does not read implementation source before you intend to.
 
 ## Target MCP server
 
-- **Config key:** `DEVELOPMENT_KAIROS` (see `docs/install/README.md#cursor-and-mcp`).
-- **`call_mcp_tool` `server` argument:** Cursor’s agent-visible id often differs.
-  Resolve it from the error’s **Available servers** list or the MCP panel. With
-  workspace folder `kairos-mcp`, a common pattern is
-  `project-0-kairos-mcp-DEVELOPMENT_KAIROS` — **do not** treat that as portable.
+- **Config key:** `KAIROS-DEVELOPMENT` (see `docs/install/README.md#cursor-and-mcp`).
+- **`call_mcp_tool` `server` argument:** the host’s agent-visible id often differs.
+  Resolve it from the error’s **Available servers** list or the host’s MCP panel.
+  A common pattern is `project-0-kairos-mcp-KAIROS-DEVELOPMENT` — **do not** treat
+  that as portable.
 - **Auth / missing server:** `.agents/skills/mcp-host-bridge/SKILL.md`.
 
 For **real** tool names, schemas, and descriptions at runtime, treat the
@@ -55,7 +55,7 @@ MCP bridge.
 
 **Host plumbing (narrow exception)**
 
-- Cursor may surface tool **schemas** as JSON under an MCP cache path. Using
+- Your host may surface tool **schemas** as JSON under an MCP cache path. Using
   those descriptors **only** to shape valid `call_mcp_tool` arguments is host
   plumbing, **not** permission to read `src/` or `tests/` for product logic. If
   unsure, stay MCP-only until the user ends phase 1.
@@ -104,7 +104,7 @@ only.
 
 ## Phase 3 — Regression tests (red before green)
 
-1. Follow **[`.agent/skills/kmcp-dev-build-test/SKILL.md`](../kmcp-dev-build-test/SKILL.md)**:
+1. Follow **[`.agents/skills/kmcp-dev-build-test/SKILL.md`](../kmcp-dev-build-test/SKILL.md)**:
    `npm run dev:deploy`, then focused
    `npm run dev:test -- tests/integration/<file>.test.ts`.
 2. Add or extend **`tests/integration/`** so the defect **fails** a test.
@@ -120,7 +120,7 @@ only.
 2. Implement, **`npm run dev:deploy`**, re-run the focused test, then
    **`npm run dev:test`** before handoff.
 3. If the outcome is a **live** defect with full ship workflow, also follow
-   **[`.agent/skills/kmcp-dev-bugfix-ship/SKILL.md`](../kmcp-dev-bugfix-ship/SKILL.md)**.
+   **[`.agents/skills/kmcp-dev-bugfix-ship/SKILL.md`](../kmcp-dev-bugfix-ship/SKILL.md)**.
 
 ## Related skills
 
@@ -128,10 +128,10 @@ only.
 |-------|------|
 | [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md) | Adapter execution order and zero drift. |
 | [`skills/.system/kairos-bug-report/SKILL.md`](../../../skills/.system/kairos-bug-report/SKILL.md) | Trace layout for phase 2 (public `reports/` path). |
-| [`.agent/skills/kmcp-dev-build-test/SKILL.md`](../kmcp-dev-build-test/SKILL.md) | npm-only test contract. |
-| [`.agent/skills/kmcp-dev-bugfix-ship/SKILL.md`](../kmcp-dev-bugfix-ship/SKILL.md) | End-to-end bug fix to merge-ready. |
+| [`.agents/skills/kmcp-dev-build-test/SKILL.md`](../kmcp-dev-build-test/SKILL.md) | npm-only test contract. |
+| [`.agents/skills/kmcp-dev-bugfix-ship/SKILL.md`](../kmcp-dev-bugfix-ship/SKILL.md) | End-to-end bug fix to merge-ready. |
 
 ## CI note
 
 `npm run lint:skills` validates only **`skills/`** via **`scripts/lint-agent-skills.py`**.
-This **`.agent/skills/`** file follows the same frontmatter conventions without being in that lint path.
+This **`.agents/skills/`** file follows the same frontmatter conventions without being in that lint path.

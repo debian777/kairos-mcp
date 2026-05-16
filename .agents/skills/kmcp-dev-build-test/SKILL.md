@@ -11,7 +11,7 @@ description: >-
 **Repository:** `kairos-mcp` — Node 24 LTS minimum, TypeScript, Qdrant, Redis, optional Keycloak.
 **Agent contract:** [`AGENTS.md`](../../../AGENTS.md). **Adapter execution (shipped skill):**
 [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md). **Skill index:**
-[`.agent/skills/README.md`](../README.md) (`kmcp-dev-*`).
+[`.agents/skills/README.md`](../README.md) (`kmcp-dev-*`).
 
 Use this skill whenever you need to **build**, **deploy**, or **test** this repository.
 Derived from [`CONTRIBUTING.md`](../../../CONTRIBUTING.md); this file is the **authoritative**
@@ -68,6 +68,6 @@ Same policy for forks: deploy-before-test, npm scripts. If script names differ, 
 ## Related maintainer skills
 
 - **[`kmcp-dev-worktree-env`](../kmcp-dev-worktree-env/SKILL.md)** — `.env*` in worktrees; sync from main.
-- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — MCP-first QA against DEVELOPMENT_KAIROS.
+- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — MCP-first QA against KAIROS-DEVELOPMENT.
 - **[`kmcp-dev-bugfix-ship`](../kmcp-dev-bugfix-ship/SKILL.md)** — bug report → fix → PR → CI.
 - **[`kmcp-dev-release-semver`](../kmcp-dev-release-semver/SKILL.md)** — semver release branch flow.

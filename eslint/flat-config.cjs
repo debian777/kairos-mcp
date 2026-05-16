@@ -332,7 +332,7 @@ function createFlatConfig(rootDir) {
     },
     {
       // Maintainer agent skills + root contributing guide: may quote triggers, URIs, and vocabulary by design.
-      files: ['.agent/skills/**/*.md', 'CONTRIBUTING.md'],
+      files: ['.agents/skills/**/*.md', 'CONTRIBUTING.md'],
       rules: {
         'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
         'kairos-forbidden-text/review-protocol-wording': 'off',

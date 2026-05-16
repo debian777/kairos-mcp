@@ -40,7 +40,7 @@ When **`./scripts/deploy-run-env.sh`** runs (via **`npm run dev:*`** targets suc
 ./scripts/deploy-copy-env-from-main.sh
 ```
 
-## VS Code / Cursor
+## IDE task runner
 
 **Terminal → Run Task… → Copy .env from main** runs the same script (see **`.vscode/tasks.json`**).
 

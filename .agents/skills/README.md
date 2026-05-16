@@ -1,8 +1,8 @@
-# Cursor skills — kairos-mcp maintainer suite
+# Maintainer skills — kairos-mcp
 
-Canonical path: **`.agent/skills/`** (not installed via `npx skills add`). The same
+Canonical path: **`.agents/skills/`** (not installed via `npx skills add`). The same
 tree is linked for hosts as **`.cursor/skills`** and **`.claude/skills`** (repo-root
-symlinks → **`.agent/skills`**).
+symlinks → **`.agents/skills`**).
 
 They complement shipped agent skills in **`skills/`** (`kairos`, `kairos-bug-report`,
 `kairos-install`).
@@ -17,7 +17,7 @@ ids, npm-only tests).
 | Directory (`…/SKILL.md`) | YAML `name` | When to invoke |
 |----------------|-------------|----------------|
 | [`kmcp-dev-build-test`](kmcp-dev-build-test/SKILL.md) | `kmcp-dev-build-test` | Build, deploy, lint, integration tests — always **`npm run`**; never default to bare Jest. |
-| [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **DEVELOPMENT_KAIROS**; `.local/` trace reports. |
+| [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **KAIROS-DEVELOPMENT**; `.local/` trace reports. |
 | [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Live reproduce → failing test → fix → PR → CI green → merge-ready. |
 | [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Semver bump, `release/*` branch, PR, tag policy (no manual `v*` push). |
 | [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |

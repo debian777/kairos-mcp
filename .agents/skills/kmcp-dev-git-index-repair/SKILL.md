@@ -9,7 +9,7 @@ description: >-
 
 # Git worktree index and commit repair
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agent/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
 **Hook authority:** [`.husky/pre-commit`](../../../.husky/pre-commit) (always re-read before automating).
 
 ## When to use
@@ -34,7 +34,7 @@ Common phantom-entry sources:
 sudo fs_usage -w -f filesys | grep 'worktrees/<name>/index'
 ```
 
-Trigger the hook in another terminal; look for **`WrData`** + **`rename`** on the index. In this repo, tracing showed only **`git`** writes the index; Cursor helpers may read.
+Trigger the hook in another terminal; look for **`WrData`** + **`rename`** on the index. In this repo, tracing showed only **`git`** writes the index; IDE helpers may read.
 
 ## Bisect Husky (recommended)
 
