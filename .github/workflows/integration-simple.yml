@@ -133,42 +133,17 @@ jobs:
       - name: Apply simple profile overrides
         run: cat .env.dev_simple >> .env
 
-      - name: Restore Qdrant Docker image cache
-        uses: actions/cache/restore@v5
-        id: docker-qdrant-cache
-        with:
-          path: .cache/docker-qdrant
-          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
-
-      - name: Load Qdrant Docker image from cache
-        if: steps.docker-qdrant-cache.outputs.cache-hit == 'true'
-        run: docker load -i .cache/docker-qdrant/images.tar
-
-      - name: Start Qdrant and npm ci (parallel)
+      - name: Start Qdrant (binary) and npm ci (parallel)
         run: |
           set -euo pipefail
           ec=0
-          docker compose -p kairos-mcp-simple --env-file .env up -d qdrant &
-          pid_compose=$!
+          QDRANT_HTTP_PORT=7633 QDRANT_GRPC_PORT=7634 npm run qdrant:binary:start &
+          pid_qdrant=$!
           node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
           pid_npm=$!
-          wait $pid_compose || ec=1
+          wait $pid_qdrant || ec=1
           wait $pid_npm || ec=1
           exit $ec
-
-      - name: Save Qdrant Docker image for cache
-        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p .cache/docker-qdrant
-          IMAGE=$(docker compose -p kairos-mcp-simple --env-file .env config --format json | jq -r '.services.qdrant.image')
-          docker save -o .cache/docker-qdrant/images.tar "$IMAGE"
-
-      - name: Cache Qdrant Docker image
-        uses: actions/cache/save@v5
-        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
-        with:
-          path: .cache/docker-qdrant
-          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
 
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
@@ -191,7 +166,7 @@ jobs:
           node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
           pid_pw=$!
           for i in $(seq 1 30); do
-            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
+            curl -sSf http://127.0.0.1:7633/healthz >/dev/null && break
             [ "$i" -eq 30 ] && ec=1
             sleep 2
           done &
@@ -263,6 +238,10 @@ jobs:
           path: var/log/kairos-simple.log
           if-no-files-found: ignore
 
+      - name: Stop Qdrant (binary)
+        if: always()
+        run: npm run qdrant:binary:stop
+
   verify-integration-simple-advisory:
     name: Infra + dev deploy + integration tests (SIMPLE mode, Node 26, Current, advisory)
     needs: [build-advisory]
@@ -293,42 +272,17 @@ jobs:
       - name: Apply simple profile overrides
         run: cat .env.dev_simple >> .env
 
-      - name: Restore Qdrant Docker image cache
-        uses: actions/cache/restore@v5
-        id: docker-qdrant-cache
-        with:
-          path: .cache/docker-qdrant
-          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
-
-      - name: Load Qdrant Docker image from cache
-        if: steps.docker-qdrant-cache.outputs.cache-hit == 'true'
-        run: docker load -i .cache/docker-qdrant/images.tar
-
-      - name: Start Qdrant and npm ci (parallel)
+      - name: Start Qdrant (binary) and npm ci (parallel)
         run: |
           set -euo pipefail
           ec=0
-          docker compose -p kairos-mcp-simple --env-file .env up -d qdrant &
-          pid_compose=$!
+          QDRANT_HTTP_PORT=7633 QDRANT_GRPC_PORT=7634 npm run qdrant:binary:start &
+          pid_qdrant=$!
           node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
           pid_npm=$!
-          wait $pid_compose || ec=1
+          wait $pid_qdrant || ec=1
           wait $pid_npm || ec=1
           exit $ec
-
-      - name: Save Qdrant Docker image for cache
-        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p .cache/docker-qdrant
-          IMAGE=$(docker compose -p kairos-mcp-simple --env-file .env config --format json | jq -r '.services.qdrant.image')
-          docker save -o .cache/docker-qdrant/images.tar "$IMAGE"
-
-      - name: Cache Qdrant Docker image
-        uses: actions/cache/save@v5
-        if: steps.docker-qdrant-cache.outputs.cache-hit != 'true'
-        with:
-          path: .cache/docker-qdrant
-          key: qdrant-docker-${{ hashFiles('compose.yaml') }}
 
       - name: Download npm package artifact
         uses: actions/download-artifact@v8
@@ -351,7 +305,7 @@ jobs:
           node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
           pid_pw=$!
           for i in $(seq 1 30); do
-            curl -sSf http://127.0.0.1:6333/healthz >/dev/null && break
+            curl -sSf http://127.0.0.1:7633/healthz >/dev/null && break
             [ "$i" -eq 30 ] && ec=1
             sleep 2
           done &
@@ -422,6 +376,10 @@ jobs:
           name: kairos-simple-log-node26
           path: var/log/kairos-simple.log
           if-no-files-found: ignore
+
+      - name: Stop Qdrant (binary)
+        if: always()
+        run: npm run qdrant:binary:stop
 
   # Gates only on Node 24 jobs; advisory Node 26 job is not in needs.
   integration-simple-pass:
