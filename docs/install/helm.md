@@ -19,19 +19,17 @@ post-install verification.
 ### Operators
 
 The chart can create Custom Resources for Qdrant, Redis, PostgreSQL, and
-Keycloak. Each CR requires its operator pre-installed. Use the idempotent
-scripts in `helm/prerequisites/` or install manually.
+Keycloak. Each CR requires its operator pre-installed. Install operators via OLM
+(see the official guide: https://olm.operatorframework.io/docs/getting-started/)
+then apply this repo’s OLM manifests:
 
 ```sh
-# All scripts are safe to re-run (idempotent).
-./helm/prerequisites/install-redis-operator.sh      # Spotahome Redis Operator
-./helm/prerequisites/install-pg-operator.sh         # Percona PG Operator
-./helm/prerequisites/install-keycloak-operator.sh   # Keycloak Operator
-./helm/prerequisites/install-ngrok-operator.sh      # ngrok (if using ngrok Gateway)
+kubectl apply -k helm/operators
+kubectl apply -k helm/infrastructure
 ```
 
-Each script accepts optional namespace arguments. See script headers for
-environment variables and version pinning (renovate-managed).
+Wrapper scripts are available in `helm/prerequisites/` (they apply the same
+kustomizations and wait for CRDs).
 
 ---
 

@@ -1,146 +1,56 @@
-# Step-by-step operator installation
+# Step-by-step operator installation (OLM)
 
-Install these operators before you install the KAIROS MCP chart when you use
-chart-created clusters. In this repository, `helm/.dev/k3b.sh` performs the same
-bootstrap for `k3d local-ha-cluster`, including the ngrok `GatewayClass`.
-Standalone idempotent scripts are available in `helm/prerequisites/`.
-If you install an operator outside the chart release namespace, you must also
-configure that operator to watch the release namespace and grant it RBAC in
-that namespace. The default upstream installs watch only their own namespace.
-See [Keycloak operator installation](https://www.keycloak.org/operator/installation)
-for the upstream Keycloak references.
+Install these operators before you install the KAIROS MCP chart when you use chart-created clusters.
 
-### Helm chart repositories (once)
+## 0. Install OLM
+
+Follow the official guide: https://olm.operatorframework.io/docs/getting-started/
+
+## 1. Apply this repo’s operator bootstrap manifests
+
+This repo installs operators into the `kairos-operators` namespace and scopes them to watch `kairos` via an `OperatorGroup`.
 
 ```bash
-helm repo add redis-operator https://spotahome.github.io/redis-operator
-helm repo add percona https://percona.github.io/percona-helm-charts/
-helm repo update
+kubectl apply -k helm/operators
+kubectl apply -k helm/infrastructure
 ```
 
----
-
-## 1. Redis operator (Spotahome)
-
-Uses the **RedisFailover** CRD. Do **not** use Helm chart **≥3.3.0** (CRDs under
-`crds/` are templated and fail to install). Use **3.2.9** (or another **3.2.x**):
-it keeps the **policy/v1** `PodDisruptionBudget` API required on Kubernetes **1.25+**;
-**3.1.x** controllers hit `the server could not find the requested resource` on
-modern clusters.
-
-`helm/.dev/k3b.sh` pins **3.2.9** for `k3d local-ha-cluster`.
+## 2. Verify operator installation
 
 ```bash
-helm upgrade --install redis-operator redis-operator/redis-operator -n redis-operator --create-namespace --version 3.2.9
+kubectl get operatorgroup,subscription,installplan,csv -n kairos-operators
+kubectl get catalogsource -n olm
 ```
 
-Verify: `kubectl get pods -n redis-operator` and
-`kubectl get crd redisfailovers.databases.spotahome.com`.
+Required CRDs for the Helm chart:
 
-The KAIROS chart creates a ClusterIP **`rfr-<redisCluster.name>`** Service
-(selecting the Redis **master** pod) because some operator versions do not
-expose that Service; set `app.redisUrl` to `redis://rfr-<name>:6379` (see
-`helm/values.dev.yaml`).
+- RedisFailover: `redisfailovers.databases.spotahome.com`
+- Keycloak: `keycloaks.k8s.keycloak.org`
+- Percona PostgreSQL: `perconapgclusters.pgv2.percona.com`
 
----
+## Notes
 
-## 2. Keycloak operator
+### Keycloak operator
 
-Use the current operator (CRD `keycloaks.k8s.keycloak.org`). The CRDs are
-separate from the operator deployment.
+This repo subscribes to `keycloak-operator` on the `fast` channel.
+
+### Percona PostgreSQL operator
+
+This repo subscribes to `percona-postgresql-operator` on the `stable` channel.
+
+### Redis operator (Spotahome) and ngrok operator
+
+These are installed via a custom `CatalogSource` named `kairos-catalog` (in `olm`).
+
+If your cluster cannot pull `ghcr.io/debian777/kairos-olm-catalog:latest`, update the `CatalogSource.spec.image` in:
+
+- `helm/operators/operators.yaml`
+- `helm/infrastructure/infrastructure.yaml`
+
+### ngrok credentials
+
+Create the ngrok credentials secret in `kairos-operators`:
 
 ```bash
-kubectl create namespace keycloak
-export KEYCLOAK_OPERATOR_VERSION=26.5.6
-
-# CRDs (cluster-scoped)
-kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloaks.k8s.keycloak.org-v1.yml"
-kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloakrealmimports.k8s.keycloak.org-v1.yml"
-
-# Operator in keycloak namespace
-kubectl -n keycloak apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/kubernetes.yml"
-kubectl create namespace kairos
-kubectl apply -f - <<'EOF'
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: keycloak-operator-watch
-  namespace: kairos
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: keycloakcontroller-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: keycloak-operator
-    namespace: keycloak
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: keycloak-realmimport-watch
-  namespace: kairos
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: keycloakrealmimportcontroller-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: keycloak-operator
-    namespace: keycloak
-EOF
-kubectl -n keycloak set env deployment/keycloak-operator \
-  QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES=kairos \
-  QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES=kairos
+./helm/prerequisites/install-ngrok-operator.sh
 ```
-
-Verify: `kubectl get pods -n keycloak` and
-`kubectl get crd keycloaks.k8s.keycloak.org`.
-
-The chart now renders `k8s.keycloak.org/v2alpha1` Keycloak resources and
-expects PostgreSQL-backed Keycloak configuration.
-
----
-
-## 3. Percona PostgreSQL operator
-
-```bash
-helm install pg-operator percona/pg-operator \
-  -n kairos --create-namespace
-```
-
-Verify: `kubectl get pods -n kairos` and
-`kubectl get crd perconapgclusters.pgv2.percona.com`.
-
----
-
-## 4. ngrok operator and GatewayClass
-
-For the repo-local `k3d` workflow, run `./helm/.dev/k3b.sh`. It reads ngrok
-credentials from `~/.config/ngrok/ngrok.yml` (or `NGROK_AUTHTOKEN` and
-`NGROK_API_KEY`), installs the ngrok operator, and applies
-`GatewayClass/ngrok`.
-
-Verify: `kubectl get gatewayclass ngrok`.
-
----
-
-## 5. Install KAIROS MCP chart
-
-```bash
-cd helm/kairos-mcp
-helm dependency update
-helm install kairos . -n kairos --create-namespace -f my-values.yaml
-```
-
-On the repo-local `k3d` profile, export `OPENAI_API_KEY` (for example
-`set -a && source .env && set +a`), then run `./helm/.dev/k3b.sh` for the default
-full Helm install; it creates the embedding Secret from that env var. Use
-`KAIROS_SKIP_CHART=1` if you only want operators and ngrok. Use
-`KAIROS_NGROK_HOSTNAME` when your reserved ngrok hostname does not match
-`helm/values.dev.yaml`.
-
-Set `app.qdrantUrl`, `app.keycloakUrl`, `app.keycloakInternalUrl`, and
-`app.embedding` or `app.extraEnv` when you enable the app. Set `app.redisUrl`
-only when you configure Redis. Credentials are autogenerated and stored only
-in the Kubernetes Secret unless you set `credentials.existingSecret`.

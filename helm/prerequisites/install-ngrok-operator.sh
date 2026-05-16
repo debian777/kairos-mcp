@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Idempotent: install ngrok Kubernetes Operator with Gateway API support.
-# Usage: ./install-ngrok-operator.sh [NAMESPACE]
-#
-# Requires NGROK_AUTHTOKEN and NGROK_API_KEY in environment (or yq-readable
-# ~/.config/ngrok/ngrok.yml). Creates a GatewayClass named "ngrok".
-# renovate: datasource=helm registryUrl=https://charts.ngrok.com depName=ngrok-operator
-CHART_VERSION="${NGROK_OPERATOR_CHART_VERSION:-}"
-NAMESPACE="${1:-ngrok-operator}"
-CREDENTIALS_SECRET="ngrok-k8s-credentials"
+NAMESPACE="${1:-kairos-operators}"
+CREDENTIALS_SECRET="ngrok-operator-credentials"
 NGROK_CONFIG="${NGROK_CONFIG:-$HOME/.config/ngrok/ngrok.yml}"
+
+if [[ "${NAMESPACE}" != "kairos-operators" ]]; then
+    echo >&2 "ngrok operator install: this repo installs ngrok via OLM into namespace 'kairos-operators' (got '${NAMESPACE}')."
+    exit 1
+fi
 
 resolved_authtoken=""
 resolved_api_key=""
@@ -26,33 +24,13 @@ if [[ -z "$resolved_authtoken" || -z "$resolved_api_key" ]]; then
     exit 1
 fi
 
-kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+kubectl apply -k "${SCRIPT_DIR}/../infrastructure"
+
 kubectl create secret generic "$CREDENTIALS_SECRET" -n "$NAMESPACE" \
     --from-literal=API_KEY="$resolved_api_key" \
     --from-literal=AUTHTOKEN="$resolved_authtoken" \
     --dry-run=client -o yaml | kubectl apply -f -
 
-helm repo add ngrok https://charts.ngrok.com 2>/dev/null || true
-helm repo update ngrok
-
-version_args=()
-[[ -n "${CHART_VERSION}" ]] && version_args+=(--version "$CHART_VERSION")
-
-helm upgrade --install ngrok-operator ngrok/ngrok-operator -n "$NAMESPACE" --create-namespace \
-    --set credentials.secret.name="$CREDENTIALS_SECRET" \
-    --set gateway.enabled=true \
-    "${version_args[@]}"
-
-kubectl rollout status deployment/ngrok-operator-manager -n "$NAMESPACE" --timeout=120s
-kubectl rollout status deployment/ngrok-operator-agent -n "$NAMESPACE" --timeout=120s
-
-kubectl apply -f - <<'EOF'
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: ngrok
-spec:
-  controllerName: ngrok.com/gateway-controller
-EOF
 kubectl wait --for=condition=Accepted gatewayclass/ngrok --timeout=120s
-echo "ngrok Operator ready in ${NAMESPACE} with GatewayClass/ngrok."
+echo "ngrok Operator subscription applied (namespace: kairos-operators) and GatewayClass/ngrok ensured."

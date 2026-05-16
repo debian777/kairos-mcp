@@ -7,7 +7,7 @@ operator CRs.
 ## Prerequisites
 
 - Kubernetes cluster
-- **Operators** installed when using chart-created clusters (see [docs/OPERATORS.md](docs/OPERATORS.md)):
+- **Operators** installed via OLM when using chart-created clusters (see [docs/OPERATORS.md](docs/OPERATORS.md)):
   - Redis (Spotahome redis-operator)
   - Keycloak operator
   - Postgres (Percona PostgreSQL operator)

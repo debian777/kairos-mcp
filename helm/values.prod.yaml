@@ -1,8 +1,8 @@
 # Production overlay example.
 #
 # Copy this file and customize for your environment. Install operators first:
-#   ./helm/prerequisites/install-keycloak-operator.sh
-#   ./helm/prerequisites/install-pg-operator.sh
+#   kubectl apply -k helm/operators
+#   kubectl apply -k helm/infrastructure
 #
 # Then install the chart:
 #   helm upgrade --install kairos helm/kairos-mcp -n kairos -f my-values.yaml --wait

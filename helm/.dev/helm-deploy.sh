@@ -15,45 +15,15 @@ REPO_ROOT="${SCRIPT_DIR}/../.."
 CHART_DIR="${SCRIPT_DIR}/../kairos-mcp"
 NS="${KAIROS_NAMESPACE:-kairos}"
 KUBE_CONTEXT="${KUBE_CONTEXT:-rancher-desktop}"
-KEYCLOAK_OPERATOR_VERSION="${KEYCLOAK_OPERATOR_VERSION:-26.5.6}"
-PERCONA_PG_OPERATOR_VERSION="${PERCONA_PG_OPERATOR_VERSION:-2.8.2}"
 
-install_keycloak_operator() {
-  local target_ns="${1:-${NS}}"
-  echo "  Installing Keycloak operator into namespace: ${target_ns}"
-  kubectl create namespace "${target_ns}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloaks.k8s.keycloak.org-v1.yml" >/dev/null
-  kubectl apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/keycloakrealmimports.k8s.keycloak.org-v1.yml" >/dev/null
-  kubectl -n "${target_ns}" apply -f "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${KEYCLOAK_OPERATOR_VERSION}/kubernetes/kubernetes.yml" >/dev/null
-
-  # Patch for restricted PSA
-  kubectl -n "${target_ns}" patch deployment keycloak-operator --type=json -p='[
-    {"op":"add","path":"/spec/template/spec/containers/0/securityContext","value":{
-      "runAsNonRoot":true,"allowPrivilegeEscalation":false,
-      "capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}
-    }},
-    {"op":"add","path":"/spec/template/spec/securityContext","value":{
-      "runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}
-    }}
-  ]' 2>/dev/null || true
-
-  # Scope operator to target namespace
-  kubectl -n "${target_ns}" set env deployment/keycloak-operator \
-    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES="${target_ns}" \
-    QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES="${target_ns}" >/dev/null
-  kubectl rollout status deployment/keycloak-operator -n "${target_ns}" --timeout=120s
-}
-
-install_percona_pg_operator() {
-  echo "  Installing Percona PostgreSQL operator"
-  helm repo add percona https://percona.github.io/percona-helm-charts/ >/dev/null 2>&1 || true
-  helm repo update >/dev/null
-  helm upgrade --install pg-operator percona/pg-operator \
-    -n "${NS}" \
-    --create-namespace \
-    --version "${PERCONA_PG_OPERATOR_VERSION}" \
-    --skip-crds >/dev/null
-  kubectl rollout status deployment/pg-operator -n "${NS}" --timeout=120s
+install_operators_olm() {
+  if ! kubectl get ns olm >/dev/null 2>&1; then
+    echo "Error: OLM not detected (namespace 'olm' missing). Install OLM first: https://olm.operatorframework.io/docs/getting-started/" >&2
+    exit 1
+  fi
+  kubectl apply -k "${REPO_ROOT}/helm/operators" >/dev/null
+  kubectl wait --for=condition=Established crd/keycloaks.k8s.keycloak.org --timeout=300s >/dev/null
+  kubectl wait --for=condition=Established crd/perconapgclusters.pgv2.percona.com --timeout=300s >/dev/null
 }
 
 usage() {
@@ -70,8 +40,6 @@ Options:
 Environment:
   KAIROS_NAMESPACE            Override namespace (default: kairos)
   KUBE_CONTEXT                Override kube context (default: rancher-desktop)
-  KEYCLOAK_OPERATOR_VERSION   Keycloak operator version (default: 26.5.6)
-  PERCONA_PG_OPERATOR_VERSION Percona PG operator version (default: 2.8.2)
 EOF
   exit 0
 }
@@ -190,17 +158,8 @@ if [[ "$PROFILE" == *full* ]]; then
   if [[ -d "${REPO_ROOT}/argocd/operators" ]] && kubectl apply -k "${REPO_ROOT}/argocd/operators" >/dev/null 2>&1; then
     echo "  Applied argocd/operators kustomization."
   else
-    echo "  argocd/operators unavailable or broken, using helm/.dev fallback installer."
-    if ! kubectl get crd keycloaks.k8s.keycloak.org >/dev/null 2>&1 || ! kubectl -n "${NS}" get deployment keycloak-operator >/dev/null 2>&1; then
-      install_keycloak_operator "${NS}"
-    else
-      echo "  Keycloak operator already installed."
-    fi
-    if ! kubectl get crd perconapgclusters.pgv2.percona.com >/dev/null 2>&1 || ! kubectl -n "${NS}" get deployment pg-operator >/dev/null 2>&1; then
-      install_percona_pg_operator
-    else
-      echo "  Percona PG operator already installed."
-    fi
+    echo "  argocd/operators unavailable or broken, using helm/operators OLM bootstrap."
+    install_operators_olm
   fi
 fi
 
