@@ -46,10 +46,11 @@ describe('v4-activate unified response schema', () => {
     }
   });
 
-  async function activateQuery(query: string) {
-    const args: { query: string; space_id?: string } = { query };
+  async function activateQuery(query: string, opts?: { execution_id?: string }) {
+    const args: { query: string; space_id?: string; execution_id?: string } = { query };
     const spaceId = getTestSpaceId();
     if (spaceId) args.space_id = spaceId;
+    if (opts?.execution_id) args.execution_id = opts.execution_id;
     const call = { name: 'activate' as const, arguments: args };
     const result = await mcpConnection.client.callTool(call);
     return { call, result, parsed: parseMcpJson(result, 'v4-activate') };

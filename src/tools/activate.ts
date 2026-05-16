@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import type { QdrantService } from '../services/qdrant/service.js';
 import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
@@ -18,6 +19,7 @@ import { listAdapterArtifacts } from './artifact-catalog.js';
 import { mintExportArtifactDownloadCapability } from '../services/export-artifact-download-capability.js';
 import { resolveExportAdapter } from './export-resolve-adapter.js';
 import { normalizeArtifactRelativePath } from './artifact-relative-path.js';
+import { activateRefinementStore } from '../services/activate-refinement-store.js';
 
 interface RegisterActivateOptions {
   toolName?: string;
@@ -42,7 +44,8 @@ async function mapSearchToActivate(
   memoryStore: MemoryQdrantStore,
   qdrantService: QdrantService | undefined,
   searchOutput: Awaited<ReturnType<typeof executeSearch>>,
-  query: string
+  query: string,
+  options: { executionId: string; includeRefineFooter: boolean }
 ): Promise<ActivateOutput> {
   const escapeShellSingleQuoted = (value: string): string => value.replace(/'/g, `'\\''`);
   const escapeShellDoubleQuoted = (value: string): string => value.replace(/["\\$`]/g, '\\$&');
@@ -62,8 +65,12 @@ async function mapSearchToActivate(
     return `${mkdirPart}curl -fsSL '${urlEscaped}' -o "$KAIROS_LOCAL_ARTIFACT_DIR/${relForPath}" && (cd "$KAIROS_LOCAL_ARTIFACT_DIR" && echo '${shaEscaped}  ${relEscaped}' | sha256sum -c) && chmod 700 "$KAIROS_LOCAL_ARTIFACT_DIR/${relForPath}"`;
   };
 
+  const visibleChoices = options.includeRefineFooter
+    ? searchOutput.choices
+    : searchOutput.choices.filter((choice) => choice.role !== 'refine');
+
   const choices = await Promise.all(
-    searchOutput.choices.map(async (choice) => {
+    visibleChoices.map(async (choice) => {
       const adapterUri = canonicalizeAdapterUri(choice.uri, {
         slug: choice.slug ?? normalizeAuthorSlug(choice.adapter_name ?? choice.label)
       });
@@ -173,10 +180,25 @@ async function mapSearchToActivate(
   const groundingReminder =
     'Protocols are interfaces for AI agents. Choose the adapter that serves the human\'s real need, follow it exactly, and never fabricate proof.';
 
+  const matchCount = choices.filter((c) => c.role === 'match').length;
+  const searchMessage = searchOutput.message;
+  const createOnlyMessage = (() => {
+    if (matchCount === 0) {
+      return 'No existing adapter/protocol matched your query. Create a new one or ask the user clarifying questions before searching again.';
+    }
+    if (matchCount === 1) {
+      return 'Found 1 match. You can run it or create a new adapter/protocol.';
+    }
+    const topMatch = choices.find((c) => c.role === 'match');
+    const confidencePercent = Math.round(((topMatch?.activation_score as number | null) ?? 0) * 100);
+    return `Found ${matchCount} matches (top confidence: ${confidencePercent}%). Choose one or create a new adapter/protocol.`;
+  })();
+
   return {
     must_obey: true,
-    message: `${groundingReminder}\n\n${searchOutput.message}`,
+    message: `${groundingReminder}\n\n${options.includeRefineFooter ? searchMessage : createOnlyMessage}`,
     next_action: "Pick one choice and follow that choice's next_action.",
+    execution_id: options.executionId,
     query,
     choices,
     ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS)
@@ -188,6 +210,12 @@ export async function executeActivate(
   qdrantService: QdrantService | undefined,
   input: ActivateInput
 ): Promise<ActivateOutput> {
+  const executionId = input.execution_id ?? crypto.randomUUID();
+  const refineCount = input.execution_id
+    ? await activateRefinementStore.incrementRefineCount(executionId)
+    : 0;
+  const includeRefineFooter = !input.execution_id || refineCount <= 2;
+
   const searchOutput = await executeSearch(
     memoryStore,
     qdrantService,
@@ -199,7 +227,10 @@ export async function executeActivate(
       : undefined
   );
 
-  return mapSearchToActivate(memoryStore, qdrantService, searchOutput, input.query);
+  return mapSearchToActivate(memoryStore, qdrantService, searchOutput, input.query, {
+    executionId,
+    includeRefineFooter
+  });
 }
 
 export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterActivateOptions = {}) {

@@ -39,6 +39,7 @@ Next call:
 **Input**
 
 - `query` — required short intent summary (about 3-8 words).
+- `execution_id` (optional) — server-issued id for a refinement sequence. Omit on the first activate call; echo it back when you re-run activate with a refined query for the same user request.
 - `space` / `space_id` (optional) — narrow search to one space: `"personal"`, a
   full group path such as `"/shared/pe-team"` (optional `"Group: "`
   prefix), or your raw `space_id` (same forms as **`train`** / **`tune`** `space`).
@@ -47,7 +48,7 @@ Next call:
 **Output:** Always `must_obey: true`. Includes `choices` (each with slug-form
 `uri`, `label`, `adapter_name`, `activation_score`, `role`, `tags`,
 `next_action`, optional `adapter_version`, optional `activation_patterns`,
-`space_name`, `slug`, and `forward_first_call`).
+`space_name`, `slug`, and `forward_first_call`) plus `execution_id` (echo it back when refining).
 
 `forward_first_call` is required on `match` and `refine`, and `null` on
 `create`.
@@ -68,3 +69,4 @@ When several spaces contain similar adapters, the server prefers your **default 
 
 - Pick **one** choice and obey **that** choice’s `next_action` (not a different URI).
 - Weak matches (e.g. all scores &lt; 0.5): prefer the refine choice once before creating.
+- If you re-run `activate` more than twice with the same `execution_id`, the default refine footer is removed so you stop looping and instead create a custom adapter/workflow or ask the user clarifying questions.
