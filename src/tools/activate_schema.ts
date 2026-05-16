@@ -18,6 +18,9 @@ const forwardFirstCallSchema = z
     uri: adapterSlugUriSchema
   })
   .strict();
+const executionIdSchema = z
+  .string()
+  .regex(/^[0-9a-f-]{36}$/i, 'must be a UUID');
 const linkedArtifactSchema = z
   .object({
     slug: z.string(),
@@ -65,6 +68,11 @@ const activateCreateChoiceSchema = activateChoiceCommonSchema.extend({
 
 export const activateInputSchema = z.object({
   query: z.string().min(1).describe('Activation query used to find the best matching adapter'),
+  execution_id: executionIdSchema
+    .optional()
+    .describe(
+      'Server-issued execution id for a refinement sequence. Echo this back when re-running activate to refine the query for the same user request.'
+    ),
   space: z
     .string()
     .optional()
@@ -83,6 +91,11 @@ export const activateOutputSchema = z.object({
   must_obey: z.boolean().describe('Always true. Pick one adapter and follow next_action.'),
   message: z.string(),
   next_action: z.string().describe("Global directive: pick one choice and follow that choice's next_action."),
+  execution_id: executionIdSchema
+    .optional()
+    .describe(
+      'Server-issued execution id for this activation run. Echo this id back when re-running activate with a refined query.'
+    ),
   /** Echo of the request query for MCP App / HTTP clients (human-facing headers). */
   query: z.string().describe('Same string as the activate input query.'),
   choices: z.array(
