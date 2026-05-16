@@ -100,7 +100,7 @@ if [ "$FIRST_ARG" != "ensure-coding-rules" ]; then
         dev_simple)
             PORT="${PORT:-4300}"
             METRICS_PORT="${METRICS_PORT:-9490}"
-            QDRANT_URL="${QDRANT_URL:-http://localhost:7333}"
+            QDRANT_URL="${QDRANT_URL:-http://localhost:7633}"
             ;;
         prod)
             PORT="${PORT:-3500}"
@@ -238,6 +238,22 @@ start() {
                 *) print_error "Invalid LOG_TARGET: $LOG_TARGET (use file, stdout, or both)"; exit 1 ;;
             esac
 
+            if [ "$ENV" = "dev_simple" ]; then
+                qdrant_url="${QDRANT_URL:-http://localhost:7633}"
+                qdrant_hostport="${qdrant_url#*://}"
+                qdrant_hostport="${qdrant_hostport%%/*}"
+                qdrant_host="${qdrant_hostport%%:*}"
+                if [[ "${qdrant_hostport}" == *:* ]]; then
+                    qdrant_port="${qdrant_hostport##*:}"
+                else
+                    qdrant_port="7633"
+                fi
+                qdrant_grpc_port="$((qdrant_port + 1))"
+                print_info "Ensuring Qdrant binary is running (${qdrant_url})..."
+                bash "$PROJECT_DIR/scripts/qdrant-binary.sh" install
+                QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+            fi
+
             # Start the dev server with env from .env (CI and local).
             # Use 'env VAR=...' after dotenv so MAX_CONCURRENT_MCP_REQUESTS from .env is visible to node (dotenv -e can override inherited env).
             # For E2E and CLI browser login, well-known must expose a URL the browser can open. If .env has KEYCLOAK_URL with internal host (e.g. keycloak:8080), override for the dev process.
@@ -328,12 +344,13 @@ stop() {
 
     case "$ENV" in
         dev|dev_simple)
+            stopped_by_pidfile="false"
             if [ -f "$PID_FILE" ]; then
                 dev_pid="$(cat "$PID_FILE")"
                 if kill "$dev_pid" 2>/dev/null; then
                     rm -f "$PID_FILE"
                     print_success "Dev server stopped (PID: $dev_pid)"
-                    return 0
+                    stopped_by_pidfile="true"
                 else
                     print_warning "PID file found but process $dev_pid is not running"
                     rm -f "$PID_FILE"
@@ -342,22 +359,28 @@ stop() {
                 print_warning "No PID file found for dev server"
             fi
 
-            # Fallback: try to locate and stop process by dev port using lsof
-            dev_port="${PORT:-3300}"
-            if command -v lsof >/dev/null 2>&1; then
-                print_info "Attempting fallback stop via lsof -ni :${dev_port}"
-                # Show current listeners for debugging
-                lsof -ni :"${dev_port}" 2>/dev/null || true
-                # Extract PIDs and terminate them
-                dev_pids="$(lsof -ti :"${dev_port}" 2>/dev/null || true)"
-                if [ -n "${dev_pids:-}" ]; then
-                    echo "$dev_pids" | xargs -r kill 2>/dev/null || true
-                    print_success "Stopped process(es) listening on port ${dev_port} via lsof"
+            if [ "${stopped_by_pidfile}" != "true" ]; then
+                # Fallback: try to locate and stop process by dev port using lsof
+                dev_port="${PORT:-3300}"
+                if command -v lsof >/dev/null 2>&1; then
+                    print_info "Attempting fallback stop via lsof -ni :${dev_port}"
+                    # Show current listeners for debugging
+                    lsof -ni :"${dev_port}" 2>/dev/null || true
+                    # Extract PIDs and terminate them
+                    dev_pids="$(lsof -ti :"${dev_port}" 2>/dev/null || true)"
+                    if [ -n "${dev_pids:-}" ]; then
+                        echo "$dev_pids" | xargs -r kill 2>/dev/null || true
+                        print_success "Stopped process(es) listening on port ${dev_port} via lsof"
+                    else
+                        print_warning "No process found listening on port ${dev_port}"
+                    fi
                 else
-                    print_warning "No process found listening on port ${dev_port}"
+                    print_error "lsof not available; cannot attempt port-based stop for dev server"
                 fi
-            else
-                print_error "lsof not available; cannot attempt port-based stop for dev server"
+            fi
+
+            if [ "$ENV" = "dev_simple" ]; then
+                bash "$PROJECT_DIR/scripts/qdrant-binary.sh" stop
             fi
             ;;
         prod)
