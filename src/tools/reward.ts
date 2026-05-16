@@ -8,17 +8,8 @@ import { buildLayerUri, parseKairosUriOrThrow } from './kairos-uri.js';
 import { executionTraceStore } from '../services/execution-trace-store.js';
 import { evaluateReward } from '../services/reward-evals.js';
 import { KairosError } from '../types/index.js';
-import { structuredLogger } from '../utils/structured-logger.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
-
-function traceFireAndForget(op: Promise<void>): void {
-  op.catch((err) => {
-    structuredLogger.warn(
-      `[trace] Persistence failed, data lost: ${err instanceof Error ? err.message : String(err)}`
-    );
-  });
-}
 
 interface RegisterRewardOptions {
   toolName?: string;
@@ -72,23 +63,27 @@ export async function executeReward(
 
   const ratedAt = new Date().toISOString();
   if (parsed.executionId) {
-    traceFireAndForget(executionTraceStore.setReward(parsed.executionId, {
-      outcome: input.outcome,
-      score: evaluation.normalizedScore,
-      signed_score: evaluation.signedScore,
-      quality_bonus: evaluation.qualityBonus,
-      ...(input.feedback !== undefined && { feedback: input.feedback }),
-      ...(input.rater !== undefined && { rater: input.rater }),
-      ...(input.rubric_version !== undefined && { rubric_version: input.rubric_version }),
-      ...(input.llm_model_id !== undefined && { llm_model_id: input.llm_model_id }),
-      grader_kind: evaluation.graderKind,
-      evaluation_label: evaluation.label,
-      exportable_for_sft: evaluation.exportableForSft,
-      exportable_for_preference: evaluation.exportableForPreference,
-      sft_blockers: evaluation.sftEligibility.blockers,
-      preference_blockers: evaluation.preferenceEligibility.blockers,
-      rated_at: ratedAt
-    }));
+    try {
+      await executionTraceStore.setReward(parsed.executionId, {
+        outcome: input.outcome,
+        score: evaluation.normalizedScore,
+        signed_score: evaluation.signedScore,
+        quality_bonus: evaluation.qualityBonus,
+        ...(input.feedback !== undefined && { feedback: input.feedback }),
+        ...(input.rater !== undefined && { rater: input.rater }),
+        ...(input.rubric_version !== undefined && { rubric_version: input.rubric_version }),
+        ...(input.llm_model_id !== undefined && { llm_model_id: input.llm_model_id }),
+        grader_kind: evaluation.graderKind,
+        evaluation_label: evaluation.label,
+        exportable_for_sft: evaluation.exportableForSft,
+        exportable_for_preference: evaluation.exportableForPreference,
+        sft_blockers: evaluation.sftEligibility.blockers,
+        preference_blockers: evaluation.preferenceEligibility.blockers,
+        rated_at: ratedAt
+      });
+    } catch (error) {
+      throw buildRewardPersistenceError(input.uri, error);
+    }
   }
 
   return {
@@ -158,4 +153,3 @@ export function registerRewardTool(server: any, qdrantService: QdrantService, op
     }
   );
 }
-
