@@ -49,6 +49,7 @@ storybook-static/
 .cursor/plans
 .cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
+.trae/
 *.swp
 *.swo
 *~
@@ -241,3 +242,4 @@ data/
 snapshots
 .cursor/TODO.md
 .kairos-work/
+node_modules
