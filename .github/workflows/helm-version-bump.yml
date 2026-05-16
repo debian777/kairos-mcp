@@ -84,8 +84,8 @@ jobs:
       - name: Commit and push
         if: steps.run_bump.outputs.changed == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "${{ github.event.pull_request.user.login }}"
+          git config user.email "${{ github.event.pull_request.user.login }}@users.noreply.github.com"
           git add helm/kairos-mcp/Chart.yaml
           git commit -m "chore(helm): bump chart version (${{ steps.bump_type.outputs.type }})"
           git push
