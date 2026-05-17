@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: ngrok-catalog
+  namespace: olm
+spec:
+  displayName: ngrok operator catalog
+  publisher: ngrok
+  sourceType: grpc
+  image: ghcr.io/debian777/ngrok-operator-catalog:latest

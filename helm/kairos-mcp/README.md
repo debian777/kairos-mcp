@@ -41,8 +41,7 @@ must still provide an embedding provider configuration.
 - **Use your own clusters:** set `redisCluster.useOwnCluster`, `keycloakInstance.useOwnCluster`, or `postgresCluster.useOwnCluster` to `true` and set app.*Url. No CRs are created.
 - **Chart creates clusters:** set `redisCluster.enabled`,
   `keycloakInstance.enabled`, or `postgresCluster.enabled` to `true`.
-  Operators must be installed first, must watch the release namespace, and
-  must have RBAC in that namespace.
+  Operators must be installed first, and must be scoped to the release namespace (for example via an OLM `OperatorGroup`).
 
 ## Operator pre-check
 
