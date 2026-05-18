@@ -7,6 +7,22 @@ symlinks → **`.agents/skills`**).
 They complement shipped agent skills in **`skills/`** (`kairos`, `kairos-bug-report`,
 `kairos-install`).
 
+## MCP environments
+
+This repo commonly uses three MCP server instances. Each one has a different
+purpose and authority boundary.
+
+- **`KAIROS`**: Live server. Treat it as authoritative for everything and use it
+  with the shipped [kairos skill](../../skills/kairos/SKILL.md). In this
+  environment, you (the agent) act as a user.
+- **`KAIROS-DEVELOPMENT`**: Development instance built from this worktree,
+  configured at the project level in [mcp.json](../mcp.json). Use it as a
+  developer/QA to validate local code changes.
+- **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
+  `helm/`, configured at the project level in [mcp.json](../mcp.json). Use it as
+  a developer/QA of the Helm chart to validate the deployment process and app
+  availability. The app version can vary.
+
 ## Namespace: `kmcp-dev-*`
 
 Each **`SKILL.md`** frontmatter **`name`** uses the prefix **`kmcp-dev-`**
@@ -17,14 +33,22 @@ ids, npm-only tests).
 | Directory (`…/SKILL.md`) | YAML `name` | When to invoke |
 |----------------|-------------|----------------|
 | [`kmcp-dev-build-test`](kmcp-dev-build-test/SKILL.md) | `kmcp-dev-build-test` | Build, deploy, lint, integration tests — always **`npm run`**; never default to bare Jest. |
-| [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **KAIROS-DEVELOPMENT**; `.local/` trace reports. |
-| [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Live reproduce → failing test → fix → PR → CI green → merge-ready. |
+| [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **KAIROS-DEVELOPMENT** (local dev); `.local/` trace reports. |
+| [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Dev reproduce → failing test → fix → PR → CI green → merge-ready. |
 | [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Semver bump, `release/*` branch, PR, tag policy (no manual `v*` push). |
 | [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |
 | [`kmcp-dev-git-editor-safe`](kmcp-dev-git-editor-safe/SKILL.md) | `kmcp-dev-git-editor-safe` | Agent shell Git without opening `code --wait` editor. |
 | [`kmcp-dev-git-index-repair`](kmcp-dev-git-index-repair/SKILL.md) | `kmcp-dev-git-index-repair` | Invalid object / tree build failures; Husky bisect; index repair. |
 | [`kmcp-dev-worktree-env`](kmcp-dev-worktree-env/SKILL.md) | `kmcp-dev-worktree-env` | Worktree **`.env*`** not shared with main; unique **`PORT`** / **`METRICS_PORT`** per checkout on one host; **`deploy-copy-env-from-main.sh`**; Run Task **Copy .env from main**. |
 | [`kmcp-dev-mcp-host-bridge-pointer`](kmcp-dev-mcp-host-bridge-pointer/SKILL.md) | `kmcp-dev-mcp-host-bridge-pointer` | Router only → **`.agents/skills/mcp-host-bridge`**. |
+
+## Shared skills
+
+These skills live in `.agents/skills/` but do not follow the `kmcp-dev-*`
+namespace.
+
+- [mcp-host-bridge](mcp-host-bridge/SKILL.md): MCP environment purpose and host
+  troubleshooting (server id resolution, auth errors).
 
 ## Default flow (muscle memory)
 
@@ -36,7 +60,7 @@ ids, npm-only tests).
 6. **UI work** → **`kmcp-dev-ui-spec`**.
 7. **Git pain** → **`kmcp-dev-git-editor-safe`** + **`kmcp-dev-git-index-repair`**.
 8. **New worktree / missing `.env`** → **`kmcp-dev-worktree-env`** (sync from main before dev commands if needed).
-9. **MCP server id / auth errors** → **`kmcp-dev-mcp-host-bridge-pointer`** (canonical bridge skill).
+9. **MCP server id / auth errors** → [mcp-host-bridge](mcp-host-bridge/SKILL.md).
 
 ## Authoring rules
 

@@ -7,7 +7,7 @@
   "duplicateEmailsAllowed": false,
   "ssoSessionIdleTimeout": 604800,
   "ssoSessionMaxLifespan": 604800,
-  "accessTokenLifespan": 3600,
+  "accessTokenLifespan": 28800,
   "groups": [
     { "name": "kairos-admin" },
     { "name": "kairos-auditor" },
