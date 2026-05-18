@@ -144,7 +144,11 @@ export function setupAuthCallback(app: express.Express): void {
       res.redirect(302, '/?error=token_exchange_failed');
       return;
     }
-    const tokens = (await tokenRes.json()) as { id_token?: string; access_token?: string };
+    const tokens = (await tokenRes.json()) as {
+      id_token?: string;
+      access_token?: string;
+      expires_in?: number;
+    };
     const idToken = typeof tokens.id_token === 'string' ? tokens.id_token : undefined;
     const accessToken = typeof tokens.access_token === 'string' ? tokens.access_token : undefined;
     if (!idToken && !accessToken) {
@@ -152,6 +156,7 @@ export function setupAuthCallback(app: express.Express): void {
       res.redirect(302, '/?error=no_tokens');
       return;
     }
+    const tokenExpiresIn = typeof tokens.expires_in === 'number' && Number.isFinite(tokens.expires_in) ? tokens.expires_in : null;
     const idPayload = idToken ? decodeJwtPayloadSegment(idToken) : null;
     const accessPayload = accessToken ? decodeJwtPayloadSegment(accessToken) : null;
     if (idPayload === null && accessPayload === null) {
@@ -173,7 +178,15 @@ export function setupAuthCallback(app: express.Express): void {
     }
     const { merged } = mergedResult;
     merged.groups = applyOidcGroupsAllowlist(merged.groups, OIDC_GROUPS_ALLOWLIST);
-    const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
+    const maxAllowedByAccessToken =
+      tokenExpiresIn && tokenExpiresIn > 120 ? Math.max(60, Math.floor(tokenExpiresIn) - 60) : null;
+    const sessionMaxAgeSec = Math.min(SESSION_MAX_AGE_SEC, maxAllowedByAccessToken ?? SESSION_MAX_AGE_SEC);
+    if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
+      structuredLogger.info(
+        `[auth] TRACE callback ttl sessionMaxAgeSec=${sessionMaxAgeSec} tokenExpiresIn=${tokenExpiresIn ?? 'missing'}`
+      );
+    }
+    const exp = Math.floor(Date.now() / 1000) + sessionMaxAgeSec;
     const sessionPayload: MergedCallbackClaims & { exp: number; oidc_id_token?: string } = {
       ...merged,
       exp,
@@ -181,7 +194,7 @@ export function setupAuthCallback(app: express.Express): void {
     };
     const cookieValue = signSession(sessionPayload);
     res.setHeader('Set-Cookie', [
-      `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}${useSecureCookie ? '; Secure' : ''}`
+      `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSec}${useSecureCookie ? '; Secure' : ''}`
     ]);
     res.redirect(302, '/ui/');
   });

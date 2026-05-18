@@ -20,7 +20,8 @@ import {
   AUTH_MODE,
   AUTH_TRUSTED_ISSUERS,
   AUTH_ALLOWED_AUDIENCES,
-  OIDC_GROUPS_ALLOWLIST
+  OIDC_GROUPS_ALLOWLIST,
+  OIDC_SCOPES_SUPPORTED
 } from '../config.js';
 import { applyOidcGroupsAllowlist } from './oidc-profile-claims.js';
 import { validateBearerToken, type AuthPayload } from './bearer-validate.js';
@@ -169,13 +170,11 @@ function isProtectedPath(path: string): boolean {
 function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_description?: string }): string {
   if (!AUTH_CALLBACK_BASE_URL) return '';
   const resourceMetadataUrl = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/.well-known/oauth-protected-resource`;
-  const parts = [
-    `Bearer realm="mcp"`,
-    `resource_metadata="${resourceMetadataUrl}"`,
-    'scope="openid profile email"'
-  ];
+  const scopeValue = (OIDC_SCOPES_SUPPORTED || []).join(' ').trim();
+  const parts = [`Bearer realm="mcp"`, `resource_metadata="${resourceMetadataUrl}"`];
+  if (scopeValue) parts.push(`scope="${escapeWwwAuthenticateQuotedValue(scopeValue)}"`);
   if (opts?.error) {
-    parts.unshift(`error="${opts.error}"`);
+    parts.push(`error="${opts.error}"`);
     if (opts.error_description) {
       parts.push(`error_description="${escapeWwwAuthenticateQuotedValue(opts.error_description)}"`);
     }
