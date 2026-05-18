@@ -12,16 +12,16 @@ They complement shipped agent skills in **`skills/`** (`kairos`, `kairos-bug-rep
 This repo commonly uses three MCP server instances. Each one has a different
 purpose and authority boundary.
 
-- **`KAIROS`**: Live, authoritative server. It usually runs the latest released
-  version, not your local code. Use it for adapter behavior and production
-  confirmation.
-- **`KAIROS-DEVELOPMENT`**: Local development server built from this worktree,
-  configured at the project level in [mcp.json](../mcp.json). Use it to test
-  local code changes. Do not treat it as authoritative for adapters.
+- **`KAIROS`**: Live server. Treat it as authoritative for everything and use it
+  with the shipped [kairos skill](../../skills/kairos/SKILL.md). In this
+  environment, you (the agent) act as a user.
+- **`KAIROS-DEVELOPMENT`**: Development instance built from this worktree,
+  configured at the project level in [mcp.json](../mcp.json). Use it as a
+  developer/QA to validate local code changes.
 - **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
-  `helm/`, configured at the project level in [mcp.json](../mcp.json). Use it to
-  validate the Helm deployment process and app availability. The app version can
-  vary and is not an authority source for adapters or local code changes.
+  `helm/`, configured at the project level in [mcp.json](../mcp.json). Use it as
+  a developer/QA of the Helm chart to validate the deployment process and app
+  availability. The app version can vary.
 
 ## Namespace: `kmcp-dev-*`
 
@@ -34,7 +34,7 @@ ids, npm-only tests).
 |----------------|-------------|----------------|
 | [`kmcp-dev-build-test`](kmcp-dev-build-test/SKILL.md) | `kmcp-dev-build-test` | Build, deploy, lint, integration tests — always **`npm run`**; never default to bare Jest. |
 | [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **KAIROS-DEVELOPMENT** (local dev); `.local/` trace reports. |
-| [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Live reproduce → failing test → fix → PR → CI green → merge-ready. |
+| [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Dev reproduce → failing test → fix → PR → CI green → merge-ready. |
 | [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Semver bump, `release/*` branch, PR, tag policy (no manual `v*` push). |
 | [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |
 | [`kmcp-dev-git-editor-safe`](kmcp-dev-git-editor-safe/SKILL.md) | `kmcp-dev-git-editor-safe` | Agent shell Git without opening `code --wait` editor. |

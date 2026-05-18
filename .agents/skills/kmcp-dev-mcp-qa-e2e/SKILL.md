@@ -26,12 +26,14 @@ as authoritative for adapters.
 This skill targets `KAIROS-DEVELOPMENT`. Use the other environments only for
 their stated purposes.
 
-- **`KAIROS`**: Live, authoritative server. It usually runs the latest released
-  version, not your local code.
+- **`KAIROS`**: Live. Treat it as authoritative for everything. When using it,
+  you (the agent) act as a user and run workflows via the shipped
+  [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md).
 - **`KAIROS-DEVELOPMENT`**: Local development server built from this worktree.
-  Use it to validate local code changes.
+  Use it as a developer/QA to validate local code changes.
 - **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
-  `helm/`. Use it to validate the Helm deployment process and app availability.
+  `helm/`. Use it as a developer/QA of the Helm chart to validate the Helm
+  deployment process and app availability.
 
 - **Config key:** `KAIROS-DEVELOPMENT` (see `docs/install/README.md#cursor-and-mcp`).
 - **`call_mcp_tool` `server` argument:** the host’s agent-visible id often differs.

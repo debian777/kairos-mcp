@@ -18,16 +18,16 @@ you are unsure which server is authoritative for the task.
 This repository commonly uses three MCP server instances. Each one has a
 different purpose and authority boundary.
 
-- **`KAIROS`**: Live, authoritative server. It usually runs the latest released
-  version, not your local code. Use it for adapter behavior and production
-  confirmation.
-- **`KAIROS-DEVELOPMENT`**: Local development server built from this worktree,
-  configured at the project level in [mcp.json](../../mcp.json). Use it to test
-  local code changes. Do not treat it as authoritative for adapters.
+- **`KAIROS`**: Live server. Treat it as authoritative for everything and use it
+  with the shipped [kairos skill](../../../skills/kairos/SKILL.md). In this
+  environment, you (the agent) act as a user, not a developer.
+- **`KAIROS-DEVELOPMENT`**: Development instance built from this worktree,
+  configured at the project level in [mcp.json](../../mcp.json). Use it as a
+  developer/QA to validate local code changes.
 - **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
   `helm/`, configured at the project level in [mcp.json](../../mcp.json). Use it
-  to validate the Helm deployment process and app availability. The app version
-  can vary and is not an authority source for adapters or local code changes.
+  as a developer/QA of the Helm chart to validate the deployment process and app
+  availability. The app version can vary.
 
 ## Server id resolution
 
@@ -58,8 +58,7 @@ authoritative.
 
 - For runtime tool names, schemas, and responses: treat the **connected server**
   as authority.
-- For adapter correctness and production behavior: treat **`KAIROS`** as
-  authority.
-- For local implementation changes and regression tests: treat
-  **`KAIROS-DEVELOPMENT`** and this worktree as authority.
-
+- For any user-facing behavior or “what is true”: treat **`KAIROS`** as
+  authoritative.
+- For local implementation changes and regression tests: use
+  **`KAIROS-DEVELOPMENT`** and this worktree.

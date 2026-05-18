@@ -1,13 +1,13 @@
 ---
 name: kmcp-dev-bugfix-ship
 description: >-
-  kairos-mcp: ship-ready bug workflow from report to merge. Reproduce on live
-  KAIROS MCP, add failing dev test, minimal fix, dev deploy + dev:test, PR,
-  watch CI, iterate until green, merge-ready summary. Use with reports/mcp-bug-*.md
-  or user-requested KAIROS defect work.
+  kairos-mcp: ship-ready bug workflow from report to merge. Reproduce on
+  KAIROS-DEVELOPMENT, add failing dev test, minimal fix, dev deploy + dev:test,
+  PR, watch CI, iterate until green, merge-ready summary. Use with
+  reports/mcp-bug-*.md or user-requested KAIROS defect work.
 ---
 
-# Bug fix: live reproduce → test → PR → CI (kairos-mcp)
+# Bug fix: dev reproduce → test → PR → CI (kairos-mcp)
 
 **Repository:** `kairos-mcp`. **Agent contract:** [`AGENTS.md`](../../../AGENTS.md).
 **Build/test contract:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).
@@ -15,22 +15,25 @@ description: >-
 
 **Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`skills/.system/kairos-bug-report/SKILL.md`](../../../skills/.system/kairos-bug-report/SKILL.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
 
-**Authority split**
+**Environment intent**
 
-- **Live MCP (`KAIROS`)** — authoritative for “does the bug still reproduce?”
-- **This worktree** — authoritative for regression tests and implementation.
-- **Local dev MCP (`KAIROS-DEVELOPMENT`)** — use it to validate local code
-  changes; do not treat it as authoritative for adapters.
+- **`KAIROS`**: Live. Treat it as authoritative for everything. When using it,
+  you (the agent) act as a user and run workflows via the shipped
+  [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md).
+- **`KAIROS-DEVELOPMENT`**: Dev/QA instance for validating local code changes and
+  reproducing defects during development.
 
 ---
 
 ## Flow (order matters; loop where noted)
 
-### 1. Confirm on live KAIROS MCP
+### 1. Confirm on KAIROS-DEVELOPMENT
 
 - Read the report: tool, arguments, expected vs actual, steps.
-- **Reproduce with the live connected server**; read tool schemas from the host MCP descriptors before calling.
-- If live matches the report → continue. If not → stop (stale report, wrong server, env drift); do not patch code for an unconfirmed symptom.
+- Reproduce with **`KAIROS-DEVELOPMENT`**; read tool schemas from the host MCP
+  descriptors before calling.
+- If it reproduces → continue. If not → stop (stale report, wrong server, env
+  drift); do not patch code for an unconfirmed symptom.
 
 ### 2. Failing automated test
 
@@ -66,7 +69,7 @@ Iterate until green or the user stops.
 
 When checks pass:
 
-- Bug (one line) + live MCP confirmation.
+- Bug (one line) + dev confirmation (`KAIROS-DEVELOPMENT`).
 - Test added (path + assertion intent).
 - Fix (files / behavior).
 - Commands run (`dev:deploy`, `dev:test`, …).
