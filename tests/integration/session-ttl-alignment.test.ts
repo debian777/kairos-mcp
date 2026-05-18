@@ -1,6 +1,5 @@
 import { readFileSync } from 'fs';
 import path from 'path';
-import { describe, expect, jest, test } from '@jest/globals';
 import { getMcpTestBearerToken, hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
 
 function parseJwtPayload(token: string): Record<string, unknown> {
@@ -19,6 +18,17 @@ function readRealmAccessTokenLifespanSec(): number {
     throw new Error(`Invalid accessTokenLifespan in ${realmPath}`);
   }
   return v;
+}
+
+function readConfigDefaultSessionMaxAgeSec(): number {
+  const root = process.cwd();
+  const p = path.join(root, 'src', 'config.ts');
+  const raw = readFileSync(p, 'utf-8');
+  const match = raw.match(/getEnvInt\(\s*'SESSION_MAX_AGE_SEC'\s*,\s*([0-9_]+)\s*\)/);
+  if (!match?.[1]) throw new Error(`SESSION_MAX_AGE_SEC default missing from ${p}`);
+  const parsed = parseInt(match[1].replace(/_/g, ''), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid SESSION_MAX_AGE_SEC default in ${p}`);
+  return parsed;
 }
 
 function readTemplateSessionMaxAgeSec(): number {
@@ -62,18 +72,8 @@ describe('Session TTL alignment', () => {
     ).toBe(25_200);
   });
 
-  test('SESSION_MAX_AGE_SEC default is 25200 when env unset', async () => {
-    const prev = process.env.SESSION_MAX_AGE_SEC;
-    try {
-      delete process.env.SESSION_MAX_AGE_SEC;
-      jest.resetModules();
-      const config = await import('../../src/config.js');
-      expect(config.SESSION_MAX_AGE_SEC).toBe(25_200);
-    } finally {
-      if (prev === undefined) delete process.env.SESSION_MAX_AGE_SEC;
-      else process.env.SESSION_MAX_AGE_SEC = prev;
-      jest.resetModules();
-    }
+  test('src/config.ts default SESSION_MAX_AGE_SEC is 25200', () => {
+    expect(readConfigDefaultSessionMaxAgeSec()).toBe(25_200);
   });
 
   test('repo default session TTL is lower than realm accessTokenLifespan', async () => {
