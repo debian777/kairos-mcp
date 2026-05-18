@@ -41,7 +41,7 @@ app:
   metricsPort: 9090
   image:
     repository: "quay.io/debian777/kairos-mcp"
-    tag: "4.4.0"
+    tag: "4.5.0"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
   redisUrl: ""
