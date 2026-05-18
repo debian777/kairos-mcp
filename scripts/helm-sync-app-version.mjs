@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -24,12 +25,43 @@ const valuesPath = resolve(root, 'helm/kairos-mcp/values.yaml');
 
 const checkMode = process.argv.includes('--check');
 
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-const version = pkg.version;
+function normalizeVersion(raw) {
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  return trimmed.startsWith('v') ? trimmed.slice(1) : trimmed;
+}
 
-const isPrerelease = /[-]/.test(version);
-if (isPrerelease) {
-  console.log(`helm-sync-app-version: skipping (prerelease ${version})`);
+function isStableVersion(v) {
+  return !!v && !/[-]/.test(v);
+}
+
+function getLatestStableGitTagVersion() {
+  try {
+    const tag = execSync("git tag --sort=-v:refname | head -n 50 | grep -E '^v[0-9]+\\.[0-9]+\\.[0-9]+$' | head -n 1", {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return normalizeVersion(tag);
+  } catch {
+    return null;
+  }
+}
+
+const explicitVersionIndex = process.argv.indexOf('--version');
+const explicitVersion = explicitVersionIndex >= 0 ? normalizeVersion(process.argv[explicitVersionIndex + 1]) : null;
+
+const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+const pkgVersion = normalizeVersion(pkg.version);
+
+const version = explicitVersion || (isStableVersion(pkgVersion) ? pkgVersion : getLatestStableGitTagVersion());
+
+if (!version) {
+  console.log('helm-sync-app-version: skipping (no stable version found)');
+  process.exit(0);
+}
+
+if (!isStableVersion(version)) {
+  console.log(`helm-sync-app-version: skipping (non-stable ${version})`);
   process.exit(0);
 }
 
@@ -37,7 +69,7 @@ let chart = readFileSync(chartPath, 'utf8');
 let values = readFileSync(valuesPath, 'utf8');
 
 const appVersionRe = /^(appVersion:\s*")([^"]+)(")/m;
-const imageTagRe = /^(\s*tag:\s*")([^"]+)(")/m;
+const imageTagRe = /(^app:\n(?:.*\n)*?\s*image:\n(?:.*\n)*?\s*tag:\s*")([^"]+)(")/m;
 
 const chartMatch = chart.match(appVersionRe);
 const valuesMatch = values.match(imageTagRe);
