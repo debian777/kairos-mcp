@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Idempotent: install Percona PostgreSQL Operator via Helm.
-# Usage: ./install-pg-operator.sh [NAMESPACE]
-# renovate: datasource=helm registryUrl=https://percona.github.io/percona-helm-charts/ depName=pg-operator
-CHART_VERSION="${PG_OPERATOR_CHART_VERSION:-2.8.2}"
-NAMESPACE="${1:-kairos}"
+# Idempotent: install Percona PostgreSQL Operator via OLM.
+# Usage: ./install-pg-operator.sh [RELEASE_NAMESPACE]
+TARGET_NAMESPACE="${1:-kairos}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-helm repo add percona https://percona.github.io/percona-helm-charts/ 2>/dev/null || true
-helm repo update percona
+kubectl apply -f "${REPO_ROOT}/helm/operators/namespace.yaml"
+kubectl apply -f "${REPO_ROOT}/helm/operators/operatorgroup.yaml"
+kubectl -n operators patch operatorgroup kairos-operators --type=merge -p "{\"spec\":{\"targetNamespaces\":[\"${TARGET_NAMESPACE}\"]}}" >/dev/null
+kubectl apply -f "${REPO_ROOT}/helm/operators/subscription-percona-postgresql-operator.yaml"
 
-helm upgrade --install pg-operator percona/pg-operator \
-  -n "${NAMESPACE}" --create-namespace \
-  --version "${CHART_VERSION}"
-
-kubectl rollout status deployment/pg-operator -n "${NAMESPACE}" --timeout=120s
-echo "Percona PG Operator ${CHART_VERSION} ready in ${NAMESPACE}."
+kubectl wait --for=condition=Established "crd/perconapgclusters.pgv2.percona.com" --timeout=10m
+echo "Percona PostgreSQL Operator ready (release namespace: ${TARGET_NAMESPACE})."

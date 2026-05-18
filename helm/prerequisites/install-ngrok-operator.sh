@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Idempotent: install ngrok Kubernetes Operator with Gateway API support.
-# Usage: ./install-ngrok-operator.sh [NAMESPACE]
+# Idempotent: install ngrok Kubernetes Operator with Gateway API support (OLM).
+# Usage: ./install-ngrok-operator.sh
 #
 # Requires NGROK_AUTHTOKEN and NGROK_API_KEY in environment (or yq-readable
 # ~/.config/ngrok/ngrok.yml). Creates a GatewayClass named "ngrok".
-# renovate: datasource=helm registryUrl=https://charts.ngrok.com depName=ngrok-operator
-CHART_VERSION="${NGROK_OPERATOR_CHART_VERSION:-}"
-NAMESPACE="${1:-ngrok-operator}"
+# renovate: datasource=helm depName=ngrok-operator
+NAMESPACE="ngrok-operator"
 CREDENTIALS_SECRET="ngrok-k8s-credentials"
 NGROK_CONFIG="${NGROK_CONFIG:-$HOME/.config/ngrok/ngrok.yml}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 resolved_authtoken=""
 resolved_api_key=""
@@ -32,27 +32,6 @@ kubectl create secret generic "$CREDENTIALS_SECRET" -n "$NAMESPACE" \
     --from-literal=AUTHTOKEN="$resolved_authtoken" \
     --dry-run=client -o yaml | kubectl apply -f -
 
-helm repo add ngrok https://charts.ngrok.com 2>/dev/null || true
-helm repo update ngrok
-
-version_args=()
-[[ -n "${CHART_VERSION}" ]] && version_args+=(--version "$CHART_VERSION")
-
-helm upgrade --install ngrok-operator ngrok/ngrok-operator -n "$NAMESPACE" --create-namespace \
-    --set credentials.secret.name="$CREDENTIALS_SECRET" \
-    --set gateway.enabled=true \
-    "${version_args[@]}"
-
-kubectl rollout status deployment/ngrok-operator-manager -n "$NAMESPACE" --timeout=120s
-kubectl rollout status deployment/ngrok-operator-agent -n "$NAMESPACE" --timeout=120s
-
-kubectl apply -f - <<'EOF'
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: ngrok
-spec:
-  controllerName: ngrok.com/gateway-controller
-EOF
+kubectl apply -k "${REPO_ROOT}/helm/infrastructure"
 kubectl wait --for=condition=Accepted gatewayclass/ngrok --timeout=120s
-echo "ngrok Operator ready in ${NAMESPACE} with GatewayClass/ngrok."
+echo "ngrok bootstrap applied (namespace: ${NAMESPACE})."

@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Idempotent: install Spotahome Redis Operator via Helm.
-# Usage: ./install-redis-operator.sh [NAMESPACE]
-#
-# Do not use redis-operator Helm chart >=3.3.0: CRDs under crds/ contain Helm
-# templates and fail to install. Use >=3.2.x for policy/v1 PodDisruptionBudget.
-# renovate: datasource=helm registryUrl=https://spotahome.github.io/redis-operator depName=redis-operator
-CHART_VERSION="${REDIS_OPERATOR_CHART_VERSION:-3.2.9}"
-NAMESPACE="${1:-redis-operator}"
+# Idempotent: install Redis Operator via OLM.
+# Usage: ./install-redis-operator.sh [RELEASE_NAMESPACE]
+TARGET_NAMESPACE="${1:-kairos}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-helm repo add redis-operator https://spotahome.github.io/redis-operator 2>/dev/null || true
-helm repo update redis-operator
+kubectl apply -f "${REPO_ROOT}/helm/operators/namespace.yaml"
+kubectl apply -f "${REPO_ROOT}/helm/operators/operatorgroup.yaml"
+kubectl -n operators patch operatorgroup kairos-operators --type=merge -p "{\"spec\":{\"targetNamespaces\":[\"${TARGET_NAMESPACE}\"]}}" >/dev/null
+kubectl apply -f "${REPO_ROOT}/helm/operators/subscription-redis-operator.yaml"
 
-helm upgrade --install redis-operator redis-operator/redis-operator \
-  -n "${NAMESPACE}" --create-namespace \
-  --version "${CHART_VERSION}"
-
-kubectl rollout status deployment/redis-operator -n "${NAMESPACE}" --timeout=120s
-echo "Redis Operator ${CHART_VERSION} ready in ${NAMESPACE}."
+kubectl wait --for=condition=Established "crd/redisfailovers.databases.spotahome.com" --timeout=10m
+echo "Redis Operator ready (release namespace: ${TARGET_NAMESPACE})."
