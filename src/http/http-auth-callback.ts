@@ -31,6 +31,29 @@ import {
   type MergedCallbackClaims
 } from './oidc-profile-claims.js';
 
+export function resolveSessionMaxAgeSec(params: {
+  nowSec: number;
+  sessionMaxAgeSecFallback: number;
+  tokenExpiresIn: number | null;
+  accessTokenExp: number | null;
+}): number {
+  const { nowSec, sessionMaxAgeSecFallback, tokenExpiresIn, accessTokenExp } = params;
+
+  const fromExpiresIn =
+    tokenExpiresIn && Number.isFinite(tokenExpiresIn) && tokenExpiresIn > 120
+      ? Math.max(60, Math.floor(tokenExpiresIn) - 60)
+      : null;
+  if (fromExpiresIn) return fromExpiresIn;
+
+  const fromJwtExp =
+    accessTokenExp && Number.isFinite(accessTokenExp) && accessTokenExp > nowSec + 120
+      ? Math.max(60, Math.floor(accessTokenExp - nowSec) - 60)
+      : null;
+  if (fromJwtExp) return fromJwtExp;
+
+  return sessionMaxAgeSecFallback;
+}
+
 function signSession(
   payload: MergedCallbackClaims & {
     exp: number;
@@ -178,15 +201,23 @@ export function setupAuthCallback(app: express.Express): void {
     }
     const { merged } = mergedResult;
     merged.groups = applyOidcGroupsAllowlist(merged.groups, OIDC_GROUPS_ALLOWLIST);
-    const maxAllowedByAccessToken =
-      tokenExpiresIn && tokenExpiresIn > 120 ? Math.max(60, Math.floor(tokenExpiresIn) - 60) : null;
-    const sessionMaxAgeSec = Math.min(SESSION_MAX_AGE_SEC, maxAllowedByAccessToken ?? SESSION_MAX_AGE_SEC);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const accessTokenExp =
+      accessPayload && typeof accessPayload['exp'] === 'number' && Number.isFinite(accessPayload['exp'])
+        ? accessPayload['exp']
+        : null;
+    const sessionMaxAgeSec = resolveSessionMaxAgeSec({
+      nowSec,
+      sessionMaxAgeSecFallback: SESSION_MAX_AGE_SEC,
+      tokenExpiresIn,
+      accessTokenExp
+    });
     if (process.env['AUTH_TRACE'] === 'true' || process.env['LOG_LEVEL'] === 'trace') {
       structuredLogger.info(
-        `[auth] TRACE callback ttl sessionMaxAgeSec=${sessionMaxAgeSec} tokenExpiresIn=${tokenExpiresIn ?? 'missing'}`
+        `[auth] TRACE callback ttl sessionMaxAgeSec=${sessionMaxAgeSec} tokenExpiresIn=${tokenExpiresIn ?? 'missing'} accessTokenExp=${accessTokenExp ?? 'missing'}`
       );
     }
-    const exp = Math.floor(Date.now() / 1000) + sessionMaxAgeSec;
+    const exp = nowSec + sessionMaxAgeSec;
     const sessionPayload: MergedCallbackClaims & { exp: number; oidc_id_token?: string } = {
       ...merged,
       exp,
