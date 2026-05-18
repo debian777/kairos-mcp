@@ -9,6 +9,8 @@ on:
     types: [opened, synchronize, labeled]
     paths:
       - "helm/kairos-mcp/**"
+      - "package.json"
+      - "package-lock.json"
 
 concurrency:
   group: helm-version-bump-${{ github.event.pull_request.number }}
@@ -22,6 +24,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+    outputs:
+      bump_type: ${{ steps.plan.outputs.bump_type }}
+      should_bump: ${{ steps.plan.outputs.should_bump }}
+      changed: ${{ steps.update.outputs.changed }}
+      should_sync_stable: ${{ steps.update.outputs.should_sync_stable }}
 
     steps:
       - name: Checkout PR branch
@@ -35,62 +42,104 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25"
+          node-version: "24"
 
-      - name: Determine bump type
-        id: bump_type
+      - name: Plan bump + sync
+        id: plan
         env:
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
-          bump="patch"
+          base_ref="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1
+
+          helm_changed=false
+          pkg_changed=false
+
+          if [ -n "$(git diff --name-only "${base_ref}...HEAD" -- 'helm/kairos-mcp/' | head -n 1)" ]; then
+            helm_changed=true
+          fi
+          if [ -n "$(git diff --name-only "${base_ref}...HEAD" -- 'package.json' | head -n 1)" ]; then
+            pkg_changed=true
+          fi
+
+          bump="none"
 
           # Check for release:stable label
           if echo "$PR_LABELS" | jq -e 'index("release:stable")' > /dev/null 2>&1; then
             bump="minor"
             echo "Detected release:stable label -> minor"
           else
-            # Check if package.json version on PR HEAD is a stable bump vs main
+            # Check if package.json version on PR HEAD is a stable bump vs base
             pr_version=$(node -p "require('./package.json').version")
-            main_version=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "0.0.0")
+            base_version=$(git show "${base_ref}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "0.0.0")
 
             is_prerelease=false
             if echo "$pr_version" | grep -q '\-'; then is_prerelease=true; fi
 
-            if [ "$is_prerelease" = "false" ]; then
-              higher=$(printf '%s\n' "$main_version" "$pr_version" | sort -V | tail -n1)
-              if [ "$higher" = "$pr_version" ] && [ "$main_version" != "$pr_version" ]; then
+            if [ "$pkg_changed" = "true" ] && [ "$is_prerelease" = "false" ]; then
+              higher=$(printf '%s\n' "$base_version" "$pr_version" | sort -V | tail -n1)
+              if [ "$higher" = "$pr_version" ] && [ "$base_version" != "$pr_version" ]; then
                 bump="minor"
-                echo "Detected stable package.json bump ($main_version -> $pr_version) -> minor"
+                echo "Detected stable package.json bump ($base_version -> $pr_version) -> minor"
               fi
             fi
           fi
 
-          echo "type=$bump" >> "$GITHUB_OUTPUT"
+          if [ "$bump" = "none" ] && [ "$helm_changed" = "true" ]; then
+            bump="patch"
+          fi
 
-      - name: Run helm-bump-version
-        id: run_bump
-        env:
-          CHART_VERSION_BASE: ""
+          should_bump=false
+          if [ "$bump" != "none" ]; then should_bump=true; fi
+
+          echo "bump_type=$bump" >> "$GITHUB_OUTPUT"
+          echo "should_bump=$should_bump" >> "$GITHUB_OUTPUT"
+          echo "helm_changed=$helm_changed" >> "$GITHUB_OUTPUT"
+          echo "pkg_changed=$pkg_changed" >> "$GITHUB_OUTPUT"
+
+      - name: Update chart version + sync stable appVersion/tag
+        id: update
         run: |
-          output=$(node scripts/helm-bump-version.mjs "${{ steps.bump_type.outputs.type }}")
-          echo "$output"
-          if echo "$output" | grep -q "no change"; then
+          set -euo pipefail
+
+          bump_type="${{ steps.plan.outputs.bump_type }}"
+          should_bump="${{ steps.plan.outputs.should_bump }}"
+
+          if [ "$should_bump" = "true" ]; then
+            node scripts/helm-bump-version.mjs "$bump_type"
+          else
+            echo "helm-version-bump: no bump required"
+          fi
+
+          node scripts/helm-sync-app-version.mjs
+
+          should_sync_stable=false
+          pkg_version=$(node -p "require('./package.json').version")
+          if ! echo "$pkg_version" | grep -q '\-'; then should_sync_stable=true; fi
+          echo "should_sync_stable=$should_sync_stable" >> "$GITHUB_OUTPUT"
+
+          if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Commit and push
-        if: steps.run_bump.outputs.changed == 'true'
+        if: steps.update.outputs.changed == 'true'
         env:
           GIT_AUTHOR_NAME: ${{ vars.GIT_AUTHOR_NAME }}
           GIT_AUTHOR_EMAIL: ${{ vars.GIT_AUTHOR_EMAIL }}
           GIT_COMMITTER_NAME: ${{ vars.GIT_COMMITTER_NAME }}
           GIT_COMMITTER_EMAIL: ${{ vars.GIT_COMMITTER_EMAIL }}
         run: |
-          git add helm/kairos-mcp/Chart.yaml
-          git commit -m "chore(helm): bump chart version (${{ steps.bump_type.outputs.type }})"
+          if [ -z "${GIT_AUTHOR_NAME:-}" ]; then export GIT_AUTHOR_NAME="github-actions[bot]"; fi
+          if [ -z "${GIT_AUTHOR_EMAIL:-}" ]; then export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"; fi
+          if [ -z "${GIT_COMMITTER_NAME:-}" ]; then export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"; fi
+          if [ -z "${GIT_COMMITTER_EMAIL:-}" ]; then export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"; fi
+
+          git add helm/kairos-mcp/Chart.yaml helm/kairos-mcp/values.yaml
+          git commit -m "chore(helm): sync chart metadata"
           git push
 
   verify:
@@ -106,21 +155,25 @@ jobs:
           fetch-depth: 0
 
       - name: Check Chart.yaml version vs main
+        if: needs.bump.outputs.should_bump == 'true'
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
+          git fetch origin "${{ github.base_ref }}" --depth=1
           pr_version=$(grep -E '^version:' helm/kairos-mcp/Chart.yaml | awk '{print $2}')
-          main_version=$(git show origin/main:helm/kairos-mcp/Chart.yaml | grep -E '^version:' | awk '{print $2}')
+          base_version=$(git show "origin/${{ github.base_ref }}:helm/kairos-mcp/Chart.yaml" | grep -E '^version:' | awk '{print $2}')
 
-          if [ -z "$pr_version" ] || [ -z "$main_version" ]; then
-            echo "Could not parse chart versions (pr=$pr_version, main=$main_version)"
+          if [ -z "$pr_version" ] || [ -z "$base_version" ]; then
+            echo "Could not parse chart versions (pr=$pr_version, base=$base_version)"
             exit 1
           fi
 
-          higher=$(printf '%s\n' "$main_version" "$pr_version" | sort -V | tail -n1)
-          if [ "$higher" = "$pr_version" ] && [ "$main_version" != "$pr_version" ]; then
-            echo "Chart version bumped: $main_version -> $pr_version"
+          higher=$(printf '%s\n' "$base_version" "$pr_version" | sort -V | tail -n1)
+          if [ "$higher" = "$pr_version" ] && [ "$base_version" != "$pr_version" ]; then
+            echo "Chart version bumped: $base_version -> $pr_version"
           else
-            echo "::error::Chart version NOT bumped. PR=$pr_version, main=$main_version. The helm-version-bump bot should have committed a bump. If this persists, run: node scripts/helm-bump-version.mjs patch"
+            echo "::error::Chart version NOT bumped. PR=$pr_version, base=$base_version. The helm-version-bump bot should have committed a bump. If this persists, run: node scripts/helm-bump-version.mjs patch"
             exit 1
           fi
+
+      - name: Check appVersion and image tag synced to stable
+        run: node scripts/helm-sync-app-version.mjs --check
