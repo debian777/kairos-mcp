@@ -17,8 +17,10 @@ description: >-
 
 **Authority split**
 
-- **Live MCP** — authoritative for “does the bug still reproduce?”
+- **Live MCP (`KAIROS`)** — authoritative for “does the bug still reproduce?”
 - **This worktree** — authoritative for regression tests and implementation.
+- **Local dev MCP (`KAIROS-DEVELOPMENT`)** — use it to validate local code
+  changes; do not treat it as authoritative for adapters.
 
 ---
 

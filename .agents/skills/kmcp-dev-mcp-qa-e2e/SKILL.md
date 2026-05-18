@@ -1,7 +1,8 @@
 ---
 name: kmcp-dev-mcp-qa-e2e
 description: >-
-  kairos-mcp: phased E2E QA of KAIROS MCP tools against KAIROS-DEVELOPMENT.
+  kairos-mcp: phased E2E QA of KAIROS MCP tools against KAIROS-DEVELOPMENT
+  (local dev).
   Phase 1 MCP-only; phase 2 read-only repo + raw JSON trace reports under
   .local/mcp-qa-reports/; phase 3 failing integration tests; phase 4 plan
   and fix. Not installed via npx skills add (see .agents/skills/README.md).
@@ -17,7 +18,20 @@ Use this skill for **structured end-to-end verification** of KAIROS MCP tools
 against **local dev** (`KAIROS-DEVELOPMENT` in `.cursor/mcp.json`), with strict
 phases so QA does not read implementation source before you intend to.
 
+`KAIROS-DEVELOPMENT` exists to validate **local code changes**. Do not treat it
+as authoritative for adapters.
+
 ## Target MCP server
+
+This skill targets `KAIROS-DEVELOPMENT`. Use the other environments only for
+their stated purposes.
+
+- **`KAIROS`**: Live, authoritative server. It usually runs the latest released
+  version, not your local code.
+- **`KAIROS-DEVELOPMENT`**: Local development server built from this worktree.
+  Use it to validate local code changes.
+- **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
+  `helm/`. Use it to validate the Helm deployment process and app availability.
 
 - **Config key:** `KAIROS-DEVELOPMENT` (see `docs/install/README.md#cursor-and-mcp`).
 - **`call_mcp_tool` `server` argument:** the host’s agent-visible id often differs.
