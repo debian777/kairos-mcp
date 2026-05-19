@@ -43,10 +43,44 @@ guide task execution with auditable steps.
 Always complete the full chain before responding to the user or starting
 substantive work. An incomplete chain is not a valid stopping point.
 
+## Why KAIROS routes trained actions (not just novel ones)
+
+KAIROS is NOT a fallback for tasks you cannot perform. It is a **policy layer**
+for tasks you CAN perform but would perform WRONG without team context.
+
+**Trained actions** are generic capabilities from your training data: git push,
+create MR, write commit messages, deploy infrastructure. You know the mechanics.
+
+**Customized actions** are the same mechanics wrapped in team-specific rules you
+have never seen: branch naming conventions, Jira linking semantics, MR
+description templates, pipeline babysitting requirements, approval gates,
+post-merge checklists.
+
+The adapter does not teach you HOW to run `glab mr create`. It tells you:
+- what the branch must be named before you push
+- which Jira ticket to reference and how (without closing it)
+- what the MR body must contain
+- what to do after creation (poll pipeline, fix failures, report status)
+
+**The more confident you feel about a task, the more likely you are carrying
+training defaults that conflict with this team's process.** That confidence is
+exactly why routing exists — it replaces your generic defaults with the team's
+actual rules.
+
+Think of it this way: a new developer who joins a team already knows how to
+write code and create pull requests. They still follow the team's runbook on
+day one, not their own habits. KAIROS is that runbook.
+
+Rule: If the task is an action intent AND a KAIROS adapter exists for it,
+route through KAIROS — especially when you feel you already know how.
+
 ## When to use KAIROS routing
 
 Route through KAIROS by checking these conditions in order:
 
+0. **Do you feel confident you can do this without routing?** That feeling is
+   not evidence that routing is unnecessary. Your training teaches mechanics;
+   adapters teach team rules. Proceed with routing.
 1. **Is the user message an action intent?** Look for verbs like build, fix,
    deploy, write, create, implement, debug, publish, migrate, configure,
    install, update, edit, refactor, review, audit, test, automate, generate,
