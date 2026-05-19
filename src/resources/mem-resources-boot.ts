@@ -6,6 +6,8 @@ import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { readdir, readFile } from 'fs/promises';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
+import { parseFrontmatter } from '../utils/frontmatter.js';
+import { IDGenerator } from '../services/id-generator.js';
 
 /** Mem markdown whose basename (no .md) is a UUID — inject as a layer-row URI (`kairos://layer/{uuid}`). */
 const MEM_FILE_UUID_KEY =
@@ -19,6 +21,72 @@ const SYSTEM_PROTOCOL_UUID_BY_SLUG: Record<string, string> = {
   'phase-critic': '00000000-0000-0000-0000-000000002005',
   'protocol-linking-guide': '00000000-0000-0000-0000-000000002006'
 };
+
+function extractFirstH1Title(markdown: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  for (const line of lines) {
+    const m = line.match(/^#\s+(.+)$/);
+    if (m && m[1]) {
+      const title = m[1].trim();
+      return title.length > 0 ? title : null;
+    }
+  }
+  return null;
+}
+
+async function deletePreexistingAppSpaceEntries(
+  memoryStore: MemoryQdrantStore,
+  markdownContent: string,
+  targetUuid: string
+): Promise<void> {
+  const parsed = parseFrontmatter(markdownContent);
+  const body = parsed.body.length > 0 ? parsed.body : markdownContent;
+  const slug = typeof parsed.slugRaw === 'string' ? parsed.slugRaw.trim() : '';
+  const h1Title = extractFirstH1Title(body);
+
+  const filters: any[] = [];
+  if (slug.length > 0) {
+    filters.push({
+      must: [
+        { key: 'slug', match: { value: slug } },
+        { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } }
+      ]
+    });
+  }
+  if (h1Title) {
+    const adapterId = IDGenerator.generateAdapterUUIDv5(h1Title);
+    filters.push({
+      must: [
+        { key: 'adapter.id', match: { value: adapterId } },
+        { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } }
+      ]
+    });
+  }
+
+  if (filters.length === 0) {
+    return;
+  }
+
+  const { client, collection } = memoryStore.getQdrantAccess();
+
+  const { redisCacheService } = await import('../services/redis-cache.js');
+  await redisCacheService.invalidateMemoryCache(targetUuid);
+
+  for (const filter of filters) {
+    await client.delete(collection, { filter } as any);
+  }
+  await redisCacheService.invalidateAfterUpdate();
+
+  if (slug.length > 0) {
+    structuredLogger.warn(
+      `[mem-resources-boot] Removed preexisting app-space points for slug=${slug}; preparing canonical UUID=${targetUuid}`
+    );
+  } else {
+    structuredLogger.warn(
+      `[mem-resources-boot] Removed preexisting app-space points; preparing canonical UUID=${targetUuid}`
+    );
+  }
+}
 
 /**
  * Get the directory containing mem files at runtime
@@ -75,61 +143,6 @@ async function readMemFiles(memDir?: string): Promise<Record<string, string>> {
   }
 
   return memResources;
-}
-
-/**
- * Boot dedup helper (currently not called). Compared Qdrant point id to canonical filename UUID;
- * only layer 1 is remapped to that id, so sibling layers were wrongly deleted as "duplicates".
- * Re-enable after fixing to dedupe by `adapter.id`, not point id.
- */
-async function _removeAppSpaceSystemProtocolDuplicates(memoryStore: MemoryQdrantStore): Promise<void> {
-  const { client, collection } = memoryStore.getQdrantAccess();
-  let totalRemoved = 0;
-
-  for (const [slug, expectedUuid] of Object.entries(SYSTEM_PROTOCOL_UUID_BY_SLUG)) {
-    let offset: string | number | undefined;
-    const duplicateIds: string[] = [];
-
-    do {
-      const page = await client.scroll(collection, {
-        limit: 128,
-        offset,
-        with_payload: true,
-        with_vector: false,
-        filter: {
-          must: [
-            { key: 'slug', match: { value: slug } },
-            { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } }
-          ]
-        }
-      } as any);
-
-      const points = page.points ?? [];
-      for (const point of points) {
-        const pointId = String(point.id);
-        if (pointId !== expectedUuid) {
-          duplicateIds.push(pointId);
-        }
-      }
-
-      const next = page.next_page_offset;
-      offset = typeof next === 'string' || typeof next === 'number' ? next : undefined;
-    } while (offset !== undefined);
-
-    if (duplicateIds.length > 0) {
-      await client.delete(collection, { points: duplicateIds });
-      totalRemoved += duplicateIds.length;
-      structuredLogger.warn(
-        `[mem-resources-boot] Removed ${duplicateIds.length} non-canonical app-space points for slug=${slug}; kept UUID=${expectedUuid}`
-      );
-    }
-  }
-
-  if (totalRemoved === 0) {
-    structuredLogger.info('[mem-resources-boot] No non-canonical app-space system protocol points found');
-  } else {
-    structuredLogger.warn(`[mem-resources-boot] Removed total ${totalRemoved} non-canonical app-space system protocol points`);
-  }
 }
 
 async function assertSystemProtocolStaticUuids(memoryStore: MemoryQdrantStore): Promise<void> {
@@ -238,7 +251,8 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           }
         }
 
-        const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, { forceUpdate: true });
+        await deletePreexistingAppSpaceEntries(memoryStore, markdownContent, targetUuid);
+        const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, { forceUpdate: false });
 
         if (memories.length > 0) {
           // Only the first step is remapped to the file UUID; other layers of the same adapter keep server-generated IDs.
@@ -280,7 +294,6 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
 
     structuredLogger.info(`[mem-resources-boot] Successfully injected ${injectedCount} mem resources into Qdrant`);
 
-    // await _removeAppSpaceSystemProtocolDuplicates(memoryStore); // see docstring on _removeAppSpaceSystemProtocolDuplicates
     await assertSystemProtocolStaticUuids(memoryStore);
     structuredLogger.info('[mem-resources-boot] Verified static UUID invariant for bundled system protocols');
 
@@ -290,4 +303,3 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
     }
   });
 }
-
