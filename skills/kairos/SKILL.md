@@ -43,10 +43,44 @@ guide task execution with auditable steps.
 Always complete the full chain before responding to the user or starting
 substantive work. An incomplete chain is not a valid stopping point.
 
+## Why KAIROS routes trained actions (not just novel ones)
+
+KAIROS is NOT a fallback for tasks you cannot perform. It is a **policy layer**
+for tasks you CAN perform but would perform WRONG without team context.
+
+**Trained actions** are generic capabilities from your training data: git push,
+create MR, write commit messages, deploy infrastructure. You know the mechanics.
+
+**Customized actions** are the same mechanics wrapped in team-specific rules you
+have never seen: branch naming conventions, Jira linking semantics, MR
+description templates, pipeline babysitting requirements, approval gates,
+post-merge checklists.
+
+The adapter does not teach you HOW to run `glab mr create`. It tells you:
+- what the branch must be named before you push
+- which Jira ticket to reference and how (without closing it)
+- what the MR body must contain
+- what to do after creation (poll pipeline, fix failures, report status)
+
+**The more confident you feel about a task, the more likely you are carrying
+training defaults that conflict with this team's process.** That confidence is
+exactly why routing exists — it replaces your generic defaults with the team's
+actual rules.
+
+Think of it this way: a new developer who joins a team already knows how to
+write code and create pull requests. They still follow the team's runbook on
+day one, not their own habits. KAIROS is that runbook.
+
+Rule: If the task is an action intent AND a KAIROS adapter exists for it,
+route through KAIROS — especially when you feel you already know how.
+
 ## When to use KAIROS routing
 
 Route through KAIROS by checking these conditions in order:
 
+0. **Do you feel confident you can do this without routing?** That feeling is
+   not evidence that routing is unnecessary. Your training teaches mechanics;
+   adapters teach team rules. Proceed with routing.
 1. **Is the user message an action intent?** Look for verbs like build, fix,
    deploy, write, create, implement, debug, publish, migrate, configure,
    install, update, edit, refactor, review, audit, test, automate, generate,
@@ -85,10 +119,15 @@ If the KAIROS MCP server cannot be reached or authentication fails:
 - Inform the user with a clear message classifying the failure:
   - **Unavailable:** MCP not enabled, wrong endpoint, server down.
   - **Unauthenticated:** session/token expired, login required.
-- Include remediation: verify `.cursor/mcp.json`, check the server URL, and
-  follow [docs/install/README.md#cursor-and-mcp](../../docs/install/README.md#cursor-and-mcp).
-  For "MCP server does not exist" errors in Cursor, follow the
-  [mcp-host-bridge skill](../../.agents/skills/mcp-host-bridge/SKILL.md).
+- Treat this as a **critical error**: stop and ask the user to remediate.
+- Include remediation:
+  - Verify the MCP endpoint URL and that `GET /health` responds on the same base
+    URL.
+  - Verify the host's MCP configuration points at the expected `/mcp` endpoint
+    and has the needed tools allowed.
+  - If you need installation or setup guidance, use the `kairos-install` skill.
+  - If tool calls fail due to MCP server id resolution or auth, follow the
+    `mcp-host-bridge` skill.
 - The user may then choose to fix the connection or proceed without KAIROS
   routing for that task.
 
@@ -115,9 +154,9 @@ If the KAIROS MCP server cannot be reached or authentication fails:
 
 ## Repository alignment (maintainers) — AGENTS.md and CLAUDE.md
 
-When editing the repo's root agent docs (**[AGENTS.md](../../AGENTS.md)** and **[CLAUDE.md](../../CLAUDE.md)**):
+When editing the repo's root agent docs (`AGENTS.md` and `CLAUDE.md`):
 
 - After the document **H1** and intro paragraph, the **first `##` section** must be **`## Core functionality`** (or an equivalently clear title), **before** `## Architecture` or other major sections.
-- That **Core functionality** section stays **minimal**: point here (**this skill**) as the authority for action routing; state that **KAIROS MCP unavailable or unauthenticated** is an **error requiring remediation** per **[docs/install/README.md#cursor-and-mcp](../../docs/install/README.md#cursor-and-mcp)**; include **one line** that real MCP calls follow the **connected server's** schemas while the worktree governs implementation work in this repository.
+- That **Core functionality** section stays **minimal**: point here (**this skill**) as the authority for action routing; state that **KAIROS MCP unavailable or unauthenticated** is a **critical error** that must be remediated; include **one line** that real MCP calls follow the **connected server's** schemas while the worktree governs implementation work in this repository.
 - **Do not** paste the full routing guidance into AGENTS.md or CLAUDE.md — keep a **single source of truth** in this skill. When you change that guidance, **keep AGENTS.md and CLAUDE.md in sync** with each other.
 - **Global vs repo:** Prefer **repo-scoped** agent docs where possible; Cursor **user rules** apply across all workspaces.

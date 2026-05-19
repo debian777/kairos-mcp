@@ -12,6 +12,7 @@ Exit: 0 if all valid or skipped (import error); 1 if any validation errors.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import venv
@@ -22,6 +23,20 @@ SKILLS_DIR = REPO_ROOT / "skills"
 VENV_DIR = REPO_ROOT / ".venv"
 SKILL_REF_SPEC = "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
 SKILL_REF_INSTALL = f'pip install "{SKILL_REF_SPEC}"'
+
+_RELATIVE_LINK_RE = re.compile(r"\]\((?:\./|\.\./)")
+
+
+def _find_relative_links(md_path: Path) -> list[str]:
+    try:
+        text = md_path.read_text(encoding="utf-8")
+    except OSError as e:
+        return [f"cannot read: {e}"]
+    problems: list[str] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        if _RELATIVE_LINK_RE.search(line):
+            problems.append(f"{md_path.relative_to(REPO_ROOT)}:{i}: relative markdown link not allowed in skills/")
+    return problems
 
 
 def _venv_python() -> Path:
@@ -99,6 +114,7 @@ def main() -> int:
                 continue
             rel = skill_path.relative_to(REPO_ROOT)
             problems = validate(skill_path)
+            problems.extend(_find_relative_links(skill_md))
             if problems:
                 failed = True
                 print(f"{rel} .... FAIL")
