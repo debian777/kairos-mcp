@@ -17,11 +17,11 @@ export type KairosToolNameForInputTeaching =
   | 'spaces';
 
 function issuePaths(error: ZodError): string[] {
-  return error.issues.map((i) => (i.path.length ? i.path.join('.') : '(root)'));
+  return error.issues.map((i: any) => (i.path.length ? i.path.join('.') : '(root)'));
 }
 
 function hasTopLevelField(error: ZodError, field: string): boolean {
-  return error.issues.some((i) => i.path[0] === field);
+  return error.issues.some((i: any) => i.path[0] === field);
 }
 
 function readString(raw: unknown, keys: string[]): string | null {
@@ -95,10 +95,10 @@ function teachingForward(error: ZodError, raw: unknown): Record<string, unknown>
   const uriProblem = hasTopLevelField(error, 'uri');
   const solutionProblem = hasTopLevelField(error, 'solution') || paths.some((p) => p.startsWith('solution'));
   const forbiddenSolutionOnStart = error.issues.some(
-    (i) => i.message === FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE
+    (i: any) => i.message === FORWARD_SOLUTION_FORBIDDEN_ON_START_MESSAGE
   );
   const missingSolutionType = error.issues.some(
-    (issue) => issue.path.length === 2 && issue.path[0] === 'solution' && issue.path[1] === 'type'
+    (issue: any) => issue.path.length === 2 && issue.path[0] === 'solution' && issue.path[1] === 'type'
   );
   const rawUri = readString(raw, ['uri']);
   const adapterUuidOnWire =
@@ -157,11 +157,11 @@ function teachingForward(error: ZodError, raw: unknown): Record<string, unknown>
       message:
         'Input validation error: `solution.type` is required on continuation calls and must match the current contract.type.',
       next_action:
-        'Retry with the same layer URI including execution_id and provide solution.type plus the matching payload object.',
+        'Retry with the same layer URI including execution_id and provide solution.type plus evidence payload.',
       invalid_fields: paths,
       example: {
         uri: 'kairos://layer/<uuid>?execution_id=<uuid>',
-        solution: { type: 'comment', comment: { text: 'done' } }
+        solution: { type: 'comment', outcome: 'success', evidence: { text: 'done' } }
       }
     });
   }
@@ -170,13 +170,13 @@ function teachingForward(error: ZodError, raw: unknown): Record<string, unknown>
       error: MCP_INVALID_TOOL_INPUT,
       tool: 'forward',
       message:
-        'Input validation error: `solution` must include exactly the payload object that matches solution.type.',
+        'Input validation error: `solution` must include type, outcome, and evidence payload.',
       next_action:
-        'Retry with solution.type set to contract.type and include only solution.<type> plus required proof fields.',
+        'Retry with solution.type set to contract.type, outcome: "success", and evidence with required proof data.',
       invalid_fields: paths,
       example: {
         uri: 'kairos://layer/<uuid>?execution_id=<uuid>',
-        solution: { type: 'shell', shell: { exit_code: 0 } }
+        solution: { type: 'shell', outcome: 'success', evidence: { exit_code: 0 } }
       }
     });
   }

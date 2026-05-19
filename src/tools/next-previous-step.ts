@@ -127,19 +127,19 @@ export async function ensurePreviousProofCompleted(
     if (proofType === 'shell') {
       const cmd = prevProof.shell?.cmd || prevProof.cmd || 'the required command';
       message += ` Execute "${cmd}" and report the result before continuing.`;
-      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call forward with ${prevStepUri} and solution.type="${proofType}" plus solution.${proofType}.`;
+      next_action = `Execute "${prevProof.shell?.cmd || prevProof.cmd || cmd}", then call forward with ${prevStepUri} and solution.type="${proofType}" plus solution.evidence.`;
     } else if (proofType === 'user_input') {
       const prompt = prevProof.user_input?.prompt || 'Confirm (see step content).';
-      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling forward with ${prevStepUri} and solution.user_input.confirmation.`;
-      next_action = `Ask the user: "${prompt}" then call forward with ${prevStepUri} and solution.user_input.confirmation set to their reply.`;
+      message += ` For user_input you must obtain the user's actual reply — do not infer or invent. Submit that proof by calling forward with ${prevStepUri} and solution.evidence.confirmation.`;
+      next_action = `Ask the user: "${prompt}" then call forward with ${prevStepUri} and solution.evidence.confirmation set to their reply.`;
     } else if (proofType === 'mcp') {
       const toolName = prevProof.mcp?.tool_name || 'the required tool';
-      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.mcp. Call the MCP tool "${toolName}" and report its real result; do not fabricate.`;
-      next_action = `Call ${toolName}, then call forward with ${prevStepUri} and solution.mcp with the real result.`;
+      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.evidence. Call the MCP tool "${toolName}" and report its real result; do not fabricate.`;
+      next_action = `Call ${toolName}, then call forward with ${prevStepUri} and solution.evidence with the real result.`;
     } else if (proofType === 'comment') {
       const minLen = prevProof.comment?.min_length ?? 10;
-      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.comment as a string (min ${minLen} chars). Write a genuine summary of what was done; do not paste unrelated text.`;
-      next_action = `call forward with ${prevStepUri} and solution.comment as a string (min ${minLen} chars).`;
+      message += ` Submit that proof by calling forward with ${prevStepUri} and solution.evidence.text. Write a genuine summary of what was done; do not paste unrelated text.`;
+      next_action = `call forward with ${prevStepUri} and solution.evidence.text as a string (min ${minLen} chars).`;
     } else {
       message += ` Complete the required ${proofType} verification before continuing.`;
       next_action = `call forward with ${prevStepUri} -- complete previous step first`;

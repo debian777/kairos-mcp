@@ -180,6 +180,15 @@ async function assertSystemProtocolStaticUuids(memoryStore: MemoryQdrantStore): 
   }
 }
 
+function extractFrontmatterSlug(markdownContent: string): string | null {
+  const match = markdownContent.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/);
+  const frontmatter = match?.[1];
+  if (!frontmatter) return null;
+  const slugMatch = frontmatter.match(/^\s*slug:\s*"?([^"\n]+)"?\s*$/m);
+  const slug = slugMatch?.[1]?.trim() ?? '';
+  return slug.length > 0 ? slug : null;
+}
+
 /**
  * Inject mem resources from filesystem into Qdrant at system boot
  * Uses the key (filename) as the UUID and supports force option for override
@@ -217,6 +226,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
 
     const llmModelId = 'system-boot';
     let injectedCount = 0;
+    const { client, collection } = memoryStore.getQdrantAccess();
 
     for (const [key, markdownContent] of Object.entries(memResources)) {
       if (typeof markdownContent !== 'string') continue;
@@ -226,6 +236,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       }
 
       const targetUuid = key; // Use key (filename) as UUID
+      const slug = extractFrontmatterSlug(markdownContent);
 
       try {
       // Use storeChain to handle parsing, embeddings, and force update logic.
@@ -234,7 +245,17 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       // Per-file skip when target UUID already exists (below) still avoids re-embedding on normal restarts.
         if (options.force) {
           try {
-            await qdrantService.deleteMemory(targetUuid);
+            if (slug) {
+              await client.delete(collection, {
+                filter: {
+                  must: [
+                    { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
+                    { key: 'slug', match: { value: slug } }
+                  ]
+                }
+              } as any);
+            }
+            await client.delete(collection, { points: [targetUuid] } as any);
             structuredLogger.info(`[mem-resources-boot] Deleted existing memory ${targetUuid} (force mode)`);
           } catch {
             // Ignore errors if memory doesn't exist
@@ -249,6 +270,35 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           } catch {
             // Continue if check fails
           }
+          if (slug) {
+            try {
+              const page = await client.scroll(collection, {
+                limit: 1,
+                offset: undefined,
+                with_payload: false,
+                with_vector: false,
+                filter: {
+                  must: [
+                    { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
+                    { key: 'slug', match: { value: slug } }
+                  ]
+                }
+              } as any);
+              const points = page?.points ?? [];
+              if (points.length > 0) {
+                await client.delete(collection, {
+                  filter: {
+                    must: [
+                      { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
+                      { key: 'slug', match: { value: slug } }
+                    ]
+                  }
+                } as any);
+                structuredLogger.warn(`[mem-resources-boot] Removed existing app-space points for slug=${slug} to restore canonical UUID=${targetUuid}`);
+              }
+            } catch {
+            }
+          }
         }
 
         await deletePreexistingAppSpaceEntries(memoryStore, markdownContent, targetUuid);
@@ -258,7 +308,6 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           // Only the first step is remapped to the file UUID; other layers of the same adapter keep server-generated IDs.
           const storedMemory = memories[0]!;
           if (storedMemory.memory_uuid !== targetUuid) {
-            const { client, collection } = memoryStore.getQdrantAccess();
             const storedPoint = await client.retrieve(collection, {
               ids: [storedMemory.memory_uuid],
               with_payload: true,

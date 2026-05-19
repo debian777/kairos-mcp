@@ -57,7 +57,8 @@ describe('v4-forward first-call response schema', () => {
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action.toLowerCase()).toContain('forward');
       expect(parsed.next_action).toContain('solution.type="shell"');
-      expect(parsed.next_action).toContain('solution.shell');
+      expect(parsed.next_action).toContain('outcome="success"');
+      expect(parsed.next_action).toContain('evidence');
       expect(parsed.execution_id).toBeDefined();
 
       expect(parsed.next_step).toBeUndefined();
