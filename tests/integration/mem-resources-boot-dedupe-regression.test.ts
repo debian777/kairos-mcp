@@ -13,18 +13,21 @@ describe('Mem resources boot injection dedupe regression', () => {
 
       const [
         { probeEmbeddingDimension },
+        { installQdrantFetchCompatibility },
         { MemoryQdrantStore },
         { injectMemResourcesAtBoot },
         { KAIROS_APP_SPACE_ID },
         { keyValueStore }
       ] = await Promise.all([
           import('../../src/services/embedding/service.js'),
+          import('../../src/services/qdrant/undici-compat.js'),
           import('../../src/services/memory/store.js'),
           import('../../src/resources/mem-resources-boot.js'),
           import('../../src/config.js'),
           import('../../src/services/key-value-store-factory.js')
         ]);
 
+      installQdrantFetchCompatibility();
       keyValueStoreForThisTest = keyValueStore;
       await probeEmbeddingDimension();
       const memoryStore = new MemoryQdrantStore();
