@@ -1,4 +1,3 @@
-import { describe, expect, jest, test } from '@jest/globals';
 import crypto from 'node:crypto';
 
 describe('Mem resources boot injection dedupe regression', () => {
@@ -10,7 +9,6 @@ describe('Mem resources boot injection dedupe regression', () => {
     let qdrantClient: any;
 
     try {
-      jest.resetModules();
       process.env.QDRANT_COLLECTION = testCollection;
 
       const [
@@ -79,7 +77,6 @@ describe('Mem resources boot injection dedupe regression', () => {
         try {
           await qdrantClient.deleteCollection(collectionToDelete);
         } catch {
-          // ignore cleanup errors
         }
       }
       if (keyValueStoreForThisTest) {
