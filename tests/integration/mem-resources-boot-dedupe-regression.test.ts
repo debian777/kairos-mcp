@@ -4,12 +4,12 @@ describe('Mem resources boot injection dedupe regression', () => {
   test('boot injection recovers when app-space already contains duplicate adapter.id/slug entries', async () => {
     const originalCollection = process.env.QDRANT_COLLECTION;
     const testCollection = `kairos-test-mem-boot-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const cacheBust = `?v=${encodeURIComponent(testCollection)}`;
     let keyValueStoreForThisTest: { disconnect(): Promise<void> } | undefined;
     let collectionToDelete: string | undefined;
     let qdrantClient: any;
 
     try {
-      jest.resetModules();
       process.env.QDRANT_COLLECTION = testCollection;
 
       const [
@@ -20,12 +20,12 @@ describe('Mem resources boot injection dedupe regression', () => {
         { KAIROS_APP_SPACE_ID },
         { keyValueStore }
       ] = await Promise.all([
-          import('../../src/services/embedding/service.js'),
-          import('../../src/services/qdrant/undici-compat.js'),
-          import('../../src/services/memory/store.js'),
-          import('../../src/resources/mem-resources-boot.js'),
-          import('../../src/config.js'),
-          import('../../src/services/key-value-store-factory.js')
+          import(`../../src/services/embedding/service.js${cacheBust}`),
+          import(`../../src/services/qdrant/undici-compat.js${cacheBust}`),
+          import(`../../src/services/memory/store.js${cacheBust}`),
+          import(`../../src/resources/mem-resources-boot.js${cacheBust}`),
+          import(`../../src/config.js${cacheBust}`),
+          import(`../../src/services/key-value-store-factory.js${cacheBust}`)
         ]);
 
       installQdrantFetchCompatibility();
