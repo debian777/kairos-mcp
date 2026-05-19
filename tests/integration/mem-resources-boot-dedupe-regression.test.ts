@@ -1,18 +1,13 @@
-import { jest } from '@jest/globals';
 import crypto from 'node:crypto';
 
 describe('Mem resources boot injection dedupe regression', () => {
   test('boot injection recovers when app-space already contains duplicate adapter.id/slug entries', async () => {
-    const originalCollection = process.env.QDRANT_COLLECTION;
     const testCollection = `kairos-test-mem-boot-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     let keyValueStoreForThisTest: { disconnect(): Promise<void> } | undefined;
     let collectionToDelete: string | undefined;
     let qdrantClient: any;
 
     try {
-      jest.resetModules();
-      process.env.QDRANT_COLLECTION = testCollection;
-
       const [
         { probeEmbeddingDimension },
         { installQdrantFetchCompatibility },
@@ -32,7 +27,7 @@ describe('Mem resources boot injection dedupe regression', () => {
       installQdrantFetchCompatibility();
       keyValueStoreForThisTest = keyValueStore;
       await probeEmbeddingDimension();
-      const memoryStore = new MemoryQdrantStore();
+      const memoryStore = new MemoryQdrantStore({ collection: testCollection });
       await memoryStore.init();
 
       const { client, collection } = memoryStore.getQdrantAccess();
@@ -86,11 +81,6 @@ describe('Mem resources boot injection dedupe regression', () => {
       }
       if (keyValueStoreForThisTest) {
         await keyValueStoreForThisTest.disconnect();
-      }
-      if (originalCollection === undefined) {
-        delete process.env.QDRANT_COLLECTION;
-      } else {
-        process.env.QDRANT_COLLECTION = originalCollection;
       }
     }
   }, 120000);
