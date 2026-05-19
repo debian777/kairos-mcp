@@ -1,8 +1,7 @@
 # Maintainer skills — kairos-mcp
 
-Canonical path: **`.agents/skills/`** (not installed via `npx skills add`). The same
-tree is linked for hosts as **`.cursor/skills`** and **`.claude/skills`** (repo-root
-symlinks → **`.agents/skills`**).
+Canonical path: **`.agents/skills/`** (not installed via `npx skills add`). Agent hosts
+load repo-scoped skills from **`.agents/`** and user-scoped skills from **`~/.agents/`**.
 
 They complement shipped agent skills in **`skills/`** (`kairos`, `kairos-bug-report`,
 `kairos-install`).

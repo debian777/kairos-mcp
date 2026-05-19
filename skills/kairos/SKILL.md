@@ -119,10 +119,15 @@ If the KAIROS MCP server cannot be reached or authentication fails:
 - Inform the user with a clear message classifying the failure:
   - **Unavailable:** MCP not enabled, wrong endpoint, server down.
   - **Unauthenticated:** session/token expired, login required.
-- Include remediation: verify `.cursor/mcp.json`, check the server URL, and
-  follow [docs/install/README.md#cursor-and-mcp](../../docs/install/README.md#cursor-and-mcp).
-  For "MCP server does not exist" errors in Cursor, follow the
-  [mcp-host-bridge skill](../../.agents/skills/mcp-host-bridge/SKILL.md).
+- Treat this as a **critical error**: stop and ask the user to remediate.
+- Include remediation:
+  - Verify the MCP endpoint URL and that `GET /health` responds on the same base
+    URL.
+  - Verify the host's MCP configuration points at the expected `/mcp` endpoint
+    and has the needed tools allowed.
+  - If you need installation or setup guidance, use the `kairos-install` skill.
+  - If tool calls fail due to MCP server id resolution or auth, follow the
+    `mcp-host-bridge` skill.
 - The user may then choose to fix the connection or proceed without KAIROS
   routing for that task.
 
@@ -149,9 +154,9 @@ If the KAIROS MCP server cannot be reached or authentication fails:
 
 ## Repository alignment (maintainers) — AGENTS.md and CLAUDE.md
 
-When editing the repo's root agent docs (**[AGENTS.md](../../AGENTS.md)** and **[CLAUDE.md](../../CLAUDE.md)**):
+When editing the repo's root agent docs (`AGENTS.md` and `CLAUDE.md`):
 
 - After the document **H1** and intro paragraph, the **first `##` section** must be **`## Core functionality`** (or an equivalently clear title), **before** `## Architecture` or other major sections.
-- That **Core functionality** section stays **minimal**: point here (**this skill**) as the authority for action routing; state that **KAIROS MCP unavailable or unauthenticated** is an **error requiring remediation** per **[docs/install/README.md#cursor-and-mcp](../../docs/install/README.md#cursor-and-mcp)**; include **one line** that real MCP calls follow the **connected server's** schemas while the worktree governs implementation work in this repository.
+- That **Core functionality** section stays **minimal**: point here (**this skill**) as the authority for action routing; state that **KAIROS MCP unavailable or unauthenticated** is a **critical error** that must be remediated; include **one line** that real MCP calls follow the **connected server's** schemas while the worktree governs implementation work in this repository.
 - **Do not** paste the full routing guidance into AGENTS.md or CLAUDE.md — keep a **single source of truth** in this skill. When you change that guidance, **keep AGENTS.md and CLAUDE.md in sync** with each other.
 - **Global vs repo:** Prefer **repo-scoped** agent docs where possible; Cursor **user rules** apply across all workspaces.

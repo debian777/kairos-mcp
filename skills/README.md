@@ -50,19 +50,16 @@ npx skills add debian777/kairos-mcp --skill kairos --skill kairos-bug-report
 | kairos-bug-report | Occasional | Save structured MCP bug reports under `reports/`. |
 | kairos-install | One-time | First-time install: Ollama + minimal Docker stack; confirm each step with user. |
 
-**Global install for Cursor / Claude Code** (non-interactive): add `-y -g`
-and optionally `-a cursor` or `-a claude-code`. Example:
+**Global install** (non-interactive): add `-y -g`. Example:
 
 ```bash
-npx skills add debian777/kairos-mcp --skill kairos -y -g -a cursor
+npx skills add debian777/kairos-mcp --skill kairos -y -g
 ```
 
 **Remove:** `npx skills remove <skill-name> -g` (for example `kairos`,
 `kairos-bug-report`, `kairos-install`).
 
-See the
-[main README](../README.md#agent-skills-shipped-in-this-repo) for a short
-table and agent-specific commands.
+See the main README for a short table and command examples.
 
 **Layout:** `kairos` lives in `skills/kairos/`. The helper skills
 `kairos-bug-report` and `kairos-install` live in `skills/.system/` per
