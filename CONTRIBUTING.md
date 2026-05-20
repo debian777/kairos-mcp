@@ -106,6 +106,11 @@ for—never the reverse.
   structured fields (`contract`, tool args, `error_code`, `invalid_fields`).
   Natural-language `next_action` **supplements** the contract; it does not
   replace it.
+- **Shell proof status is structured evidence.** Shell proof success is the
+  real process status reported in `solution.shell.exit_code`, not the presence
+  or absence of stdout. When documenting silent shell checks, require a final
+  agent-readable status marker that preserves the same process status, and
+  treat stdout and stderr as supporting evidence only.
 - **Ground every proof in server output.** Nonces, `proof_hash`, `execution_id`,
   and canonical URIs returned by the previous step are the anchors agents must
   echo. Instructions that can be satisfied without reading the last response

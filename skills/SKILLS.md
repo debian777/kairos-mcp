@@ -56,6 +56,6 @@ Skills spec](https://agentskills.io/specification#validation) (Python).
 
 ## Relation to existing docs
 
-- **KAIROS protocol execution:** [AGENTS.md](../AGENTS.md) — activate, forward, reward; tool descriptions in `src/embed-docs/tools/`.
-- **Minting adapters:** [train](../src/embed-docs/tools/train.md),
-  [forward](../src/embed-docs/tools/forward.md).
+This repository includes deeper documentation for maintainers, but skills are
+installed on machines that do not have this repo checkout. Keep `SKILL.md`
+files self-contained and do not use relative links to repository files.

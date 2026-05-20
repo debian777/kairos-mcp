@@ -14,7 +14,7 @@ and identifier is server-generated; echo them verbatim — never compute them.
 
 ## Core functionality
 
-Action routing for agents is defined in **[`skills/kairos/SKILL.md`](skills/kairos/SKILL.md)** (zero-drift: **`activate`** → **`forward`** → **`reward`** for action intents). Cursor or other hosts may also install the same text under **`~/.agents/skills/kairos/SKILL.md`**. If KAIROS MCP is **unavailable or unauthenticated**, treat that as a **critical error** and stop; fix the host connection per **[docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp)** and **`.agents/skills/mcp-host-bridge/SKILL.md`**. For **real MCP calls**, follow the **connected server’s** tool names, schemas, and descriptions; for **implementation in this repository**, follow this worktree’s source, tests, and embedded docs.
+Action routing for agents is defined in **[`skills/kairos/SKILL.md`](skills/kairos/SKILL.md)** (zero-drift: **`activate`** → **`forward`** → **`reward`** for action intents). Hosts load the same text from **`.agents/skills/kairos/SKILL.md`** (workspace) or **`~/.agents/skills/kairos/SKILL.md`** (user). If KAIROS MCP is **unavailable or unauthenticated**, treat that as a **critical error** and stop; fix the host connection per **[docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp)** and **`.agents/skills/mcp-host-bridge/SKILL.md`**. For **real MCP calls**, follow the **connected server’s** tool names, schemas, and descriptions; for **implementation in this repository**, follow this worktree’s source, tests, and embedded docs.
 
 ## Architecture
 
