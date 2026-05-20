@@ -1,0 +1,13 @@
+src/embed-docs/mem/00000000-0000-0000-0000-000000002004.md
+src/embed-docs/tools/forward.md
+src/resources/embedded-mcp-resources.ts
+src/tools/forward-trace.ts
+src/tools/forward-view.ts
+src/tools/forward_schema.ts
+src/tools/kairos-challenge-display.ts
+src/tools/mcp-contract-match.ts
+src/tools/mcp-tool-input-teaching.ts
+src/tools/next-pow-challenge-shape.ts
+src/tools/next-previous-step.ts
+tests/integration/v4-kairos-forward-continue.test.ts
+tests/integration/v4-kairos-forward-first-call.test.ts

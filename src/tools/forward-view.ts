@@ -16,8 +16,6 @@ import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
 export function extractUuid(uri: string): string {
   return uri.split('/').pop()?.split('?')[0] ?? '';
 }
-
-/** Optional fields for MCP Apps widgets and clients; derived from the current layer memory. */
 export function buildForwardUiSummary(memory: Memory): {
   activation_space_name?: string;
   context_adapter_name?: string;
@@ -85,27 +83,58 @@ function summarizeContract(contract: InferenceContractDefinition): string {
 }
 
 export function mapProofSolution(solution: ForwardSolution): ProofOfWorkSubmission {
-  return {
+  const evidence = solution.evidence;
+  const e =
+    evidence !== null && evidence !== undefined && typeof evidence === 'object' && !Array.isArray(evidence)
+      ? (evidence as Record<string, unknown>)
+      : undefined;
+  const base: ProofOfWorkSubmission = {
     type: solution.type as ProofOfWorkSubmission['type'],
     ...(solution.nonce ? { nonce: solution.nonce } : {}),
-    ...(solution.proof_hash ? { proof_hash: solution.proof_hash } : {}),
-    ...(solution.shell && {
-      shell: {
-        exit_code: solution.shell.exit_code,
-        ...(solution.shell.stdout !== undefined ? { stdout: solution.shell.stdout } : {}),
-        ...(solution.shell.stderr !== undefined ? { stderr: solution.shell.stderr } : {}),
-        ...(solution.shell.duration_seconds !== undefined ? { duration_seconds: solution.shell.duration_seconds } : {})
-      }
-    }),
-    ...(solution.mcp && { mcp: solution.mcp }),
-    ...(solution.user_input && {
-      user_input: {
-        confirmation: solution.user_input.confirmation,
-        ...(solution.user_input.timestamp !== undefined ? { timestamp: solution.user_input.timestamp } : {})
-      }
-    }),
-    ...(solution.comment && { comment: solution.comment })
+    ...(solution.proof_hash ? { proof_hash: solution.proof_hash } : {})
   };
+
+  if (solution.type === 'shell' && e && typeof e['exit_code'] === 'number') {
+    base.shell = {
+      exit_code: e['exit_code'],
+      ...(typeof e['stdout'] === 'string' ? { stdout: e['stdout'] } : {}),
+      ...(typeof e['stderr'] === 'string' ? { stderr: e['stderr'] } : {}),
+      ...(typeof e['duration_seconds'] === 'number' ? { duration_seconds: e['duration_seconds'] } : {})
+    };
+  } else if (solution.type === 'mcp' && e && typeof e['tool_name'] === 'string') {
+    const outcomeSuccess = solution.outcome === undefined ? true : solution.outcome === 'success';
+    base.mcp = {
+      tool_name: e['tool_name'],
+      ...(e['arguments'] !== undefined ? { arguments: e['arguments'] } : {}),
+      result: e['response'] !== undefined ? e['response'] : (e['result'] ?? null),
+      success: typeof e['success'] === 'boolean' ? e['success'] : outcomeSuccess
+    };
+  } else if (solution.type === 'user_input' && e && typeof e['confirmation'] === 'string') {
+    base.user_input = {
+      confirmation: e['confirmation'],
+      ...(typeof e['timestamp'] === 'string' ? { timestamp: e['timestamp'] } : {})
+    };
+  } else if (solution.type === 'comment' && e && typeof e['text'] === 'string') {
+    base.comment = { text: e['text'] };
+  }
+
+  if (base.shell === undefined && solution.shell) {
+    base.shell = {
+      exit_code: solution.shell.exit_code,
+      ...(solution.shell.stdout !== undefined ? { stdout: solution.shell.stdout } : {}),
+      ...(solution.shell.stderr !== undefined ? { stderr: solution.shell.stderr } : {}),
+      ...(solution.shell.duration_seconds !== undefined ? { duration_seconds: solution.shell.duration_seconds } : {})
+    };
+  }
+  if (base.mcp === undefined && solution.mcp) base.mcp = solution.mcp;
+  if (base.user_input === undefined && solution.user_input) {
+    base.user_input = {
+      confirmation: solution.user_input.confirmation,
+      ...(solution.user_input.timestamp !== undefined ? { timestamp: solution.user_input.timestamp } : {})
+    };
+  }
+  if (base.comment === undefined && solution.comment) base.comment = solution.comment;
+  return base;
 }
 
 export type LoadMemoryForParsedUriResult = {
@@ -122,11 +151,9 @@ export async function loadMemoryForParsedUri(
     const memory = await memoryStore.getMemory(parsed.id);
     return { memory };
   }
-
   if (!qdrantService) {
     throw new Error('Adapter resolution requires qdrantService');
   }
-
   if (parsed.idKind === 'slug') {
     const outcome = await qdrantService.findFirstStepMemoryUuidBySlug(parsed.id);
     if (!outcome.layerUuid) {
@@ -138,25 +165,20 @@ export async function loadMemoryForParsedUri(
       ...(outcome.disambiguation_note ? { slug_disambiguation_note: outcome.disambiguation_note } : {})
     };
   }
-
   const layers = await qdrantService.getAdapterLayers(parsed.id);
   const firstLayer = layers[0]?.uuid;
   if (firstLayer) {
     const memory = await memoryStore.getMemory(firstLayer);
     return { memory };
   }
-
   const memory = await memoryStore.getMemory(parsed.id);
   return { memory };
 }
-
-/** Reuse an in-store nonce for the same layer so repeat forward-without-solution calls do not rotate the challenge. */
 async function challengeReuseOptions(memory: Memory): Promise<{ existingNonce: string } | undefined> {
   if (!memory.memory_uuid) return undefined;
   const existing = await proofOfWorkStore.getNonce(memory.memory_uuid);
   return existing != null ? { existingNonce: existing } : undefined;
 }
-
 async function buildContractResponse(
   memory: Memory,
   executionId: string,
@@ -206,17 +228,10 @@ function finalContract(): ForwardOutput['contract'] {
 
 function buildEmptySolutionTemplate(contractType: ForwardOutput['contract']['type']): {
   type: ForwardOutput['contract']['type'];
-  tensor?: Record<string, unknown>;
-  shell?: Record<string, unknown>;
-  mcp?: Record<string, unknown>;
-  user_input?: Record<string, unknown>;
-  comment?: Record<string, unknown>;
+  outcome: 'success';
+  evidence: Record<string, unknown>;
 } {
-  if (contractType === 'tensor') return { type: 'tensor', tensor: {} };
-  if (contractType === 'shell') return { type: 'shell', shell: {} };
-  if (contractType === 'mcp') return { type: 'mcp', mcp: {} };
-  if (contractType === 'user_input') return { type: 'user_input', user_input: {} };
-  return { type: 'comment', comment: {} };
+  return { type: contractType, outcome: 'success', evidence: {} };
 }
 
 export type BuildForwardViewOptions = {
@@ -228,7 +243,6 @@ export type BuildForwardViewOptions = {
   mustObey?: boolean;
   contractOverride?: ForwardOutput['contract'];
   tensorInOverride?: Record<string, unknown>;
-  /** When set, included in output (overrides execution meta note for this view). */
   slugDisambiguationNote?: string;
 };
 
@@ -244,7 +258,6 @@ export async function buildForwardView(
       : await buildContractResponse(memory, executionId, options?.proofHash);
   const layer = currentLayer(memory, executionId);
   const final = options?.final === true;
-
   const meta = await forwardRuntimeStore.getExecution(executionId);
   const slugNote = options?.slugDisambiguationNote ?? meta?.slug_disambiguation_note;
   const nextCall = final
@@ -264,7 +277,6 @@ export async function buildForwardView(
           solution_template: buildEmptySolutionTemplate(contract.type)
         }
       };
-
   return {
     must_obey: options?.mustObey ?? true,
     current_layer: layer,
@@ -275,7 +287,7 @@ export async function buildForwardView(
     ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS),
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
-      : `call forward with ${layer.uri} and solution.type="${contract.type}" plus solution.${contract.type} (include nonce/proof_hash when present)`,
+      : `call forward with ${layer.uri} and solution.type="${contract.type}", outcome="success", and evidence (include nonce/proof_hash when present)`,
     execution_id: executionId,
     ...(options?.proofHash && { proof_hash: options.proofHash }),
     ...(options?.message ? { message: options.message } : {}),
@@ -284,7 +296,6 @@ export async function buildForwardView(
     ...(slugNote ? { slug_disambiguation_note: slugNote } : {})
   };
 }
-
 export async function mapLayerPayloadShapeToForwardView(
   memoryStore: MemoryQdrantStore,
   executionId: string,
@@ -297,7 +308,6 @@ export async function mapLayerPayloadShapeToForwardView(
   if (!displayMemory || !nextExecutionResult.current_step) {
     throw new Error('Layer payload did not include a resolvable current layer');
   }
-
   const final = nextExecutionResult.next_action.includes('reward');
   const displayContract = normalizeContract(displayMemory);
   const options: BuildForwardViewOptions = {
@@ -317,7 +327,6 @@ export async function mapLayerPayloadShapeToForwardView(
   };
   return buildForwardView(displayMemory, executionId, options);
 }
-
 export interface LayerPayload {
   must_obey: boolean;
   current_step?: {
@@ -332,7 +341,6 @@ export interface LayerPayload {
   error_code?: string;
   retry_count?: number;
 }
-
 export async function mapLayerPayloadToForwardView(
   memoryStore: MemoryQdrantStore,
   executionId: string,

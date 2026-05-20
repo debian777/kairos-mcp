@@ -64,21 +64,21 @@ export function validateMcpSubmissionAgainstContract(
       return {
         ok: false,
         code: 'MISSING_FIELD',
-        message: 'MCP proof requires solution.mcp.arguments (object) because the contract specifies mcp.arguments.'
+        message: 'MCP proof requires solution.evidence.arguments (object) because the contract specifies mcp.arguments.'
       };
     }
     if (!isPlainMcpArgumentsObject(mcp.arguments)) {
       return {
         ok: false,
         code: 'MCP_ARGUMENTS_MISMATCH',
-        message: 'solution.mcp.arguments must be a plain object when the contract specifies mcp.arguments.'
+        message: 'solution.evidence.arguments must be a plain object when the contract specifies mcp.arguments.'
       };
     }
     if (!deepMcpArgumentSubset(proof.mcp.arguments, mcp.arguments)) {
       return {
         ok: false,
         code: 'MCP_ARGUMENTS_MISMATCH',
-        message: 'solution.mcp.arguments does not satisfy the contract (required keys must match values, including nested objects).'
+        message: 'solution.evidence.arguments does not satisfy the contract (required keys must match values, including nested objects).'
       };
     }
   }

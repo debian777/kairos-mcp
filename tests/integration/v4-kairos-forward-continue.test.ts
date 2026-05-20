@@ -91,7 +91,8 @@ describe('v4-forward continuation response schema', () => {
       expect(typeof parsed.next_action).toBe('string');
       expect(parsed.next_action).toContain('kairos://layer/');
       expect(parsed.next_action).toContain('solution.type="shell"');
-      expect(parsed.next_action).toContain('solution.shell');
+      expect(parsed.next_action).toContain('outcome="success"');
+      expect(parsed.next_action).toContain('evidence');
 
       if (parsed.proof_hash) {
         expect(typeof parsed.proof_hash).toBe('string');

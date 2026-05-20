@@ -35,6 +35,7 @@ function createFlatConfig(rootDir) {
         '.cache/**',
         'helm/**',
         '.ai/**',
+        '.kairos/**',
         '.kairos-work/**',
         '.local/**',
         'non-public/marketing-positioning.md',

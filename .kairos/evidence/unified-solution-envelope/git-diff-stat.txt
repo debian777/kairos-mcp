@@ -1,0 +1,14 @@
+ .../mem/00000000-0000-0000-0000-000000002004.md    |  74 ++++++++++-
+ src/embed-docs/tools/forward.md                    | 111 ++++++++++++++++-
+ src/resources/embedded-mcp-resources.ts            |   4 +-
+ src/tools/forward-trace.ts                         |  84 ++++++++++---
+ src/tools/forward-view.ts                          |  98 ++++++++-------
+ src/tools/forward_schema.ts                        | 138 ++++++++++++---------
+ src/tools/kairos-challenge-display.ts              |   4 +-
+ src/tools/mcp-contract-match.ts                    |   6 +-
+ src/tools/mcp-tool-input-teaching.ts               |  18 +--
+ src/tools/next-pow-challenge-shape.ts              |   4 +-
+ src/tools/next-previous-step.ts                    |  14 +--
+ .../integration/v4-kairos-forward-continue.test.ts |   3 +-
+ .../v4-kairos-forward-first-call.test.ts           |   3 +-
+ 13 files changed, 405 insertions(+), 156 deletions(-)
