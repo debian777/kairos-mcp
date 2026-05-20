@@ -129,12 +129,12 @@ spec:
             - name: OPENAI_EMBEDDING_MODEL
               value: {{ $openai.model | default "text-embedding-3-small" | quote }}
             {{- end }}
-            {{- $appSecret := .Values.app.existingSecret | default .Values.credentials.name }}
+            {{- $appSecret := .Values.app.existingSecret | default (include "kairos.credentialsSecretName" .) }}
             {{- if $appSecret }}
             - name: SESSION_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ $appSecret }}
+                  name: {{ $appSecret | quote }}
                   key: session-secret
                   optional: true
             {{- end }}

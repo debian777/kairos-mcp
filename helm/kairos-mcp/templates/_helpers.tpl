@@ -22,3 +22,37 @@ Explicit .Values.gateway.mode wins; "auto" picks based on gatewayClassName prese
   {{- default (printf "admin.%s" $gw.hostname) $lock.adminHostname -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "kairos.credentialsLegacySecretName" -}}
+{{- printf "kairos-mcp-credentials" -}}
+{{- end -}}
+
+{{- define "kairos.credentialsPreferredSecretName" -}}
+{{- $name := default "" .Values.credentials.name | trim -}}
+{{- if $name -}}
+{{- $name -}}
+{{- else -}}
+{{- printf "%s-credentials" .Release.Name -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "kairos.credentialsSecretName" -}}
+{{- $existing := default "" .Values.credentials.existingSecret | trim -}}
+{{- if $existing -}}
+{{- $existing -}}
+{{- else -}}
+{{- $preferred := include "kairos.credentialsPreferredSecretName" . -}}
+{{- $legacy := include "kairos.credentialsLegacySecretName" . -}}
+{{- $preferredObj := lookup "v1" "Secret" .Release.Namespace $preferred -}}
+{{- if $preferredObj -}}
+{{- $preferred -}}
+{{- else -}}
+{{- $legacyObj := lookup "v1" "Secret" .Release.Namespace $legacy -}}
+{{- if $legacyObj -}}
+{{- $legacy -}}
+{{- else -}}
+{{- $preferred -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
