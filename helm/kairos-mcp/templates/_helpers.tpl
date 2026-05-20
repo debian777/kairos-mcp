@@ -11,3 +11,14 @@ Explicit .Values.gateway.mode wins; "auto" picks based on gatewayClassName prese
   {{- $mode -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "kairos.adminHostname" -}}
+{{- $gw := default dict .Values.gateway -}}
+{{- $routes := default dict $gw.routes -}}
+{{- $kc := default dict $routes.keycloak -}}
+{{- $lock := default dict $kc.adminLockdown -}}
+{{- $enabled := ternary $lock.enabled true (hasKey $lock "enabled") -}}
+{{- if and $enabled $gw.hostname -}}
+  {{- default (printf "admin.%s" $gw.hostname) $lock.adminHostname -}}
+{{- end -}}
+{{- end -}}

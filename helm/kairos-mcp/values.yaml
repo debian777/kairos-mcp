@@ -113,6 +113,9 @@ gateway:
       serviceName: ""
       serviceNamespace: ""
       port: 8080
+      adminLockdown:
+        enabled: true
+        adminHostname: ""
 
 qdrant:
   enabled: true
