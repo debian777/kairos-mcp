@@ -1,4 +1,4 @@
-{{- $secretName := .Values.credentials.existingSecret | default .Values.credentials.name -}}
+{{- $secretName := include "kairos.credentialsSecretName" . -}}
 {{- $baseUrl := .Values.app.auth.callbackBaseUrl | default (printf "https://%s" .Values.global.hostname) -}}
 KAIROS MCP has been deployed to namespace {{ .Release.Namespace }}.
 

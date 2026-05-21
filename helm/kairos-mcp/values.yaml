@@ -11,7 +11,10 @@ global:
 credentials:
   autoGenerate: true
   existingSecret: ""
-  name: "kairos-mcp-credentials"
+  name: ""
+
+hooks:
+  kubectlImage: "cgr.dev/chainguard/kubectl:1.33-dev"
 
 ha:
   antiAffinity:
