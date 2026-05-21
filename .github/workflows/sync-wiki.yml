@@ -1,0 +1,64 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    if: github.repository == 'debian777/kairos-mcp'
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+          fetch-depth: 1
+
+      - name: Checkout wiki repository
+        uses: actions/checkout@v4
+        with:
+          repository: debian777/kairos-mcp.wiki
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: wiki-repo
+          fetch-depth: 1
+
+      - name: Sync wiki content
+        run: |
+          echo "🔄 Syncing wiki content..."
+          
+          # Clear old wiki content (except .git)
+          cd wiki-repo
+          find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} +
+          
+          # Copy new wiki content
+          cp -r ../main-repo/wiki/* .
+          cp ../main-repo/wiki/.??* . 2>/dev/null || true  # Copy hidden files if any
+          
+          # Check if there are changes
+          if git status --porcelain | grep -q .; then
+            echo "✅ Changes detected"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            git add -A
+            git commit -m "Update wiki from main repository
+
+Auto-synced from main repository commit: ${{ github.sha }}
+Triggered by: ${{ github.actor }}
+Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            
+            echo "📤 Pushing to wiki repository..."
+            git push
+            echo "✅ Wiki updated successfully!"
+          else
+            echo "⏭️ Wiki is already up to date"
+          fi
