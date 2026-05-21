@@ -27,6 +27,7 @@ import { validateBearerToken, type AuthPayload } from './bearer-validate.js';
 import { getSpaceContext, runWithSpaceContext, type SpaceContext } from '../utils/tenant-context.js';
 import { structuredLogger } from '../utils/structured-logger.js';
 import { setWwwAuthenticate } from './http-www-authenticate.js';
+import { buildJsonRpcAuthError } from './mcp-ui-offerings-auth-jsonrpc.js';
 export { setWwwAuthenticate };
 
 export type { AuthPayload };
@@ -305,11 +306,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     `[auth] 401 ${req.method} ${req.path}${isMcp ? ' (announcing auth need for MCP client)' : ''}`
   );
   setWwwAuthenticate(res);
-  res.status(401).json({
-    error: 'Unauthorized',
-    message: 'Authentication required',
-    login_url: loginUrlForJson
-  });
+
+  // Return a JSON-RPC 2.0 error envelope when the request is a JSON-RPC call to /mcp,
+  // so MCP clients can parse a structured error instead of a generic 401 body.
+  const body = req.body as Record<string, unknown> | undefined;
+  const isJsonRpc = isMcp && body?.['jsonrpc'] === '2.0';
+  if (isJsonRpc) {
+    res.status(401).json(buildJsonRpcAuthError(body?.['id'], 'Authentication required', loginUrlForJson));
+  } else {
+    res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Authentication required',
+      login_url: loginUrlForJson
+    });
+  }
 }
 
 export { SESSION_COOKIE_NAME };
