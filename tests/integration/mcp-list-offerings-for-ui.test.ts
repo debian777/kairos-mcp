@@ -2,7 +2,7 @@
  * MCP Apps discovery: `listOfferingsForUI` is handled in http-mcp-handler (not SDK).
  */
 import { waitForHealthCheck } from '../utils/health-check.js';
-import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, getAuthHeaders, serverRequiresAuth } from '../utils/auth-headers.js';
 import {
   KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
   KAIROS_ACTIVATE_UI_URI,
@@ -100,5 +100,37 @@ describe('MCP listOfferingsForUI', () => {
     expect(resources.find((r) => r.uri === KAIROS_ACTIVATE_UI_URI)?.mimeType).toBe(MCP_APP_HTML_MIME_TYPE);
     expect(resources.some((r) => r.uri === KAIROS_ACTIVATE_UI_SKYBRIDGE_URI)).toBe(true);
     expect(resources.find((r) => r.uri === KAIROS_ACTIVATE_UI_SKYBRIDGE_URI)?.mimeType).toBe(SKYBRIDGE_HTML_MIME_TYPE);
+  });
+
+  test('returns a JSON-RPC auth error for unauthenticated JSON-RPC requests', async () => {
+    if (!serverAvailable) return;
+    if (!serverRequiresAuth()) return;
+
+    const res = await fetch(`${BASE_URL}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream'
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {}
+      })
+    });
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as {
+      jsonrpc?: string;
+      id?: number;
+      error?: { code?: number; message?: string; data?: Record<string, unknown> };
+    };
+    expect(body.jsonrpc).toBe('2.0');
+    expect(body.id).toBe(1);
+    expect(body.error?.code).toBe(-32001);
+    expect(body.error?.message).toBe('Authentication required');
+    expect(body.error?.data?.['reauth_required']).toBe(true);
+    expect(typeof body.error?.data?.['next_step']).toBe('string');
+    expect(typeof body.error?.data?.['login_url']).toBe('string');
   });
 });

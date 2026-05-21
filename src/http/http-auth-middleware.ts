@@ -334,11 +334,13 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     `[auth] 401 ${req.method} ${req.path}${isMcp ? ' (announcing auth need for MCP client)' : ''}`
   );
   setWwwAuthenticate(res);
-  res.status(401).json({
-    error: 'Unauthorized',
-    message: 'Authentication required',
-    login_url: loginUrlForJson
-  });
+  const body = req.body as Record<string, unknown> | undefined;
+  const isJsonRpc = isMcp && body?.['jsonrpc'] === '2.0';
+  res.status(401).json(
+    isJsonRpc
+      ? { jsonrpc: '2.0', error: { code: -32001, message: 'Authentication required', data: { error: 'unauthorized', message: 'Authentication required', reauth_required: true, next_step: MCP_SSO_REAUTH_NEXT_STEP, login_url: loginUrlForJson } }, id: body?.['id'] ?? null }
+      : { error: 'Unauthorized', message: 'Authentication required', login_url: loginUrlForJson }
+  );
 }
 
 export { SESSION_COOKIE_NAME };
