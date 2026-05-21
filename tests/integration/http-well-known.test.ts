@@ -8,12 +8,20 @@
  */
 
 import { getTestAuthBaseUrl, serverRequiresAuth } from '../utils/auth-headers.js';
+import { setupServerCheck } from './cli-commands-shared.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 
 describe('Protected Resource Metadata (RFC 9728)', () => {
+  let serverAvailable = false;
+
+  beforeAll(async () => {
+    serverAvailable = await setupServerCheck();
+  }, 60000);
+
   describe('GET /.well-known/oauth-protected-resource (root)', () => {
     test('returns 200 with valid JSON structure', async () => {
+      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/.well-known/oauth-protected-resource`);
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toMatch(/application\/json/);
@@ -74,6 +82,7 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
 
   describe('GET /.well-known/oauth-protected-resource/mcp (path-specific)', () => {
     test('returns 200 with same metadata as root', async () => {
+      expect(serverAvailable).toBe(true);
       const [rootRes, pathRes] = await Promise.all([
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource`),
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource/mcp`)

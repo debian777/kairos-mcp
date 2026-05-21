@@ -8,6 +8,7 @@ import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
+  type SpaceRow,
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import {
@@ -24,6 +25,25 @@ function apiFetch(path: string, init?: RequestInit): Promise<Response> {
     ...init,
     headers: { ...getAuthHeaders(), ...(init?.headers as Record<string, string>) }
   });
+}
+
+type AdapterLoc = ReturnType<typeof locationsForAdapterTitle>;
+
+async function waitForSpaceLocations(
+  loadSpacesViaMcp: () => Promise<SpaceRow[]>,
+  title: string,
+  predicate: (loc: AdapterLoc) => boolean,
+  timeoutMs = 30000
+): Promise<AdapterLoc> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const spaces = await loadSpacesViaMcp();
+    const loc = locationsForAdapterTitle(spaces, title);
+    if (predicate(loc)) return loc;
+    await sleepMs(1000);
+  }
+  const spaces = await loadSpacesViaMcp();
+  return locationsForAdapterTitle(spaces, title);
 }
 
 describe('Adapter fork copy (group → personal)', () => {
@@ -95,10 +115,15 @@ describe('Adapter fork copy (group → personal)', () => {
     withRawOnFail({ call: forkCall, result: forkRes }, () => {
       expect(forked.status).toBe('stored');
     });
-    await sleepMs(5000);
-    spaces = await loadSpacesViaMcp();
-    loc = locationsForAdapterTitle(spaces, title);
-    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    loc = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (rows) => rows.some((l) => l.type === 'group') && rows.some((l) => l.type === 'personal')
+    );
+    const copyId = loc.find((l) => l.type === 'personal')?.adapterId.toLowerCase();
+    withRawOnFail({ call: forkCall, result: forkRes, loc }, () => {
+      expect(copyId).toBeTruthy();
+    });
     expect(copyId).not.toBe(sourceId);
     withRawOnFail({ call: forkCall, result: forkRes }, () => {
       expect(loc.filter((l) => l.type === 'group').length).toBe(1);
@@ -151,11 +176,16 @@ describe('Adapter fork copy (group → personal)', () => {
     });
     expect(fr.status).toBe(200);
     await fr.json();
-    await sleepMs(5000);
-    const spaces = await loadSpacesViaMcp();
-    const loc = locationsForAdapterTitle(spaces, title);
+    const loc = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (rows) => rows.some((l) => l.type === 'group') && rows.some((l) => l.type === 'personal')
+    );
     const sourceId = loc.find((l) => l.type === 'group')!.adapterId.toLowerCase();
-    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    const copyId = loc.find((l) => l.type === 'personal')?.adapterId.toLowerCase();
+    withRawOnFail({ loc }, () => {
+      expect(copyId).toBeTruthy();
+    });
     expect(copyId).not.toBe(sourceId);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);
     expect(loc.filter((l) => l.type === 'personal').length).toBe(1);
@@ -204,11 +234,17 @@ describe('Adapter fork copy (group → personal)', () => {
     );
     expect(forkOut.stderr).toBe('');
     JSON.parse(forkOut.stdout);
-    await sleepMs(5000);
-    const spaces = await loadSpacesViaMcp();
-    const loc = locationsForAdapterTitle(spaces, title);
+    const loc = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (rows) => rows.some((l) => l.type === 'group') && rows.some((l) => l.type === 'personal'),
+      90000
+    );
     const sourceId = loc.find((l) => l.type === 'group')!.adapterId.toLowerCase();
-    const copyId = loc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    const copyId = loc.find((l) => l.type === 'personal')?.adapterId.toLowerCase();
+    withRawOnFail({ loc }, () => {
+      expect(copyId).toBeTruthy();
+    });
     expect(copyId).not.toBe(sourceId);
     expect(loc.filter((l) => l.type === 'group').length).toBe(1);
     expect(loc.filter((l) => l.type === 'personal').length).toBe(1);
