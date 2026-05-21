@@ -38,6 +38,7 @@ function createFlatConfig(rootDir) {
         '.kairos/**',
         '.kairos-work/**',
         '.local/**',
+        '.qoder/**',
         'non-public/marketing-positioning.md',
         '.git',
         '.git/**',
