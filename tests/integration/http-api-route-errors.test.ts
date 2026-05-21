@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -26,14 +25,6 @@ async function fetchWithRateLimitRetry(url: string, init: RequestInit = {}, atte
 }
 
 describe('HTTP route error mapping', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('POST /api/forward returns 404 for a non-existent layer uri', async () => {
     expect.hasAssertions();
 

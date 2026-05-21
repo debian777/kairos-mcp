@@ -2,9 +2,7 @@
  * Optional artifact.relative_path on train → Qdrant payload → skill export paths.
  */
 
-import { waitForHealthCheck } from '../utils/health-check.js';
 import {
-  SKILL_EXPORT_BASE_URL,
   buildAdapterMarkdown,
   exportJson,
   trainAdapterMarkdown,
@@ -13,24 +11,7 @@ import {
 } from './skill-export-shared.js';
 
 describe('artifact relative_path (skill export layout)', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({
-        url: `${SKILL_EXPORT_BASE_URL}/health`,
-        timeoutMs: 60000,
-        intervalMs: 500
-      });
-      serverAvailable = true;
-    } catch (_error) {
-      serverAvailable = false;
-      console.warn('Server not available; artifact relative_path tests will fail preflight');
-    }
-  }, 60000);
-
   test('skill_tree uses stored relative_path under the skill folder', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `rel-export-${ts}`;
     const a = await trainAdapterMarkdown(buildAdapterMarkdown(slug, `Rel Export ${ts}`));
@@ -55,7 +36,6 @@ describe('artifact relative_path (skill export layout)', () => {
   }, 60000);
 
   test('skill_tree uses flattened artifacts/<name> when relative_path is omitted (compat)', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `flat-art-${ts}`;
     const a = await trainAdapterMarkdown(buildAdapterMarkdown(slug, `Flat Art ${ts}`));

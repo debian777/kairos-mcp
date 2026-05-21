@@ -1,9 +1,7 @@
 import path from 'node:path';
-import { waitForHealthCheck } from '../utils/health-check.js';
 import {
   type ExportSkillTreeResponse,
   type ExportSkillZipResponse,
-  SKILL_EXPORT_BASE_URL,
   downloadSkillZip,
   exportJson,
   trainAdapterMarkdown,
@@ -105,7 +103,6 @@ async function retrainFromBundle(
 describe('mime fixture export parity via API transport', () => {
   beforeAll(async () => {
     ensureMimeFixtureExportDumpRootCleanBeforeMimeTests();
-    await waitForHealthCheck({ url: `${SKILL_EXPORT_BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
   }, 60000);
 
   test.each(['skill_tree', 'skill_zip'] as const)(

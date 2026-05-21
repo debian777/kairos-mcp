@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -73,14 +72,6 @@ async function trainProtocol(title: string, slug: string, body: string): Promise
 }
 
 describe('HTTP forward slug entry', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('starts execution for a trained adapter addressed by slug URI', async () => {
     expect.hasAssertions();
 

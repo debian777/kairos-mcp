@@ -11,10 +11,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { indexZipEntriesByPath } from '../utils/zip-parser.js';
 import {
-  SKILL_EXPORT_BASE_URL,
   buildAdapterMarkdown,
   downloadSkillZip,
   exportJson,
@@ -29,24 +27,7 @@ import {
 const allAdaptersSpaceExportSupported = process.env.ENV !== 'dev_simple';
 
 describe('skill-export multi-adapter coverage', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({
-        url: `${SKILL_EXPORT_BASE_URL}/health`,
-        timeoutMs: 60000,
-        intervalMs: 500
-      });
-      serverAvailable = true;
-    } catch (_error) {
-      serverAvailable = false;
-      console.warn('Server not available; skill-export multi tests will fail preflight');
-    }
-  }, 60000);
-
   test('skill_zip with artifact: artifacts/<name> populated; SHA256SUMS lists artifact hash', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `zip-with-art-${ts}`;
     const artifactName = `tool-${ts}.py`;
@@ -99,7 +80,6 @@ describe('skill-export multi-adapter coverage', () => {
   }, 60000);
 
   test('skill_zip multi-adapter via adapters[]: each adapter is its own top-level folder', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slugA = `multi-a-${ts}`;
     const slugB = `multi-b-${ts}`;
@@ -133,7 +113,7 @@ describe('skill-export multi-adapter coverage', () => {
   (allAdaptersSpaceExportSupported ? test : test.skip)(
     'all_adapters + space_name positive path includes freshly trained adapters',
     async () => {
-    expect(serverAvailable).toBe(true);
+      expect.hasAssertions();
     // Use the ci-test group space rather than personal: kairos-tester accumulates adapters in
     // personal across runs, and at scale it exceeds EXPORT_MAX_ADAPTERS=256 which is a separate
     // contract we test as a unit rejection elsewhere. The ci-test group is purpose-built for

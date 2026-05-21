@@ -4,14 +4,14 @@
         "type": "streamable-http",
         "url": "http://localhost:3300/mcp",
         "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
-        "disabled": false,
+        "disabled": true,
         "disabledTools": []
       },
       "KAIROS-HELM-INTEGRATION": {
         "type": "streamable-http",
         "url": "http://localhost/mcp",
         "alwaysAllow": [ "activate", "forward", "train", "reward", "tune", "delete", "export", "spaces" ],
-        "disabled": false,
+        "disabled": true,
         "disabledTools": []
       }
     }

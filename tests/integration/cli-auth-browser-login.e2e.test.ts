@@ -9,7 +9,6 @@
 
 import { exec, execFile } from 'child_process';
 import { join } from 'path';
-import { waitForHealthCheck } from '../utils/health-check.js';
 import {
   getTestAuthBaseUrl,
   getMcpTestBearerToken,
@@ -66,10 +65,6 @@ async function loginWithDevToken(): Promise<void> {
 const describeWhenAuth = serverRequiresAuth() ? describe : describe.skip;
 
 describeWhenAuth('CLI auth (dev token login)', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-  }, 65000);
-
   beforeEach(async () => {
     await runCliFile(['logout', '--url', BASE_URL]);
   });

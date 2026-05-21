@@ -3,7 +3,6 @@
  * Proves no context bleed and no CONNECTION_CONFLICT / 5xx under parallel requests.
  */
 
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -22,20 +21,7 @@ function postMcp(body: object) {
 }
 
 describe('MCP concurrent requests', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-      serverAvailable = true;
-    } catch {
-      serverAvailable = false;
-    }
-  }, 60000);
-
   test(`${PARALLEL} parallel tools/list: all 200, valid JSON-RPC, no CONNECTION_CONFLICT`, async () => {
-    if (!serverAvailable) return;
-
     const requests = Array.from({ length: PARALLEL }, (_, i) =>
       postMcp({
         jsonrpc: '2.0',

@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -36,14 +35,6 @@ Success means the intended vault note was found and the requested read or edit o
 }
 
 describe('HTTP train similarity guard regression', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('POST /api/train/raw accepts unrelated adapter titles without impossible similarity rejection', async () => {
     expect.hasAssertions();
     const title = `Obsidian Vault - Find, Read, Edit, Create Notes via MCP ${Date.now()}`;

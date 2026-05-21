@@ -8,7 +8,6 @@ import { promisify } from 'util';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getMcpTestBearerToken, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const CONFIG_DIR_NAME = 'kairos';
@@ -88,19 +87,7 @@ export async function execAsyncWithConfig(
 }
 
 export async function setupServerCheck() {
-  let serverAvailable = false;
-  try {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-    serverAvailable = true;
-  } catch (_error) {
-    serverAvailable = false;
-    console.warn('Server not available, skipping CLI tests');
-  }
-  return serverAvailable;
+  return true;
 }
 
 /**
@@ -121,4 +108,3 @@ export function requireCachedLayerUri(uri: string | null | undefined, what: stri
     throw new Error(`Missing cached layer URI for ${what}: train/activate preflight did not produce a URI.`);
   }
 }
-

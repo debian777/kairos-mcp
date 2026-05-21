@@ -1,10 +1,6 @@
-import { API_BASE, apiFetch, ensureApiHealth } from './http-api-test-helpers.js';
+import { API_BASE, apiFetch } from './http-api-test-helpers.js';
 
 describe('HTTP REST API Endpoints', () => {
-  beforeAll(async () => {
-    await ensureApiHealth();
-  }, 60000);
-
   describe('POST /api/train/raw', () => {
     test('accepts raw markdown and stores memories', async () => {
       expect.hasAssertions();

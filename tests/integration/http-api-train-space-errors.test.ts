@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -12,14 +11,6 @@ function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('HTTP train space validation', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('POST /api/train/raw rejects invalid space and lists writable spaces', async () => {
     expect.hasAssertions();
     const markdown = `# Invalid Space ${Date.now()}

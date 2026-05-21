@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl, hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -17,14 +16,6 @@ function expectNoServerCrash(response: Response): void {
 }
 
 describe('Adversarial and robustness inputs', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('rejects oversized JSON body (>1MB)', async () => {
     expect.hasAssertions();
     const response = await apiFetch(`${API_BASE}/activate`, {
@@ -164,4 +155,3 @@ describe('Adversarial and robustness inputs', () => {
     expect([200, 400]).toContain(response.status);
   }, 30000);
 });
-

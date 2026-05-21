@@ -1,4 +1,3 @@
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -12,14 +11,6 @@ function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
 }
 
 describe('POST /api/train (JSON)', () => {
-  beforeAll(async () => {
-    await waitForHealthCheck({
-      url: `${BASE_URL}/health`,
-      timeoutMs: 60000,
-      intervalMs: 500
-    });
-  }, 60000);
-
   test('accepts JSON body with space and stores adapter', async () => {
     expect.hasAssertions();
     const markdown = `# JSON Train Test ${Date.now()}
