@@ -106,7 +106,9 @@ function createFlatConfig(rootDir) {
         '**/*.rev',
         '**/*.svg',
         'logo/**',
-        'logos/**'
+        'logos/**',
+        '.qoder/**',
+        'wiki/**'
       ],
     },
 
