@@ -193,11 +193,11 @@ function setupAuthorizationServerMetadata(app: Express): void {
       res.setHeader('Vary', 'Origin');
     }
     const upstream = await fetchUpstreamAuthServerMetadata();
-    if (!upstream) {
-      res.status(502).json({ error: 'authorization_server_unavailable' });
-      return;
-    }
-    res.json(buildAuthorizationServerMetadata(upstream));
+    // When no upstream auth server is configured (e.g. SIMPLE mode without Keycloak),
+    // return a minimal static metadata document instead of 502 so that clients that
+    // probe /.well-known/openid-configuration for DCR support still receive a valid
+    // 200 response with the local registration_endpoint.
+    res.json(buildAuthorizationServerMetadata(upstream ?? {}));
   };
 
   const optionsHandler = (req: Request, res: Response) => {
