@@ -10,10 +10,8 @@
  * The multi-adapter and all_adapters cases live in skill-export-multi.test.ts.
  */
 
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { indexZipEntriesByPath } from '../utils/zip-parser.js';
 import {
-  SKILL_EXPORT_BASE_URL,
   buildAdapterMarkdown,
   downloadSkillZip,
   exportJson,
@@ -24,24 +22,7 @@ import {
 } from './skill-export-shared.js';
 
 describe('skill-export single-adapter coverage', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({
-        url: `${SKILL_EXPORT_BASE_URL}/health`,
-        timeoutMs: 60000,
-        intervalMs: 500
-      });
-      serverAvailable = true;
-    } catch (_error) {
-      serverAvailable = false;
-      console.warn('Server not available; skill-export coverage tests will fail preflight');
-    }
-  }, 60000);
-
   test('skill_tree single-adapter shape: lists files including SKILL.md and SHA256SUMS', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `tree-single-${ts}`;
     const a = await trainAdapterMarkdown(buildAdapterMarkdown(slug, `Tree Single ${ts}`));
@@ -79,7 +60,6 @@ describe('skill-export single-adapter coverage', () => {
   }, 60000);
 
   test('skill_zip with no artifacts: download_ref ZIP has no fabricated artifacts/', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `zip-no-art-${ts}`;
     const a = await trainAdapterMarkdown(
@@ -109,7 +89,6 @@ describe('skill-export single-adapter coverage', () => {
   }, 60000);
 
   test('layout independence: export resolves stored content via URI even with no on-disk source for that adapter', async () => {
-    expect(serverAvailable).toBe(true);
     const ts = Date.now().toString();
     const slug = `layout-indep-${ts}`;
     const distinctiveBody = `unique-text-${ts} that exists only in the trained content`;

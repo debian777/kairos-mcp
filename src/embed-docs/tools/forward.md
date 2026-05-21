@@ -39,7 +39,7 @@ Output always includes:
 - `forward` on non-terminal layers
 - `reward` on terminal layers
 
-## Unified solution envelope (v2 format)
+## Unified solution envelope
 
 Every solution, regardless of type, follows the same envelope:
 
@@ -47,7 +47,7 @@ Every solution, regardless of type, follows the same envelope:
 {
   "type": "<challenge_type>",
   "outcome": "success | failure | skipped",
-  "evidence": { "/* type-specific proof */": true },
+  "evidence": { /* type-specific proof data */ },
   "nonce": "<echo from contract>",
   "proof_hash": "<echo from contract>"
 }
@@ -122,11 +122,10 @@ Every solution, regardless of type, follows the same envelope:
 }
 ```
 
-## Format migration and compatibility
+## Compatibility
 
-The server accepts both old (v1) and new (v2) formats silently:
-
-### Old (v1) — accepted forever, never advertised
+The server also accepts older type-specific payload shapes where data is placed
+directly under the type key instead of inside an `evidence` envelope:
 
 ```json
 {
@@ -135,53 +134,5 @@ The server accepts both old (v1) and new (v2) formats silently:
 }
 ```
 
-### New (v2) — advertised in error messages, docs, examples
-
-```json
-{
-  "type": "mcp",
-  "outcome": "success",
-  "evidence": { "tool_name": "x", "response": {} }
-}
-```
-
-### When to use v2 format
-
-**Always prefer v2** for new protocols and solutions. Use v2 when:
-- Creating new adapter protocols
-- Submitting solutions to any challenge type
-- Reading error messages (they show v2 examples)
-- Following `next_action` guidance (it teaches v2 format)
-
-### Key differences between v1 and v2
-
-| Aspect | v1 (older) | v2 (unified) |
-|--------|-------------|--------------|
-| **Structure** | `{type, [type]: {...}}` | `{type, outcome, evidence: {...}}` |
-| **Success signal** | `success: true` inside type object | `outcome: "success"` at top level |
-| **MCP response** | `result` field | `response` field inside evidence |
-| **Consistency** | Different shapes per type | Unified envelope for all types |
-
-### Automatic format conversion
-
-The server automatically converts v1 to v2 internally:
-- v1 `mcp.result` becomes v2 `evidence.response`
-- v1 `mcp.success` is derived from v2 `outcome` if not provided
-- Older type-specific objects are wrapped in `evidence` envelope
-
-### Mixed format protocols
-
-You can safely mix v1 and v2 solutions within the same protocol run. The server handles both formats seamlessly:
-
-```json
-// Step 1: v1 format (still accepted)
-{"type": "shell", "shell": {"exit_code": 0, "stdout": "done"}}
-
-// Step 2: v2 format (preferred)
-{"type": "mcp", "outcome": "success", "evidence": {"tool_name": "search", "response": {...}}}
-
-// Step 3: v1 format (still works)
-{"type": "comment", "comment": {"text": "verification complete"}}
-```
-
-All examples in this documentation use v2 format. Follow these examples for best results.
+For new protocols and solutions, always use the unified envelope with `outcome`
+and `evidence`. The server converts older shapes internally.

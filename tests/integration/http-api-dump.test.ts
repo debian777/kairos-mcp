@@ -2,32 +2,13 @@
  * Integration tests for POST /api/export.
  * Requires dev server; fails the suite if unavailable (no silent skip).
  */
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
 
 describe('POST /api/export', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({
-        url: `${BASE_URL}/health`,
-        timeoutMs: 60000,
-        intervalMs: 500
-      });
-      serverAvailable = true;
-    } catch (_error) {
-      serverAvailable = false;
-      console.warn('Server not available, POST /api/export tests will fail preflight');
-    }
-  }, 60000);
-
   test('requires uri and rejects empty', async () => {
-    expect(serverAvailable).toBe(true);
-
     const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -40,8 +21,6 @@ describe('POST /api/export', () => {
   });
 
   test('returns 404 for non-existent memory UUID', async () => {
-    expect(serverAvailable).toBe(true);
-
     const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -53,8 +32,6 @@ describe('POST /api/export', () => {
   });
 
   test('returns markdown content for valid URI (train then export)', async () => {
-    expect(serverAvailable).toBe(true);
-
     const markdown = `# Dump HTTP ${Date.now()}
 
 ## Activation Patterns
@@ -96,8 +73,6 @@ Done.`;
   }, 30000);
 
   test('returns full adapter markdown when URI resolves to adapter (browse case)', async () => {
-    expect(serverAvailable).toBe(true);
-
     const title = `Export By Adapter ${Date.now()}`;
     const md = `# ${title}
 

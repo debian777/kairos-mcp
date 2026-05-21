@@ -11,7 +11,6 @@
 
 import { request } from 'undici';
 import { Agent } from 'undici';
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
 import { CLIENT_TIMEOUT_MS, timeoutMsFromResponseMs } from '../utils/test-timeouts.js';
 
@@ -69,31 +68,24 @@ function getLimitFromEnv(): number | null {
 }
 
 describe('MCP concurrency limit (load test)', () => {
-  let serverAvailable = false;
   let limit: number | null = null;
   let requestTimeoutMs: number = CLIENT_TIMEOUT_MS;
 
   beforeAll(async () => {
     limit = getLimitFromEnv();
-    try {
-      await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-      serverAvailable = true;
-      if (serverAvailable && limit !== null) {
-        const warmupDurations = await Promise.all(
-          Array.from({ length: WARMUP_COUNT }, () => measureResponseMs())
-        );
-        const responseMs = Math.max(...warmupDurations);
-        requestTimeoutMs = timeoutMsFromResponseMs(responseMs);
-      }
-    } catch {
-      serverAvailable = false;
+    if (limit === null) {
+      return;
     }
+    const warmupDurations = await Promise.all(
+      Array.from({ length: WARMUP_COUNT }, () => measureResponseMs())
+    );
+    const responseMs = Math.max(...warmupDurations);
+    requestTimeoutMs = timeoutMsFromResponseMs(responseMs);
   }, CLIENT_TIMEOUT_MS);
 
   test(
     'at limit: threads = MAX_CONCURRENT_MCP_REQUESTS → all 200, no timeouts',
     async () => {
-      if (!serverAvailable) return;
       if (limit === null) {
         return; // skip: set MAX_CONCURRENT_MCP_REQUESTS in .env to run
       }
@@ -113,7 +105,6 @@ describe('MCP concurrency limit (load test)', () => {
   test(
     'over limit: threads > MAX_CONCURRENT_MCP_REQUESTS → 200 and 503, no timeouts',
     async () => {
-      if (!serverAvailable) return;
       if (limit === null) {
         return; // skip: set MAX_CONCURRENT_MCP_REQUESTS in .env to run
       }

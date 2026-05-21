@@ -6,7 +6,6 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { waitForHealthCheck } from './health-check.js';
 import {
   getMcpTestBearerToken,
   getTestAuthBaseUrl,
@@ -19,7 +18,6 @@ const BASE_URL = process.env.MCP_URL
   ? process.env.MCP_URL.replace(/\/mcp\/?$/, '').replace(/\/$/, '')
   : getTestAuthBaseUrl().replace(/\/$/, '');
 const MCP_URL = `${BASE_URL}/mcp`;
-const HEALTH_URL = process.env.HEALTH_URL || `${BASE_URL}/health`;
 
 async function buildAuthHeaders(headersInit?: HeadersInit): Promise<Headers> {
   const headers = new Headers(headersInit);
@@ -66,17 +64,10 @@ async function authedFetch(input: URL | RequestInfo, init?: RequestInit): Promis
  */
 
 /**
- * Creates a new MCP client connection with proper health checking
+ * Creates a new MCP client connection
  * @returns Promise that resolves to an McpConnection object
  */
 export async function createMcpConnection() {
-  // Wait for server to be ready before attempting connection
-  await waitForHealthCheck({
-    url: HEALTH_URL,
-    timeoutMs: 60000, // 60 seconds for integration tests
-    intervalMs: 2000   // Check every 2 seconds
-  });
-
   // Refresh password-grant token so it includes optional scopes (e.g. kairos-groups) and matches server OIDC merge.
   if (serverRequiresAuth()) {
     await refreshTestAuthToken();
@@ -110,8 +101,9 @@ export async function createMcpConnection() {
  * Creates a shared MCP connection suitable for multiple test files
  * This is a singleton pattern to avoid multiple connections
  */
-let sharedConnection = null;
-let sharedConnectionPromise = null;
+type McpConnection = Awaited<ReturnType<typeof createMcpConnection>>;
+let sharedConnection: McpConnection | null = null;
+let sharedConnectionPromise: Promise<McpConnection> | null = null;
 
 export async function getSharedMcpConnection() {
   if (sharedConnection) {

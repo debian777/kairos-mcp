@@ -7,27 +7,13 @@
  * well-known discovery must be reachable without credentials.
  */
 
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, serverRequiresAuth } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 
 describe('Protected Resource Metadata (RFC 9728)', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-      serverAvailable = true;
-    } catch {
-      serverAvailable = false;
-      console.warn('Server not available, skipping well-known tests');
-    }
-  }, 60000);
-
   describe('GET /.well-known/oauth-protected-resource (root)', () => {
     test('returns 200 with valid JSON structure', async () => {
-      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/.well-known/oauth-protected-resource`);
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toMatch(/application\/json/);
@@ -88,7 +74,6 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
 
   describe('GET /.well-known/oauth-protected-resource/mcp (path-specific)', () => {
     test('returns 200 with same metadata as root', async () => {
-      expect(serverAvailable).toBe(true);
       const [rootRes, pathRes] = await Promise.all([
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource`),
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource/mcp`)
@@ -105,7 +90,6 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
   const describeWhenAuthRequired = serverRequiresAuth() ? describe : describe.skip;
   describeWhenAuthRequired('MCP auth discovery behavior', () => {
     test('unauthenticated POST /mcp either advertises auth with 401 or allows anonymous discovery', async () => {
-      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/mcp`, {
         method: 'POST',
         headers: {

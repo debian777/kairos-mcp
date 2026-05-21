@@ -1,10 +1,6 @@
-import { API_BASE, apiFetch, ensureApiHealth } from './http-api-test-helpers.js';
+import { API_BASE, apiFetch } from './http-api-test-helpers.js';
 
 describe('HTTP REST API Activate Endpoint', () => {
-  beforeAll(async () => {
-    await ensureApiHealth();
-  }, 60000);
-
   describe('POST /api/activate', () => {
     test('searches for adapter entry layers', async () => {
       expect.hasAssertions();

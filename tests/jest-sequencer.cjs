@@ -7,7 +7,13 @@ const TestSequencer = require('@jest/test-sequencer').default;
 class CustomSequencer extends TestSequencer {
   sort(tests) {
     const v4ActivatePath = path.join(__dirname, 'integration', 'v4-kairos-activate.test.ts');
+    const healthPreflightPath = path.join(__dirname, 'integration', '000-health-preflight.test.ts');
     return [...tests].sort((a, b) => {
+      const aIsHealthPreflight = a.path === healthPreflightPath || a.path.endsWith('000-health-preflight.test.ts');
+      const bIsHealthPreflight = b.path === healthPreflightPath || b.path.endsWith('000-health-preflight.test.ts');
+      if (aIsHealthPreflight && !bIsHealthPreflight) return -1;
+      if (bIsHealthPreflight && !aIsHealthPreflight) return 1;
+
       const aIsTrainOrUpdate = /(train|update)/i.test(a.path) && !/v4-kairos-activate/.test(a.path);
       const bIsTrainOrUpdate = /(train|update)/i.test(b.path) && !/v4-kairos-activate/.test(b.path);
       const aIsV4Activate = a.path === v4ActivatePath || a.path.endsWith('v4-kairos-activate.test.ts');

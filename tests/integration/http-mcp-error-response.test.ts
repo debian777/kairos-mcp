@@ -4,7 +4,6 @@
  * helpful client-facing messages and error_code/retry_hint, never raw "Internal server error".
  */
 
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -18,24 +17,7 @@ function postMcp(body: object) {
 }
 
 describe('MCP 500 error response shape', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-      serverAvailable = true;
-    } catch {
-      serverAvailable = false;
-    }
-  }, 60000);
-
-  function skipIfUnavailable(): boolean {
-    return !serverAvailable;
-  }
-
   test('concurrent POST /mcp: 500 responses have helpful message and error.data', async () => {
-    if (skipIfUnavailable()) return;
-
     const req = (id: number) =>
       postMcp({
         jsonrpc: '2.0',

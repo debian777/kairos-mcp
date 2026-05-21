@@ -1,7 +1,6 @@
 /**
  * MCP Apps discovery: `listOfferingsForUI` is handled in http-mcp-handler (not SDK).
  */
-import { waitForHealthCheck } from '../utils/health-check.js';
 import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
 import {
   KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
@@ -29,20 +28,7 @@ function postMcp(body: object) {
 }
 
 describe('MCP listOfferingsForUI', () => {
-  let serverAvailable = false;
-
-  beforeAll(async () => {
-    try {
-      await waitForHealthCheck({ url: `${BASE_URL}/health`, timeoutMs: 60000, intervalMs: 500 });
-      serverAvailable = true;
-    } catch {
-      serverAvailable = false;
-    }
-  }, 60000);
-
   test('returns spaces, forward, and activate tools plus ui:// resources and embedded prompts', async () => {
-    if (!serverAvailable) return;
-
     const res = await postMcp({
       jsonrpc: '2.0',
       id: 1,
