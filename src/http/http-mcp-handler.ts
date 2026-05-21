@@ -126,7 +126,6 @@ function mcpErrorToHelp(
  * @param memoryStore Store used to create per-request MCP servers
  */
 export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantStore) {
-    // MCP endpoint using StreamableHTTPServerTransport
     app.post('/mcp', async (req, res) => {
         const requestStart = Date.now();
         const requestId = req.body?.id || 'unknown';

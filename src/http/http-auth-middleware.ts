@@ -20,22 +20,19 @@ import {
   AUTH_MODE,
   AUTH_TRUSTED_ISSUERS,
   AUTH_ALLOWED_AUDIENCES,
-  OIDC_GROUPS_ALLOWLIST,
-  OIDC_SCOPES_SUPPORTED
+  OIDC_GROUPS_ALLOWLIST
 } from '../config.js';
 import { applyOidcGroupsAllowlist } from './oidc-profile-claims.js';
 import { validateBearerToken, type AuthPayload } from './bearer-validate.js';
 import { getSpaceContext, runWithSpaceContext, type SpaceContext } from '../utils/tenant-context.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { setWwwAuthenticate } from './http-www-authenticate.js';
+export { setWwwAuthenticate };
 
 export type { AuthPayload };
 
 const SESSION_COOKIE_NAME = 'kairos_session';
 const KNOWN_HTTP_METHODS = new Set<string>(METHODS);
-
-/** Shared remediation hint for MCP/API clients when SSO session or tokens must refresh. */
-export const MCP_SSO_REAUTH_NEXT_STEP =
-  'Open login_url in a browser to complete SSO sign-in when present, then reconnect or restart this MCP connection so the host refreshes cached credentials.';
 
 function jsonInvalidTokenResponse(message: string): Record<string, unknown> {
   const loginUrl = safeCreateOidcLoginUrlForApiResponse();
@@ -43,7 +40,6 @@ function jsonInvalidTokenResponse(message: string): Record<string, unknown> {
     error: 'invalid_token',
     message,
     reauth_required: true,
-    next_step: MCP_SSO_REAUTH_NEXT_STEP,
     ...(loginUrl ? { login_url: loginUrl } : {})
   };
 }
@@ -141,14 +137,6 @@ function hasBearer(req: Request): boolean {
   return getBearerToken(req) !== null;
 }
 
-/** Escape RFC 7230 quoted-string content for WWW-Authenticate (backslashes and DQUOTE). */
-function escapeWwwAuthenticateQuotedValue(value: string): string {
-  return String(value)
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/[\r\n\x00]/g, ' ');
-}
-
 /** True only when the verb is a real HTTP method and GET (avoids odd client verbs in auth branches). */
 function isRecognizedGetRequest(req: Request): boolean {
   const method = req.method;
@@ -164,27 +152,6 @@ function isProtectedPath(path: string): boolean {
     path === '/ui' ||
     path.startsWith('/ui/')
   );
-}
-
-/** Build WWW-Authenticate value. Use error=invalid_token so MCP clients clear stored token and restart OAuth (e.g. after Keycloak session cleanup). */
-function buildWwwAuthenticate(opts?: { error?: 'invalid_token'; error_description?: string }): string {
-  if (!AUTH_CALLBACK_BASE_URL) return '';
-  const resourceMetadataUrl = `${AUTH_CALLBACK_BASE_URL.replace(/\/$/, '')}/.well-known/oauth-protected-resource`;
-  const scopeValue = (OIDC_SCOPES_SUPPORTED || []).join(' ').trim();
-  const parts = [`Bearer realm="mcp"`, `resource_metadata="${resourceMetadataUrl}"`];
-  if (scopeValue) parts.push(`scope="${escapeWwwAuthenticateQuotedValue(scopeValue)}"`);
-  if (opts?.error) {
-    parts.push(`error="${opts.error}"`);
-    if (opts.error_description) {
-      parts.push(`error_description="${escapeWwwAuthenticateQuotedValue(opts.error_description)}"`);
-    }
-  }
-  return parts.join(', ');
-}
-
-export function setWwwAuthenticate(res: Response, opts?: { error?: 'invalid_token'; error_description?: string }): void {
-  const value = buildWwwAuthenticate(opts);
-  if (value) res.setHeader('WWW-Authenticate', value);
 }
 
 declare global {
@@ -203,6 +170,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
   if (req.path === '/auth/callback') {
+    next();
+    return;
+  }
+  if (req.method === 'OPTIONS') {
     next();
     return;
   }

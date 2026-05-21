@@ -918,7 +918,7 @@ def get_trusted_hosts_for_env(env: str) -> list[str]:
     env-specific container IPs and hostnames."""
     base = ["127.0.0.1", "localhost"] + DOCKER_BRIDGE_GATEWAYS
     if env == "dev":
-        base.extend(["keycloak", "app-dev", "host.docker.internal"])
+        base.extend(["keycloak", "app-dev", "host.docker.internal", "github.com"])
         ip = _docker_container_ip_on_network("app-dev")
         if ip:
             base.append(ip)
@@ -978,20 +978,25 @@ def ensure_trusted_hosts(
     components = get_components(
         base_url, realm, token, parent_id, CLIENT_REGISTRATION_POLICY_TYPE
     )
-    trusted = next(
-        (c for c in components if c.get("providerId") == TRUSTED_HOSTS_PROVIDER_ID),
-        None,
-    )
-    if not trusted or not trusted.get("id"):
+    targets = [
+        c
+        for c in components
+        if c.get("providerId") == TRUSTED_HOSTS_PROVIDER_ID
+        and c.get("subType") in ("anonymous", "authenticated")
+        and c.get("id")
+    ]
+    if not targets:
         print(f"WARNING: No Trusted Hosts component in {realm}; skip.", file=sys.stderr)
         return
     trusted_hosts = get_trusted_hosts_for_env(env)
-    config = dict(trusted.get("config") or {})
-    config["host-sending-registration-request-must-match"] = ["true"]
-    config["trusted-hosts"] = trusted_hosts
-    config["client-uris-must-match"] = ["false"]
-    update_component(base_url, realm, trusted["id"], {**trusted, "config": config}, token)
-    print(f"  Trusted hosts {realm}: {trusted_hosts}")
+    for comp in targets:
+        config = dict(comp.get("config") or {})
+        config["host-sending-registration-request-must-match"] = ["false" if env == "dev" else "true"]
+        config["trusted-hosts"] = trusted_hosts
+        config["client-uris-must-match"] = ["true" if env == "dev" else "false"]
+        update_component(base_url, realm, comp["id"], {**comp, "config": config}, token)
+        sub = comp.get("subType") or "?"
+        print(f"  Trusted hosts ({sub}) {realm}: {trusted_hosts}")
 
 
 def ensure_allowed_client_templates(
