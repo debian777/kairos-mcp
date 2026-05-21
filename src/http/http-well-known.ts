@@ -26,6 +26,7 @@ import {
   OIDC_SCOPES_SUPPORTED
 } from '../config.js';
 import { structuredLogger } from '../utils/structured-logger.js';
+import { setupClientRegistrationProxy } from './http-client-registration-proxy.js';
 
 export function buildProtectedResourceMetadata(): Record<string, unknown> {
   const base = AUTH_CALLBACK_BASE_URL.replace(/\/$/, '');
@@ -59,12 +60,33 @@ export function setupWellKnown(app: Express): void {
     );
   }
 
-  const handler = (_req: Request, res: Response) => {
+  const handler = (req: Request, res: Response) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.json(buildProtectedResourceMetadata());
+  };
+
+  const optionsHandler = (req: Request, res: Response) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, MCP-Protocol-Version');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    res.status(204).end();
   };
 
   app.get('/.well-known/oauth-protected-resource', handler);
   app.get('/.well-known/oauth-protected-resource/mcp', handler);
+  app.options('/.well-known/oauth-protected-resource', optionsHandler);
+  app.options('/.well-known/oauth-protected-resource/mcp', optionsHandler);
+
+  setupClientRegistrationProxy(app);
 
   setupAuthorizationServerMetadata(app);
 }
@@ -155,19 +177,44 @@ export function buildAuthorizationServerMetadata(upstream: Record<string, unknow
   // Operators should constrain DCR in Keycloak realm settings if client sprawl is a concern.
 
   metadata['client_id_metadata_document_supported'] = true;
+  const base = AUTH_CALLBACK_BASE_URL?.trim().replace(/\/$/, '');
+  metadata['registration_endpoint'] = base
+    ? `${base}/.well-known/clients-registrations/openid-connect`
+    : '/.well-known/clients-registrations/openid-connect';
 
   return metadata;
 }
 
 function setupAuthorizationServerMetadata(app: Express): void {
-  const handler = async (_req: Request, res: Response) => {
-    const upstream = await fetchUpstreamAuthServerMetadata();
-    if (!upstream) {
-      res.status(502).json({ error: 'authorization_server_unavailable' });
-      return;
+  const handler = async (req: Request, res: Response) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
     }
-    res.json(buildAuthorizationServerMetadata(upstream));
+    const upstream = await fetchUpstreamAuthServerMetadata();
+    // When no upstream auth server is configured (e.g. SIMPLE mode without Keycloak),
+    // return a minimal static metadata document instead of 502 so that clients that
+    // probe /.well-known/openid-configuration for DCR support still receive a valid
+    // 200 response with the local registration_endpoint.
+    res.json(buildAuthorizationServerMetadata(upstream ?? {}));
+  };
+
+  const optionsHandler = (req: Request, res: Response) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, MCP-Protocol-Version');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    res.status(204).end();
   };
 
   app.get('/.well-known/oauth-authorization-server', handler);
+  app.options('/.well-known/oauth-authorization-server', optionsHandler);
+
+  app.get('/.well-known/openid-configuration', handler);
+  app.options('/.well-known/openid-configuration', optionsHandler);
 }

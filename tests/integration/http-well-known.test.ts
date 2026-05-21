@@ -8,12 +8,20 @@
  */
 
 import { getTestAuthBaseUrl, serverRequiresAuth } from '../utils/auth-headers.js';
+import { setupServerCheck } from './cli-commands-shared.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 
 describe('Protected Resource Metadata (RFC 9728)', () => {
+  let serverAvailable = false;
+
+  beforeAll(async () => {
+    serverAvailable = await setupServerCheck();
+  }, 60000);
+
   describe('GET /.well-known/oauth-protected-resource (root)', () => {
     test('returns 200 with valid JSON structure', async () => {
+      expect(serverAvailable).toBe(true);
       const res = await fetch(`${BASE_URL}/.well-known/oauth-protected-resource`);
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toMatch(/application\/json/);
@@ -74,6 +82,7 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
 
   describe('GET /.well-known/oauth-protected-resource/mcp (path-specific)', () => {
     test('returns 200 with same metadata as root', async () => {
+      expect(serverAvailable).toBe(true);
       const [rootRes, pathRes] = await Promise.all([
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource`),
         fetch(`${BASE_URL}/.well-known/oauth-protected-resource/mcp`)
@@ -84,6 +93,26 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
       const rootBody = await rootRes.json();
       const pathBody = await pathRes.json();
       expect(pathBody).toEqual(rootBody);
+    });
+  });
+
+  // This endpoint proxies Keycloak's OpenID configuration. Whether it returns
+  // 200 or 502 depends on whether an upstream auth server is reachable at
+  // runtime — which may differ from the serverRequiresAuth() config flag
+  // (e.g. CI SIMPLE mode still has Keycloak, local simple mode may not).
+  // Skip content assertions; only verify the endpoint is reachable.
+  describe('GET /.well-known/openid-configuration', () => {
+    test('responds (200 with upstream or 502 without)', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/.well-known/openid-configuration`);
+      expect([200, 502]).toContain(res.status);
+      if (res.status === 200) {
+        const json = await res.json();
+        expect(json).toHaveProperty('registration_endpoint');
+        // The server builds registration_endpoint from its internal config (e.g. port 3300),
+        // which may differ from the test's BASE_URL (e.g. port 4300 in CI). Assert path only.
+        expect(json.registration_endpoint).toMatch(/\/.well-known\/clients-registrations\/openid-connect$/);
+      }
     });
   });
 
@@ -106,6 +135,7 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
         expect(wwwAuth).toBeTruthy();
         expect(wwwAuth).toContain('Bearer');
         expect(wwwAuth).toMatch(/resource_metadata="[^"]+\/\.well-known\/oauth-protected-resource"/);
+        expect(wwwAuth).toMatch(/authorization_uri="[^"]+\/realms\/[^/]+\/\.well-known\/openid-configuration"/);
         expect(wwwAuth).toMatch(/scope="/);
         return;
       }
@@ -118,5 +148,108 @@ describe('Protected Resource Metadata (RFC 9728)', () => {
       expect(body.result.tools.length).toBeGreaterThan(0);
     });
 
+    test('OPTIONS /mcp bypasses auth and returns CORS headers', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/mcp`, {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://localhost:6274',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type'
+        }
+      });
+
+      expect(res.status).not.toBe(401);
+      const allowMethods = res.headers.get('access-control-allow-methods');
+      expect(allowMethods).toBeTruthy();
+      expect(allowMethods).toContain('POST');
+      const allowHeaders = res.headers.get('access-control-allow-headers');
+      expect(allowHeaders).toBeTruthy();
+      expect(allowHeaders!.toLowerCase()).toContain('mcp-protocol-version');
+    });
+
+    test('OPTIONS /.well-known/clients-registrations/openid-connect returns 204 for browser preflight', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/.well-known/clients-registrations/openid-connect`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'http://localhost:6274',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type'
+        }
+      });
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:6274');
+      const allowMethods = res.headers.get('access-control-allow-methods');
+      expect(allowMethods).toBeTruthy();
+      expect(allowMethods).toContain('POST');
+    });
+
+    test('OPTIONS /.well-known/oauth-authorization-server returns 204 for browser preflight', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/.well-known/oauth-authorization-server`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'http://localhost:6274',
+          'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'mcp-protocol-version'
+        }
+      });
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:6274');
+      const allowMethods = res.headers.get('access-control-allow-methods');
+      expect(allowMethods).toBeTruthy();
+      expect(allowMethods).toContain('GET');
+    });
+
+    test('OPTIONS /.well-known/openid-configuration returns 204 for browser preflight', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/.well-known/openid-configuration`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'http://localhost:6274',
+          'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'mcp-protocol-version'
+        }
+      });
+
+      expect(res.status).toBe(204);
+      expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:6274');
+      const allowMethods = res.headers.get('access-control-allow-methods');
+      expect(allowMethods).toBeTruthy();
+      expect(allowMethods).toContain('GET');
+    });
+
+    test('WWW-Authenticate header contains authorization_uri matching Figma pattern', async () => {
+      expect(serverAvailable).toBe(true);
+      const res = await fetch(`${BASE_URL}/mcp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream'
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } } })
+      });
+
+      if (res.status === 401) {
+        const wwwAuth = res.headers.get('www-authenticate');
+        expect(wwwAuth).toBeTruthy();
+        if (!wwwAuth) return;
+
+        // Must include authorization_uri pointing to Keycloak OIDC config
+        const authUriMatch = wwwAuth.match(/authorization_uri="([^"]+)"/);
+        expect(authUriMatch).toBeTruthy();
+        const authUri = authUriMatch![1];
+        expect(authUri).toMatch(/\/realms\/[^/]+\/\.well-known\/openid-configuration$/);
+
+        // Must include resource_metadata
+        expect(wwwAuth).toMatch(/resource_metadata="[^"]+\/\.well-known\/oauth-protected-resource"/);
+
+        // Must include scope
+        expect(wwwAuth).toMatch(/scope="[^"]*openid/);
+      }
+    });
   });
 });

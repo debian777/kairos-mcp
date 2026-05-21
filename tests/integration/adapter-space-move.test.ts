@@ -3,15 +3,13 @@
  * MCP, REST API, CLI (--space move-only).
  */
 
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
-  sleepMs
+  sleepMs,
+  type SpaceRow
 } from '../utils/adapter-space-test-helpers.js';
 import {
   assertGroupSpacesWhenAuth,
@@ -27,6 +25,25 @@ import {
 } from './cli-commands-shared.js';
 
 const API_BASE = `${getTestAuthBaseUrl()}/api`;
+
+type AdapterLoc = ReturnType<typeof locationsForAdapterTitle>;
+
+async function waitForSpaceLocations(
+  loadSpacesViaMcp: () => Promise<SpaceRow[]>,
+  title: string,
+  predicate: (loc: AdapterLoc) => boolean,
+  timeoutMs = 60000
+): Promise<AdapterLoc> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const spaces = await loadSpacesViaMcp();
+    const loc = locationsForAdapterTitle(spaces, title);
+    if (predicate(loc)) return loc;
+    await sleepMs(1000);
+  }
+  const spaces = await loadSpacesViaMcp();
+  return locationsForAdapterTitle(spaces, title);
+}
 
 function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
@@ -78,13 +95,16 @@ describe('Adapter space move (personal → group)', () => {
     });
     const adapterUri = trained.items[0].adapter_uri as string;
 
-    await sleepMs(5000);
-    let spaces = await loadSpacesViaMcp();
-    let locBefore = locationsForAdapterTitle(spaces, title);
-    const sourceId = locBefore.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
-    withRawOnFail({ call: trainCall, result: trainRes }, () => {
+    const locBefore = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'personal'),
+      90000
+    );
+    withRawOnFail({ call: trainCall, result: trainRes, locBefore }, () => {
       expect(locBefore.some((l) => l.type === 'personal')).toBe(true);
     });
+    const sourceId = locBefore.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
 
     const tuneCall = {
       name: 'tune',
@@ -97,10 +117,13 @@ describe('Adapter space move (personal → group)', () => {
       expect(tuned.results?.[0]?.status).toBe('updated');
     });
 
-    await sleepMs(3000);
-    spaces = await loadSpacesViaMcp();
-    const locAfter = locationsForAdapterTitle(spaces, title);
-    withRawOnFail({ call: tuneCall, result: tuneRes }, () => {
+    const locAfter = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'group') && !loc.some((l) => l.type === 'personal'),
+      90000
+    );
+    withRawOnFail({ call: tuneCall, result: tuneRes, locAfter }, () => {
       expect(locAfter.some((l) => l.type === 'group')).toBe(true);
       expect(locAfter.some((l) => l.type === 'personal')).toBe(false);
       const groupHit = locAfter.find((l) => l.type === 'group');
@@ -139,9 +162,12 @@ describe('Adapter space move (personal → group)', () => {
     expect(trained.status).toBe('stored');
     const adapterUri = trained.items[0]!.adapter_uri;
 
-    await sleepMs(5000);
-    let spaces = await loadSpacesViaMcp();
-    const beforeLoc = locationsForAdapterTitle(spaces, title);
+    const beforeLoc = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'personal'),
+      90000
+    );
     expect(beforeLoc.some((l) => l.type === 'personal')).toBe(true);
     const sourceId = beforeLoc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
 
@@ -154,9 +180,12 @@ describe('Adapter space move (personal → group)', () => {
     const tuned = (await tu.json()) as { total_updated: number };
     expect(tuned.total_updated).toBeGreaterThanOrEqual(1);
 
-    await sleepMs(3000);
-    spaces = await loadSpacesViaMcp();
-    const locAfter = locationsForAdapterTitle(spaces, title);
+    const locAfter = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'group') && !loc.some((l) => l.type === 'personal'),
+      90000
+    );
     expect(locAfter.some((l) => l.type === 'group')).toBe(true);
     expect(locAfter.some((l) => l.type === 'personal')).toBe(false);
     expect(locAfter.find((l) => l.type === 'group')?.adapterId.toLowerCase()).toBe(sourceId);
@@ -177,42 +206,46 @@ describe('Adapter space move (personal → group)', () => {
     }
     assertGroupSpacesWhenAuth(bundle, serverOk);
     expect.hasAssertions();
-    const { groupSpaceName, loadSpacesViaMcp } = bundle;
+    const { mcp, groupSpaceName, loadSpacesViaMcp } = bundle;
     const title = `SpaceMoveCLI ${Date.now()}`;
-    const dir = mkdtempSync(join(tmpdir(), 'kairos-space-cli-'));
-    const mdPath = join(dir, 'proto.md');
-    try {
-      writeFileSync(mdPath, buildSpaceMoveMarkdown(title), 'utf8');
-      const train = await execAsync(
-        `node ${CLI_PATH} train --url ${BASE_URL} --force --model test-space-move-cli --space personal "${mdPath}"`,
-        { timeout: 60000 }
-      );
-      expect(train.stderr).toBe('');
-      const trained = JSON.parse(train.stdout) as { items: Array<{ adapter_uri: string }> };
-      const adapterUri = trained.items[0]!.adapter_uri;
+    const trainCall = {
+      name: 'train',
+      arguments: { content: buildSpaceMoveMarkdown(title), llm_model_id: 'test-space-move-cli', space: 'personal', force_update: true }
+    };
+    const trainRes = await mcp.client.callTool(trainCall);
+    const trained = parseMcpJson(trainRes, 'train-move-cli');
+    withRawOnFail({ call: trainCall, result: trainRes }, () => {
+      expect(trained.status).toBe('stored');
+      expect(Array.isArray(trained.items)).toBe(true);
+      expect(trained.items.length).toBeGreaterThan(0);
+    });
+    const adapterUri = trained.items[0].adapter_uri as string;
 
-      await sleepMs(5000);
-      let spaces = await loadSpacesViaMcp();
-      const beforeLoc = locationsForAdapterTitle(spaces, title);
-      expect(beforeLoc.some((l) => l.type === 'personal')).toBe(true);
-      const sourceId = beforeLoc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
+    const beforeLoc = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'personal'),
+      90000
+    );
+    expect(beforeLoc.some((l) => l.type === 'personal')).toBe(true);
+    const sourceId = beforeLoc.find((l) => l.type === 'personal')!.adapterId.toLowerCase();
 
-      const tuneOut = await execAsync(
-        `node ${CLI_PATH} tune --url ${BASE_URL} --space ${JSON.stringify(groupSpaceName!)} ${JSON.stringify(adapterUri)}`,
-        { timeout: 60000 }
-      );
-      expect(tuneOut.stderr).toBe('');
-      const tuned = JSON.parse(tuneOut.stdout) as { total_updated: number };
-      expect(tuned.total_updated).toBeGreaterThanOrEqual(1);
+    const tuneOut = await execAsync(
+      `node ${CLI_PATH} tune --url ${BASE_URL} --space ${JSON.stringify(groupSpaceName!)} ${JSON.stringify(adapterUri)}`,
+      { timeout: 60000 }
+    );
+    expect(tuneOut.stderr).toBe('');
+    const tuned = JSON.parse(tuneOut.stdout) as { total_updated: number };
+    expect(tuned.total_updated).toBeGreaterThanOrEqual(1);
 
-      await sleepMs(3000);
-      spaces = await loadSpacesViaMcp();
-      const locAfter = locationsForAdapterTitle(spaces, title);
-      expect(locAfter.some((l) => l.type === 'group')).toBe(true);
-      expect(locAfter.some((l) => l.type === 'personal')).toBe(false);
-      expect(locAfter.find((l) => l.type === 'group')?.adapterId.toLowerCase()).toBe(sourceId);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const locAfter = await waitForSpaceLocations(
+      loadSpacesViaMcp,
+      title,
+      (loc) => loc.some((l) => l.type === 'group') && !loc.some((l) => l.type === 'personal'),
+      90000
+    );
+    expect(locAfter.some((l) => l.type === 'group')).toBe(true);
+    expect(locAfter.some((l) => l.type === 'personal')).toBe(false);
+    expect(locAfter.find((l) => l.type === 'group')?.adapterId.toLowerCase()).toBe(sourceId);
   }, 180000);
 });

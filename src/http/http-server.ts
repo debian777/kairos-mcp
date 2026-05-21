@@ -10,6 +10,7 @@ import { setupAuthCallback } from './http-auth-callback.js';
 import { setupHealthRoutes } from './http-health-routes.js';
 import { setupWellKnown } from './http-well-known.js';
 import { setupApiRoutes } from './http-api-routes.js';
+import { setupMcpCorsRoutes } from './http-mcp-cors.js';
 import { setupMcpRoutes } from './http-mcp-handler.js';
 import { setupUiStatic } from './http-ui-static.js';
 import { setupExportDownloadRoutes } from './http-export-download-routes.js';
@@ -28,6 +29,8 @@ export function startHttpServer(port: number, memoryStore: MemoryQdrantStore) {
     // Well-known must be registered before auth middleware so RFC 9728 discovery
     // is reachable without credentials (MCP clients call it before authenticating).
     setupWellKnown(app);
+
+    setupMcpCorsRoutes(app);
 
     app.use(authMiddleware);
 
