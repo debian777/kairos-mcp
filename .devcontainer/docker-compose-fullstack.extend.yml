@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Development service (same as simple, but with fullstack dependencies)
+  app-dev:
+    build:
+      context: ..
+      dockerfile: Dockerfile.dev
+      target: production
+    volumes:
+      - ..:/workspaces:cached
+      - /workspaces/node_modules
+      - dev-logs:/app/logs
+      - dev-storage:/app/storage
+    working_dir: /workspaces
+    command: sleep infinity
+    depends_on:
+      qdrant:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - kairos-network
+    env_file:
+      - ../.env
+
+volumes:
+  dev-logs:
+  dev-storage:
