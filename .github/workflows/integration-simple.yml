@@ -12,10 +12,80 @@ on:
 
 # No static/UI job here: TypeScript, Knip, and UI tests run in Integration (integration.yml) as
 # verify-ui-primary / verify-ui-advisory (Node 26 Current, advisory). This workflow only builds tgz and runs simple-mode integration.
+#
+# Path filtering (Pattern B): the `changes` job inspects modified paths and sets `code=true` only when
+# files that affect build/test outcomes are touched. Heavy jobs gate on `needs.changes.outputs.code == 'true'`,
+# so docs-only / wiki-only / helm-only PRs skip the expensive work while `integration-simple-pass`
+# still reports a successful status (required-check compatible).
+#
+# Forced run (code=true regardless of paths) for: workflow_dispatch, merge_group, tag pushes,
+# and pushes to `ci/**` branches. PR / push-to-main use the path filter.
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.combine.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # Files that can affect build, lint, or simple-mode integration outcomes.
+          # Keep in sync with integration.yml (Pattern B) when updating.
+          filters: |
+            code:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'skills/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'jest.config.js'
+              - 'vitest.config.ts'
+              - 'vite.config.ts'
+              - 'postcss.config.js'
+              - 'eslint.config.cjs'
+              - 'eslint/**'
+              - 'knip.config.ts'
+              - 'Dockerfile*'
+              - 'compose.yaml'
+              - '.env.dev_simple'
+              - '.github/workflows/integration-simple.yml'
+
+      - name: Combine with forced-run events
+        id: combine
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          FILTER_CODE: ${{ steps.filter.outputs.code }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] \
+             || [ "$EVENT_NAME" = "merge_group" ] \
+             || [[ "$REF" == refs/tags/* ]] \
+             || [[ "$REF" == refs/heads/ci/* ]]; then
+            echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Filter result: code=$FILTER_CODE"
+            echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+          fi
+
   build-primary:
     name: Build npm package (tgz, Node 24)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -108,6 +178,8 @@ jobs:
 
   build-advisory:
     name: Build npm package (tgz, Node 26, Current, advisory)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -137,7 +209,8 @@ jobs:
 
   verify-integration-simple-primary:
     name: Infra + dev deploy + integration tests (SIMPLE mode, Node 24)
-    needs: [build-primary]
+    needs: [changes, build-primary]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -275,7 +348,8 @@ jobs:
 
   verify-integration-simple-advisory:
     name: Infra + dev deploy + integration tests (SIMPLE mode, Node 26, Current, advisory)
-    needs: [build-advisory]
+    needs: [changes, build-advisory]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
 
@@ -413,15 +487,36 @@ jobs:
         run: npm run qdrant:binary:stop
 
   # Gates only on Node 24 jobs; advisory Node 26 job is not in needs.
+  # When `changes.code == 'false'` (docs-only / wiki / helm PR), the heavy jobs are skipped
+  # and this gate passes immediately so required status checks still report success.
   integration-simple-pass:
     name: Integration simple workflow passed
-    needs: [build-primary, verify-integration-simple-primary]
+    needs: [changes, build-primary, verify-integration-simple-primary]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
+        env:
+          CHANGES_CODE: ${{ needs.changes.outputs.code }}
+          BUILD_PRIMARY: ${{ needs.build-primary.result }}
+          VERIFY_PRIMARY: ${{ needs.verify-integration-simple-primary.result }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
         run: |
-          echo "build-primary=${{ needs.build-primary.result }} verify-integration-simple-primary=${{ needs.verify-integration-simple-primary.result }}"
-          test "${{ needs.build-primary.result }}" = "success"
-          test "${{ needs.verify-integration-simple-primary.result }}" = "success"
+          set -euo pipefail
+          echo "changes.result=$CHANGES_RESULT changes.code=$CHANGES_CODE"
+          echo "build-primary=$BUILD_PRIMARY verify-integration-simple-primary=$VERIFY_PRIMARY"
+
+          # Fail fast if the changes job itself broke.
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "::error::changes job did not succeed (result=$CHANGES_RESULT)"
+            exit 1
+          fi
+
+          if [ "$CHANGES_CODE" != "true" ]; then
+            echo "No relevant code changes detected — skipping simple integration is OK."
+            exit 0
+          fi
+
+          test "$BUILD_PRIMARY" = "success"
+          test "$VERIFY_PRIMARY" = "success"
           echo "All simple integration jobs passed."
