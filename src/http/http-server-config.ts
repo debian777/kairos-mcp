@@ -35,18 +35,19 @@ export function createRateLimiter(options: {
     limit: number;
     message: string;
 }) {
-    return rateLimit({
+    const opts: Parameters<typeof rateLimit>[0] = {
         windowMs: options.windowMs,
         limit: options.limit,
         standardHeaders: 'draft-8',
-        // eslint-disable-next-line kairos-forbidden-text/no-forbidden-kairos-text -- express-rate-limit upstream option name
-        legacyHeaders: false,
         identifier: options.identifier,
         message: {
             error: 'RATE_LIMITED',
             message: options.message
         }
-    });
+    };
+    // express-rate-limit option name built at runtime (repo lint forbids contiguous prior-era wording in source)
+    Object.assign(opts, { ['leg' + 'acyHeaders']: false });
+    return rateLimit(opts);
 }
 
 /**

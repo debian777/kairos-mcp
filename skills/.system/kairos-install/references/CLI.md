@@ -29,12 +29,11 @@ Transport resolution:
 2. **`TRANSPORT_TYPE`** in the environment
 3. **Default `stdio`** when neither is set (only for this command; other CLI commands ignore this default)
 
-Main HTTP listener port is resolved as:
+Main HTTP listener port when **`TRANSPORT_TYPE=http`** (UI, REST, `/mcp`) is resolved as:
 
-1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** in the shared CLI config as `http://localhost:<n>`.
+1. **`--server-port <n>`** — also sets **`SERVER_PORT`** for the spawned server and writes **`defaultUrl`** to the shared CLI config as `http://localhost:<n>` (so `kairos login` and other commands target the same port).
 2. **`SERVER_PORT`** in the environment (set in `.env*`)
-
-Examples:
+3. Otherwise the child inherits whatever your env files define.
 
 ```bash
 kairos serve
@@ -44,7 +43,6 @@ kairos serve --transport http --server-port 4300
 TRANSPORT_TYPE=http kairos serve
 TRANSPORT_TYPE=http kairos serve --transport stdio
 kairos serve --transport http
-npx -y @debian777/kairos-mcp serve --transport stdio
 ```
 
 Equivalent:
