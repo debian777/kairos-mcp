@@ -1,14 +1,20 @@
 /**
- * Load .env into process.env before any tests run.
- * Ensures the test process sees the same env as the server (deploy-run-env.sh sources
- * the same file). Run before dotenv/config so ENV-specific file wins.
- * Fixes CI/local cases where Jest workers or globalSetup would otherwise miss vars.
+ * Environment loader stub.
+ * 
+ * Previously loaded .env files via dotenv/config, but this was redundant because:
+ * - Jest's setupFiles runs before EACH test file (85+ times for integration tests)
+ * - globalSetup (tests/global-setup-auth.ts) already loads env vars ONCE before all tests
+ * - Jest workers inherit process.env from globalSetup
+ * 
+ * This file is kept in setupFiles to preserve the existing Jest configuration structure.
+ * The normalizeRedisUrl helper is retained for potential use by setup.ts if needed.
  */
-import { config } from 'dotenv';
-import { existsSync } from 'fs';
-import { join } from 'path';
 
-function normalizeRedisUrl(rawUrl: string | undefined, rawPassword: string | undefined): string {
+/**
+ * Normalize Redis URL by embedding password if not already present.
+ * Kept for reference; global-setup-auth.ts now handles this during initial env load.
+ */
+export function normalizeRedisUrl(rawUrl: string | undefined, rawPassword: string | undefined): string {
   const url = (rawUrl || '').trim();
   const password = (rawPassword || '').trim();
   if (!url || !password) return url;
@@ -24,22 +30,5 @@ function normalizeRedisUrl(rawUrl: string | undefined, rawPassword: string | und
   }
 }
 
-const env = process.env.ENV;
-const root = process.cwd();
-
-if (env) {
-  const envFile = join(root, `.env.${env}`);
-  if (existsSync(envFile)) {
-    config({ path: envFile, override: false });
-  }
-}
-
-const baseEnvFile = join(root, '.env');
-if (existsSync(baseEnvFile)) {
-  config({ path: baseEnvFile, override: false });
-}
-
-const normalizedRedisUrl = normalizeRedisUrl(process.env.REDIS_URL, process.env.REDIS_PASSWORD);
-if (normalizedRedisUrl) {
-  process.env.REDIS_URL = normalizedRedisUrl;
-}
+// No-op: environment is now loaded once by globalSetup (tests/global-setup-auth.ts)
+// This prevents 85+ redundant dotenv log messages during integration test runs.
