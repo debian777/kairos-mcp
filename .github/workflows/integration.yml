@@ -24,9 +24,79 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+# Path filtering (Pattern B): the `changes` job inspects modified paths and sets `code=true` only when
+# files that affect build/test outcomes are touched. Heavy jobs gate on `needs.changes.outputs.code == 'true'`,
+# so docs-only / wiki-only / helm-only PRs skip the expensive work while `integration-pass`
+# still reports a successful status (required-check compatible).
+#
+# Forced run (code=true regardless of paths) for: workflow_dispatch, merge_group, tag pushes,
+# and pushes to `ci/**` branches.
+
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.combine.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # Files that can affect build, lint, or auth-mode integration outcomes.
+          # Keep in sync with integration-simple.yml (Pattern B) when updating.
+          filters: |
+            code:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'skills/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'jest.config.js'
+              - 'vitest.config.ts'
+              - 'vite.config.ts'
+              - 'postcss.config.js'
+              - 'eslint.config.cjs'
+              - 'eslint/**'
+              - 'knip.config.ts'
+              - 'Dockerfile*'
+              - 'compose.yaml'
+              - '.trivyignore'
+              - '.github/workflows/integration.yml'
+
+      - name: Combine with forced-run events
+        id: combine
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          FILTER_CODE: ${{ steps.filter.outputs.code }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] \
+             || [ "$EVENT_NAME" = "merge_group" ] \
+             || [[ "$REF" == refs/tags/* ]] \
+             || [[ "$REF" == refs/heads/ci/* ]]; then
+            echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Filter result: code=$FILTER_CODE"
+            echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+          fi
+
   build-primary:
     name: Build npm package (tgz, Node 24)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -122,6 +192,8 @@ jobs:
 
   build-advisory:
     name: Build npm package (tgz, Node 26, advisory)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -154,6 +226,8 @@ jobs:
 
   verify-ui-primary:
     name: Static checks + UI tests (Node 24)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -206,6 +280,8 @@ jobs:
 
   verify-ui-advisory:
     name: Static checks + UI tests (Node 26, Current, advisory)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
 
@@ -259,7 +335,8 @@ jobs:
 
   verify-integration-primary:
     name: Infra + dev deploy + integration tests (AUTH on, Node 24)
-    needs: [build-primary]
+    needs: [changes, build-primary]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -416,7 +493,8 @@ jobs:
 
   verify-integration-advisory:
     name: Infra + dev deploy + integration tests (AUTH on, Node 26, Current, advisory)
-    needs: [build-advisory]
+    needs: [changes, build-advisory]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
 
@@ -572,7 +650,8 @@ jobs:
     # Docker image FROM is single-Node (24-alpine) — verify-docker is intentionally non-matrix and
     # downloads the Node 24 tgz only.
     name: Release-equivalent Docker image + Trivy
-    needs: [build-primary]
+    needs: [changes, build-primary]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -613,17 +692,40 @@ jobs:
   # Merge gate: Node 24 primary jobs only (build, UI/static, integration, Docker). Node 26
   # advisory jobs (build-advisory, verify-ui-advisory, verify-integration-advisory) are omitted
   # from needs: so they cannot fail this check or block PR merge.
+  # When `changes.code == 'false'` (docs-only / wiki / helm PR), the heavy jobs are skipped
+  # and this gate passes immediately so required status checks still report success.
   integration-pass:
     name: Integration workflow passed
-    needs: [build-primary, verify-ui-primary, verify-integration-primary, verify-docker]
+    needs: [changes, build-primary, verify-ui-primary, verify-integration-primary, verify-docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
+        env:
+          CHANGES_CODE: ${{ needs.changes.outputs.code }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BUILD_PRIMARY: ${{ needs.build-primary.result }}
+          VERIFY_UI: ${{ needs.verify-ui-primary.result }}
+          VERIFY_INTEGRATION: ${{ needs.verify-integration-primary.result }}
+          VERIFY_DOCKER: ${{ needs.verify-docker.result }}
         run: |
-          echo "build-primary=${{ needs.build-primary.result }} verify-ui-primary=${{ needs.verify-ui-primary.result }} verify-integration-primary=${{ needs.verify-integration-primary.result }} verify-docker=${{ needs.verify-docker.result }}"
-          test "${{ needs.build-primary.result }}" = "success"
-          test "${{ needs.verify-ui-primary.result }}" = "success"
-          test "${{ needs.verify-integration-primary.result }}" = "success"
-          test "${{ needs.verify-docker.result }}" = "success"
+          set -euo pipefail
+          echo "changes.result=$CHANGES_RESULT changes.code=$CHANGES_CODE"
+          echo "build-primary=$BUILD_PRIMARY verify-ui-primary=$VERIFY_UI verify-integration-primary=$VERIFY_INTEGRATION verify-docker=$VERIFY_DOCKER"
+
+          # Fail fast if the changes job itself broke.
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "::error::changes job did not succeed (result=$CHANGES_RESULT)"
+            exit 1
+          fi
+
+          if [ "$CHANGES_CODE" != "true" ]; then
+            echo "No relevant code changes detected — skipping integration is OK."
+            exit 0
+          fi
+
+          test "$BUILD_PRIMARY" = "success"
+          test "$VERIFY_UI" = "success"
+          test "$VERIFY_INTEGRATION" = "success"
+          test "$VERIFY_DOCKER" = "success"
           echo "All integration jobs passed."
