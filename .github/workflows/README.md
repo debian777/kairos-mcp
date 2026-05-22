@@ -150,6 +150,14 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Caching:** **`verify-ui-primary`** uses the same **`~/.cache/ms-playwright`** key as **`verify-integration-primary`** / **`verify-integration-advisory`** (lockfile hash only). **`verify-ui-advisory`** uses a **Node-version suffix** on the Playwright cache key so the advisory runner does not contend with the Node 24 primary cache. Integration verify jobs restore/save **Docker infra** images (`compose.yaml` hash).
 
+### Path-filter gating (Pattern B)
+
+Both **`integration.yml`** and **`integration-simple.yml`** prefix their job graph with a lightweight **`changes`** job that uses [`dorny/paths-filter@v3`](https://github.com/dorny/paths-filter) to set `code=true` only when files that can affect build/test outcomes are touched. Heavy jobs (build, verify-ui, verify-integration, verify-docker) gate on `needs.changes.outputs.code == 'true'`, so docs-only / wiki-only / helm-only PRs skip the expensive matrix while the gate jobs (**Integration workflow passed**, **Integration simple workflow passed**) still report success and satisfy required-status-check branch protection.
+
+**Forced run** (`code=true` regardless of paths) for: `workflow_dispatch`, `merge_group`, tag pushes (`refs/tags/*`), and pushes to `ci/**` branches. The forcing logic lives in the `Combine with forced-run events` step of the `changes` job.
+
+When adding new build inputs, update the `code:` filter list in **both** workflow YAMLs (they are kept intentionally in sync). The full filter list covers `src/**`, `tests/**`, `scripts/**`, `skills/**`, root config (`package.json`, `package-lock.json`, `tsconfig*.json`, `jest.config.js`, `vitest.config.ts`, `vite.config.ts`, `postcss.config.js`, `eslint.config.cjs`, `eslint/**`, `knip.config.ts`), container files (`Dockerfile*`, `compose.yaml`), `.trivyignore`, the workflow's own YAML, and `.env.dev_simple` for the simple variant.
+
 **Note:** Primary integration verify cannot start until **`build-primary`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build wall clock plus later steps.
 
 **Job summary:** Most steps append a **Vitest-style** block to `$GITHUB_STEP_SUMMARY` (`##` title, `### Summary`, ✅/❌ bullets) via `scripts/ci-github-step-summary.mjs`. The parallel checks step appends tsc and Knip summaries after all three commands finish. **Vitest** adds its own “Vitest Test Report” when `CI=true` (`vitest.config.ts`). **Jest** integration tests append “Jest integration tests” via `tests/reporters/jest-github-summary-reporter.cjs` when `GITHUB_STEP_SUMMARY` is set (`scripts/deploy-run-env.sh`).
