@@ -520,12 +520,12 @@ test() {
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
             declare -a jest_args=()
-            jest_args+=(--runInBand --detectOpenHandles --testTimeout=30000)
+            jest_args+=(--maxWorkers=10 --detectOpenHandles --testTimeout=30000)
             # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
             if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
                 jest_args+=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
             fi
-            # Serial tests (--runInBand): one MCP server; extra Jest workers did not improve wall time and caused queueing unless MAX_CONCURRENT_MCP_REQUESTS is high.
+            # Parallel tests (--maxWorkers=10): requires MAX_CONCURRENT_MCP_REQUESTS high enough to avoid queueing.
             # deploy - now need to run manually: npm run dev:deploy
             if [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag "${jest_args[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"

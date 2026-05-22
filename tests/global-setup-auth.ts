@@ -151,13 +151,36 @@ function cleanStaleAuthState(root: string): void {
   }
 }
 
+function normalizeRedisUrl(rawUrl: string | undefined, rawPassword: string | undefined): string {
+  const url = (rawUrl || '').trim();
+  const password = (rawPassword || '').trim();
+  if (!url || !password) return url;
+  try {
+    const parsed = new URL(url);
+    if ((parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') || parsed.username || parsed.password) {
+      return url;
+    }
+    parsed.password = password;
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function loadEnv(): void {
   const root = process.cwd();
-  const opts = { override: true };
+  const opts = { override: false };
   const env = process.env.ENV || 'dev';
   const envFile = join(root, `.env.${env}`);
-  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  // Load .env.${ENV} first so ENV-specific file wins, then .env as base
   if (existsSync(envFile)) config({ path: envFile, ...opts });
+  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  
+  // Normalize Redis URL with password if available
+  const normalizedRedisUrl = normalizeRedisUrl(process.env.REDIS_URL, process.env.REDIS_PASSWORD);
+  if (normalizedRedisUrl) {
+    process.env.REDIS_URL = normalizedRedisUrl;
+  }
 }
 
 /** Run scripts/deploy-configure-keycloak-realms.py so realm and kairos-cli client exist (required for CLI auth E2E). */
