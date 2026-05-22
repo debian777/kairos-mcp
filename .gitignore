@@ -49,7 +49,6 @@ storybook-static/
 .cursor/plans
 .cursor/viewports/
 .cursor/rules/version-bump-policy.mdc
-.trae/
 *.swp
 *.swo
 *~
@@ -184,11 +183,6 @@ docker-compose.override.yml
 # Helm chart dependencies (run: helm dependency update in helm/kairos-mcp)
 helm/kairos-mcp/charts/*.tgz
 
-# Helm environment-specific values
-helm/values.prelive-*.yaml
-helm/helm-prelive-*.sh
-helm/kairos-mcp/files/*prelive*.json
-
 # Terraform
 *.tfstate
 *.tfstate.*
@@ -249,4 +243,8 @@ data/
 snapshots
 .cursor/TODO.md
 .kairos-work/
+.kairos/
+.trae/
 node_modules
+.kairos/
+.trae/

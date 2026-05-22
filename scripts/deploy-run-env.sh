@@ -617,7 +617,6 @@ test() {
             else
                 MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             fi
-            fi
             ;;
         prod)
             print_warning "Tests are not run against prod from this script."
