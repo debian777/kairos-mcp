@@ -448,6 +448,17 @@ jobs:
           rm -rf dist
           cp -R node_modules/@debian777/kairos-mcp/dist ./dist
 
+      - name: Restore Qdrant test snapshot cache
+        uses: actions/cache/restore@v5
+        id: qdrant-snapshot-cache
+        with:
+          path: |
+            .local/qdrant-snapshot/kairos_ci.snapshot
+            .local/qdrant-snapshot/kairos_ci_traces.snapshot
+          key: ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'scripts/import-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
+          restore-keys: |
+            ${{ runner.os }}-qdrant-snapshot-
+
       - name: Start app (from installed package)
         env:
           HEALTH_CHECK_ATTEMPTS: 15
@@ -463,6 +474,8 @@ jobs:
           done
 
       - name: Run auth integration test
+        env:
+          CI: "true"
         run: npm run dev:test
 
       - name: Show test failure
