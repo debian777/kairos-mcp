@@ -110,21 +110,29 @@ call_mcp_tool() {
   echo "${response}"
 }
 
-# Train AI_CODING_RULES adapter (used by most tests)
-log_info "Training AI_CODING_RULES adapter..."
-MARKDOWN_CONTENT=$(cat "${ROOT_DIR}/tests/test-data/AI_CODING_RULES.md" | python3 -c 'import sys, json; print(json.dumps(sys.stdin.read()))')
+# Train AI_CODING_RULES adapter using KAIROS CLI (handles auth automatically)
+log_info "Training AI_CODING_RULES adapter via CLI..."
 
-TRAIN_RESPONSE=$(call_mcp_tool "train" "{
-  \"content\": ${MARKDOWN_CONTENT},
-  \"llm_model_id\": \"test-ai-coding-rules\",
-  \"force_update\": true
-}")
+# Create temporary directory with test adapter markdown
+TEMP_DIR=$(mktemp -d)
+cp "${ROOT_DIR}/tests/test-data/AI_CODING_RULES.md" "${TEMP_DIR}/"
 
-if echo "${TRAIN_RESPONSE}" | grep -q '"status".*"stored"'; then
+log_info "Training from: ${TEMP_DIR}"
+log_info "Base URL: ${APP_URL}"
+
+# Train using KAIROS CLI (uses stored auth from kairos login)
+TRAIN_OUTPUT=$(node "${ROOT_DIR}/dist/cli/index.js" train --url "${APP_URL}" --force "${TEMP_DIR}" 2>&1)
+TRAIN_EXIT=$?
+
+# Cleanup temp dir
+rm -rf "${TEMP_DIR}"
+
+if [ ${TRAIN_EXIT} -eq 0 ] && echo "${TRAIN_OUTPUT}" | grep -q '"status".*"stored"'; then
   log_success "AI_CODING_RULES adapter trained"
+  echo "${TRAIN_OUTPUT}" | tail -3
 else
   log_error "Failed to train AI_CODING_RULES adapter"
-  echo "${TRAIN_RESPONSE}" | python3 -m json.tool || echo "${TRAIN_RESPONSE}"
+  echo "${TRAIN_OUTPUT}"
   exit 1
 fi
 
