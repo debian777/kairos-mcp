@@ -562,13 +562,29 @@ test() {
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
             declare -a jest_args=()
-            jest_args+=(--maxWorkers=10 --detectOpenHandles --testTimeout=30000)
+            
+            # Auto-detect CPU count and set workers to ceil(cpus/2)
+            # macOS: sysctl -n hw.ncpu, Linux: nproc
+            if command -v sysctl >/dev/null 2>&1; then
+                cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+            elif command -v nproc >/dev/null 2>&1; then
+                cpu_count=$(nproc 2>/dev/null || echo 4)
+            else
+                cpu_count=4  # fallback
+            fi
+            # Calculate ceil(cpus/2) using integer math: (cpus + 1) / 2
+            max_workers=$(( (cpu_count + 1) / 2 ))
+            # Cap at 20 workers max, min 2 workers
+            [ "$max_workers" -lt 2 ] && max_workers=2
+            [ "$max_workers" -gt 20 ] && max_workers=20
+            
+            print_info "Detected ${cpu_count} CPUs, using ${max_workers} parallel test workers"
+            jest_args+=(--maxWorkers=${max_workers} --detectOpenHandles --testTimeout=30000)
             # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
             if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
                 jest_args+=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
             fi
-            # Parallel tests (--maxWorkers=10): requires MAX_CONCURRENT_MCP_REQUESTS high enough to avoid queueing.
-            # deploy - now need to run manually: npm run dev:deploy
+            # Parallel tests: auto-detected workers, requires MAX_CONCURRENT_MCP_REQUESTS high enough to avoid queueing.
             if [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag "${jest_args[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
