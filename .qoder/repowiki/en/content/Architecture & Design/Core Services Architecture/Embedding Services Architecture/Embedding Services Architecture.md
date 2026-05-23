@@ -19,6 +19,15 @@
 - [http-health-routes.ts](file://src/http/http-health-routes.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Enhanced provider abstraction documentation with comprehensive fallback mechanisms
+- Expanded configuration management coverage including environment variable precedence
+- Added detailed health monitoring and anomaly detection sections
+- Updated BM25 tokenizer integration with hybrid search capabilities
+- Improved audit trail system documentation with structured logging
+- Enhanced Qdrant integration documentation with vector management
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -35,7 +44,7 @@ This document describes the KAIROS MCP embedding services layer, focusing on the
 
 ## Project Structure
 The embedding subsystem is organized around a cohesive set of modules:
-- Provider abstraction and selection logic
+- Provider abstraction and selection logic with automatic fallback
 - Health checks and anomaly detection
 - BM25 tokenizer for sparse vectors
 - Audit logging and metrics
@@ -416,7 +425,7 @@ QMETH --> QVT
 - Prefer batch embedding for throughput improvements.
 - Monitor embedding vector sizes and adjust models accordingly.
 - Use hybrid search to balance dense and sparse retrieval for better recall.
-- Leverage Qdrant’s named vectors and rescore parameters for efficient similarity search.
+- Leverage Qdrant's named vectors and rescore parameters for efficient similarity search.
 - Apply anomaly detection thresholds to proactively identify performance regressions.
 
 ## Troubleshooting Guide

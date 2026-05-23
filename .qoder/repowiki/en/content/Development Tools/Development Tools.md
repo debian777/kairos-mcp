@@ -18,14 +18,18 @@
 - [scripts/ci-check-trivyignore-expiry.py](file://scripts/ci-check-trivyignore-expiry.py)
 - [scripts/deploy-run-env.sh](file://scripts/deploy-run-env.sh)
 - [scripts/dev-node-use.sh](file://scripts/dev-node-use.sh)
+- [scripts/seed-test-snapshot.sh](file://scripts/seed-test-snapshot.sh)
+- [scripts/import-test-snapshot.sh](file://scripts/import-test-snapshot.sh)
 - [knip.config.ts](file://knip.config.ts)
 - [renovate.json](file://renovate.json)
 </cite>
 
 ## Update Summary
 **Changes Made**
+- Added comprehensive documentation for new Qdrant snapshot management system
+- Updated deployment environment section to reflect CI cache integration with snapshot automation
+- Enhanced testing workflow documentation with automatic snapshot restoration
 - Updated ESLint configuration section to reflect the addition of `.qoder/**` to global ignore patterns
-- Enhanced developer experience documentation to explain the exclusion of auto-generated development tool files from linting scrutiny
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -52,6 +56,7 @@ The repository is a monorepo-style Node.js project with:
 - ESLint flat config with custom plugins and rules
 - Knip configuration for unused dependency detection
 - Renovate configuration for automated dependency updates
+- **New**: Qdrant snapshot management system for CI/local test caching
 
 ```mermaid
 graph TB
@@ -75,9 +80,11 @@ end
 subgraph "Scripts"
 BuildDocs["scripts/build-embed-docs.ts<br/>embed docs generator"]
 BuildEnv["scripts/build-vite-ui-env-define.ts<br/>UI env define"]
-EnvSh["scripts/deploy-run-env.sh<br/>dev/prod lifecycle"]
+EnvSh["scripts/deploy-run-env.sh<br/>dev/prod lifecycle + snapshot integration"]
 DevNode["scripts/dev-node-use.sh<br/>Node version switcher"]
 TrivyExpiry["scripts/ci-check-trivyignore-expiry.py<br/>expiry validator"]
+SeedSnap["scripts/seed-test-snapshot.sh<br/>Qdrant snapshot seed"]
+ImportSnap["scripts/import-test-snapshot.sh<br/>Qdrant snapshot import"]
 end
 Pkg --> TS
 Pkg --> ViteCfg
@@ -96,11 +103,13 @@ ViteCfg --> BuildEnv
 Pkg --> EnvSh
 Pkg --> DevNode
 Pkg --> TrivyExpiry
+EnvSh --> SeedSnap
+EnvSh --> ImportSnap
 ```
 
 **Diagram sources**
 - [package.json:38-116](file://package.json#L38-L116)
-- [tsconfig.json:1-53](file://tsconfig.json#L1-L53)
+- [tsconfig.json:1-53](file://tsconfig.json#L1-53)
 - [vite.config.ts:1-44](file://vite.config.ts#L1-L44)
 - [eslint.config.cjs:1-14](file://eslint.config.cjs#L1-L14)
 - [eslint/flat-config.cjs:1-508](file://eslint/flat-config.cjs#L1-L508)
@@ -114,12 +123,14 @@ Pkg --> TrivyExpiry
 - [.trivyignore:1-8](file://.trivyignore#L1-L8)
 - [scripts/build-embed-docs.ts:1-330](file://scripts/build-embed-docs.ts#L1-L330)
 - [scripts/build-vite-ui-env-define.ts:1-24](file://scripts/build-vite-ui-env-define.ts#L1-L24)
-- [scripts/deploy-run-env.sh:1-761](file://scripts/deploy-run-env.sh#L1-L761)
+- [scripts/deploy-run-env.sh:1-819](file://scripts/deploy-run-env.sh#L1-L819)
 - [scripts/dev-node-use.sh:1-26](file://scripts/dev-node-use.sh#L1-L26)
 - [scripts/ci-check-trivyignore-expiry.py:1-87](file://scripts/ci-check-trivyignore-expiry.py#L1-L87)
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
 
 **Section sources**
-- [package.json:1-195](file://package.json#L1-L195)
+- [package.json:1-197](file://package.json#L1-L197)
 - [tsconfig.json:1-53](file://tsconfig.json#L1-L53)
 - [vite.config.ts:1-44](file://vite.config.ts#L1-L44)
 - [eslint.config.cjs:1-14](file://eslint.config.cjs#L1-L14)
@@ -134,9 +145,11 @@ Pkg --> TrivyExpiry
 - [.trivyignore:1-8](file://.trivyignore#L1-L8)
 - [scripts/build-embed-docs.ts:1-330](file://scripts/build-embed-docs.ts#L1-L330)
 - [scripts/build-vite-ui-env-define.ts:1-24](file://scripts/build-vite-ui-env-define.ts#L1-L24)
-- [scripts/deploy-run-env.sh:1-761](file://scripts/deploy-run-env.sh#L1-L761)
+- [scripts/deploy-run-env.sh:1-819](file://scripts/deploy-run-env.sh#L1-L819)
 - [scripts/dev-node-use.sh:1-26](file://scripts/dev-node-use.sh#L1-L26)
 - [scripts/ci-check-trivyignore-expiry.py:1-87](file://scripts/ci-check-trivyignore-expiry.py#L1-L87)
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
 
 ## Core Components
 - Build system
@@ -154,7 +167,10 @@ Pkg --> TrivyExpiry
 - Development environment
   - Docker images for production and development-from-source.
   - Docker Compose for local orchestration of Qdrant, optional Redis, Postgres, and Keycloak.
-  - Environment script for lifecycle management and health checks.
+  - Environment script for lifecycle management and health checks with integrated Qdrant snapshot support.
+- **New**: Qdrant snapshot management system
+  - Automated snapshot creation and restoration for CI/local test caching.
+  - Integration with deployment environment for seamless test execution.
 - Automation
   - Renovate for automated dependency updates across npm, GitHub Actions, Dockerfiles, and Helm.
 
@@ -169,11 +185,13 @@ Pkg --> TrivyExpiry
 - [Dockerfile:1-76](file://Dockerfile#L1-L76)
 - [Dockerfile.dev:1-68](file://Dockerfile.dev#L1-L68)
 - [compose.yaml:1-183](file://compose.yaml#L1-L183)
-- [scripts/deploy-run-env.sh:1-761](file://scripts/deploy-run-env.sh#L1-L761)
+- [scripts/deploy-run-env.sh:346-370](file://scripts/deploy-run-env.sh#L346-L370)
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
 - [renovate.json:1-138](file://renovate.json#L1-L138)
 
 ## Architecture Overview
-The development toolchain integrates build, test, lint, packaging, and deployment steps orchestrated by npm scripts. The backend compiles to dist/, the UI builds to dist/ui/, and embedded docs are generated at build time. Docker images encapsulate runtime environments, while Compose provisions local infrastructure.
+The development toolchain integrates build, test, lint, packaging, and deployment steps orchestrated by npm scripts. The backend compiles to dist/, the UI builds to dist/ui/, and embedded docs are generated at build time. Docker images encapsulate runtime environments, while Compose provisions local infrastructure. **Enhanced** with Qdrant snapshot management for optimized CI/local testing performance.
 
 ```mermaid
 graph TB
@@ -188,7 +206,9 @@ BuildDocs["Embed Docs<br/>scripts/build-embed-docs.ts"]
 DockerProd["Dockerfile<br/>runtime image"]
 DockerDev["Dockerfile.dev<br/>dev-from-source"]
 Compose["compose.yaml<br/>local stack"]
-EnvSh["deploy-run-env.sh<br/>lifecycle + health"]
+EnvSh["deploy-run-env.sh<br/>lifecycle + snapshot integration"]
+SeedSnap["seed-test-snapshot.sh<br/>snapshot seed"]
+ImportSnap["import-test-snapshot.sh<br/>snapshot import"]
 NPM --> TSC
 NPM --> Vite
 NPM --> ESL
@@ -200,6 +220,8 @@ NPM --> DockerProd
 NPM --> DockerDev
 NPM --> Compose
 NPM --> EnvSh
+EnvSh --> SeedSnap
+EnvSh --> ImportSnap
 ```
 
 **Diagram sources**
@@ -215,7 +237,9 @@ NPM --> EnvSh
 - [Dockerfile:1-76](file://Dockerfile#L1-L76)
 - [Dockerfile.dev:1-68](file://Dockerfile.dev#L1-L68)
 - [compose.yaml:1-183](file://compose.yaml#L1-L183)
-- [scripts/deploy-run-env.sh:1-761](file://scripts/deploy-run-env.sh#L1-L761)
+- [scripts/deploy-run-env.sh:1-819](file://scripts/deploy-run-env.sh#L1-L819)
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
 
 ## Detailed Component Analysis
 
@@ -441,6 +465,59 @@ Ri -.-> R
 - [Dockerfile:1-76](file://Dockerfile#L1-L76)
 - [Dockerfile.dev:1-68](file://Dockerfile.dev#L1-L68)
 
+### Qdrant Snapshot Management System
+**New**: The development environment now includes a comprehensive Qdrant snapshot management system for optimizing CI/local testing performance.
+
+#### Snapshot Workflow
+The system provides automated snapshot creation and restoration to eliminate expensive training overhead during tests:
+
+1. **Snapshot Seed Process** (`seed-test-snapshot.sh`)
+   - Trains test adapters using MCP tools
+   - Creates Qdrant snapshots for main and traces collections
+   - Downloads snapshots to `.local/qdrant-snapshot/`
+   - Supports both local and CI modes
+
+2. **Snapshot Import Process** (`import-test-snapshot.sh`)
+   - Restores snapshots to Qdrant collections
+   - Drops existing collections before import
+   - Verifies snapshot integrity and collection data
+   - Handles both main and traces collections
+
+3. **Deployment Integration** (`deploy-run-env.sh`)
+   - Automatically seeds snapshots in CI mode for dev_simple environment
+   - Imports snapshots before test execution
+   - Provides fallback mechanisms for missing snapshots
+
+```mermaid
+flowchart TD
+Seed["seed-test-snapshot.sh"] --> Train["Train test adapters via MCP"]
+Train --> Snap1["Create main collection snapshot"]
+Snap1 --> Download["Download snapshot to .local/"]
+Download --> Verify["Verify snapshot integrity"]
+Verify --> Cache["Cache snapshot for reuse"]
+Import["import-test-snapshot.sh"] --> Check["Check snapshot existence"]
+Check --> Drop["Drop existing collections"]
+Drop --> Restore["Restore main collection from snapshot"]
+Restore --> Verify2["Verify collection data"]
+Verify2 --> Complete["Snapshot import complete"]
+Deploy["deploy-run-env.sh"] --> CIMode{"CI mode?"}
+CIMode --> |Yes| AutoSeed["Auto-seed snapshot (dev_simple only)"]
+CIMode --> |No| ManualSeed["Manual seed required"]
+AutoSeed --> Import2["Import snapshot"]
+ManualSeed --> Import2
+Import2 --> Test["Run tests with cached data"]
+```
+
+**Diagram sources**
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
+- [scripts/deploy-run-env.sh:346-370](file://scripts/deploy-run-env.sh#L346-L370)
+
+**Section sources**
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
+- [scripts/deploy-run-env.sh:346-370](file://scripts/deploy-run-env.sh#L346-L370)
+
 ### Development Scripts and Workflows
 - npm scripts orchestrate:
   - dev:build, dev:deploy, dev:start, dev:stop, dev:restart, dev:status, dev:logs
@@ -448,7 +525,8 @@ Ri -.-> R
   - ui:build, build, docker:build, docker:publish
   - lint, lint:fix, lint:skills, verify:clean, knip
   - version sync and release helpers
-- deploy-run-env.sh manages environment lifecycle, health checks, and dependency readiness.
+  - **New**: test:seed-snapshot, test:restore-snapshot for Qdrant snapshot management
+- deploy-run-env.sh manages environment lifecycle, health checks, and dependency readiness with integrated snapshot support.
 - dev-node-use.sh switches Node version using fnm and .nvmrc.
 
 ```mermaid
@@ -477,7 +555,7 @@ Dock-->>Dev : server healthy
 
 **Section sources**
 - [package.json:38-116](file://package.json#L38-L116)
-- [scripts/deploy-run-env.sh:1-761](file://scripts/deploy-run-env.sh#L1-L761)
+- [scripts/deploy-run-env.sh:1-819](file://scripts/deploy-run-env.sh#L1-L819)
 - [scripts/dev-node-use.sh:1-26](file://scripts/dev-node-use.sh#L1-L26)
 
 ### Code Standards, Pull Requests, and Release Management
@@ -503,6 +581,7 @@ Dock-->>Dev : server healthy
 - ESLint flat config centralizes rules and plugins.
 - Knip ignores generated files and build-time-only binaries to avoid false positives.
 - Renovate groups updates and automerges security patches.
+- **New**: Qdrant snapshot management adds dependencies on curl, Python3, and Node.js for snapshot operations.
 
 ```mermaid
 graph LR
@@ -515,6 +594,10 @@ Pkg --> Knip["knip.config.ts"]
 Pkg --> Ren["renovate.json"]
 Pkg --> Docker["Dockerfile(.dev)"]
 Pkg --> Compose["compose.yaml"]
+Pkg --> SeedSnap["seed-test-snapshot.sh"]
+Pkg --> ImportSnap["import-test-snapshot.sh"]
+SeedSnap --> DeployEnv["deploy-run-env.sh"]
+ImportSnap --> DeployEnv
 ```
 
 **Diagram sources**
@@ -530,9 +613,12 @@ Pkg --> Compose["compose.yaml"]
 - [Dockerfile:1-76](file://Dockerfile#L1-L76)
 - [Dockerfile.dev:1-68](file://Dockerfile.dev#L1-L68)
 - [compose.yaml:1-183](file://compose.yaml#L1-L183)
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
+- [scripts/deploy-run-env.sh:1-819](file://scripts/deploy-run-env.sh#L1-L819)
 
 **Section sources**
-- [package.json:184-194](file://package.json#L184-L194)
+- [package.json:184-197](file://package.json#L184-L197)
 - [knip.config.ts:23-51](file://knip.config.ts#L23-L51)
 - [renovate.json:41-137](file://renovate.json#L41-L137)
 
@@ -542,6 +628,7 @@ Pkg --> Compose["compose.yaml"]
 - UI asset emission avoids CSP inlined images; adjust assetsInlineLimit if inlining is desired.
 - Knip helps prune unused dependencies to reduce bundle sizes and attack surface.
 - **Enhanced** ESLint ignore patterns now exclude `.qoder/**` to prevent unnecessary linting of auto-generated development tool files, improving developer experience and reducing false positives.
+- **New**: Qdrant snapshot management significantly reduces test execution time by eliminating expensive training operations through cached vector data.
 
 ## Troubleshooting Guide
 - Lint failures
@@ -554,15 +641,22 @@ Pkg --> Compose["compose.yaml"]
   - For auth-enabled environments, ensure Keycloak realms are configured.
 - Trivy expiry
   - CI script validates .trivyignore entries; fix or remove expired entries.
+- **New**: Qdrant snapshot issues
+  - Run `npm run test:seed-snapshot` to recreate snapshots if they become corrupted.
+  - Check snapshot file integrity in `.local/qdrant-snapshot/`.
+  - Verify Qdrant connectivity and API key configuration.
+  - Use `npm run test:restore-snapshot` for manual snapshot restoration.
 
 **Section sources**
 - [eslint/flat-config.cjs:114-120](file://eslint/flat-config.cjs#L114-L120)
 - [jest.config.js:45-58](file://jest.config.js#L45-L58)
 - [scripts/deploy-run-env.sh:411-458](file://scripts/deploy-run-env.sh#L411-L458)
 - [scripts/ci-check-trivyignore-expiry.py:30-87](file://scripts/ci-check-trivyignore-expiry.py#L30-L87)
+- [scripts/seed-test-snapshot.sh:228-255](file://scripts/seed-test-snapshot.sh#L228-L255)
+- [scripts/import-test-snapshot.sh:118-162](file://scripts/import-test-snapshot.sh#L118-L162)
 
 ## Conclusion
-KAIROS MCP's development tools provide a robust, automated pipeline for building, testing, linting, packaging, and deploying the backend and UI. The combination of strict TypeScript settings, Vite code-splitting, ESLint plugins, Knip, and Renovate ensures maintainable, secure, and efficient development. The environment scripts and Docker/Compose configurations streamline local workflows and reproducible deployments. **Enhanced** ESLint configuration now excludes `.qoder/**` from linting scrutiny, improving developer experience by preventing false positives from auto-generated development tool files.
+KAIROS MCP's development tools provide a robust, automated pipeline for building, testing, linting, packaging, and deploying the backend and UI. The combination of strict TypeScript settings, Vite code-splitting, ESLint plugins, Knip, and Renovate ensures maintainable, secure, and efficient development. The environment scripts and Docker/Compose configurations streamline local workflows and reproducible deployments. **Enhanced** ESLint configuration now excludes `.qoder/**` from linting scrutiny, improving developer experience by preventing false positives from auto-generated development tool files. **New**: The Qdrant snapshot management system provides significant performance improvements for CI/local testing by caching trained vector data, eliminating expensive training operations during test execution.
 
 ## Appendices
 
@@ -572,7 +666,7 @@ KAIROS MCP's development tools provide a robust, automated pipeline for building
 - Development lifecycle
   - dev:start, dev:stop, dev:restart, dev:status, dev:logs, dev:deploy
 - Testing
-  - test, test:ui, test:load, test:ui:watch
+  - test, test:ui, test:load, test:ui:watch, **New**: test:seed-snapshot, test:restore-snapshot
 - Quality and maintenance
   - lint, lint:fix, lint:skills, verify:clean, knip, ensure-coding-rules
 - Versioning and releases
@@ -592,6 +686,9 @@ KAIROS MCP's development tools provide a robust, automated pipeline for building
   - TEI_BASE_URL
   - REDIS_URL, KAIROS_REDIS_PREFIX
   - LOG_TARGET, LOG_LEVEL, LOG_FORMAT
+- **New**: Qdrant snapshot variables
+  - QDRANT_SNAPSHOT_DIR: Directory for snapshot storage
+  - CI: Flag for CI mode operation
 
 **Section sources**
 - [scripts/deploy-run-env.sh:93-110](file://scripts/deploy-run-env.sh#L93-L110)
@@ -608,3 +705,29 @@ These ignore patterns ensure that generated development tool files don't trigger
 
 **Section sources**
 - [eslint/flat-config.cjs:25-112](file://eslint/flat-config.cjs#L25-L112)
+
+### Appendix D: Qdrant Snapshot Management Reference
+**New**: Comprehensive reference for Qdrant snapshot management system:
+
+#### Snapshot Management Commands
+- `npm run test:seed-snapshot`: Create and cache Qdrant snapshots for test adapters
+- `npm run test:restore-snapshot`: Manually restore snapshots from cache
+
+#### Snapshot Files
+- Main collection: `.local/qdrant-snapshot/kairos_ci.snapshot`
+- Traces collection: `.local/qdrant-snapshot/kairos_ci_traces.snapshot`
+
+#### Integration Points
+- CI mode: Automatic snapshot seeding/restoration in dev_simple environment
+- Local mode: Manual snapshot management with authentication support
+- Deployment integration: Seamless snapshot import during environment startup
+
+#### Troubleshooting
+- Corrupted snapshots: Recreate using `npm run test:seed-snapshot`
+- Missing snapshots: Generate in CI mode or manually in dev_simple environment
+- Connection issues: Verify QDRANT_URL and API key configuration
+
+**Section sources**
+- [scripts/seed-test-snapshot.sh:1-255](file://scripts/seed-test-snapshot.sh#L1-L255)
+- [scripts/import-test-snapshot.sh:1-162](file://scripts/import-test-snapshot.sh#L1-L162)
+- [scripts/deploy-run-env.sh:346-370](file://scripts/deploy-run-env.sh#L346-L370)

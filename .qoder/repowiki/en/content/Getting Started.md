@@ -14,7 +14,18 @@
 - [scripts/deploy-dev-cli-ready.sh](file://scripts/deploy-dev-cli-ready.sh)
 - [helm/values.dev.yaml](file://helm/values.dev.yaml)
 - [helm/values.prod.yaml](file://helm/values.prod.yaml)
+- [skills/.system/kairos-install/SKILL.md](file://skills/.system/kairos-install/SKILL.md)
+- [skills/.system/kairos-install/references/install/README.md](file://skills/.system/kairos-install/references/install/README.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Enhanced guided setup section with detailed kairos-install skill workflow
+- Expanded environment configuration section with practical examples
+- Added comprehensive troubleshooting guide with specific error scenarios
+- Updated deployment scenarios with concrete configuration examples
+- Improved health check verification with multiple validation methods
+- Enhanced initial server access section with practical verification steps
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -81,13 +92,20 @@ Two quick start flows are provided to get you running quickly:
 
 ### Guided Setup with kairos-install Skill
 Use this when you want a guided first-time setup for Ollama, .env configuration, and the minimal local stack:
-1. Install the setup skill
+1. Install the setup skill using `npx skills add debian777/kairos-mcp --skill kairos-install`
 2. Ask your agent to run kairos-install for this repo
-3. Verify the server with curl /health
-4. Open the UI or MCP endpoint
+3. The skill will:
+   - Check prerequisites (Docker, Node.js 24+, Docker Compose v2)
+   - Help you choose an embedding backend (OpenAI, Ollama, or TEI)
+   - Generate the .env file with proper configuration
+   - Start the Docker Compose stack
+   - Guide you through CLI authentication
+4. Verify the server with curl /health
+5. Open the UI or MCP endpoint
 
 **Section sources**
 - [README.md:110-137](file://README.md#L110-L137)
+- [skills/.system/kairos-install/SKILL.md:165-596](file://skills/.system/kairos-install/SKILL.md#L165-L596)
 
 ### Manual Minimal Docker Stack
 Use this when you want the smallest working server deployment without the guided skill:

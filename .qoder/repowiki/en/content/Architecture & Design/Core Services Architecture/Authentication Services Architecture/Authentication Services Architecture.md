@@ -16,6 +16,15 @@
 - [docs/architecture/auth-overview.md](file://docs/architecture/auth-overview.md)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Enhanced OIDC authentication flow documentation with comprehensive PKCE implementation details
+- Expanded bearer token validation security patterns including JWKS caching and signature verification
+- Added detailed session management with secure cookie handling and RP-initiated logout support
+- Improved scope-based authorization documentation with group allowlist filtering patterns
+- Enhanced CLI authentication integration with secure credential storage using OS keyrings
+- Updated middleware pattern documentation with space-aware context resolution
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -353,8 +362,6 @@ REFRESH --> KEYRING["cli/keyring.ts"]
 - Session TTL computation balances token lifetime with a small safety margin to minimize 401 occurrences.
 - Well-known metadata caching avoids frequent upstream Keycloak queries.
 - userinfo group fetching is opportunistic and bounded by timeouts; failures do not block authentication.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 Common issues and diagnostics:

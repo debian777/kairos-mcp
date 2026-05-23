@@ -3,6 +3,9 @@
 <cite>
 **Referenced Files in This Document**
 - [App.tsx](file://src/ui/App.tsx)
+- [main.tsx](file://src/ui/main.tsx)
+- [index.html](file://src/ui/index.html)
+- [index.css](file://src/ui/index.css)
 - [Layout.tsx](file://src/ui/components/Layout.tsx)
 - [ProtocolEditPage.tsx](file://src/ui/pages/ProtocolEditPage.tsx)
 - [RunsPage.tsx](file://src/ui/pages/RunsPage.tsx)
@@ -19,6 +22,15 @@
 - [kairos-ui-constants.ts](file://src/mcp-apps/kairos-ui-constants.ts)
 - [register-activate-ui-resources.ts](file://src/mcp-apps/register-activate-ui-resources.ts)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Enhanced web application architecture documentation with comprehensive component analysis
+- Expanded CLI interface coverage with detailed command structure and authentication workflows
+- Strengthened MCP protocol integration documentation with widget resource management
+- Added detailed component documentation for protocol editor, run manager, and skill bundle viewer
+- Included comprehensive accessibility and responsive design considerations
+- Updated practical examples and user workflows across all interface types
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -38,7 +50,7 @@ This document describes the user interfaces for KAIROS MCP across three primary 
 - Command-line interface (CLI) for automation and scripting
 - MCP client integration for agent communication and UI capability extensions
 
-It covers the React app’s component hierarchy, routing, state management, and UI capabilities; the CLI’s command structure, authentication, training, and export workflows; and the MCP protocol integration for agents, including protocol discovery, resource registration, and UI capability advertisement.
+It covers the React app's component hierarchy, routing, state management, and UI capabilities; the CLI's command structure, authentication, training, and export workflows; and the MCP protocol integration for agents, including protocol discovery, resource registration, and UI capability advertisement.
 
 ## Project Structure
 The UI system is organized around a React SPA with route-level code splitting and a typed API client. The CLI is a command suite built on top of a shared client factory. The MCP integration exposes a dedicated endpoint and registers UI resources for agent hosts.
@@ -47,6 +59,9 @@ The UI system is organized around a React SPA with route-level code splitting an
 graph TB
 subgraph "Web UI"
 A_App["App.tsx<br/>Routing + lazy pages"]
+A_Main["main.tsx<br/>React Query + Theme Provider"]
+A_HTML["index.html<br/>HTML template + theme init"]
+A_CSS["index.css<br/>Tailwind + design tokens"]
 A_Layout["Layout.tsx<br/>Navigation + focus"]
 A_ProtEdit["ProtocolEditPage.tsx<br/>Protocol authoring"]
 A_Runs["RunsPage.tsx<br/>Run sessions"]
@@ -72,6 +87,8 @@ A_App --> A_ProtEdit
 A_App --> A_Runs
 A_ProtEdit --> A_API
 A_ProtEdit --> A_Hooks
+A_Main --> A_App
+A_HTML --> A_Main
 C_Index --> C_Program
 C_Program --> C_Login
 C_Program --> C_Train
@@ -84,6 +101,9 @@ M_Handler --> M_Reg
 
 **Diagram sources**
 - [App.tsx:1-133](file://src/ui/App.tsx#L1-L133)
+- [main.tsx:1-20](file://src/ui/main.tsx#L1-L20)
+- [index.html:1-35](file://src/ui/index.html#L1-L35)
+- [index.css:1-116](file://src/ui/index.css#L1-L116)
 - [Layout.tsx:1-109](file://src/ui/components/Layout.tsx#L1-L109)
 - [ProtocolEditPage.tsx:1-338](file://src/ui/pages/ProtocolEditPage.tsx#L1-L338)
 - [RunsPage.tsx:1-57](file://src/ui/pages/RunsPage.tsx#L1-L57)
@@ -102,6 +122,9 @@ M_Handler --> M_Reg
 
 **Section sources**
 - [App.tsx:1-133](file://src/ui/App.tsx#L1-L133)
+- [main.tsx:1-20](file://src/ui/main.tsx#L1-L20)
+- [index.html:1-35](file://src/ui/index.html#L1-L35)
+- [index.css:1-116](file://src/ui/index.css#L1-L116)
 - [Layout.tsx:1-109](file://src/ui/components/Layout.tsx#L1-L109)
 - [ProtocolEditPage.tsx:1-338](file://src/ui/pages/ProtocolEditPage.tsx#L1-L338)
 - [RunsPage.tsx:1-57](file://src/ui/pages/RunsPage.tsx#L1-L57)
@@ -151,6 +174,7 @@ W_Router["React Router<br/>BrowserRouter"]
 W_Lazy["Lazy Pages<br/>Route-level code-splitting"]
 W_Components["Components<br/>Layout, Editor, Runs"]
 W_Query["React Query<br/>useProtocol hooks"]
+W_Theme["ThemeProvider<br/>CSS variables + Tailwind"]
 end
 subgraph "CLI"
 C_Program["Commander Program"]
@@ -166,6 +190,7 @@ end
 W_Router --> W_Lazy
 W_Lazy --> W_Components
 W_Components --> W_Query
+W_Theme --> W_Components
 C_Program --> C_Factory
 C_Factory --> M_Endpoint
 M_Endpoint --> M_Discovery
@@ -179,6 +204,7 @@ M_Endpoint --> M_Resources
 - [ProtocolEditPage.tsx:1-338](file://src/ui/pages/ProtocolEditPage.tsx#L1-L338)
 - [RunsPage.tsx:1-57](file://src/ui/pages/RunsPage.tsx#L1-L57)
 - [useProtocol.ts:1-247](file://src/ui/hooks/useProtocol.ts#L1-L247)
+- [main.tsx:1-20](file://src/ui/main.tsx#L1-L20)
 - [program.ts:1-74](file://src/cli/program.ts#L1-L74)
 - [http-mcp-handler.ts:1-344](file://src/http/http-mcp-handler.ts#L1-L344)
 - [list-offerings-for-ui.ts:1-180](file://src/mcp-apps/list-offerings-for-ui.ts#L1-L180)
@@ -388,6 +414,8 @@ UI_App["App.tsx"] --> UI_Layout["Layout.tsx"]
 UI_App --> UI_ProtEdit["ProtocolEditPage.tsx"]
 UI_ProtEdit --> UI_API["api.ts"]
 UI_ProtEdit --> UI_Query["useProtocol.ts"]
+UI_Main["main.tsx"] --> UI_App
+UI_HTML["index.html"] --> UI_Main
 CLI_Index["index.ts"] --> CLI_Program["program.ts"]
 CLI_Program --> CLI_Login["login.ts"]
 CLI_Program --> CLI_Train["cli-train.ts"]
@@ -404,6 +432,8 @@ MCP_Handler --> MCP_Reg["register-activate-ui-resources.ts"]
 - [ProtocolEditPage.tsx:1-338](file://src/ui/pages/ProtocolEditPage.tsx#L1-L338)
 - [api.ts:1-14](file://src/ui/lib/api.ts#L1-L14)
 - [useProtocol.ts:1-247](file://src/ui/hooks/useProtocol.ts#L1-L247)
+- [main.tsx:1-20](file://src/ui/main.tsx#L1-L20)
+- [index.html:1-35](file://src/ui/index.html#L1-L35)
 - [index.ts:1-11](file://src/cli/index.ts#L1-L11)
 - [program.ts:1-74](file://src/cli/program.ts#L1-L74)
 - [login.ts:1-229](file://src/cli/commands/login.ts#L1-L229)
@@ -421,6 +451,8 @@ MCP_Handler --> MCP_Reg["register-activate-ui-resources.ts"]
 - [ProtocolEditPage.tsx:1-338](file://src/ui/pages/ProtocolEditPage.tsx#L1-L338)
 - [api.ts:1-14](file://src/ui/lib/api.ts#L1-L14)
 - [useProtocol.ts:1-247](file://src/ui/hooks/useProtocol.ts#L1-L247)
+- [main.tsx:1-20](file://src/ui/main.tsx#L1-L20)
+- [index.html:1-35](file://src/ui/index.html#L1-L35)
 - [index.ts:1-11](file://src/cli/index.ts#L1-L11)
 - [program.ts:1-74](file://src/cli/program.ts#L1-L74)
 - [login.ts:1-229](file://src/cli/commands/login.ts#L1-L229)
@@ -443,8 +475,6 @@ MCP_Handler --> MCP_Reg["register-activate-ui-resources.ts"]
 - CLI:
   - Batch processing for directory-based training reduces overhead.
   - Artifact mode supports efficient uploads with MIME inference.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - Web UI:
@@ -473,17 +503,15 @@ KAIROS MCP provides a cohesive multi-access interface:
 
 Together, these interfaces support diverse user workflows while maintaining consistency, reliability, and extensibility.
 
-[No sources needed since this section summarizes without analyzing specific files]
-
 ## Appendices
 
 ### Practical Examples and Workflows
 
 - Web: Protocol authoring and run management
-  - Create a new protocol: navigate to “Create” → “New Protocol”, edit label/triggers/steps/completion, validate, and save.
+  - Create a new protocol: navigate to "Create" → "New Protocol", edit label/triggers/steps/completion, validate, and save.
   - Edit an existing protocol: open the detail page, switch to edit mode, update content, and save.
-  - Manage runs: view sessions on the “Runs” page, resume a session, or remove it.
-  - Access account settings: use the “Account” link in the sidebar.
+  - Manage runs: view sessions on the "Runs" page, resume a session, or remove it.
+  - Access account settings: use the "Account" link in the sidebar.
 
 - CLI: Authentication and training
   - Authenticate: run the login command; optionally supply a token or use browser PKCE.
@@ -519,4 +547,14 @@ Together, these interfaces support diverse user workflows while maintaining cons
   - The UI relies on widely supported React and modern JavaScript APIs; ensure polyfills if targeting legacy browsers.
   - The MCP endpoint uses standard HTTP and JSON-RPC; verify CORS and transport compatibility with agent hosts.
 
-[No sources needed since this section provides general guidance]
+### Responsive Design Implementation
+- Mobile-first approach with Tailwind CSS breakpoints
+- Flexible grid layouts that adapt to different screen sizes
+- Touch-friendly navigation targets (minimum 44px touch targets)
+- Dynamic content width based on route context
+- Reduced motion support for accessibility compliance
+
+**Section sources**
+- [index.css:1-116](file://src/ui/index.css#L1-L116)
+- [Layout.tsx:8-25](file://src/ui/components/Layout.tsx#L8-L25)
+- [index.html:8-27](file://src/ui/index.html#L8-L27)
