@@ -1,4 +1,8 @@
-# KAIROS MCP
+<p align="center">
+  <img src="kairos-mcp.svg" alt="KAIROS MCP" width="120">
+</p>
+
+<h1 align="center">KAIROS MCP</h1>
 
 KAIROS MCP is a Model Context Protocol server for persistent memory and deterministic adapter execution.
 
