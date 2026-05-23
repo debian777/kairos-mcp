@@ -145,7 +145,7 @@ When `updateCollection(..., { sparse_vectors: { bm25: {} } })` is not
 supported, the code runs a full recreation:
 
 1. Create a **temporary collection** with the same vector config (dense
-   + BM25) and name `{collection}_bm25_mig`.
+   - BM25) and name `{collection}_bm25_mig`.
 2. **Scroll** the source collection in batches (256 points). For each
    point, compute BM25 sparse from `label` and `text` via
    `tokenizeToSparse()`, and upsert into the temp collection with both

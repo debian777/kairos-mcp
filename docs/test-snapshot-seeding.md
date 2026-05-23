@@ -180,7 +180,8 @@ Error: Snapshot file not found: tests/test-data/kairos_ci.snapshot
 Error: Qdrant not ready at http://localhost:7633
 ```
 
-**Solution:** 
+**Solution:**
+
 - Check if Qdrant is running: `npm run qdrant:binary:status`
 - Start Qdrant: `npm run qdrant:binary:start`
 - Check logs: `tail -f .local/qdrant-binary/qdrant.log`
@@ -192,11 +193,13 @@ Error: Restore failed: Snapshot upload failed: HTTP 400
 ```
 
 **Possible causes:**
+
 1. Collection name mismatch - check `QDRANT_COLLECTION` env var
 2. Qdrant version incompatibility - regenerate snapshot
 3. Corrupted snapshot file - delete and regenerate
 
 **Solution:**
+
 ```bash
 # Delete corrupted snapshot
 rm tests/test-data/kairos_ci.snapshot
@@ -208,11 +211,13 @@ npm run test:seed-snapshot
 ### Tests still slow after restore
 
 **Check:**
+
 1. Snapshot is being restored in `beforeAll` (not `beforeEach`)
 2. Tests are not calling `train()` anymore
 3. Qdrant is running on correct port
 
 **Debug:**
+
 ```bash
 # Enable verbose logging
 export DEBUG=snapshot-restore:*

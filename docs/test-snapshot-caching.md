@@ -21,6 +21,7 @@ All tests use a single `kairos_ci` collection with snapshot caching for fast, de
 ```
 
 **Benefits:**
+
 - ✅ Predictable state (always starts from same snapshot)
 - ✅ Simple collection naming (no `_mock`, `_simple`, `_dev` suffixes)
 - ✅ Easy to debug (one collection to inspect)
@@ -38,10 +39,12 @@ All tests use a single `kairos_ci` collection with snapshot caching for fast, de
 ### Cache Invalidation
 
 Snapshot cache is invalidated when:
+
 1. `scripts/seed-test-snapshot.sh` changes (seed logic updated)
 2. `tests/test-data/AI_CODING_RULES.md` changes (test fixture updated)
 
 **Cache key:**
+
 ```
 ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
 ```
@@ -105,6 +108,7 @@ npm run dev_simple:test
 **All environments use:** `QDRANT_COLLECTION=kairos_ci`
 
 **Set in:**
+
 - `.env.dev_simple` → `QDRANT_COLLECTION=kairos_ci`
 - `.env` (fullstack) → `QDRANT_COLLECTION=kairos_ci`
 - `scripts/env/.env.template` → `QDRANT_COLLECTION=kairos_ci`
@@ -130,11 +134,13 @@ if (isCI) {
 ```
 
 **Set automatically by:**
+
 - GitHub Actions (always sets `CI=true`)
 - Jest/Vitest test runners
 - Can be manually set: `CI=true npm run test`
 
 **Benefits:**
+
 - ✅ Standard convention (all CI systems use this)
 - ✅ No custom env vars to manage
 - ✅ Works everywhere (GitHub Actions, GitLab CI, local dev)
@@ -157,16 +163,19 @@ tests/
 ```
 
 **Git tracked:**
+
 - ✅ `scripts/seed-test-snapshot.sh`
 - ✅ `tests/test-data/AI_CODING_RULES.md`
 - ✅ `tests/utils/restore-qdrant-snapshot.ts`
 
 **Git ignored:**
+
 - ❌ `.local/qdrant-snapshot/kairos_ci.snapshot` (cached locally and in CI)
 
 ## Test Execution Order
 
 ### Phase 1: Read-Only Tests
+
 Tests that don't modify data:
 
 ```typescript
@@ -189,6 +198,7 @@ describe('Read-only tests', () => {
 ```
 
 ### Phase 2: Read-Write Tests
+
 Tests that modify data (train, delete, tune):
 
 ```typescript
@@ -218,18 +228,21 @@ describe('Read-write tests', () => {
 ### When to Regenerate
 
 1. **Updated test fixtures:**
+
    ```bash
    # Modified AI_CODING_RULES.md?
    npm run test:seed-snapshot
    ```
 
 2. **Added new test adapters:**
+
    ```bash
    # Edit scripts/seed-test-snapshot.sh to add new adapters
    npm run test:seed-snapshot
    ```
 
 3. **Changed seed logic:**
+
    ```bash
    # Modified seed-test-snapshot.sh?
    npm run test:seed-snapshot
@@ -265,6 +278,7 @@ Error: Snapshot file not found. Run: npm run test:seed-snapshot
 ```
 
 **Solution:**
+
 ```bash
 npm run test:seed-snapshot
 ```
@@ -272,11 +286,13 @@ npm run test:seed-snapshot
 ### Cache miss in CI
 
 CI logs show:
+
 ```
 Snapshot cache miss - generating new snapshot...
 ```
 
 **This is normal on:**
+
 - First run after cache key change
 - Cache expiration (GitHub Actions 7-day limit)
 - New runner OS version
@@ -288,6 +304,7 @@ Snapshot cache miss - generating new snapshot...
 **Symptoms:** Tests fail with missing adapters
 
 **Solution:**
+
 ```bash
 # Delete old cache
 rm -rf .local/qdrant-snapshot/
@@ -303,6 +320,7 @@ Error: Qdrant failed to start (port 7633 in use)
 ```
 
 **Solution:**
+
 ```bash
 # Kill existing Qdrant
 npm run qdrant:binary:stop
@@ -326,6 +344,7 @@ kill <PID>
 ### From Old Approach
 
 **Before (multiple collections):**
+
 ```bash
 # .env.dev_simple
 QDRANT_COLLECTION=kairos_simple_ci
@@ -335,6 +354,7 @@ QDRANT_COLLECTION=kairos_dev
 ```
 
 **After (unified):**
+
 ```bash
 # All environments
 QDRANT_COLLECTION=kairos_ci
@@ -343,6 +363,7 @@ QDRANT_COLLECTION=kairos_ci
 ### Updating Test Files
 
 **Before:**
+
 ```typescript
 // Different tests used different collections
 await purgeExistingProtocols();
@@ -350,6 +371,7 @@ await train(adapter); // Slow, variable
 ```
 
 **After:**
+
 ```typescript
 // All tests use same collection with snapshot
 beforeAll(async () => {
@@ -362,6 +384,7 @@ beforeAll(async () => {
 ## Best Practices
 
 1. **Always restore snapshot in beforeAll**
+
    ```typescript
    beforeAll(async () => {
      await restoreTestSnapshot();
@@ -377,6 +400,7 @@ beforeAll(async () => {
    - Add new test adapter? → Regenerate
 
 4. **Use CI=true for environment detection**
+
    ```typescript
    const isCI = process.env.CI === 'true';
    ```

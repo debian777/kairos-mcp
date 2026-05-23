@@ -3,6 +3,7 @@
 ## ✅ What Was Implemented
 
 ### 1. Seed Script
+
 **File:** `scripts/seed-test-snapshot.sh`
 
 Creates a Qdrant snapshot with pre-trained test adapters.
@@ -20,6 +21,7 @@ npm run test:seed-snapshot
 ```
 
 ### 2. Restore Utility
+
 **File:** `tests/utils/restore-qdrant-snapshot.ts`
 
 TypeScript utility to restore snapshot in test beforeAll hooks.
@@ -36,6 +38,7 @@ beforeAll(async () => {
 ```
 
 ### 3. NPM Scripts
+
 **File:** `package.json`
 
 ```json
@@ -48,9 +51,11 @@ beforeAll(async () => {
 ```
 
 ### 4. Documentation
+
 **File:** `docs/test-snapshot-seeding.md`
 
 Complete guide with:
+
 - How it works
 - When to regenerate
 - Adding new adapters
@@ -87,6 +92,7 @@ ls -lh tests/test-data/kairos_ci.snapshot
 Replace train calls with snapshot restore:
 
 **BEFORE:**
+
 ```typescript
 test('train stores AI CODING RULES markdown', async () => {
   await purgeExistingProtocols();
@@ -102,6 +108,7 @@ test('train stores AI CODING RULES markdown', async () => {
 ```
 
 **AFTER:**
+
 ```typescript
 beforeAll(async () => {
   await restoreTestSnapshot();
@@ -166,6 +173,7 @@ Based on grep results, these tests use `purgeExistingProtocols()` + `train()`:
 3. ✅ `kairos-qdrant-storage.test.ts` - Tests storage, uses train as setup
 
 **Note:** The train tool test itself (`kairos-train-access.test.ts`) should **STILL test train** - but we can:
+
 - Keep ONE test that validates train works
 - Use snapshot for all OTHER tests
 
@@ -229,6 +237,7 @@ ls -lh tests/test-data/kairos_ci.snapshot
 ## 💡 Pro Tips
 
 1. **Regenerate snapshot when test fixtures change**
+
    ```bash
    # Updated AI_CODING_RULES.md?
    npm run test:seed-snapshot
@@ -236,11 +245,13 @@ ls -lh tests/test-data/kairos_ci.snapshot
    ```
 
 2. **Test restore locally before committing**
+
    ```bash
    npm run test:restore-snapshot
    ```
 
 3. **Add snapshot validation to CI**
+
    ```yaml
    - name: Validate snapshot
      run: npm run test:restore-snapshot
@@ -254,6 +265,6 @@ ls -lh tests/test-data/kairos_ci.snapshot
 
 ## 🎓 Learning Resources
 
-- **Qdrant Snapshots API:** https://qdrant.tech/documentation/concepts/snapshots/
-- **GitHub Actions Cache:** https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows
+- **Qdrant Snapshots API:** <https://qdrant.tech/documentation/concepts/snapshots/>
+- **GitHub Actions Cache:** <https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows>
 - **KAIROS Test Architecture:** See `docs/test-snapshot-seeding.md`
