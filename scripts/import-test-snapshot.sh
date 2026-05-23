@@ -14,6 +14,10 @@ if [ -f "${ROOT_DIR}/.env.${ENV}" ]; then
   set -a
   source "${ROOT_DIR}/.env.${ENV}"
   set +a
+elif [ -f "${ROOT_DIR}/.env" ]; then
+  set -a
+  source "${ROOT_DIR}/.env"
+  set +a
 fi
 
 # Qdrant config (from .env)
@@ -70,12 +74,17 @@ if ! curl -sf "${QDRANT_URL}/healthz" > /dev/null; then
   exit 1
 fi
 
-# Drop existing collection (if exists)
-log_info "Dropping collection '${COLLECTION_NAME}' (if exists)..."
+# Drop existing collections (if exist)
+log_info "Dropping collections (if exist)..."
 curl -sf -X DELETE \
   "${QDRANT_URL}/collections/${COLLECTION_NAME}" \
   "${CURL_HEADERS[@]}" \
   || true  # Ignore error if collection doesn't exist
+
+curl -sf -X DELETE \
+  "${QDRANT_URL}/collections/${COLLECTION_NAME}_traces" \
+  "${CURL_HEADERS[@]}" \
+  || true  # Ignore error if traces collection doesn't exist
 
 # Create fresh collection with correct vector config
 log_info "Creating collection '${COLLECTION_NAME}'..."
@@ -92,17 +101,41 @@ curl -sf -X PUT \
     exit 1
   }
 
-# Upload snapshot via Qdrant file upload API
-log_info "Uploading snapshot to Qdrant..."
+# Upload main snapshot via Qdrant file upload API
+log_info "Uploading main snapshot to Qdrant..."
 UPLOAD_RESPONSE=$(curl -sf -X POST \
   "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots/upload" \
   "${CURL_HEADERS[@]}" \
   -F "snapshot=@${SNAPSHOT_FILE}" \
-  -F "priority=low" 2>&1) || {
-    log_error "Failed to upload snapshot"
-    echo "${UPLOAD_RESPONSE}"
-    exit 1
-  }
+  -F "priority=low")
+
+log_success "Main snapshot imported successfully"
+
+# Import traces snapshot if it exists
+TRACES_SNAPSHOT_FILE="${ROOT_DIR}/.local/qdrant-snapshot/kairos_ci_traces.snapshot"
+if [ -f "${TRACES_SNAPSHOT_FILE}" ]; then
+  log_info "Creating traces collection '${COLLECTION_NAME}_traces'..."
+  curl -sf -X PUT \
+    "${QDRANT_URL}/collections/${COLLECTION_NAME}_traces" \
+    "${CURL_HEADERS[@]}" \
+    -d '{
+      "vectors": {
+        "size": 1536,
+        "distance": "Cosine"
+      }
+    }' || true  # May already exist
+  
+  log_info "Uploading traces snapshot to Qdrant..."
+  curl -sf -X POST \
+    "${QDRANT_URL}/collections/${COLLECTION_NAME}_traces/snapshots/upload" \
+    "${CURL_HEADERS[@]}" \
+    -F "snapshot=@${TRACES_SNAPSHOT_FILE}" \
+    -F "priority=low"
+  
+  log_success "Traces snapshot imported successfully"
+else
+  log_info "No traces snapshot found (will be created on first execution)"
+fi
 
 # Wait for snapshot to be processed
 log_info "Waiting for snapshot import to complete..."

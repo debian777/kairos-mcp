@@ -26,14 +26,25 @@ if [ -f "${ROOT_DIR}/.env.${ENV}" ]; then
   set -a
   source "${ROOT_DIR}/.env.${ENV}"
   set +a
+elif [ -f "${ROOT_DIR}/.env" ]; then
+  set -a
+  source "${ROOT_DIR}/.env"
+  set +a
 fi
 
 # Use ALREADY RUNNING Qdrant and app (from current ENV)
 # Do NOT start Qdrant binary - use the one from deploy-run-env.sh
 QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}"
+QDRANT_API_KEY="${QDRANT_API_KEY:-}"
 APP_PORT="${PORT:-3300}"
 APP_URL="http://localhost:${APP_PORT}"
 MCP_URL="${APP_URL}/mcp"
+
+# Headers for Qdrant API
+QDRANT_HEADERS=()
+if [[ -n "${QDRANT_API_KEY}" ]]; then
+  QDRANT_HEADERS=("-H" "api-key: ${QDRANT_API_KEY}")
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -148,10 +159,14 @@ sleep 3
 # Note: Do NOT stop the app - we're using the already running instance from deploy-run-env.sh
 log_info "Adapter training complete - app remains running for snapshot creation"
 
-# Step 5: Create Qdrant snapshot
-log_info "Creating Qdrant snapshot..."
+# Step 5: Create Qdrant snapshot (both main collection and traces)
+log_info "Creating Qdrant snapshots..."
+
+# Snapshot main collection
+log_info "Snapshotting collection: ${COLLECTION_NAME}"
 SNAPSHOT_CREATE_RESPONSE=$(curl -sSf -X POST "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots" \
   -H "Content-Type: application/json" \
+  "${QDRANT_HEADERS[@]}" \
   -d '{"wait": true}')
 
 SNAPSHOT_NAME=$(echo "${SNAPSHOT_CREATE_RESPONSE}" | python3 -c '
@@ -162,20 +177,53 @@ print(result.get("name", ""))
 ')
 
 if [[ -z "${SNAPSHOT_NAME}" ]]; then
-  log_error "Failed to create snapshot"
+  log_error "Failed to create main snapshot"
   echo "${SNAPSHOT_CREATE_RESPONSE}" | python3 -m json.tool || echo "${SNAPSHOT_CREATE_RESPONSE}"
   exit 1
 fi
 
-log_success "Snapshot created: ${SNAPSHOT_NAME}"
+log_success "Main collection snapshot created: ${SNAPSHOT_NAME}"
 
-# Step 6: Download snapshot file
-log_info "Downloading snapshot..."
+# Download main snapshot
 curl -sSf -o "${SNAPSHOT_FILE}" \
-  "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots/${SNAPSHOT_NAME}"
+  "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots/${SNAPSHOT_NAME}" \
+  "${QDRANT_HEADERS[@]}"
 
 SNAPSHOT_SIZE=$(wc -c < "${SNAPSHOT_FILE}" | tr -d ' ')
-log_success "Snapshot downloaded: ${SNAPSHOT_FILE} (${SNAPSHOT_SIZE} bytes)"
+log_success "Main snapshot downloaded: ${SNAPSHOT_FILE} (${SNAPSHOT_SIZE} bytes)"
+
+# Snapshot traces collection
+TRACES_COLLECTION="${COLLECTION_NAME}_traces"
+log_info "Snapshotting traces collection: ${TRACES_COLLECTION}"
+
+# Check if traces collection exists
+if curl -sSf "${QDRANT_URL}/collections/${TRACES_COLLECTION}" "${QDRANT_HEADERS[@]}" >/dev/null 2>&1; then
+  TRACES_SNAPSHOT_RESPONSE=$(curl -sSf -X POST "${QDRANT_URL}/collections/${TRACES_COLLECTION}/snapshots" \
+    -H "Content-Type: application/json" \
+    "${QDRANT_HEADERS[@]}" \
+    -d '{"wait": true}')
+  
+  TRACES_SNAPSHOT_NAME=$(echo "${TRACES_SNAPSHOT_RESPONSE}" | python3 -c '
+import sys, json
+data = json.load(sys.stdin)
+result = data.get("result", {})
+print(result.get("name", ""))
+' 2>/dev/null)
+  
+  if [ -n "${TRACES_SNAPSHOT_NAME}" ]; then
+    TRACES_SNAPSHOT_FILE="${LOCAL_CACHE_DIR}/kairos_ci_traces.snapshot"
+    curl -sSf -o "${TRACES_SNAPSHOT_FILE}" \
+      "${QDRANT_URL}/collections/${TRACES_COLLECTION}/snapshots/${TRACES_SNAPSHOT_NAME}" \
+      "${QDRANT_HEADERS[@]}"
+    
+    TRACES_SIZE=$(wc -c < "${TRACES_SNAPSHOT_FILE}" | tr -d ' ')
+    log_success "Traces snapshot downloaded: ${TRACES_SNAPSHOT_FILE} (${TRACES_SIZE} bytes)"
+  else
+    log_warning "Traces snapshot creation failed or empty"
+  fi
+else
+  log_info "Traces collection does not exist yet (will be created on first execution)"
+fi
 
 # Step 7: Verify snapshot
 log_info "Verifying snapshot integrity..."
