@@ -171,6 +171,10 @@ test-*.js
 storage/
 data/**/qdrant/snapshots/*.snapshot
 
+# Test snapshots (generated, cached in CI via GitHub Actions)
+tests/test-data/*.snapshot
+tests/test-data/kairos_ci.snapshot
+
 # Docker
 docker-compose.override.yml
 

@@ -255,6 +255,15 @@ jobs:
           name: npm-package-simple-node24
           path: artifact-npm
 
+      - name: Restore Qdrant test snapshot cache
+        uses: actions/cache/restore@v5
+        id: qdrant-snapshot-cache
+        with:
+          path: .local/qdrant-snapshot/kairos_ci.snapshot
+          key: ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
+          restore-keys: |
+            ${{ runner.os }}-qdrant-snapshot-
+
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache-simple
@@ -302,6 +311,7 @@ jobs:
           HEALTH_CHECK_ATTEMPTS: 15
           ENV: dev_simple
           QDRANT_SNAPSHOT_DIR: var/snapshots
+          QDRANT_COLLECTION: kairos_ci
         run: |
           mkdir -p var/log var/snapshots
           npm run dev:start:installed > var/log/kairos-simple.log 2>&1 &
@@ -311,9 +321,26 @@ jobs:
             sleep 2
           done
 
+      - name: Generate Qdrant snapshot (cache miss)
+        if: steps.qdrant-snapshot-cache.outputs.cache-hit != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QDRANT_COLLECTION: kairos_ci
+        run: |
+          echo "Snapshot cache miss - generating new snapshot..."
+          npm run test:seed-snapshot
+
+      - name: Save Qdrant test snapshot cache
+        uses: actions/cache/save@v5
+        if: steps.qdrant-snapshot-cache.outputs.cache-hit != 'true'
+        with:
+          path: .local/qdrant-snapshot/kairos_ci.snapshot
+          key: ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
+
       - name: Run simple-mode integration tests
         env:
           ENV: dev_simple
+          QDRANT_COLLECTION: kairos_ci
         run: npm run dev_simple:test
 
       - name: Show test failure
@@ -395,6 +422,15 @@ jobs:
           name: npm-package-simple-node26
           path: artifact-npm
 
+      - name: Restore Qdrant test snapshot cache
+        uses: actions/cache/restore@v5
+        id: qdrant-snapshot-cache-advisory
+        with:
+          path: .local/qdrant-snapshot/kairos_ci.snapshot
+          key: ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
+          restore-keys: |
+            ${{ runner.os }}-qdrant-snapshot-
+
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v5
         id: playwright-cache-simple
@@ -450,6 +486,22 @@ jobs:
             [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
             sleep 2
           done
+
+      - name: Generate Qdrant snapshot (cache miss)
+        if: steps.qdrant-snapshot-cache-advisory.outputs.cache-hit != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QDRANT_COLLECTION: kairos_ci
+        run: |
+          echo "Snapshot cache miss - generating new snapshot..."
+          npm run test:seed-snapshot
+
+      - name: Save Qdrant test snapshot cache
+        uses: actions/cache/save@v5
+        if: steps.qdrant-snapshot-cache-advisory.outputs.cache-hit != 'true'
+        with:
+          path: .local/qdrant-snapshot/kairos_ci.snapshot
+          key: ${{ runner.os }}-qdrant-snapshot-${{ hashFiles('scripts/seed-test-snapshot.sh', 'tests/test-data/AI_CODING_RULES.md') }}
 
       - name: Run simple-mode integration tests
         env:

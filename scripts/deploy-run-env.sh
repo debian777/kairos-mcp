@@ -326,6 +326,26 @@ start() {
             fi
             attempt=$((attempt + 1))
         done
+        
+        # Import test snapshot if CI=true (for integration tests)
+        if [ "${CI:-}" = "true" ]; then
+            if  [ ! -f ".local/qdrant-snapshot/kairos_ci.snapshot" ]; then
+                print_info "CI mode detected - creating Qdrant test snapshot (ENV=${ENV})..."
+                # Seed script uses already running Qdrant/app from current ENV
+                if bash "$PROJECT_DIR/scripts/seed-test-snapshot.sh"; then
+                    print_success "Test snapshot exported successfully"
+                else
+                    print_error "Test snapshot export failed - tests will fail"
+                fi
+            fi
+
+            print_info "CI mode detected - importing Qdrant test snapshot..."
+            if bash "$PROJECT_DIR/scripts/import-test-snapshot.sh"; then
+                print_success "Test snapshot imported successfully"
+            else
+                print_warning "Test snapshot import failed - tests may fail"
+            fi
+        fi
     fi
     # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
     if [ "$ENV" = "dev" ]; then

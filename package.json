@@ -60,6 +60,8 @@
     "dev_simple:status": "ENV=dev_simple ./scripts/deploy-run-env.sh status",
     "dev_simple:stop": "ENV=dev_simple ./scripts/deploy-run-env.sh stop",
     "dev_simple:test": "ENV=dev_simple ./scripts/deploy-run-env.sh test",
+    "test:seed-snapshot": "bash ./scripts/seed-test-snapshot.sh",
+    "test:restore-snapshot": "node -r dotenv/config -e \"import('./tests/utils/restore-qdrant-snapshot.js').then(m => m.restoreTestSnapshot().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\"",
     "qdrant:binary:install": "bash ./scripts/qdrant-binary.sh install",
     "qdrant:binary:start": "npm run qdrant:binary:install && bash ./scripts/qdrant-binary.sh start",
     "qdrant:binary:stop": "bash ./scripts/qdrant-binary.sh stop",

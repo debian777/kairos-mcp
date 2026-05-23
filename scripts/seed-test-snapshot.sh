@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# Seed test adapters and create Qdrant snapshot for CI/local test caching.
+# Usage: npm run test:seed-snapshot
+#
+# This script:
+# 1. Starts KAIROS with kairos_ci collection (fresh Qdrant)
+# 2. Trains all adapters needed for integration tests
+# 3. Stops the app
+# 4. Creates Qdrant snapshot
+# 5. Caches snapshot:
+#    - CI: GitHub Actions cache (workflow handles this)
+#    - Local: .local/qdrant-snapshot/kairos_ci.snapshot
+#
+# Snapshot is restored before tests to skip expensive train() calls.
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_CACHE_DIR="${ROOT_DIR}/.local/qdrant-snapshot"
+SNAPSHOT_FILE="${LOCAL_CACHE_DIR}/kairos_ci.snapshot"
+COLLECTION_NAME="${QDRANT_COLLECTION:-kairos_ci}"
+
+# Load environment from correct .env file
+ENV="${ENV:-dev}"
+if [ -f "${ROOT_DIR}/.env.${ENV}" ]; then
+  set -a
+  source "${ROOT_DIR}/.env.${ENV}"
+  set +a
+fi
+
+# Use ALREADY RUNNING Qdrant and app (from current ENV)
+# Do NOT start Qdrant binary - use the one from deploy-run-env.sh
+QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}"
+APP_URL="${APP_URL:-http://localhost:3300}"
+MCP_URL="${APP_URL}/mcp"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() {
+  printf "${BLUE}[seed]${NC} %s\n" "$1"
+}
+
+log_success() {
+  printf "${GREEN}[seed]${NC} ✅ %s\n" "$1"
+}
+
+log_warn() {
+  printf "${YELLOW}[seed]${NC} ⚠️  %s\n" "$1"
+}
+
+log_error() {
+  printf "${RED}[seed]${NC} ❌ %s\n" "$1" >&2
+}
+
+# No cleanup needed - using already running services
+
+# Step 0: Clean previous snapshot
+log_info "Cleaning previous snapshot..."
+rm -f "${SNAPSHOT_FILE}"
+mkdir -p "${LOCAL_CACHE_DIR}"
+
+# Use ALREADY RUNNING Qdrant and app from deploy-run-env.sh
+log_info "Using Qdrant at: ${QDRANT_URL}"
+log_info "Using KAIROS app at: ${APP_URL}"
+
+# Verify Qdrant is running
+if ! curl -sSf "${QDRANT_URL}/healthz" >/dev/null 2>&1; then
+  log_error "Qdrant not running at ${QDRANT_URL}"
+  log_error "Run: npm run dev:deploy (or npm run dev_simple:deploy)"
+  exit 1
+fi
+
+# Verify KAIROS app is running
+if ! curl -sSf "${APP_URL}/health" >/dev/null 2>&1; then
+  log_error "KAIROS app not running at ${APP_URL}"
+  log_error "Run: npm run dev:deploy (or npm run dev_simple:deploy)"
+  exit 1
+fi
+
+log_success "Services are running"
+
+# Step 3: Train test adapters using MCP tools
+log_info "Training test adapters..."
+
+# Helper function to call MCP tool
+call_mcp_tool() {
+  local tool_name="$1"
+  local arguments="$2"
+  
+  local response
+  response=$(curl -sSf -X POST "${MCP_URL}" \
+    -H "Content-Type: application/json" \
+    -H "MCP-Protocol-Version: 2024-11-05" \
+    -d "{
+      \"jsonrpc\": \"2.0\",
+      \"id\": 1,
+      \"method\": \"tools/call\",
+      \"params\": {
+        \"name\": \"${tool_name}\",
+        \"arguments\": ${arguments}
+      }
+    }")
+  
+  echo "${response}"
+}
+
+# Train AI_CODING_RULES adapter (used by most tests)
+log_info "Training AI_CODING_RULES adapter..."
+MARKDOWN_CONTENT=$(cat "${ROOT_DIR}/tests/test-data/AI_CODING_RULES.md" | python3 -c 'import sys, json; print(json.dumps(sys.stdin.read()))')
+
+TRAIN_RESPONSE=$(call_mcp_tool "train" "{
+  \"content\": ${MARKDOWN_CONTENT},
+  \"llm_model_id\": \"test-ai-coding-rules\",
+  \"force_update\": true
+}")
+
+if echo "${TRAIN_RESPONSE}" | grep -q '"status".*"stored"'; then
+  log_success "AI_CODING_RULES adapter trained"
+else
+  log_error "Failed to train AI_CODING_RULES adapter"
+  echo "${TRAIN_RESPONSE}" | python3 -m json.tool || echo "${TRAIN_RESPONSE}"
+  exit 1
+fi
+
+# Add additional adapters here as needed
+# Example: train other test adapters
+# log_info "Training additional test adapter..."
+# TRAIN_RESPONSE=$(call_mcp_tool "train" "{...}")
+
+# Small delay to ensure vectors are indexed
+log_info "Waiting for vector indexing to complete..."
+sleep 3
+
+# Step 4: Stop the app (important for clean snapshot)
+log_info "Stopping KAIROS app..."
+kill "${APP_PID}" 2>/dev/null || true
+wait "${APP_PID}" 2>/dev/null || true
+APP_PID="" # Prevent double-stop in cleanup
+
+log_info "Waiting for app to stop..."
+sleep 2
+
+# Step 5: Create Qdrant snapshot
+log_info "Creating Qdrant snapshot..."
+SNAPSHOT_CREATE_RESPONSE=$(curl -sSf -X POST "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots" \
+  -H "Content-Type: application/json" \
+  -d '{"wait": true}')
+
+SNAPSHOT_NAME=$(echo "${SNAPSHOT_CREATE_RESPONSE}" | python3 -c '
+import sys, json
+data = json.load(sys.stdin)
+result = data.get("result", {})
+print(result.get("name", ""))
+')
+
+if [[ -z "${SNAPSHOT_NAME}" ]]; then
+  log_error "Failed to create snapshot"
+  echo "${SNAPSHOT_CREATE_RESPONSE}" | python3 -m json.tool || echo "${SNAPSHOT_CREATE_RESPONSE}"
+  exit 1
+fi
+
+log_success "Snapshot created: ${SNAPSHOT_NAME}"
+
+# Step 6: Download snapshot file
+log_info "Downloading snapshot..."
+curl -sSf -o "${SNAPSHOT_FILE}" \
+  "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots/${SNAPSHOT_NAME}"
+
+SNAPSHOT_SIZE=$(wc -c < "${SNAPSHOT_FILE}" | tr -d ' ')
+log_success "Snapshot downloaded: ${SNAPSHOT_FILE} (${SNAPSHOT_SIZE} bytes)"
+
+# Step 7: Verify snapshot
+log_info "Verifying snapshot integrity..."
+if [[ ${SNAPSHOT_SIZE} -lt 100 ]]; then
+  log_error "Snapshot file too small (${SNAPSHOT_SIZE} bytes) - likely corrupted"
+  exit 1
+fi
+
+log_success "Snapshot verification passed"
+
+# Step 8: Print summary
+log_info "========================================="
+log_success "Snapshot seed completed successfully!"
+log_info "========================================="
+log_info "Snapshot location: ${SNAPSHOT_FILE}"
+log_info "Snapshot size: ${SNAPSHOT_SIZE} bytes"
+log_info "Collection name: ${COLLECTION_NAME}"
+log_info ""
+log_info "Cache location: .local/qdrant-snapshot/"
+log_info "  - Local tests: automatically restored from .local/"
+log_info "  - CI: GitHub Actions cache (workflow handles upload)"
+log_info ""
+log_info "Next steps:"
+log_info "1. Run tests: npm run dev_simple:test"
+log_info "2. Tests will auto-restore snapshot from .local/ cache"
+log_info "========================================="
+
+exit 0
