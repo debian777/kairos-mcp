@@ -7,6 +7,9 @@ name: Helm chart version bump
 on:
   pull_request:
     types: [opened, synchronize, labeled]
+    branches:
+      - main
+      - "release/**"
     paths:
       - "helm/kairos-mcp/**"
       - "package.json"
