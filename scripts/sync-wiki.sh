@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# sync-wiki.sh - Sync wiki/ directory to GitHub Wiki repository
+# sync-wiki.sh - Sync .qoder/repowiki/en/content/ to GitHub Wiki repository
 # Usage: ./scripts/sync-wiki.sh
 #
-# This script copies content from wiki/ in the main repo to the GitHub Wiki
-# repository (kairos-mcp.wiki.git) and pushes it.
+# This script copies content from .qoder/repowiki/en/content/ in the main repo
+# to the GitHub Wiki repository (kairos-mcp.wiki.git) and pushes it.
 #
 # Prerequisites:
-# - GitHub CLI (gh) authenticated
+# - GitHub CLI (gh) authenticated, or SSH key with push access
 # - Wiki repository already initialized (visit /wiki tab first time)
 
 set -euo pipefail
 
 REPO_OWNER="debian777"
 REPO_NAME="kairos-mcp"
-WIKI_DIR="wiki"
+WIKI_DIR=".qoder/repowiki/en/content"
 TEMP_WIKI="/tmp/${REPO_NAME}.wiki"
 
 # Colors for output
@@ -24,10 +24,12 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}GitHub Wiki Sync${NC}"
 echo "=================="
+echo "Source: ${WIKI_DIR}"
 
 # Check if wiki directory exists
 if [ ! -d "$WIKI_DIR" ]; then
   echo -e "${RED}Error: ${WIKI_DIR}/ directory not found${NC}"
+  echo "Run Qoder Repo Wiki generation first, or check your working directory."
   exit 1
 fi
 
@@ -42,13 +44,7 @@ if [ -d "$TEMP_WIKI/.git" ]; then
   echo -e "${YELLOW}Updating existing wiki clone...${NC}"
   cd "$TEMP_WIKI"
   git fetch origin
-  
-  # GitHub Wiki uses 'master' branch by default
-  if git rev-parse --verify origin/master >/dev/null 2>&1; then
-    git reset --hard origin/master
-  else
-    git reset --hard origin/main
-  fi
+  git reset --hard origin/master
 else
   echo -e "${YELLOW}Cloning wiki repository...${NC}"
   rm -rf "$TEMP_WIKI"
@@ -56,32 +52,26 @@ else
   cd "$TEMP_WIKI"
 fi
 
-# Determine the branch name (GitHub Wiki uses 'master' by default)
-WIKI_BRANCH=$(git branch --show-current)
-echo -e "${YELLOW}Syncing to branch: ${WIKI_BRANCH}${NC}"
+echo -e "${YELLOW}Syncing to branch: master${NC}"
 
-# Clear old content (except .git)
-find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} +
-
-# Copy new wiki content
-echo "Copying wiki content..."
-cp -r "../../${WIKI_DIR}/." .
+# One-way rsync from source to wiki (mirrors the CI workflow)
+echo "Running rsync from ${OLDPWD}/${WIKI_DIR}/ ..."
+rsync -a --delete --exclude ".git" "${OLDPWD}/${WIKI_DIR}/" .
 
 # Check if there are changes
 if git status --porcelain | grep -q .; then
   echo -e "${YELLOW}Changes detected. Committing...${NC}"
   git add -A
-  git commit -m "Update wiki from main repository
+  git commit -m "docs: sync Qoder Repo Wiki content
 
-Auto-synced from ${REPO_NAME} main repository.
-Commit: $(cd ../.. && git rev-parse --short HEAD 2>/dev/null || echo 'unknown')
+Source commit: $(cd "$OLDPWD" && git rev-parse --short HEAD 2>/dev/null || echo 'unknown')
 Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-  
+
   echo "Pushing to GitHub Wiki..."
-  git push origin "${WIKI_BRANCH}"
-  
-  echo -e "${GREEN}✓ Wiki updated successfully!${NC}"
+  git push origin master
+
+  echo -e "${GREEN}Wiki updated successfully!${NC}"
   echo "View at: https://github.com/${REPO_OWNER}/${REPO_NAME}/wiki"
 else
-  echo -e "${GREEN}✓ Wiki is already up to date${NC}"
+  echo -e "${GREEN}Wiki is already up to date${NC}"
 fi
