@@ -145,14 +145,8 @@ fi
 log_info "Waiting for vector indexing to complete..."
 sleep 3
 
-# Step 4: Stop the app (important for clean snapshot)
-log_info "Stopping KAIROS app..."
-kill "${APP_PID}" 2>/dev/null || true
-wait "${APP_PID}" 2>/dev/null || true
-APP_PID="" # Prevent double-stop in cleanup
-
-log_info "Waiting for app to stop..."
-sleep 2
+# Note: Do NOT stop the app - we're using the already running instance from deploy-run-env.sh
+log_info "Adapter training complete - app remains running for snapshot creation"
 
 # Step 5: Create Qdrant snapshot
 log_info "Creating Qdrant snapshot..."
