@@ -34,10 +34,31 @@ execution path for agents in this worktree.
 ## Canonical sequence
 
 1. **`npm ci`**
-2. **`npm run dev:deploy`**
+2. **`npm run dev:deploy`** (imports Qdrant test snapshot if `CI=true`)
 3. **`npm run dev:test -- tests/integration/<file>.test.ts`** (iterate)
 4. **`npm run dev:test`** (pre-PR / handoff)
 5. **`npm run handoff`** when full maintainer validation is requested
+
+## Qdrant test snapshot infrastructure
+
+**Purpose:** Pre-seed Qdrant with trained adapters to avoid redundant `train` calls during tests.
+
+**How it works:**
+- `deploy-run-env.sh` triggers `import-test-snapshot.sh` when `CI=true`
+- Import script restores both `kairos_ci` and `kairos_ci_traces` collections from `.local/qdrant-snapshot/`
+- Snapshot contains 76+ adapters (system + test fixtures)
+- Tests benefit from pre-seeded data; no need to re-train common adapters
+
+**Snapshot management:**
+- Create/update: `npm run test:seed-snapshot` (dev mode with auth) or auto-seeded in `dev_simple` mode
+- Location: `.local/qdrant-snapshot/kairos_ci.snapshot` + `kairos_ci_traces.snapshot`
+- Scripts: `scripts/seed-test-snapshot.sh` (export), `scripts/import-test-snapshot.sh` (restore)
+- Both collections use multi-vector schema (vs1536, activation_pattern_vs1536, adapter_title_vs1536)
+
+**Agent guidance:**
+- Snapshot import happens automatically during `dev:deploy` when `CI=true`
+- Do NOT manually call seed/import scripts unless updating snapshot content
+- Track snapshot changes via git diff of import/seed scripts
 
 ## Auth variants
 

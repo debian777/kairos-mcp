@@ -251,7 +251,24 @@ start() {
                 qdrant_grpc_port="$((qdrant_port + 1))"
                 print_info "Ensuring Qdrant binary is running (${qdrant_url})..."
                 bash "$PROJECT_DIR/scripts/qdrant-binary.sh" install
-                QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                
+                # Idempotent start: check if port is already in use
+                existing_pid=$(lsof -ti :${qdrant_port} 2>/dev/null || true)
+                if [ -n "$existing_pid" ]; then
+                    print_info "Port ${qdrant_port} in use by PID ${existing_pid}, checking health..."
+                    # Check if existing Qdrant is healthy
+                    if curl -sSf "${qdrant_url}/healthz" >/dev/null 2>&1; then
+                        print_success "Qdrant already running and healthy on port ${qdrant_port} (PID ${existing_pid})"
+                    else
+                        print_warning "Port ${qdrant_port} occupied but Qdrant not healthy, killing PID ${existing_pid}..."
+                        kill -9 "$existing_pid" 2>/dev/null || true
+                        sleep 2
+                        QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                    fi
+                else
+                    print_info "Starting Qdrant binary on port ${qdrant_port}..."
+                    QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                fi
             fi
 
             # Start the dev server with env from .env (CI and local).
@@ -326,6 +343,31 @@ start() {
             fi
             attempt=$((attempt + 1))
         done
+        
+        # Import test snapshot if CI=true (for integration tests)
+        if [ "${CI:-}" = "true" ]; then
+            if  [ ! -f ".local/qdrant-snapshot/kairos_ci.snapshot" ]; then
+                # Only auto-seed in dev_simple mode (no auth)
+                # Dev mode requires manual seed with auth: npm run test:seed-snapshot
+                if [ "$ENV" = "dev_simple" ]; then
+                    print_info "CI mode detected - creating Qdrant test snapshot (ENV=${ENV})..."
+                    if bash "$PROJECT_DIR/scripts/seed-test-snapshot.sh"; then
+                        print_success "Test snapshot exported successfully"
+                    else
+                        print_error "Test snapshot export failed - tests will fail"
+                    fi
+                else
+                    print_warning "Snapshot missing in dev mode - run manually: npm run test:seed-snapshot"
+                fi
+            fi
+
+            print_info "CI mode detected - importing Qdrant test snapshot..."
+            if bash "$PROJECT_DIR/scripts/import-test-snapshot.sh"; then
+                print_success "Test snapshot imported successfully"
+            else
+                print_warning "Test snapshot import failed - tests may fail"
+            fi
+        fi
     fi
     # Dev: ensure Keycloak has kairos-dev realm and kairos-cli client so "npm run cli:dev -- login" works
     if [ "$ENV" = "dev" ]; then
@@ -520,13 +562,29 @@ test() {
             silent_flag=""
             [ "${CI:-}" = "true" ] || silent_flag="--silent"
             declare -a jest_args=()
-            jest_args+=(--maxWorkers=10 --detectOpenHandles --testTimeout=30000)
+            
+            # Auto-detect CPU count and set workers to ceil(cpus/2)
+            # macOS: sysctl -n hw.ncpu, Linux: nproc
+            if command -v sysctl >/dev/null 2>&1; then
+                cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+            elif command -v nproc >/dev/null 2>&1; then
+                cpu_count=$(nproc 2>/dev/null || echo 4)
+            else
+                cpu_count=4  # fallback
+            fi
+            # Calculate ceil(cpus/2) using integer math: (cpus + 1) / 2
+            max_workers=$(( (cpu_count + 1) / 2 ))
+            # Cap at 20 workers max, min 2 workers
+            [ "$max_workers" -lt 2 ] && max_workers=2
+            [ "$max_workers" -gt 20 ] && max_workers=20
+            
+            print_info "Detected ${cpu_count} CPUs, using ${max_workers} parallel test workers"
+            jest_args+=(--maxWorkers=${max_workers} --detectOpenHandles --testTimeout=30000)
             # Job summary (GitHub Actions): same style as Vitest's github-actions reporter
             if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
                 jest_args+=(--reporters default --reporters "$PROJECT_DIR/tests/reporters/jest-github-summary-reporter.cjs")
             fi
-            # Parallel tests (--maxWorkers=10): requires MAX_CONCURRENT_MCP_REQUESTS high enough to avoid queueing.
-            # deploy - now need to run manually: npm run dev:deploy
+            # Parallel tests: auto-detected workers, requires MAX_CONCURRENT_MCP_REQUESTS high enough to avoid queueing.
             if [ ${#args[@]} -eq 0 ]; then
                 MCP_URL="http://localhost:${PORT:-3300}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag "${jest_args[@]}" --testPathPatterns "tests/integration/" 2>&1  | tee -a "$REPORT_LOG_FILE"
             else
