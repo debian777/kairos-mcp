@@ -38,7 +38,7 @@ jobs:
 
       - name: Path filter
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           # Files that can affect build, lint, or simple-mode integration outcomes.
           # Keep in sync with integration.yml (Pattern B) when updating.
