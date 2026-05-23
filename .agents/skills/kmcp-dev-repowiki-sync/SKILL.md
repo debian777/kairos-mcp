@@ -54,6 +54,48 @@ description: >-
 - Use a complex third-party action (plain `rsync` + Git is sufficient).
 - Create empty commits when no changes exist.
 
+## GitHub Wiki markdown formatting
+
+GitHub Wiki renders markdown with specific behavior that differs from standard
+GitHub Flavored Markdown in `.md` files:
+
+### Headers
+
+- Headers use `#`, `##`, `###` syntax in source, but GitHub Wiki renders them
+  as `<h1>`, `<h2>`, `<h3>` HTML elements — **not** as markdown-style headers
+  with anchor links in the same way as repo `.md` files.
+- The text inside header elements is **plain text**, not formatted markdown.
+  You cannot nest inline formatting (bold, code spans) reliably inside a header
+  link target.
+- Header anchor slugs are auto-generated from the header text
+  (`## Getting Started` → `#getting-started`). Use these for internal
+  cross-page section links: `[text](Page-Name#section-slug)`.
+
+### Internal page links
+
+- GitHub Wiki supports two link syntaxes for internal pages:
+  - **Markdown:** `[[Page Name]]` (preferred for wiki navigation)
+  - **Markdown with label:** `[[Page Name|Custom Link Text]]`
+  - **Full URL:** `[Link Text](https://github.com/owner/repo/wiki/Page-Name)`
+- The `[[Page Name]]` syntax resolves to `Page Name.md` in the wiki repo.
+  Spaces in the filename become spaces in the link; special characters are
+  URL-encoded.
+
+### Images
+
+- Images embedded in the wiki repo use **relative paths**: `![alt](image.png)`
+- The image file must exist in the same wiki repo (not in the main repo).
+- SVG, PNG, and GIF are supported. SVG renders at native size unless constrained
+  with HTML: `<img src="image.svg" width="120">`.
+
+### Sidebar (`_Sidebar.md`)
+
+- `_Sidebar.md` is a special file that GitHub Wiki renders as the left
+  navigation panel.
+- Use `[[Page Name]]` links for internal pages.
+- Use `---` for horizontal rules (section dividers).
+- The sidebar is plain markdown — no complex HTML or custom CSS is supported.
+
 ## Adding a new wiki page
 
 1. Create `NewPage.md` in `.qoder/repowiki/en/content/`.
