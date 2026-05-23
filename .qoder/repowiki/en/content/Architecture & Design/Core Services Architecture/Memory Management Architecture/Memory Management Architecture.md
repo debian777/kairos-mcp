@@ -16,6 +16,16 @@
 - [src/utils/qdrant-utils.ts](file://src/utils/qdrant-utils.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Comprehensive update to reflect the complete memory management architecture implementation
+- Added detailed coverage of Qdrant integration layer with vector management and migration
+- Enhanced adapter pattern documentation covering both header-based and default storage approaches
+- Expanded content preprocessing pipeline with CodeBlockProcessor integration
+- Documented collection management, health monitoring, and error handling strategies
+- Added relationship mapping between memory UUIDs and Qdrant point IDs
+- Included practical examples and troubleshooting guidance
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -127,40 +137,40 @@ The architecture follows a layered pattern:
 ```mermaid
 classDiagram
 class MemoryQdrantStore {
--client : QdrantClient
--collection : string
--originalCollectionAlias : string
--url : string
--codeBlockProcessor : CodeBlockProcessor
--methods : MemoryQdrantStoreMethods
--adapterStore : MemoryQdrantStoreAdapter
-+init() : Promise<void>
-+checkHealth(timeoutMs) : Promise<boolean>
-+storeAdapter(docs, llmModelId, options) : Promise<Memory[]>
-+storeArtifact(content, options) : Promise<Memory[]>
-+getMemory(memory_uuid, options) : Promise<Memory|null>
-+searchMemories(query, limit, collapse) : Promise<{memories, scores}>
-+getQdrantAccess() : {client, collection}
+- client : QdrantClient
+- collection : string
+- originalCollectionAlias : string
+- url : string
+- codeBlockProcessor : CodeBlockProcessor
+- methods : MemoryQdrantStoreMethods
+- adapterStore : MemoryQdrantStoreAdapter
++ init() : Promise<void>
++ checkHealth(timeoutMs) : Promise<boolean>
++ storeAdapter(docs, llmModelId, options) : Promise<Memory[]>
++ storeArtifact(content, options) : Promise<Memory[]>
++ getMemory(memory_uuid, options) : Promise<Memory|null>
++ searchMemories(query, limit, collapse) : Promise<{memories, scores}>
++ getQdrantAccess() : {client, collection}
 }
 class MemoryQdrantStoreMethods {
--client : QdrantClient
--collection : string
--cache : Map
--cacheLoaded : boolean
--url : string
--codeBlockProcessor : CodeBlockProcessor
-+invalidateLocalCache() : void
-+getMemory(memory_uuid) : Promise<Memory|null>
-+getMemoryFresh(memory_uuid) : Promise<Memory|null>
-+searchMemories(query, limit, collapse) : Promise<{memories, scores}>
-+searchAdapterTitlesBySimilarity(query, limit) : Promise<{memories, scores}>
--vectorSearch(query, limit) : Promise<{memories, scores}>
--pointToMemory(point) : Memory
-+buildHeaderMemoryAdapter(markdownDoc, llmModelId, now) : Memory[]
+- client : QdrantClient
+- collection : string
+- cache : Map
+- cacheLoaded : boolean
+- url : string
+- codeBlockProcessor : CodeBlockProcessor
++ invalidateLocalCache() : void
++ getMemory(memory_uuid) : Promise<Memory|null>
++ getMemoryFresh(memory_uuid) : Promise<Memory|null>
++ searchMemories(query, limit, collapse) : Promise<{memories, scores}>
++ searchAdapterTitlesBySimilarity(query, limit) : Promise<{memories, scores}>
++ vectorSearch(query, limit) : Promise<{memories, scores}>
++ pointToMemory(point) : Memory
++ buildHeaderMemoryAdapter(markdownDoc, llmModelId, now) : Memory[]
 }
 class MemoryQdrantStoreAdapter {
-+storeAdapter(docs, llmModelId, options) : Promise<Memory[]>
-+storeArtifact(content, options) : Promise<Memory[]>
++ storeAdapter(docs, llmModelId, options) : Promise<Memory[]>
++ storeArtifact(content, options) : Promise<Memory[]>
 }
 MemoryQdrantStore --> MemoryQdrantStoreMethods : "uses"
 MemoryQdrantStore --> MemoryQdrantStoreAdapter : "uses"
@@ -421,8 +431,6 @@ QService["QdrantService"] --> QInit["initialization.ts"]
 - Caching: Local in-memory cache reduces repeated retrievals; Redis cache stores search results for query keys.
 - Vector Schema Evolution: Migration logic preserves required vectors and removes obsolete ones, minimizing downtime and ensuring optimal performance.
 - Payload Indexes: Creation of indexes on space_id, adapter metadata, and textual fields improves query performance.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - Health Check Failures: MemoryQdrantStore health check logs warnings and returns false on timeout or error; ensure Qdrant connectivity and API key configuration.

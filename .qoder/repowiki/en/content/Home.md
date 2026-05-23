@@ -1,40 +1,60 @@
-<p align="center">
-  <img src="kairos-mcp.svg" alt="KAIROS MCP" width="120">
-</p>
+# KAIROS MCP
 
-<h1 align="center">KAIROS MCP</h1>
+**KAIROS MCP** is a Model Context Protocol server for persistent memory and deterministic adapter execution. It stores workflows as linked adapters whose layers can carry proof-of-work challenges.
 
-KAIROS MCP is a Model Context Protocol server for persistent memory and deterministic adapter execution.
+## Quick Links
 
-It stores workflows as linked adapters whose layers can carry proof-of-work challenges. Agents execute an adapter run by calling **activate** (semantic match), then **forward** for each layer's contract (loop until `next_action` directs to **reward**), then **reward** to finalize the run.
+- [[Getting Started]] - Install and configure KAIROS
+- [[Project Overview]] - Understand core concepts and architecture
+- [[MCP Protocol Tools]] - Learn about activate, forward, reward, and more
+- [[Contributing & Development]] - Development workflows and guidelines
+- [[Troubleshooting & FAQ]] - Common issues and solutions
 
-## Sections
+## Key Features
 
-- **[[Project Overview]]** — Getting started, architecture, installation
-- **[[Architecture & Design]]** — Core services, MCP protocol, deployment
-- **[[Core Services]]** — Authentication, memory management, embedding services
-- **[[MCP Protocol Tools]]** — Documentation for each MCP tool (activate, forward, reward, etc.)
-- **[[User Interfaces]]** — CLI and web application documentation
-- **[[Security Considerations]]** — Security best practices
-- **[[Testing Strategy]]** — Testing approaches and guidelines
-- **[[Deployment & Operations]]** — Production deployment guide
-- **[[Monitoring & Observability]]** — Monitoring setup and alerts
-- **[[Contributing & Development]]** — Developer guidelines
-- **[[Troubleshooting & FAQ]]** — Common issues and solutions
+- **Persistent Memory** - Store and retrieve adapter workflows across sessions
+- **Deterministic Execution** - Execute adapters through activate → forward → reward chain
+- **Vector Search** - Semantic matching powered by Qdrant
+- **Multi-Interface Access** - MCP endpoint, REST API, CLI, and Web UI
+- **Extensible Protocols** - Train and tune custom adapters for team-specific workflows
 
-## Protocol Execution Model
+## Architecture
 
-```text
+KAIROS MCP is built with TypeScript (Node.js 24+), Qdrant (vector DB), Redis (state/caching), and optional Keycloak (OIDC auth).
+
+```
 activate → forward (loop per layer) → reward
 ```
 
-Discovery and adapter lifecycle tools (`spaces`, `train`, `tune`, `export`, `delete`) operate independently of the run order.
+## Documentation Sections
 
-## Contributing to this Wiki
+### Core Understanding
+- [[Project Overview]] - What is KAIROS MCP?
+- [[Core Services]] - Memory, embedding, and authentication services
+- [[Architecture & Design]] - System design and deployment infrastructure
 
-1. Edit files under `.qoder/repowiki/en/content/` in the main repository
-2. Create a PR with your changes
-3. Merge to `main`
-4. GitHub Action automatically publishes to this wiki
+### Working with KAIROS
+- [[Getting Started]] - Quick start guides and installation
+- [[MCP Protocol Tools]] - Complete tool reference
+- [[Skills & Protocols]] - Adapter patterns and usage
 
-Do not edit the GitHub Wiki directly — it is overwritten on each sync.
+### Operations
+- [[Deployment & Operations]] - Docker Compose and Kubernetes deployment
+- [[Testing Strategy]] - Test architecture and workflows
+- [[Monitoring & Observability]] - Metrics and health checks
+- [[Security Considerations]] - Security architecture and best practices
+
+### Development
+- [[Contributing & Development]] - Code standards and PR process
+- [[Development Tools]] - Build system and tooling
+- [[User Interfaces]] - CLI and web application documentation
+
+## Resources
+
+- **GitHub Repository**: [debian777/kairos-mcp](https://github.com/debian777/kairos-mcp)
+- **Installation Guide**: [docs/install/README.md](https://github.com/debian777/kairos-mcp/blob/main/docs/install/README.md)
+- **Contributing**: [CONTRIBUTING.md](https://github.com/debian777/kairos-mcp/blob/main/CONTRIBUTING.md)
+
+---
+
+*This wiki is automatically synchronized from the repository source. Last updated: 2026-05-23*

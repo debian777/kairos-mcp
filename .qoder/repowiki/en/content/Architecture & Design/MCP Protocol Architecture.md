@@ -10,12 +10,24 @@
 - [src/mcp-apps/kairos-server-ui-capability.ts](file://src/mcp-apps/kairos-server-ui-capability.ts)
 - [src/mcp-apps/list-offerings-for-ui.ts](file://src/mcp-apps/list-offerings-for-ui.ts)
 - [src/mcp-apps/kairos-ui-constants.ts](file://src/mcp-apps/kairos-ui-constants.ts)
+- [src/mcp-apps/register-activate-ui-resources.ts](file://src/mcp-apps/register-activate-ui-resources.ts)
+- [src/mcp-apps/register-forward-ui-resources.ts](file://src/mcp-apps/register-forward-ui-resources.ts)
+- [src/mcp-apps/register-spaces-ui-resources.ts](file://src/mcp-apps/register-spaces-ui-resources.ts)
 - [src/tools/activate.ts](file://src/tools/activate.ts)
 - [src/tools/forward.ts](file://src/tools/forward.ts)
 - [src/tools/train.ts](file://src/tools/train.ts)
 - [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
 - [src/http/http-error-handlers.ts](file://src/http/http-error-handlers.ts)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Enhanced MCP protocol architecture documentation with comprehensive coverage of protocol tools
+- Added detailed UI integration documentation for MCP Apps and Skybridge profiles
+- Expanded technical specifications for tool registration, resource management, and authentication flows
+- Updated architecture diagrams to reflect the complete MCP server implementation
+- Added protocol versioning and backward compatibility mechanisms
+- Documented extension mechanisms for UI capability blocks and resource offerings
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -396,8 +408,6 @@ F --> I["UI Capability Block"]
 - Request timeouts: Logs warnings around 25s to detect slow operations.
 - Logging levels: Structured logs include request IDs and durations for diagnostics.
 - Resource availability: Bootstrapping ensures resource endpoints remain responsive even without registered resources.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - 401 Unauthorized on /mcp:

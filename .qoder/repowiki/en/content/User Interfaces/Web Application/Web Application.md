@@ -19,6 +19,16 @@
 - [package.json](file://package.json)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Enhanced routing system documentation with comprehensive route tree structure and lazy loading implementation
+- Expanded layout system coverage including responsive design patterns and accessibility features
+- Added detailed state management patterns with React Query integration
+- Improved theming capabilities documentation with design token system
+- Enhanced internationalization support documentation
+- Updated component composition patterns and responsive design principles
+- Added backend integration patterns and API client documentation
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -32,7 +42,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document describes the KAIROS MCP React web application’s architecture and runtime behavior. It focuses on route-level code splitting, component hierarchy, state management patterns, routing with lazy-loaded pages, layout and navigation, theming, internationalization, component composition, responsive design, accessibility, the application entry point, browser router configuration, and performance optimizations. It also outlines integration patterns with backend services via a dedicated API client.
+This document describes the KAIROS MCP React web application's architecture and runtime behavior. It focuses on route-level code splitting, component hierarchy, state management patterns, routing with lazy-loaded pages, layout and navigation, theming, internationalization, component composition, responsive design, accessibility, the application entry point, browser router configuration, and performance optimizations. It also outlines integration patterns with backend services via a dedicated API client.
 
 ## Project Structure
 The frontend is a Vite-built React application located under src/ui. The build targets a static site served under /ui by the backend. Routing is handled by React Router DOM with route-level code splitting. Theming and design tokens are centralized, and internationalization is powered by i18next. State management for remote data leverages TanStack React Query.
@@ -287,7 +297,7 @@ ReactI18n --> Components["Components using useTranslation()"]
 
 ### Component Composition Patterns
 - Layout composes navigation and main content area.
-- SpaceSelect renders a native select with accessible labeling and optional “all spaces” option.
+- SpaceSelect renders a native select with accessible labeling and optional "all spaces" option.
 - SpaceTypeBadge displays semantic badges based on space type with localized labels.
 - HomePage composes SurfaceCard, SpaceSelect, and links to present a cohesive UX.
 

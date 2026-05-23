@@ -14,12 +14,21 @@
 - [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
 - [src/services/qdrant/connection.ts](file://src/services/qdrant/connection.ts)
 - [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
-- [src/services/embedding/providers.ts](file://src/services/embedding/providers.ts)
 - [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
 - [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
 - [src/metrics-server.ts](file://src/metrics-server.ts)
 - [src/services/metrics/registry.ts](file://src/services/metrics/registry.ts)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive authentication architecture documentation covering OIDC integration, Bearer token validation, and session management
+- Enhanced embedding services documentation with provider abstraction and health monitoring
+- Expanded memory management documentation with Qdrant integration patterns
+- Updated service initialization patterns and dependency injection architecture
+- Added detailed configuration management across environments
+- Enhanced Redis cache layer documentation with invalidation strategies
+- Improved metrics and health monitoring documentation
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -49,6 +58,7 @@ graph TB
 subgraph "Entry Point"
 B["bootstrap.ts"]
 I["index.ts"]
+S["server.ts"]
 end
 subgraph "HTTP Transport"
 HS["http-server.ts"]
@@ -73,7 +83,8 @@ MET["metrics-server.ts"]
 REG["metrics/registry.ts"]
 end
 B --> I
-I --> HS
+I --> S
+S --> HS
 HS --> AM
 HS --> HR
 HS --> AR
@@ -92,13 +103,14 @@ MET --> REG
 **Diagram sources**
 - [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
 - [src/index.ts:74-134](file://src/index.ts#L74-L134)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
-- [src/http/http-auth-middleware.ts:167-316](file://src/http/http-auth-middleware.ts#L167-L316)
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
 - [src/http/http-health-routes.ts:13-116](file://src/http/http-health-routes.ts#L13-L116)
 - [src/http/http-api-routes.ts:22-36](file://src/http/http-api-routes.ts#L22-L36)
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/redis-cache.ts:21-243](file://src/services/redis-cache.ts#L21-L243)
 - [src/services/key-value-store-factory.ts:12-20](file://src/services/key-value-store-factory.ts#L12-L20)
 - [src/metrics-server.ts:19-45](file://src/metrics-server.ts#L19-L45)
@@ -107,6 +119,7 @@ MET --> REG
 **Section sources**
 - [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
 - [src/index.ts:74-134](file://src/index.ts#L74-L134)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
 
 ## Core Components
@@ -134,11 +147,12 @@ MET --> REG
 
 **Section sources**
 - [src/index.ts:74-134](file://src/index.ts#L74-L134)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
 - [src/services/qdrant/connection.ts:11-131](file://src/services/qdrant/connection.ts#L11-L131)
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/embedding/providers.ts:251-280](file://src/services/embedding/providers.ts#L251-L280)
 - [src/services/redis-cache.ts:21-243](file://src/services/redis-cache.ts#L21-L243)
 - [src/services/key-value-store-factory.ts:12-20](file://src/services/key-value-store-factory.ts#L12-L20)
@@ -171,11 +185,11 @@ HTTP --> Metrics["Metrics Server"]
 
 **Diagram sources**
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
-- [src/http/http-auth-middleware.ts:167-316](file://src/http/http-auth-middleware.ts#L167-L316)
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
 - [src/http/http-api-routes.ts:22-36](file://src/http/http-api-routes.ts#L22-L36)
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/http/http-health-routes.ts:13-116](file://src/http/http-health-routes.ts#L13-L116)
 - [src/metrics-server.ts:19-45](file://src/metrics-server.ts#L19-L45)
 
@@ -212,14 +226,52 @@ end
 
 **Diagram sources**
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
-- [src/http/http-auth-middleware.ts:167-316](file://src/http/http-auth-middleware.ts#L167-L316)
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
 - [src/http/http-api-routes.ts:22-36](file://src/http/http-api-routes.ts#L22-L36)
 - [src/http/http-health-routes.ts:13-116](file://src/http/http-health-routes.ts#L13-L116)
 
 **Section sources**
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
-- [src/http/http-auth-middleware.ts:167-316](file://src/http/http-auth-middleware.ts#L167-L316)
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
 - [src/http/http-health-routes.ts:13-116](file://src/http/http-health-routes.ts#L13-L116)
+
+### Authentication Architecture
+The authentication system implements a comprehensive OIDC-based security model:
+
+- **Session Management**: Secure session cookies with HMAC verification, configurable expiration, and group filtering
+- **Bearer Token Validation**: Optional OIDC Bearer token validation with issuer/audience verification
+- **Multi-factor Authentication Support**: Integration with Keycloak for enterprise SSO
+- **Space Scoping**: Fine-grained access control based on user groups and space permissions
+- **Fallback Mechanisms**: Graceful degradation when authentication systems are unavailable
+
+```mermaid
+flowchart TD
+Start(["Authentication Request"]) --> CheckAuth{"AUTH_ENABLED?"}
+CheckAuth --> |No| Allow["Allow Access"]
+CheckAuth --> |Yes| CheckPath{"Protected Path?"}
+CheckPath --> |No| Allow
+CheckPath --> |Yes| CheckSession{"Valid Session?"}
+CheckSession --> |Yes| ValidateSession["Verify HMAC & Extract Claims"]
+CheckSession --> |No| CheckBearer{"Bearer Token?"}
+CheckBearer --> |Yes| ValidateBearer["Validate Issuer/Audience"]
+CheckBearer --> |No| CheckMethod{"GET Request?"}
+CheckMethod --> |Yes| Redirect["302 Redirect to Login"]
+CheckMethod --> |No| JsonError["401 JSON Error"]
+ValidateSession --> SpaceScope["Apply Space Context"]
+ValidateBearer --> SpaceScope
+Redirect --> End
+JsonError --> End
+Allow --> End
+SpaceScope --> End(["Authenticated Access"])
+```
+
+**Diagram sources**
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
+- [src/config.ts:113-241](file://src/config.ts#L113-L241)
+
+**Section sources**
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
+- [src/config.ts:113-241](file://src/config.ts#L113-L241)
 
 ### Memory Management and Qdrant Integration
 - MemoryQdrantStore encapsulates:
@@ -334,11 +386,11 @@ Err --> Done
 ```
 
 **Diagram sources**
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/embedding/providers.ts:251-280](file://src/services/embedding/providers.ts#L251-L280)
 
 **Section sources**
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/embedding/providers.ts:251-280](file://src/services/embedding/providers.ts#L251-L280)
 
 ### Redis Cache Layer Architecture
@@ -413,6 +465,7 @@ Init->>HTTP : "startServer(MemoryQdrantStore)"
 **Diagram sources**
 - [src/bootstrap.ts:37-55](file://src/bootstrap.ts#L37-L55)
 - [src/index.ts:74-134](file://src/index.ts#L74-L134)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 - [src/services/memory/store.ts:55-57](file://src/services/memory/store.ts#L55-L57)
 - [src/services/embedding/service.ts:289-293](file://src/services/embedding/service.ts#L289-L293)
 - [src/metrics-server.ts:19-45](file://src/metrics-server.ts#L19-L45)
@@ -421,6 +474,7 @@ Init->>HTTP : "startServer(MemoryQdrantStore)"
 **Section sources**
 - [src/index.ts:74-134](file://src/index.ts#L74-L134)
 - [src/bootstrap.ts:37-55](file://src/bootstrap.ts#L37-L55)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 
 ### Inter-Service Communication Patterns
 - HTTP routes depend on MemoryQdrantStore and QdrantService for persistence and retrieval
@@ -458,11 +512,11 @@ J --> E
 ```
 
 **Diagram sources**
-- [src/http/http-auth-middleware.ts:167-316](file://src/http/http-auth-middleware.ts#L167-L316)
+- [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
 - [src/http/http-api-routes.ts:22-36](file://src/http/http-api-routes.ts#L22-L36)
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/redis-cache.ts:21-243](file://src/services/redis-cache.ts#L21-L243)
 - [src/http/http-health-routes.ts:13-116](file://src/http/http-health-routes.ts#L13-L116)
 
@@ -491,7 +545,7 @@ HTTP --> RC
 ```
 
 **Diagram sources**
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/embedding/providers.ts:251-280](file://src/services/embedding/providers.ts#L251-L280)
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/connection.ts:11-131](file://src/services/qdrant/connection.ts#L11-L131)
@@ -503,7 +557,7 @@ HTTP --> RC
 **Section sources**
 - [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
 - [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
-- [src/services/embedding/service.ts:38-287](file://src/services/embedding/service.ts#L38-L287)
+- [src/services/embedding/service.ts:38-293](file://src/services/embedding/service.ts#L38-L293)
 - [src/services/redis-cache.ts:21-243](file://src/services/redis-cache.ts#L21-L243)
 - [src/services/key-value-store-factory.ts:12-20](file://src/services/key-value-store-factory.ts#L12-L20)
 - [src/http/http-server.ts:22-59](file://src/http/http-server.ts#L22-L59)
@@ -519,8 +573,6 @@ HTTP --> RC
   - QdrantConnection implements exponential backoff reconnection to recover from transient failures
 - Metrics:
   - Prometheus metrics enable capacity planning and alerting on latency and error rates
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - Startup failures:
@@ -541,6 +593,7 @@ HTTP --> RC
 **Section sources**
 - [src/bootstrap.ts:37-55](file://src/bootstrap.ts#L37-L55)
 - [src/index.ts:122-134](file://src/index.ts#L122-L134)
+- [src/server.ts:125-194](file://src/server.ts#L125-L194)
 - [src/services/qdrant/connection.ts:76-131](file://src/services/qdrant/connection.ts#L76-L131)
 - [src/services/embedding/providers.ts:31-47](file://src/services/embedding/providers.ts#L31-L47)
 - [src/services/redis-cache.ts:114-125](file://src/services/redis-cache.ts#L114-L125)
@@ -549,8 +602,6 @@ HTTP --> RC
 
 ## Conclusion
 The KAIROS MCP core services layer implements a clean separation of concerns with robust error handling, graceful degradation, and strong observability. The HTTP server delegates to specialized services for memory, embeddings, and caching, while Qdrant and Redis provide scalable persistence. Centralized configuration enables environment-specific behavior, and the metrics server isolates operational monitoring. Together, these patterns support reliable scaling and maintainability.
-
-[No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 
@@ -577,5 +628,3 @@ The KAIROS MCP core services layer implements a clean separation of concerns wit
 - Observability:
   - Use dedicated metrics server for Prometheus scraping without impacting application performance
   - Monitor embedding provider latencies and error rates to drive autoscaling decisions
-
-[No sources needed since this section provides general guidance]

@@ -39,6 +39,15 @@
 - [index.ts](file://src/index.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Comprehensive documentation coverage for all eight MCP protocol tools
+- Detailed input/output schema specifications for each tool
+- Complete execution flow analysis with practical examples
+- Enhanced integration patterns and UI capability extensions
+- Updated error handling strategies and best practices
+- Added tool discovery and resource registration documentation
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -52,7 +61,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document describes the eight MCP protocol tools implemented in KAIROS MCP: activate, forward, train, reward, tune, delete, export, and spaces. It explains each tool’s purpose, input/output schemas, execution flow, and integration patterns. It also covers semantic search in activate, the layer execution engine in forward, protocol storage in train, performance scoring in reward, content updates in tune, resource cleanup in delete, skill bundle creation in export, and space management in spaces. Practical examples are referenced from the codebase, along with error handling strategies and best practices for tool usage, discovery, resource registration, and UI capability extensions.
+This document describes the eight MCP protocol tools implemented in KAIROS MCP: activate, forward, train, reward, tune, delete, export, and spaces. It explains each tool's purpose, input/output schemas, execution flow, and integration patterns. It also covers semantic search in activate, the layer execution engine in forward, protocol storage in train, performance scoring in reward, content updates in tune, resource cleanup in delete, skill bundle creation in export, and space management in spaces. Practical examples are referenced from the codebase, along with error handling strategies and best practices for tool usage, discovery, resource registration, and UI capability extensions.
 
 ## Project Structure
 KAIROS MCP organizes MCP tools under src/tools with dedicated schemas and runtime implementations. Tools integrate with Qdrant-backed memory stores, execution tracing, and UI capability registration. HTTP routes and the MCP handler bridge external clients to tool execution.
@@ -148,14 +157,14 @@ EXP -.-> EDC
 - [spaces.ts:1-273](file://src/tools/spaces.ts#L1-L273)
 
 ## Core Components
-- activate: Semantic search and adapter discovery, returning ranked choices with optional linked artifacts and guidance to call forward.
-- forward: Layer execution engine supporting tensor, shell, MCP, user_input, and comment contracts; manages execution traces, proof-of-work, and progression.
-- train: Registers new adapters or artifacts; supports forking from a source adapter and artifact storage with MIME-aware normalization.
-- reward: Records outcomes and scores for adapter layers, computes evaluation labels and eligibility for SFT/preference datasets, and persists ratings.
-- tune: Updates content or metadata of adapters/layers and optionally moves them to a different space.
-- delete: Removes adapters and their layers by URI, with robust error reporting per URI.
-- export: Exports adapter markdown, training JSONL, skill bundles, or raw source; supports inline ZIP or download references.
-- spaces: Lists available spaces, adapter counts, and optionally adapter titles and artifacts for UI rendering.
+- **activate**: Semantic search and adapter discovery, returning ranked choices with optional linked artifacts and guidance to call forward.
+- **forward**: Layer execution engine supporting tensor, shell, MCP, user_input, and comment contracts; manages execution traces, proof-of-work, and progression.
+- **train**: Registers new adapters or artifacts; supports forking from a source adapter and artifact storage with MIME-aware normalization.
+- **reward**: Records outcomes and scores for adapter layers, computes evaluation labels and eligibility for SFT/preference datasets, and persists ratings.
+- **tune**: Updates content or metadata of adapters/layers and optionally moves them to a different space.
+- **delete**: Removes adapters and their layers by URI, with robust error reporting per URI.
+- **export**: Exports adapter markdown, training JSONL, skill bundles, or raw source; supports inline ZIP or download references.
+- **spaces**: Lists available spaces, adapter counts, and optionally adapter titles and artifacts for UI rendering.
 
 **Section sources**
 - [activate.ts:208-234](file://src/tools/activate.ts#L208-L234)
@@ -198,27 +207,27 @@ Handler-->>Client : "MCP response"
 ## Detailed Component Analysis
 
 ### activate
-Purpose
-- Find the best matching adapter for a user query, including refine/create suggestions and optional linked artifacts. Returns choices with guidance to call forward.
+**Purpose**
+Find the best matching adapter for a user query, including refine/create suggestions and optional linked artifacts. Returns choices with guidance to call forward.
 
-Input schema highlights
-- query: Textual activation query
-- execution_id: Optional UUID to continue a refinement sequence
-- space/space_id: Scope to a specific space
-- max_choices: Limit on returned choices
+**Input Schema Highlights**
+- `query`: Textual activation query
+- `execution_id`: Optional UUID to continue a refinement sequence
+- `space/space_id`: Scope to a specific space
+- `max_choices`: Limit on returned choices
 
-Output schema highlights
-- choices: Match/refine/create variants with roles, scores, next actions, and optional linked artifacts
-- execution_id: Server-assigned ID for refinement
-- kairos_local_artifact_dir: Client-side artifact directory hints
+**Output Schema Highlights**
+- `choices`: Match/refine/create variants with roles, scores, next actions, and optional linked artifacts
+- `execution_id`: Server-assigned ID for refinement
+- `kairos_local_artifact_dir`: Client-side artifact directory hints
 
-Execution flow
-- Executes semantic search and maps results to activation choices
-- Resolves export adapters and lists linked artifacts with download capabilities
-- Builds guidance messages and materialization commands for artifacts
-- Tracks refinement count to gate footer messages
+**Execution Flow**
+1. Executes semantic search and maps results to activation choices
+2. Resolves export adapters and lists linked artifacts with download capabilities
+3. Builds guidance messages and materialization commands for artifacts
+4. Tracks refinement count to gate footer messages
 
-Integration patterns
+**Integration Patterns**
 - Uses Qdrant service for search
 - Leverages artifact catalog and download capability minting
 - Emits UI meta for MCP app presentation
@@ -252,25 +261,25 @@ Activate-->>Client : "ActivateOutput"
 - [activate_schema.ts:1-120](file://src/tools/activate_schema.ts#L1-L120)
 
 ### forward
-Purpose
-- Drive adapter execution through layers, enforcing contracts, collecting solutions, and advancing execution state.
+**Purpose**
+Drive adapter execution through layers, enforcing contracts, collecting solutions, and advancing execution state.
 
-Input schema highlights
-- uri: Adapter slug or layer URI
-- solution: Required for continuation calls; includes type, outcome, and evidence payload
+**Input Schema Highlights**
+- `uri`: Adapter slug or layer URI
+- `solution`: Required for continuation calls; includes type, outcome, and evidence payload
 
-Output schema highlights
-- contract: Current layer contract (tensor, shell, MCP, user_input, comment)
-- next_call: Suggests next action (forward or reward)
-- execution_id: Active run identifier
-- proof_hash: Hash for proof-based layers
+**Output Schema Highlights**
+- `contract`: Current layer contract (tensor, shell, MCP, user_input, comment)
+- `next_call`: Suggests next action (forward or reward)
+- `execution_id`: Active run identifier
+- `proof_hash`: Hash for proof-based layers
 
-Execution flow
-- Loads memory for the given URI; starts a new execution if needed
-- Handles tensor, shell, MCP, user_input, and comment contracts
-- Manages proof-of-work submission and prerequisite completion
-- Persists execution traces and updates step quality
-- Advances to next layer or signals completion
+**Execution Flow**
+1. Loads memory for the given URI; starts a new execution if needed
+2. Handles tensor, shell, MCP, user_input, and comment contracts
+3. Manages proof-of-work submission and prerequisite completion
+4. Persists execution traces and updates step quality
+5. Advances to next layer or signals completion
 
 ```mermaid
 flowchart TD
@@ -297,24 +306,24 @@ NextView --> End(["Forward Exit"])
 - [forward_schema.ts:1-351](file://src/tools/forward_schema.ts#L1-L351)
 
 ### train
-Purpose
-- Register new adapters or artifacts; supports forking from a source adapter and artifact storage.
+**Purpose**
+Register new adapters or artifacts; supports forking from a source adapter and artifact storage.
 
-Input schema highlights
-- content: Protocol markdown or artifact content
-- llm_model_id: Model identifier for attribution
-- force_update: Overwrite existing adapter with same label
-- protocol_version: Adapter version
-- space: Target space ("personal" or group)
-- source_adapter_uri: Fork from an existing adapter
-- mime/artifact_name/adapter_uri: Artifact mode controls
-- relative_path: Artifact path normalization
+**Input Schema Highlights**
+- `content`: Protocol markdown or artifact content
+- `llm_model_id`: Model identifier for attribution
+- `force_update`: Overwrite existing adapter with same label
+- `protocol_version`: Adapter version
+- `space`: Target space ("personal" or group)
+- `source_adapter_uri`: Fork from an existing adapter
+- `mime/artifact_name/adapter_uri`: Artifact mode controls
+- `relative_path`: Artifact path normalization
 
-Execution flow
-- Resolves content from input or forks from a source adapter
-- Normalizes MIME and artifact paths
-- Stores content via the training store, resolving adapter URIs and outputs
-- Returns items with URIs, layer/artifact UUIDs, and tags
+**Execution Flow**
+1. Resolves content from input or forks from a source adapter
+2. Normalizes MIME and artifact paths
+3. Stores content via the training store, resolving adapter URIs and outputs
+4. Returns items with URIs, layer/artifact UUIDs, and tags
 
 ```mermaid
 sequenceDiagram
@@ -341,20 +350,20 @@ Train-->>Client : "TrainOutput"
 - [train_schema.ts:1-218](file://src/tools/train_schema.ts#L1-L218)
 
 ### reward
-Purpose
-- Attach reward signals to adapter layers after execution, compute evaluation labels, and persist ratings.
+**Purpose**
+Attach reward signals to adapter layers after execution, compute evaluation labels, and persist ratings.
 
-Input schema highlights
-- uri: Layer URI
-- outcome: success/failure
-- score: Optional normalized score
-- feedback/rater/rubric_version/llm_model_id: Attribution and feedback
+**Input Schema Highlights**
+- `uri`: Layer URI
+- `outcome`: success/failure
+- `score`: Optional normalized score
+- `feedback/rater/rubric_version/llm_model_id`: Attribution and feedback
 
-Execution flow
-- Validates URI and evaluates reward
-- Applies reward metrics to Qdrant
-- Persists rating to execution trace store when execution_id is present
-- Returns results with eligibility flags and blockers
+**Execution Flow**
+1. Validates URI and evaluates reward
+2. Applies reward metrics to Qdrant
+3. Persists rating to execution trace store when execution_id is present
+4. Returns results with eligibility flags and blockers
 
 ```mermaid
 sequenceDiagram
@@ -383,54 +392,54 @@ Reward-->>Client : "RewardOutput"
 - [reward_schema.ts:1-53](file://src/tools/reward_schema.ts#L1-L53)
 
 ### tune
-Purpose
-- Update content or metadata of adapters/layers and optionally move them to another space.
+**Purpose**
+Update content or metadata of adapters/layers and optionally move them to another space.
 
-Input schema highlights
-- uris: Non-empty array of adapter/layer URIs
-- content: Updated content bodies (parallel to uris)
-- updates: Advanced field updates
-- space: Move all layers to a new space
+**Input Schema Highlights**
+- `uris`: Non-empty array of adapter/layer URIs
+- `content`: Updated content bodies (parallel to uris)
+- `updates`: Advanced field updates
+- `space`: Move all layers to a new space
 
-Execution flow
-- Validates input shape and counts
-- Lazily initializes Qdrant service if needed
-- Executes tune operation and returns per-URI results
+**Execution Flow**
+1. Validates input shape and counts
+2. Lazily initializes Qdrant service if needed
+3. Executes tune operation and returns per-URI results
 
 **Section sources**
 - [tune.ts:1-58](file://src/tools/tune.ts#L1-L58)
 - [tune_schema.ts:1-55](file://src/tools/tune_schema.ts#L1-L55)
 
 ### delete
-Purpose
-- Remove adapters and their layers by URI with per-URI results.
+**Purpose**
+Remove adapters and their layers by URI with per-URI results.
 
-Input schema highlights
-- uris: Non-empty array of adapter/layer URIs
+**Input Schema Highlights**
+- `uris`: Non-empty array of adapter/layer URIs
 
-Execution flow
-- Parses URIs and resolves adapter slugs to layer UUIDs
-- Deletes all layers of an adapter or individual layers
-- Aggregates results and counts
+**Execution Flow**
+1. Parses URIs and resolves adapter slugs to layer UUIDs
+2. Deletes all layers of an adapter or individual layers
+3. Aggregates results and counts
 
 **Section sources**
 - [delete.ts:1-116](file://src/tools/delete.ts#L1-L116)
 - [delete_schema.ts:1-33](file://src/tools/delete_schema.ts#L1-L33)
 
 ### export
-Purpose
-- Export adapters/markdown, training JSONL, or skill bundles; support inline ZIP or download references.
+**Purpose**
+Export adapters/markdown, training JSONL, or skill bundles; support inline ZIP or download references.
 
-Input schema highlights
-- uri/adapters/all_adapters/space_name: Selection modes
-- format: markdown, trace_jsonl, reward_jsonl, sft_jsonl, preference_jsonl, source, skill_tree, skill_zip
-- delivery: download_ref or inline_base64 (ZIP)
-- include_reward: Include rewards in training formats
+**Input Schema Highlights**
+- `uri/adapters/all_adapters/space_name`: Selection modes
+- `format`: markdown, trace_jsonl, reward_jsonl, sft_jsonl, preference_jsonl, source, skill_tree, skill_zip
+- `delivery`: download_ref or inline_base64 (ZIP)
+- `include_reward`: Include rewards in training formats
 
-Execution flow
-- Resolves adapter URIs and handles artifact/source exports
-- Supports flat markdown, training JSONL, and skill bundles
-- Builds manifests and ZIPs; mints download capabilities
+**Execution Flow**
+1. Resolves adapter URIs and handles artifact/source exports
+2. Supports flat markdown, training JSONL, and skill bundles
+3. Builds manifests and ZIPs; mints download capabilities
 
 ```mermaid
 flowchart TD
@@ -454,18 +463,18 @@ Zip --> End
 - [export_schema.ts:1-150](file://src/tools/export_schema.ts#L1-L150)
 
 ### spaces
-Purpose
-- List spaces with human-readable names, adapter counts, and optionally adapter titles and artifacts.
+**Purpose**
+List spaces with human-readable names, adapter counts, and optionally adapter titles and artifacts.
 
-Input schema highlights
-- include_adapter_titles: Include adapters with titles and layer counts
-- include_widget_html: Append HTML table for UI
-- include_artifacts: Include artifact metadata per adapter
+**Input Schema Highlights**
+- `include_adapter_titles`: Include adapters with titles and layer counts
+- `include_widget_html`: Append HTML table for UI
+- `include_artifacts`: Include artifact metadata per adapter
 
-Execution flow
-- Builds space info by scrolling Qdrant points and grouping by adapter
-- Normalizes slugs and builds adapter URIs
-- Renders optional HTML widget for UI
+**Execution Flow**
+1. Builds space info by scrolling Qdrant points and grouping by adapter
+2. Normalizes slugs and builds adapter URIs
+3. Renders optional HTML widget for UI
 
 **Section sources**
 - [spaces.ts:1-273](file://src/tools/spaces.ts#L1-L273)
@@ -523,15 +532,13 @@ Tools --> UI["UI Registration"]
 - Qdrant scroll limits and pagination are used to avoid heavy queries in spaces.
 - Artifact and bundle exports are optimized with capability-based downloads and optional inline encoding.
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
-Common issues and strategies
-- Validation errors: Tools return structured validation errors via teaching helpers; inspect parsed errors and adjust inputs accordingly.
-- Duplicate adapters: Train tool normalizes DUPLICATE_ADAPTER and SIMILAR_MEMORY_FOUND errors with actionable next actions.
-- Reward persistence failures: Reward tool wraps persistence errors into a clear failure message with retry guidance.
-- Missing proofs: Forward tool enforces prerequisite completion and returns blocked payloads with retry guidance.
-- Space resolution: Spaces tool deduplicates space IDs and aggregates adapter counts; verify allowed spaces and app space inclusion.
+**Common issues and strategies**
+- **Validation errors**: Tools return structured validation errors via teaching helpers; inspect parsed errors and adjust inputs accordingly.
+- **Duplicate adapters**: Train tool normalizes DUPLICATE_ADAPTER and SIMILAR_MEMORY_FOUND errors with actionable next actions.
+- **Reward persistence failures**: Reward tool wraps persistence errors into a clear failure message with retry guidance.
+- **Missing proofs**: Forward tool enforces prerequisite completion and returns blocked payloads with retry guidance.
+- **Space resolution**: Spaces tool deduplicates space IDs and aggregates adapter counts; verify allowed spaces and app space inclusion.
 
 **Section sources**
 - [train.ts:56-83](file://src/tools/train.ts#L56-L83)
@@ -541,8 +548,6 @@ Common issues and strategies
 
 ## Conclusion
 KAIROS MCP tools provide a cohesive protocol for semantic activation, controlled execution, training, reward, tuning, deletion, exporting, and space management. Their schemas enforce strong contracts, while integration with Qdrant, memory stores, and capability services ensures scalable and secure operations. UI registration and widget rendering further enhance usability across MCP apps.
-
-[No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 
