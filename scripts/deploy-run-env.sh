@@ -251,7 +251,24 @@ start() {
                 qdrant_grpc_port="$((qdrant_port + 1))"
                 print_info "Ensuring Qdrant binary is running (${qdrant_url})..."
                 bash "$PROJECT_DIR/scripts/qdrant-binary.sh" install
-                QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                
+                # Idempotent start: check if port is already in use
+                existing_pid=$(lsof -ti :${qdrant_port} 2>/dev/null || true)
+                if [ -n "$existing_pid" ]; then
+                    print_info "Port ${qdrant_port} in use by PID ${existing_pid}, checking health..."
+                    # Check if existing Qdrant is healthy
+                    if curl -sSf "${qdrant_url}/healthz" >/dev/null 2>&1; then
+                        print_success "Qdrant already running and healthy on port ${qdrant_port} (PID ${existing_pid})"
+                    else
+                        print_warning "Port ${qdrant_port} occupied but Qdrant not healthy, killing PID ${existing_pid}..."
+                        kill -9 "$existing_pid" 2>/dev/null || true
+                        sleep 2
+                        QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                    fi
+                else
+                    print_info "Starting Qdrant binary on port ${qdrant_port}..."
+                    QDRANT_HOST="${qdrant_host}" QDRANT_HTTP_PORT="${qdrant_port}" QDRANT_GRPC_PORT="${qdrant_grpc_port}" bash "$PROJECT_DIR/scripts/qdrant-binary.sh" start
+                fi
             fi
 
             # Start the dev server with env from .env (CI and local).
@@ -330,12 +347,17 @@ start() {
         # Import test snapshot if CI=true (for integration tests)
         if [ "${CI:-}" = "true" ]; then
             if  [ ! -f ".local/qdrant-snapshot/kairos_ci.snapshot" ]; then
-                print_info "CI mode detected - creating Qdrant test snapshot (ENV=${ENV})..."
-                # Seed script uses already running Qdrant/app from current ENV
-                if bash "$PROJECT_DIR/scripts/seed-test-snapshot.sh"; then
-                    print_success "Test snapshot exported successfully"
+                # Only auto-seed in dev_simple mode (no auth)
+                # Dev mode requires manual seed with auth: npm run test:seed-snapshot
+                if [ "$ENV" = "dev_simple" ]; then
+                    print_info "CI mode detected - creating Qdrant test snapshot (ENV=${ENV})..."
+                    if bash "$PROJECT_DIR/scripts/seed-test-snapshot.sh"; then
+                        print_success "Test snapshot exported successfully"
+                    else
+                        print_error "Test snapshot export failed - tests will fail"
+                    fi
                 else
-                    print_error "Test snapshot export failed - tests will fail"
+                    print_warning "Snapshot missing in dev mode - run manually: npm run test:seed-snapshot"
                 fi
             fi
 

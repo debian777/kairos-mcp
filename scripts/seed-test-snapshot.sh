@@ -31,7 +31,8 @@ fi
 # Use ALREADY RUNNING Qdrant and app (from current ENV)
 # Do NOT start Qdrant binary - use the one from deploy-run-env.sh
 QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}"
-APP_URL="${APP_URL:-http://localhost:3300}"
+APP_PORT="${PORT:-3300}"
+APP_URL="http://localhost:${APP_PORT}"
 MCP_URL="${APP_URL}/mcp"
 
 # Colors for output
