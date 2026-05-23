@@ -86,51 +86,49 @@ curl -sf -X DELETE \
   "${CURL_HEADERS[@]}" \
   || true  # Ignore error if traces collection doesn't exist
 
-# Create fresh collection with correct vector config
-log_info "Creating collection '${COLLECTION_NAME}'..."
-curl -sf -X PUT \
-  "${QDRANT_URL}/collections/${COLLECTION_NAME}" \
-  "${CURL_HEADERS[@]}" \
-  -d '{
-    "vectors": {
-      "size": 1536,
-      "distance": "Cosine"
-    }
-  }' || {
-    log_error "Failed to create collection"
-    exit 1
-  }
+# Do NOT create collection manually - snapshot restore will create it with correct multi-vector schema
+log_info "Restoring main collection from snapshot..."
+# Note: Do NOT send Content-Type header with -F (curl sets multipart/form-data automatically)
+UPLOAD_HEADERS=()
+if [[ -n "${QDRANT_API_KEY}" ]]; then
+  UPLOAD_HEADERS=("-H" "api-key: ${QDRANT_API_KEY}")
+fi
 
-# Upload main snapshot via Qdrant file upload API
-log_info "Uploading main snapshot to Qdrant..."
-UPLOAD_RESPONSE=$(curl -sf -X POST \
+UPLOAD_RESPONSE=$(curl -sS -X POST \
   "${QDRANT_URL}/collections/${COLLECTION_NAME}/snapshots/upload" \
-  "${CURL_HEADERS[@]}" \
+  "${UPLOAD_HEADERS[@]}" \
   -F "snapshot=@${SNAPSHOT_FILE}" \
-  -F "priority=low")
+  -F "priority=low" 2>&1)
 
-log_success "Main snapshot imported successfully"
+UPLOAD_EXIT=$?
+if [ ${UPLOAD_EXIT} -ne 0 ]; then
+  log_error "Failed to upload main snapshot (exit code: ${UPLOAD_EXIT})"
+  echo "${UPLOAD_RESPONSE}"
+  exit 1
+fi
+
+# Check if response indicates success
+if echo "${UPLOAD_RESPONSE}" | python3 -c 'import sys, json; data = json.load(sys.stdin); assert data.get("status") == "ok"' 2>/dev/null; then
+  log_success "Main snapshot imported successfully"
+else
+  log_error "Main snapshot upload failed"
+  echo "${UPLOAD_RESPONSE}"
+  exit 1
+fi
 
 # Import traces snapshot if it exists
 TRACES_SNAPSHOT_FILE="${ROOT_DIR}/.local/qdrant-snapshot/kairos_ci_traces.snapshot"
 if [ -f "${TRACES_SNAPSHOT_FILE}" ]; then
-  log_info "Creating traces collection '${COLLECTION_NAME}_traces'..."
-  curl -sf -X PUT \
-    "${QDRANT_URL}/collections/${COLLECTION_NAME}_traces" \
-    "${CURL_HEADERS[@]}" \
-    -d '{
-      "vectors": {
-        "size": 1536,
-        "distance": "Cosine"
-      }
-    }' || true  # May already exist
+  log_info "Restoring traces collection from snapshot..."
+  # Do NOT create collection - snapshot will create it with correct schema
   
   log_info "Uploading traces snapshot to Qdrant..."
-  curl -sf -X POST \
+  # Note: Do NOT send Content-Type header with -F
+  TRACES_UPLOAD_RESPONSE=$(curl -sS -X POST \
     "${QDRANT_URL}/collections/${COLLECTION_NAME}_traces/snapshots/upload" \
-    "${CURL_HEADERS[@]}" \
+    "${UPLOAD_HEADERS[@]}" \
     -F "snapshot=@${TRACES_SNAPSHOT_FILE}" \
-    -F "priority=low"
+    -F "priority=low" 2>&1)
   
   log_success "Traces snapshot imported successfully"
 else
