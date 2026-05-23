@@ -1,0 +1,149 @@
+name: Dev Container Validation
+
+on:
+  pull_request:
+    branches: [main, "feat/**", "ci/**"]
+    paths:
+      - ".devcontainer/**"
+      - "Dockerfile.dev"
+      - "compose.yaml"
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+      - "Dockerfile.dev"
+      - "compose.yaml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Dev Container Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run validation script
+        run: |
+          echo "=== Running quick validation ==="
+          ./.devcontainer/validate.sh --quick
+
+      - name: Verify symlinks
+        run: |
+          echo "=== Verifying symlink configuration ==="
+          if [ -L .devcontainer/devcontainer.json ]; then
+            TARGET=$(readlink .devcontainer/devcontainer.json)
+            echo "✓ devcontainer.json → $TARGET"
+          else
+            echo "✗ devcontainer.json is not a symlink"
+            exit 1
+          fi
+
+      - name: Validate JSON configs
+        run: |
+          echo "=== Validating JSON syntax ==="
+          node -e "JSON.parse(require('fs').readFileSync('.devcontainer/devcontainer.json.base', 'utf8'))"
+          echo "✓ devcontainer.json.base is valid JSON"
+          
+          node -e "JSON.parse(require('fs').readFileSync('.devcontainer/devcontainer-fullstack.json', 'utf8'))"
+          echo "✓ devcontainer-fullstack.json is valid JSON"
+
+      - name: Validate YAML configs
+        run: |
+          echo "=== Validating YAML syntax ==="
+          python3 -c "import yaml; yaml.safe_load(open('.devcontainer/docker-compose.extend.yml'))"
+          echo "✓ docker-compose.extend.yml is valid YAML"
+          
+          python3 -c "import yaml; yaml.safe_load(open('.devcontainer/docker-compose-fullstack.extend.yml'))"
+          echo "✓ docker-compose-fullstack.extend.yml is valid YAML"
+
+      - name: Verify referenced files exist
+        run: |
+          echo "=== Checking referenced files ==="
+          test -f Dockerfile.dev && echo "✓ Dockerfile.dev exists" || { echo "✗ Dockerfile.dev missing"; exit 1; }
+          test -f compose.yaml && echo "✓ compose.yaml exists" || { echo "✗ compose.yaml missing"; exit 1; }
+          test -f .devcontainer/devcontainer.json.base && echo "✓ devcontainer.json.base exists" || { echo "✗ devcontainer.json.base missing"; exit 1; }
+          test -f .devcontainer/devcontainer-fullstack.json && echo "✓ devcontainer-fullstack.json exists" || { echo "✗ devcontainer-fullstack.json missing"; exit 1; }
+
+  build-test:
+    name: Build Dev Container (Advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install devcontainer CLI
+        run: npm install -g @devcontainers/cli
+
+      - name: Build simple config
+        run: |
+          echo "=== Building simple dev container ==="
+          devcontainer build --workspace-folder . --quiet
+          echo "✓ Simple config built successfully"
+
+      - name: Build fullstack config
+        run: |
+          echo "=== Building fullstack dev container ==="
+          devcontainer build --workspace-folder . --config .devcontainer/devcontainer-fullstack.json --quiet
+          echo "✓ Fullstack config built successfully"
+
+  summary:
+    name: Dev Container Test Summary
+    runs-on: ubuntu-latest
+    needs: [validate, build-test]
+    if: always()
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "## Dev Container Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.validate.result }}" = "success" ]; then
+            echo "✅ **Validation**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Validation**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.build-test.result }}" = "success" ]; then
+            echo "✅ **Build Test**: PASSED" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build-test.result }}" = "skipped" ]; then
+            echo "⏭️ **Build Test**: SKIPPED (PR only)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Build Test**: FAILED (advisory)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tested Configurations" >> $GITHUB_STEP_SUMMARY
+          echo "- Simple: Node.js + Qdrant" >> $GITHUB_STEP_SUMMARY
+          echo "- Fullstack: Node.js + Qdrant + Valkey + Postgres + Keycloak" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Local Testing" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "npm run devcontainer:validate        # Quick validation" >> $GITHUB_STEP_SUMMARY
+          echo "npm run devcontainer:validate:full   # Full build test" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

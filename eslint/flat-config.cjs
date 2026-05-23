@@ -44,6 +44,8 @@ function createFlatConfig(rootDir) {
         '**/.git/**',
         '.turbo/**',
         '.next/**',
+        '.devcontainer/*.json',
+        '.devcontainer/*.json.base',
         'eslint.config.cjs',
         // Keep the hand-authored contextual prompt out of markdown wording checks.
         'src/embed-docs/prompts/contextual-prompt.md',
