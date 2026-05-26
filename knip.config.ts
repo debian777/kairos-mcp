@@ -43,6 +43,8 @@ const config: KnipConfig = {
         '@tailwindcss/postcss',
         'autoprefixer',
         'tailwindcss',
+        // Mermaid CLI: used in scripts/validate-mermaid.sh (shell script, not tracked by Knip)
+        '@mermaid-js/mermaid-cli',
     ],
     // Knip reports "Unlisted binaries: python3" because it's referenced in package.json scripts
     // but not declared as a dependency. It's a system binary used by infra:up for Keycloak

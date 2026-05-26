@@ -183,7 +183,7 @@ fields.
 - Echo server-issued **nonce** and **proof_hash** values **verbatim** in
 the next call; never compute or guess them.
 
-A `**/kairos`** invocation in agents that load the **kairos** skill means:
+A `**/kairos`**invocation in agents that load the **kairos** skill means:
 start with `**activate`**, then complete `**forward**` through `**reward**`
 before answering the user.
 
@@ -201,24 +201,31 @@ maintainers explicitly choose to track them.
 
 1. Fork the repository on GitHub.
 2. Clone your fork:
+
   ```bash
    git clone https://github.com/YOUR_USERNAME/kairos-mcp.git
    cd kairos-mcp
   ```
-3. Install dependencies:
+
+1. Install dependencies:
+
   ```bash
    npm ci
   ```
-4. Create **`.env`** at the repository root from
+
+1. Create **`.env`** at the repository root from
    [`scripts/env/.env.template`](scripts/env/.env.template), then set variables
    for your dev stack (embeddings, Qdrant, Redis, session, and any IdP secrets you
    use). **IdP setup is not part of `docs/install/`** — see
    [Infrastructure](docs/architecture/infrastructure.md).
-5. Start infrastructure (Compose `fullstack` profile and helpers as needed):
+2. Start infrastructure (Compose `fullstack` profile and helpers as needed):
+
   ```bash
    npm run infra:up
   ```
-6. Deploy and run tests:
+
+1. Deploy and run tests:
+
   ```bash
    npm run dev:deploy && npm run dev:test
   ```
@@ -342,14 +349,16 @@ scripts/           Build and utility scripts
 ## Contribution workflow
 
 1. Create a branch from `main`:
+
   ```bash
    git checkout -b feature/your-feature-name
   ```
-2. Make your changes.
-3. Run tests: `npm run dev:deploy && npm run dev:test`
-4. Run the full handoff check: `npm run handoff`
-5. Commit with a descriptive message (see commit conventions below).
-6. Push and open a pull request against `main`.
+
+1. Make your changes.
+2. Run tests: `npm run dev:deploy && npm run dev:test`
+3. Run the full handoff check: `npm run handoff`
+4. Commit with a descriptive message (see commit conventions below).
+5. Push and open a pull request against `main`.
 
 ## Commit conventions
 
@@ -377,11 +386,12 @@ To enable a [merge queue](https://docs.github.com/en/repositories/configuring-br
 1. **Repo** → **Settings** → **Rules** → **Rulesets** → open the ruleset that applies to `main`, or **Branches** → **Branch protection** for `main`.
 2. Enable **Require merge queue**.
 3. Optional settings:
-  - **Merge method:** merge / rebase / squash (e.g. **Squash** for single-commit PRs).
-  - **Build concurrency:** 1–100 (max concurrent `merge_group` runs; e.g. **3**).
-  - **Only merge non-failing pull requests:** on = **ALLGREEN** (every PR in the group must pass); off = **HEADGREEN** (only the combined head must pass).
-  - **Status check timeout:** how long to wait for CI before treating as failed (e.g. 15 min).
-  - **Merge limits:** min/max PRs per merge (e.g. 1–5), and wait time for minimum group size.
+
+- **Merge method:** merge / rebase / squash (e.g. **Squash** for single-commit PRs).
+- **Build concurrency:** 1–100 (max concurrent `merge_group` runs; e.g. **3**).
+- **Only merge non-failing pull requests:** on = **ALLGREEN** (every PR in the group must pass); off = **HEADGREEN** (only the combined head must pass).
+- **Status check timeout:** how long to wait for CI before treating as failed (e.g. 15 min).
+- **Merge limits:** min/max PRs per merge (e.g. 1–5), and wait time for minimum group size.
 
 The integration workflow (`.github/workflows/integration.yml`) already triggers on `merge_group`, so required checks run when PRs are in the queue. Use `gh pr merge` (no strategy) to add a PR to the queue; use `gh pr merge --admin` to bypass the queue.
 
@@ -395,17 +405,19 @@ Releases are driven by **version in `package.json`**. Do not create git tags man
 
 1. **Check latest version:** `git tag -l 'v*' | sort -V | tail -1` or use `package.json`.
 2. **Bump version** (do not create a git tag):
-  - **Prerelease** (e.g. `3.0.1-beta.18` → `3.0.1-beta.19`):  
+
+- **Prerelease** (e.g. `3.0.1-beta.18` → `3.0.1-beta.19`):  
    `npm version prerelease --preid=beta --no-git-tag-version`
-  - **Stable** (e.g. `3.0.1` → `3.0.2`):  
+- **Stable** (e.g. `3.0.1` → `3.0.2`):  
   `npm version patch --no-git-tag-version` (or `minor` / `major` as appropriate).
-3. **Sync skill/embed-docs version:**
+
+1. **Sync skill/embed-docs version:**
   `npm run version:sync-skills`  
    Commit the changed files (e.g. `src/embed-docs/mem/*.md`) together with `package.json` and `package-lock.json`.
-4. **Open a version-bump PR to main:**
+2. **Open a version-bump PR to main:**
   Use a branch named `release/<version>` (e.g. `release/3.0.2`).  
    Example: `git checkout -b release/3.0.2`, commit, push, then `gh pr create --base main --head release/3.0.2`.
-5. **Merge the PR.** After merge, the workflow creates the tag and runs the Release workflow (npm publish, Docker, GitHub Release). Ensure repository secret `GH_PAT` is set so the tag push triggers Release; see [workflows README](.github/workflows/README.md#release-tag-on-version-bump).
+3. **Merge the PR.** After merge, the workflow creates the tag and runs the Release workflow (npm publish, Docker, GitHub Release). Ensure repository secret `GH_PAT` is set so the tag push triggers Release; see [workflows README](.github/workflows/README.md#release-tag-on-version-bump).
 
 Full pipeline details, secrets, and manual publish options: [.github/workflows/README.md](.github/workflows/README.md).
 

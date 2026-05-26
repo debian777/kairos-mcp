@@ -50,6 +50,7 @@ function createFlatConfig(rootDir) {
         // Keep the hand-authored contextual prompt out of markdown wording checks.
         'src/embed-docs/prompts/contextual-prompt.md',
         // Documentation files explaining architecture. Correct usage of forbidden strings.
+        '.markdownlint.jsonc', // Markdown lint config (not JS)
         'docs/architecture/artifacts.md',
         // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.
         '**/*.json',
@@ -110,7 +111,8 @@ function createFlatConfig(rootDir) {
         'logo/**',
         'logos/**',
         '.qoder/**',
-        'wiki/**'
+        'wiki/**',
+        '**/*.md' // Markdown files are linted by markdownlint-cli2
       ],
     },
 

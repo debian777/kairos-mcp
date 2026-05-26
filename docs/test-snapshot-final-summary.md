@@ -3,13 +3,17 @@
 ## ✅ What We Built
 
 ### Problem Solved
+
 Integration tests were timing out in CI (60s limit) because:
+
 - Tests called `train()` which calls OpenAI embedding API
 - API response time variable (10-60s in CI)
 - Test preparation counted against tool execution timeout
 
 ### Solution
+
 **Qdrant snapshot-based test seeding:**
+
 1. Pre-train adapters once locally
 2. Dump Qdrant snapshot
 3. Restore snapshot before each test file runs
@@ -18,6 +22,7 @@ Integration tests were timing out in CI (60s limit) because:
 ## Architecture
 
 ### Single Collection Strategy
+
 ```
 Collection: kairos_ci (everywhere)
 ├─ Local dev: .env.dev_simple → QDRANT_COLLECTION=kairos_ci
@@ -26,6 +31,7 @@ Collection: kairos_ci (everywhere)
 ```
 
 ### Cache Strategy
+
 ```
 Snapshot location: .local/qdrant-snapshot/kairos_ci.snapshot
 
@@ -41,6 +47,7 @@ CI (GitHub Actions):
 ```
 
 ### Test Structure
+
 ```
 tests/
 ├── integration/
@@ -58,6 +65,7 @@ tests/
 ## Files Created/Modified
 
 ### Created
+
 | File | Purpose |
 |------|---------|
 | `scripts/seed-test-snapshot.sh` | Seed script - creates snapshot |
@@ -67,6 +75,7 @@ tests/
 | `docs/test-snapshot-seeding.md` | Detailed workflow docs |
 
 ### Modified
+
 | File | Change |
 |------|--------|
 | `.env.dev_simple` | `QDRANT_COLLECTION=kairos_ci` |
@@ -116,6 +125,7 @@ describe('My test suite', () => {
 ### CI (GitHub Actions)
 
 **Automatic - no changes needed!**
+
 - Workflow restores cache before tests
 - Generates snapshot on cache miss
 - Saves cache for future runs
@@ -132,6 +142,7 @@ describe('My test suite', () => {
 ## Key Decisions
 
 ### 1. Why Not Commit Snapshot to Repo?
+
 - ❌ Binary file (can't diff)
 - ❌ Bloats repo size
 - ❌ Merge conflicts
@@ -139,18 +150,21 @@ describe('My test suite', () => {
 - ✅ `.local/` already gitignored
 
 ### 2. Why Single Collection Name?
+
 - ✅ Predictable (always `kairos_ci`)
 - ✅ Simple (no `_mock`, `_simple`, `_dev` suffixes)
 - ✅ Easy to debug
 - ✅ `$QDRANT_COLLECTION` can override if needed
 
 ### 3. Why No RO/RW Separation?
+
 - ✅ Each test restores snapshot → clean state
 - ✅ No cross-test pollution possible
 - ✅ Simpler structure (flat `tests/integration/`)
 - ✅ Can still filter tests by pattern if needed
 
 ### 4. Why Qdrant Snapshots (Not Storage Cache)?
+
 - ✅ Official Qdrant mechanism
 - ✅ 5-10x smaller than raw storage
 - ✅ Version-independent
@@ -160,18 +174,21 @@ describe('My test suite', () => {
 ## When to Regenerate Snapshot
 
 1. **Updated test fixtures:**
+
    ```bash
    # Modified AI_CODING_RULES.md?
    npm run test:seed-snapshot
    ```
 
 2. **Added new test adapters:**
+
    ```bash
    # Edit scripts/seed-test-snapshot.sh
    npm run test:seed-snapshot
    ```
 
 3. **Changed seed logic:**
+
    ```bash
    # Modified seed-test-snapshot.sh?
    npm run test:seed-snapshot
@@ -184,24 +201,31 @@ describe('My test suite', () => {
 ## Troubleshooting
 
 ### Snapshot not found
+
 ```
 Error: Snapshot file not found. Run: npm run test:seed-snapshot
 ```
+
 **Fix:** `npm run test:seed-snapshot`
 
 ### Port conflicts
+
 ```
 Error: Qdrant failed to start (port 7633 in use)
 ```
+
 **Fix:** `npm run qdrant:binary:stop` then retry
 
 ### CI cache miss
+
 ```
 Snapshot cache miss - generating new snapshot...
 ```
+
 **Normal:** Happens on first run or cache key change
 
 ### Stale local cache
+
 ```bash
 # Delete and regenerate
 rm -rf .local/qdrant-snapshot/
@@ -211,12 +235,15 @@ npm run test:seed-snapshot
 ## Next Steps
 
 ### Immediate (You)
+
 1. Generate first snapshot:
+
    ```bash
    npm run test:seed-snapshot
    ```
 
 2. Test it works:
+
    ```bash
    npm run dev_simple:test
    ```
@@ -226,12 +253,14 @@ npm run test:seed-snapshot
    - Then update others gradually
 
 ### Short Term
+
 - [ ] Update `kairos-train-access.test.ts` to use snapshot
 - [ ] Update `kairos-search-access.test.ts` to use snapshot
 - [ ] Update `kairos-qdrant-storage.test.ts` to use snapshot
 - [ ] Add snapshot validation to CI workflow
 
 ### Long Term
+
 - [ ] Add snapshot size monitoring (<5MB)
 - [ ] Add automated snapshot regeneration on fixture changes
 - [ ] Add auth mode snapshot (for `integration.yml` workflow)
