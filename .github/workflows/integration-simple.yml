@@ -2,10 +2,10 @@ name: Integration Simple
 
 on:
   pull_request:
-    branches: [main, "ci/**"]
+    branches: [main, "ci/**", "release/**"]
   merge_group:
   push:
-    branches: [main, "ci/**"]
+    branches: [main, "ci/**", "release/**"]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -74,7 +74,8 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ] \
              || [ "$EVENT_NAME" = "merge_group" ] \
              || [[ "$REF" == refs/tags/* ]] \
-             || [[ "$REF" == refs/heads/ci/* ]]; then
+             || [[ "$REF" == refs/heads/ci/* ]] \
+             || [[ "$REF" == refs/heads/release/* ]]; then
             echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
