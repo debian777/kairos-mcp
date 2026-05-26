@@ -15,11 +15,11 @@ name: Integration
 on:
   pull_request:
     # Base branches: include ci/** so PRs into integration lines get the same gate as main.
-    branches: [main, "ci/**"]
+    branches: [main, "ci/**", "release/**"]
   merge_group:
   push:
     # Integration + Release tag (workflow_run) must run on beta/integration branches or beta never auto-tags.
-    branches: [main, "ci/**"]
+    branches: [main, "ci/**", "release/**"]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -85,7 +85,8 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ] \
              || [ "$EVENT_NAME" = "merge_group" ] \
              || [[ "$REF" == refs/tags/* ]] \
-             || [[ "$REF" == refs/heads/ci/* ]]; then
+             || [[ "$REF" == refs/heads/ci/* ]] \
+             || [[ "$REF" == refs/heads/release/* ]]; then
             echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
