@@ -196,6 +196,7 @@ helm/kairos-mcp/files/*prelive*.json
 
 # Local configuration and runtime overrides (canonical local root)
 .local/
+.kairos/
 # Legacy local roots kept for backward compatibility
 local/
 var/
