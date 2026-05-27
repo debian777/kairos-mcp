@@ -14,12 +14,10 @@ name: Integration
 
 on:
   pull_request:
-    # Base branches: include ci/** so PRs into integration lines get the same gate as main.
-    branches: [main, "ci/**", "release/**"]
+    branches: [main]
   merge_group:
   push:
-    # Integration + Release tag (workflow_run) must run on beta/integration branches or beta never auto-tags.
-    branches: [main, "ci/**", "release/**"]
+    branches: [main]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -30,7 +28,7 @@ on:
 # still reports a successful status (required-check compatible).
 #
 # Forced run (code=true regardless of paths) for: workflow_dispatch, merge_group, tag pushes,
-# and pushes to `ci/**` branches.
+# and pushes to `ci/**` branches (via workflow_dispatch).
 
 jobs:
   changes:
@@ -85,8 +83,7 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ] \
              || [ "$EVENT_NAME" = "merge_group" ] \
              || [[ "$REF" == refs/tags/* ]] \
-             || [[ "$REF" == refs/heads/ci/* ]] \
-             || [[ "$REF" == refs/heads/release/* ]]; then
+             || [[ "$REF" == refs/heads/ci/* ]]; then
             echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
             echo "code=true" >> "$GITHUB_OUTPUT"
           else

@@ -2,10 +2,10 @@ name: Integration Simple
 
 on:
   pull_request:
-    branches: [main, "ci/**", "release/**"]
+    branches: [main]
   merge_group:
   push:
-    branches: [main, "ci/**", "release/**"]
+    branches: [main]
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -18,8 +18,8 @@ on:
 # so docs-only / wiki-only / helm-only PRs skip the expensive work while `integration-simple-pass`
 # still reports a successful status (required-check compatible).
 #
-# Forced run (code=true regardless of paths) for: workflow_dispatch, merge_group, tag pushes,
-# and pushes to `ci/**` branches. PR / push-to-main use the path filter.
+# Forced run (code=true regardless of paths) for: workflow_dispatch, merge_group, and tag pushes.
+# PR / push-to-main use the path filter.
 
 jobs:
   changes:
@@ -74,8 +74,7 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ] \
              || [ "$EVENT_NAME" = "merge_group" ] \
              || [[ "$REF" == refs/tags/* ]] \
-             || [[ "$REF" == refs/heads/ci/* ]] \
-             || [[ "$REF" == refs/heads/release/* ]]; then
+             || [[ "$REF" == refs/heads/ci/* ]]; then
             echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
