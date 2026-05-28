@@ -14,7 +14,9 @@ metadata:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
 spec:
   parentRefs:
-    - name: {{ $gw.existingGatewayName | default $gw.gatewayName }}
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw.existingGatewayName | default $gw.gatewayName }}
       {{- if $gw.existingGatewayNamespace }}
       namespace: {{ $gw.existingGatewayNamespace }}
       {{- else }}

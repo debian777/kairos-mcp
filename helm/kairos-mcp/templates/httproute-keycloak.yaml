@@ -13,7 +13,9 @@ metadata:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
 spec:
   parentRefs:
-    - name: {{ $gateway.existingGatewayName | default $gateway.gatewayName }}
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gateway.existingGatewayName | default $gateway.gatewayName }}
       {{- if $gateway.existingGatewayNamespace }}
       namespace: {{ $gateway.existingGatewayNamespace }}
       {{- else }}
@@ -37,7 +39,10 @@ spec:
               - name: X-Forwarded-Port
                 value: "443"
       backendRefs:
-        - name: {{ $serviceName }}
+        - group: ""
+          kind: Service
+          name: {{ $serviceName }}
           namespace: {{ $route.serviceNamespace | default $kc.namespace | default .Release.Namespace }}
           port: {{ $servicePort | int }}
+          weight: 1
 {{- end }}

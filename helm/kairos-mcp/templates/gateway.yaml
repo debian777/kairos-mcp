@@ -34,13 +34,15 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - kind: Secret
+          - group: ""
+            kind: Secret
             name: {{ $certManager.secretName | default (printf "%s-gateway-tls" .Release.Name) }}
       {{- else if $tls.secretName }}
       tls:
         mode: Terminate
         certificateRefs:
-          - kind: Secret
+          - group: ""
+            kind: Secret
             name: {{ $tls.secretName }}
       {{- end }}
     {{- end }}
