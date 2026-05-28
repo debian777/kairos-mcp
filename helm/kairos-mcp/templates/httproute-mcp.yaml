@@ -7,7 +7,9 @@ metadata:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
 spec:
   parentRefs:
-    - name: {{ .Values.gateway.existingGatewayName | default .Values.gateway.gatewayName }}
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.gateway.existingGatewayName | default .Values.gateway.gatewayName }}
       {{- if .Values.gateway.existingGatewayNamespace }}
       namespace: {{ .Values.gateway.existingGatewayNamespace }}
       {{- else }}
@@ -31,6 +33,9 @@ spec:
               - name: X-Forwarded-Port
                 value: "443"
       backendRefs:
-        - name: {{ .Values.app.name | default "kairos-mcp" }}
+        - group: ""
+          kind: Service
+          name: {{ .Values.app.name | default "kairos-mcp" }}
           port: {{ .Values.app.port }}
+          weight: 1
 {{- end }}
