@@ -107,6 +107,9 @@ KAIROS_OIDC_GROUP_MAPPER_NAME = "kairos-oidc-groups"
 KAIROS_OIDC_GROUP_MAPPER_PROVIDER = "oidc-group-membership-mapper"
 KAIROS_GROUPS_CLIENT_SCOPE_NAME = "kairos-groups"
 CLIENT_IDS_FOR_GROUP_MAPPER = frozenset({"kairos-mcp", "kairos-cli"})
+# Scopes that named clients must be able to request but are not always included.
+# Mirrors optionalClientScopes in helm/kairos-mcp/files/kairos-realm.json.
+CLIENT_OPTIONAL_SCOPES = ("profile", "email", "offline_access")
 
 # Keycloak has no redirect_uri port-range syntax; we emit one URI per port. Cap list growth.
 _DEV_APP_PORT_RANGE_MAX_SPAN = 256
@@ -709,6 +712,44 @@ def ensure_client_default_scope(
     except urllib.error.HTTPError as e:
         body = e.read().decode() if e.fp else ""
         sys.exit(f"Add {scope_name} to client default scopes {realm_name} client={client_uuid} failed: {e.code} {body}")
+
+
+def list_client_optional_scopes(
+    base_url: str, realm_name: str, client_uuid: str, token: str
+) -> list[dict]:
+    url = f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/{client_uuid}/optional-client-scopes"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"GET client optional scopes {realm_name} client={client_uuid} failed: {e.code} {body}")
+
+
+def ensure_client_optional_scope(
+    base_url: str,
+    realm_name: str,
+    token: str,
+    client_uuid: str,
+    scope_id: str,
+    scope_name: str,
+) -> None:
+    optionals = list_client_optional_scopes(base_url, realm_name, client_uuid, token)
+    if any(s.get("name") == scope_name for s in optionals):
+        return
+    add_url = (
+        f"{base_url.rstrip('/')}/admin/realms/{realm_name}/clients/"
+        f"{client_uuid}/optional-client-scopes/{scope_id}"
+    )
+    put_req = urllib.request.Request(add_url, data=b"", method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(put_req, timeout=15)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        sys.exit(f"Add {scope_name} to client optional scopes {realm_name} client={client_uuid} failed: {e.code} {body}")
 
 
 def remove_kairos_oidc_group_mapper_from_client(
@@ -1746,6 +1787,16 @@ def main() -> int:
                     base_url, realm_name, token, c_uuid, openid_id, "openid"
                 )
             remove_kairos_oidc_group_mapper_from_client(base_url, realm_name, c_uuid, cid, token)
+            # Optional scopes (profile, email, offline_access) — available when requested.
+            realm_scopes = list_realm_client_scopes(base_url, realm_name, token)
+            for opt_name in CLIENT_OPTIONAL_SCOPES:
+                opt_row = next((s for s in realm_scopes if s.get("name") == opt_name), None)
+                if not opt_row:
+                    print(f"  WARNING: realm scope {opt_name!r} missing in {realm_name}; skip.", file=sys.stderr)
+                    continue
+                ensure_client_optional_scope(
+                    base_url, realm_name, token, c_uuid, opt_row["id"], opt_name
+                )
 
     # 5. Test users in dev only (password); group membership runs after verify (step 7)
     for realm_name in ("kairos-dev",):
