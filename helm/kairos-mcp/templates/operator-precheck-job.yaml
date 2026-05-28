@@ -1,4 +1,4 @@
-{{- if or .Values.redisCluster.enabled .Values.keycloakInstance.enabled .Values.postgresCluster.enabled }}
+{{- if and (or .Values.redisCluster.enabled .Values.keycloakInstance.enabled .Values.postgresCluster.enabled) .Values.hooks.operatorPrecheckEnabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
