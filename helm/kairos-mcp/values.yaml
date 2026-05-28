@@ -45,7 +45,7 @@ app:
   metricsPort: 9090
   image:
     repository: "quay.io/debian777/kairos-mcp"
-    tag: "4.6.2"
+    tag: "4.6.3"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
   redisUrl: ""
@@ -94,6 +94,11 @@ gateway:
   existingGatewayName: ""
   existingGatewayNamespace: ""
   gatewayClassName: "ngrok"
+  # Istio auto-provisioned gateway pods omit securityContext.seccompProfile
+  # (istio/istio#56383), violating "restricted" PSA. Set to "baseline" to
+  # label the release namespace so the gateway pod is admitted. Leave empty
+  # to skip namespace labeling (e.g. when PSA is already relaxed or not used).
+  podSecurityAdmission: ""
   hostname: ""
   httpPort: 80
   httpsPort: 443

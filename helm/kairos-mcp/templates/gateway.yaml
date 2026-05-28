@@ -4,20 +4,32 @@
 {{- $hasTLS := or $certManager.enabled $tls.secretName }}
 {{- $allowHttpWithTLS := default false $gw.allowHttpWithTls }}
 {{- $mode := include "kairos.ingressMode" . | trim }}
+{{- $gwNamespace := .Release.Namespace }}
+{{- $psa := default "" $gw.podSecurityAdmission }}
+{{- if and $psa $gw.enabled }}
+---
+# Istio auto-provisioned gateway pods omit securityContext.seccompProfile
+# (see istio/istio#56383). Label the namespace so PSA allows them.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $gwNamespace }}
+  labels:
+    pod-security.kubernetes.io/enforce: {{ $psa | quote }}
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/warn: {{ $psa | quote }}
+    pod-security.kubernetes.io/audit: {{ $psa | quote }}
+{{- end }}
 {{- if and $gw.enabled $gw.createGateway $gw.hostname (eq $mode "gateway") }}
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ $gw.gatewayName | default "kairos-gateway" }}
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
-  annotations:
-    proxy.istio.io/config: '{"seccompProfile":{"type":"RuntimeDefault"}}'
 spec:
   gatewayClassName: {{ $gw.gatewayClassName }}
-  infrastructure:
-    annotations:
-      proxy.istio.io/config: '{"seccompProfile":{"type":"RuntimeDefault"}}'
   listeners:
     {{- if or (not $hasTLS) $allowHttpWithTLS }}
     - name: http
