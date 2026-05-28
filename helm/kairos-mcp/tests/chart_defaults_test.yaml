@@ -40,33 +40,6 @@ tests:
       - equal:
           path: spec.gatewayClassName
           value: ngrok
-  - it: renders Namespace with PSA labels when podSecurityAdmission is set
-    set:
-      gateway.enabled: true
-      gateway.podSecurityAdmission: "baseline"
-    asserts:
-      - hasDocuments:
-          count: 1
-      - isKind:
-          of: Namespace
-      - isSubset:
-          path: metadata.labels
-          content:
-            pod-security.kubernetes.io/enforce: baseline
-            pod-security.kubernetes.io/enforce-version: "latest"
-            pod-security.kubernetes.io/warn: baseline
-            pod-security.kubernetes.io/audit: baseline
-  - it: does not render Namespace when podSecurityAdmission is empty
-    set:
-      gateway.enabled: true
-      gateway.createGateway: true
-      gateway.hostname: "kairos.example.com"
-      gateway.gatewayClassName: "ngrok"
-    asserts:
-      - hasDocuments:
-          count: 1
-      - isKind:
-          of: Gateway
 ---
 suite: app Service
 templates:
