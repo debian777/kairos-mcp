@@ -16,29 +16,42 @@ function isReadmeMarkdownFileName(name: string): boolean {
   return /^readme\.md$/i.test(name);
 }
 
-function listMarkdownFiles(dir: string, recursive: boolean): string[] {
+interface SkillFileEntry {
+  mdPath: string;
+  artifacts: Array<{ absPath: string; name: string; mime: string }>;
+}
+
+function listSkillFiles(dir: string, recursive: boolean): SkillFileEntry[] {
   const base = resolve(dir);
-  const out: string[] = [];
-  if (recursive) {
-    const walk = (current: string): void => {
-      for (const ent of readdirSync(current, { withFileTypes: true })) {
+  const out: SkillFileEntry[] = [];
+
+  const processDir = (current: string): void => {
+    const mdPaths: string[] = [];
+    const artifactEntries: Array<{ absPath: string; name: string; mime: string }> = [];
+
+    for (const ent of readdirSync(current, { withFileTypes: true })) {
+      if (ent.isDirectory()) {
+        if (recursive) processDir(join(current, ent.name));
+      } else if (ent.isFile()) {
         const full = join(current, ent.name);
-        if (ent.isDirectory()) walk(full);
-        else if (ent.isFile() && ent.name.endsWith('.md') && !isReadmeMarkdownFileName(ent.name)) {
-          out.push(full);
+        if (ent.name.endsWith('.md') && !isReadmeMarkdownFileName(ent.name)) {
+          mdPaths.push(full);
+        } else {
+          const mime = inferArtifactMimeFromName(ent.name);
+          if (mime) artifactEntries.push({ absPath: full, name: ent.name, mime });
         }
       }
-    };
-    walk(base);
-  } else {
-    for (const ent of readdirSync(base, { withFileTypes: true })) {
-      const full = join(base, ent.name);
-      if (ent.isFile() && ent.name.endsWith('.md') && !isReadmeMarkdownFileName(ent.name)) {
-        out.push(full);
-      }
     }
-  }
-  return out.sort((a, b) => relative(base, a).localeCompare(relative(base, b)));
+
+    for (const mdPath of mdPaths) {
+      out.push({ mdPath, artifacts: artifactEntries });
+    }
+  };
+
+  processDir(base);
+  return out.sort((a, b) =>
+    relative(base, a.mdPath).localeCompare(relative(base, b.mdPath))
+  );
 }
 
 function readUtf8RegularFile(absPath: string): string {
@@ -147,7 +160,7 @@ export function trainCliCommand(program: Command): void {
               process.exit(1);
               return;
             }
-            const files = listMarkdownFiles(abs, Boolean(options.recursive));
+            const files = listSkillFiles(abs, Boolean(options.recursive));
             if (files.length === 0) {
               writeError('No .md files found in directory');
               process.exit(1);
@@ -158,18 +171,57 @@ export function trainCliCommand(program: Command): void {
               status?: string;
               items?: unknown[];
               error?: string;
+              artifacts?: Array<{ path: string; ok: boolean; status?: string; items?: unknown[]; error?: string }>;
             }> = [];
-            for (const fp of files) {
+            for (const entry of files) {
+              const fp = entry.mdPath;
               const rel = relative(abs, fp).replace(/\\/g, '/');
               try {
                 const markdown = readMarkdownUploadFromFile(fp, 'train', Boolean(options.allowSensitiveUpload));
                 const response = await client.train(markdown, trainOptions);
-                results.push({
+                const resultEntry: (typeof results)[number] = {
                   path: rel,
                   ok: true,
                   status: response.status,
                   items: response.items
-                });
+                };
+
+                if (entry.artifacts.length > 0) {
+                  const model = options.model?.trim();
+                  const adapterUri = (response.items[0] as { adapter_uri?: string } | undefined)?.adapter_uri;
+                  const artifactResults: NonNullable<typeof resultEntry.artifacts> = [];
+
+                  for (const af of entry.artifacts) {
+                    const afRel = relative(abs, af.absPath).replace(/\\/g, '/');
+                    if (!model) {
+                      writeError(`artifact_skipped: ${afRel} — add --model <id> to upload artifacts`);
+                      continue;
+                    }
+                    if (!adapterUri) {
+                      writeError(`artifact_skipped: ${afRel} — adapter_uri missing (add slug to frontmatter or use --force)`);
+                      continue;
+                    }
+                    try {
+                      const content = readUtf8RegularFile(af.absPath);
+                      const ar = await client.trainJson({
+                        llm_model_id: model,
+                        content,
+                        force_update: Boolean(options.force),
+                        mime: af.mime,
+                        artifact_name: af.name,
+                        adapter_uri: adapterUri,
+                        relative_path: afRel,
+                        ...(trainOptions.space ? { space: trainOptions.space } : {})
+                      });
+                      artifactResults.push({ path: afRel, ok: true, status: ar.status, items: ar.items });
+                    } catch (e) {
+                      artifactResults.push({ path: afRel, ok: false, error: e instanceof Error ? e.message : String(e) });
+                    }
+                  }
+                  if (artifactResults.length > 0) resultEntry.artifacts = artifactResults;
+                }
+
+                results.push(resultEntry);
               } catch (e) {
                 results.push({
                   path: rel,
