@@ -57,21 +57,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [[ "${{ inputs.sync-version-from-ref }}" == "true" ]]; then
-            ref="${{ inputs.ref != '' && inputs.ref || github.ref }}"
-            if [[ "$ref" == refs/tags/* ]]; then
-              v="${ref#refs/tags/v}"
-            elif [[ "$ref" == refs/heads/* ]]; then
-              v="${ref#refs/heads/}"
-              v="${v#v}"
-            else
-              v="${ref#v}"
-            fi
-            npm version "$v" --no-git-tag-version --allow-same-version
-          else
-            v="$(node -p "require('./package.json').version")"
-          fi
-
+          v="$(node -p "require('./package.json').version")"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           if echo "$v" | grep -q '-'; then
             echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
