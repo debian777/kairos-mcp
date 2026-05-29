@@ -186,6 +186,82 @@ describe('CLI train directory batch', () => {
     }
   }, 120000);
 
+  test('batch train auto-uploads co-located artifact files when --model is provided', async () => {
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+
+    const ts = Date.now();
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-artifacts-'));
+    try {
+      writeFileSync(join(dir, 'skill.md'), minimalProtocolMd(`CLI Artifacts ${ts}`), 'utf-8');
+      writeFileSync(join(dir, 'helper.py'), "print('hello')\n", 'utf-8');
+      writeFileSync(join(dir, 'config.yaml'), 'key: value\n', 'utf-8');
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} train --url ${BASE_URL} --force --recursive --model gpt-4 "${dir}"`,
+        { timeout: 120000 }
+      );
+
+      expect(stderr).toBe('');
+      const result = JSON.parse(stdout) as {
+        batch: boolean;
+        root: string;
+        results: Array<{
+          path: string;
+          ok: boolean;
+          status?: string;
+          items?: unknown[];
+          error?: string;
+          artifacts?: Array<{ path: string; ok: boolean; status?: string; items?: unknown[]; error?: string }>;
+        }>;
+      };
+      expect(result.batch).toBe(true);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]!.ok).toBe(true);
+      expect(result.results[0]!.artifacts).toBeDefined();
+      expect(result.results[0]!.artifacts).toHaveLength(2);
+      expect(result.results[0]!.artifacts!.every(a => a.ok)).toBe(true);
+      expect(result.results[0]!.artifacts!.every(a => a.status === 'stored')).toBe(true);
+      const artifactPaths = result.results[0]!.artifacts!.map(a => a.path).sort();
+      expect(artifactPaths).toContain('config.yaml');
+      expect(artifactPaths).toContain('helper.py');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
+  test('batch train skips artifact files and emits artifact_skipped to stderr when --model is omitted', async () => {
+    requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
+
+    const ts = Date.now();
+    const dir = mkdtempSync(join(tmpdir(), 'kairos-train-artifacts-nomodel-'));
+    try {
+      writeFileSync(join(dir, 'skill.md'), minimalProtocolMd(`CLI ArtifactsNoModel ${ts}`), 'utf-8');
+      writeFileSync(join(dir, 'helper.py'), "print('hello')\n", 'utf-8');
+      writeFileSync(join(dir, 'config.yaml'), 'key: value\n', 'utf-8');
+
+      const { stdout, stderr } = await execAsync(
+        `node ${CLI_PATH} train --url ${BASE_URL} --force "${dir}"`,
+        { timeout: 120000 }
+      );
+
+      const result = JSON.parse(stdout) as {
+        batch: boolean;
+        results: Array<{
+          path: string;
+          ok: boolean;
+          artifacts?: unknown[];
+        }>;
+      };
+      expect(result.batch).toBe(true);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]!.ok).toBe(true);
+      expect(result.results[0]!.artifacts).toBeUndefined();
+      expect(stderr).toMatch(/artifact_skipped/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
   test('train empty directory exits with error', async () => {
     requireMcpServerAndCliLogin(serverAvailable, cliLoggedIn);
 
