@@ -61,6 +61,9 @@ jobs:
             ref="${{ inputs.ref != '' && inputs.ref || github.ref }}"
             if [[ "$ref" == refs/tags/* ]]; then
               v="${ref#refs/tags/v}"
+            elif [[ "$ref" == refs/heads/* ]]; then
+              v="${ref#refs/heads/}"
+              v="${v#v}"
             else
               v="${ref#v}"
             fi
