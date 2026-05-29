@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const pkg = require(join(root, "package.json"));
-const version = pkg.version;
+const version = pkg.version.replace(/^v/, '');
 const tgzName = `debian777-kairos-mcp-${version}.tgz`;
 const tgzPath = join(root, "dist", tgzName);
 
