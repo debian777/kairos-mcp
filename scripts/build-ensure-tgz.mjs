@@ -12,7 +12,12 @@ const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const pkg = require(join(root, "package.json"));
-const version = pkg.version.replace(/^v/, '');
+if (/^v/.test(pkg.version)) {
+  console.error(`ERROR: package.json version must not have leading 'v': "${pkg.version}"`);
+  console.error('Hint: use "npm run release:patch" / "npm run release:minor" / "npm run release:rc" instead of manual edits.');
+  process.exit(1);
+}
+const version = pkg.version;
 const tgzName = `debian777-kairos-mcp-${version}.tgz`;
 const tgzPath = join(root, "dist", tgzName);
 

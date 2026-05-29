@@ -57,6 +57,17 @@ assert_index_substantially_intact() {
 }
 
 staged=$(git diff --cached --name-only)
+# Reject 'v' prefix in package.json version (npm pack normalizes it away; CI would fail).
+if echo "$staged" | grep -q '^package\.json$'; then
+  v=$(node -p "require('./package.json').version" 2>/dev/null)
+  if echo "$v" | grep -q '^v'; then
+    echo ""
+    echo "  ERROR: package.json version must not have leading 'v': \"$v\""
+    echo "  Use \"npm run release:patch\" / \"npm run release:minor\" / \"npm run release:rc\" instead of manual edits."
+    echo ""
+    exit 1
+  fi
+fi
 # Version check: mem = package.json, skills = last stable (same as CI). Run when version-related files are staged.
 if echo "$staged" | grep -q '^package\.json$' || echo "$staged" | grep -q '^skills/' || echo "$staged" | grep -q '^src/embed-docs/mem/'; then
   if ! npm run version:check-skills; then

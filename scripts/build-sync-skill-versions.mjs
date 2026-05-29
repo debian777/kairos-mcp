@@ -110,8 +110,13 @@ function replaceKairosVersionLine(content, newVersion) {
 }
 
 async function main() {
-  const lastStable = getLastStableVersion();
   const memTarget = await getPackageVersion();
+  if (/^v/.test(memTarget)) {
+    console.error(`ERROR: package.json version must not have leading 'v': "${memTarget}"`);
+    console.error('Hint: use "npm run release:patch" / "npm run release:minor" / "npm run release:rc" instead of manual edits.');
+    process.exit(1);
+  }
+  const lastStable = getLastStableVersion();
   // When releasing (package ahead of last tag), skills target = package version so check passes before tagging.
   const skillsTarget = compareSemver(memTarget, lastStable) >= 0 ? memTarget : lastStable;
   const skillDirs = await fs.readdir(SKILLS_DIR, { withFileTypes: true }).then((entries) =>
