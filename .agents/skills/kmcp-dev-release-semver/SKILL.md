@@ -4,7 +4,9 @@ description: >-
   kairos-mcp: deterministic semver release. Inspect commits since last stable v*
   tag; recommend patch/minor/major with evidence; user confirms; release/* branch,
   npm run release:<type>, PR to main, no manual v* tag (CI tags after merge).
-  Triggers: bump version, cut release, version-bump PR, release branch.
+  Triggers: bump version, bump RC, bump prerelease, cut release, version-bump PR,
+  release branch, next version, semver bump, release:rc, release:minor, release:patch,
+  release:major, npm version, version bump, bump to rc, bump to beta.
 ---
 
 # Version bump and release (kairos-mcp)
