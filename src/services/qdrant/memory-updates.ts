@@ -72,8 +72,8 @@ export async function updateMemoryByUUID(conn: QdrantConnection, uuid: string, u
       logger.debug(`updateMemoryByUUID: upsertPoint vector keys=${Object.keys(upsertPoint.vector || {}).join(',')}`);
       await sanitizeAndUpsert(conn.client, conn.collectionName, [upsertPoint]);
 
-      // Invalidate memory, search, and activate caches after update (publishes invalidation events internally)
-      await redisCacheService.invalidateMemoryCache(existingPoint.id);
+      // Strict cache invalidation: propagate errors so callers detect stale-cache risk (tune false-success guard)
+      await redisCacheService.invalidateMemoryCacheStrict(existingPoint.id);
       await redisCacheService.invalidateAfterUpdate();
 
       qdrantOperations.inc({
@@ -173,8 +173,8 @@ export async function updateMemory(conn: QdrantConnection, id: string, updates: 
       logger.debug(`updateMemory: upsertPoint2 vector keys=${Object.keys(upsertPoint2.vector || {}).join(',')}`);
       await sanitizeAndUpsert(conn.client, conn.collectionName, [upsertPoint2]);
 
-      // Invalidate memory, search, and activate caches after update (publishes invalidation events internally)
-      await redisCacheService.invalidateMemoryCache(existingPoint.id);
+      // Strict cache invalidation: propagate errors so callers detect stale-cache risk (tune false-success guard)
+      await redisCacheService.invalidateMemoryCacheStrict(existingPoint.id);
       await redisCacheService.invalidateAfterUpdate();
 
       qdrantOperations.inc({
@@ -209,8 +209,8 @@ export async function deleteMemory(conn: QdrantConnection, id: string): Promise<
       }
       await conn.client.delete(conn.collectionName, { points: [validatedId] });
       
-      // Invalidate memory, search, and activate caches after deletion (publishes invalidation events internally)
-      await redisCacheService.invalidateMemoryCache(validatedId);
+      // Strict cache invalidation: propagate errors so callers detect stale-cache risk
+      await redisCacheService.invalidateMemoryCacheStrict(validatedId);
       await redisCacheService.invalidateAfterUpdate();
       
       qdrantOperations.inc({ 

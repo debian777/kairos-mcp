@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { keyValueStore } from '../../src/services/key-value-store-factory.js';
-import { redisCacheService } from '../../src/services/redis-cache.js';
+import { RedisCacheService, redisCacheService } from '../../src/services/redis-cache.js';
 import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, REDIS_URL, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
@@ -146,8 +146,8 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
     });
   });
 
-  describe('Memory Storage (No TTL)', () => {
-    test('should store memories without TTL (permanent)', async () => {
+  describe('Memory Storage (With TTL)', () => {
+    test('should store memories with bounded TTL (1 hour)', async () => {
       await withDefaultSpace(async () => {
         const testMemory: Memory = {
           memory_uuid: 'test-memory-uuid-123',
@@ -168,9 +168,10 @@ describeRedis('Redis Pub/Sub Integration Tests', () => {
         const exists = await testClient.exists(key);
         expect(exists).toBe(1);
 
-        // Verify TTL is -1 (no expiration)
+        // Verify TTL is set (bounded expiration, not -1 permanent)
         const ttl = await testClient.ttl(key);
-        expect(ttl).toBe(-1); // -1 means no expiration
+        expect(ttl).toBeGreaterThan(0);
+        expect(ttl).toBeLessThanOrEqual(RedisCacheService.MEMORY_CACHE_TTL_SECONDS);
 
         // Verify content
         const stored = await redisCacheService.getMemoryResource(testMemory.memory_uuid);

@@ -23,6 +23,8 @@ export class RedisCacheService {
   private invalidationChannel = 'cache:invalidation';
   private statsPrefix = 'stats:';
   private memoryPrefix = MEMORY_CACHE_KEY_PREFIX;
+  /** Bounded TTL for cached memory resources — safety net when invalidation fails. */
+  static readonly MEMORY_CACHE_TTL_SECONDS = 3600;
 
   constructor() {
     logger.info('[RedisCacheService] Initialized with RedisService');
@@ -95,6 +97,7 @@ export class RedisCacheService {
   }
 
   // Remove cached memory by UUID. Key is global (prefix+mem:uuid), so one del invalidates for all spaces.
+  // Errors are caught and logged; callers that need strict invalidation should use invalidateMemoryCacheStrict.
   async invalidateMemoryCache(uuid: string): Promise<void> {
     try {
       if (!uuid || typeof uuid !== 'string') {
@@ -109,6 +112,20 @@ export class RedisCacheService {
     } catch (error) {
       logger.error('[RedisCacheService] Failed to invalidate memory cache:', error);
     }
+  }
+
+  /**
+   * Strict memory cache invalidation that propagates errors.
+   * Use after writes where a stale cache would cause a false-success response.
+   */
+  async invalidateMemoryCacheStrict(uuid: string): Promise<void> {
+    if (!uuid || typeof uuid !== 'string') {
+      throw new Error(`Cannot invalidate memory cache: invalid uuid "${uuid}"`);
+    }
+    const key = `${this.memoryPrefix}${uuid}`;
+    await keyValueStore.del(key);
+    logger.debug(`[RedisCacheService] Strict-invalidated memory cache for UUID ${uuid}`);
+    await this.publishInvalidation('memory');
   }
 
   async publishInvalidation(type: string): Promise<void> {
@@ -175,9 +192,9 @@ export class RedisCacheService {
   async setMemoryResource(memory: Memory): Promise<void> {
     try {
       const key = `${this.memoryPrefix}${memory.memory_uuid}`;
-      // Store memories without TTL (permanent storage)
-      await keyValueStore.setJson(key, memory);
-      logger.debug(`[RedisCacheService] Cached memory resource for UUID ${memory.memory_uuid} (no TTL)`);
+      // Bounded TTL prevents permanent stale data if invalidation fails
+      await keyValueStore.setJson(key, memory, RedisCacheService.MEMORY_CACHE_TTL_SECONDS);
+      logger.debug(`[RedisCacheService] Cached memory resource for UUID ${memory.memory_uuid} (TTL ${RedisCacheService.MEMORY_CACHE_TTL_SECONDS}s)`);
     } catch (error) {
       logger.error('[RedisCacheService] Failed to cache memory resource:', error);
     }
