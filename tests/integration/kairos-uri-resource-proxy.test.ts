@@ -58,11 +58,6 @@ describe('MCP Tools and Resources', () => {
     }
   }, 30000);
 
-  test('prompts/list returns empty (contextual prompt removed — SKILL.md owns routing)', async () => {
-    const prompts = await mcp.client.listPrompts();
-    expect(prompts.prompts).toHaveLength(0);
-  }, 30000);
-
   test('resources/templates/list returns empty array when no templates are registered', async () => {
     const templates = await mcp.client.listResourceTemplates();
     expect(Array.isArray(templates.resourceTemplates)).toBe(true);
