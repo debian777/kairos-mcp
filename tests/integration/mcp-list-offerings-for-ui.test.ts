@@ -68,10 +68,7 @@ describe('MCP listOfferingsForUI', () => {
     expect(activateTool?._meta?.[KAIROS_UI_RESOURCE_URI_FLAT_META_KEY]).toBe(KAIROS_ACTIVATE_UI_URI);
 
     const prompts = body.result!.prompts as Array<{ name?: string; title?: string; description?: string }>;
-    const contextualPrompt = prompts.find((p) => p.name === 'contextual-prompt');
-    expect(contextualPrompt).toBeDefined();
-    expect(contextualPrompt?.title).toBe('Contextual Prompt');
-    expect(contextualPrompt?.description).toBe('Prompt: Contextual Prompt');
+    expect(prompts).toHaveLength(0);
 
     const resources = body.result!.resources as Array<{ uri?: string; mimeType?: string }>;
     expect(resources.some((r) => r.uri === 'ui://kairos/spaces-result')).toBe(true);

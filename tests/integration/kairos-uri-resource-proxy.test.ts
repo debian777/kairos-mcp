@@ -2,12 +2,10 @@ import { mcpResources } from '../../src/resources/embedded-mcp-resources.js';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 
 describe('Embedded MCP Resources', () => {
-  test('mcpResources.prompts embeds the contextual prompt', () => {
+  test('mcpResources.prompts is empty (contextual prompt removed — SKILL.md owns routing)', () => {
     expect(mcpResources).toHaveProperty('prompts');
     expect(typeof mcpResources.prompts).toBe('object');
-    expect(mcpResources.prompts).toHaveProperty('contextual-prompt');
-    expect(typeof (mcpResources.prompts as Record<string, string>)['contextual-prompt']).toBe('string');
-    expect((mcpResources.prompts as Record<string, string>)['contextual-prompt'].length).toBeGreaterThan(20);
+    expect(Object.keys(mcpResources.prompts)).toHaveLength(0);
   });
 
   test('mcpResources contains tools', () => {
@@ -60,24 +58,9 @@ describe('MCP Tools and Resources', () => {
     }
   }, 30000);
 
-  test('prompts/list and prompts/get expose the embedded contextual prompt', async () => {
+  test('prompts/list returns empty (contextual prompt removed — SKILL.md owns routing)', async () => {
     const prompts = await mcp.client.listPrompts();
-    const contextualPrompt = prompts.prompts.find((prompt: { name: string }) => prompt.name === 'contextual-prompt');
-
-    expect(contextualPrompt).toBeDefined();
-    expect(contextualPrompt?.title).toBe('Contextual Prompt');
-
-    const prompt = await mcp.client.getPrompt({ name: 'contextual-prompt' });
-    const firstMessage = prompt.messages[0];
-    const embeddedPrompt = (mcpResources.prompts as Record<string, string>)['contextual-prompt'];
-    const runtimePromptText = firstMessage?.content.type === 'text' ? firstMessage.content.text : '';
-
-    expect(firstMessage).toBeDefined();
-    expect(firstMessage?.content.type).toBe('text');
-    expect(runtimePromptText.length).toBeGreaterThan(20);
-    expect(embeddedPrompt.length).toBeGreaterThan(20);
-    // Runtime prompt text may come from a different deployed server build; assert core intent instead of exact bytes.
-    expect(runtimePromptText.toLowerCase()).toContain('kairos');
+    expect(prompts.prompts).toHaveLength(0);
   }, 30000);
 
   test('resources/templates/list returns empty array when no templates are registered', async () => {
