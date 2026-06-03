@@ -71,27 +71,95 @@ Think of it this way: a new developer who joins a team already knows how to
 write code and create pull requests. They still follow the team's runbook on
 day one, not their own habits. KAIROS is that runbook.
 
-Rule: If the task is an action intent AND a KAIROS adapter exists for it,
+**Routing rule:** If the task is an action intent AND you have follow-up
+questions about team conventions (naming, format, sequencing, approvals),
 route through KAIROS — especially when you feel you already know how.
+If the action is a single obvious command with no team-context ambiguity,
+execute directly. See the decision heuristic below.
 
 ## When to use KAIROS routing
 
+### Explicit skill trigger — always activate
+
+**If the user invokes a skill explicitly** (slash command like `/kairos`,
+`/commit`, `/deploy`, or any named skill trigger), **ALWAYS activate KAIROS**
+first — even if the task looks like a single obvious command. The user chose
+to invoke routing; respect that choice and complete the full chain.
+
+This overrides the follow-up-questions test. The user may be forcing a route
+through KAIROS deliberately (e.g., to create a new adapter, to validate against
+team rules, or because they want the audit trail).
+
+### Decision heuristic (the follow-up-questions test)
+
+For **unsolicited** action intents (no explicit skill trigger), ask yourself:
+**"Do I have unanswered questions about HOW this team wants this done?"**
+
+| You are thinking… | Route through KAIROS? |
+|---|---|
+| "What branch naming convention do they use?" | **Yes** |
+| "Is there a required MR/PR template or description format?" | **Yes** |
+| "Do I need to reference a ticket, and how?" | **Yes** |
+| "Are there post-action steps (pipeline watch, approvals, notifications)?" | **Yes** |
+| "Which environment do I deploy to first?" | **Yes** |
+| "What commit message format does this team expect?" | **Yes** |
+| "I just need to run `npm test` / `git status` / one clear local command." | **No** — execute directly |
+| "The user asked me to read a file or explain code." | **No** — not an action intent |
+| "The user said 'skip KAIROS'." | **No** — respect explicit opt-out |
+
+**Rule of thumb:** If you have zero follow-up questions about team conventions,
+naming, sequencing, or approval gates — and the task is a single, self-contained
+command whose correct form is obvious — KAIROS activation is **not needed**.
+Just execute.
+
+If you have *any* uncertainty about the team-specific "how" (even if the
+mechanics are trivial), **activate KAIROS first**. The adapter exists precisely
+to answer those questions so you don't guess wrong.
+
+**Multi-step tasks:** Even if each individual step seems obvious, route through
+KAIROS when the task involves multiple sequential actions (e.g., "fix the tests
+and push"). The adapter may encode team conventions about step ordering,
+intermediate validation, or post-action obligations that you'd miss if you just
+chained obvious commands.
+
+### Conditions checklist
+
 Route through KAIROS by checking these conditions in order:
 
-0. **Do you feel confident you can do this without routing?** That feeling is
-   not evidence that routing is unnecessary. Your training teaches mechanics;
-   adapters teach team rules. Proceed with routing.
 1. **Is the user message an action intent?** Look for verbs like build, fix,
    deploy, write, create, implement, debug, publish, migrate, configure,
    install, update, edit, refactor, review, audit, test, automate, generate,
    document, plan, design, or descriptions of a procedure. If no action intent
    is present, KAIROS routing does not apply.
-2. **Is a KAIROS MCP server connected and authenticated?** If not, follow the
+2. **Do you have follow-up questions about team-specific conventions?** If yes,
+   route through KAIROS — the adapter answers them. If the action is a single
+   obvious command with no ambiguity, execute directly without routing.
+3. **Is a KAIROS MCP server connected and authenticated?** If not, follow the
    unavailability procedure below.
-3. **Has the host environment restricted MCP tool access for this session?** If
+4. **Has the host environment restricted MCP tool access for this session?** If
    so, respect that restriction.
 
-If all three conditions pass, KAIROS routing is active for this task.
+If conditions 1-3 pass (action intent + team-context questions + server
+available), KAIROS routing is active for this task.
+
+### Examples: route vs. skip
+
+**Route through KAIROS:**
+- "Create a PR for this fix" — needs branch naming, description template, labels.
+- "Deploy to staging" — needs environment sequence, approval gates, post-deploy checks.
+- "Write a commit message" — needs team's conventional-commit format and scope rules.
+- "Release a new version" — needs semver policy, changelog, tag format, CI triggers.
+
+**Skip KAIROS (execute directly):**
+- "Run the tests" → `npm run dev:test` — single command, no ambiguity.
+- "Check git status" → `git status` — read-only, no conventions involved.
+- "Install dependencies" → `npm install` — mechanical, no team policy.
+- "Read src/config/index.ts" — not an action intent at all.
+
+**Always route (explicit trigger):**
+- `/kairos deploy to staging` — user invoked skill, route regardless.
+- `/commit` — skill trigger, activate KAIROS even for "just a commit".
+- `/release` — skill trigger, always complete the chain.
 
 When KAIROS routing applies, prefer completing the full chain before starting
 substantive implementation. Do not run the user's task in parallel with an
@@ -147,6 +215,9 @@ If the KAIROS MCP server cannot be reached or authentication fails:
   KAIROS routing is active.
 - If `activate` returns no matching adapter, inform the user and offer to
   create one via `train`.
+- If you skipped KAIROS and later discover team conventions you didn't account
+  for, **re-activate mid-task** — call `activate` with a refined query and
+  follow the adapter guidance for remaining steps.
 - When the user **explicitly asks to skip KAIROS routing** (using words like
   "skip KAIROS" or "without KAIROS"), respect that choice for the current task.
 
