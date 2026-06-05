@@ -1,4 +1,6 @@
-{{- if and .Values.keycloakRealmImport.enabled .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) }}
+{{- $realmImported := lookup "v1" "ConfigMap" .Release.Namespace (printf "%s-realm-imported" .Release.Name) -}}
+{{- $existingImport := lookup "k8s.keycloak.org/v2alpha1" "KeycloakRealmImport" .Release.Namespace .Values.keycloakRealmImport.name -}}
+{{- if and .Values.keycloakRealmImport.enabled .Values.keycloakInstance.enabled (not .Values.keycloakInstance.useOwnCluster) (not $existingImport) (not $realmImported) }}
 {{- $gw := default dict .Values.gateway }}
 {{- $tls := default dict $gw.tls }}
 {{- $certManager := default dict $tls.certManager }}
@@ -27,7 +29,6 @@
 {{- $realmFile := default "kairos-realm.json" .Values.keycloakRealmImport.realmFile }}
 {{- $raw := .Files.Get (printf "files/%s" $realmFile) | replace "__KAIROS_PUBLIC_ORIGIN__" $origin | replace "__KAIROS_PUBLIC_HOST__" $host }}
 {{- $realm := mustFromJson $raw }}
-{{- if .Release.IsInstall }}
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: KeycloakRealmImport
 metadata:
@@ -37,6 +38,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
   annotations:
+    argocd.argoproj.io/sync-wave: "10"
     helm.sh/hook: post-install
     helm.sh/hook-weight: "10"
     helm.sh/hook-delete-policy: before-hook-creation
@@ -44,5 +46,4 @@ spec:
   keycloakCRName: {{ .Values.keycloakInstance.name | quote }}
   realm:
     {{- toYaml $realm | nindent 4 }}
-{{- end }}
 {{- end }}
