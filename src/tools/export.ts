@@ -182,6 +182,7 @@ async function executeExportImpl(
         version: 1,
         skills: items.map((it) => ({
           slug: it.slug,
+          version: it.adapterVersion ?? null,
           kairos_uri: it.kairosUri,
           files: it.files.map((f) => ({ path: f.path, content: typeof f.content === 'string' ? f.content : f.content.toString('utf8') })),
           diagnostics: it.diagnostics
@@ -205,6 +206,7 @@ async function executeExportImpl(
       format: 'zip',
       skills: items.map((it) => ({
         slug: it.slug,
+        version: it.adapterVersion ?? null,
         entrypoint: `${it.slug}/SKILL.md`,
         artifacts: it.files
           .filter((f) => f.path !== 'SKILL.md' && f.path !== 'SHA256SUMS')

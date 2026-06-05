@@ -37,6 +37,7 @@ describe('skill-export single-adapter coverage', () => {
       version: number;
       skills: Array<{
         slug: string;
+        version?: string | null;
         kairos_uri: string;
         files: Array<{ path: string; content: string }>;
         diagnostics: Array<unknown>;
@@ -47,6 +48,8 @@ describe('skill-export single-adapter coverage', () => {
     expect(tree.skills.length).toBe(1);
     const skill = tree.skills[0]!;
     expect(skill.slug).toBe(slug);
+    // version field must be present in the per-skill object (null when adapter has no version)
+    expect(skill).toHaveProperty('version');
     // skill_tree may carry the adapter slug (`kairos://adapter/<slug>`) or the head layer row (`kairos://layer/<uuid>`).
     expect(skill.kairos_uri).toMatch(
       /^kairos:\/\/(?:adapter\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|layer\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12})/i
@@ -76,6 +79,8 @@ describe('skill-export single-adapter coverage', () => {
     expect(manifest.skills.length).toBe(1);
     expect(manifest.skills[0]!.slug).toBe(slug);
     expect(manifest.skills[0]!.entrypoint).toBe(`${slug}/SKILL.md`);
+    // version field must be present in the manifest per-skill entry
+    expect(manifest.skills[0]!).toHaveProperty('version');
     // No artifact memory was trained for this adapter; the bundle must NOT fabricate one
     // even though the markdown body mentions an artifact path.
     expect(manifest.skills[0]!.artifacts).toEqual([]);

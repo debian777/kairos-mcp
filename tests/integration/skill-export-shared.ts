@@ -172,7 +172,7 @@ export interface SkillBundleManifest {
   type: 'skill_bundle';
   format: 'zip';
   bundle_sha256?: string;
-  skills: Array<{ slug: string; entrypoint: string; artifacts: string[] }>;
+  skills: Array<{ slug: string; version?: string | null; entrypoint: string; artifacts: string[] }>;
 }
 
 export async function downloadSkillZip(data: ExportSkillZipResponse): Promise<Buffer> {
