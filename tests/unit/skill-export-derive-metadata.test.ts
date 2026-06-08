@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { deriveSkillMetadata, stripLeadingFrontmatter } from '../../src/tools/skill-export/derive-metadata.js';
+import { buildSkillMdFile } from '../../src/tools/skill-export/build-skill-md.js';
 
 describe('deriveSkillMetadata', () => {
   it('uses frontmatter name, slug, and description when present', () => {
@@ -43,5 +44,26 @@ Second line still same paragraph.
     const md = `# X\n\n\`\`\`json\n{"contract":{}}\n\`\`\`\n`;
     const stripped = stripLeadingFrontmatter(md);
     expect(stripped).toContain('"contract"');
+  });
+});
+
+describe('buildSkillMdFile', () => {
+  const baseMeta = { slug: 'test-skill', name: 'test-skill', description: 'A test skill' };
+  const body = '# Test Skill\n\nBody content.';
+
+  it('emits version in frontmatter when provided', () => {
+    const out = buildSkillMdFile(baseMeta, body, '1.2.3');
+    expect(out).toContain('version: 1.2.3');
+    expect(out).toContain('name: test-skill');
+    expect(out).toContain('description: A test skill');
+  });
+
+  it('omits version from frontmatter when null or undefined', () => {
+    const outNull = buildSkillMdFile(baseMeta, body, null);
+    const outUndef = buildSkillMdFile(baseMeta, body);
+    expect(outNull).not.toContain('version:');
+    expect(outUndef).not.toContain('version:');
+    expect(outNull).toContain('name: test-skill');
+    expect(outUndef).toContain('name: test-skill');
   });
 });

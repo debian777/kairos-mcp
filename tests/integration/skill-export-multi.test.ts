@@ -95,6 +95,10 @@ describe('skill-export multi-adapter coverage', () => {
     const manifest = JSON.parse(data.skill_bundle_manifest) as SkillBundleManifest;
     const slugs = manifest.skills.map((s) => s.slug).sort();
     expect(slugs).toEqual([slugA, slugB, slugC].sort());
+    // version field must be present in every manifest per-skill entry
+    for (const s of manifest.skills) {
+      expect(s).toHaveProperty('version');
+    }
 
     const buf = await downloadSkillZip(data);
     const entries = indexZipEntriesByPath(buf);

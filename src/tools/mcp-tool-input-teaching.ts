@@ -196,9 +196,9 @@ function teachingReward(error: ZodError, raw: unknown): Record<string, unknown> 
     error: MCP_INVALID_TOOL_INPUT,
     tool: 'reward',
     message:
-      'Input validation error: `reward` needs `uri` = final layer URI from the last forward (`kairos://layer/<uuid>` with `?execution_id=...` when the run used it), plus `outcome` ("success" or "failure"). Optional: score, feedback, rater, rubric_version, llm_model_id.',
+      'Input validation error: `reward` needs `uri` = final layer URI from the last forward (`kairos://layer/<uuid>` with `?execution_id=...` when the run used it), plus `outcome` ("success" or "failure"). Optional: score, feedback, rater, rubric_version (required for SFT/preference export), llm_model_id (required with rater for evaluator identity).',
     next_action:
-      'Call reward with {"uri":"<layer uri from forward>","outcome":"success"|"failure"} — copy the layer uri verbatim from the forward response that told you to reward.',
+      'Call reward with {"uri":"<layer uri from forward>","outcome":"success"|"failure","rubric_version":"v1","rater":"agent","llm_model_id":"<model>"} — copy the layer uri verbatim from the forward response that told you to reward.',
     invalid_fields: paths,
     example: { uri: 'kairos://layer/<uuid>?execution_id=<uuid>', outcome: 'success' }
   });

@@ -49,7 +49,8 @@ export async function assembleSkillExportItem(params: AssembleSkillItemParams): 
     kairosUri: params.requestUri
   });
 
-  const skillBody = buildSkillMdFile(meta, rawMd);
+  const adapterVersion = typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null;
+  const skillBody = buildSkillMdFile(meta, rawMd, adapterVersion);
   const skillPath = 'SKILL.md';
   const hash = sha256Hex(skillBody);
 
@@ -65,7 +66,7 @@ export async function assembleSkillExportItem(params: AssembleSkillItemParams): 
     name: meta.name,
     description: meta.description,
     kairosUri,
-    adapterVersion: typeof dump['adapter_version'] === 'string' ? dump['adapter_version'] : null,
+    adapterVersion,
     files: [
       {
         path: skillPath,
