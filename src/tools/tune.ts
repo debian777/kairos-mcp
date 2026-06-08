@@ -1,4 +1,5 @@
 import type { QdrantService } from '../services/qdrant/service.js';
+import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { resolveToolDoc } from '../utils/mcp-tool-doc-runtime.js';
 import { getTenantId } from '../utils/tenant-context.js';
 import { tuneInputSchema, tuneOutputSchema } from './tune_schema.js';
@@ -6,11 +7,18 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { executeTune } from './tune-execute.js';
+import { invalidateTuneInProcessCache } from './tune-cache-invalidation.js';
 
 export { executeTune } from './tune-execute.js';
 
-export function registerTuneTool(server: any, toolName = 'tune') {
-  let qdrantService: QdrantService | null = null;
+interface RegisterTuneOptions {
+  toolName?: string;
+  qdrantService?: QdrantService;
+}
+
+export function registerTuneTool(server: any, memoryStore: MemoryQdrantStore, options: RegisterTuneOptions = {}) {
+  const toolName = options.toolName || 'tune';
+  let qdrantService = options.qdrantService ?? null;
   server.registerTool(
     toolName,
     {
@@ -39,6 +47,11 @@ export function registerTuneTool(server: any, toolName = 'tune') {
           qdrantService = qdrantModule.qdrantService;
         }
         const result = await executeTune(qdrantService, input);
+
+        // Invalidate the in-process MemoryQdrantStore cache so subsequent
+        // reads (export, forward, activate) see the freshly written data.
+        invalidateTuneInProcessCache(memoryStore, result);
+
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(result).length);
         timer({ tool: toolName, status: 'success', tenant_id: tenantId });

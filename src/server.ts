@@ -143,7 +143,7 @@ export function createServer(memoryStore: MemoryQdrantStore): McpServer {
     registerForwardTool(server, memoryStore, { qdrantService });
     registerTrainTool(server, memoryStore, { qdrantService });
     registerRewardTool(server, qdrantService);
-    registerTuneTool(server);
+    registerTuneTool(server, memoryStore, { qdrantService });
     registerDeleteTool(server, 'delete');
     registerExportTool(server, memoryStore, { qdrantService });
     registerSpacesTool(server, memoryStore, { toolName: 'spaces' });
