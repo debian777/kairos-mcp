@@ -64,6 +64,8 @@ export const KAIROS_LOCAL_ARTIFACT_DIRS: readonly string[] = parseLocalArtifactD
 );
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
+/** OIDC login-transaction state key prefix; global (no space namespace) because login has no space context. */
+export const OIDC_STATE_KEY_PREFIX = 'oidc-state:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
 /** Base URL for OpenAI API (e.g. https://api.openai.com or Azure endpoint). No trailing slash. */
 export const OPENAI_API_URL = getEnvString('OPENAI_API_URL', 'https://api.openai.com').replace(/\/$/, '');
