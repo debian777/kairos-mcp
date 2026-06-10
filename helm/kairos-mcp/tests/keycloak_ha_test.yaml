@@ -1,0 +1,249 @@
+# helm-unittest — https://github.com/helm-unittest/helm-unittest
+---
+suite: Keycloak DestinationRule (session affinity)
+templates:
+  - keycloak-destinationrule.yaml
+tests:
+  - it: does not render when keycloakInstance is disabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: false
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render when istioDestinationRule is explicitly disabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 3
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render when replicas is 1 (auto default)
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 1
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: auto-renders when replicas > 1 and enabled is default empty string
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 3
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: DestinationRule
+
+  - it: does not render when Istio CRDs are not installed
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders DestinationRule with default cookie name when enabled
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: DestinationRule
+      - equal:
+          path: metadata.name
+          value: keycloak-session-affinity
+      - equal:
+          path: spec.trafficPolicy.loadBalancer.consistentHash.httpCookie.name
+          value: AUTH_SESSION_ID
+      - equal:
+          path: spec.trafficPolicy.loadBalancer.consistentHash.httpCookie.ttl
+          value: 0s
+
+  - it: uses custom cookie name when set
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+      keycloakInstance.sessionAffinity.istioDestinationRule.cookieName: MY_SESSION
+    asserts:
+      - equal:
+          path: spec.trafficPolicy.loadBalancer.consistentHash.httpCookie.name
+          value: MY_SESSION
+
+  - it: targets the correct service FQDN based on keycloak name and namespace
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.name: my-kc
+      keycloakInstance.namespace: custom-ns
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+    asserts:
+      - equal:
+          path: spec.host
+          value: my-kc-service.custom-ns.svc.cluster.local
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  - it: falls back to Release namespace when keycloakInstance.namespace is empty
+    capabilities:
+      apiVersions:
+        - networking.istio.io/v1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.sessionAffinity.istioDestinationRule.enabled: true
+    release:
+      namespace: default-ns
+    asserts:
+      - equal:
+          path: spec.host
+          value: keycloak-service.default-ns.svc.cluster.local
+---
+suite: Keycloak CR extraOptions
+templates:
+  - keycloak-cr.yaml
+tests:
+  - it: renders additionalOptions without extraOptions by default
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+    asserts:
+      - isKind:
+          of: Keycloak
+      - notExists:
+          path: spec.additionalOptions[?(@.name=="log-level")]
+
+  - it: appends extraOptions to additionalOptions
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+      keycloakInstance.extraOptions:
+        - name: log-level
+          value: "org.keycloak.events:debug"
+        - name: log-level
+          value: "org.infinispan:info"
+    asserts:
+      - isKind:
+          of: Keycloak
+      - exists:
+          path: spec.additionalOptions[?(@.name=="log-level")]
+
+  - it: does not clobber built-in additionalOptions when extraOptions is set
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+      keycloakInstance.extraOptions:
+        - name: log-level
+          value: "org.keycloak.events:debug"
+    asserts:
+      - exists:
+          path: spec.additionalOptions[?(@.name=="http-relative-path")]
+
+  - it: is ignored when customSpec replaces the full spec
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.customSpec:
+        instances: 3
+        ingress:
+          enabled: false
+      keycloakInstance.extraOptions:
+        - name: log-level
+          value: "org.keycloak.events:debug"
+    asserts:
+      - isKind:
+          of: Keycloak
+      - notExists:
+          path: spec.additionalOptions
+---
+suite: Keycloak CR serviceClientIP session affinity
+templates:
+  - keycloak-cr.yaml
+tests:
+  - it: does not set serviceSpec.sessionAffinity when replicas is 1 (auto default)
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 1
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+    asserts:
+      - notExists:
+          path: spec.unsupported.podTemplate.serviceSpec
+
+  - it: auto-enables serviceClientIP when replicas > 1 (default empty string)
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 3
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+    asserts:
+      - equal:
+          path: spec.unsupported.podTemplate.serviceSpec.sessionAffinity
+          value: ClientIP
+
+  - it: explicit false disables serviceClientIP even when replicas > 1
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.replicas: 3
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+      keycloakInstance.sessionAffinity.serviceClientIP.enabled: false
+    asserts:
+      - notExists:
+          path: spec.unsupported.podTemplate.serviceSpec
+
+  - it: sets serviceSpec.sessionAffinity ClientIP when serviceClientIP is explicitly enabled
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.db.host: pg-host
+      keycloakInstance.db.usernameSecretName: pg-user
+      keycloakInstance.db.passwordSecretName: pg-pass
+      keycloakInstance.sessionAffinity.serviceClientIP.enabled: true
+    asserts:
+      - equal:
+          path: spec.unsupported.podTemplate.serviceSpec.sessionAffinity
+          value: ClientIP
+
+  - it: is ignored when customSpec replaces the full spec
+    set:
+      keycloakInstance.enabled: true
+      keycloakInstance.customSpec:
+        instances: 3
+      keycloakInstance.sessionAffinity.serviceClientIP.enabled: true
+    asserts:
+      - notExists:
+          path: spec.unsupported

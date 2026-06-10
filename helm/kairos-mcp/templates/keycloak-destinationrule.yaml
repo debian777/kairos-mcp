@@ -1,0 +1,27 @@
+{{- $kc := .Values.keycloakInstance }}
+{{- $sa := default dict $kc.sessionAffinity }}
+{{- $dr := default dict $sa.istioDestinationRule }}
+{{- $drEnabled := eq (toString (default false $dr.enabled)) "true" }}
+{{- if eq (toString $dr.enabled) "" }}
+{{- $drEnabled = gt (int (default 1 $kc.replicas)) 1 }}
+{{- end }}
+{{- if and $kc.enabled $drEnabled (.Capabilities.APIVersions.Has "networking.istio.io/v1") }}
+{{- $ns := $kc.namespace | default .Release.Namespace }}
+{{- $svcName := printf "%s-service" $kc.name }}
+{{- $cookieName := default "AUTH_SESSION_ID" $dr.cookieName }}
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: keycloak-session-affinity
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
+spec:
+  host: {{ printf "%s.%s.svc.cluster.local" $svcName $ns }}
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpCookie:
+          name: {{ $cookieName }}
+          ttl: 0s
+{{- end }}

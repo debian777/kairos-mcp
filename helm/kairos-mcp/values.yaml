@@ -198,6 +198,34 @@ keycloakInstance:
     usernameSecretKey: "user"
     passwordSecretName: ""
     passwordSecretKey: "password"
+  # Append-only list merged into the Keycloak CR additionalOptions.
+  # Use for log-level tuning, proxy options, etc. without replacing the full spec.
+  # Example:
+  #   extraOptions:
+  #     - name: log-level
+  #       value: org.keycloak.events:debug
+  extraOptions: []
+  # Session affinity for multi-replica Keycloak with OIDC identity-provider
+  # brokering. Two mutually-reinforcing mechanisms — enable the one that matches
+  # your cluster networking:
+  #
+  #   istioDestinationRule — cookie-based consistent-hash via Istio (requires
+  #     Istio in the cluster and Keycloak pods in the mesh). Works with both
+  #     Gateway API (HTTPRoute) and Ingress ingress paths.
+  #   serviceClientIP — kube-proxy ClientIP session affinity on the Keycloak
+  #     Service (no mesh required). Coarser than cookie-based (IP-level), but
+  #     effective for most in-cluster setups. Use when Istio is not available.
+  #
+  # Both default to "" (auto): enabled when keycloakInstance.replicas > 1.
+  # Set explicitly to true or false to override auto-detection.
+  # If both are active, the DestinationRule takes precedence for Istio-managed
+  # traffic; serviceClientIP covers non-mesh paths.
+  sessionAffinity:
+    istioDestinationRule:
+      enabled: ""
+      cookieName: "AUTH_SESSION_ID"
+    serviceClientIP:
+      enabled: ""
   customSpec: {}
 
 # First-install-only KeycloakRealmImport (operator imports realm, then CR is not re-rendered).

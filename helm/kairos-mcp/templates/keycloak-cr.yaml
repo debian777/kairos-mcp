@@ -83,6 +83,10 @@ spec:
     - name: hostname-admin
       value: {{ printf "https://%s%s" $adminHost $relativePath | quote }}
     {{- end }}
+    {{- range default list $kc.extraOptions }}
+    - name: {{ .name | quote }}
+      value: {{ .value | quote }}
+    {{- end }}
   unsupported:
     podTemplate:
       spec:
@@ -99,6 +103,16 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+    {{- $svcAffinity := default dict $kc.sessionAffinity }}
+    {{- $svcClientIP := default dict $svcAffinity.serviceClientIP }}
+    {{- $svcEnabled := eq (toString (default false $svcClientIP.enabled)) "true" }}
+    {{- if eq (toString $svcClientIP.enabled) "" }}
+    {{- $svcEnabled = gt (int (default 1 $kc.replicas)) 1 }}
+    {{- end }}
+    {{- if $svcEnabled }}
+      serviceSpec:
+        sessionAffinity: ClientIP
+    {{- end }}
   {{- else }}
   {{- toYaml $spec | nindent 2 }}
   {{- end }}
