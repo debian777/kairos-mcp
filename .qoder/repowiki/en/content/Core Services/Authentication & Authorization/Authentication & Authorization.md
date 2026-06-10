@@ -20,15 +20,18 @@
 - [src/cli/oauth-refresh.ts](file://src/cli/oauth-refresh.ts)
 - [src/cli/commands/login.ts](file://src/cli/commands/login.ts)
 - [src/cli/commands/logout.ts](file://src/cli/commands/logout.ts)
+- [scripts/deploy-configure-keycloak-realms.py](file://scripts/deploy-configure-keycloak-realms.py)
+- [helm/kairos-mcp/files/kairos-realm.json](file://helm/kairos-mcp/files/kairos-realm.json)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced JSON-RPC authentication error handling with proper error envelopes for MCP clients
-- Added comprehensive WWW-Authenticate header implementation for standardized OAuth 2.0 signaling
-- Implemented CORS preflight bypass for MCP endpoints to ensure proper header exposure
-- Integrated Dynamic Client Registration proxy functionality for seamless OIDC client management
-- Improved MCP handler error responses with actionable JSON-RPC error codes
+- Enhanced Keycloak OAuth configuration with new optional client scopes support
+- Added ensure_client_optional_scope() and list_client_optional_scopes() functions to manage optional scopes
+- Updated CLIENT_OPTIONAL_SCOPES constant to include profile, email, and offline_access
+- Updated Helm chart configuration to resolve invalid_scope errors
+- Improved client scope management for dynamic registration and token issuance
+- Enhanced scope validation and error handling for OAuth 2.0 compliance
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -39,14 +42,15 @@
 6. [Enhanced JSON-RPC Authentication](#enhanced-json-rpc-authentication)
 7. [Dynamic Client Registration Proxy](#dynamic-client-registration-proxy)
 8. [CORS and Preflight Handling](#cors-and-preflight-handling)
-9. [Dependency Analysis](#dependency-analysis)
-10. [Performance Considerations](#performance-considerations)
-11. [Troubleshooting Guide](#troubleshooting-guide)
-12. [Conclusion](#conclusion)
-13. [Appendices](#appendices)
+9. [Client Scope Management](#client-scope-management)
+10. [Dependency Analysis](#dependency-analysis)
+11. [Performance Considerations](#performance-considerations)
+12. [Troubleshooting Guide](#troubleshooting-guide)
+13. [Conclusion](#conclusion)
+14. [Appendices](#appendices)
 
 ## Introduction
-This document describes the KAIROS MCP authentication and authorization system built on Keycloak via OIDC. It covers client configuration, redirect flows, callback handling, bearer token validation, group-based access control, scope management, middleware protection of API endpoints, profile claims processing, session management, token refresh mechanisms, and logout procedures. The system now includes enhanced JSON-RPC authentication error handling, comprehensive WWW-Authenticate header implementation, CORS preflight bypass, and Dynamic Client Registration proxy functionality for improved developer experience and operational reliability.
+This document describes the KAIROS MCP authentication and authorization system built on Keycloak via OIDC. It covers client configuration, redirect flows, callback handling, bearer token validation, group-based access control, scope management, middleware protection of API endpoints, profile claims processing, session management, token refresh mechanisms, and logout procedures. The system now includes enhanced JSON-RPC authentication error handling, comprehensive WWW-Authenticate header implementation, CORS preflight bypass, Dynamic Client Registration proxy functionality, and advanced client scope management for improved OAuth 2.0 compliance and operational reliability.
 
 ## Project Structure
 The authentication stack is implemented primarily under src/http and src/utils, with CLI support under src/cli. Key areas:
@@ -62,6 +66,7 @@ The authentication stack is implemented primarily under src/http and src/utils, 
 - **Enhanced**: Comprehensive WWW-Authenticate header implementation
 - **Enhanced**: CORS preflight bypass for proper header exposure
 - **Enhanced**: Dynamic Client Registration proxy for OIDC client management
+- **Enhanced**: Advanced client scope management with optional scopes support
 
 ```mermaid
 graph TB
@@ -79,6 +84,7 @@ MCPERR["MCP Error Handling<br/>http-error-handlers.ts"]
 MCPJSON["JSON-RPC Auth Errors<br/>mcp-ui-offerings-auth-jsonrpc.ts"]
 MCPWASM["MCP CORS<br/>http-mcp-cors.ts"]
 DCR["Dynamic Client Reg<br/>http-client-registration-proxy.ts"]
+CSM["Client Scope Manager<br/>deploy-configure-keycloak-realms.py"]
 end
 subgraph "CLI Layer"
 LG["Login Command<br/>cli/commands/login.ts"]
@@ -88,6 +94,7 @@ end
 subgraph "Shared"
 TC["Tenant/Spatial Context<br/>utils/tenant-context.ts"]
 SC["OIDC Scopes Config<br/>http/oidc-scopes.ts"]
+HR["Helm Realm Config<br/>kairos-realm.json"]
 end
 MW --> BV
 MW --> PC
@@ -106,6 +113,7 @@ MCP --> WA
 MCP --> MCPJSON
 MCPWASM --> WA
 DCR --> WK
+CSM --> HR
 ```
 
 **Diagram sources**
@@ -127,6 +135,8 @@ DCR --> WK
 - [src/cli/oauth-refresh.ts:26-86](file://src/cli/oauth-refresh.ts#L26-L86)
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/commands/logout.ts:10-19](file://src/cli/commands/logout.ts#L10-L19)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
@@ -147,6 +157,8 @@ DCR --> WK
 - [src/cli/oauth-refresh.ts:26-86](file://src/cli/oauth-refresh.ts#L26-L86)
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/commands/logout.ts:10-19](file://src/cli/commands/logout.ts#L10-L19)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 ## Core Components
 - OIDC Redirect and PKCE: Generates state and code challenge, stores state for CSRF protection, builds authorization URL, and constructs RP-initiated logout URL.
@@ -161,6 +173,7 @@ DCR --> WK
 - **Enhanced**: JSON-RPC Authentication: Provides proper error envelopes for MCP clients with actionable error codes and login URLs.
 - **Enhanced**: Dynamic Client Registration: Proxies OIDC client registration endpoints with URL rewriting for public accessibility.
 - **Enhanced**: CORS Handling: Implements preflight bypass and proper header exposure for MCP endpoints.
+- **Enhanced**: Client Scope Management: Manages optional client scopes including profile, email, and offline_access to resolve invalid_scope errors and improve OAuth 2.0 compliance.
 
 **Section sources**
 - [src/http/http-auth-oidc-redirect.ts:28-100](file://src/http/http-auth-oidc-redirect.ts#L28-L100)
@@ -176,9 +189,11 @@ DCR --> WK
 - [src/http/http-mcp-handler.ts:87-118](file://src/http/http-mcp-handler.ts#L87-L118)
 - [src/http/http-client-registration-proxy.ts:140-175](file://src/http/http-client-registration-proxy.ts#L140-L175)
 - [src/http/http-mcp-cors.ts:3-29](file://src/http/http-mcp-cors.ts#L3-L29)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 ## Architecture Overview
-The system integrates browser and API clients with Keycloak via OIDC. Protected paths enforce authentication; browsers are redirected to Keycloak for login; API clients use Bearer tokens validated against trusted issuers and audiences. Sessions are stored as signed cookies and used for RP-initiated logout. Group membership controls access to spaces; scopes define capabilities; well-known endpoints enable discovery and Dynamic Client Registration. **Enhanced** MCP clients now receive structured JSON-RPC error envelopes with proper WWW-Authenticate headers for seamless re-authentication.
+The system integrates browser and API clients with Keycloak via OIDC. Protected paths enforce authentication; browsers are redirected to Keycloak for login; API clients use Bearer tokens validated against trusted issuers and audiences. Sessions are stored as signed cookies and used for RP-initiated logout. Group membership controls access to spaces; scopes define capabilities; well-known endpoints enable discovery and Dynamic Client Registration. **Enhanced** MCP clients now receive structured JSON-RPC error envelopes with proper WWW-Authenticate headers for seamless re-authentication. **Enhanced** Client scope management ensures proper handling of optional scopes to prevent invalid_scope errors during token issuance and dynamic registration.
 
 ```mermaid
 sequenceDiagram
@@ -196,11 +211,12 @@ MW->>APP : Allow request with auth context
 end
 Client->>APP : GET /auth/callback
 APP->>OIDC : Exchange code for tokens
-OIDC-->>APP : ID/access tokens
+OIDC-->>APP : ID/access tokens (with optional scopes)
 APP->>APP : Merge payloads, apply groups allowlist, sign session
 APP-->>Client : 302 /ui/ with session cookie
 Note over Client,MW : Enhanced : MCP clients receive JSON-RPC error envelopes
 Note over MW,OIDC : Enhanced : WWW-Authenticate headers with error signaling
+Note over OIDC,APP : Enhanced : Optional scopes (profile,email,offline_access) resolved
 ```
 
 **Diagram sources**
@@ -246,7 +262,7 @@ participant KC as "Keycloak"
 Client->>App : GET /auth/callback?code&state
 App->>App : Validate state, fetch PKCE verifier
 App->>KC : POST /token (authorization_code, client_id, redirect_uri, code_verifier)
-KC-->>App : id_token, access_token, expires_in
+KC-->>App : id_token, access_token, expires_in (with optional scopes)
 App->>App : Decode payloads, merge claims, apply groups allowlist
 App->>App : Compute session exp, sign cookie
 App-->>Client : 302 /ui/ with Set-Cookie
@@ -414,6 +430,7 @@ Clear --> Continue["Redirect to continue-signin"]
 ### Scope Management
 - Default supported scopes include openid, profile, email, kairos-groups, offline_access.
 - Operator-defined scopes are parsed and validated; empty input falls back to defaults.
+- **Enhanced**: Client scope management now handles optional scopes to prevent invalid_scope errors.
 
 **Section sources**
 - [src/http/oidc-scopes.ts:1-31](file://src/http/oidc-scopes.ts#L1-L31)
@@ -572,6 +589,56 @@ Headers --> Preflight["Handle preflight (204)"]
 **Section sources**
 - [src/http/http-error-handlers.ts:9-53](file://src/http/http-error-handlers.ts#L9-L53)
 
+## Client Scope Management
+
+**Updated** The system now includes comprehensive client scope management to handle optional scopes and resolve invalid_scope errors during OAuth 2.0 flows.
+
+### Optional Client Scopes Support
+- **Enhanced**: Added ensure_client_optional_scope() function to manage optional client scopes
+- **Enhanced**: Added list_client_optional_scopes() function to enumerate current optional scopes
+- **Enhanced**: CLIENT_OPTIONAL_SCOPES constant now includes "profile", "email", and "offline_access"
+- **Enhanced**: Deployment script ensures optional scopes are properly configured for clients
+
+### Client Scope Functions
+- list_client_optional_scopes(): Retrieves current optional scopes for a given client
+- ensure_client_optional_scope(): Ensures a specific scope is configured as optional for a client
+- Integration with Helm chart configuration for automatic scope provisioning
+
+```mermaid
+flowchart TD
+CSStart(["Client Scope Management"]) --> ListOpt["list_client_optional_scopes()"]
+ListOpt --> CheckOpt{"Scope already optional?"}
+CheckOpt --> |Yes| Skip["Skip (already configured)"]
+CheckOpt --> |No| Ensure["ensure_client_optional_scope()"]
+Ensure --> AddScope["Add scope to client optional scopes"]
+AddScope --> Verify["Verify scope configuration"]
+Verify --> Done(["Scope ready for use"])
+Skip --> Done
+```
+
+**Diagram sources**
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+
+### Helm Chart Configuration
+- **Enhanced**: Updated kairos-realm.json to include optionalClientScopes for kairos-mcp and kairos-cli clients
+- **Enhanced**: Configured optional scopes: ["openid", "profile", "email", "offline_access"]
+- **Enhanced**: Resolves invalid_scope errors by ensuring proper scope availability
+- **Enhanced**: Maintains compatibility with existing default scopes
+
+**Section sources**
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [scripts/deploy-configure-keycloak-realms.py:1790-1800](file://scripts/deploy-configure-keycloak-realms.py#L1790-L1800)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
+
+### Deployment Script Integration
+- **Enhanced**: Automated scope configuration during realm setup
+- **Enhanced**: Verifies optional scopes are properly linked to clients
+- **Enhanced**: Handles scope validation and error reporting
+- **Enhanced**: Ensures backward compatibility with existing clients
+
+**Section sources**
+- [scripts/deploy-configure-keycloak-realms.py:1790-1800](file://scripts/deploy-configure-keycloak-realms.py#L1790-L1800)
+
 ## Dependency Analysis
 - Auth Middleware depends on:
   - Bearer validation for JWT verification
@@ -583,18 +650,27 @@ Headers --> Preflight["Handle preflight (204)"]
   - OIDC redirect for PKCE and logout URL building
   - OIDC profile claims for merging and allowlisting
   - Tenant context for space computation
+  - **Enhanced**: Client scope management for proper token issuance
 - Bearer validation depends on:
   - OIDC profile claims for group extraction and enrichment
+  - **Enhanced**: Client scope configuration for scope validation
 - Well-known metadata depends on:
   - OIDC redirect for issuer base resolution
   - OIDC profile claims for account labeling
   - **Enhanced**: Dynamic Client Registration proxy integration
+  - **Enhanced**: Client scope management for scope discovery
 - **Enhanced**: MCP Handler depends on:
   - Auth middleware for authentication
   - JSON-RPC error handling utilities
   - **Enhanced**: CORS handling for proper header exposure
+  - **Enhanced**: Client scope validation for MCP clients
 - CLI login and refresh depend on:
   - Well-known metadata for endpoint discovery
+  - **Enhanced**: Client scope configuration for proper token issuance
+- **Enhanced**: Client Scope Manager depends on:
+  - Keycloak Admin API for scope management
+  - Helm chart configuration for scope provisioning
+  - Deployment automation for scope synchronization
 
 ```mermaid
 graph LR
@@ -610,12 +686,15 @@ BV --> PC
 WK["Well-Known"] --> RED
 WK --> PC
 WK --> DCR["DCR Proxy"]
+WK --> CSM["Client Scope Manager"]
 MCP["MCP Handler"] --> MW
 MCP --> JRE
 MCP --> CORS["CORS Handling"]
 LG["CLI Login"] --> OR["OAuth Refresh Utils"]
 LG --> RED
 LO["CLI Logout"] --> CB
+CSM --> HR["Helm Realm Config"]
+CSM --> KA["Keycloak Admin API"]
 ```
 
 **Diagram sources**
@@ -634,6 +713,8 @@ LO["CLI Logout"] --> CB
 - [src/cli/oauth-refresh.ts:26-86](file://src/cli/oauth-refresh.ts#L26-L86)
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/commands/logout.ts:10-19](file://src/cli/commands/logout.ts#L10-L19)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:168-326](file://src/http/http-auth-middleware.ts#L168-L326)
@@ -651,6 +732,8 @@ LO["CLI Logout"] --> CB
 - [src/cli/oauth-refresh.ts:26-86](file://src/cli/oauth-refresh.ts#L26-L86)
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/commands/logout.ts:10-19](file://src/cli/commands/logout.ts#L10-L19)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 ## Performance Considerations
 - JWKS caching: Remote JWKS is cached per issuer to avoid repeated network fetches during validation.
@@ -660,6 +743,7 @@ LO["CLI Logout"] --> CB
 - **Enhanced**: MCP request concurrency limiting prevents overload during peak usage.
 - **Enhanced**: Structured error handling reduces overhead from generic error responses.
 - **Enhanced**: CORS preflight bypass minimizes latency for MCP endpoints.
+- **Enhanced**: Client scope caching reduces repeated Keycloak API calls for scope validation.
 
 **Section sources**
 - [src/http/bearer-validate.ts:41-109](file://src/http/bearer-validate.ts#L41-L109)
@@ -691,6 +775,14 @@ Common issues and resolutions:
   - Verify that registration_endpoint is accessible and that URL rewriting works correctly for public base URLs.
 - **Enhanced**: CORS preflight problems:
   - Ensure Access-Control-Expose-Headers includes WWW-Authenticate for MCP endpoints.
+- **Enhanced**: Invalid scope errors during token issuance:
+  - Verify that optional scopes (profile, email, offline_access) are properly configured for the client; check client optional scopes configuration.
+- **Enhanced**: Client scope synchronization issues:
+  - Ensure deployment script successfully configures optional scopes; verify Keycloak Admin API connectivity and permissions.
+- **Enhanced**: Scope validation failures:
+  - Check that optional scopes are properly linked to clients in Keycloak Admin UI; verify scope IDs and names match configuration.
+- **Enhanced**: OAuth 2.0 compliance issues:
+  - Ensure openid scope is properly configured as both default and optional scope; verify scope inheritance for dynamic clients.
 
 Operational checks:
 - Verify AUTH_CALLBACK_BASE_URL is set for production to ensure compliant well-known metadata and secure cookies.
@@ -698,6 +790,9 @@ Operational checks:
 - Monitor 401 responses with WWW-Authenticate headers to diagnose client re-auth needs.
 - **Enhanced**: Test MCP authentication flows with both JSON-RPC and non-JSON-RPC requests.
 - **Enhanced**: Validate Dynamic Client Registration proxy functionality with actual OIDC client creation.
+- **Enhanced**: Verify optional client scopes are properly configured in Keycloak Admin UI.
+- **Enhanced**: Test token issuance with various scope combinations to ensure proper scope handling.
+- **Enhanced**: Validate scope configuration using Keycloak Admin API endpoints for optional scopes.
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:232-282](file://src/http/http-auth-middleware.ts#L232-L282)
@@ -709,9 +804,11 @@ Operational checks:
 - [src/http/http-auth-callback.ts:99-115](file://src/http/http-auth-callback.ts#L99-L115)
 - [src/http/http-mcp-cors.ts:3-29](file://src/http/http-mcp-cors.ts#L3-L29)
 - [src/http/http-client-registration-proxy.ts:140-175](file://src/http/http-client-registration-proxy.ts#L140-L175)
+- [scripts/deploy-configure-keycloak-realms.py:716-753](file://scripts/deploy-configure-keycloak-realms.py#L716-L753)
+- [helm/kairos-mcp/files/kairos-realm.json:145-176](file://helm/kairos-mcp/files/kairos-realm.json#L145-L176)
 
 ## Conclusion
-KAIROS MCP's authentication and authorization system provides robust OIDC integration with Keycloak, supporting both browser and API clients. It enforces strict group-based access control, derives spatial contexts deterministically, and offers standardized discovery and logout flows. **Enhanced** features include comprehensive JSON-RPC error handling for MCP clients, proper WWW-Authenticate header implementation for OAuth 2.0 compliance, CORS preflight bypass for optimal performance, and Dynamic Client Registration proxy functionality for seamless OIDC client management. These improvements significantly enhance the developer experience while maintaining security and operability.
+KAIROS MCP's authentication and authorization system provides robust OIDC integration with Keycloak, supporting both browser and API clients. It enforces strict group-based access control, derives spatial contexts deterministically, and offers standardized discovery and logout flows. **Enhanced** features include comprehensive JSON-RPC error handling for MCP clients, proper WWW-Authenticate header implementation for OAuth 2.0 compliance, CORS preflight bypass for optimal performance, Dynamic Client Registration proxy functionality for seamless OIDC client management, and advanced client scope management to resolve invalid_scope errors. These improvements significantly enhance the developer experience while maintaining security and operability.
 
 ## Appendices
 
@@ -721,6 +818,7 @@ KAIROS MCP's authentication and authorization system provides robust OIDC integr
   - Redirect URIs: AUTH_CALLBACK_BASE_URL with /auth/callback for browser; localhost callback for CLI login.
   - Scopes: openid, profile, email, kairos-groups, offline_access.
   - Group Membership mapper to include groups in ID token or userinfo.
+  - **Enhanced**: Ensure optional scopes (profile, email, offline_access) are configured as optional client scopes.
 - Environment variables:
   - AUTH_ENABLED, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AUTH_CALLBACK_BASE_URL, SESSION_SECRET, SESSION_MAX_AGE_SEC, AUTH_TRUSTED_ISSUERS, AUTH_ALLOWED_AUDIENCES, OIDC_GROUPS_ALLOWLIST, OIDC_SCOPES_SUPPORTED.
 - Set up groups and roles:
@@ -737,5 +835,15 @@ KAIROS MCP's authentication and authorization system provides robust OIDC integr
   - Configure CORS properly to expose WWW-Authenticate headers.
   - Test both JSON-RPC and non-JSON-RPC authentication flows.
   - Validate error handling for concurrent request scenarios.
-
-[No sources needed since this section provides general guidance]
+- **Enhanced**: Manage Client Scopes:
+  - Use ensure_client_optional_scope() to add optional scopes to clients.
+  - Verify optional scopes are properly configured in Helm chart configuration.
+  - Test token issuance with various scope combinations to ensure proper scope handling.
+- **Enhanced**: Resolve Invalid Scope Errors:
+  - Ensure optionalClientScopes includes profile, email, and offline_access for kairos-mcp and kairos-cli clients.
+  - Verify deployment script successfully configures optional scopes during realm setup.
+  - Test OAuth flows to ensure invalid_scope errors are resolved.
+- **Enhanced**: Validate Scope Configuration:
+  - Use Keycloak Admin API to verify optional scopes are properly linked to clients.
+  - Check scope inheritance for dynamic clients created via DCR.
+  - Monitor OAuth 2.0 compliance with proper scope validation.

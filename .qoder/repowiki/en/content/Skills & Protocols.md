@@ -19,7 +19,16 @@
 - [src/tools/dump.ts](file://src/tools/dump.ts)
 - [src/services/memory/validate-protocol-structure.ts](file://src/services/memory/validate-protocol-structure.ts)
 - [src/utils/protocol-slug.ts](file://src/utils/protocol-slug.ts)
+- [docs/business/case-standardize-commits-and-merge-requests.md](file://docs/business/case-standardize-commits-and-merge-requests.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new KAIROS decision heuristic and routing system
+- Updated routing guidelines with concrete examples and decision matrix
+- Enhanced team-specific conventions coverage including branch naming, PR templates, and commit formats
+- Added conditions checklist for KAIROS routing activation
+- Updated practical examples to reflect the new decision framework
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -41,6 +50,7 @@ This document explains how KAIROS MCP manages skills and protocols, and how to d
 - Practical examples for developing skills, authoring protocols, and training
 - Distribution, version management, and compatibility considerations
 - The relationship between skills, protocols, and the training workflow
+- **New**: KAIROS decision heuristic for determining when to route through KAIROS versus execute directly
 
 ## Project Structure
 KAIROS MCP organizes skills and protocols across two primary areas:
@@ -103,6 +113,7 @@ E1 --> E6
 - Protocols: Structured markdown documents describing adapter workflows with required sections and JSON contract blocks.
 - Training and Tuning: Tools to register new adapters and update existing ones from markdown or artifacts.
 - Export and Bundling: Tools to export adapters as markdown, training JSONL, or skill bundles (ZIP) with metadata and diagnostics.
+- **New**: KAIROS Decision Heuristic: A systematic framework for determining when to route through KAIROS versus execute directly, based on team-specific conventions and training gaps.
 
 **Section sources**
 - [skills/README.md:1-68](file://skills/README.md#L1-L68)
@@ -110,6 +121,7 @@ E1 --> E6
 - [src/tools/train.ts:1-346](file://src/tools/train.ts#L1-L346)
 - [src/tools/tune.ts:1-58](file://src/tools/tune.ts#L1-L58)
 - [src/tools/export.ts:1-315](file://src/tools/export.ts#L1-L315)
+- [skills/kairos/SKILL.md:93-147](file://skills/kairos/SKILL.md#L93-L147)
 
 ## Architecture Overview
 The skill and protocol lifecycle spans human-authored content and server-side processing:
@@ -187,6 +199,62 @@ Contracts --> FenceCheck["Reject plain
 
 **Section sources**
 - [src/services/memory/validate-protocol-structure.ts:113-186](file://src/services/memory/validate-protocol-structure.ts#L113-L186)
+
+### KAIROS Decision Heuristic and Routing Framework
+
+**Updated** Added comprehensive decision framework for determining when to route through KAIROS versus execute directly.
+
+KAIROS provides a systematic decision heuristic to help agents determine when to route through KAIROS versus execute directly. The framework is built around the "training-gap test" that identifies when team-specific conventions are required.
+
+#### Decision Matrix
+
+| You are thinking… | Route through KAIROS? |
+|---|---|
+| "What branch naming convention do they use?" | **Yes** |
+| "Is there a required MR/PR template or description format?" | **Yes** |
+| "Do I need to reference a ticket, and how?" | **Yes** |
+| "Are there post-action steps (pipeline watch, approvals, notifications)?" | **Yes** |
+| "Which environment do I deploy to first?" | **Yes** |
+| "What commit message format does this team expect?" | **Yes** |
+| "I just need to run `npm test` / `git status` / one clear local command." | **No** — execute directly |
+| "The user asked me to read a file or explain code." | **No** — not an action intent |
+
+#### Conditions Checklist
+
+Before routing through KAIROS, verify these conditions in order:
+
+1. **Is the user message an action intent?** Look for verbs like build, fix, deploy, write, create, implement, debug, publish, migrate, configure, install, update, edit, refactor, review, audit, test, automate, generate, document, plan, design, or descriptions of a procedure. If no action intent is present, KAIROS routing does not apply.
+
+2. **Do you have follow-up questions about team-specific conventions?** If yes, route through KAIROS — the adapter answers them. If the action is a single obvious command with no ambiguity, execute directly without routing.
+
+3. **Is a KAIROS MCP server connected and authenticated?** If not, follow the unavailability procedure below.
+
+4. **Has the host environment restricted MCP tool access for this session?** If so, respect that restriction.
+
+If conditions 1-3 pass (action intent + team-context questions + server available), KAIROS routing is active for this task.
+
+#### Examples: Route vs. Skip
+
+**Route through KAIROS:**
+- "Create a PR for this fix" — needs branch naming, description template, labels
+- "Deploy to staging" — needs environment sequence, approval gates, post-deploy checks  
+- "Write a commit message" — needs team's conventional-commit format and scope rules
+- "Release a new version" — needs semver policy, changelog, tag format, CI triggers
+
+**Skip KAIROS (execute directly):**
+- "Run the tests" → `npm run dev:test` — single command, no team-specific form
+- "Check git status" → `git status` — read-only, no conventions involved
+- "Install dependencies" → `npm install` — mechanical, no team policy
+- "Read src/config/index.ts" — not an action intent at all
+
+#### Training-Gap Test
+
+**Rule of thumb:** If the task is a single, self-contained command whose correct form is universally obvious (not team-specific), execute directly. If you have *any* uncertainty about the team-specific "how" — branch naming, ticket format, deploy sequence, commit conventions — **activate KAIROS first**. The adapter exists to fill the gap between your training and this team's rules.
+
+**Multi-step tasks:** Even if each individual step seems obvious, route through KAIROS when the task involves multiple sequential actions (e.g., "fix the tests and push"). The adapter may encode team conventions about step ordering, intermediate validation, or post-action obligations that you'd miss if you just chained obvious commands.
+
+**Section sources**
+- [skills/kairos/SKILL.md:93-162](file://skills/kairos/SKILL.md#L93-L162)
 
 ### Skill Bundle Creation and Metadata Derivation
 - Assembly: For each adapter URI, the system dumps protocol markdown, normalizes vocabulary, derives metadata (slug, name, description), builds SKILL.md, scans for diagnostics, loads artifacts, and computes checksums.
@@ -280,8 +348,14 @@ Dump-->>Client : markdown with protocol frontmatter
 
 - Training and tuning
   - Use the train tool to register a new adapter from markdown or artifact.
-  - Use the tune tool to update an existing adapter’s content.
+  - Use the tune tool to update an existing adapter's content.
   - Use dump to render a markdown representation of an adapter chain.
+
+- **New**: KAIROS Decision Framework
+  - Use the decision matrix to determine routing: ask "Does this task have team-specific conventions that my training data wouldn't know?"
+  - Apply the conditions checklist: action intent → team-specific questions → server availability → host restrictions
+  - Follow the examples: route for complex workflows, skip for simple commands
+  - Remember the training-gap test: if you're uncertain about team-specific "how," activate KAIROS first
 
 - Exporting and distributing
   - Use export with format=skill_zip to produce a ZIP bundle with a manifest and optional inline base64.
@@ -294,6 +368,7 @@ Dump-->>Client : markdown with protocol frontmatter
 - [src/tools/train.ts:240-345](file://src/tools/train.ts#L240-L345)
 - [src/tools/tune.ts:12-57](file://src/tools/tune.ts#L12-L57)
 - [src/tools/export.ts:176-264](file://src/tools/export.ts#L176-L264)
+- [skills/kairos/SKILL.md:93-162](file://skills/kairos/SKILL.md#L93-L162)
 
 ### Version Management and Compatibility
 - Protocol versioning: Protocols carry an adapter_version when present; exports include adapter_version for single-adapter selections.
@@ -342,19 +417,19 @@ Items --> Zip["skill-export/zip-bundle.ts"]
 - Caching: Dump reads leverage a Redis cache for memory resources to reduce latency.
 - Validation: Structural validation is lightweight and performed before storage to prevent downstream errors.
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 - Training errors: The train tool normalizes error codes and enriches messages with actionable next actions (e.g., opening the creation flow).
 - Duplicate or similar adapters: Errors distinguish between duplicates and near-duplicates; use force_update when appropriate.
 - Export diagnostics: The export pipeline scans for advisory risks in Markdown and logs warnings for invalid artifact paths or mismatched hashes.
 - Protocol validation failures: Use the validation rules to identify missing sections, incorrect contract types, or mixed fencing.
+- **New**: KAIROS routing issues: Use the conditions checklist to diagnose routing problems. Check server connectivity, authentication status, and host restrictions. Follow the unavailability procedure for MCP server issues.
 
 **Section sources**
 - [src/tools/train.ts:56-83](file://src/tools/train.ts#L56-L83)
 - [src/tools/export.ts:266-268](file://src/tools/export.ts#L266-L268)
 - [src/tools/skill-export/scan-diagnostics.ts:15-23](file://src/tools/skill-export/scan-diagnostics.ts#L15-L23)
 - [src/services/memory/validate-protocol-structure.ts:163-186](file://src/services/memory/validate-protocol-structure.ts#L163-L186)
+- [skills/kairos/SKILL.md:181-199](file://skills/kairos/SKILL.md#L181-L199)
 
 ## Conclusion
 KAIROS MCP provides a robust framework for skills and protocols:
@@ -362,8 +437,7 @@ KAIROS MCP provides a robust framework for skills and protocols:
 - Protocols are authored with strict markdown and contract rules to ensure reliable execution.
 - Training, tuning, and exporting are integrated into MCP tools with clear error handling and observability.
 - Skill bundles streamline distribution with metadata, diagnostics, and artifact attachments.
-
-[No sources needed since this section summarizes without analyzing specific files]
+- **New**: The KAIROS decision heuristic provides a systematic framework for determining when to route through KAIROS versus execute directly, based on team-specific conventions and training gaps.
 
 ## Appendices
 
@@ -382,3 +456,43 @@ KAIROS MCP provides a robust framework for skills and protocols:
 
 **Section sources**
 - [src/tools/export.ts:176-264](file://src/tools/export.ts#L176-L264)
+
+### Appendix C: KAIROS Decision Framework Examples
+
+**Updated** Comprehensive examples demonstrating the decision framework in practice.
+
+#### Real-world Scenarios
+
+**Scenario 1: Code Review Process**
+- Question: "How do we handle code review comments and approvals?"
+- Decision: **Route through KAIROS** — involves team-specific approval gates and notification workflows
+- Action: Activate KAIROS to follow the established review procedure
+
+**Scenario 2: Daily Standup Command**
+- Question: "Run the daily standup script"
+- Decision: **Execute directly** — single command with no team-specific form
+- Action: Run `./scripts/daily-standup.sh` without routing
+
+**Scenario 3: Database Migration**
+- Question: "Apply the database migration for feature X"
+- Decision: **Route through KAIROS** — involves environment sequence, rollback procedures, and monitoring steps
+- Action: Activate KAIROS to follow the migration workflow
+
+**Scenario 4: Code Formatting**
+- Question: "Format all Python files"
+- Decision: **Execute directly** — mechanical task with universal formatting standards
+- Action: Run `black .` without routing
+
+#### Decision Matrix Application
+
+**Application Steps:**
+1. Identify action intent: "Create merge request" ✓
+2. Team-specific questions: "Branch naming convention?" → Yes
+3. Server availability: Connected and authenticated ✓
+4. Host restrictions: None detected ✓
+
+**Result:** Route through KAIROS using the decision matrix to ensure compliance with team conventions.
+
+**Section sources**
+- [skills/kairos/SKILL.md:93-162](file://skills/kairos/SKILL.md#L93-L162)
+- [docs/business/case-standardize-commits-and-merge-requests.md:1-66](file://docs/business/case-standardize-commits-and-merge-requests.md#L1-L66)
