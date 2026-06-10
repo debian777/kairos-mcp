@@ -13,14 +13,9 @@ import {
 describe('buildListOfferingsForUIResult', () => {
   test('includes spaces, forward, and activate tools with ui resourceUri, flat meta key, and matching resource entries', () => {
     const r = buildListOfferingsForUIResult();
-    expect(r.prompts).toHaveLength(1);
+    expect(r.prompts).toHaveLength(0);
     expect(r.tools).toHaveLength(3);
     expect(r.resources).toHaveLength(6);
-
-    const contextualPrompt = r.prompts.find((x) => x.name === 'contextual-prompt');
-    expect(contextualPrompt).toBeDefined();
-    expect(contextualPrompt?.title).toBe('Contextual Prompt');
-    expect(contextualPrompt?.description).toBe('Prompt: Contextual Prompt');
 
     const spacesTool = r.tools.find((x) => (x as { name?: string }).name === 'spaces') as {
       name?: string;

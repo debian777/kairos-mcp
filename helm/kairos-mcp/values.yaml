@@ -45,7 +45,7 @@ app:
   metricsPort: 9090
   image:
     repository: "quay.io/debian777/kairos-mcp"
-    tag: "4.6.3"
+    tag: "4.7.1"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
   redisUrl: ""
@@ -200,8 +200,12 @@ keycloakInstance:
     passwordSecretKey: "password"
   customSpec: {}
 
-# When true, applies KeycloakRealmImport (realm kairos + kairos-mcp client) so browser OIDC works.
-# Requires keycloakInstance.enabled, gateway.hostname (or keycloakRealmImport.publicHost), and Keycloak operator.
+# First-install-only KeycloakRealmImport (operator imports realm, then CR is not re-rendered).
+# ArgoCD: MUST set spec.source.helm.enableLookup: true — without it, lookup() returns empty
+# and the CR renders on every sync (the exact drift this guard prevents).
+# A tracking ConfigMap (<release>-realm-imported) is always created alongside for environments
+# that also support lookup; it does NOT replace lookup when enableLookup is missing.
+# Requires keycloakInstance.enabled and Keycloak operator.
 keycloakRealmImport:
   enabled: false
   name: "kairos-realm-import"
@@ -212,6 +216,40 @@ keycloakRealmImport:
   # If empty, uses gateway.hostname for https://… redirect URIs / webOrigins in the bundled realm JSON.
   # Backward-compatible host-only override. Prefer publicBaseUrl for new configs.
   publicHost: ""
+
+# Periodic cleanup of stale DCR (Dynamic Client Registration) clients from Keycloak.
+# Requires keycloakInstance.enabled and Keycloak operator.
+keycloakDcrCleanup:
+  enabled: false
+  # Realms to scan for stale DCR clients.
+  realms:
+    - kairos
+  # KAIROS-seeded clients that are never pruned (clientId exact match).
+  protectedClients:
+    - kairos-mcp
+    - kairos-cli
+  # Remove clients first seen more than N days ago (that are not in protectedClients).
+  staleAfterDays: 30
+  # Cron schedule (default: weekly Sunday 03:00).
+  schedule: "0 3 * * 0"
+  # Python image (stdlib only — no pip packages needed). The cleanup script is
+  # injected via ConfigMap and uses only urllib, json, datetime, os, sys.
+  image: "python:3.12-alpine"
+  # Container resource requests/limits.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  # Keycloak admin Secret name. Defaults to <keycloakInstance.name>-initial-admin.
+  adminSecretName: ""
+  # If true, log candidates but do not delete (safe first-run).
+  dryRun: true
+  backoffLimit: 2
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
 
 postgresCluster:
   enabled: false

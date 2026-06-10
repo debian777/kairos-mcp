@@ -11,6 +11,7 @@ import { assertWireAdapterUri, parseKairosUri, buildLayerUri } from './kairos-ur
 import { buildTuneResultMessage } from './tune-messages.js';
 import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
 import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
+import { verifyTuneLayerPersistence } from './tune-verify.js';
 
 type AdapterLayerPoint = { uuid: string; payload: any };
 
@@ -209,6 +210,8 @@ async function tuneAdapterMarkdownInPlace(
       inference_contract: next.inference_contract ?? null
     });
   }
+
+  await verifyTuneLayerPersistence(qdrantService, existingLayers, nextLayers);
 
   return buildLayerUri(existingLayers[0]!.uuid);
 }

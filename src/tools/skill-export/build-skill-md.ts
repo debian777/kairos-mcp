@@ -15,8 +15,13 @@ function escapeYamlScalar(s: string): string {
 /**
  * Assemble final SKILL.md for export (proof-of-work blocks preserved in body).
  */
-export function buildSkillMdFile(meta: DerivedSkillMetadata, protocolMarkdownNormalized: string): string {
+export function buildSkillMdFile(
+  meta: DerivedSkillMetadata,
+  protocolMarkdownNormalized: string,
+  version?: string | null
+): string {
   const body = stripLeadingFrontmatter(protocolMarkdownNormalized).trim();
-  const header = `---\nname: ${escapeYamlScalar(meta.name)}\ndescription: ${escapeYamlScalar(meta.description)}\n---\n\n`;
+  const versionLine = version ? `\nversion: ${escapeYamlScalar(version)}` : '';
+  const header = `---\nname: ${escapeYamlScalar(meta.name)}\ndescription: ${escapeYamlScalar(meta.description)}${versionLine}\n---\n\n`;
   return `${header}${body}\n`;
 }

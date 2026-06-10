@@ -12,9 +12,9 @@ export const rewardInputSchema = z.object({
   outcome: z.enum(['success', 'failure']).describe('Execution outcome'),
   score: z.number().min(0).max(1).optional().describe('Optional normalized reward score'),
   feedback: z.string().min(1).optional().describe('Optional evaluator feedback'),
-  rater: z.string().optional().describe('Optional identifier for the evaluator'),
-  rubric_version: z.string().optional().describe('Optional rubric or policy version'),
-  llm_model_id: z.string().optional().describe('Optional model identifier for attribution')
+  rater: z.string().optional().describe('Human evaluator identifier. Combined with llm_model_id provides evaluator identity — omitting both blocks exportable_for_sft and exportable_for_preference.'),
+  rubric_version: z.string().optional().describe('Rubric or policy version tag (e.g. "v1"). Required for SFT and preference export eligibility — omitting blocks exportable_for_sft and exportable_for_preference.'),
+  llm_model_id: z.string().optional().describe('LLM model identifier for evaluator attribution. Required for evaluator identity — omitting blocks exportable_for_sft and exportable_for_preference.')
 });
 
 const rewardEligibilityBlockerSchema = z.enum([

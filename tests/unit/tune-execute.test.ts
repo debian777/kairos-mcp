@@ -290,4 +290,60 @@ New reward text after tune.
     expect(fakeQdrant.updateCalls).toHaveLength(1);
     expect(fakeQdrant.updateCalls[0]?.id).toBe('11111111-1111-4111-8111-111111111111');
   });
+
+  test('detects silent no-op via post-write verification when updateMemory does not persist', async () => {
+    const adapterName = 'Tune Export Regression Adapter';
+    const adapterId = IDGenerator.generateAdapterUUIDv5(adapterName);
+    const adapterSlug = 'tune-export-regression-adapter';
+    const layers = buildInitialLayers(adapterId, adapterName, adapterSlug);
+
+    // BrokenQdrantService: updateMemory records the call but does NOT update stored data,
+    // simulating the false-success scenario from the bug report.
+    class BrokenQdrantService extends FakeQdrantService {
+      override async updateMemory(_id: string, _updates: Record<string, unknown>): Promise<void> {
+        // Record the call but silently skip the actual write
+        (this as any).updateCalls.push({ id: _id, updates: _updates });
+      }
+    }
+    const brokenQdrant = new BrokenQdrantService(layers);
+
+    const nextMarkdown = `---
+slug: tune-export-regression-adapter
+version: 1.0.2
+---
+
+# ${adapterName}
+
+## Activation Patterns
+
+- run new path
+
+\`\`\`json
+{"contract":{"type":"comment","comment":{"min_length":8},"required":true}}
+\`\`\`
+
+## Apply Fix
+
+Fresh implementation details for the second layer.
+
+\`\`\`json
+{"contract":{"type":"comment","comment":{"min_length":12},"required":true}}
+\`\`\`
+
+## Reward Signal
+
+New reward text after tune.
+`;
+
+    const output = await executeTune(brokenQdrant as any, {
+      uris: [`kairos://adapter/${adapterSlug}`],
+      content: [nextMarkdown]
+    });
+
+    // Post-write verification should catch the stale data and report error instead of false success
+    expect(output.total_updated).toBe(0);
+    expect(output.total_failed).toBe(1);
+    expect(output.results[0]?.status).toBe('error');
+    expect(output.results[0]?.message).toContain('Post-write verification failed');
+  });
 });
