@@ -12,6 +12,10 @@ metadata:
   name: {{ $gw.gatewayName | default "kairos-gateway" }}
   labels:
     app.kubernetes.io/part-of: {{ .Chart.Name | quote }}
+    {{- $dm := $gw.dataplaneMode }}
+    {{- if not (and (kindIs "string" $dm) (eq $dm "")) }}
+    istio.io/dataplane-mode: {{ default "ambient" $dm }}
+    {{- end }}
 spec:
   gatewayClassName: {{ $gw.gatewayClassName }}
   listeners:

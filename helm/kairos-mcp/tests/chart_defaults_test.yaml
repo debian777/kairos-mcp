@@ -40,6 +40,37 @@ tests:
       - equal:
           path: spec.gatewayClassName
           value: ngrok
+  - it: sets istio.io/dataplane-mode label to ambient by default
+    set:
+      gateway.enabled: true
+      gateway.createGateway: true
+      gateway.hostname: "kairos.example.com"
+      gateway.gatewayClassName: "istio"
+    asserts:
+      - equal:
+          path: metadata.labels["istio.io/dataplane-mode"]
+          value: ambient
+  - it: allows overriding dataplaneMode to sidecar
+    set:
+      gateway.enabled: true
+      gateway.createGateway: true
+      gateway.hostname: "kairos.example.com"
+      gateway.gatewayClassName: "istio"
+      gateway.dataplaneMode: "sidecar"
+    asserts:
+      - equal:
+          path: metadata.labels["istio.io/dataplane-mode"]
+          value: sidecar
+  - it: omits dataplane-mode label when dataplaneMode is empty
+    set:
+      gateway.enabled: true
+      gateway.createGateway: true
+      gateway.hostname: "kairos.example.com"
+      gateway.gatewayClassName: "ngrok"
+      gateway.dataplaneMode: ""
+    asserts:
+      - isNull:
+          path: metadata.labels["istio.io/dataplane-mode"]
 ---
 suite: app Service
 templates:

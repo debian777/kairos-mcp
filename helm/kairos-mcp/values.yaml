@@ -94,6 +94,10 @@ gateway:
   existingGatewayName: ""
   existingGatewayNamespace: ""
   gatewayClassName: "ngrok"
+  # Istio dataplane mode label on the Gateway resource.
+  # Default "ambient" avoids sidecar injection (no seccompProfile needed under restricted PSA).
+  # Set to "sidecar" for legacy sidecar mode, or "" to omit the label.
+  dataplaneMode: "ambient"
   hostname: ""
   httpPort: 80
   httpsPort: 443
