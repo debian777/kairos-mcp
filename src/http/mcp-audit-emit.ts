@@ -9,20 +9,36 @@ import { randomUUID } from 'node:crypto';
 import type express from 'express';
 import { writeAuditLine } from '../utils/structured-logger.js';
 import { AUDIT_LOG_LEVEL } from '../config.js';
-import { getTenantId } from '../utils/tenant-context.js';
 import { getBuildVersion } from '../utils/build-version.js';
 import { summarizeRequestArgs, summarizeResponse, extractErrorCode } from '../utils/audit-mcp-summary.js';
 
 export { AUDIT_LOG_LEVEL };
 
-/** Capture JSON-RPC response for audit level 2/3. Returns a getter for the captured response. */
+/**
+ * Capture JSON-RPC response for audit level 3.
+ *
+ * The MCP SDK's StreamableHTTPServerTransport writes responses via res.end()
+ * (through @hono/node-server), NOT res.json(). We intercept at the stream level.
+ */
 export function installResponseCapture(res: express.Response): { getResponse: () => unknown } {
   let captured: unknown = null;
-  const originalJson = res.json.bind(res);
-  res.json = (body: unknown): express.Response => {
-    captured = body;
-    return originalJson(body);
+  const chunks: Buffer[] = [];
+  const originalWrite = res.write.bind(res);
+  const originalEnd = res.end.bind(res);
+
+  res.write = function (chunk: unknown, ...args: unknown[]): boolean {
+    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+    return (originalWrite as Function)(chunk, ...args);
   };
+
+  res.end = function (chunk?: unknown, ...args: unknown[]): express.Response {
+    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+    if (chunks.length > 0) {
+      try { captured = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { /* non-JSON */ }
+    }
+    return (originalEnd as Function)(chunk, ...args);
+  };
+
   return { getResponse: () => captured };
 }
 
@@ -62,7 +78,7 @@ export function emitRequestEnd(correlationId: string, requestId: string, toolNam
 
 /**
  * Emit mcp_tool_call audit event.
- * Must be called inside runWithSpaceContextAsync where getTenantId() resolves.
+ * Called from the response finish handler with pre-captured tenantId.
  */
 export function emitToolCallAudit(
   correlationId: string,
@@ -70,11 +86,11 @@ export function emitToolCallAudit(
   toolName: string,
   requestStart: number,
   capturedResponse: unknown,
-  requestArgs: unknown
+  requestArgs: unknown,
+  tenantId: string
 ): void {
   if (AUDIT_LOG_LEVEL <= 0) return;
 
-  const tenantId = getTenantId();
   const durationMs = Date.now() - requestStart;
   const isError = capturedResponse !== null &&
     typeof capturedResponse === 'object' &&

@@ -12,7 +12,7 @@ import {
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
 import { buildListOfferingsUnauthorizedJsonRpc } from './mcp-ui-offerings-auth-jsonrpc.js';
-import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
+import { getSpaceContext, getTenantId, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { buildListOfferingsForUIResult } from '../mcp-apps/list-offerings-for-ui.js';
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
@@ -120,9 +120,9 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         const toolName = req.body?.params?.name || 'unknown';
         const correlationId = generateCorrelationId();
 
-        // Capture JSON-RPC response for audit level 2/3 (tool call result).
+        // Capture JSON-RPC response for audit level 3 (exact replay).
         const auditLevel = AUDIT_LOG_LEVEL;
-        const responseCapture = auditLevel >= 2 ? installResponseCapture(res) : null;
+        const responseCapture = auditLevel >= 3 ? installResponseCapture(res) : null;
 
         // Emit mcp_request_start audit event (level > 0, before space context).
         emitRequestStart(correlationId, requestId, method, toolName);
@@ -158,14 +158,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                         'SSO sign-in required for UI offerings; reconnect MCP after authenticating if the host caches tokens'
                 });
                 res.status(401).json(buildListOfferingsUnauthorizedJsonRpc(id));
-                return;
+                emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
             }
-            res.status(200).json({
-                jsonrpc: '2.0',
-                result: buildListOfferingsForUIResult(),
-                id
-            });
-            return;
+            res.status(200).json({ jsonrpc: '2.0', result: buildListOfferingsForUIResult(), id });
+            emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
         }
 
         concurrentMcpRequests++;
@@ -191,7 +187,7 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                     id: requestId === 'unknown' ? null : requestId
                 });
             }
-            return;
+            emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
         }
 
         try {
@@ -260,9 +256,14 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 deleteTimestamp();
                 const duration = Date.now() - requestStart;
 
-                // Emit mcp_request_end audit event (best-effort tenantId from ALS).
+                // Emit mcp_request_end audit event.
                 if (auditLevel > 0 && method !== 'notifications/cancelled') {
                     emitRequestEnd(correlationId, requestId, toolName, duration);
+                }
+
+                // Emit mcp_tool_call audit event (response now available).
+                if (auditTenantId && auditRequestArgs !== undefined) {
+                    emitToolCallAudit(correlationId, requestId, toolName, requestStart, responseCapture?.getResponse(), auditRequestArgs, auditTenantId);
                 }
 
                 if (duration > 10000 && method !== 'notifications/cancelled') {
@@ -289,10 +290,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
             const requestIdFromHttp = (req as express.Request & { requestId?: string }).requestId;
             const authAwareReq = resolvedAuth ? { ...req, auth: resolvedAuth } : req;
-            const spaceCtx = {
-              ...(req.spaceContext ?? getSpaceContext(authAwareReq)),
-              requestId: requestIdFromHttp || requestId || ''
-            };
+            const spaceCtx = { ...(req.spaceContext ?? getSpaceContext(authAwareReq)), requestId: requestIdFromHttp || requestId || '' };
+            let auditTenantId: string | undefined;
+            let auditRequestArgs: unknown;
+
             await runWithSpaceContextAsync(spaceCtx, async () => {
               await mcpRequestStore.run({ req, transport }, async () => {
                 await transport.handleRequest(
@@ -302,10 +303,8 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 );
               });
 
-              // Emit mcp_tool_call audit event inside space context (tenantId available).
-              if (auditLevel > 0 && method === 'tools/call' && toolName !== 'unknown') {
-                emitToolCallAudit(correlationId, requestId, toolName, requestStart, responseCapture?.getResponse(), req.body?.params?.arguments);
-              }
+              // Capture audit context inside space context (tenantId resolves here).
+              if (auditLevel > 0 && method === 'tools/call' && toolName !== 'unknown') { auditTenantId = getTenantId(); auditRequestArgs = req.body?.params?.arguments; }
             });
 
             requestCompleted = true;
