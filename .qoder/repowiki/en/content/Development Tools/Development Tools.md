@@ -43,15 +43,19 @@
 - [tests/integration/cli-train-batch.test.ts](file://tests/integration/cli-train-batch.test.ts)
 - [docs/CLI.md](file://docs/CLI.md)
 - [docs/architecture/artifacts.md](file://docs/architecture/artifacts.md)
+- [docs/security/audit-log.md](file://docs/security/audit-log.md)
+- [scripts/journey-export.mjs](file://scripts/journey-export.mjs)
+- [scripts/journey-diff.mjs](file://scripts/journey-diff.mjs)
+- [scripts/journey-replay.mjs](file://scripts/journey-replay.mjs)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced artifact handling capabilities documentation with improved automatic artifact discovery and upload functionality
-- Updated CLI training documentation to reflect new automatic artifact discovery and upload workflow
-- Enhanced artifact management workflow documentation with comprehensive MIME type handling and validation
-- Added detailed artifact catalog and export system documentation
-- Updated artifact sanitization and security validation processes
+- Added comprehensive documentation for new audit logging configuration system
+- Documented journey analysis tools including export, diff, and replay utilities
+- Enhanced security and observability tooling documentation
+- Updated development scripts section with new journey analysis capabilities
+- Added audit log specification and MCP audit levels documentation
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -81,6 +85,8 @@ The repository is a monorepo-style Node.js project with:
 - **New**: Comprehensive Dev Container development infrastructure under .devcontainer/
 - **New**: Enhanced documentation quality assurance system with markdownlint-cli2 and mermaid validation
 - **New**: Advanced artifact handling system with automatic discovery and upload capabilities
+- **New**: Audit logging configuration system with MCP tool call event capture
+- **New**: Journey analysis toolkit for operational investigations and debugging
 
 ```mermaid
 graph TB
@@ -133,6 +139,16 @@ ArtifactStore["src/services/memory/store-artifact.ts<br/>artifact storage"]
 ArtifactExport["src/http/http-export-artifact-download-routes.ts<br/>artifact download"]
 SkillExport["src/tools/skill-export/artifact-files.ts<br/>export handling"]
 end
+subgraph "Audit Logging System"
+AuditSpec["docs/security/audit-log.md<br/>audit log specification"]
+AuditConfig["Environment variables<br/>AUDIT_LOG_FILE, AUDIT_LOG_LEVEL"]
+AuditEvents["MCP tool call events<br/>audit.mcp category"]
+end
+subgraph "Journey Analysis Toolkit"
+JourneyExport["scripts/journey-export.mjs<br/>audit JSONL → journey JSON"]
+JourneyDiff["scripts/journey-diff.mjs<br/>journey comparison"]
+JourneyReplay["scripts/journey-replay.mjs<br/>journey replay"]
+end
 Pkg --> TS
 Pkg --> ViteCfg
 Pkg --> ESLintCfg
@@ -168,11 +184,15 @@ ArtifactCLI --> ArtifactCatalog
 ArtifactMime --> ArtifactStore
 ArtifactCatalog --> ArtifactStore
 ArtifactExport --> SkillExport
+AuditSpec --> AuditConfig
+AuditConfig --> AuditEvents
+JourneyExport --> JourneyDiff
+JourneyExport --> JourneyReplay
 ```
 
 **Diagram sources**
 - [package.json:38-121](file://package.json#L38-L121)
-- [tsconfig.json:1-53](file://tsconfig.json#L1-53)
+- [tsconfig.json:1-53](file://tsconfig.json#L1-L53)
 - [vite.config.ts:1-44](file://vite.config.ts#L1-L44)
 - [eslint.config.cjs:1-14](file://eslint.config.cjs#L1-L14)
 - [eslint/flat-config.cjs:1-508](file://eslint/flat-config.cjs#L1-L508)
@@ -209,6 +229,10 @@ ArtifactExport --> SkillExport
 - [src/tools/skill-export/artifact-files.ts:1-88](file://src/tools/skill-export/artifact-files.ts#L1-L88)
 - [src/http/http-export-artifact-download-routes.ts:1-61](file://src/http/http-export-artifact-download-routes.ts#L1-L61)
 - [src/services/memory/store-artifact.ts:1-301](file://src/services/memory/store-artifact.ts#L1-L301)
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
 
 **Section sources**
 - [package.json:1-207](file://package.json#L1-L207)
@@ -272,6 +296,17 @@ ArtifactExport --> SkillExport
   - Comprehensive MIME type validation and sanitization.
   - Artifact catalog management and export capabilities.
   - Secure artifact storage with SHA256 validation and relative path handling.
+- **New**: Audit logging configuration system
+  - MCP tool call event capture with configurable verbosity levels (0-3).
+  - Structured audit log with allowlisted categories (audit.embedding, audit.anomaly, audit.mcp).
+  - Optional append-only file stream for dedicated audit trail.
+  - Tenant-aware event categorization with correlation_id grouping.
+- **New**: Journey analysis toolkit
+  - Journey export utility converts audit JSONL to structured journey JSON files.
+  - Journey diff tool compares journeys across different runs or environments.
+  - Journey replay utility reconstructs and replays user journeys for debugging.
+  - Redaction capabilities for sensitive data in shared contexts.
+  - Filtering options for correlation IDs and minimum tool call thresholds.
 - Automation
   - Renovate for automated dependency updates across npm, GitHub Actions, Dockerfiles, and Helm.
   - **New**: Wiki synchronization workflow for forever-branch lifecycle management.
@@ -293,9 +328,13 @@ ArtifactExport --> SkillExport
 - [renovate.json:1-138](file://renovate.json#L1-L138)
 - [.devcontainer/README.md:1-212](file://.devcontainer/README.md#L1-L212)
 - [scripts/sync-wiki.sh:1-78](file://scripts/sync-wiki.sh#L1-L78)
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
 
 ## Architecture Overview
-The development toolchain integrates build, test, lint, packaging, and deployment steps orchestrated by npm scripts. The backend compiles to dist/, the UI builds to dist/ui/, and embedded docs are generated at build time. Docker images encapsulate runtime environments, while Compose provisions local infrastructure. **New**: Comprehensive Dev Container infrastructure provides consistent, reproducible development environments with pre-configured dependencies and automated validation. **New**: Enhanced documentation quality assurance system ensures comprehensive markdown and diagram validation throughout the development lifecycle. **New**: Advanced artifact handling system provides automatic artifact discovery, validation, and upload capabilities for streamlined training workflows.
+The development toolchain integrates build, test, lint, packaging, and deployment steps orchestrated by npm scripts. The backend compiles to dist/, the UI builds to dist/ui/, and embedded docs are generated at build time. Docker images encapsulate runtime environments, while Compose provisions local infrastructure. **New**: Comprehensive Dev Container infrastructure provides consistent, reproducible development environments with pre-configured dependencies and automated validation. **New**: Enhanced documentation quality assurance system ensures comprehensive markdown and diagram validation throughout the development lifecycle. **New**: Advanced artifact handling system provides automatic artifact discovery, validation, and upload capabilities for streamlined training workflows. **New**: Audit logging configuration system enables comprehensive operational visibility with configurable MCP tool call event capture. **New**: Journey analysis toolkit provides powerful debugging and investigation capabilities through structured journey data export, comparison, and replay.
 
 ```mermaid
 graph TB
@@ -323,6 +362,12 @@ ArtifactMime["MIME Validation<br/>artifact type safety"]
 ArtifactCatalog["Artifact Catalog<br/>listing and management"]
 ArtifactStore["Artifact Storage<br/>secure persistence"]
 ArtifactExport["Artifact Export<br/>download and distribution"]
+AuditSpec["Audit Log Spec<br/>docs/security/audit-log.md"]
+AuditConfig["Audit Config<br/>ENV variables"]
+AuditEvents["MCP Events<br/>audit.mcp category"]
+JourneyExport["Journey Export<br/>audit JSONL → journey JSON"]
+JourneyDiff["Journey Diff<br/>journey comparison"]
+JourneyReplay["Journey Replay<br/>journey reconstruction"]
 NPM --> TSC
 NPM --> Vite
 NPM --> ESL
@@ -346,6 +391,10 @@ ArtifactCLI --> ArtifactCatalog
 ArtifactMime --> ArtifactStore
 ArtifactCatalog --> ArtifactStore
 ArtifactExport --> ArtifactStore
+AuditSpec --> AuditConfig
+AuditConfig --> AuditEvents
+JourneyExport --> JourneyDiff
+JourneyExport --> JourneyReplay
 ```
 
 **Diagram sources**
@@ -371,7 +420,10 @@ ArtifactExport --> ArtifactStore
 - [src/tools/artifact-mime.ts:1-50](file://src/tools/artifact-mime.ts#L1-L50)
 - [src/tools/artifact-catalog.ts:1-117](file://src/tools/artifact-catalog.ts#L1-L117)
 - [src/services/memory/store-artifact.ts:1-301](file://src/services/memory/store-artifact.ts#L1-L301)
-- [src/http/http-export-artifact-download-routes.ts:1-61](file://src/http/http-export-artifact-download-routes.ts#L1-L61)
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
 
 ## Detailed Component Analysis
 
@@ -627,6 +679,132 @@ CLI-->>Dev : Batch results with artifact upload status
 - [src/http/http-export-artifact-download-routes.ts:1-61](file://src/http/http-export-artifact-download-routes.ts#L1-L61)
 - [src/services/memory/store-artifact.ts:1-301](file://src/services/memory/store-artifact.ts#L1-L301)
 
+### Audit Logging Configuration System
+**New**: Comprehensive audit logging configuration system enables detailed operational visibility and security monitoring.
+
+#### Audit Log Specification
+The audit logging system captures three primary event categories:
+- **audit.embedding**: Embedding request completion with provider-stage outcomes
+- **audit.anomaly**: Heuristic anomalies (high latency, unusual vector norms, dimension mismatches)
+- **audit.mcp**: MCP tool call lifecycle events with configurable verbosity levels
+
+#### Configuration Parameters
+- **AUDIT_LOG_FILE**: Path to optional append-only audit file (empty disables)
+- **AUDIT_LOG_LEVEL**: Verbosity level for MCP audit events (0-3)
+  - Level 0: No MCP audit events
+  - Level 1: Metadata only (tool name, correlation_id, timestamps)
+  - Level 2: Request arguments (sanitized, bounded)
+  - Level 3: Full response bodies (sanitized, bounded)
+- **Event Sanitization**: Strings and object keys are bounded and scrubbed to prevent log injection
+
+#### MCP Audit Levels
+| Level | Name | Captured Data |
+|-------|------|---------------|
+| 0 | Off | No MCP audit events |
+| 1 | Metadata | Tool name, correlation_id, tenant_id, request_id, timestamps, duration_ms, status, error_code |
+| 2 | Request | Level 1 + request arguments (sanitized, bounded) |
+| 3 | Full | Level 2 + response body (sanitized, bounded) |
+
+#### Operational Benefits
+- **Structured Logging**: Primary Pino structured log contains all audit events
+- **Dedicated Sink**: Optional append-only file for separate log shipping
+- **Correlation Support**: Events grouped by correlation_id for journey analysis
+- **Tenant Awareness**: Multi-tenant event categorization with tenant_id filtering
+
+```mermaid
+sequenceDiagram
+participant Server as "KAIROS MCP Server"
+participant Logger as "Structured Logger"
+participant AuditFile as "Audit File Stream"
+participant Analyzer as "Journey Analyzer"
+Server->>Logger : Log audit.embedding/anomaly/mcp events
+Logger->>Logger : Sanitize event data
+Logger->>AuditFile : Write audit line (if configured)
+AuditFile->>Analyzer : Provide JSONL for analysis
+Analyzer->>Analyzer : Group by correlation_id
+Analyzer-->>Server : Journey insights for debugging
+```
+
+**Diagram sources**
+- [docs/security/audit-log.md:16-103](file://docs/security/audit-log.md#L16-L103)
+
+**Section sources**
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+
+### Journey Analysis Toolkit
+**New**: Comprehensive journey analysis toolkit provides powerful debugging and investigation capabilities through structured journey data processing.
+
+#### Journey Export Utility
+Converts audit JSONL files to structured journey JSON files grouped by correlation_id:
+
+**Features:**
+- **Input/Output Configuration**: Specify input audit JSONL and output directory
+- **Filtering Options**: Filter by correlation_id or session ID
+- **Redaction Mode**: Strip tenant_id values and secrets for external sharing
+- **Noise Reduction**: Minimum tool call threshold filtering
+- **Grouping Strategy**: Automatic correlation_id-based journey grouping
+
+**Usage Examples:**
+```bash
+# Export all journeys
+node scripts/journey-export.mjs --input ./audit.jsonl --out ./journeys/
+
+# Export single correlation journey
+node scripts/journey-export.mjs --input ./audit.jsonl --out ./journeys/ --correlation abc123
+
+# Redact sensitive data for sharing
+node scripts/journey-export.mjs --input ./audit.jsonl --out ./journeys/ --redact
+
+# Filter noisy sessions
+node scripts/journey-export.mjs --input ./audit.jsonl --out ./journeys/ --min-tools 5
+```
+
+#### Journey Diff Tool
+Compares journeys across different runs or environments to identify behavioral changes:
+
+**Capabilities:**
+- **Cross-Environment Comparison**: Compare journeys between dev/prod/stage
+- **Change Detection**: Highlight differences in tool sequences and parameters
+- **Statistical Analysis**: Quantify changes in tool call frequency and timing
+- **Regression Identification**: Flag potential performance or behavior regressions
+
+#### Journey Replay Utility
+Reconstructs and replays user journeys for debugging and testing:
+
+**Functionality:**
+- **Reconstruction Engine**: Rebuilds tool call sequences from journey data
+- **State Management**: Maintains session state across replayed interactions
+- **Debug Mode**: Enhanced logging during replay for troubleshooting
+- **Validation**: Verifies replay accuracy against original journey events
+
+#### Integration with Audit System
+- **Data Flow**: Direct integration with audit logging system
+- **Real-time Processing**: Can process live audit streams
+- **Historical Analysis**: Batch processing of archived audit data
+- **Scalability**: Handles large volumes of audit data efficiently
+
+```mermaid
+flowchart TD
+AuditJSONL["Audit JSONL File<br/>audit.jsonl"] --> JourneyExport["journey-export.mjs<br/>Export & Filter"]
+JourneyExport --> JourneysDir["Journeys Directory<br/>./journeys/"]
+JourneysDir --> JourneyDiff["journey-diff.mjs<br/>Compare Journeys"]
+JourneysDir --> JourneyReplay["journey-replay.mjs<br/>Replay Journeys"]
+JourneyDiff --> Insights["Behavioral Insights"]
+JourneyReplay --> Debugging["Debugging & Testing"]
+JourneysDir --> Redaction["Redaction & Sharing"]
+Redaction --> External["External Sharing"]
+```
+
+**Diagram sources**
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
+
+**Section sources**
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
+
 ### Testing: Jest, Vitest, and Qdrant Snapshot-Based Testing
 - Jest
   - ESM preset with ts-jest, NodeNext module resolution, and isolatedModules.
@@ -864,6 +1042,7 @@ CI --> Live
   - version sync and release helpers
   - **New**: test:seed-snapshot, test:restore-snapshot for Qdrant snapshot management
   - **New**: devcontainer:validate, devcontainer:validate:full, devcontainer:build, devcontainer:build:fullstack, devcontainer:test for Dev Container validation
+  - **New**: journey:export, journey:diff, journey:replay for journey analysis workflows
 - deploy-run-env.sh manages environment lifecycle, health checks, and dependency readiness with integrated snapshot support.
 - dev-node-use.sh switches Node version using fnm and .nvmrc.
 
@@ -903,11 +1082,15 @@ Dock-->>Dev : server healthy
   - **New**: Comprehensive documentation quality assurance with markdownlint-cli2 and mermaid validation.
   - **New**: Dev Container validation requirements for configuration consistency.
   - **New**: Artifact handling standards for MIME type validation and security.
+  - **New**: Audit logging configuration standards for operational visibility.
+  - **New**: Journey analysis tool standards for debugging and investigation workflows.
 - Pull requests
   - Knip unused dependencies; CI validates clean working tree for AI coding rules enforcement.
   - Renovate automates dependency updates with grouping and security PRs.
   - **New**: Dev Container validation included in PR checks for configuration quality.
   - **New**: Artifact handling validation for security and compliance.
+  - **New**: Audit logging configuration validation for operational standards.
+  - **New**: Journey analysis tool validation for debugging workflow effectiveness.
 - Releases
   - Semantic version bump helpers (major, minor, patch, rc, pre, beta).
   - Version sync across compose.yaml, Helm, and skills.
@@ -930,6 +1113,8 @@ Dock-->>Dev : server healthy
 - **New**: Dev Container infrastructure requires Docker, Docker Compose, and devcontainer CLI for validation.
 - **New**: Wiki synchronization workflow depends on rsync, Git, and GitHub CLI or SSH keys.
 - **New**: Artifact handling system introduces dependencies on MIME type validation, artifact sanitization, and secure storage.
+- **New**: Audit logging system depends on structured logging (Pino) and optional file I/O operations.
+- **New**: Journey analysis toolkit requires Node.js stream processing and JSON parsing capabilities.
 
 ```mermaid
 graph LR
@@ -952,6 +1137,10 @@ Pkg --> ArtifactCLI["cli-train.ts"]
 Pkg --> ArtifactMime["artifact-mime.ts"]
 Pkg --> ArtifactCatalog["artifact-catalog.ts"]
 Pkg --> ArtifactStore["store-artifact.ts"]
+Pkg --> AuditSpec["audit-log.md"]
+Pkg --> JourneyExport["journey-export.mjs"]
+Pkg --> JourneyDiff["journey-diff.mjs"]
+Pkg --> JourneyReplay["journey-replay.mjs"]
 DevContainer --> Validate["validate.sh"]
 DevContainer --> Simple["devcontainer.json.base"]
 DevContainer --> Fullstack["devcontainer-fullstack.json"]
@@ -961,6 +1150,9 @@ ArtifactCLI --> ArtifactMime
 ArtifactMime --> ArtifactStore
 ArtifactCatalog --> ArtifactStore
 ArtifactStore --> ArtifactExport["http-export-artifact-download-routes.ts"]
+AuditSpec --> AuditConfig["ENV variables"]
+JourneyExport --> JourneyDiff
+JourneyExport --> JourneyReplay
 ```
 
 **Diagram sources**
@@ -987,6 +1179,10 @@ ArtifactStore --> ArtifactExport["http-export-artifact-download-routes.ts"]
 - [src/tools/artifact-mime.ts:1-50](file://src/tools/artifact-mime.ts#L1-L50)
 - [src/tools/artifact-catalog.ts:1-117](file://src/tools/artifact-catalog.ts#L1-L117)
 - [src/services/memory/store-artifact.ts:1-301](file://src/services/memory/store-artifact.ts#L1-L301)
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)
 
 **Section sources**
 - [package.json:184-207](file://package.json#L184-L207)
@@ -1004,6 +1200,8 @@ ArtifactStore --> ArtifactExport["http-export-artifact-download-routes.ts"]
 - **New**: Qdrant snapshot management significantly reduces test execution time by eliminating expensive training operations through cached vector data.
 - **New**: Wiki synchronization workflow operates asynchronously to minimize impact on development workflow.
 - **New**: Artifact handling system optimizes training workflows by automatically discovering and uploading co-located artifacts, reducing manual intervention and improving developer productivity.
+- **New**: Audit logging system provides real-time operational visibility with minimal performance impact through structured logging and optional file streaming.
+- **New**: Journey analysis toolkit processes large volumes of audit data efficiently with streaming JSON parsing and memory-optimized grouping algorithms.
 
 ## Troubleshooting Guide
 - Lint failures
@@ -1037,6 +1235,16 @@ ArtifactStore --> ArtifactExport["http-export-artifact-download-routes.ts"]
   - Check artifact upload permissions and adapter URI resolution
   - Review artifact storage logs for SHA256 validation failures
   - Ensure relative paths follow skill-root-relative conventions
+- **New**: Audit logging configuration issues
+  - Verify AUDIT_LOG_FILE path permissions and disk space
+  - Check AUDIT_LOG_LEVEL values (0-3) for appropriate verbosity
+  - Review sanitized event data in structured logs for audit.mcp category
+  - Validate correlation_id grouping in exported journey data
+- **New**: Journey analysis toolkit issues
+  - Verify input audit JSONL file format and encoding
+  - Check output directory permissions for journey export
+  - Review redaction settings for sensitive data handling
+  - Validate minimum tool call thresholds for noise reduction filtering
 
 **Section sources**
 - [eslint/flat-config.cjs:114-120](file://eslint/flat-config.cjs#L114-L120)
@@ -1050,9 +1258,11 @@ ArtifactStore --> ArtifactExport["http-export-artifact-download-routes.ts"]
 - [src/cli/commands/cli-train.ts:189-222](file://src/cli/commands/cli-train.ts#L189-L222)
 - [src/tools/artifact-mime.ts:34-48](file://src/tools/artifact-mime.ts#L34-L48)
 - [src/services/memory/store-artifact.ts:205-207](file://src/services/memory/store-artifact.ts#L205-L207)
+- [docs/security/audit-log.md:30-103](file://docs/security/audit-log.md#L30-L103)
+- [scripts/journey-export.mjs:114-162](file://scripts/journey-export.mjs#L114-L162)
 
 ## Conclusion
-KAIROS MCP's development tools provide a robust, automated pipeline for building, testing, linting, packaging, and deploying the backend and UI. The combination of strict TypeScript settings, Vite code-splitting, ESLint plugins, Knip, and Renovate ensures maintainable, secure, and efficient development. The environment scripts and Docker/Compose configurations streamline local workflows and reproducible deployments. **Updated** ESLint configuration now excludes `.qoder/**` from linting scrutiny, improving developer experience by preventing false positives from auto-generated development tool files. **New**: Comprehensive Dev Container infrastructure provides consistent, reproducible development environments with automated validation and seamless configuration switching. **New**: Enhanced documentation quality assurance system with markdownlint-cli2 and mermaid validation ensures high standards for all project documentation. **New**: Qdrant snapshot management system provides significant performance improvements for CI/local testing by caching trained vector data, eliminating expensive training operations during test execution. **New**: Wiki synchronization workflow with forever-branch lifecycle ensures continuous documentation updates and maintenance. **New**: Advanced artifact handling system streamlines training workflows with automatic artifact discovery, validation, and upload capabilities, significantly improving developer productivity and reducing manual intervention.
+KAIROS MCP's development tools provide a robust, automated pipeline for building, testing, linting, packaging, and deploying the backend and UI. The combination of strict TypeScript settings, Vite code-splitting, ESLint plugins, Knip, and Renovate ensures maintainable, secure, and efficient development. The environment scripts and Docker/Compose configurations streamline local workflows and reproducible deployments. **Updated** ESLint configuration now excludes `.qoder/**` from linting scrutiny, improving developer experience by preventing false positives from auto-generated development tool files. **New**: Comprehensive Dev Container infrastructure provides consistent, reproducible development environments with automated validation and seamless configuration switching. **New**: Enhanced documentation quality assurance system with markdownlint-cli2 and mermaid validation ensures high standards for all project documentation. **New**: Qdrant snapshot management system provides significant performance improvements for CI/local testing by caching trained vector data, eliminating expensive training operations during test execution. **New**: Wiki synchronization workflow with forever-branch lifecycle ensures continuous documentation updates and maintenance. **New**: Advanced artifact handling system streamlines training workflows with automatic artifact discovery, validation, and upload capabilities, significantly improving developer productivity and reducing manual intervention. **New**: Audit logging configuration system enables comprehensive operational visibility with configurable MCP tool call event capture and tenant-aware event categorization. **New**: Journey analysis toolkit provides powerful debugging and investigation capabilities through structured journey data export, comparison, and replay, supporting both development workflows and production incident response.
 
 ## Appendices
 
@@ -1069,6 +1279,8 @@ KAIROS MCP's development tools provide a robust, automated pipeline for building
 - Versioning and releases
   - release:major, release:minor, release:patch, release:rc, release:pre, release:beta
   - version:sync, version:sync-skills, helm:sync-app-version, compose:sync-app-tag
+- **New**: Journey analysis workflows
+  - journey:export, journey:diff, journey:replay
 
 **Section sources**
 - [package.json:38-121](file://package.json#L38-L121)
@@ -1094,6 +1306,12 @@ KAIROS MCP's development tools provide a robust, automated pipeline for building
 - **New**: Artifact handling variables
   - ALLOWED_ARTIFACT_MIMES: Configurable MIME type allowlist
   - ARTIFACT_SANITIZATION_RULES: Custom artifact validation rules
+- **New**: Audit logging variables
+  - AUDIT_LOG_FILE: Path to optional audit file stream
+  - AUDIT_LOG_LEVEL: Verbosity level (0-3) for MCP audit events
+- **New**: Journey analysis variables
+  - JOURNEY_OUTPUT_DIR: Default output directory for journey exports
+  - JOURNEY_MIN_TOOLS: Minimum tool call threshold for filtering
 
 **Section sources**
 - [scripts/deploy-run-env.sh:93-110](file://scripts/deploy-run-env.sh#L93-L110)
@@ -1101,6 +1319,7 @@ KAIROS MCP's development tools provide a robust, automated pipeline for building
 - [.devcontainer/devcontainer-fullstack.json:71-81](file://.devcontainer/devcontainer-fullstack.json#L71-L81)
 - [.devcontainer/devcontainer.json.base:64-73](file://.devcontainer/devcontainer.json.base#L64-L73)
 - [src/tools/artifact-mime.ts:18-22](file://src/tools/artifact-mime.ts#L18-L22)
+- [docs/security/audit-log.md:30-35](file://docs/security/audit-log.md#L30-L35)
 
 ### Appendix C: ESLint Ignore Patterns
 **Updated** The ESLint configuration now includes enhanced ignore patterns to improve developer experience:
@@ -1277,3 +1496,85 @@ These ignore patterns ensure that generated development tool files don't trigger
 - [tests/integration/cli-train-batch.test.ts:189-230](file://tests/integration/cli-train-batch.test.ts#L189-L230)
 - [docs/CLI.md:218-241](file://docs/CLI.md#L218-L241)
 - [docs/architecture/artifacts.md:333-359](file://docs/architecture/artifacts.md#L333-L359)
+
+### Appendix I: Audit Logging System Reference
+**New**: Comprehensive reference for the audit logging configuration system:
+
+#### Audit Log Specification
+- **Categories**: audit.embedding, audit.anomaly, audit.mcp
+- **Structured Logging**: Primary Pino structured log with category field
+- **Optional File Stream**: Append-only file for dedicated audit trail
+- **Event Sanitization**: Control character and line break prevention
+
+#### Configuration Parameters
+- **AUDIT_LOG_FILE**: Path to optional audit file (empty/disabled)
+- **AUDIT_LOG_LEVEL**: Verbosity level (0-3) for MCP audit events
+- **Environment Setup**: Required for audit logging functionality
+
+#### MCP Audit Levels
+| Level | Name | Captured Data | Use Case |
+|-------|------|---------------|----------|
+| 0 | Off | None | Production with external logging |
+| 1 | Metadata | Basic event info | General monitoring |
+| 2 | Request | Request arguments | Debugging & compliance |
+| 3 | Full | Complete responses | Forensic analysis |
+
+#### Operational Integration
+- **Structured Log Access**: Query by category, tenant_id, request_id
+- **File Stream Access**: Dedicated append-only audit trail
+- **Correlation Support**: Journey analysis through correlation_id
+- **Tenant Awareness**: Multi-tenant event isolation
+
+#### Troubleshooting
+- **File Permissions**: Verify AUDIT_LOG_FILE path accessibility
+- **Disk Space**: Monitor audit file growth and rotation
+- **Level Configuration**: Validate AUDIT_LOG_LEVEL values (0-3)
+- **Event Filtering**: Check structured log queries for audit.mcp category
+
+**Section sources**
+- [docs/security/audit-log.md:1-103](file://docs/security/audit-log.md#L1-L103)
+
+### Appendix J: Journey Analysis Toolkit Reference
+**New**: Comprehensive reference for the journey analysis toolkit:
+
+#### Journey Export Utility
+- **Input Processing**: Reads audit JSONL files with structured event parsing
+- **Grouping Strategy**: Groups events by correlation_id for journey reconstruction
+- **Filtering Options**: Correlation ID filtering and minimum tool call thresholds
+- **Output Format**: Generates structured JSON files for each journey
+- **Redaction Mode**: Optional stripping of sensitive tenant_id values
+
+#### Journey Diff Tool
+- **Comparison Engine**: Analyzes differences between journey sets
+- **Change Detection**: Identifies variations in tool sequences and parameters
+- **Statistical Analysis**: Quantifies behavioral changes across environments
+- **Regression Analysis**: Flags potential performance or behavior regressions
+
+#### Journey Replay Utility
+- **Reconstruction Engine**: Builds tool call sequences from journey data
+- **State Management**: Maintains session state across replayed interactions
+- **Debug Mode**: Enhanced logging for troubleshooting replay issues
+- **Validation**: Ensures replay accuracy against original journey events
+
+#### Command Line Interface
+- **Common Options**: Input/output path specification, correlation filtering
+- **Advanced Options**: Redaction mode, minimum tool call thresholds
+- **Help System**: Comprehensive command-line help with usage examples
+- **Error Handling**: Graceful handling of malformed JSONL and missing data
+
+#### Integration Capabilities
+- **Audit System Integration**: Direct processing of audit JSONL streams
+- **Real-time Processing**: Support for live audit stream consumption
+- **Historical Analysis**: Batch processing of archived audit data
+- **Scalability**: Efficient processing of large audit datasets
+
+#### Troubleshooting
+- **Input Validation**: Verify audit JSONL file format and encoding
+- **Output Permissions**: Check write permissions for journey output directory
+- **Memory Usage**: Monitor memory consumption for large dataset processing
+- **Filtering Issues**: Validate correlation IDs and minimum tool call thresholds
+
+**Section sources**
+- [scripts/journey-export.mjs:1-162](file://scripts/journey-export.mjs#L1-L162)
+- [scripts/journey-diff.mjs:1-200](file://scripts/journey-diff.mjs#L1-L200)
+- [scripts/journey-replay.mjs:1-200](file://scripts/journey-replay.mjs#L1-L200)

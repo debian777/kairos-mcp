@@ -23,6 +23,7 @@ interface AuditFileRecord {
   level: 'info' | 'warn' | 'error';
   category: AuditCategory;
   event: AuditEventName;
+  [key: string]: unknown;
 }
 
 function toAuditCategory(value: unknown): AuditCategory | null {
@@ -77,5 +78,11 @@ export function buildAuditLine(
     category,
     event: toAuditEvent(category, safeBindings)
   };
+  // Pass through non-category/event bindings for full audit context.
+  for (const [key, value] of Object.entries(safeBindings)) {
+    if (key !== 'category' && key !== 'event') {
+      record[key] = value;
+    }
+  }
   return `${JSON.stringify(record)}\n`;
 }
