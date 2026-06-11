@@ -227,6 +227,7 @@ certs
 .secrets
 reports/
 !reports/.gitkeep
+journeys/
 .env.*
 !.env.dev_simple
 !scripts/env/.env.template

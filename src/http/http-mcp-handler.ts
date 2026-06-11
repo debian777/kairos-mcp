@@ -18,6 +18,7 @@ import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { KairosError } from '../types/index.js';
 import { validateBearerToken } from './bearer-validate.js';
+import { generateCorrelationId, installResponseCapture, emitRequestStart, emitRequestEnd, emitToolCallAudit, AUDIT_LOG_LEVEL } from './mcp-audit-emit.js';
 const MAX_CONCURRENT = resolveMaxConcurrentRequests(MAX_CONCURRENT_MCP_REQUESTS_RAW);
 
 export interface McpRequestContext {
@@ -27,10 +28,7 @@ export interface McpRequestContext {
 
 export const mcpRequestStore = new AsyncLocalStorage<McpRequestContext>();
 
-/**
- * Track request start times by ID for accurate cancellation timing.
- * Entries are deleted on response close/finish; sweep removes any stale entries.
- */
+// Track request start times by ID for accurate cancellation timing. Stale entries swept periodically.
 const requestTimestamps = new Map<string, number>();
 const STALE_TIMESTAMP_MS = 120_000;
 setInterval(() => {
@@ -44,26 +42,15 @@ setInterval(() => {
 let concurrentMcpRequests = 0;
 
 async function resolveMcpAuthPayload(req: express.Request): Promise<express.Request['auth']> {
-  if (req.auth?.sub) {
-    return req.auth;
-  }
-  if (!AUTH_ENABLED) {
-    return undefined;
-  }
+  if (req.auth?.sub) return req.auth;
+  if (!AUTH_ENABLED) return undefined;
   const authHeader = req.get('authorization');
-  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
-    return undefined;
-  }
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) return undefined;
   const token = authHeader.slice(7).trim();
-  if (!token) {
-    return undefined;
-  }
+  if (!token) return undefined;
   try {
     const payload = await validateBearerToken(token, AUTH_TRUSTED_ISSUERS, AUTH_ALLOWED_AUDIENCES);
-    if (payload) {
-      req.auth = payload;
-      return payload;
-    }
+    if (payload) { req.auth = payload; return payload; }
   } catch (error) {
     structuredLogger.debug(
       `[mcp] bearer fallback validation failed: ${error instanceof Error ? error.message : String(error)}`
@@ -131,6 +118,14 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         const requestId = req.body?.id || 'unknown';
         const method = req.body?.method || 'unknown';
         const toolName = req.body?.params?.name || 'unknown';
+        const correlationId = generateCorrelationId();
+
+        // Capture JSON-RPC response for audit level 2/3 (tool call result).
+        const auditLevel = AUDIT_LOG_LEVEL;
+        const responseCapture = auditLevel >= 2 ? installResponseCapture(res) : null;
+
+        // Emit mcp_request_start audit event (level > 0, before space context).
+        emitRequestStart(correlationId, requestId, method, toolName);
 
         // Store timestamp for requests that go through the full handler (close/finish will delete)
         if (
@@ -265,6 +260,11 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 deleteTimestamp();
                 const duration = Date.now() - requestStart;
 
+                // Emit mcp_request_end audit event (best-effort tenantId from ALS).
+                if (auditLevel > 0 && method !== 'notifications/cancelled') {
+                    emitRequestEnd(correlationId, requestId, toolName, duration);
+                }
+
                 if (duration > 10000 && method !== 'notifications/cancelled') {
                     structuredLogger.info(
                         {
@@ -301,6 +301,11 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                   req.body
                 );
               });
+
+              // Emit mcp_tool_call audit event inside space context (tenantId available).
+              if (auditLevel > 0 && method === 'tools/call' && toolName !== 'unknown') {
+                emitToolCallAudit(correlationId, requestId, toolName, requestStart, responseCapture?.getResponse(), req.body?.params?.arguments);
+              }
             });
 
             requestCompleted = true;

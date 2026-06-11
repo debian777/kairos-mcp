@@ -122,7 +122,10 @@
     "release:bug": "npm run release:patch",
     "release:rc": "npm version prerelease --preid=rc --no-git-tag-version && npm run version:sync",
     "release:pre": "npm version prerelease --preid=pre --no-git-tag-version && npm run version:sync",
-    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync"
+    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync",
+    "journey:export": "node scripts/journey-export.mjs",
+    "journey:replay": "node scripts/journey-replay.mjs",
+    "journey:diff": "node scripts/journey-diff.mjs"
   },
   "dependencies": {
     "@exodus/bytes": "^1.15.0",
