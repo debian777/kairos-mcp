@@ -6,37 +6,31 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type express from 'express';
 import { writeAuditLine } from '../utils/structured-logger.js';
 import { AUDIT_LOG_LEVEL } from '../config.js';
 import { getBuildVersion } from '../utils/build-version.js';
 import { summarizeRequestArgs, summarizeResponse, extractErrorCode } from '../utils/audit-mcp-summary.js';
+import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
 export { AUDIT_LOG_LEVEL };
 
 /**
  * Capture JSON-RPC response for audit level 3.
  *
- * The MCP SDK's StreamableHTTPServerTransport writes responses via res.end()
- * (through @hono/node-server), NOT res.json(). We intercept at the stream level.
+ * The MCP SDK's StreamableHTTPServerTransport sends responses via transport.send(),
+ * NOT through Express res.json()/res.end(). We intercept at the transport level.
  */
-export function installResponseCapture(res: express.Response): { getResponse: () => unknown } {
+export function installResponseCapture(transport: StreamableHTTPServerTransport): { getResponse: () => unknown } {
   let captured: unknown = null;
-  const chunks: Buffer[] = [];
-  const originalWrite = res.write.bind(res);
-  const originalEnd = res.end.bind(res);
+  const originalSend = transport.send.bind(transport);
 
-  res.write = function (chunk: unknown, ...args: unknown[]): boolean {
-    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
-    return (originalWrite as Function)(chunk, ...args);
-  };
-
-  res.end = function (chunk?: unknown, ...args: unknown[]): express.Response {
-    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
-    if (chunks.length > 0) {
-      try { captured = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { /* non-JSON */ }
+  transport.send = async function (message: JSONRPCMessage, options?: Parameters<typeof originalSend>[1]): Promise<void> {
+    // Capture JSON-RPC responses (have 'result' or 'error' and an 'id')
+    if (message && typeof message === 'object' && ('result' in message || 'error' in message)) {
+      captured = message;
     }
-    return (originalEnd as Function)(chunk, ...args);
+    return originalSend(message, options);
   };
 
   return { getResponse: () => captured };

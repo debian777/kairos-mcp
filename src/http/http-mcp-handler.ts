@@ -121,8 +121,9 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         const correlationId = generateCorrelationId();
 
         // Capture JSON-RPC response for audit level 3 (exact replay).
+        // Installed after transport creation (see try block below).
         const auditLevel = AUDIT_LOG_LEVEL;
-        const responseCapture = auditLevel >= 3 ? installResponseCapture(res) : null;
+        let responseCapture: { getResponse: () => unknown } | null = null;
 
         // Emit mcp_request_start audit event (level > 0, before space context).
         emitRequestStart(correlationId, requestId, method, toolName);
@@ -192,9 +193,8 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
         try {
             const server = createServer(memoryStore);
-            const transport = new StreamableHTTPServerTransport({
-                enableJsonResponse: true
-            });
+            const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+            if (auditLevel >= 3) responseCapture = installResponseCapture(transport);
 
             // Track request timeout - log at 25s (before typical 30s client timeout)
             let requestCompleted = false;
