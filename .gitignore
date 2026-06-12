@@ -249,3 +249,4 @@ snapshots
 .cursor/TODO.md
 .kairos-work/
 node_modules
+.qoder/plans/

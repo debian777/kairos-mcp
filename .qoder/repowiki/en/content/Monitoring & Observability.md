@@ -28,10 +28,11 @@
 
 ## Update Summary
 **Changes Made**
-- Enhanced audit logging system documentation to reflect improved data completeness and traceability
-- Updated MCP audit event specifications to show preservation of non-category/event bindings
-- Added comprehensive coverage of audit line building and sanitization improvements
-- Expanded audit infrastructure documentation with enhanced binding preservation capabilities
+- Enhanced MCP audit system documentation to reflect improved transport-level response capture mechanism using transport.send() method interception
+- Updated audit event specifications to show proper emitRequestEnd calls in all early-return scenarios
+- Added comprehensive coverage of transport-level response capture implementation for MCP JSON-RPC responses
+- Expanded audit infrastructure documentation with optimized audit levels and better error handling
+- Updated response capture mechanism to handle StreamableHTTPServerTransport responses correctly
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -46,7 +47,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document describes the monitoring and observability capabilities of KAIROS MCP. It covers metrics collection (performance, system, embedding), health checks (service readiness, database connectivity, external provider status), structured logging with request tracing and audit events, and operational guidance for scraping, alerting, dashboards, and troubleshooting. The system leverages Prometheus-compatible metrics and a robust structured logging pipeline built on Pino. **Updated** to include comprehensive MCP audit logging infrastructure with configurable verbosity levels, dedicated audit file streaming, and enhanced binding preservation for improved audit trail completeness and traceability.
+This document describes the monitoring and observability capabilities of KAIROS MCP. It covers metrics collection (performance, system, embedding), health checks (service readiness, database connectivity, external provider status), structured logging with request tracing and audit events, and operational guidance for scraping, alerting, dashboards, and troubleshooting. The system leverages Prometheus-compatible metrics and a robust structured logging pipeline built on Pino. **Updated** to include comprehensive MCP audit logging infrastructure with enhanced transport-level response capture using StreamableHTTPServerTransport.send() method interception, improved error handling, and optimized audit levels.
 
 ## Project Structure
 The observability stack is organized around:
@@ -55,7 +56,7 @@ The observability stack is organized around:
 - Per-domain metric families for HTTP, system, embedding, memory, Qdrant, anomalies, agents, and MCP tools
 - Structured logging with HTTP access logs, error tracking, audit event writes, and **MCP audit logging**
 - Health endpoints that probe critical dependencies
-- **Enhanced MCP audit infrastructure with comprehensive binding preservation for complete audit trail data**
+- **Enhanced MCP audit infrastructure with transport-level response capture and comprehensive error handling**
 
 ```mermaid
 graph TB
@@ -64,7 +65,9 @@ A["Express App<br/>HTTP Routes"]
 M["HTTP Metrics Middleware"]
 S["Structured Logger<br/>(Pino)"]
 AE["MCP Audit Emitter"]
+RC["Response Capture<br/>(Transport-level)"]
 ALS["Audit Line Builder<br/>(Enhanced)"]
+TST["StreamableHTTPServerTransport"]
 end
 subgraph "Metrics"
 R["Prometheus Registry<br/>(default labels)"]
@@ -84,15 +87,19 @@ subgraph "Audit Infrastructure"
 AF["Audit File Stream<br/>(Optional)"]
 AC["Audit Config<br/>(AUDIT_LOG_LEVEL/AUDIT_LOG_FILE)"]
 BP["Binding Preservation<br/>(Non-category/event)"]
+ER["Early Return Handling<br/>(emitRequestEnd)"]
 end
 A --> M
 M --> MH
 A --> S
 S --> AE
-AE --> ALS
+AE --> RC
+RC --> TST
+TST --> ALS
 ALS --> BP
 BP --> AF
 AC --> AE
+ER --> AE
 MH --> R
 MS --> R
 ME --> R
@@ -116,7 +123,7 @@ R --> P
 - [agent-metrics.ts:12-39](file://src/services/metrics/agent-metrics.ts#L12-L39)
 - [mcp-metrics.ts:11-63](file://src/services/metrics/mcp-metrics.ts#L11-L63)
 - [anomaly-metrics.ts:4-9](file://src/services/metrics/anomaly-metrics.ts#L4-L9)
-- [mcp-audit-emit.ts:1-75](file://src/http/mcp-audit-emit.ts#L1-L75)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
 - [structured-logger.ts:46-48](file://src/utils/structured-logger.ts#L46-L48)
 - [config.ts:85-91](file://src/config.ts#L85-L91)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
@@ -137,7 +144,7 @@ R --> P
 - Structured logging
   - Pino-based logger with redaction, JSON formatting, and audit stream writes.
   - HTTP access logging with request_id, client IP, status, and response time.
-  - **Enhanced MCP audit logging with comprehensive binding preservation for complete audit trail data**.
+  - **Enhanced MCP audit logging with transport-level response capture and comprehensive error handling**.
 - Health checks
   - Application readiness probes dependencies: Qdrant, Redis/Cache, and embedding provider.
   - Embedding health supports OpenAI and TEI with provider-specific checks and timeouts.
@@ -146,6 +153,8 @@ R --> P
   - **Optional AUDIT_LOG_FILE for dedicated append-only audit stream**.
   - **Comprehensive audit event tracking for MCP tool calls, requests, and responses**.
   - **Enhanced binding preservation ensures all non-category/event fields are maintained for complete traceability**.
+  - **Transport-level response capture using StreamableHTTPServerTransport.send() method interception**.
+  - **Proper emitRequestEnd calls in all early-return scenarios for complete audit trail**.
 
 **Section sources**
 - [registry.ts:11-18](file://src/services/metrics/registry.ts#L11-L18)
@@ -154,7 +163,7 @@ R --> P
 - [structured-logger.ts:145-178](file://src/utils/structured-logger.ts#L145-L178)
 - [http-health-routes.ts:14-89](file://src/http/http-health-routes.ts#L14-L89)
 - [health.ts:16-119](file://src/services/embedding/health.ts#L16-L119)
-- [mcp-audit-emit.ts:1-75](file://src/http/mcp-audit-emit.ts#L1-L75)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
 - [audit-log.md:30-35](file://docs/security/audit-log.md#L30-L35)
 
 ## Architecture Overview
@@ -162,7 +171,7 @@ The observability architecture separates concerns:
 - Application HTTP server collects HTTP metrics via middleware and emits structured logs.
 - A dedicated metrics server serves Prometheus metrics independently from application traffic.
 - Health endpoints probe critical subsystems and return readiness status.
-- **Enhanced MCP audit events are emitted with comprehensive binding preservation and optional file streaming based on configuration**.
+- **Enhanced MCP audit events are emitted with transport-level response capture and comprehensive error handling**.
 
 ```mermaid
 sequenceDiagram
@@ -173,6 +182,8 @@ participant Reg as "Prometheus Registry"
 participant Met as "Metrics Server"
 participant Log as "Structured Logger"
 participant Audit as "MCP Audit Emitter"
+participant Transport as "StreamableHTTPServerTransport"
+participant Resp as "Response Capture"
 participant Builder as "Audit Line Builder"
 Prom->>Met : GET /metrics
 Met->>Reg : register.metrics()
@@ -182,6 +193,10 @@ App->>MW : Incoming HTTP request
 MW->>Reg : Observe counters/histograms/gauges
 App->>Log : HTTP access log record
 App->>Audit : MCP audit event (conditional)
+Audit->>Transport : Create transport
+Transport->>Audit : Install response capture
+Audit->>Resp : Intercept transport.send()
+Resp-->>Audit : Response captured via transport.send()
 Audit->>Builder : Enhanced binding preservation
 Builder-->>Audit : Complete audit record
 Audit-->>App : Audit event processed
@@ -193,7 +208,7 @@ App-->>Prom : Application continues serving
 - [http-metrics-middleware.ts:15-71](file://src/http/http-metrics-middleware.ts#L15-L71)
 - [registry.ts:11-18](file://src/services/metrics/registry.ts#L11-L18)
 - [structured-logger.ts:145-178](file://src/utils/structured-logger.ts#L145-L178)
-- [mcp-audit-emit.ts:35-61](file://src/http/mcp-audit-emit.ts#L35-L61)
+- [mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
 
 ## Detailed Component Analysis
@@ -352,6 +367,7 @@ App-->>Client : 200/503 with dependencies and details
   - **Comprehensive audit event tracking for MCP tool calls, requests, and responses**.
   - **Enhanced binding preservation ensures all non-category/event fields are maintained for complete traceability**.
   - **Correlation IDs for grouping related MCP requests across the system**.
+  - **Transport-level response capture using StreamableHTTPServerTransport.send() method interception for accurate response data**.
 - Transport and formatting
   - Supports JSON or text output with redaction of sensitive fields.
   - HTTP transport writes to stdout/stderr depending on configuration.
@@ -361,7 +377,9 @@ flowchart TD
 Start(["HTTP Request"]) --> Bindings["Build start bindings<br/>method,path,client,request_id"]
 Bindings --> LogStart["Log 'HTTP request received'"]
 LogStart --> Process["Process request"]
-Process --> Status{"Status >= 500?"}
+Process --> Transport["Create StreamableHTTPServerTransport"]
+Transport --> ResponseCapture["Install Response Capture<br/>(transport.send interceptor)"]
+ResponseCapture --> Status{"Status >= 500?"}
 Status --> |Yes| LevelErr["Level: error"]
 Status --> |No| Status400{"Status >= 400?"}
 Status400 --> |Yes| LevelWarn["Level: warn"]
@@ -380,18 +398,18 @@ Enhanced --> End(["Response sent"])
 - [structured-logger.ts:145-178](file://src/utils/structured-logger.ts#L145-L178)
 - [structured-logger.ts:134-142](file://src/utils/structured-logger.ts#L134-L142)
 - [log-core.ts:44-73](file://src/utils/log-core.ts#L44-L73)
-- [mcp-audit-emit.ts:35-61](file://src/http/mcp-audit-emit.ts#L35-L61)
+- [mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
 
 **Section sources**
 - [structured-logger.ts:145-178](file://src/utils/structured-logger.ts#L145-L178)
 - [structured-logger.ts:134-142](file://src/utils/structured-logger.ts#L134-L142)
 - [log-core.ts:44-73](file://src/utils/log-core.ts#L44-L73)
-- [mcp-audit-emit.ts:1-75](file://src/http/mcp-audit-emit.ts#L1-L75)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
 - [audit-log.md:30-35](file://docs/security/audit-log.md#L30-L35)
 
 ### Enhanced MCP Audit Logging Infrastructure
-**Updated** The MCP audit logging infrastructure provides comprehensive audit event tracking with enhanced binding preservation for improved data completeness and traceability.
+**Updated** The MCP audit logging infrastructure provides comprehensive audit event tracking with enhanced transport-level response capture and improved error handling.
 
 - **Configuration Variables**
   - `AUDIT_LOG_FILE`: Optional path to dedicated audit file (append mode); empty disables audit file streaming.
@@ -400,6 +418,12 @@ Enhanced --> End(["Response sent"])
   - `mcp_request_start`: Emitted before space context resolution with correlation ID and unknown tenant.
   - `mcp_request_end`: Emitted on response completion with duration and correlation ID.
   - `mcp_tool_call`: Comprehensive tool call audit with request arguments, response summaries, and error codes.
+- **Enhanced Response Capture Mechanism**
+  - **Transport-level response capture using StreamableHTTPServerTransport.send() method interception**.
+  - **Accurate JSON-RPC response data capture for audit level 3 without relying on Express response methods**.
+  - **Proper response capture for MCP JSON-RPC messages with 'result' or 'error' properties**.
+  - **Buffered response storage and retrieval for audit event generation**.
+  - **Proper emitRequestEnd calls in all early-return scenarios for complete audit trail**.
 - **Enhanced Binding Preservation**
   - **All non-category/event bindings are preserved in audit records for complete traceability**.
   - **Audit line builder maintains tenant_id, request_id, correlation_id, and other contextual fields**.
@@ -413,7 +437,7 @@ Enhanced --> End(["Response sent"])
   - `tool_name`: MCP tool being invoked.
   - `duration_ms`: Request processing time.
   - `server_version`: Build version for audit trail.
-  - `request_args`: Summarized tool input arguments (level 2+).
+  - `request`: Summarized tool input arguments (level 2+).
   - `response`: Tool response summary (level 2+).
   - `error_code`: Error classification for failed requests (level 3+).
   - **Enhanced**: All other contextual bindings are preserved for complete audit trail data.
@@ -432,7 +456,9 @@ Enhanced --> End(["Response sent"])
 flowchart TD
 Config["Audit Configuration<br/>AUDIT_LOG_LEVEL/AUDIT_LOG_FILE"] --> Handler["MCP Handler"]
 Handler --> Start["emitRequestStart<br/>(mcp_request_start)"]
-Start --> Context["Resolve Space Context"]
+Start --> Transport["Create StreamableHTTPServerTransport"]
+Transport --> Capture["installResponseCapture()<br/>(transport.send interceptor)"]
+Transport --> Context["Resolve Space Context"]
 Context --> Tool["Execute Tool"]
 Tool --> Response["Capture Response<br/>(if level >= 2)"]
 Response --> End["emitRequestEnd<br/>(mcp_request_end)"]
@@ -444,19 +470,17 @@ End --> Complete["Request Complete"]
 ```
 
 **Diagram sources**
-- [mcp-audit-emit.ts:18-27](file://src/http/mcp-audit-emit.ts#L18-L27)
-- [mcp-audit-emit.ts:35-61](file://src/http/mcp-audit-emit.ts#L35-L61)
+- [mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
+- [mcp-audit-emit.ts:50-63](file://src/http/mcp-audit-emit.ts#L50-L63)
 - [mcp-audit-emit.ts:67-75](file://src/http/mcp-audit-emit.ts#L67-L75)
-- [http-mcp-handler.ts:123-125](file://src/http/http-mcp-handler.ts#L123-L125)
-- [http-mcp-handler.ts:128](file://src/http/http-mcp-handler.ts#L128)
-- [http-mcp-handler.ts:264-266](file://src/http/http-mcp-handler.ts#L264-L266)
+- [http-mcp-handler.ts:253-267](file://src/http/http-mcp-handler.ts#L253-L267)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
 
 **Section sources**
-- [mcp-audit-emit.ts:1-75](file://src/http/mcp-audit-emit.ts#L1-L75)
-- [http-mcp-handler.ts:123-125](file://src/http/http-mcp-handler.ts#L123-L125)
-- [http-mcp-handler.ts:128](file://src/http/http-mcp-handler.ts#L128)
-- [http-mcp-handler.ts:264-266](file://src/http/http-mcp-handler.ts#L264-L266)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
+- [mcp-audit-emit.ts:50-63](file://src/http/mcp-audit-emit.ts#L50-L63)
+- [mcp-audit-emit.ts:67-75](file://src/http/mcp-audit-emit.ts#L67-L75)
+- [http-mcp-handler.ts:253-267](file://src/http/http-mcp-handler.ts#L253-L267)
 - [audit-log.md:30-35](file://docs/security/audit-log.md#L30-L35)
 - [config.ts:85-91](file://src/config.ts#L85-L91)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
@@ -484,15 +508,16 @@ End --> Complete["Request Complete"]
 - Coupling and cohesion
   - Metrics are cohesive per domain and registered centrally for consistent labeling.
   - HTTP middleware depends on tenant context and the registry; embedding and memory services increment metrics.
-  - **Enhanced MCP audit emitter depends on configuration module, structured logger, and audit line builder**.
+  - **Enhanced MCP audit emitter depends on configuration module, structured logger, audit line builder, and transport-level response capture mechanism**.
 - External dependencies
   - Prometheus registry and client libraries
   - Qdrant client for vector operations
   - Embedding providers (OpenAI/TEI) for health checks
   - **Optional file system for audit log streaming**
+  - **StreamableHTTPServerTransport for MCP JSON-RPC response handling**
 - Health dependency chain
   - Application health depends on Qdrant, Redis/cache, and embedding provider health.
-  - **Enhanced MCP audit infrastructure depends on configuration availability, file system access, and binding preservation systems**.
+  - **Enhanced MCP audit infrastructure depends on configuration availability, file system access, transport-level response capture mechanism, and binding preservation systems**.
 
 ```mermaid
 graph LR
@@ -509,10 +534,14 @@ HS["Health Routes"] --> Q["Qdrant Store"]
 HS --> KV["Key-Value Store"]
 HS --> ES["Embedding Service"]
 AC["Audit Config"] --> AE["Audit Emitter"]
+AE --> RC["Response Capture"]
 AE --> SL["Structured Logger"]
 SL --> AF["Audit File Stream"]
 ALS["Audit Line Builder"] --> BP["Binding Preservation"]
 BP --> AF
+RC --> TST["StreamableHTTPServerTransport"]
+TST --> ER["Early Return Handling"]
+ER --> AE
 ```
 
 **Diagram sources**
@@ -526,14 +555,14 @@ BP --> AF
 - [mcp-metrics.ts:11-63](file://src/services/metrics/mcp-metrics.ts#L11-L63)
 - [anomaly-metrics.ts:4-9](file://src/services/metrics/anomaly-metrics.ts#L4-L9)
 - [http-health-routes.ts:14-89](file://src/http/http-health-routes.ts#L14-L89)
-- [mcp-audit-emit.ts:10-14](file://src/http/mcp-audit-emit.ts#L10-L14)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
 - [structured-logger.ts:46-48](file://src/utils/structured-logger.ts#L46-L48)
 - [config.ts:85-91](file://src/config.ts#L85-L91)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
 
 **Section sources**
 - [http-health-routes.ts:14-89](file://src/http/http-health-routes.ts#L14-L89)
-- [mcp-audit-emit.ts:1-75](file://src/http/mcp-audit-emit.ts#L1-L75)
+- [mcp-audit-emit.ts:17-43](file://src/http/mcp-audit-emit.ts#L17-L43)
 - [structured-logger.ts:46-48](file://src/utils/structured-logger.ts#L46-L48)
 - [config.ts:85-91](file://src/config.ts#L85-L91)
 - [audit-log-events.ts:68-88](file://src/utils/audit-log-events.ts#L68-L88)
@@ -550,9 +579,11 @@ BP --> AF
 - System metrics
   - Periodic updates are lightweight; ensure intervals align with scraping cadence.
 - **Enhanced audit infrastructure performance**
+  - **Transport-level response capture adds minimal overhead through method interception and selective response storage**.
   - **File I/O operations are minimized through append-only streaming and conditional event emission**.
   - **Response capture only occurs when AUDIT_LOG_LEVEL >= 2, avoiding unnecessary serialization overhead**.
   - **Enhanced binding preservation adds minimal overhead while ensuring complete audit trail data**.
+  - **Early return handling ensures proper audit event emission even in error scenarios**.
 
 ## Troubleshooting Guide
 - Metrics not appearing in Prometheus
@@ -575,17 +606,24 @@ BP --> AF
   - **Check that tenant context is resolving correctly for MCP tool call audits**.
   - **Validate that non-category/event bindings are being preserved in audit records**.
   - **Ensure audit line builder is maintaining complete contextual data for traceability**.
+  - **Verify transport-level response capture is working correctly for audit level 3**.
+  - **Check that emitRequestEnd is called in all early-return scenarios**.
+- **Response capture issues**
+  - **Verify StreamableHTTPServerTransport.send() method interception is properly installed**.
+  - **Check that JSON-RPC messages with 'result' or 'error' properties are being captured correctly**.
+  - **Ensure response capture handles both successful and error responses correctly**.
+  - **Validate that response data is stored and retrievable for audit event generation**.
 
 **Section sources**
 - [metrics-server.ts:23-32](file://src/metrics-server.ts#L23-L32)
 - [http-health-routes.ts:14-89](file://src/http/http-health-routes.ts#L14-L89)
 - [health.ts:16-119](file://src/services/embedding/health.ts#L16-L119)
 - [structured-logger.ts:134-142](file://src/utils/structured-logger.ts#L134-L142)
-- [mcp-audit-emit.ts:35-61](file://src/http/mcp-audit-emit.ts#L35-L61)
+- [mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 - [audit-log.md:30-35](file://docs/security/audit-log.md#L30-L35)
 
 ## Conclusion
-KAIROS MCP provides a comprehensive observability foundation with Prometheus-compatible metrics, structured logging, and health checks. **The enhanced MCP audit logging infrastructure significantly improves security and compliance capabilities by preserving all non-category/event bindings for complete audit trail data, while maintaining configurable verbosity levels and optional dedicated audit file streaming.** By leveraging the dedicated metrics server, HTTP middleware, centralized registry, and enhanced MCP audit infrastructure with comprehensive binding preservation, operators can monitor performance, troubleshoot issues, maintain service reliability, and meet audit requirements with improved data completeness and traceability. Align alerting and dashboards with the metric families and audit event categories described to achieve operational excellence.
+KAIROS MCP provides a comprehensive observability foundation with Prometheus-compatible metrics, structured logging, and health checks. **The enhanced MCP audit logging infrastructure significantly improves security and compliance capabilities by implementing transport-level response capture using StreamableHTTPServerTransport.send() method interception, providing accurate JSON-RPC response data for audit level 3, and ensuring proper emitRequestEnd calls in all early-return scenarios. The system maintains configurable verbosity levels, optional dedicated audit file streaming, and comprehensive binding preservation for complete audit trail data.** By leveraging the dedicated metrics server, HTTP middleware, centralized registry, and enhanced MCP audit infrastructure with optimized transport-level response capture and error handling, operators can monitor performance, troubleshoot issues, maintain service reliability, and meet audit requirements with improved data completeness and traceability. Align alerting and dashboards with the metric families and audit event categories described to achieve operational excellence.
 
 ## Appendices
 
@@ -602,6 +640,7 @@ KAIROS MCP provides a comprehensive observability foundation with Prometheus-com
   - **Configure AUDIT_LOG_LEVEL appropriately for your compliance requirements**.
   - **Use AUDIT_LOG_FILE for regulatory compliance and security investigations**.
   - **Validate that enhanced binding preservation is working correctly for complete audit trails**.
+  - **Ensure transport-level response capture is functioning properly for audit level 3**.
 - Scraping
   - Separate metrics port from application traffic; restrict access to internal networks.
 - **Enhanced MCP Audit Configuration**
@@ -610,3 +649,5 @@ KAIROS MCP provides a comprehensive observability foundation with Prometheus-com
   - **Monitor audit file stream health and ensure continuous write capability**.
   - **Verify that non-category/event bindings are preserved for complete audit trail data**.
   - **Test audit line building to ensure all contextual fields are maintained in audit records**.
+  - **Validate transport-level response capture mechanism for accurate JSON-RPC response data collection**.
+  - **Ensure proper emitRequestEnd handling in all error and early-return scenarios**.
