@@ -17,7 +17,7 @@ VOLUME /snapshots
 RUN apk update && apk upgrade --no-cache
 
 # Pin global npm to a newer release than the default in the base image (bundled deps drift with the CLI).
-RUN npm install -g npm@11.12.0
+RUN npm install -g npm@11.17.0
 
 ARG PACKAGE_VERSION
 RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
