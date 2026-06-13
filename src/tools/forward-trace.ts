@@ -49,8 +49,9 @@ export function solutionToTensorValue(solution: ForwardSolution): TensorValue | 
   if (solution.comment) {
     return { name: 'comment', value: solution.comment.text };
   }
-  if (solution.type === 'comment' && e && typeof e['text'] === 'string') {
-    return { name: 'comment', value: e['text'] };
+  if (solution.type === 'comment' && e) {
+    const commentVal = typeof e['text'] === 'string' ? e['text'] : typeof e['comment'] === 'string' ? e['comment'] : undefined;
+    if (commentVal) return { name: 'comment', value: commentVal };
   }
   if (solution.user_input) {
     return { name: 'user_input', value: solution.user_input.confirmation };

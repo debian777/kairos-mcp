@@ -48,7 +48,6 @@ export function buildCurrentLayerView(memory: Memory, uri: string) {
     mimeType: 'text/markdown' as const
   };
 }
-
 function currentLayer(memory: Memory, executionId: string) {
   return {
     uri: buildLayerUri(memory.memory_uuid, executionId),
@@ -56,11 +55,9 @@ function currentLayer(memory: Memory, executionId: string) {
     mimeType: 'text/markdown' as const
   };
 }
-
 export function normalizeContract(memory: Memory): InferenceContractDefinition | undefined {
   return getInferenceContract(memory);
 }
-
 function summarizeContract(contract: InferenceContractDefinition): string {
   if (contract.type === 'tensor') {
     const outputName = contract.tensor?.output.name ?? 'tensor';
@@ -88,10 +85,12 @@ export function mapProofSolution(solution: ForwardSolution): ProofOfWorkSubmissi
     evidence !== null && evidence !== undefined && typeof evidence === 'object' && !Array.isArray(evidence)
       ? (evidence as Record<string, unknown>)
       : undefined;
+  const nonce = solution.nonce ?? (e && typeof e['nonce'] === 'string' ? e['nonce'] : undefined);
+  const proofHash = solution.proof_hash ?? (e && typeof e['proof_hash'] === 'string' ? e['proof_hash'] : undefined);
   const base: ProofOfWorkSubmission = {
     type: solution.type as ProofOfWorkSubmission['type'],
-    ...(solution.nonce ? { nonce: solution.nonce } : {}),
-    ...(solution.proof_hash ? { proof_hash: solution.proof_hash } : {})
+    ...(nonce ? { nonce } : {}),
+    ...(proofHash ? { proof_hash: proofHash } : {})
   };
 
   if (solution.type === 'shell' && e && typeof e['exit_code'] === 'number') {
@@ -114,8 +113,9 @@ export function mapProofSolution(solution: ForwardSolution): ProofOfWorkSubmissi
       confirmation: e['confirmation'],
       ...(typeof e['timestamp'] === 'string' ? { timestamp: e['timestamp'] } : {})
     };
-  } else if (solution.type === 'comment' && e && typeof e['text'] === 'string') {
-    base.comment = { text: e['text'] };
+  } else if (solution.type === 'comment' && e) {
+    const commentText = typeof e['text'] === 'string' ? e['text'] : typeof e['comment'] === 'string' ? e['comment'] : undefined;
+    if (commentText) base.comment = { text: commentText };
   }
 
   if (base.shell === undefined && solution.shell) {
