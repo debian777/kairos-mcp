@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
 import { getMcpTestBearerToken, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const CONFIG_DIR_NAME = 'kairos';
 const CONFIG_FILE_NAME = 'config.json';
@@ -50,7 +51,7 @@ export async function execAsync(
   command: string,
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  const env = { ...process.env, BROWSER: 'true' };
+  const env = { ...process.env, BROWSER: 'true', KAIROS_REVIEW_EVIDENCE: JSON.stringify(MOCK_REVIEW_EVIDENCE) };
   return execPromise(command, { env, ...options }) as Promise<{ stdout: string; stderr: string }>;
 }
 
@@ -59,7 +60,7 @@ export async function execAsyncNoAuth(
   command: string,
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  const env = { ...process.env, BROWSER: 'true' };
+  const env = { ...process.env, BROWSER: 'true', KAIROS_REVIEW_EVIDENCE: JSON.stringify(MOCK_REVIEW_EVIDENCE) };
   await execFilePromise('node', [CLI_PATH, 'logout', '--url', BASE_URL], { env, timeout: 10000 }).catch(() => {});
   try {
     return await execPromise(command, { env, ...options });
@@ -77,7 +78,7 @@ export async function execAsyncWithConfig(
   config: { KAIROS_API_URL?: string; bearerToken?: string },
   options?: { timeout?: number }
 ): Promise<{ stdout: string; stderr: string }> {
-  const env = { ...process.env, BROWSER: 'true' };
+  const env = { ...process.env, BROWSER: 'true', KAIROS_REVIEW_EVIDENCE: JSON.stringify(MOCK_REVIEW_EVIDENCE) };
   const url = config.KAIROS_API_URL ?? BASE_URL;
   await execFilePromise('node', [CLI_PATH, 'logout', '--url', url], { env, timeout: 10000 }).catch(() => {});
   const dir = getConfigDir();

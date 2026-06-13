@@ -3,6 +3,7 @@ console.debug('kairos-next-output-shape.test.ts');
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function layerIdFromUri(uri: string): string {
   const base = uri.split('?')[0] ?? uri;
@@ -29,7 +30,9 @@ describe('forward response schema (train → forward)', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
 
     const parsed = parseMcpJson(storeResult, '[forward tests] train');
@@ -47,7 +50,9 @@ describe('forward response schema (train → forward)', () => {
 
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-model-kairos-next', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
 
     const parsed = parseMcpJson(storeResult, '[forward tests] train');

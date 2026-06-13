@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 /**
  * Integration tests for heading sanitization and multiple H1 adapter support.
@@ -42,7 +43,8 @@ describe('Kairos Train Heading Sanitization and Multiple H1 Support', () => {
         arguments: {
           content: markdown,
           llm_model_id: 'test-model',
-          force_update: true
+          force_update: true,
+          review_evidence: MOCK_REVIEW_EVIDENCE
         }
       });
       lastResult = result;

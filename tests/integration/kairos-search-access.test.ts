@@ -2,6 +2,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 describe('Kairos search accessibility', () => {
   let mcpConnection;
@@ -65,7 +66,8 @@ describe('Kairos search accessibility', () => {
       arguments: {
         content: markdownDoc,
         llm_model_id: 'test-ai-coding-rules',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainResult = await mcpConnection.client.callTool(trainCall);

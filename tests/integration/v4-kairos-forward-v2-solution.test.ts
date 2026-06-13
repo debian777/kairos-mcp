@@ -4,6 +4,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 describe('v4-forward v2 unified solution envelope', () => {
   let mcpConnection: any;
@@ -133,7 +134,9 @@ describe('v4-forward v2 unified solution envelope', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-forward-v2-solution', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-v2-solution', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const parsed = parseMcpJson(storeResult, 'v4-forward-v2-solution train');
     expect(parsed.status).toBe('stored');

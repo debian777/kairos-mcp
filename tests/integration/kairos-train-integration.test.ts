@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 /**
  * Kairos Train integration tests (integration with other tools).
@@ -52,7 +53,8 @@ Only after all steps.`;
       arguments: {
         content: content,
         llm_model_id: 'minimax/minimax-m2:free',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const storeResponse = expectValidJsonResult(storeResult);

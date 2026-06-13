@@ -10,6 +10,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 describe('Kairos Train Docs Examples (docs/examples)', () => {
   let mcpConnection;
@@ -50,7 +51,8 @@ describe('Kairos Train Docs Examples (docs/examples)', () => {
         arguments: {
           content: content,
           llm_model_id: 'minimax/minimax-m2:free',
-          force_update: true
+          force_update: true,
+          review_evidence: MOCK_REVIEW_EVIDENCE
         }
       });
 

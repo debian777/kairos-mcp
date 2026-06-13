@@ -16,6 +16,7 @@ import {
   requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
 import { getAuthHeaders } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 interface TrainItem {
   uri?: string;
@@ -28,7 +29,7 @@ interface TrainResponse {
 }
 
 async function trainAdapterMarkdown(markdown: string): Promise<{ adapterUri: string; layerUri: string }> {
-  const res = await fetch(`${BASE_URL}/api/train/raw?force=true`, {
+  const res = await fetch(`${BASE_URL}/api/train/raw?force=true&review_evidence=${encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE))}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/markdown',

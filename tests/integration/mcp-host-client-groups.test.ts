@@ -24,6 +24,7 @@ import {
   createPublicClient,
   deleteClientByClientId
 } from '../utils/keycloak-client-admin.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const MCP_URL = `${BASE_URL}/mcp`;
@@ -140,7 +141,8 @@ describe('MCP host client groups', () => {
           content: mdWithTitle(title),
           llm_model_id: 'test-host-client-group',
           space: group.name,
-          force_update: true
+          force_update: true,
+          review_evidence: MOCK_REVIEW_EVIDENCE
         }
       };
       const trainRes = await mcp.client.callTool(trainCall);

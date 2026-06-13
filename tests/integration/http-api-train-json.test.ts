@@ -1,4 +1,5 @@
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
@@ -34,7 +35,8 @@ Done.`;
         content: markdown,
         llm_model_id: 'test-model',
         force_update: true,
-        space: 'personal'
+        space: 'personal',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       })
     });
 

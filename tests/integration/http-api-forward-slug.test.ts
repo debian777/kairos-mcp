@@ -1,4 +1,5 @@
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
@@ -59,7 +60,7 @@ async function setPointSlug(pointId: string, slug: string): Promise<void> {
 }
 
 async function trainProtocol(title: string, slug: string, body: string): Promise<string> {
-  const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+  const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true&review_evidence=${encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE))}`, {
     method: 'POST',
     headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
     body: buildProtocolMarkdown(title, slug, body)

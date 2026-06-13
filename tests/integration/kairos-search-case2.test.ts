@@ -1,6 +1,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 /**
  * CASE 2 — MULTIPLE PERFECT MATCHES (score = 1.0 × N)
@@ -53,7 +54,8 @@ describe('Kairos Search - CASE 2: MULTIPLE PERFECT MATCHES', () => {
         arguments: {
           content: protocol,
           llm_model_id: 'minimax/minimax-m2:free',
-          force_update: true
+          force_update: true,
+          review_evidence: MOCK_REVIEW_EVIDENCE
         }
       });
       const storeResponse = expectValidJsonResult(storeResult);

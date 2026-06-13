@@ -266,7 +266,7 @@ export class ApiClient {
 
     async train(
         markdown: SafeMarkdownUpload,
-        options?: { llmModelId?: string; force?: boolean; space?: string },
+        options?: { llmModelId?: string; force?: boolean; space?: string; reviewEvidence?: { verdict_file: string; exit_code: number; stdout: string } },
         isRetryAfterLogin = false
     ): Promise<TrainOutput> {
         const headers: Record<string, string> = { 'Content-Type': 'text/markdown' };
@@ -275,18 +275,22 @@ export class ApiClient {
         if (typeof options?.space === 'string' && options.space.trim().length > 0) {
             headers['x-space'] = options.space.trim();
         }
+        if (options?.reviewEvidence) {
+            headers['x-review-evidence'] = JSON.stringify(options.reviewEvidence);
+        }
         return this.request<TrainOutput>('/api/train/raw', { method: 'POST', headers, body: markdown }, isRetryAfterLogin, false, false);
     }
 
     async tune(
         uris: string[],
-        opts?: { markdownDoc?: SafeMarkdownUpload[]; updates?: Record<string, unknown>; space?: string }
+        opts?: { markdownDoc?: SafeMarkdownUpload[]; updates?: Record<string, unknown>; space?: string; reviewEvidence?: { verdict_file: string; exit_code: number; stdout: string } }
     ): Promise<TuneOutput> {
         const body: Record<string, unknown> = { uris };
         if (opts?.markdownDoc) body['content'] = opts.markdownDoc;
         if (opts?.updates) body['updates'] = opts.updates;
         const sp = typeof opts?.space === 'string' ? opts.space.trim() : '';
         if (sp.length > 0) body['space'] = sp;
+        if (opts?.reviewEvidence) body['review_evidence'] = opts.reviewEvidence;
         return this.request<TuneOutput>('/api/tune', { method: 'POST', body: JSON.stringify(body) });
     }
 
@@ -301,6 +305,7 @@ export class ApiClient {
         artifact_name?: string;
         adapter_uri?: string;
         relative_path?: string;
+        review_evidence?: { verdict_file: string; exit_code: number; stdout: string };
     }): Promise<TrainOutput> {
         return this.request<TrainOutput>('/api/train', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     }

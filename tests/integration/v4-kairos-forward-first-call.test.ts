@@ -4,6 +4,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function layerIdFromUri(uri: string): string {
   const base = uri.split('?')[0] ?? uri;
@@ -30,7 +31,9 @@ describe('v4-forward first-call response schema', () => {
     ])}`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const parsed = parseMcpJson(storeResult, 'v4-forward first-call train');
     expect(parsed.status).toBe('stored');
@@ -176,7 +179,9 @@ Do the thing.
 Only after all steps.`;
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-first-call', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const stored = parseMcpJson(storeResult, 'v4-forward first-call single train');
     const uri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;

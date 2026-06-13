@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
@@ -116,7 +117,8 @@ describe('Qdrant storage verification', () => {
       arguments: {
         content: markdownDoc,
         llm_model_id: 'test-ai-coding-rules',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainResult = await mcpConnection.client.callTool(trainCall);

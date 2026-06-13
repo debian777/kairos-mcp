@@ -7,7 +7,9 @@ export const SYSTEM_PROTOCOL_UUID_BY_SLUG: Record<string, string> = {
   'create-new-protocol-review': '00000000-0000-0000-0000-000000002003',
   'challenge-type-guide': '00000000-0000-0000-0000-000000002004',
   'phase-critic': '00000000-0000-0000-0000-000000002005',
-  'protocol-linking-guide': '00000000-0000-0000-0000-000000002006'
+  'protocol-linking-guide': '00000000-0000-0000-0000-000000002006',
+  'phase-critic-guide': '00000000-0000-0000-0000-000000002009',
+  'adapter-migration': '00000000-0000-0000-0000-000000002010'
 };
 
 export async function assertSystemProtocolStaticUuids(memoryStore: MemoryQdrantStore): Promise<void> {

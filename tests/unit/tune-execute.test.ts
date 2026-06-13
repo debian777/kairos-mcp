@@ -2,7 +2,6 @@ import { describe, expect, test } from '@jest/globals';
 import { executeTune } from '../../src/tools/tune-execute.js';
 import { IDGenerator } from '../../src/services/id-generator.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
-
 type LayerPayload = {
   slug?: string;
   space_id: string;
@@ -21,9 +20,7 @@ type LayerPayload = {
   };
   inference_contract?: unknown;
 };
-
 type LayerRecord = { uuid: string; payload: LayerPayload };
-
 class FakeQdrantService {
   private readonly layerByUuid = new Map<string, LayerRecord>();
   readonly updateCalls: Array<{ id: string; updates: Record<string, unknown> }> = [];
@@ -170,7 +167,8 @@ New reward text after tune.
 
     const output = await executeTune(fakeQdrant as any, {
       uris: [`kairos://adapter/${adapterSlug}`],
-      content: [nextMarkdown]
+      content: [nextMarkdown],
+      review_evidence: { verdict_file: '/tmp/v.txt', exit_code: 0, stdout: 'PASS' }
     });
 
     expect(output.total_updated).toBe(1);
@@ -210,7 +208,8 @@ New reward text after tune.
 
     const output = await executeTune(fakeQdrant as any, {
       uris: [`kairos://adapter/${adapterSlug}`],
-      content: [wrongMarkdown]
+      content: [wrongMarkdown],
+      review_evidence: { verdict_file: '/tmp/v.txt', exit_code: 0, stdout: 'PASS' }
     });
 
     expect(output.total_updated).toBe(0);
@@ -337,7 +336,8 @@ New reward text after tune.
 
     const output = await executeTune(brokenQdrant as any, {
       uris: [`kairos://adapter/${adapterSlug}`],
-      content: [nextMarkdown]
+      content: [nextMarkdown],
+      review_evidence: { verdict_file: '/tmp/v.txt', exit_code: 0, stdout: 'PASS' }
     });
 
     // Post-write verification should catch the stale data and report error instead of false success
