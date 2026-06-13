@@ -4,6 +4,7 @@
 
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 describe('Kairos export (MCP)', () => {
   let mcpConnection: Awaited<ReturnType<typeof createMcpConnection>>;
@@ -43,7 +44,8 @@ Only after all steps.`;
       arguments: {
         content: md,
         llm_model_id: 'test',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const trainParsed = parseMcpJson(trainResult, 'train');
@@ -103,7 +105,8 @@ Only after all steps.`;
       arguments: {
         content: md,
         llm_model_id: 'test',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const trainParsed = parseMcpJson(trainResult, 'train');

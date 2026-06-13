@@ -6,6 +6,8 @@ import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { MEM_FILE_UUID_KEY, getMemDir, getMemDirFallback, readMemFiles } from './mem-dir-utils.js';
 import { deletePreexistingAppSpaceEntries, extractFrontmatterSlug, remapMemoryToTargetUuid } from './mem-uuid-mapper.js';
 import { assertSystemProtocolStaticUuids } from './mem-injection-assertions.js';
+import { parseFrontmatter } from '../utils/frontmatter.js';
+import { compareSemver } from '../utils/version-compare.js';
 
 export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, options: { force?: boolean } = {}): Promise<void> {
   const primaryDir = getMemDir();
@@ -40,6 +42,7 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
     const llmModelId = 'system-boot';
     let injectedCount = 0;
     const { client, collection } = memoryStore.getQdrantAccess();
+    const shippedUuids = new Set<string>();
 
     for (const [key, markdownContent] of Object.entries(memResources)) {
       if (typeof markdownContent !== 'string') continue;
@@ -49,10 +52,13 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       }
 
       const targetUuid = key;
+      shippedUuids.add(targetUuid);
       const slug = extractFrontmatterSlug(markdownContent);
+      const shippedVersion = parseFrontmatter(markdownContent).version ?? undefined;
 
       try {
         if (options.force) {
+          // Force mode: delete existing and re-inject
           try {
             if (slug) {
               await client.delete(collection, {
@@ -69,46 +75,34 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
           } catch {
           }
         } else {
+          // Non-force mode: version-based upsert
           try {
             const existing = await qdrantService.getMemoryByUUID(targetUuid);
             if (existing) {
-              structuredLogger.info(`[mem-resources-boot] Memory ${targetUuid} already exists, skipping`);
-              continue;
+              const storedVersion = typeof (existing as any).protocol_version === 'string'
+                ? (existing as any).protocol_version
+                : undefined;
+              const cmp = compareSemver(shippedVersion, storedVersion);
+              if (cmp <= 0) {
+                structuredLogger.info(
+                  `[mem-resources-boot] Memory ${targetUuid} version ${storedVersion ?? 'none'} >= shipped ${shippedVersion ?? 'none'}, skipping`
+                );
+                continue;
+              }
+              structuredLogger.info(
+                `[mem-resources-boot] Memory ${targetUuid} shipped ${shippedVersion ?? 'none'} > stored ${storedVersion ?? 'none'}, updating`
+              );
+              // Fall through to store with forceUpdate
             }
           } catch {
-          }
-          if (slug) {
-            try {
-              const page = await client.scroll(collection, {
-                limit: 1,
-                with_payload: false,
-                with_vector: false,
-                filter: {
-                  must: [
-                    { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
-                    { key: 'slug', match: { value: slug } }
-                  ]
-                }
-              } as any);
-              const points = page?.points ?? [];
-              if (points.length > 0) {
-                await client.delete(collection, {
-                  filter: {
-                    must: [
-                      { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
-                      { key: 'slug', match: { value: slug } }
-                    ]
-                  }
-                } as any);
-                structuredLogger.warn(`[mem-resources-boot] Removed existing app-space points for slug=${slug}`);
-              }
-            } catch {
-            }
+            // UUID lookup failed — treat as new entry
           }
         }
 
         await deletePreexistingAppSpaceEntries(memoryStore, markdownContent, targetUuid);
-        const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, { forceUpdate: false });
+        const storeOpts: { forceUpdate: boolean; protocolVersion?: string } = { forceUpdate: true };
+        if (shippedVersion) storeOpts.protocolVersion = shippedVersion;
+        const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, storeOpts);
 
         if (memories.length > 0) {
           const storedMemory = memories[0]!;
@@ -125,6 +119,58 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
     }
 
     structuredLogger.info(`[mem-resources-boot] Successfully injected ${injectedCount} mem resources into Qdrant`);
+
+    // Part B — Prune orphans: delete app-space adapters no longer shipped
+    try {
+      const shippedCount = shippedUuids.size;
+      let prunedCount = 0;
+      let scrollOffset: any = undefined;
+      const storedUuids: string[] = [];
+
+      // Scroll all points in app space to find orphans
+      do {
+        const page = await client.scroll(collection, {
+          limit: 100,
+          offset: scrollOffset,
+          with_payload: { include: ['space_id'] },
+          with_vector: false,
+          filter: {
+            must: [
+              { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } }
+            ]
+          }
+        } as any);
+
+        const points = page?.points ?? [];
+        for (const point of points) {
+          const pointId = typeof point.id === 'string' ? point.id : String(point.id);
+          if (!shippedUuids.has(pointId)) {
+            storedUuids.push(pointId);
+          }
+        }
+
+        scrollOffset = page?.next_page_offset ?? undefined;
+      } while (scrollOffset !== undefined);
+
+      if (storedUuids.length > 0) {
+        // Delete in batches
+        const batchSize = 100;
+        for (let i = 0; i < storedUuids.length; i += batchSize) {
+          const batch = storedUuids.slice(i, i + batchSize);
+          await client.delete(collection, { points: batch } as any);
+          prunedCount += batch.length;
+        }
+        structuredLogger.warn(
+          `[mem-resources-boot] Pruned ${prunedCount} orphaned app-space adapter(s) (shipped: ${shippedCount})`
+        );
+
+        const { redisCacheService } = await import('../services/redis-cache.js');
+        await redisCacheService.invalidateAfterUpdate();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      structuredLogger.error(`[mem-resources-boot] Failed to prune orphaned adapters: ${message}`);
+    }
 
     await assertSystemProtocolStaticUuids(memoryStore);
     structuredLogger.info('[mem-resources-boot] Verified static UUID invariant for bundled system protocols');

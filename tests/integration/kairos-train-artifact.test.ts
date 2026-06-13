@@ -2,6 +2,7 @@ import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
@@ -84,7 +85,8 @@ Done.`;
       arguments: {
         content: adapterMarkdown,
         llm_model_id: 'test-model',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const adapterParsed = parseMcpJson(trainAdapter, 'train adapter');
@@ -246,7 +248,8 @@ Done.`;
       arguments: {
         content: adapterMarkdown,
         llm_model_id: 'test-model',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const adapterParsed = parseMcpJson(trainAdapter, 'train adapter force');

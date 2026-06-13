@@ -4,6 +4,7 @@
  */
 
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 export const SKILL_EXPORT_BASE_URL = getTestAuthBaseUrl();
 export const SKILL_EXPORT_API_BASE = `${SKILL_EXPORT_BASE_URL}/api`;
@@ -48,7 +49,8 @@ export async function trainAdapterMarkdown(
   if (options?.space) {
     headers['X-Space'] = options.space;
   }
-  const res = await fetch(`${SKILL_EXPORT_API_BASE}/train/raw?force=true`, {
+  const reviewEvidenceParam = encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE));
+  const res = await fetch(`${SKILL_EXPORT_API_BASE}/train/raw?force=true&review_evidence=${reviewEvidenceParam}`, {
     method: 'POST',
     headers,
     body: markdown

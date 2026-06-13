@@ -1,5 +1,6 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const UUID_ADAPTER_URI = 'kairos://adapter/00000000-0000-0000-0000-000000000001';
 const SLUG_ADAPTER_URI = 'kairos://adapter/phase-critic';
@@ -34,10 +35,10 @@ describe('wire adapter URI contract (slug and UUID accepted)', () => {
   });
 
   test.each([
-    ['tune', { uris: [UUID_ADAPTER_URI], content: ['# tuned'] }],
+    ['tune', { uris: [UUID_ADAPTER_URI], content: ['# tuned'], review_evidence: MOCK_REVIEW_EVIDENCE }],
     ['delete', { uris: [UUID_ADAPTER_URI] }],
     ['export', { uri: UUID_ADAPTER_URI, format: 'markdown' }],
-    ['train', { llm_model_id: 'slug-only-test', source_adapter_uri: UUID_ADAPTER_URI, content: '# local content' }]
+    ['train', { llm_model_id: 'slug-only-test', source_adapter_uri: UUID_ADAPTER_URI, content: '# local content', review_evidence: MOCK_REVIEW_EVIDENCE }]
   ] as const)('%s accepts adapter UUID input without validation rejection', async (toolName, arguments_) => {
     const result = await mcpConnection.client.callTool({
       name: toolName,

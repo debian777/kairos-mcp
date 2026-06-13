@@ -4,6 +4,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
@@ -44,7 +45,9 @@ describe('v4-forward continuation response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-forward-continue', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-forward-continue', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const parsed = parseMcpJson(storeResult, 'v4-forward-continue train');
     expect(parsed.status).toBe('stored');

@@ -1,4 +1,5 @@
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
@@ -38,7 +39,7 @@ describe('HTTP train similarity guard regression', () => {
   test('POST /api/train/raw accepts unrelated adapter titles without impossible similarity rejection', async () => {
     expect.hasAssertions();
     const title = `Obsidian Vault - Find, Read, Edit, Create Notes via MCP ${Date.now()}`;
-    const response = await apiFetch('/train/raw', {
+    const response = await apiFetch(`/train/raw?review_evidence=${encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE))}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/markdown',

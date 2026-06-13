@@ -17,6 +17,7 @@ import {
 } from './utils/adapter-space-mcp-context.js';
 import { hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
 import { BASE_URL, CLI_PATH, execAsync, setupCliConfigWithLogin, setupServerCheck } from './cli-commands-shared.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const API_BASE = `${getTestAuthBaseUrl()}/api`;
 
@@ -82,7 +83,8 @@ describe('Adapter fork copy (group → personal)', () => {
         content: md,
         llm_model_id: 'test-space-fork-mcp',
         space: groupSpaceName,
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainGroupRes = await mcp.client.callTool(trainGroupCall);
@@ -155,7 +157,8 @@ describe('Adapter fork copy (group → personal)', () => {
         content: md,
         llm_model_id: 'test-space-fork-api-g',
         space: groupSpaceName,
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       })
     });
     expect(tr.status).toBe(200);
@@ -219,7 +222,8 @@ describe('Adapter fork copy (group → personal)', () => {
         content: md,
         llm_model_id: 'test-space-fork-cli-g',
         space: groupSpaceName,
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       })
     });
     expect(tr.status).toBe(200);

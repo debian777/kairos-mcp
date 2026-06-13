@@ -6,6 +6,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const MIN_ATTEST_RUNS = 3;
 
@@ -84,8 +85,9 @@ describe('reward scoring: propagation and score boost', () => {
     const trainArgs: { content: string; llm_model_id: string; force_update: boolean; space?: string } = {
       content: doc,
       llm_model_id: 'test-attest-scoring',
-      force_update: true
-    };
+      force_update: true,
+    review_evidence: MOCK_REVIEW_EVIDENCE
+  };
     const spaceId = getTestSpaceId();
     if (spaceId) trainArgs.space = 'personal';
     const storeResult = await mcpConnection!.client.callTool({
