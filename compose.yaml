@@ -137,7 +137,7 @@ services:
     restart: unless-stopped
 
   app-prod:
-    image: debian777/kairos-mcp:v4.7.4
+    image: debian777/kairos-mcp:v4.8.0-beta.0
     #pull_policy: always
     labels:
       - "environment=prod"
