@@ -10,8 +10,8 @@ import { embeddingService } from '../embedding/service.js';
 import { bm25Tokenizer } from '../embedding/bm25-tokenizer.js';
 import { buildHeaderMemoryAdapter as buildAdapter } from './adapter-builder.js';
 import {
-  KAIROS_CREATION_PROTOCOL_UUID,
-  KAIROS_REFINING_PROTOCOL_UUID,
+  KAIROS_CREATION_PROTOCOL_SLUG,
+  KAIROS_REFINING_PROTOCOL_SLUG,
   memoryIsBuiltinSearchFooterProtocol
 } from '../../constants/builtin-search-meta.js';
 import { pointToMemory as mapQdrantPointToMemory } from './qdrant-point-to-memory.js';
@@ -138,7 +138,7 @@ export class MemoryQdrantStoreMethods {
     });
     const filter = {
       ...baseFilter,
-      must_not: [{ has_id: [KAIROS_REFINING_PROTOCOL_UUID, KAIROS_CREATION_PROTOCOL_UUID] }]
+      must_not: [{ key: 'slug', match: { any: [KAIROS_REFINING_PROTOCOL_SLUG, KAIROS_CREATION_PROTOCOL_SLUG] } }]
     };
 
     const bm25Leg = {

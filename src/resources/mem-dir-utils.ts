@@ -3,8 +3,8 @@ import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { structuredLogger } from '../utils/structured-logger.js';
 
-export const MEM_FILE_UUID_KEY =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Match slug-based filenames: lowercase alphanumeric with hyphens */
+export const MEM_FILE_SLUG_KEY = /^[a-z0-9]+(-[a-z0-9]+)*$/i;
 
 export function getMemDir(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -26,13 +26,13 @@ export async function readMemFiles(memDir?: string): Promise<Record<string, stri
   const memResources: Record<string, string> = {};
   try {
     const files = await readdir(dir);
-    const mdFiles = files.filter(f => f.endsWith('.md'));
+    const mdFiles = files.filter(f => f.endsWith('.md') && f.replace(/\.md$/, '') !== 'README');
     for (const file of mdFiles) {
       const filePath = join(dir, file);
-      const key = file.replace(/\.md$/, '');
+      const key = file.replace(/\.md$/, ''); // slug-based key
       const content = await readFile(filePath, 'utf-8');
       memResources[key] = content;
-      structuredLogger.debug(`[mem-resources-boot] Loaded mem file: ${file} -> ${key}`);
+      structuredLogger.debug(`[mem-resources-boot] Loaded mem file: ${file} -> slug=${key}`);
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {

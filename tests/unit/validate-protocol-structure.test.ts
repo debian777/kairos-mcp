@@ -300,7 +300,7 @@ Done.`;
 
   test('embedded create-new-protocol markdown passes validation', () => {
     const md = readFileSync(
-      join(process.cwd(), 'src/embed-docs/mem/00000000-0000-0000-0000-000000002001.md'),
+      join(process.cwd(), 'src/embed-docs/mem/create-new-protocol.md'),
       'utf8'
     );
     const result = validateProtocolStructure(md);
