@@ -23,10 +23,9 @@ import { structuredLogger } from '../utils/structured-logger.js';
 import {
   KAIROS_CREATION_FOOTER_NEXT_ACTION,
   KAIROS_CREATION_PROTOCOL_SLUG,
-  KAIROS_CREATION_PROTOCOL_UUID,
-  KAIROS_REFINING_PROTOCOL_SLUG,
-  KAIROS_REFINING_PROTOCOL_UUID
+  KAIROS_REFINING_PROTOCOL_SLUG
 } from '../constants/builtin-search-meta.js';
+import { KAIROS_APP_SPACE_ID } from '../config.js';
 import { buildAdapterUri } from './kairos-uri.js';
 
 const CREATION_PROTOCOL_URI = buildAdapterUri(KAIROS_CREATION_PROTOCOL_SLUG);
@@ -34,16 +33,14 @@ const REFINING_PROTOCOL_URI = buildAdapterUri(KAIROS_REFINING_PROTOCOL_SLUG);
 const REFINING_NEXT_ACTION = `call forward with ${REFINING_PROTOCOL_URI} to execute the refine adapter`;
 const CREATE_NEXT_ACTION = KAIROS_CREATION_FOOTER_NEXT_ACTION;
 
-/** Strip built-in protocol URIs and UUIDs from query so they are not used for search or cache key. */
+/** Strip built-in protocol URIs and slugs from query so they are not used for search or cache key. */
 function queryForSearch(query: string): string {
   let q = (query || '').trim();
   for (const token of [
     REFINING_PROTOCOL_URI,
     KAIROS_REFINING_PROTOCOL_SLUG,
-    KAIROS_REFINING_PROTOCOL_UUID,
     CREATION_PROTOCOL_URI,
-    KAIROS_CREATION_PROTOCOL_SLUG,
-    KAIROS_CREATION_PROTOCOL_UUID
+    KAIROS_CREATION_PROTOCOL_SLUG
   ]) {
     q = q.replace(new RegExp(escapeRegex(token), 'gi'), ' ');
   }
@@ -119,14 +116,33 @@ async function resolveFooterProtocolVersions(
   memoryStore: MemoryQdrantStore
 ): Promise<{ refine: string | null; create: string | null }> {
   try {
-    const [refineMem, createMem] = await Promise.all([
-      memoryStore.getMemory(KAIROS_REFINING_PROTOCOL_UUID),
-      memoryStore.getMemory(KAIROS_CREATION_PROTOCOL_UUID)
-    ]);
-    return {
-      refine: refineMem?.adapter?.protocol_version ?? null,
-      create: createMem?.adapter?.protocol_version ?? null
-    };
+    const { client, collection } = memoryStore.getQdrantAccess();
+    const slugs = [KAIROS_REFINING_PROTOCOL_SLUG, KAIROS_CREATION_PROTOCOL_SLUG];
+    const page = await client.scroll(collection, {
+      filter: {
+        must: [
+          { key: 'slug', match: { any: slugs } },
+          { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
+          { key: 'adapter.layer_index', match: { value: 1 } }
+        ]
+      },
+      limit: 10,
+      with_payload: { include: ['slug', 'adapter'] },
+      with_vector: false
+    } as any);
+
+    let refine: string | null = null;
+    let create: string | null = null;
+    for (const point of page?.points ?? []) {
+      const payload = (point.payload ?? {}) as Record<string, any>;
+      const slug = typeof payload['slug'] === 'string' ? payload['slug'] : '';
+      const version = typeof payload['adapter']?.protocol_version === 'string'
+        ? payload['adapter'].protocol_version
+        : null;
+      if (slug === KAIROS_REFINING_PROTOCOL_SLUG) refine = version;
+      if (slug === KAIROS_CREATION_PROTOCOL_SLUG) create = version;
+    }
+    return { refine, create };
   } catch (err) {
     structuredLogger.warn(
       `search resolveFooterProtocolVersions: ${err instanceof Error ? err.message : String(err)}`

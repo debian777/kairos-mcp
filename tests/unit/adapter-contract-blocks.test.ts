@@ -135,7 +135,7 @@ Suffix text`;
 
     test('embedded create-new-adapter flow has only valid contract types and expected step count', () => {
       const md = readFileSync(
-        join(process.cwd(), 'src/embed-docs/mem/00000000-0000-0000-0000-000000002001.md'),
+        join(process.cwd(), 'src/embed-docs/mem/create-new-protocol.md'),
         'utf8'
       );
       const results = findAllLayerContractBlocks(md);

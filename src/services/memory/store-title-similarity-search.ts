@@ -1,7 +1,7 @@
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { Memory } from '../../types/memory.js';
 import { embeddingService } from '../embedding/service.js';
-import { KAIROS_CREATION_PROTOCOL_UUID, KAIROS_REFINING_PROTOCOL_UUID, memoryIsBuiltinSearchFooterProtocol } from '../../constants/builtin-search-meta.js';
+import { KAIROS_CREATION_PROTOCOL_SLUG, KAIROS_REFINING_PROTOCOL_SLUG, memoryIsBuiltinSearchFooterProtocol } from '../../constants/builtin-search-meta.js';
 import { buildSpaceFilter } from '../../utils/space-filter.js';
 import { getSearchSpaceIds } from '../../utils/tenant-context.js';
 import { getAdapterTitleVectorName } from '../../utils/qdrant-vector-types.js';
@@ -28,7 +28,7 @@ export async function searchAdapterTitlesBySimilarity(params: {
   });
   const filter = {
     ...baseFilter,
-    must_not: [{ has_id: [KAIROS_REFINING_PROTOCOL_UUID, KAIROS_CREATION_PROTOCOL_UUID] }]
+    must_not: [{ key: 'slug', match: { any: [KAIROS_REFINING_PROTOCOL_SLUG, KAIROS_CREATION_PROTOCOL_SLUG] } }]
   };
   const points = await params.client.search(params.collection, {
     vector: { name: titleVectorName, vector: queryVector },

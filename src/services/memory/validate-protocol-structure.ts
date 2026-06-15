@@ -6,7 +6,7 @@
  */
 
 import { findAllLayerContractBlocks, hasPlainFenceLayerContractBlock } from './adapter-contract-blocks.js';
-export const CREATION_PROTOCOL_URI = 'kairos://adapter/00000000-0000-0000-0000-000000002001';
+export const CREATION_PROTOCOL_URI = 'kairos://adapter/create-new-protocol';
 
 export type ValidationResult = {
   valid: boolean;
