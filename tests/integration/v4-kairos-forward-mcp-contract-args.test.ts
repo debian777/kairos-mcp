@@ -3,6 +3,7 @@
  */
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function trainSingleMcpLayer(title: string, tool: string, args?: Record<string, unknown>) {
   const mcp: Record<string, unknown> = { tool_name: tool };
@@ -47,7 +48,9 @@ describe('v4-forward MCP contract tool and arguments', () => {
     const doc = trainSingleMcpLayer(`McpContractArgs ${ts}`, 'spaces', { limit: 1 });
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const stored = parseMcpJson(storeResult, 'mcp-args train');
     expect(stored.status).toBe('stored');
@@ -87,7 +90,9 @@ describe('v4-forward MCP contract tool and arguments', () => {
     const doc = trainSingleMcpLayer(`McpContractArgs2 ${ts}`, 'spaces', { limit: 1 });
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const stored = parseMcpJson(storeResult, 'mcp-args2 train');
     const adapterUri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;
@@ -126,7 +131,9 @@ describe('v4-forward MCP contract tool and arguments', () => {
     const doc = trainSingleMcpLayer(`McpContractArgs3 ${ts}`, 'spaces', { limit: 1 });
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-mcp-contract-args', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const stored = parseMcpJson(storeResult, 'mcp-args3 train');
     const adapterUri = (stored.items as Array<{ adapter_uri: string }>)[0].adapter_uri;

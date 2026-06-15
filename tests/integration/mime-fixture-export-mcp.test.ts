@@ -19,12 +19,15 @@ import {
   dumpMimeFixtureExport,
   ensureMimeFixtureExportDumpRootCleanBeforeMimeTests
 } from '../utils/mime-fixture-export-dump.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 async function trainStage0Fixture(mcp: Awaited<ReturnType<typeof createMcpConnection>>) {
   const contract = loadMimeArtifactContract();
   const trainAdapter = await mcp.client.callTool({
     name: 'train',
-    arguments: { content: readMimeFixtureUtf8('SKILL.md'), llm_model_id: 'test-model', force_update: true }
+    arguments: { content: readMimeFixtureUtf8('SKILL.md'), llm_model_id: 'test-model', force_update: true,
+      review_evidence: MOCK_REVIEW_EVIDENCE
+    }
   });
   const adapterParsed = parseMcpJson(trainAdapter, 'mcp stage0 train adapter');
   const adapterUri = adapterParsed.items?.[0]?.adapter_uri as string;
@@ -40,7 +43,8 @@ async function trainStage0Fixture(mcp: Awaited<ReturnType<typeof createMcpConnec
         mime,
         artifact_name: path.basename(relPath),
         adapter_uri: adapterUri,
-        relative_path: relPath
+        relative_path: relPath,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const artifactParsed = parseMcpJson(trainArtifactRes, `mcp stage0 train artifact ${relPath}`);
@@ -94,7 +98,9 @@ async function retrainFromBundle(
   const input = format === 'skill_tree' ? skillTreeToTrainInput(String(payload), slug) : skillZipToTrainInput(payload as Buffer, slug);
   const trainAdapter = await mcp.client.callTool({
     name: 'train',
-    arguments: { content: input.skillMd, llm_model_id: 'test-model', force_update: true }
+    arguments: { content: input.skillMd, llm_model_id: 'test-model', force_update: true,
+      review_evidence: MOCK_REVIEW_EVIDENCE
+    }
   });
   const adapterParsed = parseMcpJson(trainAdapter, 'mcp roundtrip train adapter');
   const adapterUri = adapterParsed.items?.[0]?.adapter_uri as string;
@@ -108,7 +114,8 @@ async function retrainFromBundle(
         mime: artifact.mime,
         artifact_name: artifact.artifact_name,
         adapter_uri: adapterUri,
-        relative_path: artifact.relative_path
+        relative_path: artifact.relative_path,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const artifactParsed = parseMcpJson(trainArtifactRes, `mcp roundtrip train artifact ${artifact.relative_path}`);

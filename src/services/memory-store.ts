@@ -5,7 +5,7 @@
  */
 
 import { logger } from '../utils/structured-logger.js';
-import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
+import { KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX, OIDC_STATE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';
 
@@ -34,7 +34,7 @@ export class MemoryStore implements IKeyValueStore {
   }
 
   private getKey(key: string): string {
-    if (key.startsWith(MEMORY_CACHE_KEY_PREFIX)) {
+    if (key.startsWith(MEMORY_CACHE_KEY_PREFIX) || key.startsWith(OIDC_STATE_KEY_PREFIX)) {
       return `${this.prefix}${key}`;
     }
     const spaceId = getSpaceIdFromStorage();
@@ -57,6 +57,15 @@ export class MemoryStore implements IKeyValueStore {
     return entry.value;
   }
 
+  async getdel(key: string): Promise<string | null> {
+    const k = this.getKey(key);
+    const entry = this.strings.get(k);
+    if (!entry) return null;
+    this.strings.delete(k);
+    if (this.maybeExpired(entry)) return null;
+    return entry.value;
+  }
+
   async set(key: string, value: string, ttl?: number): Promise<void> {
     const k = this.getKey(key);
     const expiresAt = ttl ? Date.now() + ttl * 1000 : null;
@@ -72,6 +81,17 @@ export class MemoryStore implements IKeyValueStore {
 
   async getJson<T>(key: string): Promise<T | null> {
     const value = await this.get(key);
+    if (!value) return null;
+    try {
+      return JSON.parse(value) as T;
+    } catch (error) {
+      logger.error(`[MemoryStore] JSON parse error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  async getdelJson<T>(key: string): Promise<T | null> {
+    const value = await this.getdel(key);
     if (!value) return null;
     try {
       return JSON.parse(value) as T;

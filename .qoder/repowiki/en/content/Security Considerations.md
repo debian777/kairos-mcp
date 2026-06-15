@@ -27,10 +27,10 @@
 
 ## Update Summary
 **Changes Made**
-- Enhanced MCP audit logging system with corrected stream-level response capture mechanism
-- Updated response capture to properly intercept StreamableHTTPServerTransport.send() method instead of Express response methods
-- Improved MCP SDK compatibility by addressing architectural mismatch in HTTP response handling
-- Enhanced audit level 3 functionality for capturing actual JSON-RPC responses through transport-level interception
+- Enhanced MCP audit logging system with improved stream-level response capture capabilities
+- Added new stream-level response capture mechanism that intercepts responses at res.write() and res.end() for MCP SDK compatibility
+- Improved tenant context handling in audit events with proper correlation ID management
+- Updated audit logging architecture to include comprehensive response capture and correlation tracking
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -45,7 +45,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document consolidates the security posture of KAIROS MCP with a focus on authentication, data protection, security scanning, compliance, and operational security. It synthesizes repository-provided policies, threat models, and implementation details to guide secure deployment and operations. **Updated** to include enhanced MCP audit logging specifications with corrected stream-level response capture mechanism, refined audit levels, and improved audit event timing documentation.
+This document consolidates the security posture of KAIROS MCP with a focus on authentication, data protection, security scanning, compliance, and operational security. It synthesizes repository-provided policies, threat models, and implementation details to guide secure deployment and operations. **Updated** to include enhanced MCP audit logging specifications with stream-level response capture, refined audit levels, and improved audit event timing documentation.
 
 ## Project Structure
 Security-relevant areas include:
@@ -54,7 +54,7 @@ Security-relevant areas include:
 - CORS handling for MCP
 - Infrastructure composition for Qdrant, Redis/Valkey, and Keycloak
 - Security policy, threat model, incident response, and code security setup documentation
-- **Enhanced** Audit logging system for MCP tool call events with corrected stream-level response capture and correlation ID tracking
+- **Enhanced** Audit logging system for MCP tool call events with stream-level response capture and correlation ID tracking
 
 ```mermaid
 graph TB
@@ -66,7 +66,6 @@ AUDIT["Audit Log Stream"]
 RESPONSE_CAPTURE["Stream-Level Response Capture"]
 CORRELATION["Correlation ID Management"]
 TENANT_CONTEXT["Tenant Context Handling"]
-TRANSPORT_INTERCEPT["Transport-Level Interception"]
 end
 subgraph "Identity"
 KEYCLOAK["Keycloak OIDC"]
@@ -82,7 +81,6 @@ APP --> AUDIT
 APP --> RESPONSE_CAPTURE
 APP --> CORRELATION
 APP --> TENANT_CONTEXT
-APP --> TRANSPORT_INTERCEPT
 APP --> KEYCLOAK
 DOCKER --> APP
 DOCKER --> QDRANT
@@ -110,7 +108,7 @@ GH --> DOCKER
 - OIDC profile claims whitelisting and group allowlisting
 - MCP CORS configuration for browser and tool clients
 - Configuration of trusted issuers, audiences, session secret, and max age
-- **Enhanced** Audit logging system with corrected stream-level response capture and correlation ID management
+- **Enhanced** Audit logging system with stream-level response capture and correlation ID management
 - **Enhanced** MCP tool call audit trail with metadata, request, and response capture levels
 
 **Section sources**
@@ -125,7 +123,7 @@ GH --> DOCKER
 - [docs/security/audit-log.md:145-156](file://docs/security/audit-log.md#L145-L156)
 
 ## Architecture Overview
-The authentication architecture integrates browser sessions and Bearer tokens through Keycloak, with session cookies and JWT validation ensuring access control across API and MCP endpoints. **Updated** to include enhanced audit logging architecture for MCP tool call events with corrected stream-level response capture, correlation ID tracking, and improved audit event timing.
+The authentication architecture integrates browser sessions and Bearer tokens through Keycloak, with session cookies and JWT validation ensuring access control across API and MCP endpoints. **Updated** to include enhanced audit logging architecture for MCP tool call events with stream-level response capture, correlation ID tracking, and improved audit event timing.
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +133,6 @@ participant OR as "OIDC Redirect"
 participant CB as "Auth Callback"
 participant JW as "JWKS/Userinfo"
 participant APP as "App"
-participant TRANS as "StreamableHTTP Server Transport"
 participant RESP as "Response Capture"
 participant AUDIT as "Audit Logger"
 C->>MW : "Request to /api or /mcp"
@@ -152,8 +149,7 @@ MW->>JW : "Validate token (iss, aud, exp)"
 JW-->>MW : "Verified payload"
 end
 MW->>APP : "Attach auth context and proceed"
-APP->>TRANS : "Create StreamableHTTP Server Transport"
-APP->>RESP : "Install transport-level response capture"
+APP->>RESP : "Install stream-level response capture"
 RESP->>AUDIT : "Emit MCP audit events with correlation IDs"
 ```
 
@@ -222,7 +218,7 @@ Correlation --> End(["Next handler"])
 - [docs/security/audit-log.md:89-103](file://docs/security/audit-log.md#L89-L103)
 
 ### Enhanced Audit Logging System
-**Enhanced** Comprehensive audit logging specification for MCP audit trails with corrected stream-level response capture:
+**Enhanced** Comprehensive audit logging specification for MCP audit trails with stream-level response capture:
 
 - **Event Categories**
   - `audit.embedding`: embedding request completion with provider-stage outcomes
@@ -239,13 +235,12 @@ Correlation --> End(["Next handler"])
   - Level 2: Request level (Level 1 + sanitized request arguments)
   - Level 3: Full level (Level 2 + sanitized response body)
 
-- **Corrected Stream-Level Response Capture**
-  - Intercepts MCP responses at the transport level using `installResponseCapture()` function
-  - **Updated** Properly captures response chunks through StreamableHTTPServerTransport.send() method
-  - **Updated** Addresses architectural mismatch where MCP SDK uses transport.send() instead of Express res.json()/res.end()
-  - **Updated** Direct transport-level interception ensures compatibility with MCP SDK response handling
+- **Stream-Level Response Capture**
+  - Intercepts MCP responses at the stream level using `installResponseCapture()` function
+  - Captures response chunks during `res.write()` and `res.end()` calls
   - Parses captured chunks as JSON for audit event construction
   - Supports both success responses and error responses
+  - **Enhanced** MCP SDK compatibility through direct stream manipulation
 
 - **Correlation ID Management**
   - Generates unique correlation IDs using `generateCorrelationId()` with timestamp and UUID components
@@ -294,7 +289,7 @@ Correlation --> End(["Next handler"])
   - Audit logs are sanitized to remove sensitive information before writing to streams
   - Configurable verbosity levels prevent accidental exposure of sensitive data
   - Separate file streams enable segregation of sensitive vs non-sensitive audit data
-  - **Updated** Corrected stream-level response capture ensures complete response visibility for security analysis
+  - Stream-level response capture ensures complete response visibility for security analysis
 
 **Section sources**
 - [compose.yaml:53-106](file://compose.yaml#L53-L106)
@@ -316,7 +311,7 @@ Correlation --> End(["Next handler"])
   - Audit logging supports compliance frameworks through configurable verbosity and sanitization
   - Structured logging enables automated compliance reporting and monitoring
   - Optional separate audit file stream supports regulatory log retention requirements
-  - **Updated** Corrected stream-level response capture provides comprehensive audit coverage for security investigations
+  - Stream-level response capture provides comprehensive audit coverage for security investigations
 
 **Section sources**
 - [SECURITY.md:70-87](file://SECURITY.md#L70-L87)
@@ -338,7 +333,7 @@ Correlation --> End(["Next handler"])
   - Configure AUDIT_LOG_FILE for compliance requirements in regulated environments
   - Set appropriate AUDIT_LOG_LEVEL based on operational needs and privacy requirements
   - Monitor audit log file permissions and rotation policies
-  - **Updated** Enable corrected stream-level response capture for comprehensive security monitoring
+  - Enable stream-level response capture for comprehensive security monitoring
 
 **Section sources**
 - [SECURITY.md:28-48](file://SECURITY.md#L28-L48)
@@ -347,12 +342,12 @@ Correlation --> End(["Next handler"])
 
 ### Threat Modeling and Incident Response
 - Threat model
-  - System boundary includes API surface, identity layer, storage systems, external embedding providers, and **enhanced** audit logging infrastructure with corrected stream-level response capture.
+  - System boundary includes API surface, identity layer, storage systems, external embedding providers, and **enhanced** audit logging infrastructure with stream-level response capture.
   - Mitigations address data poisoning, prompt injection, cross-tenant leakage, embedding API abuse, supply-chain compromise, and **enhanced** audit trail tampering.
 - Incident response
   - Investigate using request_id, time windows, and tenant/space identifiers.
   - Playbooks for data poisoning, embedding abuse, and cross-tenant access suspicion.
-  - **Enhanced** Audit trail investigation procedures for unauthorized access attempts and policy violations using correlation IDs and corrected stream-level response analysis.
+  - **Enhanced** Audit trail investigation procedures for unauthorized access attempts and policy violations using correlation IDs and stream-level response analysis.
 - **Enhanced** Audit trail security
   - Monitor for audit log file access patterns and unauthorized modifications
   - Implement integrity checks for audit trail data
@@ -365,8 +360,8 @@ Detect["Detect incident"] --> Classify["Classify severity"]
 Classify --> Triage["Triage and containment"]
 Triage --> Trace["Trace request flow and inspect logs"]
 Trace --> Correlation["Use correlation IDs to group events"]
-Correlation --> TransportIntercept["Analyze transport-level response capture"]
-TransportIntercept --> AuditTrail["Review audit trail for suspicious activity"]
+Correlation --> StreamCapture["Analyze stream-level response capture"]
+StreamCapture --> AuditTrail["Review audit trail for suspicious activity"]
 AuditTrail --> Assess["Assess blast radius"]
 Assess --> Recover["Recover and verify"]
 Recover --> Lessons["Update tests and controls"]
@@ -393,7 +388,7 @@ Recover --> Lessons["Update tests and controls"]
   - Audit file streams are opened with append mode to prevent log truncation attacks
   - Configured audit paths are validated at startup to prevent path traversal attacks
   - Audit log file permissions are managed to prevent unauthorized access
-  - **Updated** Corrected stream-level response capture ensures complete response visibility for security analysis
+  - Stream-level response capture ensures complete response visibility for security analysis
 
 **Section sources**
 - [src/http/http-mcp-cors.ts:3-29](file://src/http/http-mcp-cors.ts#L3-L29)
@@ -406,7 +401,7 @@ Authentication and identity dependencies:
 - App depends on Keycloak for OIDC issuance and JWKS/userinfo.
 - App validates tokens against configured issuers and audiences.
 - Session cookie is signed server-side and scoped to the application domain.
-- **Enhanced** Audit logging system depends on structured logging infrastructure, file system permissions, and corrected stream-level response capture.
+- **Enhanced** Audit logging system depends on structured logging infrastructure, file system permissions, and stream-level response capture.
 
 ```mermaid
 graph LR
@@ -415,7 +410,7 @@ APP --> JWKS["JWKS Endpoint"]
 APP --> USERINFO["Userinfo Endpoint"]
 APP --> STORE["Qdrant / Redis/Valkey"]
 APP --> AUDIT["Audit Logging System"]
-APP --> RESP_CAPTURE["Transport Response Capture"]
+APP --> RESP_CAPTURE["Stream Response Capture"]
 APP --> CORR_ID["Correlation ID Manager"]
 AUDIT --> FILE["Audit File Stream"]
 RESP_CAPTURE --> STREAM["HTTP Response Stream"]
@@ -445,7 +440,7 @@ CORR_ID --> TRACE["Request Tracing"]
   - Configurable verbosity levels allow tuning performance vs. observability trade-offs
   - Sanitization operations are optimized to reduce CPU overhead
   - Audit log rotation and size limits prevent disk space exhaustion
-  - **Updated** Corrected stream-level response capture adds minimal overhead through efficient transport-level interception
+  - Stream-level response capture adds minimal overhead through efficient buffer management
   - Correlation ID generation uses lightweight UUID components for performance
 
 **Section sources**
@@ -469,15 +464,14 @@ Common authentication issues and resolutions:
   - Insufficient audit detail: check AUDIT_LOG_LEVEL configuration
   - Sensitive data exposure: adjust sanitization settings and audit level
   - Audit file growth: configure log rotation and retention policies
-  - **Updated** Stream response capture failures: verify transport-level interception and buffer management
-  - **Updated** Transport-level capture not working: check StreamableHTTPServerTransport.send() method interception
+  - Stream response capture failures: verify response capture installation and buffer management
   - Correlation ID issues: check correlation ID generation and propagation across events
 
 Operational checks:
 - Confirm session secret is set and sufficiently long when AUTH_ENABLED=true.
 - Validate group allowlist entries and ensure Keycloak Group Membership mapper is configured.
 - **Enhanced** Verify audit configuration: test AUDIT_LOG_FILE accessibility and AUDIT_LOG_LEVEL settings.
-- **Updated** Test corrected stream-level response capture functionality and correlation ID tracking.
+- **Enhanced** Test stream-level response capture functionality and correlation ID tracking.
 
 **Section sources**
 - [src/http/http-auth-callback.ts:122-233](file://src/http/http-auth-callback.ts#L122-L233)
@@ -488,7 +482,7 @@ Operational checks:
 - [docs/security/audit-log.md:89-103](file://docs/security/audit-log.md#L89-L103)
 
 ## Conclusion
-KAIROS MCP implements a robust OIDC-based authentication system with session and Bearer token validation, strict group allowlisting, and MCP-specific CORS handling. **Updated** to include enhanced audit logging capabilities for MCP tool call events with corrected stream-level response capture through transport-level interception, correlation ID tracking, and improved audit event timing documentation. The repository provides documented policies for vulnerability management, supply-chain controls, and incident response, along with practical guidance for secure deployment and operational hygiene, including comprehensive audit trail management for security investigations with enhanced response visibility and correlation tracking.
+KAIROS MCP implements a robust OIDC-based authentication system with session and Bearer token validation, strict group allowlisting, and MCP-specific CORS handling. **Updated** to include enhanced audit logging capabilities for MCP tool call events with stream-level response capture, correlation ID tracking, and improved audit event timing documentation. The repository provides documented policies for vulnerability management, supply-chain controls, and incident response, along with practical guidance for secure deployment and operational hygiene, including comprehensive audit trail management for security investigations with enhanced response visibility and correlation tracking.
 
 ## Appendices
 - Configuration reference highlights
@@ -498,9 +492,9 @@ KAIROS MCP implements a robust OIDC-based authentication system with session and
   - **Enhanced** AUDIT_LOG_FILE, AUDIT_LOG_LEVEL (audit logging configuration)
 - **Enhanced** Audit event categories and sanitization rules
   - `audit.embedding`, `audit.anomaly`, `audit.mcp` event types
-  - **Updated** Transport-level response capture with correlation ID management
+  - Stream-level response capture with correlation ID management
   - Data sanitization policies for tokens, strings, arrays, and nested objects
-  - **Updated** Enhanced audit levels with improved MCP tool call event granularity and corrected response capture mechanism
+  - Enhanced audit levels with improved MCP tool call event granularity
 
 **Section sources**
 - [src/config.ts:113-172](file://src/config.ts#L113-L172)

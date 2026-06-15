@@ -85,7 +85,15 @@ export const trainInputSchema = z
       .optional()
       .describe(
         'Optional path relative to the skill root for this artifact (preserved on skill export). Forward slashes; no .. segments.'
-      )
+      ),
+    review_evidence: z.object({
+      verdict_file: z.string().describe('Absolute path to the phase-critic verdict file'),
+      exit_code: z.number().describe('Shell exit code (must be 0)'),
+      stdout: z.string().describe('Shell stdout (line 1 must be PASS)')
+    }).optional().describe(
+      'Phase-critic review evidence. Required for adapter (markdown) train calls. '
+      + 'Provide the verdict file path and shell proof that phase-critic returned PASS.'
+    )
   })
   .superRefine((value, ctx) => {
     const md = typeof value.content === 'string' ? value.content.trim() : '';
@@ -152,6 +160,17 @@ export const trainInputSchema = z
     }
 
     refineTrainRelativePath(value, ctx);
+
+    // review_evidence is required for adapter (markdown) trains, not for artifacts or forks
+    const hasArtifactFields = artifactName.length > 0 && adapterUri.length > 0;
+    const isArtifact = (mime.length > 0 && mime !== 'text/markdown') || hasArtifactFields;
+    if (!isArtifact && value.content && !value.review_evidence) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['review_evidence'],
+        message: 'review_evidence is required for adapter (markdown) train calls. Run phase-critic first and provide the verdict file as proof.'
+      });
+    }
   });
 
 export const trainOutputSchema = z.object({

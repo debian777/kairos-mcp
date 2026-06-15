@@ -8,7 +8,7 @@
 
 import { createClient, RedisClientType } from 'redis';
 import { logger } from '../utils/structured-logger.js';
-import { REDIS_URL, KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX } from '../config.js';
+import { REDIS_URL, KAIROS_REDIS_PREFIX, MEMORY_CACHE_KEY_PREFIX, OIDC_STATE_KEY_PREFIX } from '../config.js';
 import { getSpaceIdFromStorage } from '../utils/tenant-context.js';
 import type { IKeyValueStore } from './key-value-store.js';
 
@@ -107,9 +107,9 @@ export class RedisService implements IKeyValueStore {
         }
     }
 
-    /** Key is namespaced by current space (AsyncLocalStorage) so cache and proof-of-work do not collide across spaces. Memory cache keys (mem:*) are global: same UUID, one key. */
+    /** Key is namespaced by current space (AsyncLocalStorage) so cache and proof-of-work do not collide across spaces. Memory cache keys (mem:*) and OIDC state keys (oidc-state:*) are global. */
     private getKey(key: string): string {
-        if (key.startsWith(MEMORY_CACHE_KEY_PREFIX)) {
+        if (key.startsWith(MEMORY_CACHE_KEY_PREFIX) || key.startsWith(OIDC_STATE_KEY_PREFIX)) {
             return `${this.prefix}${key}`;
         }
         const spaceId = getSpaceIdFromStorage();
@@ -121,6 +121,15 @@ export class RedisService implements IKeyValueStore {
             return await this.client.get(this.getKey(key));
         } catch (error) {
             logger.error(`Redis GET error for key ${key}:`, error);
+            return null;
+        }
+    }
+
+    async getdel(key: string): Promise<string | null> {
+        try {
+            return await this.client.getDel(this.getKey(key));
+        } catch (error) {
+            logger.error(`Redis GETDEL error for key ${key}:`, error);
             return null;
         }
     }
@@ -228,6 +237,17 @@ export class RedisService implements IKeyValueStore {
     // Utility methods for JSON objects
     async getJson<T>(key: string): Promise<T | null> {
         const value = await this.get(key);
+        if (!value) return null;
+        try {
+            return JSON.parse(value) as T;
+        } catch (error) {
+            logger.error(`JSON parse error for key ${key}:`, error);
+            return null;
+        }
+    }
+
+    async getdelJson<T>(key: string): Promise<T | null> {
+        const value = await this.getdel(key);
         if (!value) return null;
         try {
             return JSON.parse(value) as T;

@@ -1,12 +1,46 @@
 {{/*
+Resolve Gateway API gatewayClassName.
+Priority: explicit .Values.gateway.gatewayClassName > cluster autodetection.
+Returns empty string when no class is available.
+*/}}
+{{- define "kairos.resolvedGatewayClass" -}}
+{{- $gw := default dict .Values.gateway -}}
+{{- if $gw.gatewayClassName -}}
+  {{- $gw.gatewayClassName -}}
+{{- else -}}
+  {{- $classes := lookup "gateway.networking.k8s.io/v1" "GatewayClass" "" "" -}}
+  {{- if and $classes $classes.items -}}
+    {{- $names := list -}}
+    {{- range $classes.items -}}
+      {{- $names = append $names .metadata.name -}}
+    {{- end -}}
+    {{- index (sortAlpha $names) 0 -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Resolve effective gateway name for parentRefs.
+Uses existingGatewayName when set, otherwise chart-managed gatewayName.
+*/}}
+{{- define "kairos.resolvedGatewayName" -}}
+{{- $gw := default dict .Values.gateway -}}
+{{- default ($gw.gatewayName | default "kairos-gateway") $gw.existingGatewayName -}}
+{{- end -}}
+
+{{/*
 Determine ingress mode: "gateway" | "ingress" | "none".
-Explicit .Values.gateway.mode wins; "auto" picks based on gatewayClassName presence.
+Explicit .Values.gateway.mode wins; "auto" picks based on:
+  1. gatewayClassName (explicit or autodetected from cluster) -> gateway
+  2. ingressClassName -> ingress
+  3. nothing available -> none
 */}}
 {{- define "kairos.ingressMode" -}}
 {{- $gw := default dict .Values.gateway -}}
 {{- $mode := default "auto" $gw.mode -}}
 {{- if eq $mode "auto" -}}
-  {{- if $gw.gatewayClassName -}}gateway{{- else if $gw.ingressClassName -}}ingress{{- else -}}none{{- end -}}
+  {{- $gwClass := include "kairos.resolvedGatewayClass" . | trim -}}
+  {{- if $gwClass -}}gateway{{- else if $gw.ingressClassName -}}ingress{{- else -}}none{{- end -}}
 {{- else -}}
   {{- $mode -}}
 {{- end -}}

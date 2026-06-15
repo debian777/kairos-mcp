@@ -16,6 +16,7 @@ import {
   openAdapterSpaceMcpBundle
 } from './utils/adapter-space-mcp-context.js';
 import { hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 import {
   BASE_URL,
   CLI_PATH,
@@ -84,7 +85,9 @@ describe('Adapter space move (personal → group)', () => {
 
     const trainCall = {
       name: 'train',
-      arguments: { content: md, llm_model_id: 'test-space-move-mcp', space: 'personal', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-space-move-mcp', space: 'personal', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     };
     const trainRes = await mcp.client.callTool(trainCall);
     const trained = parseMcpJson(trainRes, 'train-move-mcp');
@@ -150,7 +153,8 @@ describe('Adapter space move (personal → group)', () => {
       content: md,
       llm_model_id: 'test-space-move-api',
       space: 'personal',
-      force_update: true
+      force_update: true,
+      review_evidence: MOCK_REVIEW_EVIDENCE
     };
     const tr = await apiFetch('/train', {
       method: 'POST',
@@ -210,7 +214,9 @@ describe('Adapter space move (personal → group)', () => {
     const title = `SpaceMoveCLI ${Date.now()}`;
     const trainCall = {
       name: 'train',
-      arguments: { content: buildSpaceMoveMarkdown(title), llm_model_id: 'test-space-move-cli', space: 'personal', force_update: true }
+      arguments: { content: buildSpaceMoveMarkdown(title), llm_model_id: 'test-space-move-cli', space: 'personal', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     };
     const trainRes = await mcp.client.callTool(trainCall);
     const trained = parseMcpJson(trainRes, 'train-move-cli');

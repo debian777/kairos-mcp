@@ -1,4 +1,5 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 /**
  * Integration tests for the **`train`** tool: validation and error handling when
@@ -40,7 +41,8 @@ Done.`;
       name: 'train',
       arguments: {
         content: incompleteMd,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
 
@@ -79,7 +81,8 @@ Done.`;
       name: 'train',
       arguments: {
         content: badTypeMd,
-        llm_model_id: 'minimax/minimax-m2:free'
+        llm_model_id: 'minimax/minimax-m2:free',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
 
@@ -111,7 +114,8 @@ Only after all steps.`;
       arguments: {
         content: validMd,
         llm_model_id: 'minimax/minimax-m2:free',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
 
@@ -162,7 +166,8 @@ Only after all steps.`;
     const result2 = await mcpConnection.client.callTool({
       name: 'train',
       arguments: {
-        content: 'test content'
+        content: 'test content',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     expect(result2.isError).toBe(true);
@@ -175,7 +180,8 @@ Only after all steps.`;
       name: 'train',
       arguments: {
         content: 'test content',
-        llm_model_id: ''
+        llm_model_id: '',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     expect(result3.isError).toBe(true);

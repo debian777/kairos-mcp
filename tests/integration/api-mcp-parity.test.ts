@@ -17,8 +17,8 @@ import { rewardOutputSchema } from '../../src/tools/reward_schema.js';
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;
 
-/** Boot-injected creation layer (see CREATION_PROTOCOL_URI) — valid export input. */
-const SAMPLE_EXPORT_URI = 'kairos://layer/00000000-0000-0000-0000-000000002001';
+/** Boot-injected creation adapter (by slug) — valid export input. */
+const SAMPLE_EXPORT_URI = 'kairos://adapter/create-new-protocol';
 
 function httpFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(path, {

@@ -3,6 +3,7 @@ import { getTestSpaceId } from '../utils/auth-headers.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
 import { getEvalFailures, runEvalSuite } from '../workflow-test/eval-harness.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function parseJsonl(content: string): unknown[] {
   const trimmed = content.trim();
@@ -28,12 +29,16 @@ describe('workflow eval harness: reward export readiness', () => {
       llm_model_id: string;
       force_update: boolean;
       space?: string;
+
+      review_evidence: typeof MOCK_REVIEW_EVIDENCE;
     } = {
       content: buildProofMarkdown(label, [
         { heading: 'Step One', body: `Complete the task for ${label}.`, proofCmd: 'echo done' }
       ]),
       llm_model_id: 'test-reward-export-evals',
-      force_update: true
+      force_update: true,
+
+      review_evidence: MOCK_REVIEW_EVIDENCE
     };
     const spaceId = getTestSpaceId();
     if (spaceId) {

@@ -12,6 +12,7 @@ import { buildTuneResultMessage } from './tune-messages.js';
 import { isProtectedWriteSpace, protectedWriteErrorMessage } from '../utils/protected-space-write-guard.js';
 import { validateAdapterMarkdownSize } from '../services/memory/validate-adapter-markdown-size.js';
 import { verifyTuneLayerPersistence } from './tune-verify.js';
+import { assertReviewEvidencePassed } from './review-evidence-check.js';
 
 type AdapterLayerPoint = { uuid: string; payload: any };
 
@@ -231,15 +232,14 @@ export async function executeTune(qdrantService: QdrantService, input: TuneInput
     }
   }
 
-  const hasContent =
-    Array.isArray(input.content) &&
-    input.content.some((s) => typeof s === 'string' && s.trim().length > 0);
+  const hasContent = Array.isArray(input.content) && input.content.some((s) => typeof s === 'string' && s.trim().length > 0);
   const hasUpdates = input.updates && Object.keys(input.updates).length > 0;
   const hasPayload = Boolean(hasContent || hasUpdates);
-
   if (!hasPayload && !targetSpaceId) {
     throw new Error('Provide content, updates, or space');
   }
+  // Validate review_evidence for content updates
+  if (hasContent) assertReviewEvidencePassed(input.review_evidence);
 
   if (!hasPayload && targetSpaceId) {
     const results: TuneOutput['results'] = [];

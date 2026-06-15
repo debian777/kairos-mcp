@@ -6,6 +6,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function protocolWithFrontmatter(title: string, version: string): string {
   return `---
@@ -74,7 +75,9 @@ describe('Kairos protocol versioning', () => {
 
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
 
     await new Promise((r) => setTimeout(r, 6000));
@@ -107,7 +110,8 @@ describe('Kairos protocol versioning', () => {
         content: md,
         llm_model_id: 'test-versioning',
         force_update: true,
-        protocol_version: '2.0.0'
+        protocol_version: '2.0.0',
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
 
@@ -133,7 +137,9 @@ describe('Kairos protocol versioning', () => {
 
     const trainResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true }
+      arguments: { content: md, llm_model_id: 'test-versioning', force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
+      }
     });
     const trainParsed = parseMcpJson(trainResult, 'train');
     expect(trainParsed.status).toBe('stored');

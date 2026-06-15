@@ -1,29 +1,17 @@
 /**
  * Browser OIDC login redirect + PKCE state shared by auth middleware and /auth/logout.
+ *
+ * OIDC state is stored via the shared oidcStateStore (Redis when REDIS_URL is
+ * set, in-memory fallback otherwise) so that login works across replicas.
+ * See src/services/oidc-state-store.ts for details.
  */
 import type { Response } from 'express';
 import crypto from 'crypto';
 import { KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AUTH_CALLBACK_BASE_URL } from '../config.js';
+import { oidcStateStore } from '../services/oidc-state-store.js';
+import { structuredLogger } from '../utils/structured-logger.js';
 
-const STATE_TTL_MS = 600_000; // 10 min
-
-export interface OidcStateEntry {
-  codeVerifier: string;
-  createdAt: number;
-}
-
-const stateStore = new Map<string, OidcStateEntry>();
-
-export function pruneOidcStateStore(): void {
-  const now = Date.now();
-  for (const [k, v] of stateStore.entries()) {
-    if (now - v.createdAt > STATE_TTL_MS) stateStore.delete(k);
-  }
-}
-
-export function getOidcStateStore(): Map<string, OidcStateEntry> {
-  return stateStore;
-}
+export type { OidcStateEntry } from '../services/oidc-state-store.js';
 
 export function buildOidcAuthorizationUrl(state: string, codeChallenge: string): string {
   if (!AUTH_CALLBACK_BASE_URL) {
@@ -70,8 +58,11 @@ export function redirectBrowserToOidcLogin(res: Response): boolean {
   const state = crypto.randomBytes(16).toString('base64url');
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url').replace(/=/g, '');
-  stateStore.set(state, { codeVerifier, createdAt: Date.now() });
-  pruneOidcStateStore();
+  // Fire-and-forget: the Redis write completes well before the browser-driven
+  // redirect chain reaches the IdP and returns to /auth/callback.
+  oidcStateStore.set(state, { codeVerifier, createdAt: Date.now() }).catch(err => {
+    structuredLogger.error(`[oidc-state] Failed to store OIDC state: ${err instanceof Error ? err.message : String(err)}`);
+  });
   res.redirect(302, buildOidcAuthorizationUrl(state, codeChallenge));
   return true;
 }
@@ -81,8 +72,9 @@ export function createOidcLoginUrlForApiResponse(): string {
   const state = crypto.randomBytes(16).toString('base64url');
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url').replace(/=/g, '');
-  stateStore.set(state, { codeVerifier, createdAt: Date.now() });
-  pruneOidcStateStore();
+  oidcStateStore.set(state, { codeVerifier, createdAt: Date.now() }).catch(err => {
+    structuredLogger.error(`[oidc-state] Failed to store OIDC state: ${err instanceof Error ? err.message : String(err)}`);
+  });
   return buildOidcAuthorizationUrl(state, codeChallenge);
 }
 

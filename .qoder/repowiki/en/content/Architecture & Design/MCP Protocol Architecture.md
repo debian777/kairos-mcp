@@ -20,15 +20,13 @@
 - [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
 - [src/http/http-error-handlers.ts](file://src/http/http-error-handlers.ts)
 - [src/utils/tenant-context.ts](file://src/utils/tenant-context.ts)
-- [src/utils/audit-mcp-summary.ts](file://src/utils/audit-mcp-summary.ts)
-- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
 - [docs/security/audit-log.md](file://docs/security/audit-log.md)
 - [scripts/journey-export.mjs](file://scripts/journey-export.mjs)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced MCP audit event system with corrected response capture mechanism for detailed logging
+- Enhanced MCP audit event system with improved response capture mechanism for detailed logging
 - Improved audit event timing with better tenant ID resolution within space context
 - Updated MCP HTTP handler with enhanced response capture and audit event coordination
 - Added comprehensive audit logging infrastructure for MCP protocol operations
@@ -414,21 +412,21 @@ Handler-->>Client : 200 OK
 ## Audit and Monitoring System
 
 ### Enhanced Response Capture Mechanism
-The MCP audit system now includes a sophisticated response capture mechanism that intercepts stream-level responses for detailed logging. This mechanism captures JSON-RPC responses at the transport level, allowing for comprehensive audit logging with configurable detail levels.
+The MCP audit system now includes a sophisticated response capture mechanism that intercepts stream-level responses for detailed logging. This mechanism captures JSON-RPC responses at the buffer level, allowing for comprehensive audit logging with configurable detail levels.
 
-**Updated** Enhanced with stream-level response capture that intercepts transport.send() calls rather than Express response methods, ensuring proper JSON-RPC response capture for audit level 3. This change addresses architectural differences between Express and the MCP SDK's StreamableHTTPServerTransport.
+**Updated** Enhanced with stream-level response capture that intercepts res.write/res.end calls to capture complete JSON-RPC responses before they are sent to clients.
 
 ```mermaid
 flowchart TD
-Start(["Response Capture Setup"]) --> Intercept["Intercept transport.send()"]
-Intercept --> Buffer["Buffer Response Messages"]
-Buffer --> Parse["Parse JSON-RPC on send()"]
+Start(["Response Capture Setup"]) --> Intercept["Intercept res.write/res.end"]
+Intercept --> Buffer["Buffer Response Chunks"]
+Buffer --> Parse["Parse JSON on res.end()"]
 Parse --> Capture["Store Captured Response"]
-Capture --> Return["Call original transport.send()"]
+Capture --> Return["Return Original Response"]
 ```
 
 **Diagram sources**
-- [src/http/mcp-audit-emit.ts:24-37](file://src/http/mcp-audit-emit.ts#L24-L37)
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 
 ### Improved Audit Event Timing
 Audit events are now emitted with precise timing and improved tenant ID resolution. The system captures audit context within the space context, ensuring tenant information is available when tools are executed.
@@ -472,15 +470,6 @@ The audit system follows a comprehensive specification for MCP protocol operatio
 **Section sources**
 - [docs/security/audit-log.md:105-137](file://docs/security/audit-log.md#L105-L137)
 - [scripts/journey-export.mjs:114-200](file://scripts/journey-export.mjs#L114-L200)
-
-### Audit Data Sanitization and Security
-The audit system implements comprehensive data sanitization to protect sensitive information while maintaining audit utility.
-
-**Updated** Enhanced with advanced sanitization policies including secret pattern redaction, size limits, and depth constraints for both request and response data.
-
-**Section sources**
-- [src/utils/audit-mcp-summary.ts:16-79](file://src/utils/audit-mcp-summary.ts#L16-L79)
-- [src/utils/structured-logger.ts:55-142](file://src/utils/structured-logger.ts#L55-L142)
 
 ## Dependency Analysis
 ```mermaid

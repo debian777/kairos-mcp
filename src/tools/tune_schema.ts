@@ -19,7 +19,15 @@ export const tuneInputSchema = z
     space: z
       .union([z.literal('personal'), z.string()])
       .optional()
-      .describe('Move all layers of each target adapter to this space ("personal" or group name), optionally after content updates')
+      .describe('Move all layers of each target adapter to this space ("personal" or group name), optionally after content updates'),
+    review_evidence: z.object({
+      verdict_file: z.string().describe('Absolute path to the phase-critic verdict file'),
+      exit_code: z.number().describe('Shell exit code (must be 0)'),
+      stdout: z.string().describe('Shell stdout (line 1 must be PASS)')
+    }).optional().describe(
+      'Phase-critic review evidence. Required when content is provided (adapter body edits). '
+      + 'One PASS covers all URIs in the tune call.'
+    )
   })
   .superRefine((value, ctx) => {
     if (value.content && value.content.length !== value.uris.length) {
@@ -35,6 +43,15 @@ export const tuneInputSchema = z
         code: z.ZodIssueCode.custom,
         path: ['content'],
         message: 'Provide content, updates, or space'
+      });
+    }
+    // review_evidence is required when content is provided (adapter body edits)
+    const hasContent = Array.isArray(value.content) && value.content.some(s => typeof s === 'string' && s.trim().length > 0);
+    if (hasContent && !value.review_evidence) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['review_evidence'],
+        message: 'review_evidence is required when tune includes content updates. Run phase-critic first and provide the verdict file as proof.'
       });
     }
   });

@@ -25,10 +25,14 @@ export function extractFrontmatterSlug(markdownContent: string): string | null {
   return slug.length > 0 ? slug : null;
 }
 
+/**
+ * Delete preexisting app-space entries matching by slug or H1-title-derived adapter ID.
+ * Used during boot to clean up pre-existing data before retraining.
+ */
 export async function deletePreexistingAppSpaceEntries(
   memoryStore: MemoryQdrantStore,
   markdownContent: string,
-  targetUuid: string
+  contextLabel: string
 ): Promise<void> {
   const parsed = parseFrontmatter(markdownContent);
   const body = parsed.body.length > 0 ? parsed.body : markdownContent;
@@ -58,52 +62,14 @@ export async function deletePreexistingAppSpaceEntries(
 
   const { client, collection } = memoryStore.getQdrantAccess();
   const { redisCacheService } = await import('../services/redis-cache.js');
-  await redisCacheService.invalidateMemoryCache(targetUuid);
+  await redisCacheService.invalidateMemoryCache(contextLabel);
 
   for (const filter of filters) {
     await client.delete(collection, { filter } as any);
   }
   await redisCacheService.invalidateAfterUpdate();
 
-  if (slug.length > 0) {
-    structuredLogger.warn(
-      `[mem-resources-boot] Removed preexisting app-space points for slug=${slug}; preparing canonical UUID=${targetUuid}`
-    );
-  } else {
-    structuredLogger.warn(
-      `[mem-resources-boot] Removed preexisting app-space points; preparing canonical UUID=${targetUuid}`
-    );
-  }
-}
-
-export async function remapMemoryToTargetUuid(
-  memoryStore: MemoryQdrantStore,
-  storedUuid: string,
-  targetUuid: string
-): Promise<void> {
-  const { client, collection } = memoryStore.getQdrantAccess();
-  const storedPoint = await client.retrieve(collection, {
-    ids: [storedUuid],
-    with_payload: true,
-    with_vector: true
-  });
-
-  if (!storedPoint || storedPoint.length === 0) return;
-
-  const point = storedPoint[0]!;
-  await client.delete(collection, { points: [storedUuid] });
-
-  const upsertPoint: any = {
-    id: targetUuid,
-    payload: point.payload
-  };
-  if (point.vector) {
-    upsertPoint.vector = point.vector;
-  }
-  await client.upsert(collection, { points: [upsertPoint] });
-
-  const { redisCacheService } = await import('../services/redis-cache.js');
-  await redisCacheService.invalidateMemoryCache(storedUuid);
-  await redisCacheService.invalidateMemoryCache(targetUuid);
-  await redisCacheService.invalidateAfterUpdate();
+  structuredLogger.warn(
+    `[mem-resources-boot] Removed preexisting app-space points for '${contextLabel}'`
+  );
 }

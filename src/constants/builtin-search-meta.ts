@@ -3,12 +3,13 @@ import { getMetaDoc } from '../resources/embedded-mcp-resources.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
 
 /** Refine-help protocol; always appended as an **activate** footer choice (not a vector match). */
-export const KAIROS_REFINING_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002002';
 export const KAIROS_REFINING_PROTOCOL_SLUG = 'refine-search';
 
 /** Built-in adapter authoring flow; always appended as an **activate** footer choice (not a vector match). */
-export const KAIROS_CREATION_PROTOCOL_UUID = '00000000-0000-0000-0000-000000002001';
 export const KAIROS_CREATION_PROTOCOL_SLUG = 'create-new-protocol';
+
+/** Set of built-in protocol slugs used for search filtering. */
+export const BUILTIN_PROTOCOL_SLUGS = new Set([KAIROS_REFINING_PROTOCOL_SLUG, KAIROS_CREATION_PROTOCOL_SLUG]);
 
 function getMetaDocTitle(slug: string, fallbackTitle: string): string {
   const doc = getMetaDoc(slug);
@@ -41,10 +42,6 @@ export const KAIROS_CREATION_FOOTER_NEXT_ACTION =
 
 /** True if this memory belongs to built-in footer protocols (refine / create). */
 export function memoryIsBuiltinSearchFooterProtocol(m: Memory): boolean {
-  return (
-    m.memory_uuid === KAIROS_REFINING_PROTOCOL_UUID ||
-    m.adapter?.id === KAIROS_REFINING_PROTOCOL_UUID ||
-    m.memory_uuid === KAIROS_CREATION_PROTOCOL_UUID ||
-    m.adapter?.id === KAIROS_CREATION_PROTOCOL_UUID
-  );
+  const slug = m.slug ?? '';
+  return slug.length > 0 && BUILTIN_PROTOCOL_SLUGS.has(slug);
 }

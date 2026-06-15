@@ -45,7 +45,7 @@ app:
   metricsPort: 9090
   image:
     repository: "quay.io/debian777/kairos-mcp"
-    tag: "4.7.1"
+    tag: "4.7.4"
     pullPolicy: "IfNotPresent"
   existingSecret: ""
   redisUrl: ""
@@ -93,13 +93,24 @@ gateway:
   gatewayName: "kairos-gateway"
   existingGatewayName: ""
   existingGatewayNamespace: ""
-  gatewayClassName: "ngrok"
+  # Gateway API gatewayClassName. Empty string triggers cluster autodetection:
+  # the chart looks up GatewayClass resources and picks the first available.
+  # Set explicitly (e.g. "ngrok", "istio", "traefik") to skip autodetection.
+  # If no GatewayClass exists and ingressClassName is set, falls back to ingress.
+  gatewayClassName: ""
   hostname: ""
   httpPort: 80
   httpsPort: 443
   # When TLS is enabled, also expose HTTP listener (useful for local dev).
   allowHttpWithTls: false
   ingressClassName: ""
+  # Provider-specific annotations passed to Gateway spec.infrastructure.annotations.
+  # Use for Istio proxy config, ngrok policies, or other provider extensions.
+  # PSA enforcement is a cluster concern - configure at namespace level outside this chart.
+  infrastructureAnnotations: {}
+  # Example for Istio:
+  #   infrastructureAnnotations:
+  #     proxy.istio.io/config: '{"seccompProfile":{"type":"RuntimeDefault"}}'
   tls:
     secretName: ""
     certManager:
@@ -111,6 +122,15 @@ gateway:
   routes:
     mcp:
       path: "/"
+      cors:
+        # When enabled, adds CORS response headers via Gateway API
+        # ResponseHeaderModifier filter. App-level CORS middleware
+        # (src/http/http-mcp-cors.ts) remains as fallback for preflight.
+        enabled: false
+        allowOrigins: "*"
+        allowMethods: "POST, OPTIONS"
+        allowHeaders: "Content-Type, Authorization, MCP-Protocol-Version"
+        maxAge: 86400
     keycloak:
       enabled: true
       path: "/sso"

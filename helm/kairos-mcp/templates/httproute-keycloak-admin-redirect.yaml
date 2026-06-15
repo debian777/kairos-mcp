@@ -16,7 +16,7 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ $gw.existingGatewayName | default $gw.gatewayName }}
+      name: {{ include "kairos.resolvedGatewayName" . }}
       {{- if $gw.existingGatewayNamespace }}
       namespace: {{ $gw.existingGatewayNamespace }}
       {{- else }}

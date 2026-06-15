@@ -1,6 +1,6 @@
 import {
-  KAIROS_CREATION_PROTOCOL_UUID,
-  KAIROS_REFINING_PROTOCOL_UUID,
+  KAIROS_CREATION_PROTOCOL_SLUG,
+  KAIROS_REFINING_PROTOCOL_SLUG,
   memoryIsBuiltinSearchFooterProtocol
 } from '../../src/constants/builtin-search-meta.js';
 import type { Memory } from '../../src/types/memory.js';
@@ -17,34 +17,18 @@ function mem(partial: Partial<Memory> & Pick<Memory, 'memory_uuid'>): Memory {
 }
 
 describe('memoryIsBuiltinSearchFooterProtocol', () => {
-  it('detects refine head and adapter layers', () => {
+  it('detects refine protocol by slug', () => {
     expect(
       memoryIsBuiltinSearchFooterProtocol(
-        mem({ memory_uuid: KAIROS_REFINING_PROTOCOL_UUID })
-      )
-    ).toBe(true);
-    expect(
-      memoryIsBuiltinSearchFooterProtocol(
-        mem({
-          memory_uuid: 'other-uuid',
-          adapter: { id: KAIROS_REFINING_PROTOCOL_UUID, name: 'L', layer_index: 2, layer_count: 3 }
-        })
+        mem({ memory_uuid: 'some-uuid', slug: KAIROS_REFINING_PROTOCOL_SLUG })
       )
     ).toBe(true);
   });
 
-  it('detects creation head and adapter layers', () => {
+  it('detects creation protocol by slug', () => {
     expect(
       memoryIsBuiltinSearchFooterProtocol(
-        mem({ memory_uuid: KAIROS_CREATION_PROTOCOL_UUID })
-      )
-    ).toBe(true);
-    expect(
-      memoryIsBuiltinSearchFooterProtocol(
-        mem({
-          memory_uuid: 'step-2',
-          adapter: { id: KAIROS_CREATION_PROTOCOL_UUID, name: 'L', layer_index: 2, layer_count: 5 }
-        })
+        mem({ memory_uuid: 'some-uuid', slug: KAIROS_CREATION_PROTOCOL_SLUG })
       )
     ).toBe(true);
   });
@@ -59,6 +43,7 @@ describe('memoryIsBuiltinSearchFooterProtocol', () => {
       memoryIsBuiltinSearchFooterProtocol(
         mem({
           memory_uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          slug: 'some-other-slug',
           adapter: { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', name: 'C', layer_index: 1, layer_count: 1 }
         })
       )
