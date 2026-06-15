@@ -1,5 +1,5 @@
 ---
-version: "4.8.0-beta.0"
+version: "4.8.0-beta.1"
 slug: protocol-linking-guide
 title: Protocol Linking Guide
 ---
