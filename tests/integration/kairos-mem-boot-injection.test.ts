@@ -11,13 +11,12 @@ import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 const KAIROS_APP_SPACE_NAME = 'Kairos app';
 const EXPECTED_BOOT_ADAPTER_COUNT = 6;
-const STATIC_SYSTEM_ADAPTERS: Array<{ slug: string; uuid: string }> = [
-  { slug: 'create-new-protocol', uuid: '00000000-0000-0000-0000-000000002001' },
-  { slug: 'refine-search', uuid: '00000000-0000-0000-0000-000000002002' },
-  { slug: 'create-new-protocol-review', uuid: '00000000-0000-0000-0000-000000002003' },
-  { slug: 'challenge-type-guide', uuid: '00000000-0000-0000-0000-000000002004' },
-  { slug: 'phase-critic', uuid: '00000000-0000-0000-0000-000000002005' },
-  { slug: 'protocol-linking-guide', uuid: '00000000-0000-0000-0000-000000002006' },
+const STATIC_SYSTEM_ADAPTERS: Array<{ slug: string }> = [
+  { slug: 'create-new-protocol' },
+  { slug: 'refine-search' },
+  { slug: 'challenge-type-guide' },
+  { slug: 'phase-critic' },
+  { slug: 'protocol-linking-guide' },
 ];
 
 describe('Mem boot injection', () => {
@@ -66,7 +65,7 @@ describe('Mem boot injection', () => {
 
       if (result.isError === true && result.content?.[0]) {
         const errText = (result.content[0] as { text?: string }).text ?? String(result.content[0]);
-        throw new Error(`export failed for ${expected.slug} (${expected.uuid}): ${errText}`);
+        throw new Error(`export failed for ${expected.slug}: ${errText}`);
       }
 
       expect(result.isError).not.toBe(true);

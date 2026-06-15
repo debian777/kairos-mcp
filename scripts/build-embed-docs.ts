@@ -202,7 +202,7 @@ export function getPrompt(key: string): string | undefined {
 }
 
 /**
- * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'mem.<uuid>')
+ * Get a resource by key (e.g. 'TEST', 'doc.TEST', 'meta.<slug>')
  */
 export function getResource(key: string): string | any | undefined {
   const parts = key.split('.');

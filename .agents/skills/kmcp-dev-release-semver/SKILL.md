@@ -121,7 +121,78 @@ Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**
 
 ---
 
-## 5. Edge cases
+## 5. Beta release on a non-main branch
+
+The auto-release workflow (`release-tag-on-version-bump.yml`) has three trigger paths:
+
+| Trigger | When | Branches |
+|---------|------|----------|
+| `workflow_run` | Integration/Integration Simple succeed | `main`, `ci/**` |
+| `pull_request` (closed) | `release/*beta*` PR merged | **any** target branch |
+| `workflow_dispatch` | Manual trigger | any ref (beta only) |
+
+**Non-main branches only allow beta versions** (version must contain `-beta.`).
+
+### 5.1 Automatic path: PR merge triggers release
+
+When a `release/*beta*` branch PR is merged into **any** branch (e.g. `next/v4.8`),
+the workflow fires automatically via the `pull_request` trigger. No manual steps needed.
+
+The workflow:
+1. Verifies the PR was merged (not just closed).
+2. Verifies the head branch matches `release/*beta*`.
+3. Checks out the target branch, creates and pushes the tag.
+4. Dispatches the Release workflow.
+
+### 5.2 Create the version bump PR targeting the non-main branch
+
+```bash
+# From the target branch (e.g. next/v4.8)
+git checkout next/v4.8
+git pull origin next/v4.8
+git checkout -b release/<version>       # e.g. release/4.8.0-beta.1
+npm run release:beta                     # bumps to next -beta.N
+VERSION=$(node -p "require('./package.json').version")
+git branch -m release/beta "release/$VERSION"
+git add package.json package-lock.json src/embed-docs/mem/ skills/
+git commit -m "release: $VERSION"
+git push -u origin "release/$VERSION"
+gh pr create --base next/v4.8 --head "release/$VERSION" \
+  --title "release: $VERSION" \
+  --body "Version bump to $VERSION."
+```
+
+After merge, the release workflow triggers automatically.
+
+### 5.3 Fallback: manual `workflow_dispatch`
+
+If the automatic trigger fails or you need to re-release from a branch without a new PR:
+
+```bash
+gh workflow run release-tag-on-version-bump.yml \
+  --ref <branch> -f ref=<branch>
+# Example:
+gh workflow run release-tag-on-version-bump.yml \
+  --ref next/v4.8 -f ref=next/v4.8
+```
+
+### 5.4 Verify
+
+```bash
+# Check the tag workflow run
+gh run list --workflow=release-tag-on-version-bump.yml --limit 3
+# Check the release workflow run
+gh run list --workflow=release.yml --limit 3
+# Verify the release
+gh release view v<version>
+```
+
+**Do not create or push `refs/tags/v*` locally.** Tags are created by the
+workflow; pre-push hooks block manual tags.
+
+---
+
+## 6. Edge cases
 
 - **Dirty tree** — stash or commit unrelated work first.
 - **Existing `release/*`** — confirm reuse vs delete with the user.
