@@ -1,6 +1,6 @@
 ---
 slug: create-new-protocol
-version: "4.8.0-beta.0"
+version: "4.8.0-beta.1"
 title: Create / Review / Refactor KAIROS Protocol
 ---
 
