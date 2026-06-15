@@ -51,6 +51,8 @@ gateway:
   routes:
     mcp:
       path: /
+      cors:
+        enabled: true
     keycloak:
       enabled: true
       path: /sso

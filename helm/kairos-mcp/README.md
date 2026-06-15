@@ -49,8 +49,11 @@ When any of `redisCluster.enabled`, `keycloakInstance.enabled`, or `postgresClus
 
 ## Gateway API
 
-Set `gateway.enabled: true`, `gateway.hostname`, and
-`gateway.gatewayClassName`. The app route renders only when `app.enabled=true`.
+Set `gateway.enabled: true` and `gateway.hostname`. If `gateway.gatewayClassName`
+is empty (the default), the chart auto-detects the first available GatewayClass in
+the cluster; set it explicitly (e.g. `ngrok`, `istio`, `traefik`) to skip autodetection.
+If no GatewayClass exists and `gateway.ingressClassName` is set, the chart falls back
+to ingress mode. The app route renders only when `app.enabled=true`.
 Keycloak is exposed at `https://<hostname>/sso`. For the repo-local k3d flow,
 `helm/.dev/k3b.sh` installs operators, ngrok, `GatewayClass/ngrok`, and by default
 the `kairos` Helm release (`helm/values.dev.yaml`) so the MCP app and Keycloak get
