@@ -316,7 +316,7 @@ Output adapter URIs are derived from:
 ### HTTP Endpoints and CLI
 - HTTP JSON endpoint: Validates JSON body, resolves space context, executes training, and returns structured results or sanitized error payloads.
 - HTTP RAW endpoint: Reads raw markdown from request body, infers attributes from headers/query, validates, and executes training.
-- CLI train: Supports single-file and directory batch modes, artifact mode detection, and emits JSON results. In batch mode with `--model`, co-located artifact files are auto-discovered and uploaded alongside each adapter.
+- CLI train: Supports single-file and directory batch modes, artifact mode detection, and emits JSON results.
 
 ```mermaid
 sequenceDiagram
@@ -458,7 +458,7 @@ The Train Tool provides a robust, validated pathway to ingest protocols and arti
 - Attach an artifact to an adapter
   - Supply content, llm_model_id, mime (or infer from artifact_name), adapter_uri, and optional relative_path.
 - Batch training from a directory
-  - CLI supports recursive scanning of `.md` files (excluding `README.md`). When `--model` is provided, co-located artifact-compatible files (`.py`, `.sh`, `.yaml`, `.yml`, `.js`, `.toml`, etc.) in the same directory as each `.md` file are automatically uploaded as artifacts linked to that adapter. Artifact results appear nested under `artifacts[]` in each batch result entry.
+  - CLI supports recursive scanning of .md files excluding README.md.
 
 **Section sources**
 - [src/http/http-api-train-json.ts:51-107](file://src/http/http-api-train-json.ts#L51-L107)

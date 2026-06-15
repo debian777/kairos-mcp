@@ -6,6 +6,7 @@
 - [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
 - [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
 - [src/http/http-mcp-cors.ts](file://src/http/http-mcp-cors.ts)
+- [src/http/mcp-audit-emit.ts](file://src/http/mcp-audit-emit.ts)
 - [src/http/mcp-ui-offerings-auth-jsonrpc.ts](file://src/http/mcp-ui-offerings-auth-jsonrpc.ts)
 - [src/mcp-apps/kairos-server-ui-capability.ts](file://src/mcp-apps/kairos-server-ui-capability.ts)
 - [src/mcp-apps/list-offerings-for-ui.ts](file://src/mcp-apps/list-offerings-for-ui.ts)
@@ -18,16 +19,19 @@
 - [src/tools/train.ts](file://src/tools/train.ts)
 - [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
 - [src/http/http-error-handlers.ts](file://src/http/http-error-handlers.ts)
+- [src/utils/tenant-context.ts](file://src/utils/tenant-context.ts)
+- [docs/security/audit-log.md](file://docs/security/audit-log.md)
+- [scripts/journey-export.mjs](file://scripts/journey-export.mjs)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced MCP protocol architecture documentation with comprehensive coverage of protocol tools
-- Added detailed UI integration documentation for MCP Apps and Skybridge profiles
-- Expanded technical specifications for tool registration, resource management, and authentication flows
-- Updated architecture diagrams to reflect the complete MCP server implementation
-- Added protocol versioning and backward compatibility mechanisms
-- Documented extension mechanisms for UI capability blocks and resource offerings
+- Enhanced MCP audit event system with improved response capture mechanism for detailed logging
+- Improved audit event timing with better tenant ID resolution within space context
+- Updated MCP HTTP handler with enhanced response capture and audit event coordination
+- Added comprehensive audit logging infrastructure for MCP protocol operations
+- Integrated stream-level response capture approach for optimized request lifecycle management
+- Enhanced tenant context handling within space context for improved operational visibility
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -35,16 +39,17 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+6. [Audit and Monitoring System](#audit-and-monitoring-system)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes the KAIROS Model Context Protocol (MCP) implementation over HTTP transport. It explains how the MCP server is constructed, how tools are registered and invoked, how resources and UI capabilities are exposed, and how authentication and authorization are enforced. It also documents message flows, error handling, state management, protocol versioning, backward compatibility, and extension mechanisms.
+This document describes the KAIROS Model Context Protocol (MCP) implementation over HTTP transport. It explains how the MCP server is constructed, how tools are registered and invoked, how resources and UI capabilities are exposed, and how authentication and authorization are enforced. The architecture now includes comprehensive audit logging with enhanced response capture mechanisms, improved tenant ID resolution within space context, and coordinated audit event timing for operational visibility.
 
 ## Project Structure
-The MCP server is implemented as an Express application with dedicated routes and middleware. The server composes an MCP-compatible toolset and UI resources, registers them with the MCP SDK, and exposes them via an HTTP transport.
+The MCP server is implemented as an Express application with dedicated routes and middleware. The server composes an MCP-compatible toolset and UI resources, registers them with the MCP SDK, and exposes them via an HTTP transport. A sophisticated audit system captures detailed request/response information with proper tenant context resolution.
 
 ```mermaid
 graph TB
@@ -53,6 +58,7 @@ Express["Express App"]
 CORS["CORS Middleware (/mcp)"]
 Auth["Auth Middleware (/api,/mcp,/ui)"]
 Routes["Route Handlers (/mcp, /health, /ui)"]
+Audit["Audit Middleware<br/>Response Capture & Timing"]
 end
 subgraph "MCP Server"
 Server["McpServer Instance"]
@@ -60,40 +66,53 @@ Tools["Registered Tools<br/>activate, forward, train, reward, tune, delete, expo
 Resources["Resource Handlers<br/>Bootstrap + Docs/Prompts"]
 UI["UI Capability Block<br/>MCP Apps HTML/Skybridge"]
 end
-Express --> CORS --> Auth --> Routes --> Server
+subgraph "Audit System"
+ResponseCapture["Response Capture Mechanism"]
+TenantContext["Tenant ID Resolution"]
+AuditEvents["Audit Event Emission"]
+Correlation["Correlation ID Generation"]
+end
+Express --> CORS --> Auth --> Routes --> Audit --> Server
 Server --> Tools
 Server --> Resources
 Server --> UI
+Audit --> ResponseCapture
+Audit --> TenantContext
+Audit --> AuditEvents
+Audit --> Correlation
 ```
 
 **Diagram sources**
-- [src/http/http-mcp-cors.ts:3-28](file://src/http/http-mcp-cors.ts#L3-L28)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 - [src/http/http-auth-middleware.ts:167-313](file://src/http/http-auth-middleware.ts#L167-L313)
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
 - [src/server.ts:124-193](file://src/server.ts#L124-L193)
 
 **Section sources**
 - [src/server.ts:124-193](file://src/server.ts#L124-L193)
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
 - [src/http/http-auth-middleware.ts:167-313](file://src/http/http-auth-middleware.ts#L167-L313)
 - [src/http/http-mcp-cors.ts:3-28](file://src/http/http-mcp-cors.ts#L3-L28)
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
 
 ## Core Components
-- HTTP transport and request lifecycle: The MCP endpoint accepts POST requests, validates authentication, enforces concurrency limits, and delegates to an MCP server instance per request.
+- HTTP transport and request lifecycle: The MCP endpoint accepts POST requests, validates authentication, enforces concurrency limits, and delegates to an MCP server instance per request with enhanced audit capabilities.
 - Authentication and authorization: Session-based and Bearer token validation with OIDC integration; enforcement on protected paths including /mcp.
 - Tool registration: Tools are registered with strict input/output schemas and optional UI metadata for MCP Apps.
 - UI capability extensions: The server advertises support for MCP Apps HTML and Skybridge profiles and exposes UI resources for tools.
 - Resource management: Resource handlers are bootstrapped to ensure MCP resource APIs are available even without public resources.
+- **Enhanced Audit System**: Comprehensive response capture mechanism, improved tenant ID resolution within space context, and coordinated audit event timing for operational visibility.
 
 **Section sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
 - [src/http/http-auth-middleware.ts:167-313](file://src/http/http-auth-middleware.ts#L167-L313)
 - [src/server.ts:124-193](file://src/server.ts#L124-L193)
 - [src/mcp-apps/kairos-server-ui-capability.ts:7-13](file://src/mcp-apps/kairos-server-ui-capability.ts#L7-L13)
 - [src/resources/resource-bootstrap.ts:8-44](file://src/resources/resource-bootstrap.ts#L8-L44)
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
 
 ## Architecture Overview
-The MCP server architecture integrates the MCP SDK with an Express application. Requests are authenticated, optionally authorized, and routed to an MCP server instance that handles tool invocations and resource/UI queries.
+The MCP server architecture integrates the MCP SDK with an Express application and enhanced audit capabilities. Requests are authenticated, optionally authorized, routed to an MCP server instance, and monitored with comprehensive audit logging that captures response details and resolves tenant context.
 
 ```mermaid
 sequenceDiagram
@@ -101,12 +120,14 @@ participant Client as "MCP Client"
 participant Express as "Express App"
 participant Auth as "Auth Middleware"
 participant Handler as "MCP Handler"
+participant Audit as "Audit System"
 participant Transport as "StreamableHTTP Transport"
 participant Server as "McpServer"
 Client->>Express : POST /mcp (JSON-RPC)
 Express->>Auth : Enforce auth on protected paths
 Auth-->>Express : Auth payload or 401
 Express->>Handler : Route to MCP handler
+Handler->>Audit : Install response capture & generate correlation ID
 Handler->>Handler : Resolve auth, validate concurrency
 Handler->>Transport : Create StreamableHTTPServerTransport
 Handler->>Server : connect(transport)
@@ -114,12 +135,14 @@ Handler->>Transport : handleRequest(req, res, body)
 Transport->>Server : Dispatch JSON-RPC method
 Server-->>Transport : Tool result or error
 Transport-->>Handler : JSON-RPC response
+Handler->>Audit : Capture response & resolve tenant ID
 Handler-->>Client : 200 OK (JSON-RPC)
 ```
 
 **Diagram sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
 - [src/http/http-auth-middleware.ts:167-313](file://src/http/http-auth-middleware.ts#L167-L313)
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 
 ## Detailed Component Analysis
 
@@ -128,6 +151,7 @@ Handler-->>Client : 200 OK (JSON-RPC)
 - Concurrency control: Tracks in-flight requests and rejects with 503 when exceeding configured limits.
 - Authentication resolution: Supports session or Bearer token validation; logs and sanitizes errors.
 - Request logging: Emits structured logs for request start/completion/cancel/close with timing.
+- **Enhanced Audit Integration**: Response capture mechanism intercepts stream-level responses for detailed logging.
 - Special handling: listOfferingsForUI is handled locally to return proper auth-related responses.
 
 ```mermaid
@@ -139,16 +163,19 @@ IsListOfferings --> |No| Concurrency["Increment concurrent counter"]
 Concurrency --> OverLimit{"Over limit?"}
 OverLimit --> |Yes| Reject["503 overloaded with Retry-After"]
 OverLimit --> |No| CreateServer["createServer(memoryStore)"]
-CreateServer --> Transport["StreamableHTTPServerTransport"]
+CreateServer --> AuditSetup["Install response capture & correlation ID"]
+AuditSetup --> Transport["StreamableHTTPServerTransport"]
 Transport --> Handle["transport.handleRequest(...)"]
 Handle --> Done(["Respond with JSON-RPC"])
 ```
 
 **Diagram sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 
 **Section sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
 
 ### Authentication and Authorization
 - Protected paths: /api, /api/*, /mcp, /ui, /ui/*
@@ -382,6 +409,68 @@ Handler-->>Client : 200 OK
 - [src/tools/activate.ts:6-7](file://src/tools/activate.ts#L6-L7)
 - [src/tools/train.ts:21](file://src/tools/train.ts#L21-L21)
 
+## Audit and Monitoring System
+
+### Enhanced Response Capture Mechanism
+The MCP audit system now includes a sophisticated response capture mechanism that intercepts stream-level responses for detailed logging. This mechanism captures JSON-RPC responses at the buffer level, allowing for comprehensive audit logging with configurable detail levels.
+
+**Updated** Enhanced with stream-level response capture that intercepts res.write/res.end calls to capture complete JSON-RPC responses before they are sent to clients.
+
+```mermaid
+flowchart TD
+Start(["Response Capture Setup"]) --> Intercept["Intercept res.write/res.end"]
+Intercept --> Buffer["Buffer Response Chunks"]
+Buffer --> Parse["Parse JSON on res.end()"]
+Parse --> Capture["Store Captured Response"]
+Capture --> Return["Return Original Response"]
+```
+
+**Diagram sources**
+- [src/http/mcp-audit-emit.ts:23-43](file://src/http/mcp-audit-emit.ts#L23-L43)
+
+### Improved Audit Event Timing
+Audit events are now emitted with precise timing and improved tenant ID resolution. The system captures audit context within the space context, ensuring tenant information is available when tools are executed.
+
+**Updated** Enhanced with improved tenant ID resolution within space context, ensuring accurate attribution of MCP operations to the correct tenant through the space context storage mechanism.
+
+```mermaid
+sequenceDiagram
+participant Handler as "MCP Handler"
+participant Audit as "Audit System"
+participant SpaceCtx as "Space Context"
+participant Tenant as "Tenant Resolution"
+Handler->>Audit : emitRequestStart()
+Audit->>SpaceCtx : Establish space context
+SpaceCtx->>Tenant : Resolve tenant ID
+Tenant-->>Audit : Return tenant ID
+Audit-->>Handler : Complete audit setup
+Handler->>Audit : emitToolCallAudit() with tenant info
+```
+
+**Diagram sources**
+- [src/http/mcp-audit-emit.ts:50-63](file://src/http/mcp-audit-emit.ts#L50-L63)
+- [src/http/http-mcp-handler.ts:296-308](file://src/http/http-mcp-handler.ts#L296-L308)
+
+### Tenant ID Resolution Within Space Context
+The audit system now properly resolves tenant IDs within the space context, ensuring accurate attribution of MCP operations to the correct tenant. This enhancement improves the reliability of audit trails and operational monitoring.
+
+**Updated** Integrated with the space context system that uses AsyncLocalStorage to maintain tenant context across asynchronous operations, providing consistent tenant identification throughout the request lifecycle.
+
+**Section sources**
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
+- [src/http/http-mcp-handler.ts:296-308](file://src/http/http-mcp-handler.ts#L296-L308)
+- [src/utils/tenant-context.ts:86-100](file://src/utils/tenant-context.ts#L86-L100)
+- [src/utils/tenant-context.ts:245-298](file://src/utils/tenant-context.ts#L245-L298)
+
+### Audit Logging Specification
+The audit system follows a comprehensive specification for MCP protocol operations with configurable verbosity levels and standardized event formats.
+
+**Updated** Enhanced with detailed audit logging specification covering MCP event names, correlation models, and JSONL format examples for operational investigations.
+
+**Section sources**
+- [docs/security/audit-log.md:105-137](file://docs/security/audit-log.md#L105-L137)
+- [scripts/journey-export.mjs:114-200](file://scripts/journey-export.mjs#L114-L200)
+
 ## Dependency Analysis
 ```mermaid
 graph TB
@@ -393,21 +482,29 @@ E --> F["McpServer"]
 F --> G["Tool Registry"]
 F --> H["Resource Bootstrap"]
 F --> I["UI Capability Block"]
+D --> J["Audit System"]
+J --> K["Response Capture"]
+J --> L["Tenant Context"]
+J --> M["Audit Events"]
 ```
 
 **Diagram sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
 - [src/server.ts:124-193](file://src/server.ts#L124-L193)
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
 
 **Section sources**
-- [src/http/http-mcp-handler.ts:128-344](file://src/http/http-mcp-handler.ts#L128-L344)
+- [src/http/http-mcp-handler.ts:124-344](file://src/http/http-mcp-handler.ts#L124-L344)
 - [src/server.ts:124-193](file://src/server.ts#L124-L193)
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
 
 ## Performance Considerations
 - Concurrency limiting: Prevents overload by rejecting requests when concurrent limits are exceeded.
 - Request timeouts: Logs warnings around 25s to detect slow operations.
 - Logging levels: Structured logs include request IDs and durations for diagnostics.
 - Resource availability: Bootstrapping ensures resource endpoints remain responsive even without registered resources.
+- **Audit overhead**: Response capture adds minimal performance overhead while providing comprehensive audit capabilities.
+- **Tenant resolution**: Efficient tenant ID resolution within space context minimizes performance impact.
 
 ## Troubleshooting Guide
 - 401 Unauthorized on /mcp:
@@ -418,12 +515,17 @@ F --> I["UI Capability Block"]
   - Use POST /mcp; GET is rejected.
 - CORS issues:
   - Verify Access-Control-Allow-Origin and exposed headers including WWW-Authenticate.
+- **Audit logging issues**:
+  - Check AUDIT_LOG_LEVEL configuration for appropriate verbosity.
+  - Verify response capture is properly installed for detailed logging.
+  - Ensure tenant context is established before audit events are emitted.
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:292-313](file://src/http/http-auth-middleware.ts#L292-L313)
 - [src/http/http-mcp-handler.ts:176-200](file://src/http/http-mcp-handler.ts#L176-L200)
 - [src/http/http-error-handlers.ts:42-47](file://src/http/http-error-handlers.ts#L42-L47)
 - [src/http/http-mcp-cors.ts:3-28](file://src/http/http-mcp-cors.ts#L3-L28)
+- [src/http/mcp-audit-emit.ts:17-48](file://src/http/mcp-audit-emit.ts#L17-L48)
 
 ## Conclusion
-The KAIROS MCP implementation provides a robust, authenticated, and extensible HTTP transport for the Model Context Protocol. Tools are strictly typed and integrated with UI capability extensions for modern chat hosts. The architecture emphasizes observability, backward compatibility, and clear error handling, enabling reliable integration with diverse MCP clients.
+The KAIROS MCP implementation provides a robust, authenticated, and extensible HTTP transport for the Model Context Protocol with comprehensive audit capabilities. The enhanced audit system includes sophisticated response capture mechanisms, improved tenant ID resolution within space context, and coordinated audit event timing for operational visibility. Tools are strictly typed and integrated with UI capability extensions for modern chat hosts. The architecture emphasizes observability, backward compatibility, and clear error handling, enabling reliable integration with diverse MCP clients while maintaining detailed operational insights.

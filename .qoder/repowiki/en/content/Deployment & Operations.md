@@ -19,7 +19,19 @@
 - [helm/prerequisites/install-ngrok-operator.sh](file://helm/prerequisites/install-ngrok-operator.sh)
 - [helm/.dev/helm-deploy.sh](file://helm/.dev/helm-deploy.sh)
 - [helm/.dev/helm-update.sh](file://helm/.dev/helm-update.sh)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml)
+- [helm/kairos-mcp/templates/operator-precheck-job.yaml](file://helm/kairos-mcp/templates/operator-precheck-job.yaml)
+- [helm/kairos-mcp/templates/gateway.yaml](file://helm/kairos-mcp/templates/gateway.yaml)
+- [helm/kairos-mcp/templates/_helpers.tpl](file://helm/kairos-mcp/templates/_helpers.tpl)
+- [helm/kairos-mcp/templates/kairos-mcp-deployment.yaml](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated Helm chart configurations with gateway security improvements and dependency management updates
+- Added operator precheck configuration and explicit Gateway API default fields
+- Updated image tags to 4.6.3 in Chart.yaml
+- Enhanced security context configurations with improved PodSecurity standards
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -62,6 +74,10 @@ P3["helm/prerequisites/install-redis-operator.sh"]
 P4["helm/prerequisites/install-ngrok-operator.sh"]
 F1["helm/.dev/helm-deploy.sh"]
 F2["helm/.dev/helm-update.sh"]
+OP1["Operator Precheck ConfigMap"]
+OP2["Operator Precheck Job"]
+GW["Gateway Configuration"]
+SEC["Security Context Enhancements"]
 end
 C1 --> D1
 C1 --> D2
@@ -79,6 +95,10 @@ P3 --> H3
 P4 --> H3
 F1 --> H3
 F2 --> H3
+OP1 --> H3
+OP2 --> H3
+GW --> H3
+SEC --> H3
 ```
 
 **Diagram sources**
@@ -98,6 +118,10 @@ F2 --> H3
 - [helm/prerequisites/install-ngrok-operator.sh:1-38](file://helm/prerequisites/install-ngrok-operator.sh#L1-L38)
 - [helm/.dev/helm-deploy.sh:1-242](file://helm/.dev/helm-deploy.sh#L1-L242)
 - [helm/.dev/helm-update.sh:1-15](file://helm/.dev/helm-update.sh#L1-L15)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
+- [helm/kairos-mcp/templates/operator-precheck-job.yaml:1-42](file://helm/kairos-mcp/templates/operator-precheck-job.yaml#L1-L42)
+- [helm/kairos-mcp/templates/gateway.yaml:1-46](file://helm/kairos-mcp/templates/gateway.yaml#L1-L46)
+- [helm/kairos-mcp/templates/kairos-mcp-deployment.yaml:72-81](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml#L72-L81)
 
 **Section sources**
 - [compose.yaml:1-183](file://compose.yaml#L1-L183)
@@ -108,12 +132,13 @@ F2 --> H3
 - Docker Compose services for Qdrant, optional Valkey/RedisInsight, Postgres, Keycloak, and the MCP application.
 - Helm chart for Kubernetes with configurable profiles and operator-driven infrastructure.
 - Scripts for environment generation, operator installation, and local Helm development.
+- Enhanced security contexts with improved PodSecurity standards and runtime defaults.
 
 **Section sources**
 - [Dockerfile:1-76](file://Dockerfile#L1-L76)
 - [Dockerfile.dev:1-68](file://Dockerfile.dev#L1-L68)
 - [compose.yaml:10-183](file://compose.yaml#L10-L183)
-- [helm/kairos-mcp/Chart.yaml:1-23](file://helm/kairos-mcp/Chart.yaml#L1-L23)
+- [helm/kairos-mcp/Chart.yaml:6](file://helm/kairos-mcp/Chart.yaml#L6)
 - [helm/kairos-mcp/values.yaml:1-279](file://helm/kairos-mcp/values.yaml#L1-L279)
 
 ## Architecture Overview
@@ -141,6 +166,8 @@ B4["PostgresCluster"]
 B5["KeycloakInstance"]
 B6["Gateway (ngrok/Traefik)"]
 B7["Monitoring (ServiceMonitors/PrometheusRule)"]
+B8["Operator Precheck"]
+B9["Enhanced Security Context"]
 B1 --- B2
 B1 --- B3
 B5 --- B4
@@ -151,6 +178,8 @@ B7 -.-> B2
 B7 -.-> B3
 B7 -.-> B4
 B7 -.-> B5
+B8 --> B1
+B9 --> B1
 end
 ```
 
@@ -159,6 +188,8 @@ end
 - [helm/kairos-mcp/values.yaml:123-279](file://helm/kairos-mcp/values.yaml#L123-L279)
 - [helm/values.dev.yaml:13-83](file://helm/values.dev.yaml#L13-L83)
 - [helm/values.prod.yaml:10-94](file://helm/values.prod.yaml#L10-L94)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
+- [helm/kairos-mcp/templates/kairos-mcp-deployment.yaml:72-81](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml#L72-L81)
 
 ## Detailed Component Analysis
 
@@ -219,20 +250,27 @@ Up --> Done(["Ready"])
 - Infrastructure operators:
   - Keycloak, Postgres, Redis, and ngrok operators installed via OLM or scripts.
 - Gateway configuration:
-  - GatewayClass “ngrok” is used; routes for MCP and Keycloak are configurable.
+  - GatewayClass "ngrok" is used; routes for MCP and Keycloak are configurable.
+  - Enhanced with explicit Gateway API default fields and improved security contexts.
 - Monitoring:
   - ServiceMonitors and PrometheusRule are configurable; defaults disabled.
+- Operator Precheck:
+  - New precheck configuration validates required CRDs before installation.
+  - Automatic validation of Redis, Keycloak, and PostgreSQL operator availability.
 
 ```mermaid
 sequenceDiagram
 participant Ops as "Operator"
 participant Helm as "Helm Release"
+participant Precheck as "Operator Precheck"
 participant App as "KAIROS MCP App"
 participant Infra as "Infra Operators"
 Ops->>Infra : Install Keycloak/PG/Redis/ngrok operators
+Helm->>Precheck : Validate CRDs via ConfigMap/Job
+Precheck-->>Helm : CRD validation results
 Helm->>Infra : Provision PostgresCluster, Valkey/RedisFailover, Qdrant
-Helm->>Helm : Apply Gateway (ngrok) and routes
-Helm->>App : Deploy MCP with auth, embedding, and env
+Helm->>Helm : Apply Gateway (ngrok) with enhanced security
+Helm->>App : Deploy MCP with improved security contexts
 App-->>Helm : Health checks succeed
 ```
 
@@ -241,6 +279,8 @@ App-->>Helm : Health checks succeed
 - [helm/kairos-mcp/values.yaml:176-279](file://helm/kairos-mcp/values.yaml#L176-L279)
 - [helm/values.dev.yaml:13-83](file://helm/values.dev.yaml#L13-L83)
 - [helm/values.prod.yaml:10-94](file://helm/values.prod.yaml#L10-L94)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
+- [helm/kairos-mcp/templates/operator-precheck-job.yaml:1-42](file://helm/kairos-mcp/templates/operator-precheck-job.yaml#L1-L42)
 
 **Section sources**
 - [helm/README.md:1-18](file://helm/README.md#L1-L18)
@@ -304,8 +344,9 @@ I --> J["Deploy"]
   - Bridge network for service communication.
   - Health checks for readiness.
 - Kubernetes:
-  - GatewayClass “ngrok” with HTTPRoute/ReferenceGrant for routing.
+  - GatewayClass "ngrok" with HTTPRoute/ReferenceGrant for routing.
   - Service discovery via Kubernetes DNS; MCP and Keycloak exposed via Gateway.
+  - Enhanced security contexts with improved PodSecurity standards.
 
 **Section sources**
 - [compose.yaml:173-183](file://compose.yaml#L173-L183)
@@ -313,12 +354,48 @@ I --> J["Deploy"]
 - [helm/values.dev.yaml:41-59](file://helm/values.dev.yaml#L41-L59)
 - [helm/values.prod.yaml:53-71](file://helm/values.prod.yaml#L53-L71)
 
+### Enhanced Security Contexts
+- Improved PodSecurity standards with runtime defaults and enhanced security configurations.
+- MCP application deployment includes comprehensive securityContext settings:
+  - runAsNonRoot: true
+  - runAsUser: 1000
+  - allowPrivilegeEscalation: false
+  - readOnlyRootFilesystem: true
+  - capabilities: drop ALL
+  - seccompProfile: RuntimeDefault
+- Operator precheck jobs also implement security best practices with restricted privileges.
+
+**Section sources**
+- [helm/kairos-mcp/templates/kairos-mcp-deployment.yaml:72-81](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml#L72-L81)
+- [helm/kairos-mcp/templates/operator-precheck-job.yaml:24-32](file://helm/kairos-mcp/templates/operator-precheck-job.yaml#L24-L32)
+
+### Operator Precheck Configuration
+- New precheck system validates required CRDs before Helm installation.
+- ConfigMap-based precheck defines environment variables for Redis, Keycloak, and PostgreSQL checks.
+- Job-based execution runs kubectl commands to verify CRD availability.
+- Automatic cleanup of precheck resources after successful validation.
+
+**Section sources**
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
+- [helm/kairos-mcp/templates/operator-precheck-job.yaml:1-42](file://helm/kairos-mcp/templates/operator-precheck-job.yaml#L1-L42)
+
+### Gateway Security Improvements
+- Enhanced Gateway API configuration with explicit default fields.
+- Improved security context for gateway components.
+- Better integration with ngrok operator and enhanced TLS handling.
+- Explicit hostname and port configurations for improved reliability.
+
+**Section sources**
+- [helm/kairos-mcp/templates/gateway.yaml:1-46](file://helm/kairos-mcp/templates/gateway.yaml#L1-L46)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+
 ### Operational Procedures
 - Local development:
   - Build CLI, configure Keycloak realms, login via browser, and run a search test.
 - Helm development:
   - Single entry point script installs operators, provisions infrastructure, and deploys chart with staged values.
   - Update script for quick upgrades with wait and timeout.
+- Enhanced precheck procedures ensure operator readiness before deployment.
 
 **Section sources**
 - [scripts/deploy-dev-cli-ready.sh:1-24](file://scripts/deploy-dev-cli-ready.sh#L1-L24)
@@ -331,6 +408,7 @@ I --> J["Deploy"]
 - Kubernetes/Helm:
   - Chart depends on upstream Qdrant and Valkey Helm charts.
   - Operators provision PostgresCluster, RedisFailover, and Keycloak CRDs.
+  - Enhanced with operator precheck dependencies for improved reliability.
 
 ```mermaid
 graph LR
@@ -339,12 +417,16 @@ App --> R["Valkey/RedisFailover"]
 KC["Keycloak"] --> PG["PostgresCluster"]
 GW["Gateway (ngrok)"] --> App
 GW --> KC
+OP["Operator Precheck"] --> App
+OP --> KC
+OP --> PG
 ```
 
 **Diagram sources**
 - [compose.yaml:10-183](file://compose.yaml#L10-L183)
 - [helm/kairos-mcp/Chart.yaml:14-23](file://helm/kairos-mcp/Chart.yaml#L14-L23)
 - [helm/kairos-mcp/values.yaml:123-201](file://helm/kairos-mcp/values.yaml#L123-L201)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
 
 **Section sources**
 - [compose.yaml:10-183](file://compose.yaml#L10-L183)
@@ -355,6 +437,7 @@ GW --> KC
 - Qdrant memory tuning and logging level are configurable in Docker Compose.
 - Kubernetes values include HPA and VPA for dynamic scaling and resource optimization.
 - Embedding provider selection impacts latency and throughput; configure accordingly.
+- Enhanced security contexts may have minor performance overhead but provide significantly improved security posture.
 
 **Section sources**
 - [compose.yaml:67-70](file://compose.yaml#L67-L70)
@@ -372,6 +455,8 @@ GW --> KC
   - Gateway not ready: verify GatewayClass acceptance and route configuration.
   - Missing embedding secret: when Ollama is not enabled, ensure kairos-mcp-embedding secret is created with OPENAI_API_KEY.
   - Local dev script failures: confirm CLI build, Keycloak realm configuration, and successful login/search.
+  - Operator precheck failures: verify that required CRDs are installed before Helm deployment.
+  - Security context issues: ensure cluster supports RuntimeDefault seccomp profiles and non-root user requirements.
 
 **Section sources**
 - [compose.yaml:16-19](file://compose.yaml#L16-L19)
@@ -382,9 +467,10 @@ GW --> KC
 - [helm/prerequisites/install-ngrok-operator.sh:36](file://helm/prerequisites/install-ngrok-operator.sh#L36)
 - [helm/.dev/helm-deploy.sh:214-233](file://helm/.dev/helm-deploy.sh#L214-L233)
 - [scripts/deploy-dev-cli-ready.sh:18-22](file://scripts/deploy-dev-cli-ready.sh#L18-L22)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:39-43](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L39-L43)
 
 ## Conclusion
-KAIROS MCP supports straightforward deployments via Docker Compose for local and simple environments and robust Kubernetes/Helm deployments for production with operator-driven infrastructure, gateway routing, and monitoring. Proper environment configuration, secret management, and scaling parameters are essential for reliable operations.
+KAIROS MCP supports straightforward deployments via Docker Compose for local and simple environments and robust Kubernetes/Helm deployments for production with operator-driven infrastructure, gateway routing, and monitoring. Recent enhancements include improved security contexts, operator precheck validation, and enhanced gateway configurations. Proper environment configuration, secret management, and scaling parameters are essential for reliable operations.
 
 ## Appendices
 - Docker Compose
@@ -394,8 +480,12 @@ KAIROS MCP supports straightforward deployments via Docker Compose for local and
 - Kubernetes/Helm
   - Quick start: apply operators and infrastructure, then install the chart with desired overlay.
   - Development: use helm/.dev/helm-deploy.sh for staged setup and upgrades.
+  - Enhanced security: ensure cluster supports RuntimeDefault seccomp profiles and non-root user requirements.
+  - Precheck validation: operator precheck automatically verifies CRD availability before deployment.
 
 **Section sources**
 - [compose.yaml:4-8](file://compose.yaml#L4-L8)
 - [helm/README.md:9-18](file://helm/README.md#L9-L18)
 - [helm/.dev/helm-deploy.sh:1-242](file://helm/.dev/helm-deploy.sh#L1-L242)
+- [helm/kairos-mcp/templates/operator-precheck-configmap.yaml:1-46](file://helm/kairos-mcp/templates/operator-precheck-configmap.yaml#L1-L46)
+- [helm/kairos-mcp/templates/kairos-mcp-deployment.yaml:72-81](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml#L72-L81)

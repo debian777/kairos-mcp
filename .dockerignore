@@ -35,6 +35,7 @@ tmp
 /tests/**
 /tests/_new
 reports
+journeys
 
 # Editor / OS
 .vscode

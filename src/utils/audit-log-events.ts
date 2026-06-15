@@ -2,7 +2,7 @@ export interface SafeAuditBindings {
   [key: string]: string | number | boolean | null | SafeAuditBindings;
 }
 
-type AuditCategory = 'audit.embedding' | 'audit.anomaly';
+type AuditCategory = 'audit.embedding' | 'audit.anomaly' | 'audit.mcp';
 type AuditEventName =
   | 'embedding_success'
   | 'embedding_error'
@@ -13,21 +13,33 @@ type AuditEventName =
   | 'embedding_dimension_mismatch'
   | 'search_zero_results'
   | 'search_low_score'
-  | 'embedding_other_anomaly';
+  | 'embedding_other_anomaly'
+  | 'mcp_tool_call'
+  | 'mcp_request_start'
+  | 'mcp_request_end';
 
 interface AuditFileRecord {
   time: string;
   level: 'info' | 'warn' | 'error';
   category: AuditCategory;
   event: AuditEventName;
+  [key: string]: unknown;
 }
 
 function toAuditCategory(value: unknown): AuditCategory | null {
-  if (value === 'audit.embedding' || value === 'audit.anomaly') return value;
+  if (value === 'audit.embedding' || value === 'audit.anomaly' || value === 'audit.mcp') return value;
   return null;
 }
 
 function toAuditEvent(category: AuditCategory, bindings: SafeAuditBindings): AuditEventName {
+  if (category === 'audit.mcp') {
+    const event = bindings['event'];
+    if (event === 'mcp_tool_call') return 'mcp_tool_call';
+    if (event === 'mcp_request_start') return 'mcp_request_start';
+    if (event === 'mcp_request_end') return 'mcp_request_end';
+    return 'mcp_tool_call';
+  }
+
   if (category === 'audit.embedding') {
     const stage = bindings['stage'] === 'provider' ? 'provider' : 'request';
     const status = bindings['status'] === 'error' ? 'error' : 'success';
@@ -66,5 +78,11 @@ export function buildAuditLine(
     category,
     event: toAuditEvent(category, safeBindings)
   };
+  // Pass through non-category/event bindings for full audit context.
+  for (const [key, value] of Object.entries(safeBindings)) {
+    if (key !== 'category' && key !== 'event') {
+      record[key] = value;
+    }
+  }
   return `${JSON.stringify(record)}\n`;
 }

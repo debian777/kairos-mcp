@@ -12,12 +12,13 @@ import {
 import { resolveMaxConcurrentRequests } from '../utils/concurrency-limit.js';
 import { setWwwAuthenticate } from './http-auth-middleware.js';
 import { buildListOfferingsUnauthorizedJsonRpc } from './mcp-ui-offerings-auth-jsonrpc.js';
-import { getSpaceContext, runWithSpaceContextAsync } from '../utils/tenant-context.js';
+import { getSpaceContext, getTenantId, runWithSpaceContextAsync } from '../utils/tenant-context.js';
 import { buildListOfferingsForUIResult } from '../mcp-apps/list-offerings-for-ui.js';
 import { createServer } from '../server.js';
 import type { MemoryQdrantStore } from '../services/memory/store.js';
 import { KairosError } from '../types/index.js';
 import { validateBearerToken } from './bearer-validate.js';
+import { generateCorrelationId, installResponseCapture, emitRequestStart, emitRequestEnd, emitToolCallAudit, AUDIT_LOG_LEVEL } from './mcp-audit-emit.js';
 const MAX_CONCURRENT = resolveMaxConcurrentRequests(MAX_CONCURRENT_MCP_REQUESTS_RAW);
 
 export interface McpRequestContext {
@@ -27,10 +28,7 @@ export interface McpRequestContext {
 
 export const mcpRequestStore = new AsyncLocalStorage<McpRequestContext>();
 
-/**
- * Track request start times by ID for accurate cancellation timing.
- * Entries are deleted on response close/finish; sweep removes any stale entries.
- */
+// Track request start times by ID for accurate cancellation timing. Stale entries swept periodically.
 const requestTimestamps = new Map<string, number>();
 const STALE_TIMESTAMP_MS = 120_000;
 setInterval(() => {
@@ -44,26 +42,15 @@ setInterval(() => {
 let concurrentMcpRequests = 0;
 
 async function resolveMcpAuthPayload(req: express.Request): Promise<express.Request['auth']> {
-  if (req.auth?.sub) {
-    return req.auth;
-  }
-  if (!AUTH_ENABLED) {
-    return undefined;
-  }
+  if (req.auth?.sub) return req.auth;
+  if (!AUTH_ENABLED) return undefined;
   const authHeader = req.get('authorization');
-  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
-    return undefined;
-  }
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) return undefined;
   const token = authHeader.slice(7).trim();
-  if (!token) {
-    return undefined;
-  }
+  if (!token) return undefined;
   try {
     const payload = await validateBearerToken(token, AUTH_TRUSTED_ISSUERS, AUTH_ALLOWED_AUDIENCES);
-    if (payload) {
-      req.auth = payload;
-      return payload;
-    }
+    if (payload) { req.auth = payload; return payload; }
   } catch (error) {
     structuredLogger.debug(
       `[mcp] bearer fallback validation failed: ${error instanceof Error ? error.message : String(error)}`
@@ -131,6 +118,15 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
         const requestId = req.body?.id || 'unknown';
         const method = req.body?.method || 'unknown';
         const toolName = req.body?.params?.name || 'unknown';
+        const correlationId = generateCorrelationId();
+
+        // Capture JSON-RPC response for audit level 3 (exact replay).
+        // Installed after transport creation (see try block below).
+        const auditLevel = AUDIT_LOG_LEVEL;
+        let responseCapture: { getResponse: () => unknown } | null = null;
+
+        // Emit mcp_request_start audit event (level > 0, before space context).
+        emitRequestStart(correlationId, requestId, method, toolName);
 
         // Store timestamp for requests that go through the full handler (close/finish will delete)
         if (
@@ -163,14 +159,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                         'SSO sign-in required for UI offerings; reconnect MCP after authenticating if the host caches tokens'
                 });
                 res.status(401).json(buildListOfferingsUnauthorizedJsonRpc(id));
-                return;
+                emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
             }
-            res.status(200).json({
-                jsonrpc: '2.0',
-                result: buildListOfferingsForUIResult(),
-                id
-            });
-            return;
+            res.status(200).json({ jsonrpc: '2.0', result: buildListOfferingsForUIResult(), id });
+            emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
         }
 
         concurrentMcpRequests++;
@@ -196,14 +188,13 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                     id: requestId === 'unknown' ? null : requestId
                 });
             }
-            return;
+            emitRequestEnd(correlationId, requestId, toolName, Date.now() - requestStart); return;
         }
 
         try {
             const server = createServer(memoryStore);
-            const transport = new StreamableHTTPServerTransport({
-                enableJsonResponse: true
-            });
+            const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+            if (auditLevel >= 3) responseCapture = installResponseCapture(transport);
 
             // Track request timeout - log at 25s (before typical 30s client timeout)
             let requestCompleted = false;
@@ -265,6 +256,16 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                 deleteTimestamp();
                 const duration = Date.now() - requestStart;
 
+                // Emit mcp_request_end audit event.
+                if (auditLevel > 0 && method !== 'notifications/cancelled') {
+                    emitRequestEnd(correlationId, requestId, toolName, duration);
+                }
+
+                // Emit mcp_tool_call audit event (response now available).
+                if (auditTenantId && auditRequestArgs !== undefined) {
+                    emitToolCallAudit(correlationId, requestId, toolName, requestStart, responseCapture?.getResponse(), auditRequestArgs, auditTenantId);
+                }
+
                 if (duration > 10000 && method !== 'notifications/cancelled') {
                     structuredLogger.info(
                         {
@@ -289,10 +290,10 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
 
             const requestIdFromHttp = (req as express.Request & { requestId?: string }).requestId;
             const authAwareReq = resolvedAuth ? { ...req, auth: resolvedAuth } : req;
-            const spaceCtx = {
-              ...(req.spaceContext ?? getSpaceContext(authAwareReq)),
-              requestId: requestIdFromHttp || requestId || ''
-            };
+            const spaceCtx = { ...(req.spaceContext ?? getSpaceContext(authAwareReq)), requestId: requestIdFromHttp || requestId || '' };
+            let auditTenantId: string | undefined;
+            let auditRequestArgs: unknown;
+
             await runWithSpaceContextAsync(spaceCtx, async () => {
               await mcpRequestStore.run({ req, transport }, async () => {
                 await transport.handleRequest(
@@ -301,6 +302,9 @@ export function setupMcpRoutes(app: express.Express, memoryStore: MemoryQdrantSt
                   req.body
                 );
               });
+
+              // Capture audit context inside space context (tenantId resolves here).
+              if (auditLevel > 0 && method === 'tools/call' && toolName !== 'unknown') { auditTenantId = getTenantId(); auditRequestArgs = req.body?.params?.arguments; }
             });
 
             requestCompleted = true;

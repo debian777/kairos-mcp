@@ -141,6 +141,11 @@ function maybeWriteAuditLine(level: 'info' | 'warn' | 'error', bindings: SafeAud
   }
 }
 
+// Public audit write API for modules outside this file. No-ops when AUDIT_LOG_FILE is unset.
+export function writeAuditLine(level: 'info' | 'warn' | 'error', bindings: Record<string, unknown>): void {
+  if (!auditLogStream) return;
+  maybeWriteAuditLine(level, sanitizeBindingsForAudit(bindings));
+}
 // HTTP logging middleware
 const httpLogger = (req: Request, res: Response, next: Function): void => {
   const start = Date.now();

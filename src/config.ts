@@ -86,6 +86,12 @@ export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESH
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
 export const LOG_FORMAT = getEnvString('LOG_FORMAT', 'text');
 export const AUDIT_LOG_FILE = getEnvString('AUDIT_LOG_FILE', '').trim();
+/**
+ * Verbosity for MCP audit events written to AUDIT_LOG_FILE (0-3).
+ * 0 = off, 1 = metadata only, 2 = + request args, 3 = + response body.
+ * Existing audit.embedding / audit.anomaly events are unaffected.
+ */
+export const AUDIT_LOG_LEVEL = Math.max(0, Math.min(3, getEnvInt('AUDIT_LOG_LEVEL', 1)));
 export const QDRANT_API_KEY = getEnvString('QDRANT_API_KEY', '');
 export const QDRANT_COLLECTION_CURRENT = getEnvString('QDRANT_COLLECTION_CURRENT', '');
 export const KAIROS_SEARCH_OVERFETCH_FACTOR = getEnvString('KAIROS_SEARCH_OVERFETCH_FACTOR', '4');

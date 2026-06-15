@@ -12,18 +12,21 @@
 - [src/cli/commands/login.ts](file://src/cli/commands/login.ts)
 - [src/cli/oauth-refresh.ts](file://src/cli/oauth-refresh.ts)
 - [src/cli/keyring.ts](file://src/cli/keyring.ts)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml)
+- [helm/kairos-mcp/templates/_helpers.tpl](file://helm/kairos-mcp/templates/_helpers.tpl)
+- [helm/kairos-mcp/values.yaml](file://helm/kairos-mcp/values.yaml)
+- [helm/kairos-mcp/files/kairos-realm.json](file://helm/kairos-mcp/files/kairos-realm.json)
 - [docs/CLI.md](file://docs/CLI.md)
 - [docs/architecture/auth-overview.md](file://docs/architecture/auth-overview.md)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Enhanced OIDC authentication flow documentation with comprehensive PKCE implementation details
-- Expanded bearer token validation security patterns including JWKS caching and signature verification
-- Added detailed session management with secure cookie handling and RP-initiated logout support
-- Improved scope-based authorization documentation with group allowlist filtering patterns
-- Enhanced CLI authentication integration with secure credential storage using OS keyrings
-- Updated middleware pattern documentation with space-aware context resolution
+- Updated Keycloak realm import mechanism documentation to reflect the transition from Release.IsInstall checks to Helm lookup() functions
+- Added documentation for the new lookup-based approach that tracks ConfigMaps to prevent duplicate realm imports
+- Enhanced Helm template documentation with the new keycloakRealmImport.enabled flag and ConfigMap-based state tracking
+- Updated authentication flow documentation to include the new realm import process and its integration with the OIDC authentication flow
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -37,10 +40,10 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes the authentication services architecture for KAIROS MCP, focusing on OIDC-based authentication with Keycloak as the Identity Provider. It covers the browser-initiated PKCE flow, callback handling, token validation, middleware protection of HTTP endpoints, bearer token validation, profile claims extraction, session management, scope-based and group-based authorization, and CLI integration with secure credential storage via OS keyrings.
+This document describes the authentication services architecture for KAIROS MCP, focusing on OIDC-based authentication with Keycloak as the Identity Provider. It covers the browser-initiated PKCE flow, callback handling, token validation, middleware protection of HTTP endpoints, bearer token validation, profile claims extraction, session management, scope-based and group-based authorization, and CLI integration with secure credential storage via OS keyrings. The document now includes the updated Keycloak realm import mechanism that uses Helm lookup() functions and ConfigMap tracking to prevent duplicate imports.
 
 ## Project Structure
-The authentication layer spans HTTP middleware and handlers for browser flows, JWT validation utilities, OIDC profile and group processing, well-known metadata endpoints, and CLI components for login, token refresh, and secure storage.
+The authentication layer spans HTTP middleware and handlers for browser flows, JWT validation utilities, OIDC profile and group processing, well-known metadata endpoints, CLI components for login, token refresh, and secure storage, and Helm templates for automated Keycloak realm configuration.
 
 ```mermaid
 graph TB
@@ -58,6 +61,13 @@ LOGIN["Browser Login<br/>(cli/commands/login.ts)"]
 REFRESH["Token Refresh<br/>(cli/oauth-refresh.ts)"]
 KEYRING["Secure Storage<br/>(cli/keyring.ts)"]
 end
+subgraph "Helm Templates"
+REIMPL["KeycloakRealmImport<br/>(keycloak-realm-import.yaml)"]
+REIMPC["Realm Imported CM<br/>(keycloak-realm-imported-configmap.yaml)"]
+HELPERS["Helpers Template<br/>(_helpers.tpl)"]
+VALUES["Values Config<br/>(values.yaml)"]
+REALMJSON["Realm JSON<br/>(kairos-realm.json)"]
+end
 MW --> REDIR
 MW --> BEAR
 MW --> CLAIMS
@@ -68,6 +78,10 @@ LOGIN --> WELL
 LOGIN --> REFRESH
 REFRESH --> KEYRING
 BEAR --> CLAIMS
+REIMPL --> REALMJSON
+REIMPL --> VALUES
+REIMPL --> HELPERS
+REIMPC --> REIMPL
 ```
 
 **Diagram sources**
@@ -81,6 +95,11 @@ BEAR --> CLAIMS
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/oauth-refresh.ts:62-86](file://src/cli/oauth-refresh.ts#L62-L86)
 - [src/cli/keyring.ts:50-120](file://src/cli/keyring.ts#L50-L120)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+- [helm/kairos-mcp/values.yaml:208-250](file://helm/kairos-mcp/values.yaml#L208-L250)
+- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:1-316](file://src/http/http-auth-middleware.ts#L1-L316)
@@ -93,6 +112,11 @@ BEAR --> CLAIMS
 - [src/cli/commands/login.ts:1-229](file://src/cli/commands/login.ts#L1-L229)
 - [src/cli/oauth-refresh.ts:1-101](file://src/cli/oauth-refresh.ts#L1-L101)
 - [src/cli/keyring.ts:1-121](file://src/cli/keyring.ts#L1-L121)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+- [helm/kairos-mcp/values.yaml:208-250](file://helm/kairos-mcp/values.yaml#L208-L250)
+- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
 
 ## Core Components
 - OIDC Redirect and PKCE state management for browser login.
@@ -102,6 +126,7 @@ BEAR --> CLAIMS
 - OIDC profile claims extraction and group allowlisting to derive spaces and enforce access policies.
 - Well-known endpoints exposing protected resource metadata and authorization server metadata for discovery.
 - CLI login with PKCE and token refresh, plus secure keyring-backed storage for tokens and refresh tokens.
+- **Updated** Automated Keycloak realm import using Helm lookup() functions and ConfigMap tracking to prevent duplicate imports.
 
 **Section sources**
 - [src/http/http-auth-oidc-redirect.ts:28-87](file://src/http/http-auth-oidc-redirect.ts#L28-L87)
@@ -113,11 +138,14 @@ BEAR --> CLAIMS
 - [src/cli/commands/login.ts:69-196](file://src/cli/commands/login.ts#L69-L196)
 - [src/cli/oauth-refresh.ts:62-100](file://src/cli/oauth-refresh.ts#L62-L100)
 - [src/cli/keyring.ts:50-120](file://src/cli/keyring.ts#L50-L120)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
 
 ## Architecture Overview
 The system integrates Keycloak OIDC with two complementary authentication paths:
 - Browser PKCE flow for interactive login, handled by redirect generation, callback exchange, and session cookie creation.
 - Bearer token validation for programmatic clients, validating tokens against trusted issuers and audiences and extracting enriched profile and group claims.
+- **Updated** Automated Keycloak realm configuration using Helm templates with lookup() functions to detect existing imports and prevent duplicates.
 
 ```mermaid
 sequenceDiagram
@@ -313,13 +341,49 @@ CLI->>Store : "Update tokens"
 - [docs/CLI.md:113-160](file://docs/CLI.md#L113-L160)
 - [docs/architecture/auth-overview.md:77-93](file://docs/architecture/auth-overview.md#L77-L93)
 
+### **Updated** Automated Keycloak Realm Import Mechanism
+- **New** The realm import process now uses Helm lookup() functions to detect existing KeycloakRealmImport resources and ConfigMaps, preventing duplicate imports.
+- **New** The keycloakRealmImport.enabled flag controls whether the realm import template is rendered and executed.
+- **New** A ConfigMap named `{RELEASE_NAME}-realm-imported` serves as state tracking to mark that a realm has been successfully imported.
+- **New** The template conditionally renders only when keycloakRealmImport.enabled is true, keycloakInstance.enabled is true, the cluster doesn't use its own Keycloak instance, no existing KeycloakRealmImport resource exists, and no realm-imported ConfigMap exists.
+- **New** The realm JSON file is processed through templating to replace placeholders like `__KAIROS_PUBLIC_ORIGIN__` and `__KAIROS_PUBLIC_HOST__` with actual values.
+- **New** The template automatically determines the origin URL based on priority: keycloakRealmImport.publicBaseUrl, app.auth.callbackBaseUrl, keycloakRealmImport.publicHost, or gateway.hostname.
+
+```mermaid
+flowchart TD
+Start(["Helm Install/Upgrade"]) --> CheckFlags["Check keycloakRealmImport.enabled<br/>and keycloakInstance.enabled"]
+CheckFlags --> HasOwnCluster{"useOwnCluster? (false)"}
+HasOwnCluster --> |No| CheckExisting["lookup() existing KeycloakRealmImport<br/>lookup() existing realm-imported ConfigMap"]
+HasOwnCluster --> |Yes| Skip["Skip Realm Import"]
+CheckExisting --> Exists{"Exists?"}
+Exists --> |Yes| Skip
+Exists --> |No| Render["Render KeycloakRealmImport Template"]
+Render --> ProcessRealm["Process kairos-realm.json<br/>Replace placeholders"]
+ProcessRealm --> CreateResource["Create KeycloakRealmImport CRD"]
+CreateResource --> CreateCM["Create realm-imported ConfigMap"]
+CreateCM --> Complete["Import Complete"]
+Skip --> Complete
+```
+
+**Diagram sources**
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+
+**Section sources**
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+- [helm/kairos-mcp/values.yaml:208-250](file://helm/kairos-mcp/values.yaml#L208-L250)
+- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
+
 ## Dependency Analysis
-The authentication subsystem exhibits clear separation of concerns:
+The authentication subsystem exhibits clear separation of concerns with updated Helm template dependencies:
 - HTTP middleware depends on OIDC redirect utilities, bearer validator, and profile claims processing.
 - Auth callback depends on OIDC redirect utilities and profile claims processing.
 - Bearer validator depends on profile claims processing and JWKS retrieval.
 - Well-known endpoints depend on configuration and proxy upstream Keycloak metadata.
 - CLI login and refresh depend on well-known metadata and secure storage.
+- **Updated** Keycloak realm import depends on Helm templates, values configuration, realm JSON file, and Kubernetes API for resource creation.
 
 ```mermaid
 graph LR
@@ -333,6 +397,10 @@ WELL["http-well-known.ts"] --> REDIR
 LOGIN["cli/commands/login.ts"] --> WELL
 LOGIN --> REFRESH["cli/oauth-refresh.ts"]
 REFRESH --> KEYRING["cli/keyring.ts"]
+REIMPL["keycloak-realm-import.yaml"] --> VALUES["values.yaml"]
+REIMPL --> REALMJSON["kairos-realm.json"]
+REIMPL --> HELPERS["_helpers.tpl"]
+REIMPC["keycloak-realm-imported-configmap.yaml"] --> REIMPL
 ```
 
 **Diagram sources**
@@ -345,6 +413,11 @@ REFRESH --> KEYRING["cli/keyring.ts"]
 - [src/cli/commands/login.ts:1-229](file://src/cli/commands/login.ts#L1-L229)
 - [src/cli/oauth-refresh.ts:1-101](file://src/cli/oauth-refresh.ts#L1-L101)
 - [src/cli/keyring.ts:1-121](file://src/cli/keyring.ts#L1-L121)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+- [helm/kairos-mcp/values.yaml:208-250](file://helm/kairos-mcp/values.yaml#L208-L250)
+- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
 
 **Section sources**
 - [src/http/http-auth-middleware.ts:1-316](file://src/http/http-auth-middleware.ts#L1-L316)
@@ -356,12 +429,19 @@ REFRESH --> KEYRING["cli/keyring.ts"]
 - [src/cli/commands/login.ts:1-229](file://src/cli/commands/login.ts#L1-L229)
 - [src/cli/oauth-refresh.ts:1-101](file://src/cli/oauth-refresh.ts#L1-L101)
 - [src/cli/keyring.ts:1-121](file://src/cli/keyring.ts#L1-L121)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:1-50](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L1-L50)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:1-13](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L1-L13)
+- [helm/kairos-mcp/templates/_helpers.tpl:1-59](file://helm/kairos-mcp/templates/_helpers.tpl#L1-L59)
+- [helm/kairos-mcp/values.yaml:208-250](file://helm/kairos-mcp/values.yaml#L208-L250)
+- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
 
 ## Performance Considerations
 - JWKS caching reduces repeated remote fetches for the same issuer.
 - Session TTL computation balances token lifetime with a small safety margin to minimize 401 occurrences.
 - Well-known metadata caching avoids frequent upstream Keycloak queries.
 - userinfo group fetching is opportunistic and bounded by timeouts; failures do not block authentication.
+- **Updated** The lookup() function approach for detecting existing imports is efficient and avoids unnecessary API calls.
+- **Updated** ConfigMap-based state tracking provides fast existence checks without complex resource queries.
 
 ## Troubleshooting Guide
 Common issues and diagnostics:
@@ -370,11 +450,16 @@ Common issues and diagnostics:
 - Bearer token validation failures can stem from untrusted issuer, incorrect audience, expired token, or signature verification errors; confirm trust anchors and audience lists.
 - Group-based access denials often result from groups not present in the access token or userinfo; ensure Keycloak Group Membership mapper is configured appropriately.
 - CLI login failures typically relate to unreachable well-known endpoints or port binding conflicts; confirm network connectivity and port availability.
+- **Updated** Realm import failures can occur if the Keycloak operator is not installed or if lookup() functions return unexpected results; verify the operator is deployed and accessible.
+- **Updated** Duplicate imports are prevented by the ConfigMap state tracking; if imports are not occurring, check that the realm-imported ConfigMap exists and contains the expected annotations.
+- **Updated** Origin URL detection failures happen when none of the configured fallback options (publicBaseUrl, callbackBaseUrl, publicHost, gateway.hostname) are provided; ensure at least one is configured in values.yaml.
 
 **Section sources**
 - [src/http/http-auth-callback.ts:130-142](file://src/http/http-auth-callback.ts#L130-L142)
 - [src/http/bearer-validate.ts:127-150](file://src/http/bearer-validate.ts#L127-L150)
 - [src/cli/commands/login.ts:164-171](file://src/cli/commands/login.ts#L164-L171)
+- [helm/kairos-mcp/templates/keycloak-realm-import.yaml:25-27](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml#L25-L27)
+- [helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml:9-11](file://helm/kairos-mcp/templates/keycloak-realm-imported-configmap.yaml#L9-L11)
 
 ## Conclusion
-The authentication services layer integrates Keycloak OIDC with robust browser PKCE flows and Bearer token validation. It enforces scope-based and group-based access control, manages sessions securely, and provides discovery endpoints for clients. The CLI complements the server-side flow with PKCE login, refresh token handling, and secure keyring-backed storage, ensuring a cohesive and resilient authentication experience across MCP hosts and development workflows.
+The authentication services layer integrates Keycloak OIDC with robust browser PKCE flows and Bearer token validation. It enforces scope-based and group-based access control, manages sessions securely, and provides discovery endpoints for clients. The CLI complements the server-side flow with PKCE login, refresh token handling, and secure keyring-backed storage, ensuring a cohesive and resilient authentication experience across MCP hosts and development workflows. **Updated** The automated Keycloak realm import mechanism now uses modern Helm patterns with lookup() functions and ConfigMap tracking to provide reliable, idempotent realm configuration without the complexity of Release.IsInstall checks.

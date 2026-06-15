@@ -1,10 +1,12 @@
----
+--
 name: kmcp-dev-repowiki-sync
 description: >-
-  kairos-mcp: Qoder Repo Wiki to GitHub Wiki one-way sync workflow.
-  Source of truth is .qoder/repowiki/en/content/. GitHub Wiki is a
-  generated publication target only. Covers setup, content editing,
-  CI workflow, manual sync, and troubleshooting.
+  kairos-mcp: Qoder Repo Wiki to GitHub Wiki one-way sync workflow
+  using a forever branch (repowiki/sync). Source of truth is
+  .qoder/repowiki/en/content/. GitHub Wiki is a generated publication
+  target only. Covers forever-branch lifecycle (rebase from main,
+  update wiki, create MR without removing source branch), content
+  editing, CI workflow, manual sync, and troubleshooting.
 ---
 
 # Repo Wiki → GitHub Wiki sync (kairos-mcp)
@@ -16,19 +18,81 @@ description: >-
 ## Architecture
 
 ```text
-.qoder/repowiki/en/content/**  →  GitHub Action (rsync)  →  {repo}.wiki.git
+repowiki/sync (forever branch)
+  ↓ rebase from main
+  ↓ update .qoder/repowiki/en/content/
+  ↓ push + create MR → main
+  ↓ merge (source branch kept)
+  ↓ CI workflow (rsync) → {repo}.wiki.git
 ```
 
-- **Source of truth:** `.qoder/repowiki/en/content/` in the main repository.
+- **Source of truth:** `.qoder/repowiki/en/content/` on the `repowiki/sync` forever branch.
+- **Forever branch:** `repowiki/sync` — long-lived, never deleted, rebased from `main` before each update cycle.
 - **Publication target:** `debian777/kairos-mcp.wiki.git` (GitHub Wiki).
 - **Direction:** One-way only. Never edit the GitHub Wiki directly.
-- **Trigger:** Push to `main` that changes content or the workflow file.
+- **Trigger:** Merge to `main` that changes content or the workflow file.
 - **Manual trigger:** `workflow_dispatch` via GitHub UI or `gh workflow run`.
+
+## Forever branch lifecycle (`repowiki/sync`)
+
+The forever branch persists across update cycles. Each cycle:
+
+### 1. Rebase from main
+
+```bash
+git checkout repowiki/sync
+git fetch origin main
+git rebase origin/main
+```
+
+Resolve conflicts if any (wiki content rarely conflicts with code changes).
+Force-push after rebase:
+
+```bash
+git push --force-with-lease origin repowiki/sync
+```
+
+### 2. Update wiki content
+
+Edit files under `.qoder/repowiki/en/content/`. Update `_Sidebar.md`
+when pages are added, renamed, or removed. Commit changes to the
+forever branch.
+
+```bash
+git add .qoder/repowiki/en/content/
+git commit -m "docs(wiki): update <topic>"
+```
+
+### 3. Create MR without removing source branch
+
+Push and open a merge request to `main`. **Do not delete the source
+branch** — `repowiki/sync` must persist for the next cycle.
+
+```bash
+git push origin repowiki/sync
+gh pr create --base main --head repowiki/sync \
+  --title "docs(wiki): sync repo wiki updates" \
+  --body "Repo wiki content updates on repowiki/sync forever branch."
+```
+
+When merging via GitHub UI or `gh pr merge`, ensure **"Delete head branch"**
+is **unchecked**. If using `gh pr merge`, add `--preserve-branch` (or
+avoid `--delete-branch`):
+
+```bash
+gh pr merge --squash --preserve-branch
+```
+
+### 4. Repeat
+
+After merge, the forever branch still exists on origin with its
+accumulated history. Next cycle: rebase from `main` again, make new
+edits, open a new MR.
 
 ## Key files
 
 | Path | Purpose |
-|------|---------|
+|------|--------|
 | `.qoder/repowiki/en/content/` | Wiki source markdown (committed, PR-reviewed) |
 | `.qoder/repowiki/en/content/Home.md` | GitHub Wiki landing page |
 | `.qoder/repowiki/en/content/_Sidebar.md` | GitHub Wiki navigation sidebar |
@@ -39,15 +103,19 @@ description: >-
 
 ## Must always
 
+- Work on the **`repowiki/sync`** forever branch; never commit wiki changes directly to `main`.
+- **Rebase** from `origin/main` before each update cycle.
 - Edit wiki content only under `.qoder/repowiki/en/content/`.
 - Use `Home.md` as the wiki landing page (not `README.md`).
 - Update `_Sidebar.md` when pages are added, renamed, or removed.
 - Use stable page names. GitHub Wiki links use `[[Page Name]]` syntax.
+- **Preserve the source branch** when merging MRs (`--preserve-branch` or uncheck "Delete head branch").
 - Let the CI workflow publish after merge to `main`.
 - Run `./scripts/setup-github-wiki-permissions.sh` before first use (enables wiki + Actions write perms).
 
 ## Must never
 
+- Delete the `repowiki/sync` branch (it is a forever branch).
 - Edit the GitHub Wiki UI directly (it is overwritten on each sync).
 - Edit `.qoder/repowiki/en/meta/` (Qoder-managed, required for IDE wiki loading).
 - Implement bidirectional sync.
@@ -98,10 +166,12 @@ GitHub Flavored Markdown in `.md` files:
 
 ## Adding a new wiki page
 
-1. Create `NewPage.md` in `.qoder/repowiki/en/content/`.
-2. Add `- [[NewPage]]` to `_Sidebar.md`.
-3. Commit, push, PR, merge to `main`.
-4. CI publishes automatically.
+1. Checkout and rebase the forever branch: `git checkout repowiki/sync && git rebase origin/main`.
+2. Create `NewPage.md` in `.qoder/repowiki/en/content/`.
+3. Add `- [[NewPage]]` to `_Sidebar.md`.
+4. Commit to `repowiki/sync`, push, and create an MR to `main`.
+5. Merge with **source branch preserved** (`gh pr merge --squash --preserve-branch`).
+6. CI publishes automatically after merge to `main`.
 
 ## Qoder Repo Wiki integration
 
