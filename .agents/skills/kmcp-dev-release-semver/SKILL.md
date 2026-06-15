@@ -123,13 +123,28 @@ Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**
 
 ## 5. Beta release on a non-main branch
 
-The auto-release workflow (`release-tag-on-version-bump.yml`) only triggers on
-`workflow_run` events from branches `[main, "ci/**"]`. Merges to any other branch
-(e.g. `next/v4.8`) will **not** auto-tag or auto-release.
+The auto-release workflow (`release-tag-on-version-bump.yml`) has three trigger paths:
+
+| Trigger | When | Branches |
+|---------|------|----------|
+| `workflow_run` | Integration/Integration Simple succeed | `main`, `ci/**` |
+| `pull_request` (closed) | `release/*beta*` PR merged | **any** target branch |
+| `workflow_dispatch` | Manual trigger | any ref (beta only) |
 
 **Non-main branches only allow beta versions** (version must contain `-beta.`).
 
-### 5.1 Create the version bump PR targeting the non-main branch
+### 5.1 Automatic path: PR merge triggers release
+
+When a `release/*beta*` branch PR is merged into **any** branch (e.g. `next/v4.8`),
+the workflow fires automatically via the `pull_request` trigger. No manual steps needed.
+
+The workflow:
+1. Verifies the PR was merged (not just closed).
+2. Verifies the head branch matches `release/*beta*`.
+3. Checks out the target branch, creates and pushes the tag.
+4. Dispatches the Release workflow.
+
+### 5.2 Create the version bump PR targeting the non-main branch
 
 ```bash
 # From the target branch (e.g. next/v4.8)
@@ -147,10 +162,11 @@ gh pr create --base next/v4.8 --head "release/$VERSION" \
   --body "Version bump to $VERSION."
 ```
 
-### 5.2 Manually trigger the release tag workflow after merge
+After merge, the release workflow triggers automatically.
 
-After the version-bump PR is merged into the non-main branch, trigger the
-tag + release manually via `workflow_dispatch`:
+### 5.3 Fallback: manual `workflow_dispatch`
+
+If the automatic trigger fails or you need to re-release from a branch without a new PR:
 
 ```bash
 gh workflow run release-tag-on-version-bump.yml \
@@ -160,10 +176,7 @@ gh workflow run release-tag-on-version-bump.yml \
   --ref next/v4.8 -f ref=next/v4.8
 ```
 
-This checks out the branch, creates the `v<version>` tag (only if `-beta.` and
-tag does not already exist), pushes it, and dispatches the Release workflow.
-
-### 5.3 Verify
+### 5.4 Verify
 
 ```bash
 # Check the tag workflow run
