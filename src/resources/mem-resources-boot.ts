@@ -6,9 +6,36 @@ import { MEM_FILE_SLUG_KEY, getMemDir, getMemDirFallback, readMemFiles } from '.
 import { deletePreexistingAppSpaceEntries, extractFrontmatterSlug } from './mem-uuid-mapper.js';
 import { sha256Hex } from '../tools/skill-export/sha256.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
+import { compareSemver } from '../utils/version-compare.js';
 
 /** Payload key for storing content SHA256 (enables change detection at boot). */
 const CONTENT_SHA256_KEY = 'content_sha256';
+
+/**
+ * Look up the protocol_version of an already-stored adapter by slug.
+ * Returns undefined if no matching entry exists or lookup fails.
+ */
+async function getStoredAdapterVersion(
+  client: any,
+  collection: string,
+  slug: string
+): Promise<string | undefined> {
+  const page = await client.scroll(collection, {
+    limit: 1,
+    with_payload: { include: ['protocol_version'] },
+    with_vector: false,
+    filter: {
+      must: [
+        { key: 'space_id', match: { value: KAIROS_APP_SPACE_ID } },
+        { key: 'slug', match: { value: slug } }
+      ]
+    }
+  } as any);
+  const point = page?.points?.[0];
+  if (!point?.payload) return undefined;
+  const v = (point.payload as any).protocol_version;
+  return typeof v === 'string' ? v : undefined;
+}
 
 /**
  * Inject mem resources from filesystem into Qdrant at system boot.
@@ -65,15 +92,35 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
       }
 
       const shippedSha = sha256Hex(markdownContent);
+      const shippedVersion = parseFrontmatter(markdownContent).version ?? undefined;
 
       try {
+        // Version-based skip: if stored adapter already matches or is newer, skip retraining
+        try {
+          const storedVersion = await getStoredAdapterVersion(client, collection, slug);
+          if (storedVersion !== undefined && shippedVersion !== undefined) {
+            const cmp = compareSemver(shippedVersion, storedVersion);
+            if (cmp <= 0) {
+              structuredLogger.info(
+                `[mem-resources-boot] '${slug}' stored v${storedVersion} >= shipped v${shippedVersion}, skipping`
+              );
+              injectedCount++;
+              continue;
+            }
+            structuredLogger.info(
+              `[mem-resources-boot] '${slug}' shipped v${shippedVersion} > stored v${storedVersion}, updating`
+            );
+          }
+        } catch {
+          // Version check is best-effort; proceed with delete-then-retrain
+        }
+
         // Delete any preexisting entries by slug/title filter
         await deletePreexistingAppSpaceEntries(memoryStore, markdownContent, slug);
 
         // Train the adapter
-        const storedVersions = parseFrontmatter(markdownContent).version ?? undefined;
         const storeOpts: { forceUpdate: boolean; protocolVersion?: string } = { forceUpdate: true };
-        if (storedVersions) storeOpts.protocolVersion = storedVersions;
+        if (shippedVersion) storeOpts.protocolVersion = shippedVersion;
         const memories = await memoryStore.storeAdapter([markdownContent], llmModelId, storeOpts);
 
         // Store content_sha256 in all layers for future change detection
