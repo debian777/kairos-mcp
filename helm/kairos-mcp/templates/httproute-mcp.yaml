@@ -1,4 +1,8 @@
-{{- if and .Values.gateway.enabled .Values.gateway.hostname .Values.app.enabled }}
+{{- $gw := default dict .Values.gateway }}
+{{- $routes := default dict $gw.routes }}
+{{- $mcpRoute := default dict $routes.mcp }}
+{{- $mode := include "kairos.ingressMode" . | trim }}
+{{- if and $gw.enabled $gw.hostname .Values.app.enabled (eq $mode "gateway") }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -9,19 +13,19 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ .Values.gateway.existingGatewayName | default .Values.gateway.gatewayName }}
-      {{- if .Values.gateway.existingGatewayNamespace }}
-      namespace: {{ .Values.gateway.existingGatewayNamespace }}
+      name: {{ include "kairos.resolvedGatewayName" . }}
+      {{- if $gw.existingGatewayNamespace }}
+      namespace: {{ $gw.existingGatewayNamespace }}
       {{- else }}
       namespace: {{ .Release.Namespace }}
       {{- end }}
   hostnames:
-    - {{ .Values.gateway.hostname }}
+    - {{ $gw.hostname }}
   rules:
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.gateway.routes.mcp.path | default "/" }}
+            value: {{ $mcpRoute.path | default "/" }}
       filters:
         - type: RequestHeaderModifier
           requestHeaderModifier:
@@ -29,9 +33,23 @@ spec:
               - name: X-Forwarded-Proto
                 value: https
               - name: X-Forwarded-Host
-                value: {{ .Values.gateway.hostname }}
+                value: {{ $gw.hostname }}
               - name: X-Forwarded-Port
                 value: "443"
+        {{- if dig "cors" "enabled" false $mcpRoute }}
+        {{- $cors := $mcpRoute.cors }}
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            add:
+              - name: Access-Control-Allow-Origin
+                value: {{ $cors.allowOrigins | default "*" | quote }}
+              - name: Access-Control-Allow-Methods
+                value: {{ $cors.allowMethods | default "POST, OPTIONS" | quote }}
+              - name: Access-Control-Allow-Headers
+                value: {{ $cors.allowHeaders | default "Content-Type, Authorization, MCP-Protocol-Version" | quote }}
+              - name: Access-Control-Max-Age
+                value: {{ $cors.maxAge | default 86400 | quote }}
+        {{- end }}
       backendRefs:
         - group: ""
           kind: Service

@@ -4,7 +4,8 @@
 {{- $kc := .Values.keycloakInstance }}
 {{- $serviceName := default (printf "%s-service" $kc.name) $route.serviceName }}
 {{- $servicePort := default $kc.http.httpPort $route.port }}
-{{- if and $gateway.enabled $gateway.hostname $route.enabled $serviceName }}
+{{- $mode := include "kairos.ingressMode" . | trim }}
+{{- if and $gateway.enabled $gateway.hostname $route.enabled $serviceName (eq $mode "gateway") }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -15,7 +16,7 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ $gateway.existingGatewayName | default $gateway.gatewayName }}
+      name: {{ include "kairos.resolvedGatewayName" . }}
       {{- if $gateway.existingGatewayNamespace }}
       namespace: {{ $gateway.existingGatewayNamespace }}
       {{- else }}

@@ -63,6 +63,10 @@ gateway:
   routes:
     mcp:
       path: /
+      cors:
+        enabled: true
+        # IMPORTANT: restrict to your actual frontend origin(s) before deploying
+        # allowOrigins: "https://your-frontend.example.com"
     keycloak:
       enabled: true
       path: /sso
