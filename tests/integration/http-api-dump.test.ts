@@ -3,6 +3,7 @@
  * Requires dev server; fails the suite if unavailable (no silent skip).
  */
 import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
@@ -46,7 +47,7 @@ Content for HTTP export test.
 
 ## Reward Signal
 Done.`;
-    const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
+    const trainRes = await fetch(`${API_BASE}/train/raw?force=true&review_evidence=${encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
       body: markdown
@@ -88,7 +89,7 @@ First step body.
 
 ## Reward Signal
 Done.`;
-    const trainRes = await fetch(`${API_BASE}/train/raw?force=true`, {
+    const trainRes = await fetch(`${API_BASE}/train/raw?force=true&review_evidence=${encodeURIComponent(JSON.stringify(MOCK_REVIEW_EVIDENCE))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model', ...getAuthHeaders() },
       body: md

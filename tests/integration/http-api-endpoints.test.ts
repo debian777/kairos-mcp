@@ -1,4 +1,4 @@
-import { API_BASE, apiFetch } from './http-api-test-helpers.js';
+import { API_BASE, apiFetch, REVIEW_EVIDENCE_PARAM } from './http-api-test-helpers.js';
 
 describe('HTTP REST API Endpoints', () => {
   describe('POST /api/train/raw', () => {
@@ -18,7 +18,7 @@ Content for HTTP API train endpoint.
 
 ## Reward Signal
 Protocol is complete when this step is done.`;
-      const response = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/train/raw?force=true&${REVIEW_EVIDENCE_PARAM}`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
@@ -78,7 +78,7 @@ Testing force update.
 
 ## Reward Signal
 Done.`;
-      const response = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+      const response = await apiFetch(`${API_BASE}/train/raw?force=true&${REVIEW_EVIDENCE_PARAM}`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown
@@ -137,7 +137,7 @@ Forward smoke test.
 
 ## Reward Signal
 Done.`;
-      const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true`, {
+      const trainRes = await apiFetch(`${API_BASE}/train/raw?force=true&${REVIEW_EVIDENCE_PARAM}`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/markdown', 'X-LLM-Model-ID': 'test-model' },
         body: markdown

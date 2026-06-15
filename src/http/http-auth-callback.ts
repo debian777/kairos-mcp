@@ -20,9 +20,9 @@ import {
 import { structuredLogger } from '../utils/structured-logger.js';
 import {
   buildOidcEndSessionRedirectUrl,
-  getOidcStateStore,
   redirectBrowserToOidcLogin
 } from './http-auth-oidc-redirect.js';
+import { oidcStateStore } from '../services/oidc-state-store.js';
 import { peekOidcIdTokenHintFromSession, SESSION_COOKIE_NAME } from './http-auth-middleware.js';
 import {
   applyOidcGroupsAllowlist,
@@ -132,9 +132,7 @@ export function setupAuthCallback(app: express.Express): void {
       res.redirect(302, '/?error=missing_code_or_state');
       return;
     }
-    const store = getOidcStateStore();
-    const entry = store.get(state);
-    store.delete(state);
+    const entry = await oidcStateStore.consume(state);
     if (!entry) {
       structuredLogger.info('Auth callback: invalid or expired state');
       res.redirect(302, '/?error=invalid_state');

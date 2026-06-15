@@ -1,4 +1,5 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 /**
  * Kairos Train integration tests (edge cases).
@@ -31,7 +32,8 @@ describe('Kairos Train Edge Cases', () => {
       arguments: {
         content: simpleContent,
         llm_model_id: 'minimax/minimax-m2:free',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
 

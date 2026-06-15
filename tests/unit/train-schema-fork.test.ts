@@ -21,7 +21,8 @@ describe('trainInputSchema fork fields', () => {
   it('accepts content only', () => {
     const ok = trainInputSchema.safeParse({
       llm_model_id: 'm',
-      content: '# T\n\n## Activation Patterns\n\n## Reward Signal\n\n```json\n{"contract":{}}\n```\n'
+      content: '# T\n\n## Activation Patterns\n\n## Reward Signal\n\n```json\n{"contract":{}}\n```\n',
+      review_evidence: { verdict_file: '/tmp/v.txt', exit_code: 0, stdout: 'PASS' }
     });
     expect(ok.success).toBe(true);
   });

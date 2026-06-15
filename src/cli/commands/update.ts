@@ -79,10 +79,21 @@ export function updateCommand(program: Command): void {
                     markdownDoc?: SafeMarkdownUpload[];
                     updates?: Record<string, unknown>;
                     space?: string;
+                    reviewEvidence?: { verdict_file: string; exit_code: number; stdout: string };
                 } = {};
                 if (markdownDoc) tuneOpts.markdownDoc = markdownDoc;
                 if (updates) tuneOpts.updates = updates;
                 if (rawSpace.length > 0) tuneOpts.space = rawSpace;
+                // Auto-inject review_evidence from env (used by integration tests)
+                const envReviewEvidence = process.env['KAIROS_REVIEW_EVIDENCE'];
+                if (envReviewEvidence) {
+                    try {
+                        const parsed = JSON.parse(envReviewEvidence);
+                        if (parsed && typeof parsed.verdict_file === 'string' && typeof parsed.exit_code === 'number' && typeof parsed.stdout === 'string') {
+                            tuneOpts.reviewEvidence = parsed;
+                        }
+                    } catch { /* ignore malformed env review_evidence */ }
+                }
                 const response = await client.tune(uris, tuneOpts);
                 writeJson(response);
             } catch (error) {

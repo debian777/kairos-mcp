@@ -1,6 +1,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 function buildAdapterMarkdown(title: string, activationPatterns: string[]): string {
   return [
@@ -75,7 +76,8 @@ describe('activate precision', () => {
           `rotate postgres password token-${ts}`
         ]),
         llm_model_id: 'test-activate-precision',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const trainDistractor = await mcpConnection.client.callTool({
@@ -86,7 +88,8 @@ describe('activate precision', () => {
           'drain a queue consumer'
         ]),
         llm_model_id: 'test-activate-precision',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     });
     const targetPayload = parseMcpJson(trainTarget, 'activate precision target') as {

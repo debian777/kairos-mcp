@@ -10,6 +10,7 @@ import {
   sleepMs
 } from '../utils/adapter-space-test-helpers.js';
 import { CI_TEST_SPACE_PARAM } from '../utils/space-test-constants.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 import {
   adapterSpaceSkipReason,
   assertGroupSpacesWhenAuth,
@@ -72,7 +73,8 @@ describe('Space CRUD per space (MCP)', () => {
         content: mdWithTitle(title),
         llm_model_id: 'test-space-crud-personal',
         space: 'personal',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainRes = await mcp.client.callTool(trainCall);
@@ -90,7 +92,8 @@ describe('Space CRUD per space (MCP)', () => {
       name: 'tune',
       arguments: {
         uris: [adapterUri],
-        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
+        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')],
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const tuneRes = await mcp.client.callTool(tuneCall);
@@ -135,7 +138,8 @@ describe('Space CRUD per space (MCP)', () => {
         content: mdWithTitle(title),
         llm_model_id: 'test-space-crud-group',
         space: CI_TEST_SPACE_PARAM,
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainRes = await mcp.client.callTool(trainCall);
@@ -153,7 +157,8 @@ describe('Space CRUD per space (MCP)', () => {
       name: 'tune',
       arguments: {
         uris: [adapterUri],
-        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')]
+        content: [mdWithTitle(title, 'Space CRUD integration test after tune.')],
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const tuneRes = await mcp.client.callTool(tuneCall);
@@ -196,7 +201,8 @@ describe('Space CRUD per space (MCP)', () => {
         content: mdWithTitle(`SpaceCrudAppRO ${Date.now()}`),
         llm_model_id: 'test-space-crud-app-ro',
         space: 'Kairos app',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainRes = await mcp.client.callTool(trainCall);
@@ -232,7 +238,8 @@ describe('Space CRUD per space (MCP)', () => {
         content: md,
         llm_model_id: 'test-space-crud-move',
         space: 'personal',
-        force_update: true
+        force_update: true,
+        review_evidence: MOCK_REVIEW_EVIDENCE
       }
     };
     const trainRes = await mcp.client.callTool(trainCall);

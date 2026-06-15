@@ -5,6 +5,7 @@
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { buildProofMarkdown } from '../utils/proof-of-work.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const REWARD_RESULT_KEYS = [
   'uri',
@@ -42,7 +43,7 @@ describe('v4-reward response schema', () => {
     ]);
     const storeResult = await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: doc, llm_model_id: 'test-v4-reward', force_update: true }
+      arguments: { content: doc, llm_model_id: 'test-v4-reward', force_update: true, review_evidence: MOCK_REVIEW_EVIDENCE }
     });
     const stored = parseMcpJson(storeResult, 'v4-reward train');
     expect(stored.status).toBe('stored');

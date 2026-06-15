@@ -77,12 +77,28 @@ export function setupTrainRawRoute(
         (req.headers['x-space'] as string) ||
         undefined;
 
+      // review_evidence can be passed as JSON query param or header (raw markdown body has no field for it)
+      const reviewEvidenceRaw =
+        (req.query['review_evidence'] as string) ||
+        (req.headers['x-review-evidence'] as string) ||
+        undefined;
+      let reviewEvidence: { verdict_file: string; exit_code: number; stdout: string } | undefined;
+      if (reviewEvidenceRaw) {
+        try {
+          const parsed_ = JSON.parse(reviewEvidenceRaw);
+          if (parsed_ && typeof parsed_.verdict_file === 'string' && typeof parsed_.exit_code === 'number' && typeof parsed_.stdout === 'string') {
+            reviewEvidence = parsed_;
+          }
+        } catch { /* ignore malformed review_evidence */ }
+      }
+
       const bodyInput = {
         content: markdown,
         llm_model_id,
         force_update,
         ...(protocol_version && { protocol_version }),
-        ...(space ? { space } : {})
+        ...(space ? { space } : {}),
+        ...(reviewEvidence ? { review_evidence: reviewEvidence } : {})
       };
       const parsed = trainInputSchema.safeParse(bodyInput);
       if (!parsed.success) {

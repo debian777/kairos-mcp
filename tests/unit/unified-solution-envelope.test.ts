@@ -72,4 +72,52 @@ describe('unified-solution-envelope', () => {
     });
     expect(solutionToTensorValue(parsed)).toEqual({ name: 'foo', value: 123 });
   });
+
+  test('nonce and proof_hash inside evidence are extracted when not at top level', () => {
+    const parsed = forwardSolutionSchema.parse({
+      type: 'comment',
+      outcome: 'success',
+      evidence: {
+        text: 'verification comment',
+        nonce: 'abc123',
+        proof_hash: 'def456'
+      }
+    });
+    const submission = mapProofSolution(parsed);
+    expect(submission.nonce).toBe('abc123');
+    expect(submission.proof_hash).toBe('def456');
+  });
+
+  test('top-level nonce and proof_hash take precedence over evidence values', () => {
+    const parsed = forwardSolutionSchema.parse({
+      type: 'shell',
+      outcome: 'success',
+      nonce: 'top-nonce',
+      proof_hash: 'top-hash',
+      evidence: {
+        exit_code: 0,
+        nonce: 'evidence-nonce',
+        proof_hash: 'evidence-hash'
+      }
+    });
+    const submission = mapProofSolution(parsed);
+    expect(submission.nonce).toBe('top-nonce');
+    expect(submission.proof_hash).toBe('top-hash');
+  });
+
+  test('evidence.comment as string is extracted as comment text', () => {
+    const parsed = forwardSolutionSchema.parse({
+      type: 'comment',
+      outcome: 'success',
+      evidence: {
+        comment: 'this is my verification comment',
+        nonce: 'abc',
+        proof_hash: 'def'
+      }
+    });
+    const submission = mapProofSolution(parsed);
+    expect(submission.comment?.text).toBe('this is my verification comment');
+    expect(submission.nonce).toBe('abc');
+    expect(submission.proof_hash).toBe('def');
+  });
 });

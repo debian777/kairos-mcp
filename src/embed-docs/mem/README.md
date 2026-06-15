@@ -22,14 +22,15 @@ synonyms. Prefer **adapter** in new copy when you are not mirroring user-facing 
 | UUID | Slug | Purpose |
 |------|------|---------|
 | [2001](00000000-0000-0000-0000-000000002001.md) | `create-new-protocol` | Authoring adapter — create, review, or refactor KAIROS protocols |
-| [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | Review adapter — format review, stranger review, approval, train |
+| [2003](00000000-0000-0000-0000-000000002003.md) | `create-new-protocol-review` | DEPRECATED — review now handled by `phase-critic` (2005) inside `2001` |
 | [2002](00000000-0000-0000-0000-000000002002.md) | `refine-search` | Refine search — recover user intent after failed `activate` |
 | [2005](00000000-0000-0000-0000-000000002005.md) | `phase-critic` | Phase-boundary adversarial review — verify claims against evidence |
+| [2010](00000000-0000-0000-0000-000000002010.md) | `adapter-migration` | Batch structural migration — update all adapters to latest scheme |
 
 ### Linked authoring flow
 
 ```text
-2001 (Author) → forward(kairos://adapter/create-new-protocol-review) → 2003 (Review & Publish)
+2001 (Author) → forward(kairos://adapter/phase-critic) → 2005 (Phase-Critic Review) → train (with review_evidence)
 ```
 
 ## Reference Documents
@@ -38,6 +39,7 @@ synonyms. Prefer **adapter** in new copy when you are not mirroring user-facing 
 |------|------|---------|
 | [2004](00000000-0000-0000-0000-000000002004.md) | `challenge-type-guide` | Challenge type selection, interpreter choice, and stronger verification patterns |
 | [2006](00000000-0000-0000-0000-000000002006.md) | `protocol-linking-guide` | Layers vs chains, `activate` vs `forward` + slug, chaining back/forward, multi-layer conductor vs extension URI, chain-root collapsing, MCP argument validation |
+| [2009](00000000-0000-0000-0000-000000002009.md) | `phase-critic-guide` | Phase-critic integration rules, mutation gates, solution check vs critic decision table |
 
 ## Cross-Protocol Linking
 

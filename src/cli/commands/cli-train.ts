@@ -142,11 +142,21 @@ export function trainCliCommand(program: Command): void {
             process.exit(1);
           }
 
-          const trainOptions: { llmModelId?: string; force?: boolean; space?: string } = {};
+          const trainOptions: { llmModelId?: string; force?: boolean; space?: string; reviewEvidence?: { verdict_file: string; exit_code: number; stdout: string } } = {};
           if (options.model) trainOptions.llmModelId = options.model;
           if (options.force) trainOptions.force = options.force;
           if (typeof options.space === 'string' && options.space.trim().length > 0) {
             trainOptions.space = options.space.trim();
+          }
+          // Auto-inject review_evidence from env (used by integration tests; production users pass via MCP)
+          const envReviewEvidence = process.env['KAIROS_REVIEW_EVIDENCE'];
+          if (envReviewEvidence) {
+            try {
+              const parsed = JSON.parse(envReviewEvidence);
+              if (parsed && typeof parsed.verdict_file === 'string' && typeof parsed.exit_code === 'number' && typeof parsed.stdout === 'string') {
+                trainOptions.reviewEvidence = parsed;
+              }
+            } catch { /* ignore malformed env review_evidence */ }
           }
 
           if (st.isDirectory()) {

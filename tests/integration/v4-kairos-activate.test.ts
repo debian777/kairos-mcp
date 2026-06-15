@@ -10,6 +10,7 @@ import { createMcpConnection } from '../utils/mcp-client-utils.js';
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
 import { getTestSpaceId } from '../utils/auth-headers.js';
 import { AUTHOR_SLUG_RE } from '../../src/utils/protocol-slug.js';
+import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 import {
   type ActivateChoice,
   expectActivateChoiceSlugField,
@@ -77,7 +78,7 @@ Done.`;
     const content = buildMinimalProtocolBody(title);
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
+      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true, review_evidence: MOCK_REVIEW_EVIDENCE }
     });
   }
 
@@ -91,7 +92,7 @@ slug: ${routingSlug}
 ${buildMinimalProtocolBody(title)}`;
     await mcpConnection.client.callTool({
       name: 'train',
-      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true }
+      arguments: { content: content, llm_model_id: TRAIN_LLM_MODEL_ID, force_update: true, review_evidence: MOCK_REVIEW_EVIDENCE }
     });
   }
 

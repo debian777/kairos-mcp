@@ -22,6 +22,7 @@ import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolE
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { resolveCanonicalAdapterUriForArtifact } from './train-artifact-adapter-uri.js';
+import { assertReviewEvidencePassed } from './review-evidence-check.js';
 
 interface RegisterTrainOptions {
   toolName?: string;
@@ -145,6 +146,9 @@ export async function executeTrain(
   }
   const resolvedMime = resolveTrainMime(input);
   const isArtifactTrain = typeof resolvedMime === 'string' && resolvedMime !== 'text/markdown';
+  const isForkTrain = typeof input.source_adapter_uri === 'string' && input.source_adapter_uri.trim().length > 0;
+  if (!isArtifactTrain && !isForkTrain) assertReviewEvidencePassed(input.review_evidence);
+
   const canonicalAdapterUri = isArtifactTrain
     ? await resolveCanonicalAdapterUriForArtifact(input.adapter_uri, qdrantService)
     : input.adapter_uri;
