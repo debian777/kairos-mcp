@@ -121,7 +121,65 @@ Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**
 
 ---
 
-## 5. Edge cases
+## 5. Beta release on a non-main branch
+
+The auto-release workflow (`release-tag-on-version-bump.yml`) only triggers on
+`workflow_run` events from branches `[main, "ci/**"]`. Merges to any other branch
+(e.g. `next/v4.8`) will **not** auto-tag or auto-release.
+
+**Non-main branches only allow beta versions** (version must contain `-beta.`).
+
+### 5.1 Create the version bump PR targeting the non-main branch
+
+```bash
+# From the target branch (e.g. next/v4.8)
+git checkout next/v4.8
+git pull origin next/v4.8
+git checkout -b release/<version>       # e.g. release/4.8.0-beta.1
+npm run release:beta                     # bumps to next -beta.N
+VERSION=$(node -p "require('./package.json').version")
+git branch -m release/beta "release/$VERSION"
+git add package.json package-lock.json src/embed-docs/mem/ skills/
+git commit -m "release: $VERSION"
+git push -u origin "release/$VERSION"
+gh pr create --base next/v4.8 --head "release/$VERSION" \
+  --title "release: $VERSION" \
+  --body "Version bump to $VERSION."
+```
+
+### 5.2 Manually trigger the release tag workflow after merge
+
+After the version-bump PR is merged into the non-main branch, trigger the
+tag + release manually via `workflow_dispatch`:
+
+```bash
+gh workflow run release-tag-on-version-bump.yml \
+  --ref <branch> -f ref=<branch>
+# Example:
+gh workflow run release-tag-on-version-bump.yml \
+  --ref next/v4.8 -f ref=next/v4.8
+```
+
+This checks out the branch, creates the `v<version>` tag (only if `-beta.` and
+tag does not already exist), pushes it, and dispatches the Release workflow.
+
+### 5.3 Verify
+
+```bash
+# Check the tag workflow run
+gh run list --workflow=release-tag-on-version-bump.yml --limit 3
+# Check the release workflow run
+gh run list --workflow=release.yml --limit 3
+# Verify the release
+gh release view v<version>
+```
+
+**Do not create or push `refs/tags/v*` locally.** Tags are created by the
+workflow; pre-push hooks block manual tags.
+
+---
+
+## 6. Edge cases
 
 - **Dirty tree** — stash or commit unrelated work first.
 - **Existing `release/*`** — confirm reuse vs delete with the user.
