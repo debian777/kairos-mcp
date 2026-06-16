@@ -238,6 +238,7 @@ In stdio mode, the server writes MCP JSON-RPC frames to stdout and writes logs
 to stderr.
 
 For CI or local parity with HTTP integration tests, set
+
 ## Index
 
 Use these links when you want broader context outside the install flow.
