@@ -8,7 +8,3 @@ if (process.env.ENV === 'dev_stdio') {
     test('skipped: requires ENV=dev_stdio', () => {});
   });
 }
-import { runSpacesToolContract } from '../contracts/spaces-tool.contract.js';
-import { createStdioSimpleHarness } from '../harness/stdio-simple.js';
-
-runSpacesToolContract('spaces tool / stdio-simple', createStdioSimpleHarness);
