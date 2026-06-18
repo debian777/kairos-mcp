@@ -4,9 +4,9 @@ description: >-
   kairos-mcp: deterministic semver release. Inspect commits since last stable v*
   tag; recommend patch/minor/major with evidence; user confirms; release/* branch,
   npm run release:<type>, PR to main, no manual v* tag (CI tags after merge).
-  Triggers: bump version, bump RC, bump prerelease, cut release, version-bump PR,
+  Triggers: bump version, bump RC, bump prerelease, pre release, cut release, version-bump PR,
   release branch, next version, semver bump, release:rc, release:minor, release:patch,
-  release:major, npm version, version bump, bump to rc, bump to beta.
+  release:major, release:pre, npm version, version bump, bump to rc, bump to beta.
 ---
 
 # Version bump and release (kairos-mcp)
@@ -44,6 +44,16 @@ Deliver before any bump:
 | `feat:` (backward-compatible) | **minor** | `release:minor` |
 | `fix:` / `docs:` / `chore:` / `refactor:` / `ci:` / `test:` | **patch** | `release:patch` / `release:bug` |
 | Prerelease ask | **rc** / **beta** / **pre** | `release:rc` / `release:beta` / `release:pre` |
+
+**Pre-release vs beta — these are not interchangeable:**
+
+| User says | Script | Suffix | When to use |
+|-----------|--------|--------|-------------|
+| "pre release" | `release:pre` | `-pre.N` | General pre-release on `main` (e.g. feature preview, early access) |
+| "beta" | `release:beta` | `-beta.N` | Beta on non-main branches only (see §5); requires merged PR to trigger auto-tag |
+| "RC" | `release:rc` | `-rc.N` | Release candidate, close to stable |
+
+Never substitute `beta` when the user says "pre release". They are distinct flavors in this project's semver scheme.
 
 “Next RC” without level → recommend level first; prefer **`minor`** when new capability ships, **`major`** when contract likely breaks; ask only if still ambiguous.
 
