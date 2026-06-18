@@ -28,7 +28,7 @@ jobs:
       TRIVYIGNORE_EXPIRY_WARNING_DAYS: "45"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Validate .trivyignore expiry dates
         run: |
           python3 scripts/ci-check-trivyignore-expiry.py \
@@ -45,7 +45,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Dependency review
         uses: actions/dependency-review-action@v5
         with:
@@ -59,7 +59,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -78,7 +78,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Same Hub account as publish-container; without login, pulls are anonymous and share CI IP limits (429).
       # Dependabot PRs do not receive DOCKER_* secrets; login with empty creds fails the step.
@@ -122,7 +122,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:

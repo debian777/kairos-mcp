@@ -32,7 +32,7 @@ jobs:
       code: ${{ steps.combine.outputs.code }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -91,7 +91,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
           fetch-depth: 0
@@ -171,7 +171,7 @@ jobs:
           fi
 
       - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: npm-package-simple-node24
           path: dist/*.tgz
@@ -184,7 +184,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -202,7 +202,7 @@ jobs:
         run: node scripts/ci-github-step-summary.mjs "Build package (tgz)" -- npm run build:tgz
 
       - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: npm-package-simple-node26
           path: dist/*.tgz
@@ -215,7 +215,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -367,7 +367,7 @@ jobs:
 
       - name: Upload kairos simple log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kairos-simple-log-node24
           path: var/log/kairos-simple.log
@@ -386,7 +386,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -536,7 +536,7 @@ jobs:
 
       - name: Upload kairos simple log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kairos-simple-log-node26
           path: var/log/kairos-simple.log

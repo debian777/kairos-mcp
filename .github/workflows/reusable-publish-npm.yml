@@ -42,7 +42,7 @@ jobs:
       npm-tag: ${{ steps.version.outputs.npm_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
 
@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload npm SBOM
         if: inputs.upload-sbom
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: npm-sbom
           path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json

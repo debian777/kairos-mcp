@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Validate source directory exists
         run: |
@@ -33,7 +33,7 @@ jobs:
           test -d ".qoder/repowiki/en/content"
 
       - name: Checkout wiki repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki
