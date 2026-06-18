@@ -1,5 +1,5 @@
 ---
-version: "4.8.0-pre.0"
+version: "4.8.0-pre.1"
 slug: adapter-migration
 title: Adapter Migration Protocol
 ---

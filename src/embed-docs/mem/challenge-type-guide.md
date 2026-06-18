@@ -1,5 +1,5 @@
 ---
-version: "4.8.0-pre.0"
+version: "4.8.0-pre.1"
 slug: challenge-type-guide
 title: Challenge Type Selection Guide
 ---
