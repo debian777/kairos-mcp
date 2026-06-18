@@ -66,7 +66,6 @@ export function createProgram(): Command {
   loginCommand(program);
   logoutCommand(program);
   tokenCommand(program);
-  serveCommand(program);
 
   enableHelpAfterError(program);
 
