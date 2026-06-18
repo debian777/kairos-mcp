@@ -44,8 +44,8 @@ redacted by the logger. Avoid PII in free-form messages.
 
 ## Which logger to use
 
-There is a single logger surface: `**structuredLogger`** from
-`src/utils/structured-logger.ts`. `**logger`** is an alias for it (same
+There is a single logger surface: `structuredLogger` from
+`src/utils/structured-logger.ts`. `logger` is an alias for it (same
 module). Use `structuredLogger` for HTTP/MCP request flow and when you need
 `child()` for component context or `error(..., { error_code, request_id })`.
 Using `logger` is valid everywhere (e.g. services, Qdrant, Redis,
