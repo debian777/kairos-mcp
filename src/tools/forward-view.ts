@@ -12,6 +12,7 @@ import type { ForwardOutput, ForwardSolution } from './forward_schema.js';
 import { KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
 import { buildLayerUri, parseKairosUri } from './kairos-uri.js';
 import { buildLocalArtifactDirFields } from './local-artifact-dir-contract.js';
+import { buildEvidenceHint, buildEmptySolutionTemplate } from './forward-helpers.js';
 
 export function extractUuid(uri: string): string {
   return uri.split('/').pop()?.split('?')[0] ?? '';
@@ -226,14 +227,6 @@ function finalContract(): ForwardOutput['contract'] {
   };
 }
 
-function buildEmptySolutionTemplate(contractType: ForwardOutput['contract']['type']): {
-  type: ForwardOutput['contract']['type'];
-  outcome: 'success';
-  evidence: Record<string, unknown>;
-} {
-  return { type: contractType, outcome: 'success', evidence: {} };
-}
-
 export type BuildForwardViewOptions = {
   final?: boolean;
   message?: string;
@@ -287,7 +280,7 @@ export async function buildForwardView(
     ...buildLocalArtifactDirFields(KAIROS_LOCAL_ARTIFACT_DIRS),
     next_action: final
       ? `call reward with ${layer.uri} and outcome (success or failure) and feedback to complete the adapter`
-      : `call forward with ${layer.uri} and solution.type="${contract.type}", outcome="success", and evidence (include nonce/proof_hash when present)`,
+      : `call forward with ${layer.uri} and solution.type="${contract.type}", outcome="success", evidence${buildEvidenceHint(contract.type)}, and include nonce/proof_hash from contract`,
     execution_id: executionId,
     ...(options?.proofHash && { proof_hash: options.proofHash }),
     ...(options?.message ? { message: options.message } : {}),

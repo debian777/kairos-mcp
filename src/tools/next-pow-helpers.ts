@@ -266,7 +266,7 @@ export async function handleProofSubmission(
   } else if (proofType === 'comment') {
     const comment = submission.comment;
     if (!comment || !comment.text) {
-      return blocked('Comment proof requires comment.text', 'MISSING_FIELD');
+      return blocked('Comment proof requires evidence.text — include your verification summary in solution.evidence.text', 'MISSING_FIELD');
     }
     const minLength = proof.comment?.min_length || 10;
     if (comment.text.length < minLength) {
