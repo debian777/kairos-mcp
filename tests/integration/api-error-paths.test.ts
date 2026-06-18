@@ -4,11 +4,12 @@
  */
 
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function httpFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(path, {
@@ -17,7 +18,7 @@ function httpFetch(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-describe('API error paths: consistent handling across MCP and HTTP', () => {
+_d('API error paths: consistent handling across MCP and HTTP', () => {
   let mcpConnection: { client: { callTool: (arg: { name: string; arguments?: Record<string, unknown> }) => Promise<unknown> }; close: () => Promise<void> };
 
   beforeAll(async () => {

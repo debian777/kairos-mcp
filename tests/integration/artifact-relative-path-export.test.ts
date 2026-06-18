@@ -9,8 +9,11 @@ import {
   trainArtifact,
   type ExportSkillTreeResponse
 } from './skill-export-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('artifact relative_path (skill export layout)', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('artifact relative_path (skill export layout)', () => {
   test('skill_tree uses stored relative_path under the skill folder', async () => {
     const ts = Date.now().toString();
     const slug = `rel-export-${ts}`;

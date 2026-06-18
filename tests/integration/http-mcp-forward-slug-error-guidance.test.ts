@@ -1,4 +1,4 @@
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
@@ -6,6 +6,7 @@ const API_BASE = `${BASE_URL}/api`;
 const QDRANT_URL = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'kairos';
 const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -98,7 +99,7 @@ async function trainProtocol(title: string, slug: string, body: string): Promise
   return layerIdFromUri(headUri as string);
 }
 
-describe('MCP forward slug error guidance', () => {
+_d('MCP forward slug error guidance', () => {
   test('resolves ambiguous adapter slug via MCP and includes slug_disambiguation_note', async () => {
     expect.hasAssertions();
 

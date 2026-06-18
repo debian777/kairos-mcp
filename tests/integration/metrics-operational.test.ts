@@ -1,10 +1,12 @@
 import { getSharedMcpConnection } from '../utils/mcp-client-utils.js';
 import { getMetricValue } from '../utils/prometheus-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('Metrics Operational Tests', () => {
+_d('Metrics Operational Tests', () => {
   let mcpConnection: any;
 
   beforeAll(async () => {

@@ -12,6 +12,7 @@
 
 import { createHash } from 'node:crypto';
 import { indexZipEntriesByPath } from '../utils/zip-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 import {
   buildAdapterMarkdown,
   downloadSkillZip,
@@ -25,8 +26,9 @@ import {
 
 /** Integration Simple (`ENV=dev_simple`) exposes only personal/app surfaces, not group spaces. */
 const allAdaptersSpaceExportSupported = process.env.ENV !== 'dev_simple';
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('skill-export multi-adapter coverage', () => {
+_d('skill-export multi-adapter coverage', () => {
   test('skill_zip with artifact: artifacts/<name> populated; SHA256SUMS lists artifact hash', async () => {
     const ts = Date.now().toString();
     const slug = `zip-with-art-${ts}`;

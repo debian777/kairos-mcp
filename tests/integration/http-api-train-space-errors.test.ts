@@ -1,8 +1,9 @@
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
@@ -11,7 +12,7 @@ function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-describe('HTTP train space validation', () => {
+_d('HTTP train space validation', () => {
   test('POST /api/train/raw rejects invalid space and lists writable spaces', async () => {
     expect.hasAssertions();
     const markdown = `# Invalid Space ${Date.now()}

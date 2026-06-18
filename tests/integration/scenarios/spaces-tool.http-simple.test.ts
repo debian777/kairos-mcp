@@ -1,4 +1,11 @@
 import { runSpacesToolContract } from '../contracts/spaces-tool.contract.js';
 import { createHttpSimpleHarness } from '../harness/http-simple.js';
+import { isHttpTransport } from '../../utils/auth-headers.js';
 
-runSpacesToolContract('spaces tool / http-simple', createHttpSimpleHarness);
+if (isHttpTransport()) {
+  runSpacesToolContract('spaces tool / http-simple', createHttpSimpleHarness);
+} else {
+  describe.skip('spaces tool / http-simple', () => {
+    test('skipped: requires HTTP transport', () => {});
+  });
+}

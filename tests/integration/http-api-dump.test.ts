@@ -2,13 +2,14 @@
  * Integration tests for POST /api/export.
  * Requires dev server; fails the suite if unavailable (no silent skip).
  */
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('POST /api/export', () => {
+_d('POST /api/export', () => {
   test('requires uri and rejects empty', async () => {
     const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',

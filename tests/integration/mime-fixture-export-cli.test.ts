@@ -7,6 +7,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path, { join } from 'node:path';
+import { isHttpTransport } from '../utils/auth-headers.js';
 import {
   BASE_URL,
   CLI_PATH,
@@ -49,7 +50,9 @@ async function pretrainFixtureViaApi(): Promise<{ adapterUri: string; artifactLa
   return { adapterUri: adapter.adapterUri, artifactLayerUris };
 }
 
-describe('mime fixture export parity via CLI transport', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('mime fixture export parity via CLI transport', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
   let adapterUri = '';

@@ -1,8 +1,9 @@
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
@@ -35,7 +36,7 @@ Read the chosen note, summarize relevant content, and apply the requested change
 Success means the intended vault note was found and the requested read or edit outcome was completed accurately.`;
 }
 
-describe('HTTP train similarity guard regression', () => {
+_d('HTTP train similarity guard regression', () => {
   test('POST /api/train/raw accepts unrelated adapter titles without impossible similarity rejection', async () => {
     expect.hasAssertions();
     const title = `Obsidian Vault - Find, Read, Edit, Create Notes via MCP ${Date.now()}`;

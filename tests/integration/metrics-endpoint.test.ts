@@ -1,9 +1,11 @@
 import { fetch, Agent } from 'undici';
 import { validatePrometheusMetrics } from '../utils/prometheus-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 const METRICS_HEALTH_URL = `http://localhost:${METRICS_PORT}/health`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 // Create an Agent with short keepAliveTimeout to ensure connections close quickly
 const fetchAgent = new Agent({
@@ -12,7 +14,7 @@ const fetchAgent = new Agent({
   maxCachedSessions: 0, // Disable connection pooling
 });
 
-describe('Metrics Endpoint Integration', () => {
+_d('Metrics Endpoint Integration', () => {
   beforeAll(async () => {
     // Metrics server MUST be available for these tests
     // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly

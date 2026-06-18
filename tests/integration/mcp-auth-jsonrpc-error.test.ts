@@ -4,18 +4,19 @@
  *
  * Skipped when AUTH_ENABLED is false (SIMPLE mode).
  */
-import { getTestAuthBaseUrl, serverRequiresAuth } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 import { setupServerCheck } from './cli-commands-shared.js';
 import { JSONRPC_ERR_AUTH_REQUIRED } from '../../src/http/mcp-ui-offerings-auth-jsonrpc.js';
 
 const BASE_URL = getTestAuthBaseUrl();
+const _d = isHttpTransport() ? describe : describe.skip;
 let serverAvailable = false;
 
 beforeAll(async () => {
   serverAvailable = await setupServerCheck();
 }, 60000);
 
-describe('MCP unauthenticated JSON-RPC error envelope', () => {
+_d('MCP unauthenticated JSON-RPC error envelope', () => {
   test('returns JSON-RPC error envelope for unauthenticated JSON-RPC POST to /mcp', async () => {
     if (!serverAvailable) return;
     if (!serverRequiresAuth()) return;

@@ -3,8 +3,11 @@
  */
 
 import { execAsync, CLI_PATH } from './cli-commands-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('CLI serve', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('CLI serve', () => {
   test('serve --help lists options and usage', async () => {
     const { stdout, stderr } = await execAsync(`node ${CLI_PATH} serve --help`, {
       timeout: 15000

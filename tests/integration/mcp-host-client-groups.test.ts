@@ -11,7 +11,8 @@ import {
   getTestAuthBaseUrl,
   getTestKeycloakUrl,
   hasAuthToken,
-  serverRequiresAuth
+  serverRequiresAuth,
+  isHttpTransport
 } from '../utils/auth-headers.js';
 import {
   REALM,
@@ -28,6 +29,7 @@ import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const MCP_URL = `${BASE_URL}/mcp`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function mdWithTitle(title: string): string {
   return `# ${title}
@@ -71,7 +73,7 @@ async function createMcpConnectionWithToken(token: string) {
   };
 }
 
-describe('MCP host client groups', () => {
+_d('MCP host client groups', () => {
   test('host-style client token includes groups and MCP can train into group space', async () => {
     if (!serverRequiresAuth() || !hasAuthToken()) {
       console.warn('[mcp-host-client-groups] skip: auth disabled or missing token');

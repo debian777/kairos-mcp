@@ -12,11 +12,13 @@ import { join } from 'path';
 import {
   getTestAuthBaseUrl,
   getMcpTestBearerToken,
-  serverRequiresAuth
+  serverRequiresAuth,
+  isHttpTransport
 } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const CLI_PATH = join(process.cwd(), 'dist/cli/index.js');
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function runCli(args: string): Promise<{ stdout: string; stderr: string; code?: number }> {
   return new Promise((resolve) => {
@@ -62,7 +64,7 @@ async function loginWithDevToken(): Promise<void> {
   expect(result.code).toBe(0);
 }
 
-const describeWhenAuth = serverRequiresAuth() ? describe : describe.skip;
+const describeWhenAuth = serverRequiresAuth() && isHttpTransport() ? describe : describe.skip;
 
 describeWhenAuth('CLI auth (dev token login)', () => {
   beforeEach(async () => {

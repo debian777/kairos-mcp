@@ -1,7 +1,7 @@
 /**
  * MCP Apps discovery: `listOfferingsForUI` is handled in http-mcp-handler (not SDK).
  */
-import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, getAuthHeaders, isHttpTransport } from '../utils/auth-headers.js';
 import {
   KAIROS_ACTIVATE_UI_SKYBRIDGE_URI,
   KAIROS_ACTIVATE_UI_URI,
@@ -14,6 +14,7 @@ import {
 } from '../../src/mcp-apps/kairos-ui-constants.js';
 
 const BASE_URL = getTestAuthBaseUrl();
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function postMcp(body: object) {
   return fetch(`${BASE_URL}/mcp`, {
@@ -27,7 +28,7 @@ function postMcp(body: object) {
   });
 }
 
-describe('MCP listOfferingsForUI', () => {
+_d('MCP listOfferingsForUI', () => {
   test('returns spaces, forward, and activate tools plus ui:// resources and embedded prompts', async () => {
     const res = await postMcp({
       jsonrpc: '2.0',

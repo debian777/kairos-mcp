@@ -1,6 +1,9 @@
 import { API_BASE, apiFetch } from './http-api-test-helpers.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('HTTP REST API Activate Endpoint', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('HTTP REST API Activate Endpoint', () => {
   describe('POST /api/activate', () => {
     test('searches for adapter entry layers', async () => {
       expect.hasAssertions();

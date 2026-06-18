@@ -13,8 +13,11 @@ import {
   requireMcpServerAndCliLogin,
   requireCachedLayerUri
 } from './cli-commands-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('CLI Commands Advanced --url Tests', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('CLI Commands Advanced --url Tests', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
   let cachedTrainedUri: string | null = null;

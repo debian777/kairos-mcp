@@ -532,8 +532,10 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    # dev_simple (full HTTP integration suite): default Jest args unless caller passed flags.
-    if [ "$ENV" = "dev_simple" ]; then
+    # dev_simple and dev_stdio: run the full integration suite.
+    # HTTP-dependent tests self-skip via isHttpTransport() when TRANSPORT_TYPE=stdio.
+    # Scenario tests with specific stack requirements self-skip via their harness contracts.
+    if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
         has_ignore_patterns=false
         for arg in "${args[@]}"; do
             if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
@@ -544,13 +546,8 @@ test() {
         if [ "$has_ignore_patterns" = false ]; then
             args+=(
                 --testPathPatterns "tests/integration/"
-                --testPathIgnorePatterns "tests/integration/cli-auth-browser-login.e2e.test.ts|tests/integration/auth-keycloak.test.ts|tests/integration/mcp-host-client-groups.test.ts|tests/integration/scenarios/spaces-tool.http-auth.test.ts|tests/integration/scenarios/spaces-tool.stdio-simple.test.ts"
             )
         fi
-    fi
-    # dev_stdio: stdio-only server (no HTTP); default to stdio launch smoke unless caller passed paths/flags.
-    if [ "$ENV" = "dev_stdio" ] && [ ${#args[@]} -eq 0 ]; then
-        args=(--testPathPatterns "tests/integration/stdio-launch-smoke.test.ts")
     fi
 
     LAST_COMMIT="Last commit: $(git rev-parse HEAD)"
@@ -598,11 +595,8 @@ test() {
             # deploy - now need to run manually: npm run dev:deploy
             test_port="${SERVER_PORT:-3300}"
             if [ "$ENV" = "dev_stdio" ]; then
-                if [ ${#args[@]} -eq 0 ]; then
-                    NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 tests/integration/stdio-launch-smoke.test.ts tests/integration/scenarios/spaces-tool.stdio-simple.test.ts 2>&1 | tee -a "$REPORT_LOG_FILE"
-                else
-                    NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
-                fi
+                # Stdio transport: no HTTP server, no MCP_URL needed (createMcpConnection spawns stdio subprocess).
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             elif [ ${#args[@]} -eq 0 ]; then
                 # Scenario matrix: http-simple + stdio wrappers require the matching stack (see tests/integration/scenarios/).
                 dev_ignore_scenarios=""

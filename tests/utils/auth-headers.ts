@@ -210,3 +210,12 @@ export function getTestSpaceId(): string | undefined {
   return 'personal';
 }
 
+/**
+ * True when the active transport is HTTP (i.e. not stdio).
+ * Tests that call HTTP endpoints directly (not via MCP tool) should check this
+ * and skip when running under stdio transport (no HTTP server).
+ */
+export function isHttpTransport(): boolean {
+  return process.env.TRANSPORT_TYPE !== 'stdio';
+}
+

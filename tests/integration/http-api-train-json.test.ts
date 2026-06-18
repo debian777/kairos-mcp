@@ -1,8 +1,9 @@
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   return fetch(url, {
@@ -11,7 +12,7 @@ function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-describe('POST /api/train (JSON)', () => {
+_d('POST /api/train (JSON)', () => {
   test('accepts JSON body with space and stores adapter', async () => {
     expect.hasAssertions();
     const markdown = `# JSON Train Test ${Date.now()}

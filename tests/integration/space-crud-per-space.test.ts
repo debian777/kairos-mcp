@@ -16,8 +16,10 @@ import {
   assertGroupSpacesWhenAuth,
   openAdapterSpaceMcpBundle
 } from './utils/adapter-space-mcp-context.js';
-import { hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
+import { hasAuthToken, serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 import { setupServerCheck } from './cli-commands-shared.js';
+
+const _d = isHttpTransport() ? describe : describe.skip;
 
 /** Adapter identity is UUIDv5(H1); tune by adapter URI must keep the H1 stable — change body only. */
 function mdWithTitle(title: string, activationLine = 'Space CRUD integration test.'): string {
@@ -37,7 +39,7 @@ Body.
 Done.`;
 }
 
-describe('Space CRUD per space (MCP)', () => {
+_d('Space CRUD per space (MCP)', () => {
   let bundle: Awaited<ReturnType<typeof openAdapterSpaceMcpBundle>> = null;
   let serverOk = false;
 

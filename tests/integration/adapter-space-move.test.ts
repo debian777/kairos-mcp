@@ -4,7 +4,7 @@
  */
 
 import { parseMcpJson, withRawOnFail } from '../utils/expect-with-raw.js';
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import {
   buildSpaceMoveMarkdown,
   locationsForAdapterTitle,
@@ -26,6 +26,7 @@ import {
 } from './cli-commands-shared.js';
 
 const API_BASE = `${getTestAuthBaseUrl()}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 type AdapterLoc = ReturnType<typeof locationsForAdapterTitle>;
 
@@ -53,7 +54,7 @@ function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-describe('Adapter space move (personal → group)', () => {
+_d('Adapter space move (personal → group)', () => {
   let bundle: Awaited<ReturnType<typeof openAdapterSpaceMcpBundle>> = null;
   let serverOk = false;
   let cliOk = false;
