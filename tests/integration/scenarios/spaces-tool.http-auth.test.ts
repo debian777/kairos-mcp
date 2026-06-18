@@ -1,11 +1,11 @@
 import { runSpacesToolContract } from '../contracts/spaces-tool.contract.js';
 import { createHttpAuthHarness } from '../harness/http-auth.js';
-import { isHttpTransport } from '../../utils/auth-headers.js';
+import { isHttpTransport, serverRequiresAuth } from '../../utils/auth-headers.js';
 
-if (isHttpTransport()) {
+if (isHttpTransport() && serverRequiresAuth()) {
   runSpacesToolContract('spaces tool / http-auth', createHttpAuthHarness);
 } else {
   describe.skip('spaces tool / http-auth', () => {
-    test('skipped: requires HTTP transport', () => {});
+    test('skipped: requires HTTP transport with auth', () => {});
   });
 }

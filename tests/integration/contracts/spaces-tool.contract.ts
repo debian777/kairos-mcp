@@ -16,7 +16,9 @@ export function runSpacesToolContract(
     }, 120000);
 
     afterAll(async () => {
-      await harness.close();
+      if (harness) {
+        await harness.close();
+      }
     });
 
     test('returns a spaces array for valid empty input', async () => {
