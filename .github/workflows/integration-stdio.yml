@@ -269,7 +269,8 @@ jobs:
         run: |
           # Stdio mode: no HTTP server, tests spawn stdio subprocess internally.
           # deploy-run-env.sh test skips health checks and Playwright for stdio.
-          npm run dev_stdio:deploy
+          # Do NOT run dev_stdio:deploy (includes knip which flags subpath imports as unused).
+          # The tgz is already installed; dev_stdio:test will start the server internally.
           npm run dev_stdio:test
 
       - name: Show test failure
@@ -418,9 +419,7 @@ jobs:
           ENV: dev_stdio
           QDRANT_COLLECTION: kairos_simple_ci
           CI: "true"
-        run: |
-          npm run dev_stdio:deploy
-          npm run dev_stdio:test
+        run: npm run dev_stdio:test
 
       - name: Show test failure
         if: failure()
