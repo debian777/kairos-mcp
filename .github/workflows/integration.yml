@@ -256,7 +256,7 @@ jobs:
 
       # Avoid re-downloading ~280MB Chromium/headless-shell/ffmpeg when lockfile unchanged
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -267,7 +267,7 @@ jobs:
         run: node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
@@ -311,7 +311,7 @@ jobs:
 
       # Node-version suffix so the advisory runner does not fight the Node 24 primary key
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -322,7 +322,7 @@ jobs:
         run: node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache.outputs.cache-hit != 'true' && steps.playwright-install.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
@@ -359,7 +359,7 @@ jobs:
         run: ls -la .env
 
       - name: Restore infra Docker image cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: docker-infra-cache
         with:
           path: .cache/docker-infra
@@ -391,7 +391,7 @@ jobs:
           docker save -o .cache/docker-infra/images.tar $IMAGES
 
       - name: Cache infra Docker images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
         with:
           path: .cache/docker-infra
@@ -406,7 +406,7 @@ jobs:
 
       # E2E tests (e.g. cli-auth-browser-login) use Playwright chromium; separate runner from verify-ui-primary.
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache-integration
         with:
           path: ~/.cache/ms-playwright
@@ -426,7 +426,7 @@ jobs:
           exit $ec
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache-integration.outputs.cache-hit != 'true' && steps.playwright-install-integration.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
@@ -447,7 +447,7 @@ jobs:
           cp -R node_modules/@debian777/kairos-mcp/dist ./dist
 
       - name: Restore Qdrant test snapshot cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: qdrant-snapshot-cache
         with:
           path: |
@@ -531,7 +531,7 @@ jobs:
         run: ls -la .env
 
       - name: Restore infra Docker image cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: docker-infra-cache
         with:
           path: .cache/docker-infra
@@ -561,7 +561,7 @@ jobs:
           docker save -o .cache/docker-infra/images.tar $IMAGES
 
       - name: Cache infra Docker images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.docker-infra-cache.outputs.cache-hit != 'true'
         with:
           path: .cache/docker-infra
@@ -574,7 +574,7 @@ jobs:
           path: artifact-npm
 
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache-integration
         with:
           path: ~/.cache/ms-playwright
@@ -594,7 +594,7 @@ jobs:
           exit $ec
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache-integration.outputs.cache-hit != 'true' && steps.playwright-install-integration.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
