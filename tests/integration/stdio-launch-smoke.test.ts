@@ -118,7 +118,13 @@ describe('STDIO launch smoke', () => {
       cwd: process.cwd()
     });
 
-    await client.connect(transport);
+    // Connect with a timeout so the test fails fast if the server hangs during startup
+    await Promise.race([
+      client.connect(transport),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('stdio client connect timed out after 60000ms')), 60000)
+      ),
+    ]);
     const toolsResult = await client.listTools();
 
     expect(Array.isArray(toolsResult.tools)).toBe(true);

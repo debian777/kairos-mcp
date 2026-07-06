@@ -90,7 +90,6 @@ const STDIO_FILE_ENV = {
 };
 
 let stdioClient: Client | null = null;
-let stdioTransport: StdioClientTransport | null = null;
 
 function createStdioChildEnv(): Record<string, string> {
   const result: Record<string, string> = {};
@@ -119,8 +118,8 @@ async function createStdioMcpConnection() {
       ? [BOOTSTRAP_PATH]
       : ['--loader', 'ts-node/esm', SOURCE_BOOTSTRAP_PATH];
 
-    stdioClient = new Client({ name: 'kb-integration-tests-stdio', version: '1.0.0' });
-    stdioTransport = new StdioClientTransport({
+    const client = new Client({ name: 'kb-integration-tests-stdio', version: '1.0.0' });
+    const transport = new StdioClientTransport({
       command: process.execPath,
       args,
       env,
@@ -129,12 +128,21 @@ async function createStdioMcpConnection() {
 
     // Race the connect against a timeout so a hung child process fails fast
     // instead of blocking the entire test suite indefinitely.
-    await Promise.race([
-      stdioClient.connect(stdioTransport),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`MCP stdio connect timed out after ${STDIO_CONNECT_TIMEOUT_MS}ms`)), STDIO_CONNECT_TIMEOUT_MS)
-      ),
-    ]);
+    try {
+      await Promise.race([
+        client.connect(transport),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`MCP stdio connect timed out after ${STDIO_CONNECT_TIMEOUT_MS}ms`)), STDIO_CONNECT_TIMEOUT_MS)
+        ),
+      ]);
+    } catch (err) {
+      // Reset so the next call creates a fresh child process
+      try { await transport.close?.(); } catch { /* ignore */ }
+      throw err;
+    }
+
+    // Only assign after successful connect
+    stdioClient = client;
   }
 
   const capturedClient = stdioClient;
