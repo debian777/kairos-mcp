@@ -1,9 +1,11 @@
 import { fetch, Agent } from 'undici';
 import { validatePrometheusMetrics } from '../utils/prometheus-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
 const METRICS_HEALTH_URL = `http://localhost:${METRICS_PORT}/health`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 // Create an Agent with short keepAliveTimeout to ensure connections close quickly
 const fetchAgent = new Agent({
@@ -12,7 +14,7 @@ const fetchAgent = new Agent({
   maxCachedSessions: 0, // Disable connection pooling
 });
 
-describe('Metrics Endpoint Integration', () => {
+_d('Metrics Endpoint Integration', () => {
   beforeAll(async () => {
     // Metrics server MUST be available for these tests
     // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly
@@ -88,7 +90,7 @@ describe('Metrics Endpoint Integration', () => {
 
   test('metrics endpoint is on separate port', async () => {
     // Main server should NOT have /metrics (or return 404)
-    const mainPort = process.env.PORT || '3300';
+    const mainPort = process.env['SERVER_PORT'] || '3300';
     const mainResponse = await fetch(`http://localhost:${mainPort}/metrics`, { dispatcher: fetchAgent });
     // Main server may not have /metrics endpoint, so 404 is expected.
     // DO NOT expand allowed status codes: AI must not add 500/502/etc. to "fix" failing tests.

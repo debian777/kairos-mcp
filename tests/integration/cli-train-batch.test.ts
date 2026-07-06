@@ -13,6 +13,9 @@ import {
   setupCliConfigWithLogin,
   requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
+
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function minimalProtocolMd(title: string): string {
   return `# ${title}
@@ -35,7 +38,7 @@ Done.
 `;
 }
 
-describe('CLI train directory batch', () => {
+_d('CLI train directory batch', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
 

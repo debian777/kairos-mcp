@@ -8,6 +8,7 @@ import {
   KAIROS_ENABLE_GROUP_COLLAPSE
 } from '../../src/config.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 async function withDefaultSpace<T>(fn: () => Promise<T>): Promise<T> {
   const spaceId = KAIROS_APP_SPACE_ID;
@@ -27,7 +28,7 @@ function redisKey(suffix: string): string {
   return `${KAIROS_REDIS_PREFIX}${KAIROS_APP_SPACE_ID}:${suffix}`;
 }
 
-const describeRedis = REDIS_URL ? describe : describe.skip;
+const describeRedis = REDIS_URL && isHttpTransport() ? describe : describe.skip;
 
 /** executeSearch / MCP activate cache keys; memory CUD must call invalidateAfterUpdate to clear them. */
 describeRedis('Redis activate cache invalidation', () => {

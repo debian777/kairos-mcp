@@ -3,8 +3,11 @@
  */
 
 import { execAsync, CLI_PATH } from './cli-commands-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('CLI serve', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('CLI serve', () => {
   test('serve --help lists options and usage', async () => {
     const { stdout, stderr } = await execAsync(`node ${CLI_PATH} serve --help`, {
       timeout: 15000
@@ -12,14 +15,14 @@ describe('CLI serve', () => {
     expect(stderr).toBe('');
     expect(stdout).toContain('Usage: kairos serve');
     expect(stdout).toContain('--env-file');
-    expect(stdout).toContain('--port');
+    expect(stdout).toContain('--server-port');
     expect(stdout).toContain('--metrics-port');
-    expect(stdout).toContain('Qdrant');
+    expect(stdout).toContain('--transport');
   });
 
-  test('serve rejects invalid --port', async () => {
+  test('serve rejects invalid --server-port', async () => {
     try {
-      await execAsync(`node ${CLI_PATH} serve --port not-a-number`, {
+      await execAsync(`node ${CLI_PATH} serve --server-port not-a-number`, {
         timeout: 15000
       });
       throw new Error('expected invalid port to fail');
@@ -27,7 +30,7 @@ describe('CLI serve', () => {
       const err = error as { code?: number; stderr?: string; stdout?: string };
       const combined = `${err.stderr ?? ''}${err.stdout ?? ''}`;
       expect(err.code).toBe(1);
-      expect(combined).toMatch(/Invalid --port|not-a-number/);
+      expect(combined).toMatch(/Invalid --server-port|not-a-number/);
     }
   });
 

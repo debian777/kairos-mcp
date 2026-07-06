@@ -11,6 +11,7 @@
  */
 
 import { indexZipEntriesByPath } from '../utils/zip-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 import {
   buildAdapterMarkdown,
   downloadSkillZip,
@@ -21,7 +22,9 @@ import {
   type SkillBundleManifest
 } from './skill-export-shared.js';
 
-describe('skill-export single-adapter coverage', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('skill-export single-adapter coverage', () => {
   test('skill_tree single-adapter shape: lists files including SKILL.md and SHA256SUMS', async () => {
     const ts = Date.now().toString();
     const slug = `tree-single-${ts}`;

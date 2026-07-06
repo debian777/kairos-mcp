@@ -1,0 +1,47 @@
+FROM qdrant/qdrant:v1.17.1@sha256:94728574965d17c6485dd361aa3c0818b325b9016dac5ea6afec7b4b2700865f AS qdrant
+
+FROM node:24-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    tini \
+    libunwind8 \
+    libssl3 \
+    libstdc++6 \
+    libgcc-s1 \
+    zlib1g \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs -m -s /usr/sbin/nologin kairos
+
+WORKDIR /app
+
+ARG PACKAGE_VERSION=4.4.0
+RUN test -n "$PACKAGE_VERSION"
+
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+    npm install --omit=dev && \
+    npm cache clean --force
+
+COPY --from=qdrant /qdrant/qdrant /usr/local/bin/qdrant
+COPY scripts/stdio/entrypoint.sh /usr/local/bin/kairos-stdio-entrypoint
+
+RUN chmod +x /usr/local/bin/qdrant /usr/local/bin/kairos-stdio-entrypoint && \
+    mkdir -p /var/lib/qdrant/storage && \
+    chown -R kairos:nodejs /var/lib/qdrant /app
+
+USER kairos
+
+ENV NODE_ENV=production
+ENV TRANSPORT_TYPE=stdio
+ENV AUTH_ENABLED=false
+ENV QDRANT_URL=http://127.0.0.1:6333
+ENV QDRANT_COLLECTION=kairos
+ENV EMBEDDING_PROVIDER=openai
+ENV QDRANT__SERVICE__HOST=127.0.0.1
+ENV QDRANT__SERVICE__HTTP_PORT=6333
+ENV QDRANT__SERVICE__GRPC_PORT=6334
+ENV QDRANT__STORAGE__STORAGE_PATH=/var/lib/qdrant/storage
+
+ENTRYPOINT ["tini","--","/usr/local/bin/kairos-stdio-entrypoint"]

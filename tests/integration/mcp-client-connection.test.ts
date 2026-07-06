@@ -12,9 +12,19 @@ describe('MCP Client Connection', () => {
     withRawOnFail(sharedConnection, () => {
       expect(sharedConnection).toBeDefined();
       expect(sharedConnection.client).toBeDefined();
-      expect(sharedConnection.transport).toBeDefined();
+      // In stdio mode the shared connection keeps the transport internal (null);
+      // in HTTP mode the transport object is returned.
+      if (sharedConnection.transport !== null) {
+        expect(sharedConnection.transport).toBeDefined();
+      }
       // Verify connection is working by checking client state
       expect(sharedConnection.client).toBeTruthy();
     }, 'mcp client connection object');
+  });
+
+  test('can list tools', async () => {
+    const toolsResult = await sharedConnection.client.listTools();
+    expect(Array.isArray(toolsResult.tools)).toBe(true);
+    expect(toolsResult.tools.length).toBeGreaterThan(0);
   });
 });

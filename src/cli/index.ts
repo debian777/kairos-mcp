@@ -5,6 +5,6 @@
 
 import { createProgram } from './program.js';
 
-// Parse arguments
-createProgram().parse();
+// Parse arguments (async for commands that perform I/O before spawn, e.g. `serve`)
+await createProgram().parseAsync(process.argv);
 

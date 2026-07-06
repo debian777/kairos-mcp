@@ -28,7 +28,8 @@
     "ai-infrastructure"
   ],
   "bin": {
-    "kairos": "dist/cli/index.js"
+    "kairos": "dist/cli/index.js",
+    "kairos-mcp": "dist/cli/index.js"
   },
   "files": [
     "dist/",
@@ -37,7 +38,7 @@
   ],
   "scripts": {
     "cli": "node dist/cli/index.js",
-    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${PORT:-3300}}\" && exec node dist/cli/index.js \"$@\"' _",
+    "cli:dev": "sh -c 'set -a && [ -f .env ] && . ./.env; set +a && export KAIROS_API_URL=\"${KAIROS_API_URL:-http://localhost:${SERVER_PORT:-3300}}\" && exec node dist/cli/index.js \"$@\"' _",
     "dev:cli-ready": "./scripts/deploy-dev-cli-ready.sh",
     "test": "npm run dev:deploy && npm run dev:test",
     "dev:build": "npm run lint && npm run knip && npm run ui:build && ENV=dev ./scripts/deploy-run-env.sh build",
@@ -52,6 +53,7 @@
     "dev:status": "ENV=dev ./scripts/deploy-run-env.sh status",
     "dev:stop": "ENV=dev ./scripts/deploy-run-env.sh stop",
     "dev:test": "ENV=dev ./scripts/deploy-run-env.sh test",
+    "dev:stdio": "sh -c 'set -a && [ -f .env ] && . ./.env; [ -f .env.dev_stdio ] && . ./.env.dev_stdio; set +a; exec node dist/bootstrap.js'",
     "dev_simple:deploy": "npm run dev:build && npm run dev_simple:restart",
     "dev_simple:logs": "ENV=dev_simple ./scripts/deploy-run-env.sh logs",
     "dev_simple:qdrant-curl": "ENV=dev_simple ./scripts/deploy-run-env.sh qdrant-curl",
@@ -60,6 +62,17 @@
     "dev_simple:status": "ENV=dev_simple ./scripts/deploy-run-env.sh status",
     "dev_simple:stop": "ENV=dev_simple ./scripts/deploy-run-env.sh stop",
     "dev_simple:test": "ENV=dev_simple ./scripts/deploy-run-env.sh test",
+    "dev_stdio:deploy": "npm run dev:build && npm run dev_stdio:restart",
+    "dev_stdio:logs": "ENV=dev_stdio ./scripts/deploy-run-env.sh logs",
+    "dev_stdio:qdrant-curl": "ENV=dev_stdio ./scripts/deploy-run-env.sh qdrant-curl",
+    "dev_stdio:restart": "ENV=dev_stdio ./scripts/deploy-run-env.sh restart",
+    "dev_stdio:start": "ENV=dev_stdio ./scripts/deploy-run-env.sh start",
+    "dev_stdio:status": "ENV=dev_stdio ./scripts/deploy-run-env.sh status",
+    "dev_stdio:stop": "ENV=dev_stdio ./scripts/deploy-run-env.sh stop",
+    "dev_stdio:test": "ENV=dev_stdio ./scripts/deploy-run-env.sh test",
+    "test:integration:contracts:http-auth": "ENV=dev ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.http-auth.test.ts",
+    "test:integration:contracts:http-simple": "ENV=dev_simple ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.http-simple.test.ts",
+    "test:integration:contracts:stdio-simple": "ENV=dev_stdio ./scripts/deploy-run-env.sh test -- tests/integration/scenarios/spaces-tool.stdio-simple.test.ts",
     "test:seed-snapshot": "bash ./scripts/seed-test-snapshot.sh",
     "test:restore-snapshot": "node -r dotenv/config -e \"import('./tests/utils/restore-qdrant-snapshot.js').then(m => m.restoreTestSnapshot().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\"",
     "qdrant:binary:install": "bash ./scripts/qdrant-binary.sh install",
@@ -114,6 +127,7 @@
     "prepare": "husky",
     "build:tgz": "node scripts/build-ensure-tgz.mjs",
     "test:tgz": "node scripts/ci-test-tgz-install.mjs",
+    "test:package-local": "npm run build:tgz && npm run test:tgz",
     "prepare:publish": "npm run build:tgz && npm run test:tgz",
     "publish": "npm run prepare:publish && npm publish ./dist/debian777-kairos-mcp-$(node -p \"require('./package.json').version\").tgz --access public",
     "release:major": "npm version major --no-git-tag-version && npm run version:sync",
@@ -122,10 +136,7 @@
     "release:bug": "npm run release:patch",
     "release:rc": "npm version prerelease --preid=rc --no-git-tag-version && npm run version:sync",
     "release:pre": "npm version prerelease --preid=pre --no-git-tag-version && npm run version:sync",
-    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync",
-    "journey:export": "node scripts/journey-export.mjs",
-    "journey:replay": "node scripts/journey-replay.mjs",
-    "journey:diff": "node scripts/journey-diff.mjs"
+    "release:beta": "npm version prerelease --preid=beta --no-git-tag-version && npm run version:sync"
   },
   "dependencies": {
     "@exodus/bytes": "^1.15.0",
@@ -161,6 +172,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/compat": "^2.1.0",
     "@jest/globals": "^30.2.0",
     "@jest/test-sequencer": "^30.2.0",
     "@mermaid-js/mermaid-cli": "^11.15.0",
@@ -204,6 +216,8 @@
     "glob": "^13.0.0",
     "minimatch": "^10.2.3",
     "tar": "^7.5.11",
-    "fast-uri": "^3.1.2"
+    "fast-uri": "^3.1.2",
+    "js-yaml": "^4.2.0",
+    "markdown-it": "^14.2.0"
   }
 }

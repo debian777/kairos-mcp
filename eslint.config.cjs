@@ -8,6 +8,10 @@
 'use strict';
 
 const path = require('node:path');
+const { includeIgnoreFile } = require('@eslint/compat');
 const { createFlatConfig } = require('./eslint/flat-config.cjs');
 
-module.exports = createFlatConfig(path.resolve(__dirname));
+module.exports = [
+  includeIgnoreFile(path.resolve(__dirname, '.gitignore')),
+  ...createFlatConfig(path.resolve(__dirname)),
+];

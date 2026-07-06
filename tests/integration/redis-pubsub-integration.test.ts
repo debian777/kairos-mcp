@@ -4,6 +4,7 @@ import { RedisCacheService, redisCacheService } from '../../src/services/redis-c
 import { KAIROS_REDIS_PREFIX, KAIROS_APP_SPACE_ID, REDIS_URL, MEMORY_CACHE_KEY_PREFIX } from '../../src/config.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
 import type { Memory } from '../../src/types/memory.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 /**
  * Key layout must match RedisService.getKey() and RedisCacheService:
@@ -35,7 +36,7 @@ function memoryRedisKey(uuid: string): string {
   return `${KAIROS_REDIS_PREFIX}${MEMORY_CACHE_KEY_PREFIX}${uuid}`;
 }
 
-const describeRedis = REDIS_URL ? describe : describe.skip;
+const describeRedis = REDIS_URL && isHttpTransport() ? describe : describe.skip;
 
 describeRedis('Redis Pub/Sub Integration Tests', () => {
   let testClient: RedisClientType;

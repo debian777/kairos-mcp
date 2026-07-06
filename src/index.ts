@@ -1,21 +1,23 @@
 /**
  * KAIROS MCP Server
  *
- * Supporting HTTP transport only (STDIO removed for simplicity)
+ * Supports HTTP and stdio transports.
  */
 
 import { structuredLogger } from './utils/structured-logger.js';
 import { installGlobalErrorHandlers } from './utils/global-error-handlers.js';
 import { MemoryQdrantStore } from './services/memory/store.js';
-import { startServer } from './http/http-server.js';
+import { startHttpTransport } from './http/http-server.js';
+import { startStdioTransport } from './stdio/stdio-server.js';
 import { injectMemResourcesAtBoot } from './resources/mem-resources-boot.js';
 import { startMetricsServer } from './metrics-server.js';
 import {
-  PORT,
+  SERVER_PORT,
   METRICS_PORT,
   QDRANT_SNAPSHOT_ON_START,
   QDRANT_SNAPSHOT_DIR,
-  KAIROS_LOCAL_ARTIFACT_DIRS
+  KAIROS_LOCAL_ARTIFACT_DIRS,
+  TRANSPORT_TYPE
 } from './config.js';
 import { qdrantService } from './services/qdrant/index.js';
 import { triggerQdrantSnapshot } from './services/qdrant/snapshots.js';
@@ -67,6 +69,23 @@ async function waitForQdrant(memoryStore: MemoryQdrantStore, maxRetries: number 
 }
 
 /**
+ * Install signal handlers for graceful shutdown.
+ * Without listeners Node terminates immediately on SIGTERM, but open handles
+ * (Qdrant gRPC, stdio pipes) can delay exit. An explicit handler ensures
+ * the process exits promptly.
+ */
+function installSignalHandlers(): void {
+    const shutdown = (signal: string) => {
+        structuredLogger.info(`Received ${signal}, shutting down`);
+        // Force exit after a short grace period if open handles keep the event loop alive
+        setTimeout(() => process.exit(0), 1000).unref();
+        process.exitCode = 0;
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+/**
  * Boot the HTTP/MCP application.
  * Invoked when `node dist/index.js` is the process entrypoint, or after `dist/bootstrap.js` loads this module
  * (bootstrap is not `index.js`, so `isDirectRun()` is false there and bootstrap must call this explicitly).
@@ -76,6 +95,7 @@ export async function runKairosServer(): Promise<void> {
         installQdrantFetchCompatibility();
         // Install once at startup to capture any background errors/warnings
         installGlobalErrorHandlers();
+        installSignalHandlers();
 
         structuredLogger.info(
           `KAIROS_LOCAL_ARTIFACT_DIRS (client-resolvable hints): ${KAIROS_LOCAL_ARTIFACT_DIRS.join(', ')}`
@@ -111,14 +131,34 @@ export async function runKairosServer(): Promise<void> {
         // Use --force flag to allow override in new versions
         await injectMemResourcesAtBoot(memoryStore, { force: true });
 
-        // Start dedicated metrics server on separate port
-        // This runs independently from the main application server
-        startMetricsServer();
+        // Metrics HTTP server: only when the app serves HTTP (stdio mode avoids any HTTP listeners).
+        if (TRANSPORT_TYPE === 'http') {
+            startMetricsServer();
+        }
 
-        structuredLogger.info(`Application server: ${PORT}`);
-        structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
+        const transportSource = process.env['KAIROS_CLI_TRANSPORT_SOURCE']?.trim();
+        if (transportSource === 'cli' || transportSource === 'env') {
+            structuredLogger.info(
+                `Resolved MCP transport: ${TRANSPORT_TYPE} (source: ${transportSource === 'cli' ? '--transport' : 'TRANSPORT_TYPE'})`
+            );
+        }
 
-        await startServer(memoryStore);
+        if (TRANSPORT_TYPE === 'http') {
+            structuredLogger.info(`Application server: ${SERVER_PORT}`);
+        } else {
+            structuredLogger.info('Application server: stdio (no HTTP listener)');
+        }
+        if (TRANSPORT_TYPE === 'http') {
+            structuredLogger.info(`Metrics server: ${METRICS_PORT} (isolated)`);
+        } else {
+            structuredLogger.info('Metrics server: disabled in stdio mode (no HTTP listeners)');
+        }
+
+        if (TRANSPORT_TYPE === 'http') {
+            await startHttpTransport(memoryStore);
+        } else {
+            await startStdioTransport(memoryStore);
+        }
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 

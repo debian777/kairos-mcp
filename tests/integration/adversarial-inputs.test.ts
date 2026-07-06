@@ -1,7 +1,8 @@
-import { getAuthHeaders, getTestAuthBaseUrl, hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, hasAuthToken, serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function apiFetch(url: string, init: RequestInit = {}, headers: Record<string, string> = getAuthHeaders()): Promise<Response> {
   return fetch(url, {
@@ -15,7 +16,7 @@ function expectNoServerCrash(response: Response): void {
   expect(response.status).not.toBe(502);
 }
 
-describe('Adversarial and robustness inputs', () => {
+_d('Adversarial and robustness inputs', () => {
   test('rejects oversized JSON body (>1MB)', async () => {
     expect.hasAssertions();
     const response = await apiFetch(`${API_BASE}/activate`, {

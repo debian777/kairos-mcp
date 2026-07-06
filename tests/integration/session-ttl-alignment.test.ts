@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import path from 'path';
-import { getMcpTestBearerToken, hasAuthToken, serverRequiresAuth } from '../utils/auth-headers.js';
+import { getMcpTestBearerToken, hasAuthToken, serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 
 function parseJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
@@ -42,7 +42,9 @@ function readTemplateSessionMaxAgeSec(): number {
   return parsed;
 }
 
-describe('Session TTL alignment', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('Session TTL alignment', () => {
   test('session TTL resolves from token TTL when available', async () => {
     const { resolveSessionMaxAgeSec } = await import('../../src/http/http-auth-callback.js');
     const nowSec = 1000;

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { isHttpTransport } from '../utils/auth-headers.js';
 import {
   type ExportSkillTreeResponse,
   type ExportSkillZipResponse,
@@ -100,7 +101,9 @@ async function retrainFromBundle(
   return { adapterUri: adapter.adapterUri, artifactUris };
 }
 
-describe('mime fixture export parity via API transport', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('mime fixture export parity via API transport', () => {
   beforeAll(async () => {
     ensureMimeFixtureExportDumpRootCleanBeforeMimeTests();
   }, 60000);
