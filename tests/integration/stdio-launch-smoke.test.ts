@@ -36,14 +36,23 @@ function hasEmbeddingConfig(env: NodeJS.ProcessEnv): boolean {
   );
 }
 
-function createStdioEnv(): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    ...FILE_ENV,
-    TRANSPORT_TYPE: 'stdio',
-    AUTH_ENABLED: process.env.AUTH_ENABLED ?? FILE_ENV.AUTH_ENABLED ?? 'false',
-    REDIS_URL: process.env.REDIS_URL ?? FILE_ENV.REDIS_URL ?? ''
-  };
+function createStdioEnv(): Record<string, string> {
+  const result: Record<string, string> = {};
+  // Copy process.env, converting undefined to empty string
+  for (const [key, value] of Object.entries(process.env)) {
+    result[key] = value ?? '';
+  }
+  // Apply FILE_ENV overrides
+  for (const [key, value] of Object.entries(FILE_ENV)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  // Apply explicit overrides
+  result.TRANSPORT_TYPE = 'stdio';
+  result.AUTH_ENABLED = process.env.AUTH_ENABLED ?? FILE_ENV.AUTH_ENABLED ?? 'false';
+  result.REDIS_URL = process.env.REDIS_URL ?? FILE_ENV.REDIS_URL ?? '';
+  return result;
 }
 
 function spawnStdioServer(): ChildProcessWithoutNullStreams {
@@ -78,7 +87,18 @@ describe('STDIO launch smoke', () => {
     expect(startupStdout).toBe('');
 
     child.kill('SIGTERM');
-    await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    // Wait for exit with SIGKILL fallback after 5s
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        if (child.exitCode === null) {
+          child.kill('SIGKILL');
+        }
+      }, 5000);
+      child.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
   }, 90000);
 
   test('initialize and listTools work over stdio client transport', async () => {
@@ -105,5 +125,7 @@ describe('STDIO launch smoke', () => {
     expect(toolsResult.tools.length).toBeGreaterThan(0);
 
     await client.close();
+    // Give the transport a moment to clean up the child process
+    await sleep(500);
   }, 120000);
 });
