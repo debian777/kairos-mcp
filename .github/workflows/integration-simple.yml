@@ -256,7 +256,7 @@ jobs:
           path: artifact-npm
 
       - name: Restore Qdrant test snapshot cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: qdrant-snapshot-cache
         with:
           path: |
@@ -267,7 +267,7 @@ jobs:
             ${{ runner.os }}-qdrant-snapshot-
 
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache-simple
         with:
           path: ~/.cache/ms-playwright
@@ -291,7 +291,7 @@ jobs:
           exit $ec
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache-simple.outputs.cache-hit != 'true' && steps.playwright-install-simple.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
@@ -333,7 +333,7 @@ jobs:
           npm run test:seed-snapshot
 
       - name: Save Qdrant test snapshot cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.qdrant-snapshot-cache.outputs.cache-hit != 'true'
         with:
           path: |
@@ -427,7 +427,7 @@ jobs:
           path: artifact-npm
 
       - name: Restore Qdrant test snapshot cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: qdrant-snapshot-cache-advisory
         with:
           path: |
@@ -438,7 +438,7 @@ jobs:
             ${{ runner.os }}-qdrant-snapshot-
 
       - name: Restore Playwright browsers cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache-simple
         with:
           path: ~/.cache/ms-playwright
@@ -462,7 +462,7 @@ jobs:
           exit $ec
 
       - name: Save Playwright browsers cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache-simple.outputs.cache-hit != 'true' && steps.playwright-install-simple.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
@@ -503,7 +503,7 @@ jobs:
           npm run test:seed-snapshot
 
       - name: Save Qdrant test snapshot cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.qdrant-snapshot-cache-advisory.outputs.cache-hit != 'true'
         with:
           path: |
