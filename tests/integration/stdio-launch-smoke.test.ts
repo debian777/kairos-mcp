@@ -99,7 +99,7 @@ describe('STDIO launch smoke', () => {
         resolve();
       });
     });
-  }, 90000);
+  }, 30000);
 
   test('initialize and listTools work over stdio client transport', async () => {
     const env = createStdioEnv();
@@ -122,7 +122,7 @@ describe('STDIO launch smoke', () => {
     await Promise.race([
       client.connect(transport),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('stdio client connect timed out after 60000ms')), 60000)
+        setTimeout(() => reject(new Error('stdio client connect timed out after 20000ms')), 20000)
       ),
     ]);
     const toolsResult = await client.listTools();
@@ -134,5 +134,5 @@ describe('STDIO launch smoke', () => {
     // Give the transport a moment to clean up the child process.
     // If the child lingers, SIGKILL it after 5s.
     await sleep(500);
-  }, 120000);
+  }, 30000);
 });
