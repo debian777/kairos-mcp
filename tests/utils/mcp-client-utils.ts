@@ -91,23 +91,28 @@ const STDIO_FILE_ENV = {
 
 let stdioClient: Client | null = null;
 let stdioTransport: StdioClientTransport | null = null;
-let stdioRefCount = 0;
 
-function createStdioChildEnv(): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    ...STDIO_FILE_ENV,
-    TRANSPORT_TYPE: 'stdio',
-    AUTH_ENABLED: process.env.AUTH_ENABLED ?? STDIO_FILE_ENV.AUTH_ENABLED ?? 'false',
-    PORT: process.env.PORT ?? STDIO_FILE_ENV.PORT ?? '4300',
-    METRICS_PORT: 'disabled',
-    REDIS_URL: process.env.REDIS_URL ?? STDIO_FILE_ENV.REDIS_URL ?? ''
-  };
+function createStdioChildEnv(): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    result[key] = value ?? '';
+  }
+  for (const [key, value] of Object.entries(STDIO_FILE_ENV)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  result.TRANSPORT_TYPE = 'stdio';
+  result.AUTH_ENABLED = process.env.AUTH_ENABLED ?? STDIO_FILE_ENV.AUTH_ENABLED ?? 'false';
+  result.PORT = process.env.PORT ?? STDIO_FILE_ENV.PORT ?? '4300';
+  result.METRICS_PORT = 'disabled';
+  result.REDIS_URL = process.env.REDIS_URL ?? STDIO_FILE_ENV.REDIS_URL ?? '';
+  return result;
 }
 
-async function createStdioMcpConnection() {
-  stdioRefCount++;
+const STDIO_CONNECT_TIMEOUT_MS = 60_000;
 
+async function createStdioMcpConnection() {
   if (!stdioClient) {
     const env = createStdioChildEnv();
     const args = fs.existsSync(BOOTSTRAP_PATH)
@@ -121,7 +126,15 @@ async function createStdioMcpConnection() {
       env,
       cwd: process.cwd()
     });
-    await stdioClient.connect(stdioTransport);
+
+    // Race the connect against a timeout so a hung child process fails fast
+    // instead of blocking the entire test suite indefinitely.
+    await Promise.race([
+      stdioClient.connect(stdioTransport),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`MCP stdio connect timed out after ${STDIO_CONNECT_TIMEOUT_MS}ms`)), STDIO_CONNECT_TIMEOUT_MS)
+      ),
+    ]);
   }
 
   const capturedClient = stdioClient;
@@ -129,13 +142,10 @@ async function createStdioMcpConnection() {
     client: capturedClient,
     transport: null,
     close: async () => {
-      stdioRefCount--;
-      if (stdioRefCount <= 0) {
-        try { await capturedClient.close(); } catch { /* ignore */ }
-        stdioClient = null;
-        stdioTransport = null;
-        stdioRefCount = 0;
-      }
+      // Do NOT close the shared stdio client between test files.
+      // Each close+reconnect spawns a new server child process (Qdrant init,
+      // embedding probe, etc.) which is expensive and causes CI hangs.
+      // Jest --forceExit cleans up the process when all tests are done.
     }
   };
 }

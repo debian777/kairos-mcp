@@ -125,7 +125,8 @@ describe('STDIO launch smoke', () => {
     expect(toolsResult.tools.length).toBeGreaterThan(0);
 
     await client.close();
-    // Give the transport a moment to clean up the child process
+    // Give the transport a moment to clean up the child process.
+    // If the child lingers, SIGKILL it after 5s.
     await sleep(500);
   }, 120000);
 });
