@@ -32,6 +32,13 @@ jest.unstable_mockModule('../../src/services/forward-runtime-store.js', () => ({
   }
 }));
 
+jest.unstable_mockModule('../../src/services/embedding/service.js', () => ({
+  embeddingService: {
+    generateEmbedding: async () => ({ embedding: new Array(384).fill(0) }),
+    calculateCosineSimilarity: () => 0.5
+  }
+}));
+
 function makeCommentLayerMemory(memoryUuid: string): Memory {
   return {
     memory_uuid: memoryUuid,
@@ -81,5 +88,55 @@ describe('buildForwardView nonce stability', () => {
     }
     expect(second.contract).toMatchObject({ nonce: first.contract.nonce });
     expect(nonceByUuid.get(memoryUuid)).toBe(first.contract.nonce);
+  });
+});
+
+describe('handleProofSubmission nonce rotation on NONCE_MISMATCH', () => {
+  let handleProofSubmission: typeof import('../../src/tools/next-pow-helpers.js').handleProofSubmission;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/tools/next-pow-helpers.js');
+    handleProofSubmission = mod.handleProofSubmission;
+  });
+
+  afterEach(() => {
+    nonceByUuid.clear();
+  });
+
+  test('rotates nonce after NONCE_MISMATCH so agent can recover', async () => {
+    const memoryUuid = randomUUID();
+    const memory = makeCommentLayerMemory(memoryUuid);
+
+    // Seed a stored nonce (simulates a prior buildChallenge call)
+    const storedNonce = 'original-nonce-value';
+    nonceByUuid.set(memoryUuid, storedNonce);
+
+    // Submit with a WRONG nonce (simulates the desync scenario)
+    const result = await handleProofSubmission(
+      { type: 'comment', nonce: 'wrong-nonce', comment: { text: 'x'.repeat(80) } },
+      memory,
+      { expectedPreviousHash: 'genesis' }
+    );
+
+    // Should be blocked with NONCE_MISMATCH
+    expect(result.blockedPayload).toBeDefined();
+    expect(result.blockedPayload.error_code).toBe('NONCE_MISMATCH');
+
+    // The challenge in the error response must contain a DIFFERENT nonce
+    const responseNonce = result.blockedPayload.challenge?.nonce;
+    expect(responseNonce).toBeDefined();
+    expect(responseNonce).not.toBe(storedNonce);
+
+    // The stored nonce must have been rotated to the new value
+    expect(nonceByUuid.get(memoryUuid)).toBe(responseNonce);
+
+    // A subsequent call with the NEW nonce should pass nonce validation
+    const recovery = await handleProofSubmission(
+      { type: 'comment', nonce: responseNonce, comment: { text: 'x'.repeat(80) } },
+      memory,
+      { expectedPreviousHash: 'genesis' }
+    );
+    // Should NOT be blocked with NONCE_MISMATCH anymore
+    expect(recovery.blockedPayload?.error_code).not.toBe('NONCE_MISMATCH');
   });
 });
