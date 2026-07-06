@@ -169,12 +169,12 @@ function normalizeRedisUrl(rawUrl: string | undefined, rawPassword: string | und
 
 function loadEnv(): void {
   const root = process.cwd();
-  const opts = { override: false };
   const env = process.env.ENV || 'dev';
   const envFile = join(root, `.env.${env}`);
-  // Load .env.${ENV} first so ENV-specific file wins, then .env as base
-  if (existsSync(envFile)) config({ path: envFile, ...opts });
-  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), ...opts });
+  // Load .env as base first, then .env.${ENV} with override so profile-specific
+  // values (e.g. empty REDIS_URL in stdio mode) win over the base .env.
+  if (existsSync(join(root, '.env'))) config({ path: join(root, '.env'), override: false });
+  if (existsSync(envFile)) config({ path: envFile, override: true });
   
   // Normalize Redis URL with password if available
   const normalizedRedisUrl = normalizeRedisUrl(process.env.REDIS_URL, process.env.REDIS_PASSWORD);
