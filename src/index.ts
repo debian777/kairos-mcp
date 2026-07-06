@@ -69,6 +69,23 @@ async function waitForQdrant(memoryStore: MemoryQdrantStore, maxRetries: number 
 }
 
 /**
+ * Install signal handlers for graceful shutdown.
+ * Without listeners Node terminates immediately on SIGTERM, but open handles
+ * (Qdrant gRPC, stdio pipes) can delay exit. An explicit handler ensures
+ * the process exits promptly.
+ */
+function installSignalHandlers(): void {
+    const shutdown = (signal: string) => {
+        structuredLogger.info(`Received ${signal}, shutting down`);
+        // Force exit after a short grace period if open handles keep the event loop alive
+        setTimeout(() => process.exit(0), 1000).unref();
+        process.exitCode = 0;
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+/**
  * Boot the HTTP/MCP application.
  * Invoked when `node dist/index.js` is the process entrypoint, or after `dist/bootstrap.js` loads this module
  * (bootstrap is not `index.js`, so `isDirectRun()` is false there and bootstrap must call this explicitly).
@@ -78,6 +95,7 @@ export async function runKairosServer(): Promise<void> {
         installQdrantFetchCompatibility();
         // Install once at startup to capture any background errors/warnings
         installGlobalErrorHandlers();
+        installSignalHandlers();
 
         structuredLogger.info(
           `KAIROS_LOCAL_ARTIFACT_DIRS (client-resolvable hints): ${KAIROS_LOCAL_ARTIFACT_DIRS.join(', ')}`

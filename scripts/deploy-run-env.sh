@@ -596,7 +596,9 @@ test() {
             test_port="${SERVER_PORT:-3300}"
             if [ "$ENV" = "dev_stdio" ]; then
                 # Stdio transport: no HTTP server, no MCP_URL needed (createMcpConnection spawns stdio subprocess).
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=120000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                # --forceExit: stdio tests spawn child server processes whose open handles (Qdrant, stdio pipes)
+                # would otherwise prevent Jest from exiting after all tests complete.
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=120000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             elif [ ${#args[@]} -eq 0 ]; then
                 # Scenario matrix: http-simple + stdio wrappers require the matching stack (see tests/integration/scenarios/).
                 dev_ignore_scenarios=""
