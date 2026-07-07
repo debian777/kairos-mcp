@@ -608,12 +608,12 @@ test() {
                     dev_ignore_scenarios='tests/integration/scenarios/spaces-tool.http-simple.test.ts|tests/integration/scenarios/spaces-tool.stdio-simple.test.ts'
                 fi
                 if [ -n "$dev_ignore_scenarios" ]; then
-                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" --testPathIgnorePatterns "$dev_ignore_scenarios" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" --testPathIgnorePatterns "$dev_ignore_scenarios" 2>&1 | tee -a "$REPORT_LOG_FILE"
                 else
-                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1 | tee -a "$REPORT_LOG_FILE"
                 fi
             else
-                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --detectOpenHandles --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)

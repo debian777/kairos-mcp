@@ -135,3 +135,27 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript"
+
+  # Merge gate: all security jobs must pass.
+  # dependency-review has continue-on-error so its failure does not block the gate.
+  security-pass:
+    name: Security workflow passed
+    needs: [trivyignore-expiry, npm-audit, container-base-os-trivy, codeql]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs
+        env:
+          TRIVYIGNORE_EXPIRY: ${{ needs.trivyignore-expiry.result }}
+          NPM_AUDIT: ${{ needs.npm-audit.result }}
+          CONTAINER_TRIVY: ${{ needs.container-base-os-trivy.result }}
+          CODEQL: ${{ needs.codeql.result }}
+        run: |
+          set -euo pipefail
+          echo "trivyignore-expiry=$TRIVYIGNORE_EXPIRY npm-audit=$NPM_AUDIT container-base-os-trivy=$CONTAINER_TRIVY codeql=$CODEQL"
+
+          test "$TRIVYIGNORE_EXPIRY" = "success"
+          test "$NPM_AUDIT" = "success"
+          test "$CONTAINER_TRIVY" = "success"
+          test "$CODEQL" = "success"
+          echo "All security jobs passed."
