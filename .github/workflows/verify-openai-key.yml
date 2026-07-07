@@ -1,0 +1,168 @@
+# Manual diagnostic: verify the OPENAI_API_KEY repo secret can authenticate and
+# call the embeddings endpoint. Use to diagnose integration-test failures like:
+#   SyntaxError: Unexpected token 'O', "OpenAI rat"... is not valid JSON
+# which is a 429 / quota error returned as a non-JSON body that surfaces inside
+# MCP tool JSON parsing.
+#
+# Triggered manually only (Actions tab → "Verify OpenAI API Key" → Run workflow).
+name: Verify OpenAI API Key
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'OpenAI embedding model to probe'
+        required: false
+        default: 'text-embedding-3-small'
+      api_url:
+        description: 'OpenAI API base URL (override for proxy/Azure-compatible)'
+        required: false
+        default: 'https://api.openai.com'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-openai-key:
+    name: Verify OpenAI API key & embeddings access
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check OPENAI_API_KEY secret presence
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## OpenAI API key check"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            {
+              echo "- Secret: **missing / empty**"
+              echo ""
+              echo "The \`OPENAI_API_KEY\` repository secret is empty or not configured."
+              echo "Add it under Settings → Secrets and variables → Actions → New repository secret."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::OPENAI_API_KEY repo secret is empty or not set."
+            exit 1
+          fi
+          # Never print the key; report only a length + prefix fingerprint.
+          len=${#OPENAI_API_KEY}
+          prefix="${OPENAI_API_KEY:0:3}"
+          {
+            echo "- Secret: **present**"
+            echo "- Length: \`${len}\`"
+            echo "- Prefix fingerprint: \`${prefix}…\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Probe embeddings endpoint
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_URL: ${{ inputs.api_url }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          set -uo pipefail
+          base="${OPENAI_API_URL%/}"
+          endpoint="${base}/v1/embeddings"
+          echo "Endpoint: ${endpoint}"
+          echo "Model:    ${MODEL}"
+          echo ""
+
+          tmp="$(mktemp)"
+          # No --fail: we want the body + HTTP code even on 4xx/5xx.
+          http_code=$(curl -sS -o "$tmp" -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 60 \
+            -X POST "${endpoint}" \
+            -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"${MODEL}\",\"input\":\"hello\"}" 2>/dev/null || echo "curl_error")
+          body="$(cat "$tmp")"
+          rm -f "$tmp"
+
+          echo "HTTP status: ${http_code}"
+          if [ "$http_code" != "200" ]; then
+            echo "Raw response:"
+            echo "${body}"
+            echo ""
+          fi
+
+          if [ "$http_code" = "200" ]; then
+            dim=$(printf '%s' "$body" | jq -r '.data[0].embedding | length' 2>/dev/null || echo "n/a")
+            model_used=$(printf '%s' "$body" | jq -r '.model' 2>/dev/null || echo "n/a")
+            prompt_tokens=$(printf '%s' "$body" | jq -r '.usage.prompt_tokens' 2>/dev/null || echo "n/a")
+            total_tokens=$(printf '%s' "$body" | jq -r '.usage.total_tokens' 2>/dev/null || echo "n/a")
+            {
+              echo "## ✅ Embeddings call succeeded"
+              echo ""
+              echo "| Field | Value |"
+              echo "|---|---|"
+              echo "| Endpoint | \`${endpoint}\` |"
+              echo "| Model | \`${model_used}\` |"
+              echo "| Dimension | \`${dim}\` |"
+              echo "| prompt_tokens | \`${prompt_tokens}\` |"
+              echo "| total_tokens | \`${total_tokens}\` |"
+              echo ""
+              echo "The key is valid and can create embeddings. If integration tests still fail with"
+              echo "\`SyntaxError: Unexpected token 'O', \"OpenAI rat...\"\`, the cause is a **transient 429**"
+              echo "during the test run — retry the test or raise the key's rate/quota limit."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::OpenAI embeddings OK (model=${model_used}, dim=${dim})"
+            exit 0
+          elif [ "$http_code" = "401" ]; then
+            msg=$(printf '%s' "$body" | jq -r '.error.message // empty' 2>/dev/null || echo "$body")
+            {
+              echo "## ❌ Authentication failed (401)"
+              echo ""
+              echo "The \`OPENAI_API_KEY\` secret was rejected by OpenAI."
+              echo ""
+              echo "**Error:** ${msg}"
+              echo ""
+              echo "Fix: rotate/regenerate the key and update the \`OPENAI_API_KEY\` repo secret."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::OpenAI rejected the key (401): ${msg}"
+            exit 1
+          elif [ "$http_code" = "429" ]; then
+            err_type=$(printf '%s' "$body" | jq -r '.error.type // empty' 2>/dev/null || echo "")
+            err_code=$(printf '%s' "$body" | jq -r '.error.code // empty' 2>/dev/null || echo "")
+            msg=$(printf '%s' "$body" | jq -r '.error.message // empty' 2>/dev/null || echo "$body")
+            {
+              echo "## ❌ Rate limited / quota exceeded (429)"
+              echo ""
+              echo "This is the **direct cause** of \`SyntaxError: Unexpected token 'O', \"OpenAI rat...\"\`"
+              echo "in integration tests: a 429 returns a plain/error body that the MCP tool surfaces"
+              echo "into JSON parsing."
+              echo ""
+              echo "| Field | Value |"
+              echo "|---|---|"
+              echo "| error.type | \`${err_type}\` |"
+              echo "| error.code | \`${err_code}\` |"
+              echo "| message | ${msg} |"
+              echo ""
+              echo "Fix: add billing/quota to the OpenAI account, or wait for the rate window to reset."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::OpenAI 429 (type=${err_type}, code=${err_code}): ${msg}"
+            exit 1
+          elif [ "$http_code" = "curl_error" ]; then
+            {
+              echo "## ❌ Network error"
+              echo ""
+              echo "curl could not reach \`${endpoint}\`."
+              echo ""
+              echo "Body: ${body}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Network error reaching ${endpoint}: ${body}"
+            exit 1
+          else
+            msg=$(printf '%s' "$body" | jq -r '.error.message // empty' 2>/dev/null || echo "$body")
+            {
+              echo "## ❌ Unexpected response (HTTP ${http_code})"
+              echo ""
+              echo "**Body:** ${msg}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Unexpected OpenAI response (HTTP ${http_code}): ${msg}"
+            exit 1
+          fi
