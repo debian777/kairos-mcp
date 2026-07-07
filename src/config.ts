@@ -76,10 +76,14 @@ export const TEI_API_KEY = getEnvString('TEI_API_KEY', '');
 export const EMBEDDING_LATENCY_WARN_MS = getEnvInt('EMBEDDING_LATENCY_WARN_MS', 5000);
 export const EMBEDDING_NORM_MIN = getEnvFloat('EMBEDDING_NORM_MIN', 0.5);
 export const EMBEDDING_NORM_MAX = getEnvFloat('EMBEDDING_NORM_MAX', 2.0);
-/**
- * Wall-clock cap for comment PoW semantic check (two embedding calls). On timeout, fail open (same as embedding errors)
- * so MCP `forward` stays within agent-usable latency (well under typical ~30s client limits). Set to 0 to skip semantic check.
- */
+/** Retry policy for embedding 429/5xx/network. Exponential backoff+jitter; Retry-After honored; insufficient_quota fails fast. */
+export const EMBEDDING_MAX_RETRIES = Math.max(0, getEnvInt('EMBEDDING_MAX_RETRIES', 2));
+export const EMBEDDING_RETRY_BASE_DELAY_MS = Math.max(0, getEnvInt('EMBEDDING_RETRY_BASE_DELAY_MS', 500));
+export const EMBEDDING_RETRY_MAX_DELAY_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_MAX_DELAY_MS', 8_000));
+export const EMBEDDING_RETRY_AFTER_CAP_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_AFTER_CAP_MS', 10_000));
+/** Total wall-clock budget for all embedding retries. Once exceeded, no further retries. */
+export const EMBEDDING_RETRY_BUDGET_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_BUDGET_MS', 15_000));
+/** Wall-clock cap for comment PoW semantic check. On timeout, fail open. Set to 0 to skip. */
 export const COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS = getEnvInt('COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS', 10_000);
 export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESHOLD', 0.1);
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
