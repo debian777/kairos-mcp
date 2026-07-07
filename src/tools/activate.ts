@@ -10,6 +10,7 @@ import { activateInputSchema, activateOutputSchema, type ActivateInput, type Act
 import { buildAdapterUri, parseKairosUri } from './kairos-uri.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+import { mcpRateLimitErrorResult } from './mcp-runtime-error.js';
 import { KAIROS_ACTIVATE_TOOL_UI_META } from '../mcp-apps/kairos-ui-constants.js';
 import { KAIROS_CREATION_FOOTER_NEXT_ACTION } from '../constants/builtin-search-meta.js';
 import { KAIROS_LOCAL_ARTIFACT_DIRS } from '../config.js';
@@ -276,6 +277,8 @@ export function registerActivateTool(server: any, memoryStore: MemoryQdrantStore
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        const rateLimitResult = mcpRateLimitErrorResult(error);
+        if (rateLimitResult) return rateLimitResult;
         throw error;
       }
     }
