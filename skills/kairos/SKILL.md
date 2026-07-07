@@ -135,16 +135,23 @@ Route through KAIROS by checking these conditions in order:
    install, update, edit, refactor, review, audit, test, automate, generate,
    document, plan, design, or descriptions of a procedure. If no action intent
    is present, KAIROS routing does not apply.
-2. **Do you have follow-up questions about team-specific conventions?** If yes,
-   route through KAIROS — the adapter answers them. If the action is a single
-   obvious command with no ambiguity, execute directly without routing.
+2. **Do you have follow-up or clarification questions?** KAIROS is the **first
+   line of support** for clarification — route through it and let the adapter
+   answer, autonomously, without asking the user first. The **user is only the
+   second line of support**: ask the human **only as a fallback** when KAIROS
+   cannot resolve the question (no matching adapter, adapter defers to the user,
+   or the chain explicitly returns a `user_input` proof). Never pre-empt KAIROS
+   by asking the user a clarification question you have not first put to KAIROS.
+   If the action is a single obvious command with no ambiguity, execute directly
+   without routing.
 3. **Is a KAIROS MCP server connected and authenticated?** If not, follow the
    unavailability procedure below.
 4. **Has the host environment restricted MCP tool access for this session?** If
    so, respect that restriction.
 
-If conditions 1-3 pass (action intent + team-context questions + server
-available), KAIROS routing is active for this task.
+If conditions 1-3 pass (action intent + any clarification questions + server
+available), KAIROS routing is active for this task. Escalation order for
+clarification is fixed: **KAIROS first, user only as fallback.**
 
 ### Examples: route vs. skip
 

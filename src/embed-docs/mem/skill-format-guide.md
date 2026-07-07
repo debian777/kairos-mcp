@@ -9,9 +9,11 @@ title: Skill Format and Local Authoring Guide
 # Skill Format and Local Authoring Guide
 
 Decision rules for authoring SKILL.md files, choosing between local (git) and
-server (KAIROS) storage, and quality gates for skill content. Loaded by
-protocol-authoring agents during drafting and review when the output format is
-`skill`.
+server (KAIROS) storage, and quality gates for skill content. Fetches the
+current Agent Skills format spec (Context7 or agentskills.io) as the
+authoritative generic format, then layers KAIROS customizations on top. Loaded
+by protocol-authoring agents during drafting and review when the output format
+is `skill`.
 
 ## Activation Patterns
 
@@ -20,19 +22,24 @@ protocol-authoring agents during drafting and review when the output format is
 
 **Can be invoked directly when agent needs:**
 - "SKILL.md format reference" / "how to write a skill"
+- "latest SKILL.md spec" / "current agentskills format"
 - "skill vs adapter" / "local skill or KAIROS adapter"
 - "skill quality gates" / "SKILL.md structure"
 - "project-level skill" / "where to put a skill"
 
-**Trigger pattern:** **skill** + (format | structure | guide | quality | local).
+**Trigger pattern:** **skill** + (format | structure | guide | quality | local | spec).
 
 **Must Never:**
 - Be used as an execution protocol.
 - Recommend storing a skill in both git AND KAIROS server simultaneously.
 - Confuse SKILL.md (agent instruction file) with protocol markdown (adapter).
+- Hardcode the generic SKILL.md format from memory when the current spec is
+  reachable via Context7 or agentskills.io.
 
 **Must Always:**
 - Be consulted before writing any SKILL.md file.
+- Fetch the current Agent Skills spec before authoring or reviewing generic
+  format, and apply KAIROS customizations after it.
 - Enforce single source of truth: each skill lives in exactly one place.
 - Match storage location to the skill's scope and discoverability needs.
 
@@ -96,58 +103,65 @@ Is this skill specific to ONE project's codebase?
 {"contract":{"type":"comment","comment":{"min_length":30},"required":true}}
 ```
 
-## SKILL.md Structure Rules
+## Fetch the Current Skill Format Spec
 
-### Required YAML Frontmatter
+Do NOT rely on a frozen copy of the SKILL.md format. The Agent Skills format
+evolves (new frontmatter fields, directory conventions, size guidance). Before
+authoring or reviewing a SKILL.md, fetch the **current** specification and treat
+it as authoritative for the generic format. The KAIROS customizations in the
+sections *after* this one layer on top of that generic spec.
 
-```yaml
----
-name: lowercase-hyphenated-name
-description: >-
-  Third-person description of WHAT it does and WHEN to use it.
-  Include trigger terms. Max 1024 chars.
----
+**Authoritative source (fetch fresh — do not guess):**
+
+1. **Context7 (preferred):** query the Agent Skills docs library for the
+   SKILL.md format. Use one of these library IDs directly (skip
+   `resolve-library-id`):
+   - `/llmstxt/agentskills_io_llms-full_txt` — full spec text (best coverage)
+   - `/websites/agentskills_io` — the agentskills.io site docs
+   Example query: "SKILL.md frontmatter fields, directory structure, size limits".
+2. **URL fallback:** if Context7 is unavailable or returns nothing usable,
+   fetch `https://agentskills.io/specification`. Use
+   `https://agentskills.io/llms.txt` as the documentation index to discover
+   related pages.
+
+**What to extract from the fetched spec (do not hardcode from memory):**
+- Required and optional YAML frontmatter fields and their constraints
+  (for example `name`, `description`, and any newer fields such as `license`,
+  `compatibility`, `metadata`, `allowed-tools`).
+- Directory structure and conventional subdirectory names
+  (for example `scripts/`, `references/`, `assets/`).
+- Body content recommendations and section guidance.
+- Size / progressive-disclosure guidance (line and token targets).
+- Any spec-provided validation tooling (for example `skills-ref validate`).
+
+**Rules:**
+- Apply the fetched spec's constraints exactly for the generic format.
+- If the fetch fails on BOTH Context7 and the URL, STOP and tell the user the
+  spec is unreachable — do not fabricate field lists or limits from memory.
+- Record which source and (if available) which version/date you fetched, so the
+  authoring decision is auditable.
+
+```json
+{"contract":{"type":"comment","comment":{"min_length":30},"required":true}}
 ```
 
-| Field | Constraint | Purpose |
-|---|---|---|
-| `name` | Max 64 chars, `[a-z0-9-]` only | Unique identifier |
-| `description` | Non-empty, max 1024 chars | Discovery by IDE and agents |
-| `disable-model-invocation` | Boolean, default `true` | Explicit load only |
+## KAIROS Customizations (apply after the generic spec)
 
-### Body Structure
+Everything below is KAIROS-specific and layers on top of the fetched Agent
+Skills spec. When the generic spec and these rules disagree on generic format,
+follow the spec; these rules add KAIROS storage, integrity, and routing
+behavior the generic spec does not cover.
 
-```markdown
-# Skill Title
+### KAIROS additions to structure
 
-## Instructions
-[Core workflow — step-by-step, imperative voice]
-
-## Examples
-[Concrete usage examples with inputs and expected outputs]
-
-## Additional Resources
-- [reference.md](reference.md) — detailed documentation (optional)
-- [scripts/helper.sh](scripts/helper.sh) — utility scripts (optional)
-```
-
-### Directory Layout
-
-```
-skill-name/
-├── SKILL.md              # Required
-├── SHA256SUMS            # Required for KAIROS-exported skills
-├── reference.md          # Optional — detailed docs
-├── examples.md           # Optional — usage examples
-└── scripts/              # Optional — utility scripts
-    └── validate.sh
-```
-
-### Size and Depth Limits
-
-- **SKILL.md body:** under 500 lines
-- **Reference depth:** one level only (SKILL.md → reference.md, never deeper)
-- **Progressive disclosure:** essential info in SKILL.md, details in references
+- **`SHA256SUMS`** — required for KAIROS-exported skill bundles (GNU
+  `sha256sum` format, paths relative to the skill dir). This is a KAIROS
+  integrity requirement, not part of the generic Agent Skills spec.
+- **`disable-model-invocation`** — when the host supports it, KAIROS-authored
+  skills default this to `true` (explicit load only) unless the skill is meant
+  to auto-trigger. Only add fields the fetched spec actually recognizes.
+- **Reference depth** — keep references one level deep (SKILL.md → reference
+  file, never deeper), consistent with the spec's progressive-disclosure model.
 
 ```json
 {"contract":{"type":"comment","comment":{"min_length":30},"required":true}}
@@ -255,8 +269,12 @@ When `{target}=hybrid` (rare — use only when explicitly requested):
 Only reachable after all prior steps are solved.
 
 The agent can now:
-1. Choose the correct storage location for a skill
-2. Author SKILL.md with valid frontmatter and structure
-3. Apply quality gates to descriptions and content
-4. Finalize via local write OR server train (never both)
-5. Produce SHA256SUMS for integrity verification
+1. Fetch the current Agent Skills spec (Context7 or agentskills.io) instead of
+   relying on a frozen copy, and apply it as the authoritative generic format
+2. Layer the KAIROS customizations (storage, `SHA256SUMS`, routing) on top of
+   that fetched spec
+3. Choose the correct storage location for a skill
+4. Author SKILL.md with valid frontmatter and structure per the current spec
+5. Apply quality gates to descriptions and content
+6. Finalize via local write OR server train (never both)
+7. Produce SHA256SUMS for integrity verification
