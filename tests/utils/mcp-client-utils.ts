@@ -110,7 +110,7 @@ function createStdioChildEnv(): Record<string, string> {
   return result;
 }
 
-const STDIO_CONNECT_TIMEOUT_MS = 20_000;
+const STDIO_CONNECT_TIMEOUT_MS = 60_000;
 
 async function createStdioMcpConnection() {
   if (!stdioClient) {
