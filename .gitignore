@@ -248,4 +248,3 @@ snapshots
 node_modules
 .kairos/
 .trae/
-.test-stdio-child.pid

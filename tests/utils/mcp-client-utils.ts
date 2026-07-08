@@ -90,6 +90,7 @@ const STDIO_FILE_ENV = {
 };
 
 let stdioClient: Client | null = null;
+let stdioTransport: StdioClientTransport | null = null;
 
 function createStdioChildEnv(): Record<string, string> {
   const result: Record<string, string> = {};
@@ -128,32 +129,46 @@ async function createStdioMcpConnection() {
 
     // Race the connect against a timeout so a hung child process fails fast
     // instead of blocking the entire test suite indefinitely.
+    let connectTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         client.connect(transport),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`MCP stdio connect timed out after ${STDIO_CONNECT_TIMEOUT_MS}ms`)), STDIO_CONNECT_TIMEOUT_MS)
-        ),
+        new Promise<never>((_, reject) => {
+          connectTimer = setTimeout(() => reject(new Error(`MCP stdio connect timed out after ${STDIO_CONNECT_TIMEOUT_MS}ms`)), STDIO_CONNECT_TIMEOUT_MS);
+        }),
       ]);
     } catch (err) {
       // Reset so the next call creates a fresh child process
       try { await transport.close?.(); } catch { /* ignore */ }
       throw err;
+    } finally {
+      // Always clear the timer — an uncleared setTimeout keeps the event loop alive
+      if (connectTimer) clearTimeout(connectTimer);
     }
 
     // Only assign after successful connect
     stdioClient = client;
+    stdioTransport = transport;
   }
 
   const capturedClient = stdioClient;
+  const capturedTransport = stdioTransport;
   return {
     client: capturedClient,
     transport: null,
     close: async () => {
-      // Do NOT close the shared stdio client between test files.
-      // Each close+reconnect spawns a new server child process (Qdrant init,
-      // embedding probe, etc.) which is expensive and causes CI hangs.
-      // globalTeardown kills the child process after all tests complete.
+      // Close the shared stdio transport so the child process exits and its
+      // pipes don't keep Jest's event loop alive. The next createMcpConnection()
+      // call spawns a fresh child.
+      if (capturedTransport) {
+        try { await capturedTransport.close(); } catch { /* ignore */ }
+      }
+      if (capturedClient) {
+        try { await capturedClient.close(); } catch { /* ignore */ }
+      }
+      // Reset singleton so the next call creates a fresh child process
+      if (stdioTransport === capturedTransport) stdioTransport = null;
+      if (stdioClient === capturedClient) stdioClient = null;
     }
   };
 }

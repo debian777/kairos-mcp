@@ -7,20 +7,6 @@
  * Handlers are registered immediately (first statements) so they run before any import().
  */
 
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-// Write PID so the test runner's globalTeardown can kill this process after tests complete.
-// Without this, the stdio child's open pipes keep Jest's event loop alive indefinitely,
-// causing CI to hang for hours. The test runner reads .test-stdio-child.pid and sends SIGTERM.
-if (process.env['TRANSPORT_TYPE'] === 'stdio') {
-  try {
-    writeFileSync(join(process.cwd(), '.test-stdio-child.pid'), String(process.pid));
-  } catch {
-    // non-critical: if we can't write the PID file, globalTeardown won't find us
-  }
-}
-
 function stderr(msg: string): void {
   process.stderr.write(`${msg}\n`);
 }
