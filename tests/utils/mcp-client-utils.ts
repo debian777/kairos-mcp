@@ -90,14 +90,6 @@ const STDIO_FILE_ENV = {
 };
 
 let stdioClient: Client | null = null;
-let stdioTransport: StdioClientTransport | null = null;
-
-// Kill the stdio child process when Jest exits. Without this, the child's
-// stdin/stdout pipes stay open and prevent the parent process from exiting
-// (Jest --forceExit does NOT kill child processes).
-process.on('exit', () => {
-  try { stdioTransport?.close?.(); } catch { /* ignore */ }
-});
 
 function createStdioChildEnv(): Record<string, string> {
   const result: Record<string, string> = {};
@@ -151,7 +143,6 @@ async function createStdioMcpConnection() {
 
     // Only assign after successful connect
     stdioClient = client;
-    stdioTransport = transport;
   }
 
   const capturedClient = stdioClient;
@@ -162,7 +153,7 @@ async function createStdioMcpConnection() {
       // Do NOT close the shared stdio client between test files.
       // Each close+reconnect spawns a new server child process (Qdrant init,
       // embedding probe, etc.) which is expensive and causes CI hangs.
-      // The process.on('exit') handler above kills the child when Jest exits.
+      // globalTeardown kills the child process after all tests complete.
     }
   };
 }
