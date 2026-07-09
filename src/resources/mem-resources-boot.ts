@@ -7,6 +7,7 @@ import { deletePreexistingAppSpaceEntries, extractFrontmatterSlug } from './mem-
 import { sha256Hex } from '../tools/skill-export/sha256.js';
 import { parseFrontmatter } from '../utils/frontmatter.js';
 import { compareSemver } from '../utils/version-compare.js';
+import { redisCacheService } from '../services/redis-cache.js';
 
 /** Payload key for storing content SHA256 (enables change detection at boot). */
 const CONTENT_SHA256_KEY = 'content_sha256';
@@ -146,8 +147,8 @@ export async function injectMemResourcesAtBoot(memoryStore: MemoryQdrantStore, o
     );
 
     const { methods } = (memoryStore as any);
-    if (methods && typeof methods.invalidateLocalCache === 'function') {
-      methods.invalidateLocalCache();
+    if (methods) {
+      await redisCacheService.invalidateAfterUpdate();
     }
   });
 }

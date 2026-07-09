@@ -232,7 +232,6 @@ export async function storeDefaultAdapter(
   }
 
   await redisCacheService.invalidateAfterUpdate();
-  methods.invalidateLocalCache();
 
   for (const memory of memories) {
     try {

@@ -52,6 +52,8 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 const KEY_VALUE_STORE_URL_RAW = getEnvString('KEY_VALUE_STORE_URL', getEnvString('REDIS_URL', ''));
 const KEY_VALUE_STORE_PASSWORD = getEnvString('KEY_VALUE_STORE_PASSWORD', getEnvString('REDIS_PASSWORD', ''));
 export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_STORE_PASSWORD);
+/** Single source of truth: whether a shared key-value backend is available. */
+export const isRedisConfigured = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
 export const OIDC_STATE_KEY_PREFIX = 'oidc-state:';
 /**
