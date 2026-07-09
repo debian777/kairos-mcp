@@ -210,7 +210,7 @@ jobs:
           path: artifact-npm
 
       - name: Restore Qdrant test snapshot cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: qdrant-snapshot-cache
         with:
           path: |
@@ -221,7 +221,7 @@ jobs:
             ${{ runner.os }}-qdrant-snapshot-
 
       - name: Restore Playwright browsers Cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         id: playwright-cache-stdio
         with:
           path: ~/.cache/ms-playwright
@@ -245,7 +245,7 @@ jobs:
           exit $ec
 
       - name: Save Playwright browsers Cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: steps.playwright-cache-stdio.outputs.cache-hit != 'true' && steps.playwright-install-stdio.outcome == 'success'
         with:
           path: ~/.cache/ms-playwright
