@@ -162,6 +162,11 @@ export async function runKairosServer(): Promise<void> {
     } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
 
+        // Always print error details to stderr so stdio child processes and CI
+        // logs surface the root cause (structured logger may suppress details).
+        process.stderr.write(`Fatal: ${error.message}\n`);
+        if (error.stack) process.stderr.write(`${error.stack}\n`);
+
         try {
             structuredLogger.error('Fatal error during KAIROS MCP startup', error);
         } catch {

@@ -2,10 +2,15 @@ import { getSharedMcpConnection } from '../utils/mcp-client-utils.js';
 import { withRawOnFail } from '../utils/expect-with-raw.js';
 
 describe('MCP Client Connection', () => {
-  let sharedConnection;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let sharedConnection: any;
 
   beforeAll(async () => {
     sharedConnection = await getSharedMcpConnection();
+  });
+
+  afterAll(async () => {
+    if (sharedConnection) await sharedConnection.close();
   });
 
   test('connection establishes successfully', async () => {

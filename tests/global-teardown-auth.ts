@@ -1,7 +1,6 @@
 /**
- * Jest globalTeardown when AUTH_ENABLED=true.
+ * Jest globalTeardown.
  * Stops Keycloak container (if started by globalSetup) using .test-auth-state.{dev,qa}.json.
- * App is not started by tests, so no server is stopped here.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -18,6 +17,7 @@ interface AuthState {
 }
 
 export default async function globalTeardown(): Promise<void> {
+  // Auth teardown: only when AUTH_ENABLED=true
   if (process.env.AUTH_ENABLED !== 'true') return;
 
   const path = getAuthStateFilePath();

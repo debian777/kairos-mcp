@@ -2,10 +2,11 @@
  * Bootstrap entry: installs process error handlers before any app code loads,
  * so uncaught exceptions during import (e.g. [Object: null prototype]) are
  * logged with a readable message instead of Node's default dump.
- * Then dynamically imports index.js and awaits runKairosServer() (argv[1] is bootstrap.js, so index’s isDirectRun() is false).
+ * Then dynamically imports index.js and awaits runKairosServer() (argv[1] is bootstrap.js, so index's isDirectRun() is false).
  * Uses process.stderr (not console) so verify-clean-source allows this file.
  * Handlers are registered immediately (first statements) so they run before any import().
  */
+
 function stderr(msg: string): void {
   process.stderr.write(`${msg}\n`);
 }
