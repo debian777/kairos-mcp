@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { invalidateTuneInProcessCache } from '../../src/tools/tune-cache-invalidation.js';
+import { invalidateTuneCache } from '../../src/tools/tune-cache-invalidation.js';
 import { executeTune } from '../../src/tools/tune-execute.js';
 import { IDGenerator } from '../../src/services/id-generator.js';
 import { runWithSpaceContextAsync } from '../../src/utils/tenant-context.js';
@@ -67,24 +67,12 @@ function buildLayers(adapterId: string, name: string, slug: string): LayerRecord
 
 const SPACE_CTX = { userId: 'u1', groupIds: [], allowedSpaceIds: ['user:test-space'], defaultWriteSpaceId: 'user:test-space', personalSpaceId: 'user:test-space' };
 
-describe('invalidateTuneInProcessCache', () => {
-  test('clears in-process cache after successful tune so export sees fresh data', async () => {
+describe('invalidateTuneCache', () => {
+  test('calls redisCacheService.invalidateAfterUpdate after successful tune', async () => {
     const name = 'Tune Export Regression Adapter';
     const id = IDGenerator.generateAdapterUUIDv5(name);
     const slug = 'tune-export-regression-adapter';
     const fakeQdrant = new FakeQdrantService(buildLayers(id, name, slug));
-
-    // Simulates MemoryQdrantStore with stale in-process cache entries
-    class FakeMemoryStore {
-      readonly methods = {
-        localCache: new Map<string, any>([
-          ['11111111-1111-4111-8111-111111111111', { text: 'STALE' }],
-          ['22222222-2222-4222-8222-222222222222', { text: 'STALE' }]
-        ]),
-        invalidateLocalCache(): void { this.localCache.clear(); }
-      };
-    }
-    const store = new FakeMemoryStore();
 
     const md = `---\nslug: ${slug}\nversion: 1.0.2\n---\n\n# ${name}\n\n## Activation Patterns\n\n- run new\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":8},"required":true}}\n\`\`\`\n\n## Apply Fix\n\nFresh details.\n\n\`\`\`json\n{"contract":{"type":"comment","comment":{"min_length":12},"required":true}}\n\`\`\`\n\n## Reward Signal\n\nNew reward.\n`;
 
@@ -94,28 +82,13 @@ describe('invalidateTuneInProcessCache', () => {
     expect(result.total_updated).toBe(1);
     expect(result.total_failed).toBe(0);
 
-    invalidateTuneInProcessCache(store, result);
-    expect(store.methods.localCache.size).toBe(0);
+    // Should not throw — calls redisCacheService which handles missing Redis gracefully
+    await expect(invalidateTuneCache(result)).resolves.toBeUndefined();
   });
 
-  test('preserves cache when tune fails (zero updates)', () => {
-    class FakeMemoryStore {
-      readonly methods = {
-        localCache: new Map<string, any>([['k', { text: 'keep' }]]),
-        invalidateLocalCache(): void { this.localCache.clear(); }
-      };
-    }
-    const store = new FakeMemoryStore();
-
+  test('no-op when tune fails (zero updates)', async () => {
     const failed = { results: [{ uri: 'kairos://adapter/x', status: 'error' as const, message: 'fail' }], total_updated: 0, total_failed: 1 };
-    invalidateTuneInProcessCache(store, failed);
-    expect(store.methods.localCache.size).toBe(1);
-  });
-
-  test('tolerates null/undefined/empty memoryStore', () => {
-    const ok = { results: [{ uri: 'kairos://layer/x', status: 'updated' as const, message: 'ok' }], total_updated: 1, total_failed: 0 };
-    expect(() => invalidateTuneInProcessCache(null, ok)).not.toThrow();
-    expect(() => invalidateTuneInProcessCache(undefined, ok)).not.toThrow();
-    expect(() => invalidateTuneInProcessCache({}, ok)).not.toThrow();
+    // Should return without calling invalidateAfterUpdate
+    await expect(invalidateTuneCache(failed)).resolves.toBeUndefined();
   });
 });
