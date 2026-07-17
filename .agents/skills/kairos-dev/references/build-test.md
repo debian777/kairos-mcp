@@ -10,7 +10,7 @@ description: >-
 
 **Repository:** `kairos-mcp` — Node 24 LTS minimum, TypeScript, Qdrant, Redis, optional Keycloak.
 **Agent contract:** [`AGENTS.md`](https://github.com/debian777/kairos-mcp/blob/main/AGENTS.md). **Adapter execution (shipped skill):**
-[`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md). **Skill index:**
+[`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md). **Skill index:**
 [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md) (`kmcp-dev-*`).
 
 Use this skill whenever you need to **build**, **deploy**, or **test** this repository.

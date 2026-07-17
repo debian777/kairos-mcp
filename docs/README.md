@@ -60,13 +60,9 @@ Files under `examples/` are read by
 - [Audit log](security/audit-log.md)
 - [Known issues and limitations](known-issues-and-limitations.md)
 
-## Specs and test-snapshot operations
+## Specs
 
 - [Artifact export parity spec](specs/artifact-export-parity-spec.md)
-- [Test snapshot — quick start](test-snapshot-quick-start.md)
-- [Test snapshot — seeding](test-snapshot-seeding.md)
-- [Test snapshot — caching](test-snapshot-caching.md)
-- [Test snapshot — final summary](test-snapshot-final-summary.md)
 
 ## Skills and contributor guidance
 

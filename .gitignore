@@ -239,7 +239,6 @@ CLAUDE.md
 .ai/
 cache
 data/
-.devcontainer.disable/
 snapshots
 .cursor/TODO.md
 .kairos-work/

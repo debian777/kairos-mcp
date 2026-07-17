@@ -40,10 +40,6 @@ When **`./scripts/deploy-run-env.sh`** runs (via **`npm run dev:*`** targets suc
 ./scripts/deploy-copy-env-from-main.sh
 ```
 
-## IDE task runner
-
-**Terminal → Run Task… → Copy .env from main** runs the same script (see **`.vscode/tasks.json`**).
-
 ## Script name (do not drift)
 
 The repo ships **`scripts/deploy-copy-env-from-main.sh`**. There is no `copy-env-from-main.sh` in this tree; older docs or rules that mention that name should be updated to **`deploy-copy-env-from-main.sh`**.

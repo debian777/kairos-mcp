@@ -16,7 +16,7 @@ internal) — see
 (the user-facing `kairos` skill is).
 
 Use this skill for **structured end-to-end verification** of KAIROS MCP tools
-against **local dev** (`KAIROS-DEVELOPMENT` in `.cursor/mcp.json`), with strict
+against **local dev** (`KAIROS-DEVELOPMENT` in `.agents/mcp.json`), with strict
 phases so QA does not read implementation source before you intend to.
 
 `KAIROS-DEVELOPMENT` exists to validate **local code changes**. Do not treat it
@@ -29,7 +29,7 @@ their stated purposes.
 
 - **`KAIROS`**: Live. Treat it as authoritative for everything. When using it,
   you (the agent) act as a user and run workflows via the shipped
-  [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md).
+  [`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md).
 - **`KAIROS-DEVELOPMENT`**: Local development server built from this worktree.
   Use it as a developer/QA to validate local code changes.
 - **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
@@ -58,7 +58,7 @@ MCP bridge.
   host-required MCP discovery the IDE provides).
 - **Adapter-governed runs:** **`activate`** → **`forward`** (loop per
   `next_action`) → **`reward`**. Follow
-  [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md) zero-drift rules.
+  [`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md) zero-drift rules.
   File paths, URIs, or payloads required **by the latest server response** are
   in scope for that run only.
 
@@ -97,7 +97,7 @@ MCP bridge.
 ### Report contents (mirror `kairos-bug-report` rigor)
 
 Match the **six-section** contract from
-[`skills/.system/kairos-bug-report/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md):
+[`.agents/skills/kairos/references/bug-report.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md):
 
 1. **Summary** — one sentence: outcome + server id + tool/resource.
 2. **Calls and responses** — chronological **raw JSON** request then response
@@ -121,7 +121,7 @@ only.
 
 ## Phase 3 — Regression tests (red before green)
 
-1. Follow **[`.agents/skills/kmcp-dev-build-test/SKILL.md`](build-test.md)**:
+1. Follow **[`kmcp-dev-build-test`](build-test.md)**:
    `npm run dev:deploy`, then focused
    `npm run dev:test -- tests/integration/<file>.test.ts`.
 2. Add or extend **`tests/integration/`** so the defect **fails** a test.
@@ -137,16 +137,16 @@ only.
 2. Implement, **`npm run dev:deploy`**, re-run the focused test, then
    **`npm run dev:test`** before handoff.
 3. If the outcome is a **live** defect with full ship workflow, also follow
-   **[`.agents/skills/kmcp-dev-bugfix-ship/SKILL.md`](bugfix-ship.md)**.
+   **[`kmcp-dev-bugfix-ship`](bugfix-ship.md)**.
 
 ## Related skills
 
 | Skill | Role |
 |-------|------|
-| [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md) | Adapter execution order and zero drift. |
-| [`skills/.system/kairos-bug-report/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md) | Trace layout for phase 2 (public `reports/` path). |
-| [`.agents/skills/kmcp-dev-build-test/SKILL.md`](build-test.md) | npm-only test contract. |
-| [`.agents/skills/kmcp-dev-bugfix-ship/SKILL.md`](bugfix-ship.md) | End-to-end bug fix to merge-ready. |
+| [`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md) | Adapter execution order and zero drift. |
+| [`.agents/skills/kairos/references/bug-report.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md) | Trace layout for phase 2 (public `reports/` path). |
+| [`kmcp-dev-build-test`](build-test.md) | npm-only test contract. |
+| [`kmcp-dev-bugfix-ship`](bugfix-ship.md) | End-to-end bug fix to merge-ready. |
 
 ## CI note
 

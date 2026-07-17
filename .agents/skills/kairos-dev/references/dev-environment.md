@@ -51,6 +51,7 @@ Once the stack is up, follow the authoritative build/deploy/test contract in
 ## Cursor / MCP server ids
 
 The repository ships [`.agents/mcp.json`](https://github.com/debian777/kairos-mcp/blob/main/.agents/mcp.json)
-and `.cursor/mcp.json` with the `KAIROS-DEVELOPMENT` entry pointed at the local
-dev server. If an MCP call fails to resolve a server, see
-[mcp-host-bridge.md](mcp-host-bridge.md).
+with the `KAIROS-DEVELOPMENT` entry pointed at the local dev server. Cursor
+users configure the same entry in their own `.cursor/mcp.json` (see
+`docs/install/README.md#cursor-and-mcp`). If an MCP call fails to resolve a
+server, see [mcp-host-bridge.md](mcp-host-bridge.md).

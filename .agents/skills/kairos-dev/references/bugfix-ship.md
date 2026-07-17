@@ -13,13 +13,13 @@ description: >-
 **Build/test contract:** [`kmcp-dev-build-test`](build-test.md).
 **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
 
-**Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`skills/.system/kairos-bug-report/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
+**Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`.agents/skills/kairos/references/bug-report.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
 
 **Environment intent**
 
 - **`KAIROS`**: Live. Treat it as authoritative for everything. When using it,
   you (the agent) act as a user and run workflows via the shipped
-  [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md).
+  [`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md).
 - **`KAIROS-DEVELOPMENT`**: Dev/QA instance for validating local code changes and
   reproducing defects during development.
 
