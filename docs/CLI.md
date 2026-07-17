@@ -406,7 +406,7 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 ## Related docs
 
 - [Install index](install/README.md)
-- [Environment variables and secrets](install/env-and-secrets.md)
+- [Environment variables and secrets](install/prerequisites.md)
 - [Cursor and MCP](install/README.md#cursor-and-mcp)
 - [Architecture (project Wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - [Adapter examples](examples/README.md)
