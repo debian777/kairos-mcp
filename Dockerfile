@@ -29,14 +29,14 @@ WORKDIR /app
 
 FROM base AS deps-registry
 ARG PACKAGE_VERSION
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
 
 FROM base AS deps-local
 COPY .ci/docker/package.tgz /tmp/pkg.tgz
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
