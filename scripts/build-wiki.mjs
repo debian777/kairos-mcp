@@ -66,14 +66,119 @@ function pageNameFor(relPathPosix) {
 }
 
 // Rewrite `[text](file://<repo-path>)` references to clickable GitHub blob URLs.
+// Also converts "Referenced Files in This Document" sections from inline-link
+// bullet lists into reference-style link lists so GitHub Wiki renders them
+// correctly (inline links with long URLs often render as raw text on Wiki).
+// Strips <cite> wrappers around these sections.
 function rewriteSourceLinks(content) {
-  return content.split('](file://').join(`](${BLOB_BASE}`);
+  // Step 1: replace file:// with blob URL
+  let out = content.split('](file://').join(`](${BLOB_BASE}`);
+
+  // Step 2: detect "Referenced Files in This Document" sections and convert
+  // their inline-link bullet items to reference-style links.
+  // These sections may be wrapped in <cite>...</cite> tags — strip those.
+  const refSectionRe = /^(?:<cite>\n)?(\*\*Referenced Files in This Document\*\*)$/gm;
+  const matches = [...out.matchAll(refSectionRe)];
+  if (matches.length === 0) return out;
+
+  // Process each section independently (in reverse order to preserve indices).
+  for (const m of matches.reverse()) {
+    const headingStartIdx = m.index;
+    const startIdx = m.index + m[0].length; // after heading line
+    // Skip the newline after the heading.
+    const afterHeading = out[startIdx] === '\n' ? startIdx + 1 : startIdx;
+
+    // Collect consecutive `- [label](url)` lines by splitting into lines.
+    const remaining = out.substring(afterHeading);
+    const lines = remaining.split('\n');
+    const refs = [];
+    let consumedLines = 0;
+    const itemLineRe = /^- \[(.+?)\]\(([^)]+)\)$/;
+    for (const line of lines) {
+      const lm = line.match(itemLineRe);
+      if (!lm) break;
+      refs.push({ label: lm[1], url: lm[2] });
+      consumedLines++;
+    }
+    if (refs.length === 0) continue;
+
+    // Find end of section: check if </cite> follows the list items.
+    const afterListIdx = afterHeading + lines.slice(0, consumedLines).join('\n').length;
+    let endIdx = afterListIdx;
+    if (out.startsWith('</cite>', endIdx)) {
+      endIdx += '</cite>'.length;
+      if (out[endIdx] === '\n') endIdx++;
+    } else if (out[endIdx] === '\n') {
+      endIdx++; // skip trailing newline after last list item
+    }
+
+    // Build replacement: heading + blank line + reference-style list + definitions.
+    const heading = m[1];
+    const listLines = refs.map((r, i) => `- [${r.label}][ref-${i}]`).join('\n');
+    const defs = refs.map((r, i) => `[ref-${i}]: ${r.url}`).join('\n');
+    const replacement = `${heading}\n\n${listLines}\n\n${defs}`;
+
+    out = out.substring(0, headingStartIdx) + replacement + out.substring(endIdx);
+  }
+
+  return out;
 }
 
 // --- tree ----------------------------------------------------------------
 
+// Load section ordering from Qoder RepoWiki metadata (single source of truth).
+// The wiki_catalogs array order IS the logical display order.
+// parent_id links children to parents; root items have no parent_id.
+async function loadSectionOrder(sourceDir) {
+  const metaPath = path.join(path.dirname(sourceDir), 'meta', 'repowiki-metadata.json');
+  try {
+    const meta = JSON.parse(await fs.readFile(metaPath, 'utf8'));
+    const catalogs = meta.wiki_catalogs || [];
+    // Build ordered children map: parentName -> [childName, ...]
+    const childrenMap = new Map();
+    const rootOrder = [];
+    // Track position index for each catalog entry
+    const positionMap = new Map();
+    catalogs.forEach((c, idx) => positionMap.set(c.id, idx));
+    // Group by parent
+    for (const c of catalogs) {
+      if (!c.parent_id) {
+        rootOrder.push({ name: c.name, pos: positionMap.get(c.id) });
+      } else {
+        // Find parent name
+        const parent = catalogs.find((p) => p.id === c.parent_id);
+        if (parent) {
+          const key = parent.name;
+          if (!childrenMap.has(key)) childrenMap.set(key, []);
+          childrenMap.get(key).push({ name: c.name, pos: positionMap.get(c.id) });
+        }
+      }
+    }
+    // Sort each children list by position
+    for (const [, children] of childrenMap) {
+      children.sort((a, b) => a.pos - b.pos);
+    }
+    rootOrder.sort((a, b) => a.pos - b.pos);
+    return { rootOrder: rootOrder.map((r) => r.name), childrenMap };
+  } catch {
+    return { rootOrder: [], childrenMap: new Map() };
+  }
+}
+
+function sortByName(items, orderList) {
+  if (!orderList || orderList.length === 0) return items.sort((a, b) => a.localeCompare(b));
+  const maxIdx = orderList.length;
+  return items.sort((a, b) => {
+    const ai = orderList.indexOf(a);
+    const bi = orderList.indexOf(b);
+    const aIdx = ai === -1 ? maxIdx : ai;
+    const bIdx = bi === -1 ? maxIdx : bi;
+    return aIdx - bIdx || a.localeCompare(b);
+  });
+}
+
 // node: { name, indexPage, pages: [{display, pageName}], sections: [node] }
-async function buildDir(absDir, relSegs) {
+async function buildDir(absDir, relSegs, rootOrder, childrenMap) {
   const dirName = relSegs.length ? relSegs[relSegs.length - 1] : null;
   const node = { name: dirName, indexPage: null, pages: [], sections: [] };
   const entries = await fs.readdir(absDir, { withFileTypes: true });
@@ -96,11 +201,14 @@ async function buildDir(absDir, relSegs) {
 
   const subDirs = entries
     .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort((a, b) => a.localeCompare(b));
+    .map((e) => e.name);
+
+  // Apply logical order from metadata; fallback to alphabetical.
+  const orderList = relSegs.length === 0 ? rootOrder : (childrenMap.get(dirName) || []).map((c) => c.name);
+  sortByName(subDirs, orderList);
 
   for (const dir of subDirs) {
-    node.sections.push(await buildDir(path.join(absDir, dir), [...relSegs, dir]));
+    node.sections.push(await buildDir(path.join(absDir, dir), [...relSegs, dir], rootOrder, childrenMap));
   }
 
   return node;
@@ -181,7 +289,8 @@ async function main() {
     process.exit(1);
   }
 
-  const root = await buildDir(sourceAbs, []);
+  const sectionOrder = await loadSectionOrder(sourceAbs);
+  const root = await buildDir(sourceAbs, [], sectionOrder.rootOrder, sectionOrder.childrenMap);
 
   // Emit pages; assert global uniqueness (defensive — should never trigger).
   const pages = collectPages(root, []);
