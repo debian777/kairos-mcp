@@ -15,8 +15,6 @@ flowchart LR
 
   subgraph workflows["Workflows"]
     INT(Integration)
-    INTS(Integration Simple)
-    INTSTD(Integration Stdio)
     RTAG(Release tag on version bump)
     REL(Release)
     PNPM(Publish npm)
@@ -25,22 +23,14 @@ flowchart LR
   end
 
   PR --> INT
-  PR --> INTS
-  PR --> INTSTD
   PUSH --> INT
-  PUSH --> INTS
-  PUSH --> INTSTD
   PUSH --> RTAG
   TAG --> INT
-  TAG --> INTS
-  TAG --> INTSTD
   TAG --> REL
   RTAG -->|"if version > latest tag"| TAG
   REL --> PNPM
   PNPM --> PIMG
   MANUAL --> INT
-  MANUAL --> INTS
-  MANUAL --> INTSTD
   MANUAL --> PNPM
   MANUAL --> PCONT
 
@@ -48,7 +38,7 @@ flowchart LR
   classDef integration fill:#dcfce7,stroke:#16a34a,color:#166534
   classDef release fill:#fef3c7,stroke:#d97706,color:#92400e
   class PR,PUSH,TAG,MANUAL trigger
-  class INT,INTS,INTSTD integration
+  class INT integration
   class RTAG,REL,PNPM,PIMG,PCONT release
 ```
 
@@ -68,8 +58,11 @@ For the GitHub PR flow, treat these as hard rules:
   checks block merge.
 - Current `main` required checks are:
   - `Integration workflow passed`
-  - `Integration simple workflow passed`
-  - `Integration stdio workflow passed` (add in branch protection when this workflow ships)
+
+  The former `Integration simple workflow passed` and `Integration stdio
+  workflow passed` checks were retired when the simple and stdio stacks were
+  folded into **Integration** as transport-smoke jobs; remove them from branch
+  protection if still listed.
 - `[skip ci]` style tokens only apply to workflows triggered by `push` and
   `pull_request`, and PR behavior depends on the HEAD commit message.
 - If skip instructions are used but checks still run, verify the latest commit
@@ -94,24 +87,20 @@ flowchart TB
       J_UI_A[verify-ui-advisory]
     end
     J_INT_P[verify-integration-primary]
-    J_INT_A[verify-integration-advisory]
+    J_SIMP[verify-integration-simple-smoke]
+    J_STDIO[verify-integration-stdio-smoke]
     J_DKR[verify-docker]
     J_PASS[integration-pass]
     J_BLD_P --> J_INT_P
+    J_BLD_P --> J_SIMP
+    J_BLD_P --> J_STDIO
     J_BLD_P --> J_DKR
-    J_BLD_A --> J_INT_A
     J_BLD_P --> J_PASS
     J_UI_P --> J_PASS
     J_INT_P --> J_PASS
+    J_SIMP --> J_PASS
+    J_STDIO --> J_PASS
     J_DKR --> J_PASS
-  end
-
-  subgraph INTSTD_WF["Integration Stdio (integration-stdio.yml)"]
-    J_STD_B[build]
-    J_STD[verify-integration-stdio]
-    J_STDP[integration-stdio-pass]
-    J_STD_B --> J_STD
-    J_STD --> J_STDP
   end
 
   subgraph RTAG_WF["Release tag on version bump (release-tag-on-version-bump.yml)"]
@@ -135,15 +124,13 @@ flowchart TB
 
   classDef jobDefault fill:#f1f5f9,stroke:#64748b,color:#1e293b
   classDef jobNeeds fill:#fef3c7,stroke:#d97706,color:#92400e
-  class J_BLD_P,J_BLD_A,J_UI_P,J_UI_A,J_INT_P,J_INT_A,J_DKR,J_PASS,J_STD_B,J_STD,J_STDP,J_TAG,J_PNPM,J_PCONT jobDefault
+  class J_BLD_P,J_BLD_A,J_UI_P,J_UI_A,J_INT_P,J_SIMP,J_STDIO,J_DKR,J_PASS,J_TAG,J_PNPM,J_PCONT jobDefault
   class J_NPM,J_DOCKER jobNeeds
 ```
 
 | Workflow | Job(s) | Dependencies |
 |----------|--------|--------------|
-| Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui-primary` (24) ∥ `verify-ui-advisory` (25–26, COE); then `verify-integration-primary` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`); → `integration-pass` | `integration-pass` needs only `build-primary`, `verify-ui-primary`, `verify-integration-primary`, `verify-docker` (all advisory jobs omitted from `needs`) |
-| Integration Simple | `build-primary` → `verify-integration-simple-primary` → `integration-simple-pass` | HTTP simple mode + Jest integration suite against installed tgz (`http-simple` scenario contracts where selected by `scripts/deploy-run-env.sh`; advisory Node 25/26 jobs omitted from `integration-simple-pass` `needs`) |
-| Integration Stdio | `build` → `verify-integration-stdio` → `integration-stdio-pass` | Qdrant + installed tgz; `npm run dev_stdio:test` (stdio smoke + `stdio-simple` scenario contracts; no HTTP app `/health`) |
+| Integration | `build-primary` (24) ∥ `build-advisory` (25–26, COE) ∥ `verify-ui-primary` (24) ∥ `verify-ui-advisory` (25–26, COE); then `verify-integration-primary` (AUTH full suite, needs `build-primary`) ∥ `verify-integration-simple-smoke` (needs `build-primary`) ∥ `verify-integration-stdio-smoke` (needs `build-primary`) ∥ `verify-integration-advisory` (needs `build-advisory`, COE) ∥ `verify-docker` (needs `build-primary`, image-gated); → `integration-pass` | `integration-pass` needs `build-primary`, `verify-ui-primary`, `verify-integration-primary`, `verify-integration-simple-smoke`, `verify-integration-stdio-smoke`, `verify-docker` (all advisory jobs omitted from `needs`; `verify-docker` required only when image-affecting files change) |
 | Security | `dependency-review`, `npm-audit`, `codeql` | — (parallel jobs) |
 | Release tag on version bump | `tag-release` | — |
 | Release | `publish-npm` → `publish-docker` → `create-release` | `publish-docker` and `create-release` need `publish-npm`; `create-release` needs `publish-docker` |
@@ -161,25 +148,25 @@ The integration workflow uses **optional secrets:** `OPENAI_API_KEY` (embedding 
 
 **Actions → Integration → Run workflow** (workflow_dispatch).
 
-**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui-primary`** runs **in parallel** with build jobs on **Node 24 only** (version check, lint skills, `npm ci`, Playwright cache, **`ci-parallel-checks.mjs`** — no tgz). **`verify-ui-advisory`** mirrors the same steps on **25** and **26** with per-Node Playwright cache keys and **`continue-on-error`** from the matrix (advisory; not in **`integration-pass`** `needs`). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`** after infra is up (Compose + `npm ci` overlap per job layout); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`** (full Jest integration suite, including **`http-auth`** and related scenario contracts selected for the AUTH stack via `scripts/deploy-run-env.sh`). **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui-primary`**, **`verify-integration-primary`**, and **`verify-docker`** only (with `if: always()` so skipped jobs fail the gate). Use **Integration workflow passed** as the single required check.
+**Jobs:** **`build-primary`** — **no Docker infra**; Node **24** only; `npm ci`, `npm run build:tgz`, **`npm run test:tgz`**, uploads **`npm-package-node24`** (merge gate). **`build-advisory`** — Node **25** and **26** matrix with **`continue-on-error: true`**; uploads **`npm-package-node25`** / **`npm-package-node26`** (not in **`integration-pass`** `needs`). **`verify-ui-primary`** runs **in parallel** with build jobs on **Node 24 only** (version check, lint skills, `npm ci`, Playwright cache, **`ci-parallel-checks.mjs`** — tsc + Knip + UI tests, no tgz). **`verify-ui-advisory`** mirrors the same steps on **25** and **26** with per-Node Playwright cache keys and **`continue-on-error`** from the matrix (advisory; not in **`integration-pass`** `needs`). **`verify-integration-primary`** (`needs: build-primary`) downloads **`npm-package-node24`** after infra is up (Compose + `npm ci` overlap per job layout); then Playwright + infra wait, Keycloak, `npm install` from tgz, `dev:start`, **`dev:test`** (the **one** full Jest integration suite — read-only-first fail-fast then the mutating write/auth phase — including **`http-auth`** and related scenario contracts selected for the AUTH stack via `scripts/deploy-run-env.sh`). **`verify-integration-simple-smoke`** / **`verify-integration-stdio-smoke`** (`needs: build-primary`) reuse the same tgz and boot the simple (HTTP no-auth) and stdio stacks to run a **transport smoke subset only** (not the full suite) — this proves each transport boots and serves MCP without re-spending embedding/OpenAI quota on the full matrix. **`verify-integration-advisory`** (`needs: build-advisory`, COE) mirrors 25/26. **`verify-docker`** (`needs: build-primary`, parallel with integration verify jobs, **image-gated**) downloads **`npm-package-node24`** only, stages `package.tgz`, **`docker build` (runtime-ci)**, **Trivy**. **`integration-pass`** requires **`build-primary`**, **`verify-ui-primary`**, **`verify-integration-primary`**, **`verify-integration-simple-smoke`**, **`verify-integration-stdio-smoke`**, and **`verify-docker`** (the last only when image-affecting files change; otherwise its skip is accepted). Use **Integration workflow passed** as the single required check.
 
 ### Node policy (24 merge gate, one Current advisory)
 
 - **`build-primary`** / **`verify-ui-primary`** / **`verify-integration-primary`** are **Node 24 only** and are the only jobs **`integration-pass`** depends on for multi-Node coverage (plus **`verify-docker`**).
-- **`build-advisory`** / **`verify-ui-advisory`** / **`verify-integration-advisory`** run **one** pinned **Node Current** lane (**26** in workflow YAML) with advisory **`continue-on-error`** and are **omitted** from **`integration-pass`** `needs` so that lane cannot fail the merge gate when Node 24 is green. **`integration-simple-pass`** still omits **`build-advisory`** / **`verify-integration-simple-advisory`** (no UI job in that workflow).
-- **Do not** add per-job check names to branch protection; keep the single required checks **Integration workflow passed** and **Integration simple workflow passed**.
+- **`build-advisory`** / **`verify-ui-advisory`** / **`verify-integration-advisory`** run **one** pinned **Node Current** lane (**26** in workflow YAML) with advisory **`continue-on-error`** and are **omitted** from **`integration-pass`** `needs` so that lane cannot fail the merge gate when Node 24 is green.
+- **Do not** add per-job check names to branch protection; keep the single required check **Integration workflow passed**.
 
-**Integration Simple** (`.github/workflows/integration-simple.yml`): **`build-primary`** / **`verify-integration-simple-primary`** (artifact **`npm-package-simple-node24`**) gate **`integration-simple-pass`**; **`build-advisory`** / **`verify-integration-simple-advisory`** for Node **26** are advisory only. There is **no** separate static/UI job in this workflow — those checks live under **Integration** as **`verify-ui-*`**.
+**Transport smoke** (`verify-integration-simple-smoke`, `verify-integration-stdio-smoke`): the **full** functional suite runs once on the AUTH stack (`verify-integration-primary`). The simple (HTTP no-auth) and stdio stacks only run a small boot/serve smoke subset against the same **`npm-package-node24`** tgz, so their transports stay covered without re-spending embedding/OpenAI quota on repeated full runs.
 
 **Caching:** **`verify-ui-primary`** uses the same **`~/.cache/ms-playwright`** key as **`verify-integration-primary`** / **`verify-integration-advisory`** (lockfile hash only). **`verify-ui-advisory`** uses a **Node-version suffix** on the Playwright cache key so the advisory runner does not contend with the Node 24 primary cache. Integration verify jobs restore/save **Docker infra** images (`compose.yaml` hash).
 
 ### Path-filter gating (Pattern B)
 
-Both **`integration.yml`** and **`integration-simple.yml`** prefix their job graph with a lightweight **`changes`** job that uses [`dorny/paths-filter@v3`](https://github.com/dorny/paths-filter) to set `code=true` only when files that can affect build/test outcomes are touched. Heavy jobs (build, verify-ui, verify-integration, verify-docker) gate on `needs.changes.outputs.code == 'true'`, so docs-only / wiki-only / helm-only PRs skip the expensive matrix while the gate jobs (**Integration workflow passed**, **Integration simple workflow passed**) still report success and satisfy required-status-check branch protection.
+**`integration.yml`** prefixes its job graph with a lightweight **`changes`** job that uses [`dorny/paths-filter@v4`](https://github.com/dorny/paths-filter) to set `code=true` only when files that can affect build/test outcomes are touched, plus a narrower `image=true` output for container/Trivy inputs. Heavy jobs (build, verify-ui, verify-integration primary + smoke) gate on `needs.changes.outputs.code == 'true'`; **`verify-docker`** gates on `needs.changes.outputs.image == 'true'`, so non-image code changes skip the Docker build while docs-only / wiki-only / helm-only PRs skip everything. The gate job (**Integration workflow passed**) still reports success and satisfies required-status-check branch protection (it accepts a skipped `verify-docker` when `image=false`).
 
 **Forced run** (`code=true` regardless of paths) for: `workflow_dispatch`, `merge_group`, tag pushes (`refs/tags/*`), and pushes to `ci/**` branches. The forcing logic lives in the `Combine with forced-run events` step of the `changes` job.
 
-When adding new build inputs, update the `code:` filter list in **both** workflow YAMLs (they are kept intentionally in sync). The full filter list covers `src/**`, `tests/**`, `scripts/**`, `skills/**`, root config (`package.json`, `package-lock.json`, `tsconfig*.json`, `jest.config.js`, `vitest.config.ts`, `vite.config.ts`, `postcss.config.js`, `eslint.config.cjs`, `eslint/**`, `knip.config.ts`), container files (`Dockerfile*`, `compose.yaml`), `.trivyignore`, the workflow's own YAML, and `.env.dev_simple` for the simple variant.
+When adding new build inputs, update the `code:` filter list in **`integration.yml`** (and the `image:` filter when the input affects the container). The full `code` filter list covers `src/**`, `tests/**`, `scripts/**`, `skills/**`, root config (`package.json`, `package-lock.json`, `tsconfig*.json`, `jest.config.js`, `vitest.config.ts`, `vite.config.ts`, `postcss.config.js`, `eslint.config.cjs`, `eslint/**`, `knip.config.ts`), container files (`Dockerfile*`, `compose.yaml`), `.trivyignore`, `.env.dev_simple`, `.env.dev_stdio`, and the workflow's own YAML. The `image` filter is the container subset (`Dockerfile*`, `compose.yaml`, `.trivyignore`, `package.json`, `package-lock.json`, the workflow YAML).
 
 **Note:** Primary integration verify cannot start until **`build-primary`** finishes (artifact). Within that job, **infra starts before the artifact download** so pulls and boot overlap post-build wall clock plus later steps.
 
@@ -223,12 +210,12 @@ sequenceDiagram
 
 ## Release tag on version bump
 
-`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration**, **Integration Simple**, and **Integration Stdio** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on all three workflows being `success` for the same head SHA. Human version bumps follow [.agent/skills/kmcp-dev-release-semver/SKILL.md](../../.agent/skills/kmcp-dev-release-semver/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflows on **`main`** → this workflow creates the tag (no local tag from the skill).
+`release-tag-on-version-bump.yml` runs on `workflow_run` from **Integration** on **`main`** or **`ci/**`**, or via **manual dispatch**. For automatic runs it gates tag creation on **Integration** being `success` for the same head SHA (the simple and stdio transports are now smoke jobs inside that single workflow). Human version bumps follow [.agent/skills/kmcp-dev-release-semver/SKILL.md](../../.agent/skills/kmcp-dev-release-semver/SKILL.md): branch **`release/<version>`** → PR to **`main`** → merge → integration workflow on **`main`** → this workflow creates the tag (no local tag from the skill).
 
 - **Main:** Full releases (`vX.Y.Z`) and pre-releases (e.g. `vX.Y.Z-rc.N`) — creates and pushes the tag when `package.json` version is **greater** than the latest existing **stable** tag (`X.Y.Z` only) **and** `v<package.json version>` does not already exist (local or on `origin`). Repeat Integration runs for the same version exit cleanly instead of failing on duplicate `git tag`.
 - **`ci/**`:** **Beta only** — creates the tag only if the version contains `-beta.` (e.g. `3.2.0-beta.0`) and that tag does not already exist (local or on `origin`). Full/pre releases are not created from non-main branches.
 - **Concurrency:** One job at a time per repository (`cancel-in-progress: false`) so concurrent runs do not race on `git tag` / `git push`.
-- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when integration workflows have not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration**, **Integration Simple**, and **Integration Stdio** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
+- **Manual trigger (Actions → Release tag on version bump → Run workflow):** Provide **ref** (branch or SHA, e.g. `ci/integration-line` or a commit SHA). Beta only: tags the commit if `package.json` version contains `-beta.` and the tag `v<version>` does not exist. Use when the integration workflow has not run on that ref yet or you need to retry tagging. Prefer the automatic path: push to **`ci/**`** or merge to **main**, let **Integration** go green on the same SHA, then this workflow runs from **`workflow_run`** and pushes the tag and dispatches **Release**.
 
 **Flow:** When a tag is created (by this workflow), it triggers the **Release** workflow (npm → Docker → GitHub Release).
 

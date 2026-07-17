@@ -39,6 +39,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.combine.outputs.code }}
+      image: ${{ steps.combine.outputs.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -49,8 +50,9 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v4
         with:
-          # Files that can affect build, lint, or auth-mode integration outcomes.
-          # Keep in sync with integration-simple.yml (Pattern B) when updating.
+          # Files that can affect build, lint, or integration outcomes (auth full + simple/stdio smoke).
+          # `code` is the master switch for build + UI/static + integration jobs.
+          # `image` narrows the Docker/Trivy job so non-image code changes skip the image build.
           filters: |
             code:
               - 'src/**'
@@ -70,6 +72,15 @@ jobs:
               - 'Dockerfile*'
               - 'compose.yaml'
               - '.trivyignore'
+              - '.env.dev_simple'
+              - '.env.dev_stdio'
+              - '.github/workflows/integration.yml'
+            image:
+              - 'Dockerfile*'
+              - 'compose.yaml'
+              - '.trivyignore'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/integration.yml'
 
       - name: Combine with forced-run events
@@ -78,17 +89,20 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           FILTER_CODE: ${{ steps.filter.outputs.code }}
+          FILTER_IMAGE: ${{ steps.filter.outputs.image }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "workflow_dispatch" ] \
              || [ "$EVENT_NAME" = "merge_group" ] \
              || [[ "$REF" == refs/tags/* ]] \
              || [[ "$REF" == refs/heads/ci/* ]]; then
-            echo "Forcing code=true for event=$EVENT_NAME ref=$REF"
+            echo "Forcing code=true image=true for event=$EVENT_NAME ref=$REF"
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "image=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Filter result: code=$FILTER_CODE"
+            echo "Filter result: code=$FILTER_CODE image=$FILTER_IMAGE"
             echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+            echo "image=$FILTER_IMAGE" >> "$GITHUB_OUTPUT"
           fi
 
   build-primary:
@@ -249,6 +263,11 @@ jobs:
 
       - name: Install dependencies
         run: node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci
+
+      # Static spec-parity gate: no infra, no OpenAI. Fails fast on tool-surface drift
+      # (MCP registry / HTTP routes / CLI / embedded docs) before the heavy steps below.
+      - name: Spec parity (static, no infra)
+        run: node scripts/ci-github-step-summary.mjs "Spec parity (static)" -- npm run test:spec-parity
 
       # ESLint: matches `npm run lint` / Husky pre-commit — disabled in CI for now.
       # - name: ESLint
@@ -501,12 +520,259 @@ jobs:
           path: var/log/kairos.log
           if-no-files-found: ignore
 
+  verify-integration-simple-smoke:
+    # Transport smoke only (HTTP, auth off). The full functional suite runs once on the AUTH
+    # stack (verify-integration-primary); this job just proves the simple/no-auth HTTP stack
+    # boots and serves MCP. Reuses build-primary's tgz (npm-package-node24) — no separate build.
+    name: Transport smoke (SIMPLE mode, HTTP no-auth, Node 24)
+    needs: [changes, build-primary]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: "Generate .env (base vars, overridden for simple mode)"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
+
+      - name: Apply simple profile overrides
+        run: cat .env.dev_simple >> .env
+
+      - name: Start Qdrant (binary) and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          QDRANT_HTTP_PORT=7633 QDRANT_GRPC_PORT=7634 npm run qdrant:binary:start &
+          pid_qdrant=$!
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_qdrant || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
+
+      - name: Download npm package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-package-node24
+          path: artifact-npm
+
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v6
+        id: playwright-cache-simple
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers and wait for Qdrant (parallel)
+        id: playwright-install-simple
+        run: |
+          set -euo pipefail
+          ec=0
+          node scripts/ci-github-step-summary.mjs "Install Playwright browsers" -- npx playwright install chromium &
+          pid_pw=$!
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:7633/healthz >/dev/null && break
+            [ "$i" -eq 30 ] && ec=1
+            sleep 2
+          done &
+          pid_wait=$!
+          wait $pid_pw || ec=1
+          wait $pid_wait || ec=1
+          exit $ec
+
+      - name: Save Playwright browsers cache
+        uses: actions/cache/save@v6
+        if: steps.playwright-cache-simple.outputs.cache-hit != 'true' && steps.playwright-install-simple.outcome == 'success'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install package from tgz
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
+            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
+
+      - name: Expose installed package dist for CLI tests
+        run: |
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
+
+      - name: Start app (from installed package, simple mode)
+        env:
+          HEALTH_CHECK_ATTEMPTS: 15
+          ENV: dev_simple
+          QDRANT_SNAPSHOT_DIR: var/snapshots
+          QDRANT_COLLECTION: kairos_ci
+        run: |
+          mkdir -p var/log var/snapshots
+          npm run dev:start:installed > var/log/kairos-simple.log 2>&1 &
+          for i in $(seq 1 ${HEALTH_CHECK_ATTEMPTS}); do
+            curl -sSf http://127.0.0.1:4300/health >/dev/null && break
+            [ $i -eq ${HEALTH_CHECK_ATTEMPTS} ] && exit 1
+            sleep 2
+          done
+
+      - name: Run SIMPLE transport smoke tests
+        env:
+          ENV: dev_simple
+          QDRANT_COLLECTION: kairos_ci
+        run: |
+          npm run dev_simple:test -- \
+            tests/integration/scenarios/spaces-tool.http-simple.test.ts \
+            tests/integration/readonly/mcp-list-tools.test.ts \
+            tests/integration/readonly/mcp-client-connection.test.ts
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
+
+      - name: Upload kairos simple log
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: kairos-simple-log-node24
+          path: var/log/kairos-simple.log
+          if-no-files-found: ignore
+
+      - name: Stop Qdrant (binary)
+        if: always()
+        run: npm run qdrant:binary:stop
+
+  verify-integration-stdio-smoke:
+    # Transport smoke only (stdio JSON-RPC). No HTTP server; tests spawn a stdio subprocess.
+    # Reuses build-primary's tgz (npm-package-node24) — no separate build.
+    name: Transport smoke (STDIO mode, Node 24)
+    needs: [changes, build-primary]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: "Generate .env (base vars, overridden for stdio mode)"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/ci-github-step-summary.mjs "Generate .env (dev secrets)" -- python3 scripts/deploy-generate-dev-secrets.py
+
+      - name: Apply stdio profile overrides
+        run: |
+          set -a
+          [ -f .env.dev_stdio ] && . ./.env.dev_stdio
+          set +a
+          while IFS= read -r line; do
+            key="${line%%=*}"
+            if [ -n "$key" ] && ! grep -q "^${key}=" .env 2>/dev/null; then
+              echo "$line" >> .env
+            fi
+          done < <(grep -v '^#' .env.dev_stdio 2>/dev/null | grep '=')
+
+      - name: Start Qdrant (binary) and npm ci (parallel)
+        run: |
+          set -euo pipefail
+          ec=0
+          QDRANT_HTTP_PORT=7633 QDRANT_GRPC_PORT=7634 npm run qdrant:binary:start &
+          pid_qdrant=$!
+          node scripts/ci-github-step-summary.mjs "Install dependencies" -- npm ci &
+          pid_npm=$!
+          wait $pid_qdrant || ec=1
+          wait $pid_npm || ec=1
+          exit $ec
+
+      - name: Download npm package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-package-node24
+          path: artifact-npm
+
+      - name: Wait for Qdrant
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            curl -sSf http://127.0.0.1:7633/healthz >/dev/null && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Install package from tgz
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/ci-github-step-summary.mjs "Install package from tgz" -- \
+            npm install "./artifact-npm/debian777-kairos-mcp-${VERSION}.tgz"
+
+      - name: Expose installed package dist for CLI tests
+        run: |
+          rm -rf dist
+          cp -R node_modules/@debian777/kairos-mcp/dist ./dist
+
+      - name: Run STDIO transport smoke tests
+        env:
+          ENV: dev_stdio
+          QDRANT_COLLECTION: kairos_simple_ci
+          CI: "true"
+        run: |
+          npm run dev_stdio:test -- \
+            tests/integration/mode/stdio/stdio-launch-smoke.test.ts \
+            tests/integration/scenarios/spaces-tool.stdio-simple.test.ts
+
+      - name: Show test failure
+        if: failure()
+        run: |
+          echo "--- Last test report (tail) ---"
+          latest=$(ls -t reports/tests/*.log 2>/dev/null | head -n1)
+          if [ -n "$latest" ]; then
+            tail -n 200 "$latest"
+          else
+            echo "No reports/tests/*.log found"
+          fi
+
+      - name: Upload kairos stdio log
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: kairos-stdio-log-node24
+          path: var/log/kairos-stdio.log
+          if-no-files-found: ignore
+
+      - name: Stop Qdrant (binary)
+        if: always()
+        run: npm run qdrant:binary:stop
+
   verify-docker:
     # Docker image FROM is single-Node (24-alpine) — verify-docker is intentionally non-matrix and
     # downloads the Node 24 tgz only.
     name: Release-equivalent Docker image + Trivy
     needs: [changes, build-primary]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -551,22 +817,26 @@ jobs:
   # and this gate passes immediately so required status checks still report success.
   integration-pass:
     name: Integration workflow passed
-    needs: [changes, build-primary, verify-ui-primary, verify-integration-primary, verify-docker]
+    needs: [changes, build-primary, verify-ui-primary, verify-integration-primary, verify-integration-simple-smoke, verify-integration-stdio-smoke, verify-docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         env:
           CHANGES_CODE: ${{ needs.changes.outputs.code }}
+          CHANGES_IMAGE: ${{ needs.changes.outputs.image }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           BUILD_PRIMARY: ${{ needs.build-primary.result }}
           VERIFY_UI: ${{ needs.verify-ui-primary.result }}
           VERIFY_INTEGRATION: ${{ needs.verify-integration-primary.result }}
+          VERIFY_SIMPLE_SMOKE: ${{ needs.verify-integration-simple-smoke.result }}
+          VERIFY_STDIO_SMOKE: ${{ needs.verify-integration-stdio-smoke.result }}
           VERIFY_DOCKER: ${{ needs.verify-docker.result }}
         run: |
           set -euo pipefail
-          echo "changes.result=$CHANGES_RESULT changes.code=$CHANGES_CODE"
-          echo "build-primary=$BUILD_PRIMARY verify-ui-primary=$VERIFY_UI verify-integration-primary=$VERIFY_INTEGRATION verify-docker=$VERIFY_DOCKER"
+          echo "changes.result=$CHANGES_RESULT changes.code=$CHANGES_CODE changes.image=$CHANGES_IMAGE"
+          echo "build-primary=$BUILD_PRIMARY verify-ui-primary=$VERIFY_UI verify-integration-primary=$VERIFY_INTEGRATION"
+          echo "verify-integration-simple-smoke=$VERIFY_SIMPLE_SMOKE verify-integration-stdio-smoke=$VERIFY_STDIO_SMOKE verify-docker=$VERIFY_DOCKER"
 
           # Fail fast if the changes job itself broke.
           if [ "$CHANGES_RESULT" != "success" ]; then
@@ -582,5 +852,13 @@ jobs:
           test "$BUILD_PRIMARY" = "success"
           test "$VERIFY_UI" = "success"
           test "$VERIFY_INTEGRATION" = "success"
-          test "$VERIFY_DOCKER" = "success"
-          echo "All integration jobs passed."
+          test "$VERIFY_SIMPLE_SMOKE" = "success"
+          test "$VERIFY_STDIO_SMOKE" = "success"
+
+          # verify-docker only runs when image-affecting files change; otherwise it is skipped.
+          if [ "$CHANGES_IMAGE" = "true" ]; then
+            test "$VERIFY_DOCKER" = "success"
+          else
+            echo "No image-affecting changes — verify-docker skip is OK (result=$VERIFY_DOCKER)."
+          fi
+          echo "All required integration jobs passed."

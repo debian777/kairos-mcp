@@ -1,27 +1,24 @@
 /**
- * Jest test sequencer: run train/update tests before v4-kairos-activate (which depends on them).
+ * Jest test sequencer.
+ *
+ * Ordering intent after the tests/integration read-only vs write reorg:
+ * the read-only (tests/integration/readonly/**) and write (tests/integration/write/**)
+ * buckets run in separate Jest invocations (see scripts/deploy-run-env.sh, read-only-first
+ * fail-fast), so the historical "run train/update before the activate suite" cross-file
+ * ordering is no longer required — each read-only file provisions its own fixtures.
+ *
+ * The only ordering still enforced is: run 000-health-preflight first within any invocation,
+ * so an unhealthy stack fails fast with a clear signal before other files time out.
  */
-const path = require('path');
 const TestSequencer = require('@jest/test-sequencer').default;
 
 class CustomSequencer extends TestSequencer {
   sort(tests) {
-    const v4ActivatePath = path.join(__dirname, 'integration', 'v4-kairos-activate.test.ts');
-    const healthPreflightPath = path.join(__dirname, 'integration', '000-health-preflight.test.ts');
     return [...tests].sort((a, b) => {
-      const aIsHealthPreflight = a.path === healthPreflightPath || a.path.endsWith('000-health-preflight.test.ts');
-      const bIsHealthPreflight = b.path === healthPreflightPath || b.path.endsWith('000-health-preflight.test.ts');
+      const aIsHealthPreflight = a.path.endsWith('000-health-preflight.test.ts');
+      const bIsHealthPreflight = b.path.endsWith('000-health-preflight.test.ts');
       if (aIsHealthPreflight && !bIsHealthPreflight) return -1;
       if (bIsHealthPreflight && !aIsHealthPreflight) return 1;
-
-      const aIsTrainOrUpdate = /(train|update)/i.test(a.path) && !/v4-kairos-activate/.test(a.path);
-      const bIsTrainOrUpdate = /(train|update)/i.test(b.path) && !/v4-kairos-activate/.test(b.path);
-      const aIsV4Activate = a.path === v4ActivatePath || a.path.endsWith('v4-kairos-activate.test.ts');
-      const bIsV4Activate = b.path === v4ActivatePath || b.path.endsWith('v4-kairos-activate.test.ts');
-      if (aIsV4Activate && bIsTrainOrUpdate) return 1;
-      if (bIsV4Activate && aIsTrainOrUpdate) return -1;
-      if (aIsV4Activate && !bIsV4Activate) return 1;
-      if (bIsV4Activate && !aIsV4Activate) return -1;
       return 0;
     });
   }
