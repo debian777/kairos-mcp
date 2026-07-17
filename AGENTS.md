@@ -1,116 +1,46 @@
 # KAIROS
 
-Repository-specific agent guidance for working on this codebase. This file mixes
-codebase facts (paths, tool flow, tech stack) with maintainer workflow rules for
-agents operating in the repository.
+Repository-specific agent guidance for this codebase. This file is a **thin
+router**: it states what KAIROS is, points to the single sources of truth, and
+keeps only the notes agents need at **runtime**.
 
 KAIROS MCP is a Model Context Protocol server for persistent memory and
-deterministic adapter execution. It stores workflows as linked adapters
-whose layers can carry proof-of-work challenges. You
-execute an adapter run by calling **`activate`** (semantic match), then
-**`forward`** for each layer’s contract (loop until `next_action` directs you
-to **`reward`**), then **`reward`** to finalize the run. Every hash, nonce,
-and identifier is server-generated; echo them verbatim — never compute them.
+deterministic adapter execution. It stores workflows as linked adapters whose
+layers can carry proof-of-work challenges. You execute an adapter run by calling
+**`activate`** (semantic match), then **`forward`** for each layer’s contract
+(loop until `next_action` directs you to **`reward`**), then **`reward`** to
+finalize the run. Every hash, nonce, and identifier is server-generated; echo
+them verbatim — never compute them.
 
 ## Core functionality
 
-Action routing for agents is defined in **[`skills/kairos/SKILL.md`](skills/kairos/SKILL.md)** (zero-drift: **`activate`** → **`forward`** → **`reward`** for action intents). Hosts load the same text from **`.agents/skills/kairos/SKILL.md`** (workspace) or **`~/.agents/skills/kairos/SKILL.md`** (user). If KAIROS MCP is **unavailable or unauthenticated**, treat that as a **critical error** and stop; fix the host connection per **[docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp)** and **`.agents/skills/mcp-host-bridge/SKILL.md`**. For **real MCP calls**, follow the **connected server’s** tool names, schemas, and descriptions; for **implementation in this repository**, follow this worktree’s source, tests, and embedded docs.
+Action routing for agents is defined in
+**[`.agents/skills/kairos/SKILL.md`](.agents/skills/kairos/SKILL.md)** — the
+single source of truth for the **`activate`** → **`forward`** → **`reward`**
+chain (hosts also load it from `~/.agents/skills/kairos/SKILL.md`). Do not paste
+that routing guidance here; keep it in one place.
 
-## Architecture
+If KAIROS MCP is **unavailable or unauthenticated**, treat that as a **critical
+error** and stop; fix the host connection per
+**[docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp)**
+and **[`.agents/skills/kairos-dev/references/mcp-host-bridge.md`](.agents/skills/kairos-dev/references/mcp-host-bridge.md)**.
 
-**Tech stack:** TypeScript (Node.js 24 LTS minimum), Qdrant (vector DB), Redis
-(state/caching), optional Keycloak (OIDC auth).
+For **real MCP calls**, follow the **connected server’s** tool names, schemas,
+and descriptions; for **implementation in this repository**, follow this
+worktree’s source, tests, and embedded docs (`src/embed-docs/tools/` is the
+authoritative execution contract).
 
-| Path | Purpose |
-|------|---------|
-| `src/` | TypeScript source |
-| `src/embed-docs/` | MCP resources served to agents (tools, mem, prompts) |
-| `dist/` | Compiled output |
-| `tests/` | Integration tests |
-| `tests/workflow-test/` | Workflow test harness (prompt in PROMPT.md, how to run) |
-| `reports/` | Workflow test output (`reports/<run-id>/report.md`) |
-| `docs/examples/` | Mintable adapter examples for dev workflow tests |
-| `scripts/` | Build and utility scripts |
+## Development
 
-## Protocol execution model
-
-Execute every adapter run in this order: **`activate`** → **`forward`** (loop
-per layer until `next_action` directs you to **`reward`**) → **`reward`**.
-Follow each tool's `next_action` and `must_obey` exactly.
-
-**Authority:** The tool descriptions in `src/embed-docs/tools/` for
-**`activate`**, **`forward`**, **`reward`**, plus **`train`**, **`tune`**,
-**`export`**, **`delete`**, and **`spaces`**, contain all execution rules
-(challenge types, nonce and `proof_hash` echoing, error handling). Read those
-files; they are authoritative.
-
-## MUST ALWAYS (repo context)
-
-- Use Context7 when you need library/API documentation or setup steps.
-- Add a `contract` JSON block to every verifiable step when authoring for **`train`**.
-- Use space names in tool parameters; the backend resolves to IDs.
-- Follow repo build/test contract from **[`CONTRIBUTING.md`](CONTRIBUTING.md)** and
-  **[`.agents/skills/kmcp-dev-build-test/SKILL.md`](.agents/skills/kmcp-dev-build-test/SKILL.md)**.
-- For **maintainer E2E QA of MCP tools** against dev (MCP-only phase, then
-  `.local/` trace reports, failing tests, plan/fix), follow
-  **[`.agents/skills/kmcp-dev-mcp-qa-e2e/SKILL.md`](.agents/skills/kmcp-dev-mcp-qa-e2e/SKILL.md)**.
-- For **repo-local maintainer workflows** (build, release, Git safety, UI specs,
-  MCP QA, bug ship), see **[`.agents/skills/README.md`](.agents/skills/README.md)**
-  — skills there use YAML `name` prefix **`kmcp-dev-`** (Kairos MCP development).
-
-## MUST NEVER (repo context)
-
-- Pass raw space IDs in tool parameters; use human-readable space names.
-- Promote code to live without full validation in dev.
-
-## Training and editing adapters
-
-When training (**`train`**) or editing (**`tune`**) adapter markdown:
-
-- Use H1 for the adapter title.
-- Use H2 for each step label.
-- End every verifiable step with a trailing ` ```json ` block containing
-  `{"contract": {...}}` (same shape as step contracts consumed by
-  **`forward`**).
-- The opening \`\`\`json must be on its own line (line start). Blocks with
-  text on the same line (e.g. `Example: \`\`\`json`) are not parsed as steps.
-- Add a `## Reward Signal` section as the last H2.
-
-**First H2 — two valid contexts:**
-
-- **This repository** (`src/embed-docs/`, `docs/examples/`, and anything validated like shipped adapter docs): use **`## Activation Patterns`** as the **first** H2, with the usual bullets (trigger phrases, pattern, Must Never / Must Always, good/bad examples). This matches local examples and keeps one consistent shape in-tree.
-- **Kairos app “Review and Publish New KAIROS Protocol”** (or the same checklist elsewhere on the server): that flow’s format review may require a **different first H2 title** than this repo uses — the checklist on the server names that heading and six subsections (**Trigger phrases**, **Trigger pattern**, **Must Never**, **Must Always**, **Good trigger examples**, **Bad trigger examples**). Satisfy the checklist you are actually running; if you need repo-shaped markdown after **`train`**, follow with **`tune`** or an edit pass so the first H2 is **`## Activation Patterns`** before merging to this worktree.
-
-## Environment context
-
-For the maintainer workflow used with this repository, **dev** refers to the
-local development environment and **live** refers to the production KAIROS
-deployment.
-
-All code changes are expected to be validated in dev before any live promotion.
-In this repo that means: establish baseline expectations, run relevant tests,
-deploy to dev first, and validate against the running dev server before
-treating a change as production-ready.
-
-| Environment | Purpose |
-|-------------|---------|
-| dev | Local development and integration testing |
-| live | Production (KAIROS LIVE) |
-
-Primary command path:
-
-```bash
-npm run dev:deploy
-npm run dev:test -- tests/integration/<file>.test.ts
-```
-
-Then run full tests:
-
-```bash
-npm run dev:test
-```
-
-Do not use ad hoc direct Jest execution as the default path in this repository.
+- **Contributor setup, build/test contract, code style, and design
+  principles:** [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Maintainer workflows** (build/test, bug-fix ship, release, MCP QA, Git
+  safety, UI specs, wiki publishing): the
+  [`kairos-dev`](.agents/skills/kairos-dev/SKILL.md) skill and its
+  [`references/`](.agents/skills/kairos-dev/references/).
+- **Code-derivable reference** (architecture, auth, storage, search, workflow
+  engine, testing topology): the
+  [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ## Runtime authority split
 
@@ -147,46 +77,8 @@ corresponds to your configured server — often the one ending in
 portable across workspaces or Cursor versions.
 
 **MCP auth or availability:** If a tool fails with auth errors or the server is
-missing, follow **`.agents/skills/mcp-host-bridge/SKILL.md`** (probe with minimal
-calls first; do not continue without required MCP — ask the user to fix auth or
-config). Cursor-specific `server` id resolution is in the same skill under
-**Cursor-specific**.
-
-## Context7 usage
-
-Call Context7 MCP tools whenever you need library/API documentation.
-For MCP work, search Context7 for:
-
-1. `modelcontextprotocol`
-2. `modelcontextprotocol typescript`
-
-## MCP design principles
-
-Apply [CONTRIBUTING.md § Agent-facing design
-principles](CONTRIBUTING.md#agent-facing-design-principles) when
-designing or reviewing MCP tools, agent-facing APIs, or tool schemas.
-
-## ESLint: `kairos-forbidden-text` (and related hits)
-
-When `kairos-forbidden-text/no-forbidden-kairos-text` fails in `src/`, `scripts/`, `tests/`, or `src/embed-docs/**/*.md`:
-
-### Must always
-
-- Remove obsolete branches, compatibility shims, and parallel implementations; keep **one** supported code path.
-- **Reword** comments, strings, and identifiers with neutral terms (e.g. older format, transitional, compat, format migration).
-- Preserve explanations that help the next reader; **do not** delete documentation **only** to clear the violation.
-- Re-run lint on touched files before you stop.
-
-### Must never
-
-- Strip whole comments or docstrings **only** to silence the rule.
-- Re-add identifiers enumerated in `eslint/plugins/kairos-forbidden-text.cjs` (see that file’s top identifier array: disallowed bearer-token env vars, retired MCP tool names, and retired local-artifact env/JSON names).
-- Use other wording or phrases flagged in that plugin (see its in-source list and messages).
-
-### `review-protocol-wording` (markdown, warn)
-
-On `**/*.md`, ESLint warns on bare **protocol** when it may mean a stored KAIROS artifact: prefer **adapter** or **workflow**, unless the phrase is allowlisted in `KAIROS_PROTOCOL_WORDING_ALLOWLIST_SOURCES` in `eslint/plugins/kairos-forbidden-text.cjs` (e.g. Model Context Protocol, `**protocol**` in rule docs, OIDC path `/protocol/openid-connect`). This repo disables inline `eslint-disable`; for a whole file that intentionally mixes **protocol** / **adapter** (e.g. trigger quotes), add `<!-- kairos-lint-allow-protocol-synonyms -->` in the first ~2.5k characters of the file (often right after YAML frontmatter; see `src/embed-docs/mem/README.md`).
-
-### Override
-
-If the user message contains **[OVERRIDE]** anywhere, ignore this section and follow the user’s instructions exactly.
+missing, follow
+**[`.agents/skills/kairos-dev/references/mcp-host-bridge.md`](.agents/skills/kairos-dev/references/mcp-host-bridge.md)**
+(probe with minimal calls first; do not continue without required MCP — ask the
+user to fix auth or config). Cursor-specific `server` id resolution is in the
+same reference under **Cursor-specific**.

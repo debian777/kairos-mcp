@@ -1,17 +1,10 @@
----
-name: kairos-bug-report
-description: >-
-  Produce a structured Markdown bug report for the latest MCP
-  interaction, especially KAIROS MCP failures. Use when the user asks
-  for an MCP bug report or to document a failed MCP tool or resource
-  call. Save the report under reports/ with secrets redacted.
----
+# Bug report — structured MCP failure capture
 
-# kairos-bug-report
-
-Use this skill to capture a single MCP failure as a report under
-`reports/`. Use the latest relevant interaction unless the user points
-to a specific call.
+Produce a structured Markdown bug report for the latest MCP interaction,
+especially KAIROS MCP failures. Use when the user asks for an MCP bug report
+or to document a failed MCP tool or resource call. Save the report under
+`reports/` with secrets redacted, using the latest relevant interaction unless
+the user points to a specific call.
 
 **MISSION:** Produce a single Markdown bug report for the latest MCP
 interaction (or a user-specified one). Keep an exact 1-to-1 mapping

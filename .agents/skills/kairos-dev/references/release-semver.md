@@ -11,10 +11,10 @@ description: >-
 
 # Version bump and release (kairos-mcp)
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
 **Tag automation:** `.github/workflows/release-tag-on-version-bump.yml` (see
-**[`.github/workflows/README.md`](../../../.github/workflows/README.md)**).
-**Build/test after merge:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).
+**[`.github/workflows/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.github/workflows/README.md)**).
+**Build/test after merge:** [`kmcp-dev-build-test`](build-test.md).
 
 Releases work **with or without** stepping through every narrative below.
 
@@ -123,9 +123,9 @@ gh pr view --json url -q .url
 Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**).
 
 1. **`src/embed-docs/mem/*.md`** — frontmatter **`version:`** ← **`package.json`** (including prerelease).
-2. **`skills/<top-level>/SKILL.md`** (immediate children of **`skills/`**) — metadata **`version:`** and optional **`references/KAIROS.md`** frontmatter, using the **greater** of **`package.json`** version and latest **stable** `vX.Y.Z` tag (see script for edge cases).
+2. **`.agents/skills/<top-level>/SKILL.md`** (immediate children of **`.agents/skills/`**) — metadata **`version:`** and optional **`references/KAIROS.md`** frontmatter, using the **greater** of **`package.json`** version and latest **stable** `vX.Y.Z` tag (see script for edge cases).
 
-**Scope:** Only **`skills/<name>/`** direct children; **`skills/.system/...`** is **not** auto-updated unless the script is extended.
+**Scope:** Only **`.agents/skills/<name>/`** direct children (e.g. **`kairos`**); **`kairos-dev`** has no version field and is skipped.
 
 **Check:** **`npm run version:check-skills`** (also pre-commit when relevant paths staged).
 
@@ -214,5 +214,5 @@ workflow; pre-push hooks block manual tags.
 
 ## Related
 
-- **[`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md)** — validate after large release merges.
-- **[`kmcp-dev-bugfix-ship`](../kmcp-dev-bugfix-ship/SKILL.md)** — if a release uncovers a production defect.
+- **[`kmcp-dev-build-test`](build-test.md)** — validate after large release merges.
+- **[`kmcp-dev-bugfix-ship`](bugfix-ship.md)** — if a release uncovers a production defect.

@@ -17,9 +17,8 @@ the single source of truth for those topics.
 
 ## Install and CLI (functional inputs)
 
-Sources under `install/` and `CLI.md` are also copied into the shipped
-`kairos-install` skill by `scripts/sync-kairos-install-references.py`; keep them
-build-accurate.
+Sources under `install/` and `CLI.md` are functional inputs consumed by the
+build and tests; keep them build-accurate.
 
 - [Install index](install/README.md) — entry point and diagram
 - [Prerequisites](install/prerequisites.md)
@@ -71,11 +70,11 @@ Files under `examples/` are read by
 
 ## Skills and contributor guidance
 
-- [Skills README](../skills/README.md)
-- [Skills structure reference](../skills/SKILLS.md)
-- [Skills that ship KAIROS adapters](../skills/README.md) — how a skill can
-  bundle an adapter, declare requirements, and run **activate** → **train** if
-  missing → **forward** / **reward**.
+- [Agent skills README](../.agents/skills/README.md) — the two shipped skills
+  (`kairos`, `kairos-dev`) and their reference index.
+- [Skill authoring guide](../.agents/skills/kairos-dev/references/skill-authoring.md)
+  — how a skill can bundle an adapter, declare requirements, and run
+  **activate** → **train** if missing → **forward** / **reward**.
 - [Contributing](../CONTRIBUTING.md)
 - [Developer commands](../CONTRIBUTING.md#developer-commands) — build, deploy,
   and test (`dev:build`, `dev:deploy`, `dev:test`). Always deploy before testing.

@@ -382,12 +382,6 @@ function createFlatConfig(rootDir) {
       },
     },
     {
-      files: ['skills/kairos/SKILL.md'],
-      rules: {
-        'kairos-forbidden-text/review-protocol-wording': 'off',
-      },
-    },
-    {
       files: ['.github/workflows/README.md'],
       rules: {
         'kairos-forbidden-text/review-protocol-wording': 'off',

@@ -1,72 +1,92 @@
-# Maintainer skills — kairos-mcp
+# Agent skills — kairos-mcp
 
-Canonical path: **`.agents/skills/`** (not installed via `npx skills add`). Agent hosts
-load repo-scoped skills from **`.agents/`** and user-scoped skills from **`~/.agents/`**.
+Canonical path: **`.agents/skills/`**. Agent hosts load repo-scoped skills from
+**`.agents/`** and user-scoped skills from **`~/.agents/`**. The `skills` CLI
+also discovers this directory, so `npx skills add debian777/kairos-mcp` works.
 
-They complement shipped agent skills in **`skills/`** (`kairos`, `kairos-bug-report`,
-`kairos-install`).
+This repository ships exactly **two** discoverable skills:
+
+| Skill | Audience | Purpose |
+|-------|----------|---------|
+| [`kairos`](kairos/SKILL.md) | **Users** | Action routing (`activate` → `forward` → `reward`), first-time install, updates, and MCP bug reports. This is the only skill end users install. |
+| [`kairos-dev`](kairos-dev/SKILL.md) | **Developers** | Docker Compose dev environment plus every maintainer workflow. Marked `metadata.internal: true` so it is hidden from user-facing `npx skills add` listings, while cloned-repo hosts still auto-load it. |
+
+Depth lives in each skill's `references/` (progressive disclosure); keep each
+`SKILL.md` a concise router.
+
+## `kairos` (user) references
+
+- [`references/action-routing.md`](kairos/references/action-routing.md) — full routing discipline.
+- [`references/install.md`](kairos/references/install.md) — npx zero-config stdio install.
+- [`references/updates.md`](kairos/references/updates.md) — refresh CLI + installed skills.
+- [`references/bug-report.md`](kairos/references/bug-report.md) — structured MCP bug report.
+
+## `kairos-dev` (developer) references
+
+| Task | Reference |
+|------|-----------|
+| Docker Compose full-stack dev environment | [dev-environment.md](kairos-dev/references/dev-environment.md) |
+| Build, deploy, test (npm-only; `dev:deploy` before `dev:test`) | [build-test.md](kairos-dev/references/build-test.md) |
+| Phased E2E MCP QA against **KAIROS-DEVELOPMENT** | [mcp-qa-e2e.md](kairos-dev/references/mcp-qa-e2e.md) |
+| Bug reproduce → failing test → fix → PR → CI → merge-ready | [bugfix-ship.md](kairos-dev/references/bugfix-ship.md) |
+| Semver bump, `release/*` branch, tag policy | [release-semver.md](kairos-dev/references/release-semver.md) |
+| Human-facing `src/ui/` UX/spec, a11y, tokens | [ui-spec.md](kairos-dev/references/ui-spec.md) |
+| Git without opening a blocking editor | [git-editor-safe.md](kairos-dev/references/git-editor-safe.md) |
+| Git index / `write-tree` repair | [git-index-repair.md](kairos-dev/references/git-index-repair.md) |
+| Worktree `.env*` and port collisions | [worktree-env.md](kairos-dev/references/worktree-env.md) |
+| Documentation drift audit (DRY governance) | [doc-governance.md](kairos-dev/references/doc-governance.md) |
+| MCP server id resolution / host bridge | [mcp-host-bridge.md](kairos-dev/references/mcp-host-bridge.md) |
+| Authoring agent skills in this repo | [skill-authoring.md](kairos-dev/references/skill-authoring.md) |
 
 ## MCP environments
 
-This repo commonly uses three MCP server instances. Each one has a different
-purpose and authority boundary.
+This repo commonly uses three MCP server instances, each with a different
+purpose and authority boundary:
 
-- **`KAIROS`**: Live server. Treat it as authoritative for everything and use it
-  with the shipped [kairos skill](../../skills/kairos/SKILL.md). In this
-  environment, you (the agent) act as a user.
+- **`KAIROS`**: Live server. Authoritative for everything; use it with the
+  [`kairos`](kairos/SKILL.md) skill. Here you (the agent) act as a user.
 - **`KAIROS-DEVELOPMENT`**: Development instance built from this worktree,
-  configured at the project level in [mcp.json](../mcp.json). Use it as a
-  developer/QA to validate local code changes.
-- **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart in
-  `helm/`, configured at the project level in [mcp.json](../mcp.json). Use it as
-  a developer/QA of the Helm chart to validate the deployment process and app
-  availability. The app version can vary.
+  configured in [`.agents/mcp.json`](../mcp.json). Use it as a developer/QA to
+  validate local code changes.
+- **`KAIROS-HELM-INTEGRATION`**: Kubernetes instance built from the Helm chart
+  in `helm/`, configured in [`.agents/mcp.json`](../mcp.json). Use it as a
+  developer/QA of the Helm chart. The app version can vary.
 
-## Namespace: `kmcp-dev-*`
+Full host-bridge troubleshooting: [mcp-host-bridge.md](kairos-dev/references/mcp-host-bridge.md).
 
-Each **`SKILL.md`** frontmatter **`name`** uses the prefix **`kmcp-dev-`**
-(**k**airos **m**cp **dev**): one stable string for discovery, zero drift with
-**[`AGENTS.md`](../../AGENTS.md)** (runtime vs worktree authority, MCP server
-ids, npm-only tests).
+## Default developer flow (muscle memory)
 
-| Directory (`…/SKILL.md`) | YAML `name` | When to invoke |
-|----------------|-------------|----------------|
-| [`kmcp-dev-build-test`](kmcp-dev-build-test/SKILL.md) | `kmcp-dev-build-test` | Build, deploy, lint, integration tests — always **`npm run`**; never default to bare Jest. |
-| [`kmcp-dev-mcp-qa-e2e`](kmcp-dev-mcp-qa-e2e/SKILL.md) | `kmcp-dev-mcp-qa-e2e` | Phased E2E QA of tools against **KAIROS-DEVELOPMENT** (local dev); `.local/` trace reports. |
-| [`kmcp-dev-bugfix-ship`](kmcp-dev-bugfix-ship/SKILL.md) | `kmcp-dev-bugfix-ship` | Dev reproduce → failing test → fix → PR → CI green → merge-ready. |
-| [`kmcp-dev-release-semver`](kmcp-dev-release-semver/SKILL.md) | `kmcp-dev-release-semver` | Semver bump, `release/*` branch, PR, tag policy (no manual `v*` push). |
-| [`kmcp-dev-ui-spec`](kmcp-dev-ui-spec/SKILL.md) | `kmcp-dev-ui-spec` | Human-facing **`src/ui/`** UX/spec, a11y, tokens; design-lint. |
-| [`kmcp-dev-git-editor-safe`](kmcp-dev-git-editor-safe/SKILL.md) | `kmcp-dev-git-editor-safe` | Agent shell Git without opening `code --wait` editor. |
-| [`kmcp-dev-git-index-repair`](kmcp-dev-git-index-repair/SKILL.md) | `kmcp-dev-git-index-repair` | Invalid object / tree build failures; Husky bisect; index repair. |
-| [`kmcp-dev-worktree-env`](kmcp-dev-worktree-env/SKILL.md) | `kmcp-dev-worktree-env` | Worktree **`.env*`** not shared with main; unique **`PORT`** / **`METRICS_PORT`** per checkout on one host; **`deploy-copy-env-from-main.sh`**; Run Task **Copy .env from main**. |
-| [`kmcp-dev-repowiki-sync`](kmcp-dev-repowiki-sync/SKILL.md) | `kmcp-dev-repowiki-sync` | Qoder Repo Wiki → GitHub Wiki one-way sync via **`repowiki/sync`** forever branch; rebase from main, update wiki, MR without deleting source branch; content in `.qoder/repowiki/en/content/`; plain `rsync` + Git; setup perms with `gh` CLI. |
-| [`kmcp-dev-doc-governance`](kmcp-dev-doc-governance/SKILL.md) | `kmcp-dev-doc-governance` | Audit/auto-repair doc drift against the `documentation-authority` rule; `npm run lint:docs`; keep curated `docs/` DRY vs RepoWiki; colocated-README contract; run after significant merges and before releases. |
-| [`kmcp-dev-mcp-host-bridge-pointer`](kmcp-dev-mcp-host-bridge-pointer/SKILL.md) | `kmcp-dev-mcp-host-bridge-pointer` | Router only → **`.agents/skills/mcp-host-bridge`**. |
-
-## Shared skills
-
-These skills live in `.agents/skills/` but do not follow the `kmcp-dev-*`
-namespace.
-
-- [mcp-host-bridge](mcp-host-bridge/SKILL.md): MCP environment purpose and host
-  troubleshooting (server id resolution, auth errors).
-
-## Default flow (muscle memory)
-
-1. **Change code** → obey **`AGENTS.md`** and **`skills/kairos/SKILL.md`** for any adapter/tool execution story.
-2. **Verify** → **`kmcp-dev-build-test`** (`dev:deploy` → `dev:test`).
-3. **MCP regression** → **`kmcp-dev-mcp-qa-e2e`** (optional strict phase-1 MCP-only).
-4. **Production bug** → **`kmcp-dev-bugfix-ship`** (+ `reports/` via **`skills/.system/kairos-bug-report`**).
-5. **Release** → **`kmcp-dev-release-semver`** (see also `.github/workflows/README.md`).
-6. **UI work** → **`kmcp-dev-ui-spec`**.
-7. **Git pain** → **`kmcp-dev-git-editor-safe`** + **`kmcp-dev-git-index-repair`**.
-8. **New worktree / missing `.env`** → **`kmcp-dev-worktree-env`** (sync from main before dev commands if needed).
-9. **Wiki sync** → **`kmcp-dev-repowiki-sync`** (forever branch `repowiki/sync`; rebase from main → update → MR → merge with branch preserved).
-10. **Doc drift / DRY audit** → **`kmcp-dev-doc-governance`** (`npm run lint:docs`; run after significant merges and before releases).
-11. **MCP server id / auth errors** → [mcp-host-bridge](mcp-host-bridge/SKILL.md).
+1. **Change code** → obey [`AGENTS.md`](../../AGENTS.md) and the
+   [`kairos`](kairos/SKILL.md) skill for any adapter/tool execution story.
+2. **Verify** → [build-test.md](kairos-dev/references/build-test.md)
+   (`dev:deploy` → `dev:test`).
+3. **MCP regression** → [mcp-qa-e2e.md](kairos-dev/references/mcp-qa-e2e.md).
+4. **Production bug** → [bugfix-ship.md](kairos-dev/references/bugfix-ship.md)
+   (`reports/` via the `kairos` skill's
+   [bug-report.md](kairos/references/bug-report.md)).
+5. **Release** → [release-semver.md](kairos-dev/references/release-semver.md).
+6. **UI work** → [ui-spec.md](kairos-dev/references/ui-spec.md).
+7. **Git pain** → [git-editor-safe.md](kairos-dev/references/git-editor-safe.md)
+   + [git-index-repair.md](kairos-dev/references/git-index-repair.md).
+8. **New worktree / missing `.env`** →
+   [worktree-env.md](kairos-dev/references/worktree-env.md).
+9. **Wiki sync** → no skill: the
+   `sync-qoder-repowiki-to-github-wiki` workflow runs `scripts/sync-wiki.sh` on
+   push to `main`. See [doc-governance.md](kairos-dev/references/doc-governance.md).
+10. **Doc drift / DRY audit** →
+    [doc-governance.md](kairos-dev/references/doc-governance.md).
+11. **MCP server id / auth errors** →
+    [mcp-host-bridge.md](kairos-dev/references/mcp-host-bridge.md).
 
 ## Authoring rules
 
-- One primary concern per skill; link to **`CONTRIBUTING.md`** / **`AGENTS.md`** instead of forking command lists.
-- Keep bodies maintainable (~500 lines); spill long checklists to `references/` if needed.
-- `npm run lint:skills` validates only **`skills/`**; these files still use valid Agent Skills-style frontmatter.
+- One primary concern per reference; link to
+  [`CONTRIBUTING.md`](../../CONTRIBUTING.md) / [`AGENTS.md`](../../AGENTS.md)
+  instead of forking command lists.
+- Keep each `SKILL.md` a concise router (~500 lines max); push depth into
+  `references/`.
+- Links **out of a skill** must be absolute `https://github.com/...` URLs
+  (skills are npx-installable onto machines without this repo); intra-skill
+  links stay one level deep (`references/x.md`).
+- `npm run lint:skills` validates `.agents/skills/`, including the no-relative-
+  link rule for each `SKILL.md`.

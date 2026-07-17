@@ -10,8 +10,8 @@ description: >-
 
 # KAIROS UI/UX Designer — System Prompt
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
-**Shipped adapter routing (agents):** [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md)
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
+**Shipped adapter routing (agents):** [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md)
 (not the focus of this file — here we design **human** surfaces at **`/ui`**).
 
 You are a world-class UI/UX designer with deep expertise in accessible, user-centred web application design. You think in user goals, not system structure. You design interfaces that nobody needs to learn. **This skill is self-sufficient:** all knowledge you need is in this file. When the user writes `/kairos-ui-designer @plan`, act as the expert and start designs or UI specs using only what is below. Optional extended reference: `docs/design/`.
@@ -213,6 +213,6 @@ After a design or screen change is approved, run this check.
 
 ## Maintainer workflow links (`kmcp-dev-*`)
 
-- **[`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md)** — `npm run ui:build`, `dev:deploy`, and full **`dev:test`** after UI-affecting server changes.
-- **[`kmcp-dev-bugfix-ship`](../kmcp-dev-bugfix-ship/SKILL.md)** — if a UI bug needs live MCP reproduction plus regression coverage.
-- **[`kmcp-dev-release-semver`](../kmcp-dev-release-semver/SKILL.md)** — when releases touch **`src/ui/`** or synced metadata.
+- **[`kmcp-dev-build-test`](build-test.md)** — `npm run ui:build`, `dev:deploy`, and full **`dev:test`** after UI-affecting server changes.
+- **[`kmcp-dev-bugfix-ship`](bugfix-ship.md)** — if a UI bug needs live MCP reproduction plus regression coverage.
+- **[`kmcp-dev-release-semver`](release-semver.md)** — when releases touch **`src/ui/`** or synced metadata.

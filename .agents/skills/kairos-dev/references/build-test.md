@@ -9,17 +9,17 @@ description: >-
 # Build, deploy, and test (kairos-mcp)
 
 **Repository:** `kairos-mcp` — Node 24 LTS minimum, TypeScript, Qdrant, Redis, optional Keycloak.
-**Agent contract:** [`AGENTS.md`](../../../AGENTS.md). **Adapter execution (shipped skill):**
-[`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md). **Skill index:**
-[`.agents/skills/README.md`](../README.md) (`kmcp-dev-*`).
+**Agent contract:** [`AGENTS.md`](https://github.com/debian777/kairos-mcp/blob/main/AGENTS.md). **Adapter execution (shipped skill):**
+[`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md). **Skill index:**
+[`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md) (`kmcp-dev-*`).
 
 Use this skill whenever you need to **build**, **deploy**, or **test** this repository.
-Derived from [`CONTRIBUTING.md`](../../../CONTRIBUTING.md); this file is the **authoritative**
+Derived from [`CONTRIBUTING.md`](https://github.com/debian777/kairos-mcp/blob/main/CONTRIBUTING.md); this file is the **authoritative**
 execution path for agents in this worktree.
 
 ## Core rules (source of truth)
 
-- In a **git worktree**, ensure **`.env*`** exists or will be copied from main, and that **`PORT`** / **`METRICS_PORT`** do not clash with another checkout on the same host; see **[`kmcp-dev-worktree-env`](../kmcp-dev-worktree-env/SKILL.md)** (first **`npm run dev:*`** that uses **`deploy-run-env.sh`** copies **`.env`** when missing).
+- In a **git worktree**, ensure **`.env*`** exists or will be copied from main, and that **`PORT`** / **`METRICS_PORT`** do not clash with another checkout on the same host; see **[`kmcp-dev-worktree-env`](worktree-env.md)** (first **`npm run dev:*`** that uses **`deploy-run-env.sh`** copies **`.env`** when missing).
 - Always install dependencies with **`npm ci`** before first build/test.
 - Always **deploy before tests**: integration tests expect a running dev stack.
 - Use **npm scripts** as the only default interface for build, deploy, test, lint.
@@ -88,7 +88,7 @@ Same policy for forks: deploy-before-test, npm scripts. If script names differ, 
 
 ## Related maintainer skills
 
-- **[`kmcp-dev-worktree-env`](../kmcp-dev-worktree-env/SKILL.md)** — `.env*` in worktrees; sync from main.
-- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — MCP-first QA against KAIROS-DEVELOPMENT.
-- **[`kmcp-dev-bugfix-ship`](../kmcp-dev-bugfix-ship/SKILL.md)** — bug report → fix → PR → CI.
-- **[`kmcp-dev-release-semver`](../kmcp-dev-release-semver/SKILL.md)** — semver release branch flow.
+- **[`kmcp-dev-worktree-env`](worktree-env.md)** — `.env*` in worktrees; sync from main.
+- **[`kmcp-dev-mcp-qa-e2e`](mcp-qa-e2e.md)** — MCP-first QA against KAIROS-DEVELOPMENT.
+- **[`kmcp-dev-bugfix-ship`](bugfix-ship.md)** — bug report → fix → PR → CI.
+- **[`kmcp-dev-release-semver`](release-semver.md)** — semver release branch flow.

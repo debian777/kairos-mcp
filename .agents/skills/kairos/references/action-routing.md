@@ -1,25 +1,9 @@
----
-name: kairos
-description: >-
-  KAIROS action routing skill for structured workflow execution.
-  When loaded and a KAIROS MCP server is connected, this skill routes action
-  intents through the activate → forward → reward chain so that adapters
-  provide deterministic, auditable task execution. Trigger on action intents
-  such as write, create, build, implement, fix, debug, deploy, publish,
-  migrate, configure, install, update, refactor, review, test, automate,
-  generate, document, plan, or when the user describes a procedure or asks
-  "how to" perform an operation. If no adapter exists, KAIROS offers to
-  create one. Flow: detect intent → activate → follow next_action → reward
-  → respond.
+# KAIROS — Action Routing (reference)
 
-metadata:
-  version: "4.8.0-rc.0"
-  author: kairos-mcp
-  always_active: true
-allowed-tools: activate forward reward train tune export delete spaces
----
+Full routing discipline for the `kairos` skill. The concise router lives in
+this skill's `SKILL.md`; this reference holds the complete rules.
 
-# KAIROS — Action Routing (Agent-Internal)
+## Agent-internal overview
 
 **This skill is for the agent, not the human.** KAIROS is the agent's
 institutional memory — a team runbook that bridges the gap between your training
@@ -199,9 +183,10 @@ If the KAIROS MCP server cannot be reached or authentication fails:
     URL.
   - Verify the host's MCP configuration points at the expected `/mcp` endpoint
     and has the needed tools allowed.
-  - If you need installation or setup guidance, use the `kairos-install` skill.
-  - If tool calls fail due to MCP server id resolution or auth, follow the
-    `mcp-host-bridge` skill.
+  - If you need installation or setup guidance, see
+    [install.md](install.md).
+  - If tool calls fail due to MCP server id resolution or auth, verify the
+    host's MCP configuration (endpoint URL, allowed tools, credentials).
 - The user may then choose to fix the connection or proceed without KAIROS
   routing for that task.
 
@@ -233,11 +218,5 @@ If the KAIROS MCP server cannot be reached or authentication fails:
 
 ---
 
-## Repository alignment (maintainers) — AGENTS.md and CLAUDE.md
-
-When editing the repo's root agent docs (`AGENTS.md` and `CLAUDE.md`):
-
-- After the document **H1** and intro paragraph, the **first `##` section** must be **`## Core functionality`** (or an equivalently clear title), **before** `## Architecture` or other major sections.
-- That **Core functionality** section stays **minimal**: point here (**this skill**) as the authority for action routing; state that **KAIROS MCP unavailable or unauthenticated** is a **critical error** that must be remediated; include **one line** that real MCP calls follow the **connected server's** schemas while the worktree governs implementation work in this repository.
-- **Do not** paste the full routing guidance into AGENTS.md or CLAUDE.md — keep a **single source of truth** in this skill. When you change that guidance, **keep AGENTS.md and CLAUDE.md in sync** with each other.
-- **Global vs repo:** Prefer **repo-scoped** agent docs where possible; Cursor **user rules** apply across all workspaces.
+The repository-alignment guidance for `AGENTS.md` / `CLAUDE.md` lives in this
+skill's `SKILL.md` (single source of truth); it is not duplicated here.

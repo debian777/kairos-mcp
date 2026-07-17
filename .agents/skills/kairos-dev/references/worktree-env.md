@@ -50,5 +50,5 @@ The repo ships **`scripts/deploy-copy-env-from-main.sh`**. There is no `copy-env
 
 ## Related
 
-- **[`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md)** — full **`npm run dev:deploy`** then **`npm run dev:test`** flow (deploy path triggers the automatic copy when `.env` is absent).
+- **[`kmcp-dev-build-test`](build-test.md)** — full **`npm run dev:deploy`** then **`npm run dev:test`** flow (deploy path triggers the automatic copy when `.env` is absent).
 - **`scripts/README.md`** — script index for `deploy-run-env.sh` and `deploy-copy-env-from-main.sh`.

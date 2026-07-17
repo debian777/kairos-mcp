@@ -9,17 +9,17 @@ description: >-
 
 # Bug fix: dev reproduce → test → PR → CI (kairos-mcp)
 
-**Repository:** `kairos-mcp`. **Agent contract:** [`AGENTS.md`](../../../AGENTS.md).
-**Build/test contract:** [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md).
-**Skill index:** [`.agents/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Agent contract:** [`AGENTS.md`](https://github.com/debian777/kairos-mcp/blob/main/AGENTS.md).
+**Build/test contract:** [`kmcp-dev-build-test`](build-test.md).
+**Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
 
-**Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`skills/.system/kairos-bug-report/SKILL.md`](../../../skills/.system/kairos-bug-report/SKILL.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
+**Input:** A bug report under **`reports/`** (for example **`reports/mcp-bug-<slug>.md`**) or pasted content. If none exists, capture one first using **[`skills/.system/kairos-bug-report/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/references/bug-report.md)** (or your host’s equivalent). This skill owns **fixing** once the report exists.
 
 **Environment intent**
 
 - **`KAIROS`**: Live. Treat it as authoritative for everything. When using it,
   you (the agent) act as a user and run workflows via the shipped
-  [`skills/kairos/SKILL.md`](../../../skills/kairos/SKILL.md).
+  [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md).
 - **`KAIROS-DEVELOPMENT`**: Dev/QA instance for validating local code changes and
   reproducing defects during development.
 
@@ -94,5 +94,5 @@ When checks pass:
 
 ## Related
 
-- **[`kmcp-dev-mcp-qa-e2e`](../kmcp-dev-mcp-qa-e2e/SKILL.md)** — strict phased MCP QA against **KAIROS-DEVELOPMENT** before filing mergeable reports.
+- **[`kmcp-dev-mcp-qa-e2e`](mcp-qa-e2e.md)** — strict phased MCP QA against **KAIROS-DEVELOPMENT** before filing mergeable reports.
 - **`reports/mcp-bug-*.md`** — public bug report naming.

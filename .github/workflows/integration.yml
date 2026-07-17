@@ -145,7 +145,6 @@ jobs:
 
           gen_paths=(
             src/resources/embedded-mcp-resources.ts
-            skills/.system/kairos-install/references
           )
 
           if git diff --quiet -- "${gen_paths[@]}"; then

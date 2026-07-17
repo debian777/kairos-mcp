@@ -54,7 +54,7 @@ kairos-mcp serve --transport stdio
 With **`npx`** (Node 25+):
 
 ```bash
-npx -y @debian777/kairos-mcp serve --transport stdio
+npx -y @debian777/kairos-mcp serve
 ```
 
 - **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).

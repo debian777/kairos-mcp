@@ -9,8 +9,8 @@ description: >-
 
 # Git worktree index and commit repair
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
-**Hook authority:** [`.husky/pre-commit`](../../../.husky/pre-commit) (always re-read before automating).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
+**Hook authority:** [`.husky/pre-commit`](https://github.com/debian777/kairos-mcp/blob/main/.husky/pre-commit) (always re-read before automating).
 
 ## When to use
 
@@ -93,9 +93,9 @@ Missing blobs → **`git fetch`** from a complete remote; repair may require the
 
 ## Agent notes
 
-- Combine with **[`kmcp-dev-git-editor-safe`](../kmcp-dev-git-editor-safe/SKILL.md)** for any Git step that might open an editor.
+- Combine with **[`kmcp-dev-git-editor-safe`](git-editor-safe.md)** for any Git step that might open an editor.
 - Do not force-add ignored secrets dirs unless the user explicitly requests it.
 
 ## Related
 
-- **[`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md)** — after repair, run **`npm run lint`** / **`npm run handoff`** as appropriate.
+- **[`kmcp-dev-build-test`](build-test.md)** — after repair, run **`npm run lint`** / **`npm run handoff`** as appropriate.

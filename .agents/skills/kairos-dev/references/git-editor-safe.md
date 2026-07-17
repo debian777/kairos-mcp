@@ -9,7 +9,7 @@ description: >-
 
 # Git: editor-safe commands (agent terminal)
 
-**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](../README.md).
+**Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
 
 Maintainers often set **`core.editor = code --wait`**. When **this agent** runs Git in the terminal, prefix commands that may invoke an editor so the IDE does not block automation:
 
@@ -40,4 +40,4 @@ git config sequence.editor true
 
 ## Related
 
-- **[`kmcp-dev-git-index-repair`](../kmcp-dev-git-index-repair/SKILL.md)** — index corruption / `write-tree` failures (combine with this skill for any editor-touching Git step).
+- **[`kmcp-dev-git-index-repair`](git-index-repair.md)** — index corruption / `write-tree` failures (combine with this skill for any editor-touching Git step).

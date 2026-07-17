@@ -7,15 +7,16 @@ description: >-
   an irreducible allowlist; colocated READMEs follow the shape contract. Covers
   the audit cadence (after significant merges, before releases), running
   npm run lint:docs, repointing/removing drifted links, flagging stale curated
-  docs, and handing wiki regeneration to Qoder + kmcp-dev-repowiki-sync.
+  docs, and handing wiki regeneration to Qoder + the
+  sync-qoder-repowiki-to-github-wiki workflow (scripts/sync-wiki.sh).
 ---
 
 # Documentation governance (kairos-mcp)
 
 **Repository:** `kairos-mcp`
-**Authority rule:** [`documentation-authority`](../../../.qoder/rules/documentation-authority.md) (always-on)
-**Agent contract:** [`AGENTS.md`](../../../AGENTS.md)
-**Skill index:** [`.agents/skills/README.md`](../README.md) (`kmcp-dev-*`)
+**Authority rule:** [`documentation-authority`](https://github.com/debian777/kairos-mcp/blob/main/.qoder/rules/documentation-authority.md) (always-on)
+**Agent contract:** [`AGENTS.md`](https://github.com/debian777/kairos-mcp/blob/main/AGENTS.md)
+**Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md) (`kairos-dev` references)
 
 This skill makes documentation **auto-maintained by the agent**. It reads the
 always-on `documentation-authority` rule and repairs drift against it. The rule
@@ -75,7 +76,8 @@ links are burned down. Once the backlog is clear, promote to `--strict` in
 - Never hand-author into `.qoder/repowiki/en/{content,meta}/` — it is
   Qoder-owned and prompt-generated (hand edits are clobbered). Migrate
   code-derivable content by editing the code or the Qoder catalog **prompt** and
-  letting Qoder regenerate; publish via `kmcp-dev-repowiki-sync`.
+  letting Qoder regenerate; publish via the `sync-qoder-repowiki-to-github-wiki`
+  workflow (`scripts/sync-wiki.sh`).
 
 ### 3. Link-repair pass
 
@@ -97,8 +99,7 @@ Agents discover context via `AGENTS.md` → skills → RepoWiki → `src/embed-d
 - carries `<!-- kairos-doc-keep: <reason> -->` when its existence is intentional
   but a heuristic might flag it.
 
-Trim any duplication down to a pointer. Never hand-edit generated READMEs
-(e.g. `skills/.system/kairos-install/references/**`).
+Trim any duplication down to a pointer. Never hand-edit generated READMEs.
 
 ### 5. Stale curated-doc pass
 
@@ -111,10 +112,8 @@ inaccuracies inline, or open a `reports/` note for larger corrections.
 These are *topically* covered by the Wiki but are **build inputs** and must stay:
 
 - `docs/examples/**` — read by `tests/integration/kairos-train-docs-examples.test.ts`.
-- `docs/install/**` (except `helm.md`) + `docs/CLI.md` — copied into
-  `skills/.system/kairos-install/references/` by
-  `scripts/sync-kairos-install-references.py` at prebuild
-  (`npm run skills:sync-install-refs`); also referenced by source error messages.
+- `docs/install/**` (except `helm.md`) + `docs/CLI.md` — referenced by source
+  error messages and by the `kairos` skill's install reference.
 
 This is intentional, justified non-DRY at the doc-text level.
 
@@ -139,9 +138,9 @@ This is intentional, justified non-DRY at the doc-text level.
 
 ## Related skills
 
-- [`kmcp-dev-repowiki-sync`](../kmcp-dev-repowiki-sync/SKILL.md) — publish RepoWiki
-  content to the GitHub Wiki via the `repowiki/sync` forever branch.
-- [`kmcp-dev-build-test`](../kmcp-dev-build-test/SKILL.md) — build/lint/test after
-  changes (`npm run lint` includes `lint:docs`).
-- [`kmcp-dev-release-semver`](../kmcp-dev-release-semver/SKILL.md) — run this audit
-  before cutting a release.
+- [`sync-qoder-repowiki-to-github-wiki` workflow](https://github.com/debian777/kairos-mcp/blob/main/.github/workflows/sync-qoder-repowiki-to-github-wiki.yml)
+  + [`scripts/sync-wiki.sh`](https://github.com/debian777/kairos-mcp/blob/main/scripts/sync-wiki.sh) —
+  publish RepoWiki content to the GitHub Wiki (CI runs the script on push to `main`).
+- [`build-test`](build-test.md) — build/lint/test after changes (`npm run lint`
+  includes `lint:docs`).
+- [`release-semver`](release-semver.md) — run this audit before cutting a release.
