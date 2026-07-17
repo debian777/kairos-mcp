@@ -216,8 +216,8 @@ maintainers explicitly choose to track them.
 1. Create **`.env`** at the repository root from
    [`scripts/env/.env.template`](scripts/env/.env.template), then set variables
    for your dev stack (embeddings, Qdrant, Redis, session, and any IdP secrets you
-   use). **IdP setup is not part of `docs/install/`** — see
-   [Infrastructure](docs/architecture/infrastructure.md).
+   use). **IdP setup is not part of `docs/install/`** — see the
+   Deployment and Operations topic in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 2. Start infrastructure (Compose `fullstack` profile and helpers as needed):
 
   ```bash
@@ -445,8 +445,8 @@ objects. Never swallow errors silently. Include `error_code` and
 `request_id` in log payloads at the call site.
 - **Logger:** Use `structuredLogger` (from
 `src/utils/structured-logger.ts`) for HTTP/MCP request flow. The same module
-also exports `logger` as an alias used by services. See
-[docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
+also exports `logger` as an alias used by services. See the
+Testing and Observability topic in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki) for levels, fields, and examples.
 - **Tests:** Write integration tests for new tools and API endpoints.
 Place them in `tests/integration/`.
 
@@ -469,7 +469,8 @@ space id + key). Each request runs inside `runWithSpaceContext()`.
 - **Optional space param:** Validate HTTP query `space` / `space_id`
 and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
 
-See [docs/architecture/auth-overview.md](docs/architecture/auth-overview.md)
+See the Authentication and Security topic in the
+[project Wiki](https://github.com/debian777/kairos-mcp/wiki)
 for Keycloak URL routing and the current auth model.
 
 ## Constraints

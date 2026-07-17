@@ -88,8 +88,8 @@ and `must_obey` fields in real runs.
 **Must never:** Invent URIs; skip layers; submit a solution whose type does not
 match `contract.type`.
 
-For a longer narrative, see
-[docs/architecture/workflow-full-execution.md](docs/architecture/workflow-full-execution.md).
+For a longer narrative, see the **Workflow Engine** pages in the
+[KAIROS wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ## What runs in this repository
 
@@ -186,7 +186,7 @@ guided skill. The default Compose profile starts **Qdrant + app only**.
 
 ### Optional `fullstack` Compose profile
 
-Extra services (cache, DB, OIDC container) are **optional** and **not** covered as a step-by-step install in **`docs/install/`**. **Keycloak / IdP configuration is your responsibility.** See [Infrastructure](docs/architecture/infrastructure.md) and [`scripts/env/.env.template`](scripts/env/.env.template). Short [operator note](docs/install/docker-compose-full-stack.md).
+Extra services (cache, DB, OIDC container) are **optional** and **not** covered as a step-by-step install in **`docs/install/`**. **Keycloak / IdP configuration is your responsibility.** See the **Deployment and Operations** pages in the [KAIROS wiki](https://github.com/debian777/kairos-mcp/wiki) and [`scripts/env/.env.template`](scripts/env/.env.template). Short [operator note](docs/install/docker-compose-full-stack.md).
 
 ```bash
 docker compose -p kairos-mcp --profile fullstack up -d
@@ -379,7 +379,7 @@ The target will fail fast with clear error messages if any tools are missing, av
 - [Install and environment](docs/install/README.md)
 - [Cursor and MCP](docs/install/README.md#cursor-and-mcp)
 - [CLI reference](docs/CLI.md)
-- [Architecture](docs/architecture/README.md)
+- [Architecture (KAIROS wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - [Adapter examples](docs/examples/README.md)
 - [Contributing](CONTRIBUTING.md)
 

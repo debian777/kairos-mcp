@@ -35,6 +35,13 @@
 - [helm/kairos-mcp/templates/keycloak-realm-import.yaml](file://helm/kairos-mcp/templates/keycloak-realm-import.yaml)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated documentation structure to reflect migration from manual 'Considerations.md' file to automated documentation system
+- Preserved all architectural overview content within the wiki structure
+- Enhanced source tracking for better traceability of architectural decisions
+- Maintained comprehensive coverage of service-oriented design patterns and component boundaries
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -48,6 +55,8 @@
 
 ## Introduction
 This document describes the architecture of the Kairos MCP system with a focus on service-oriented design, layered boundaries, and integration points. It explains how HTTP/API handlers orchestrate business logic implemented as tools, which in turn coordinate memory services, workflow execution, authentication, and UI resources. The system integrates external identity (Keycloak), vector search (Qdrant), relational storage (PostgreSQL via operators), and caching/pub-sub (Redis). Deployment is containerized and orchestrated via Helm, with horizontal scaling and observability built-in.
+
+**Updated** Documentation now reflects the migration from manual architectural decision files to an automated documentation system while preserving all architectural overview content in the wiki structure.
 
 ## Project Structure
 The codebase follows a layered and modular organization:
@@ -496,3 +505,5 @@ Operational references:
 
 ## Conclusion
 Kairos MCP implements a clear layered architecture with strong separation between HTTP/API, business logic, and services. The system integrates Keycloak for identity, Qdrant for semantic search, PostgreSQL for relational needs, and Redis for caching and coordination. Helm-based deployment supports scalable, observable operation with horizontal scaling and robust external dependencies.
+
+**Updated** The documentation structure now reflects the successful migration from manual architectural decision files to an automated documentation system, with all architectural overview content preserved and enhanced within the wiki structure for better maintainability and accessibility.

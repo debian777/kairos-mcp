@@ -40,6 +40,7 @@ ids, npm-only tests).
 | [`kmcp-dev-git-index-repair`](kmcp-dev-git-index-repair/SKILL.md) | `kmcp-dev-git-index-repair` | Invalid object / tree build failures; Husky bisect; index repair. |
 | [`kmcp-dev-worktree-env`](kmcp-dev-worktree-env/SKILL.md) | `kmcp-dev-worktree-env` | Worktree **`.env*`** not shared with main; unique **`PORT`** / **`METRICS_PORT`** per checkout on one host; **`deploy-copy-env-from-main.sh`**; Run Task **Copy .env from main**. |
 | [`kmcp-dev-repowiki-sync`](kmcp-dev-repowiki-sync/SKILL.md) | `kmcp-dev-repowiki-sync` | Qoder Repo Wiki → GitHub Wiki one-way sync via **`repowiki/sync`** forever branch; rebase from main, update wiki, MR without deleting source branch; content in `.qoder/repowiki/en/content/`; plain `rsync` + Git; setup perms with `gh` CLI. |
+| [`kmcp-dev-doc-governance`](kmcp-dev-doc-governance/SKILL.md) | `kmcp-dev-doc-governance` | Audit/auto-repair doc drift against the `documentation-authority` rule; `npm run lint:docs`; keep curated `docs/` DRY vs RepoWiki; colocated-README contract; run after significant merges and before releases. |
 | [`kmcp-dev-mcp-host-bridge-pointer`](kmcp-dev-mcp-host-bridge-pointer/SKILL.md) | `kmcp-dev-mcp-host-bridge-pointer` | Router only → **`.agents/skills/mcp-host-bridge`**. |
 
 ## Shared skills
@@ -61,7 +62,8 @@ namespace.
 7. **Git pain** → **`kmcp-dev-git-editor-safe`** + **`kmcp-dev-git-index-repair`**.
 8. **New worktree / missing `.env`** → **`kmcp-dev-worktree-env`** (sync from main before dev commands if needed).
 9. **Wiki sync** → **`kmcp-dev-repowiki-sync`** (forever branch `repowiki/sync`; rebase from main → update → MR → merge with branch preserved).
-10. **MCP server id / auth errors** → [mcp-host-bridge](mcp-host-bridge/SKILL.md).
+10. **Doc drift / DRY audit** → **`kmcp-dev-doc-governance`** (`npm run lint:docs`; run after significant merges and before releases).
+11. **MCP server id / auth errors** → [mcp-host-bridge](mcp-host-bridge/SKILL.md).
 
 ## Authoring rules
 

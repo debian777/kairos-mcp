@@ -183,8 +183,7 @@ Implementation maps to **`src/ui/pages/`**, **`src/ui/components/`**, hooks, i18
 5. **No code** in design phase unless the plan explicitly asks for implementation. Building is a separate plan.
 
 **Optional:** For deeper reference only, use the current material under
-`docs/design/` and the implementation notes in `docs/architecture/`.
-(INDEX, 00–10).
+`docs/design/` and the architecture topics in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ---
 

@@ -40,6 +40,13 @@
 - [docs/CLI.md](file://docs/CLI.md)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated documentation structure to reflect migration from manual 'Started.md' file to automated .qoder/repowiki documentation system
+- Consolidated getting started content into the automated wiki structure
+- Maintained all existing installation and setup instructions while improving organization
+- Enhanced cross-references to align with new documentation architecture
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Prerequisites](#prerequisites)
@@ -53,6 +60,8 @@
 
 ## Introduction
 This guide helps you install, configure, and run Kairos MCP quickly using Docker Compose or npm. You will start the server, open the web interface, and execute your first CLI commands to interact with the system.
+
+As part of our documentation modernization effort, this getting started content has been consolidated into the automated wiki structure for better maintainability and consistency across the project documentation.
 
 ## Prerequisites
 Before installing, ensure the following are available on your machine:

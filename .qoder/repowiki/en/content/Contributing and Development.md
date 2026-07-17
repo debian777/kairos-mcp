@@ -32,6 +32,13 @@
 - [tests/ui](file://tests/ui)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated Project Structure section to reflect removal of manual Strategy.md file
+- Added clarification about automated documentation system migration
+- Updated Community Guidelines section to reference wiki-based contribution process
+- Removed references to manual strategy documentation in favor of automated systems
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -57,6 +64,8 @@
 ## Introduction
 
 This document provides comprehensive guidance for contributing to Kairos MCP development. It covers the development environment setup using VS Code dev containers, coding standards, testing requirements, code review processes, pull request workflows, release management, versioning strategy, changelog maintenance, architectural guidelines, design principles, and community contribution practices. The goal is to make it easy for new and experienced contributors to understand how to contribute effectively and consistently.
+
+**Updated** The project has migrated from manual strategy documentation to an automated documentation system, with contributing guidelines now maintained in a structured wiki format for better maintainability and accessibility.
 
 ## Project Structure
 
@@ -93,6 +102,10 @@ L["tests/unit/*"]
 M["tests/integration/*"]
 N["tests/ui/*"]
 end
+subgraph "Documentation"
+O["docs/*"]
+P["Automated Wiki System"]
+end
 A --> D
 B --> A
 C --> A
@@ -106,6 +119,7 @@ H --> A
 I --> A
 J --> A
 K --> A
+O --> P
 ```
 
 **Diagram sources**
@@ -134,7 +148,7 @@ K --> A
 ## Development Environment Setup
 
 Use VS Code dev containers to ensure consistent local development:
-- Open the repository in VS Code and use the “Reopen in Container” command or follow instructions in the dev container README.
+- Open the repository in VS Code and use the "Reopen in Container" command or follow instructions in the dev container README.
 - The base dev container configuration is provided; extend as needed via compose overrides.
 - Local services (e.g., databases, caches) can be started with Docker Compose using the provided compose file.
 
@@ -213,8 +227,6 @@ Key steps:
   - Address reviewer comments promptly.
   - Re-run tests and linters after updates.
 
-[No sources needed since this section provides general guidance]
-
 ## Pull Request Guidelines
 
 - Branching:
@@ -229,8 +241,6 @@ Key steps:
 - CI expectations:
   - Ensure all CI checks pass (lint, test, build).
   - Resolve conflicts before requesting review.
-
-[No sources needed since this section provides general guidance]
 
 ## Release Management
 
@@ -272,8 +282,6 @@ Key steps:
 - Categorize entries (Features, Fixes, Breaking Changes, Docs, etc.).
 - Link PRs and issues to changelog entries for traceability.
 - Update changelog during release preparation.
-
-[No sources needed since this section provides general guidance]
 
 ## Architectural Guidelines
 
@@ -330,8 +338,6 @@ HTTP-->>Client : "HTTP Response"
   - Validate inputs, sanitize outputs, and follow least privilege access.
 - Performance:
   - Optimize hot paths and avoid unnecessary allocations.
-
-[No sources needed since this section provides general guidance]
 
 ## Adding New Features
 
@@ -391,15 +397,16 @@ Guidelines:
 - Follow the code of conduct and legal notices.
 - Acknowledge contributions and recognize effort.
 
-[No sources needed since this section provides general guidance]
+**Updated** The project has transitioned from manual strategy documentation to an automated documentation system. All contributing guidelines, development approaches, and project strategies are now maintained in a structured wiki format for better accessibility and maintainability. Contributors should refer to the wiki pages for up-to-date project direction and development guidelines rather than looking for standalone strategy documents.
 
 ## Communication Channels
 
 - Use GitHub Issues for bug reports and feature requests.
 - Engage in PR discussions for technical decisions.
 - Refer to documentation for setup and usage details.
+- Check the wiki for project strategy and development guidelines.
 
-[No sources needed since this section provides general guidance]
+**Updated** With the migration to automated documentation, the wiki serves as the central source for project strategy, development approaches, and contributing guidelines.
 
 ## Recognition Processes
 
@@ -407,8 +414,6 @@ Guidelines:
   - Commits and PR authorship.
   - Mentions in release notes and changelogs.
   - Community acknowledgments in discussions.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 
@@ -431,4 +436,6 @@ Common issues and resolutions:
 
 ## Conclusion
 
-Contributing to Kairos MCP involves setting up a consistent development environment, adhering to coding standards, writing thorough tests, following code review practices, and aligning with the release and versioning strategy. By following these guidelines, contributors can help improve the project’s quality, reliability, and extensibility while collaborating effectively within the community.
+Contributing to Kairos MCP involves setting up a consistent development environment, adhering to coding standards, writing thorough tests, following code review practices, and aligning with the release and versioning strategy. By following these guidelines, contributors can help improve the project's quality, reliability, and extensibility while collaborating effectively within the community.
+
+**Updated** The project's commitment to maintaining high-quality documentation through automated systems ensures that contributors always have access to current and accurate information about development practices, project strategy, and contribution guidelines.

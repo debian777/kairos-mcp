@@ -1,5 +1,5 @@
 /**
- * Skill-shaped export bundle types (architecture: docs/architecture/workflow-export.md).
+ * Skill-shaped export bundle types (architecture: see the Artifact Management topic in the project Wiki).
  */
 
 export type SkillExportDiagnosticSeverity = 'info' | 'warning' | 'error';

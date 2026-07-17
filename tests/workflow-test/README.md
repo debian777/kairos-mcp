@@ -5,6 +5,8 @@ Use it to verify code-graded behavior for `activate`, `forward`, `reward`,
 `train`, `tune`, and `export` before you change reward semantics, retrieval,
 or training exports.
 
+<!-- kairos-doc-keep: directory-local test-harness operating instructions; the wiki "Testing" topic is generated overview, this is the runnable harness contract -->
+
 ## What lives here
 
 This directory now focuses on deterministic evaluation assets instead of

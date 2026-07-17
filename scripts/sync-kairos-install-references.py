@@ -37,10 +37,6 @@ def patch_install_hub(text: str) -> str:
         f"[AGENTS.md]({BASE}/AGENTS.md).",
     )
     text = text.replace(
-        "[authentication overview](../architecture/auth-overview.md).",
-        f"[authentication overview]({BASE}/docs/architecture/auth-overview.md).",
-    )
-    text = text.replace(
         "- [Documentation map](../README.md)",
         f"- [Documentation map]({BASE}/docs/README.md)",
     )
@@ -60,10 +56,7 @@ def patch_cursor_links_for_bundle(text: str) -> str:
 
 
 def patch_docker_full(text: str) -> str:
-    return text.replace(
-        "[Infrastructure](../architecture/infrastructure.md)",
-        f"[Infrastructure]({BASE}/docs/architecture/infrastructure.md)",
-    )
+    return text
 
 
 def patch_cli(text: str) -> str:
@@ -76,7 +69,6 @@ def patch_cli(text: str) -> str:
         "[Cursor and MCP](install/README.md#cursor-and-mcp)",
         f"[Cursor and MCP]({BASE}/docs/install/README.md#cursor-and-mcp)",
     )
-    text = text.replace("[Architecture](architecture/README.md)", f"[Architecture]({BASE}/docs/architecture/README.md)")
     text = text.replace("[Protocol examples](examples/README.md)", f"[Adapter examples]({BASE}/docs/examples/README.md)")
     text = text.replace("[Adapter examples](examples/README.md)", f"[Adapter examples]({BASE}/docs/examples/README.md)")
     return text

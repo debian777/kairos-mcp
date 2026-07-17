@@ -47,9 +47,7 @@ function createFlatConfig(rootDir) {
         '.devcontainer/*.json',
         '.devcontainer/*.json.base',
         'eslint.config.cjs',
-        // Documentation files explaining architecture. Correct usage of forbidden strings.
         '.markdownlint.jsonc', // Markdown lint config (not JS)
-        'docs/architecture/artifacts.md',
         // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.
         '**/*.json',
         '!context7.json',

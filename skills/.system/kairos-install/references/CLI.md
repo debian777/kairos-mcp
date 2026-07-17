@@ -408,5 +408,5 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 - [Install index](https://github.com/debian777/kairos-mcp/blob/main/docs/install/README.md)
 - [Environment file and required variables](https://github.com/debian777/kairos-mcp/blob/main/docs/install/docker-compose-simple.md#3-environment-file)
 - [Cursor and MCP](https://github.com/debian777/kairos-mcp/blob/main/docs/install/README.md#cursor-and-mcp)
-- [Architecture](https://github.com/debian777/kairos-mcp/blob/main/docs/architecture/README.md)
+- [Architecture (project Wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - [Adapter examples](https://github.com/debian777/kairos-mcp/blob/main/docs/examples/README.md)
