@@ -6,6 +6,7 @@
 - [jest.config.js](file://jest.config.js)
 - [vitest.config.ts](file://vitest.config.ts)
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
 - [.github/dependabot.yml](file://.github/dependabot.yml)
 - [.husky/pre-commit](file://.husky/pre-commit)
@@ -30,6 +31,14 @@
 - [tests/reporters/jest-github-summary-reporter.cjs](file://tests/reporters/jest-github-summary-reporter.cjs)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated GitHub Actions workflow configuration to reflect consolidation of three separate integration workflows into single unified integration.yml
+- Added documentation for new two-phase testing strategy with read-only-first fail-fast behavior
+- Updated CI pipeline architecture diagrams to show streamlined workflow structure
+- Enhanced parallel test execution strategy section to reflect optimized testing approach
+- Updated troubleshooting guide with new workflow-specific debugging information
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -45,9 +54,11 @@
 ## Introduction
 This document explains the continuous integration setup and automation workflows for Kairos MCP. It covers GitHub Actions configuration for automated testing, building, and deployment; parallel test execution strategy and performance optimizations; pre-commit hooks with Husky; CI pipeline stages, job dependencies, and artifact management; security scanning and compliance checks; caching strategies; debugging guidance; and examples of custom CI scripts and automation tasks.
 
+The CI/CD pipeline has been significantly streamlined through consolidation of three separate integration workflows (Integration, Integration Simple, Integration Stdio) into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior for improved efficiency and faster feedback loops.
+
 ## Project Structure
 The CI and automation surface is composed of:
-- GitHub Actions workflows under .github/workflows
+- GitHub Actions workflows under .github/workflows with consolidated integration testing
 - Custom CI scripts under scripts
 - Test orchestration and reporting under tests
 - Containerization and local dev tooling via Dockerfiles and compose files
@@ -60,7 +71,8 @@ graph TB
 subgraph "CI Orchestration"
 GH["GitHub Actions"]
 W1[".github/workflows/ci.yml"]
-W2[".github/workflows/codeql-analysis.yml"]
+W2[".github/workflows/integration.yml"]
+W3[".github/workflows/codeql-analysis.yml"]
 DEP[".github/dependabot.yml"]
 end
 subgraph "Scripts"
@@ -95,6 +107,7 @@ TRIVY[".trivyignore"]
 end
 GH --> W1
 GH --> W2
+GH --> W3
 W1 --> PAR
 W1 --> SUM
 W1 --> TGZ
@@ -122,6 +135,7 @@ GH --> DEP
 
 **Diagram sources**
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
 - [.github/dependabot.yml](file://.github/dependabot.yml)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
@@ -149,6 +163,7 @@ GH --> DEP
 
 **Section sources**
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
 - [.github/dependabot.yml](file://.github/dependabot.yml)
 - [package.json](file://package.json)
@@ -164,19 +179,21 @@ GH --> DEP
 - [.trivyignore](file://.trivyignore)
 
 ## Core Components
-- CI workflow orchestrator: Defines jobs, stages, matrix builds, caching, artifacts, and step summaries.
-- Parallel test executor: Splits suites across workers to maximize throughput.
-- Reporting and summaries: Produces GitHub-friendly summaries and test reports.
-- Infrastructure provisioning: Waits for external services (e.g., Keycloak, Redis, Qdrant) before running tests.
-- Helm chart validation: Runs chart linting and tests.
-- Snapshot import/seed: Prepares deterministic test data.
-- Build helpers: UI environment definition and embedded docs build.
-- Container images: Multi-stage builds for app, dev, and stdio variants.
-- Local automation: Husky pre-commit hook to enforce quality gates locally.
-- Security scanning: Trivy vulnerability scanning with ignore rules.
-- Dependency updates: Dependabot configuration for automated PRs.
+- **Consolidated CI workflow orchestrator**: Streamlined workflow that combines previously separate integration tests into unified pipeline with optimized job orchestration, matrix builds, caching, artifacts, and step summaries.
+- **Two-phase testing strategy**: New fail-fast approach that executes read-only tests first, followed by write operations only if read-only phase succeeds, improving feedback speed and resource utilization.
+- **Parallel test executor**: Splits suites across workers to maximize throughput with enhanced distribution logic.
+- **Reporting and summaries**: Produces GitHub-friendly summaries and test reports with consolidated results from unified workflow.
+- **Infrastructure provisioning**: Waits for external services (e.g., Keycloak, Redis, Qdrant) before running tests.
+- **Helm chart validation**: Runs chart linting and tests.
+- **Snapshot import/seed**: Prepares deterministic test data.
+- **Build helpers**: UI environment definition and embedded docs build.
+- **Container images**: Multi-stage builds for app, dev, and stdio variants.
+- **Local automation**: Husky pre-commit hook to enforce quality gates locally.
+- **Security scanning**: Trivy vulnerability scanning with ignore rules.
+- **Dependency updates**: Dependabot configuration for automated PRs.
 
 **Section sources**
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
@@ -194,27 +211,28 @@ GH --> DEP
 - [.github/dependabot.yml](file://.github/dependabot.yml)
 
 ## Architecture Overview
-The CI architecture coordinates multiple jobs that share caches and artifacts. Jobs are grouped into logical stages: prepare, build, test, package, and deploy. Matrix strategies run subsets in parallel. Artifacts are uploaded for later jobs or manual inspection.
+The CI architecture coordinates multiple jobs that share caches and artifacts with a streamlined workflow structure. Jobs are grouped into logical stages: prepare, build, test (two-phase), package, and deploy. Matrix strategies run subsets in parallel with optimized resource allocation. Artifacts are uploaded for later jobs or manual inspection.
 
 ```mermaid
 graph TB
 A["Workflow Trigger<br/>push/pull_request/release"] --> B["Job: Prepare<br/>Install deps, cache restore"]
 B --> C["Job: Build<br/>TypeScript compile, UI build"]
 C --> D["Job: Lint & Security Scan<br/>Trivy, CodeQL"]
-C --> E["Job: Unit Tests<br/>Parallelized by suite"]
-C --> F["Job: Integration Tests<br/>Wait for infra, run suites"]
-C --> G["Job: Helm Tests<br/>Lint and validate charts"]
-E --> H["Upload: Test Reports"]
-F --> H
-G --> H
-C --> I["Upload: Build Artifacts"]
-D --> J["Publish: Security Findings"]
-H --> K["Job: Summary<br/>Aggregate results"]
-I --> K
-J --> K
+C --> E["Job: Phase 1 - Read-Only Tests<br/>Fast fail-fast execution"]
+E --> F{"Phase 1 Results"}
+F --> |Success| G["Job: Phase 2 - Write Operations<br/>Full integration tests"]
+F --> |Failure| H["Skip Phase 2<br/>Fail fast"]
+C --> I["Job: Helm Tests<br/>Lint and validate charts"]
+E --> J["Upload: Test Reports"]
+G --> J
+I --> J
+D --> K["Publish: Security Findings"]
+J --> L["Job: Summary<br/>Aggregate results"]
+K --> L
 ```
 
 **Diagram sources**
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
@@ -224,74 +242,85 @@ J --> K
 
 ## Detailed Component Analysis
 
-### GitHub Actions Workflow Configuration
-- Triggers: push, pull_request, release events.
-- Jobs:
-  - Prepare: Node.js setup, dependency install, cache restore.
-  - Build: TypeScript compilation and UI build steps.
-  - Lint & Security: Static analysis and container/image scanning.
-  - Unit Tests: Parallel execution across workers using a custom script.
-  - Integration Tests: Provision external services, seed/import snapshots, then run suites.
-  - Helm Tests: Chart linting and validation.
-  - Summary: Aggregate reports and produce a GitHub summary.
-- Artifacts: Upload test reports and build outputs for downstream jobs or manual download.
-- Matrix: Split suites and environments to maximize parallelism.
+### Consolidated GitHub Actions Workflow Configuration
+**Updated** The CI workflow has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow.
+
+- **Unified Workflow**: Single integration.yml replaces separate Integration, Integration Simple, and Integration Stdio workflows
+- **Two-Phase Testing Strategy**: 
+  - Phase 1: Read-only tests execute first with fail-fast behavior
+  - Phase 2: Write operation tests only run if Phase 1 succeeds
+- **Optimized Job Dependencies**: Streamlined dependency chain reduces workflow complexity
+- **Enhanced Matrix Strategy**: Consolidated matrix configurations for better resource utilization
+- **Improved Artifact Management**: Centralized artifact handling across all test phases
 
 ```mermaid
 sequenceDiagram
 participant GH as "GitHub Actions"
 participant PREP as "Prepare Job"
 participant BUILD as "Build Job"
-participant TESTU as "Unit Tests Job"
-participant TESTI as "Integration Tests Job"
-participant HELM as "Helm Tests Job"
+participant PHASE1 as "Phase 1 : Read-Only Tests"
+participant PHASE2 as "Phase 2 : Write Operations"
 participant SEC as "Security Scan Job"
 participant SUM as "Summary Job"
 GH->>PREP : "Start"
 PREP-->>GH : "Cache restored"
 GH->>BUILD : "Depends on Prepare"
 BUILD-->>GH : "Artifacts uploaded"
-GH->>TESTU : "Depends on Build"
-GH->>TESTI : "Depends on Build"
-GH->>HELM : "Depends on Build"
+GH->>PHASE1 : "Depends on Build"
 GH->>SEC : "Depends on Build"
-TESTU-->>SUM : "Reports"
-TESTI-->>SUM : "Reports"
-HELM-->>SUM : "Results"
-SEC-->>SUM : "Findings"
+PHASE1-->>GH : "Read-only test results"
+alt Phase 1 Success
+GH->>PHASE2 : "Execute write operations"
+PHASE2-->>SUM : "Write test results"
+else Phase 1 Failure
+GH->>SUM : "Skip Phase 2, fail fast"
+end
+SEC-->>SUM : "Security findings"
 SUM-->>GH : "Step Summary"
 ```
 
 **Diagram sources**
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
 
 **Section sources**
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
 
-### Parallel Test Execution Strategy
-- Orchestrated by a dedicated script that discovers and splits test suites across workers.
-- Uses a custom Jest sequencer to control ordering and concurrency.
-- Integrates a GitHub summary reporter to aggregate results per worker.
-- Benefits from shared caches to reduce startup time.
+### Enhanced Parallel Test Execution Strategy
+**Updated** The parallel test execution strategy now operates within the unified workflow with improved distribution logic and two-phase execution model.
+
+- **Unified Distribution**: Single script manages test suite distribution across both phases
+- **Phase-Aware Partitioning**: Read-only tests partitioned separately from write operations
+- **Enhanced Concurrency Control**: Improved worker allocation based on test type and resource requirements
+- **Optimized Cache Sharing**: Better cache utilization between phases and workers
+- **Fail-Fast Integration**: Immediate failure propagation from Phase 1 prevents unnecessary Phase 2 execution
 
 ```mermaid
 flowchart TD
-Start(["Start Parallel Tests"]) --> Discover["Discover Test Suites"]
-Discover --> Partition["Partition Suites Across Workers"]
-Partition --> RunWorkers["Run Workers in Parallel"]
-RunWorkers --> Collect["Collect Reports"]
+Start(["Start Unified Workflow"]) --> Discover["Discover Test Suites"]
+Discover --> Phase1Partition["Partition Read-Only Tests"]
+Phase1Partition --> RunPhase1["Execute Phase 1 Workers"]
+RunPhase1 --> CheckResults{"Phase 1 Results"}
+CheckResults --> |All Pass| Phase2Partition["Partition Write Operation Tests"]
+CheckResults --> |Any Fail| SkipPhase2["Skip Phase 2 - Fail Fast"]
+Phase2Partition --> RunPhase2["Execute Phase 2 Workers"]
+RunPhase2 --> Collect["Collect All Reports"]
+SkipPhase2 --> Collect
 Collect --> Summarize["Generate Step Summary"]
 Summarize --> End(["Exit with Status"])
 ```
 
 **Diagram sources**
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [tests/jest-sequencer.cjs](file://tests/jest-sequencer.cjs)
 - [tests/reporters/jest-github-summary-reporter.cjs](file://tests/reporters/jest-github-summary-reporter.cjs)
 
 **Section sources**
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [tests/jest-sequencer.cjs](file://tests/jest-sequencer.cjs)
 - [tests/reporters/jest-github-summary-reporter.cjs](file://tests/reporters/jest-github-summary-reporter.cjs)
 
@@ -476,6 +505,7 @@ COMPOSE["compose.yaml"]
 HELM["scripts/test-helm.sh"]
 TRIVY[".trivyignore"]
 CODEQL[".github/workflows/codeql-analysis.yml"]
+INTEGRATION[".github/workflows/integration.yml"]
 PKG --> JEST
 PKG --> VITEST
 JEST --> SEQ
@@ -483,6 +513,8 @@ JEST --> RPT
 COMPOSE --> JEST
 HELM --> JEST
 TRIVY --> CODEQL
+INTEGRATION --> JEST
+INTEGRATION --> RPT
 ```
 
 **Diagram sources**
@@ -495,6 +527,7 @@ TRIVY --> CODEQL
 - [scripts/test-helm.sh](file://scripts/test-helm.sh)
 - [.trivyignore](file://.trivyignore)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 
 **Section sources**
 - [package.json](file://package.json)
@@ -506,37 +539,54 @@ TRIVY --> CODEQL
 - [scripts/test-helm.sh](file://scripts/test-helm.sh)
 - [.trivyignore](file://.trivyignore)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 
 ## Performance Considerations
-- Caching:
+**Updated** Performance optimizations have been enhanced through workflow consolidation and two-phase testing strategy.
+
+- **Caching**:
   - Restore and save Node modules and build caches between jobs to minimize install times.
   - Cache test snapshots where appropriate to speed up integration tests.
-- Parallelization:
+  - **New**: Optimized cache sharing between Phase 1 and Phase 2 tests to reduce redundant setup.
+- **Parallelization**:
   - Use matrix strategies to split suites across workers.
   - Leverage the parallel checks script to distribute workloads efficiently.
-- Artifact reuse:
+  - **New**: Phase-aware worker allocation optimizes resource usage based on test type.
+- **Artifact reuse**:
   - Upload build artifacts once and consume them in subsequent jobs to avoid redundant builds.
-- Concurrency limits:
+  - **New**: Consolidated artifact management reduces upload/download overhead.
+- **Concurrency limits**:
   - Configure runner concurrency to prevent resource contention.
-- Image optimization:
+  - **New**: Dynamic concurrency adjustment based on test phase requirements.
+- **Image optimization**:
   - Use multi-stage Dockerfiles to keep images lean and reduce scan times.
-
-[No sources needed since this section provides general guidance]
+- **Two-Phase Optimization**:
+  - **New**: Fail-fast behavior eliminates unnecessary Phase 2 execution when Phase 1 fails.
+  - **New**: Read-only tests execute faster, providing quicker feedback.
+  - **New**: Reduced overall workflow duration through intelligent test ordering.
 
 ## Troubleshooting Guide
-- Debugging CI failures:
+**Updated** Enhanced troubleshooting guidance for the consolidated workflow and two-phase testing strategy.
+
+- **Debugging CI failures**:
   - Inspect step summaries generated by the summary script for aggregated results.
   - Download artifacts containing logs and reports for deeper analysis.
   - Use wait-for-infra logs to verify external service readiness.
-- Common issues:
+  - **New**: Check Phase 1 vs Phase 2 failure indicators in workflow output.
+  - **New**: Review consolidated workflow logs instead of separate integration workflow logs.
+- **Common issues**:
   - Missing environment variables: Ensure create-env and deploy-run-env scripts are executed in the correct order.
   - Snapshot mismatches: Re-seed or import snapshots if test data drift occurs.
   - Helm validation errors: Review values and templates referenced by the Helm test script.
   - Security findings: Adjust .trivyignore only when justified; otherwise remediate vulnerabilities.
-- Optimization tips:
+  - **New**: Phase 1 failures preventing Phase 2 execution - verify read-only test dependencies.
+  - **New**: Resource contention in unified workflow - adjust matrix configuration if needed.
+- **Optimization tips**:
   - Increase cache keys specificity to avoid stale caches.
   - Reduce suite size or shard further if tests exceed timeouts.
   - Pin Node.js versions to ensure consistent builds.
+  - **New**: Optimize test partitioning between phases for balanced execution time.
+  - **New**: Monitor Phase 1 completion time to identify slow read-only tests.
 
 **Section sources**
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
@@ -547,26 +597,28 @@ TRIVY --> CODEQL
 - [scripts/seed-test-snapshot.sh](file://scripts/seed-test-snapshot.sh)
 - [scripts/test-helm.sh](file://scripts/test-helm.sh)
 - [.trivyignore](file://.trivyignore)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 
 ## Conclusion
-Kairos MCP’s CI system combines robust orchestration, parallel execution, comprehensive security scanning, and efficient caching to deliver fast and reliable feedback. The modular scripts and clear separation of concerns make it straightforward to extend pipelines, add new checks, and optimize performance. Adopting the recommended practices will help maintain high-quality releases and secure deployments.
-
-[No sources needed since this section summarizes without analyzing specific files]
+Kairos MCP's CI system has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior. This enhancement delivers faster feedback loops, improved resource utilization, and simplified maintenance while maintaining comprehensive test coverage. The modular scripts and clear separation of concerns make it straightforward to extend pipelines, add new checks, and optimize performance. Adopting the recommended practices will help maintain high-quality releases and secure deployments with enhanced efficiency.
 
 ## Appendices
 
 ### Example Custom CI Scripts and Tasks
-- Parallel checks: Distribute test suites across workers for faster execution.
-- Step summary: Aggregate results into a single GitHub summary for visibility.
-- TGZ install test: Validate packaged artifacts installation flows.
-- Infra wait: Poll external services until healthy before running dependent tests.
-- Helm tests: Lint and validate charts consistently across environments.
-- Snapshot management: Import and seed deterministic datasets for stable tests.
-- Build helpers: Define UI env variables and build embedded docs for runtime consumption.
-- Deploy environment: Prepare runtime environment variables and secrets for deployment jobs.
-- Stdio entrypoint: Configure CLI runtime behavior for headless operations.
+- **Unified workflow orchestration**: Consolidates multiple integration workflows into single streamlined pipeline.
+- **Two-phase testing**: Implements read-only-first fail-fast strategy for faster feedback.
+- **Parallel checks**: Distribute test suites across workers for faster execution with phase-aware distribution.
+- **Step summary**: Aggregate results into a single GitHub summary for visibility.
+- **TGZ install test**: Validate packaged artifacts installation flows.
+- **Infra wait**: Poll external services until healthy before running dependent tests.
+- **Helm tests**: Lint and validate charts consistently across environments.
+- **Snapshot management**: Import and seed deterministic datasets for stable tests.
+- **Build helpers**: Define UI env variables and build embedded docs for runtime consumption.
+- **Deploy environment**: Prepare runtime environment variables and secrets for deployment jobs.
+- **Stdio entrypoint**: Configure CLI runtime behavior for headless operations.
 
 **Section sources**
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
 - [scripts/ci-test-tgz-install.mjs](file://scripts/ci-test-tgz-install.mjs)
