@@ -1,0 +1,1 @@
+End-to-end tests that spawn the real `dist/cli/index.js` process and exercise CLI commands (activate, forward, train, spaces, login/logout, help, serve) against a live dev server.

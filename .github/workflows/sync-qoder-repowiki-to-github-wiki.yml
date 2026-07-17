@@ -26,12 +26,6 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
 
-      - name: Validate source directory exists
-        run: |
-          set -euo pipefail
-
-          test -d ".qoder/repowiki/en/content"
-
       - name: Checkout wiki repository
         uses: actions/checkout@v7
         with:
@@ -39,28 +33,5 @@ jobs:
           path: wiki
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sync content to wiki repository
-        run: |
-          set -euo pipefail
-
-          rsync -a --delete \
-            --exclude ".git" \
-            ".qoder/repowiki/en/content/" \
-            "wiki/"
-
-      - name: Commit and push wiki changes
-        working-directory: wiki
-        run: |
-          set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "No wiki changes to publish."
-            exit 0
-          fi
-
-          git add -A
-          git commit -m "docs: sync Qoder Repo Wiki content"
-          git push
+      - name: Sync content and push to wiki
+        run: WIKI_WORKDIR=wiki bash scripts/sync-wiki.sh

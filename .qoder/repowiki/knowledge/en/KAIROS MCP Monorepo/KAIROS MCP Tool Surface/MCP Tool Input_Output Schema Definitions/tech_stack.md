@@ -1,0 +1,1 @@
+Zod for runtime validation; discriminated unions model variant payloads; `z.preprocess` + `superRefine` handle backward-compatible normalization and cross-field constraints.

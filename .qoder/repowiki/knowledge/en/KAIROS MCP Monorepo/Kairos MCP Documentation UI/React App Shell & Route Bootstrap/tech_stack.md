@@ -1,0 +1,1 @@
+React 19 with `react-dom/client` `createRoot`, `react-router-dom` for client-side routing, `@tanstack/react-query` for data fetching, and Tailwind CSS v4 (`@import "tailwindcss"`) consuming design tokens declared in `src/ui/theme/tokens.css`.

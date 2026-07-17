@@ -54,7 +54,7 @@ kairos-mcp serve --transport stdio
 With **`npx`** (Node 25+):
 
 ```bash
-npx -y @debian777/kairos-mcp serve --transport stdio
+npx -y @debian777/kairos-mcp serve
 ```
 
 - **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).
@@ -408,5 +408,5 @@ one host/port pair (for example `http://localhost:3300`) is different from a tok
 - [Install index](install/README.md)
 - [Environment variables and secrets](install/env-and-secrets.md)
 - [Cursor and MCP](install/README.md#cursor-and-mcp)
-- [Architecture](architecture/README.md)
+- [Architecture (project Wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - [Adapter examples](examples/README.md)

@@ -1,0 +1,1 @@
+Persist adapter or artifact training inputs into the memory store and resolve canonical adapter URIs for artifacts, surfacing typed TrainError codes to callers.

@@ -154,7 +154,7 @@ curl -sS "http://localhost:3000/health"
 ```
 
 - Discovery: `/.well-known/oauth-protected-resource`
-- Auth: [CLI](../CLI.md#authentication), [auth overview](../architecture/auth-overview.md)
+- Auth: [CLI](../CLI.md#authentication), [auth overview (project Wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - Plugin: `integrations/cursor/plugin` often uses `http://localhost:3300/mcp`
 - Widgets: `spaces` and `forward` use MCP Apps on hosts that support them
 - Discovery scopes default to
@@ -181,7 +181,7 @@ Use stdio mode when your host spawns the MCP server process directly.
    ```
 
 3. Configure your host command (pick one):
-   - **From npm (Node 25+):** `command`: `npx`, `args`: `["-y", "@debian777/kairos-mcp", "serve", "--transport", "stdio"]`, plus `env` for Qdrant/embedding.
+   - **From npm (Node 25+):** `command`: `npx`, `args`: `["-y", "@debian777/kairos-mcp", "serve"]` (stdio is the default transport), plus `env` for Qdrant/embedding.
    - **From a checkout:** `command`: `node`, `args`: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`, `env`: `TRANSPORT_TYPE=stdio` (or run `kairos serve --transport stdio` from the repo after `npm run build`).
 
 Host snippets:

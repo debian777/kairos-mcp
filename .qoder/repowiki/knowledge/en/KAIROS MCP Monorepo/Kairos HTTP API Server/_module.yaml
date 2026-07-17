@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: http_api
+title: Kairos HTTP API Server
+scope:
+    - src/http/
+source_files: []
+depends_on: []
+related_to: []

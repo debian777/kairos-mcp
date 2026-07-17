@@ -1,0 +1,1 @@
+Top-level application shell and reusable markdown components — a sidebar layout with navigation plus a Tiptap-based rich editor and a read-only GFM renderer.

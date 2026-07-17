@@ -1,0 +1,1 @@
+Top-level collection of Node/Python/Bash helpers that bootstrap local dev, drive CI, manage Keycloak realms and Helm versions, and run integration/journey tests against the KAIROS stack.

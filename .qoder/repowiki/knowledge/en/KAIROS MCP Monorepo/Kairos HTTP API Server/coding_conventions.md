@@ -1,0 +1,3 @@
+- Route handlers validate inputs with Zod schemas before invoking tools, and return structured JSON responses.
+- Authentication is enforced uniformly via the OIDC middleware so every protected route runs inside a tenant context.
+- Errors are funneled through the shared error-handling middleware to produce consistent tool-route error shapes.

@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: tests/unit_tests
+title: KAIROS MCP Unit Test Suite
+scope:
+    - tests/unit/
+source_files: []
+depends_on: []
+related_to: []

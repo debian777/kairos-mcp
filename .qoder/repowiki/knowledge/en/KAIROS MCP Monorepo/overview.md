@@ -1,0 +1,1 @@
+Single npm package monorepo that compiles the KAIROS CLI, HTTP API server, shared runtime, tools, UI and Helm/Compose artifacts into one distributable.

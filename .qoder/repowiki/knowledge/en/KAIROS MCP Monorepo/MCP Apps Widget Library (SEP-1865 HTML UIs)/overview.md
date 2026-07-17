@@ -1,0 +1,1 @@
+Server-side library that builds and registers MCP Apps (SEP-1865) HTML widgets — inline CSS/JS fragments served as resources to host iframes for the forward, activate, and spaces tools.

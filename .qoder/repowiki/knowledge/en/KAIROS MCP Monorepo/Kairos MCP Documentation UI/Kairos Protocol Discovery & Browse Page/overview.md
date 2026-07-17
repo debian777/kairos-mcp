@@ -1,0 +1,1 @@
+React page that lets users search, browse by label, and activate MCP protocol adapters via the Kairos activation tool.

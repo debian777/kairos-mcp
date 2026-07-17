@@ -1,0 +1,1 @@
+Vitest-based unit and integration tests for React components, hooks, and UI utility functions using jsdom, react-testing-library, and react-query.

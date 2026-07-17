@@ -6,18 +6,28 @@
 - [src/index.ts](file://src/index.ts)
 - [src/server.ts](file://src/server.ts)
 - [src/bootstrap.ts](file://src/bootstrap.ts)
+- [src/config.ts](file://src/config.ts)
 - [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/stdio/stdio-server.ts](file://src/stdio/stdio-server.ts)
+- [src/mcp-apps/kairos-ui-capability.ts](file://src/mcp-apps/kairos-ui-capability.ts)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/tools/forward.ts](file://src/tools/forward.ts)
+- [src/tools/activate.ts](file://src/tools/activate.ts)
+- [src/tools/export.ts](file://src/tools/export.ts)
+- [src/tools/train.ts](file://src/tools/train.ts)
+- [src/tools/tune.ts](file://src/tools/tune.ts)
 - [src/services/memory/store.ts](file://src/services/memory/store.ts)
 - [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
-- [src/config.ts](file://src/config.ts)
-- [src/mcp-apps/kairos-server-ui-capability.ts](file://src/mcp-apps/kairos-server-ui-capability.ts)
-- [src/ui/App.tsx](file://src/ui/App.tsx)
-- [docs/architecture/README.md](file://docs/architecture/README.md)
-- [docs/architecture/infrastructure.md](file://docs/architecture/infrastructure.md)
-- [src/tools/activate.ts](file://src/tools/activate.ts)
-- [src/tools/forward.ts](file://src/tools/forward.ts)
-- [src/tools/reward.ts](file://src/tools/reward.ts)
-- [package.json](file://package.json)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
+- [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/oidc-scopes.ts](file://src/http/oidc-scopes.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/metrics-server.ts](file://src/metrics-server.ts)
 </cite>
 
 ## Table of Contents
@@ -30,395 +40,462 @@
 7. [Performance Considerations](#performance-considerations)
 8. [Troubleshooting Guide](#troubleshooting-guide)
 9. [Conclusion](#conclusion)
+10. [Appendices](#appendices)
 
 ## Introduction
-KAIROS MCP is a TypeScript service designed to store and execute reusable protocol chains for AI agents. It provides:
-- An MCP endpoint at POST /mcp
-- REST endpoints under /api/*
-- A browser UI under /ui
-- A CLI named kairos
+Kairos MCP is a Model Context Protocol (MCP) server implementation that exposes AI workflow orchestration capabilities to clients via standardized tool and resource interfaces. It provides:
+- Semantic memory search over curated knowledge spaces
+- Workflow execution through a workflow engine with activation, forward stepping, and reward feedback
+- Authentication backed by OpenID Connect (OIDC) for secure access control
+- Multi-modal artifact handling for rich content export and display
+- A UI offering for interactive exploration and guided runs
 
-The system centers on three core ideas:
-- Persistent memory: store and retrieve protocol chains across sessions
-- Deterministic execution: activate → forward (per layer) → reward; the server drives next_action at every step
-- Agent-facing design: tool descriptions and error messages built for programmatic consumption and recovery
-
-Protocol execution follows a fixed order: activate (match adapters), forward (run each layer’s contract; loop), then reward (finalize the run). Discovery and adapter lifecycle tools (spaces → train → tune → export → delete) operate independently of the run order.
-
-**Section sources**
-- [README.md:10-31](file://README.md#L10-L31)
-- [README.md:60-92](file://README.md#L60-L92)
+Conceptually, Kairos sits between AI agents and your data/workflows. Agents call MCP tools to search, run, and manage workflows; the server orchestrates these operations against persistent storage, embedding services, and external systems while enforcing security and observability.
 
 ## Project Structure
-The project is organized around a layered architecture:
-- Bootstrap and server entrypoint orchestrate startup and HTTP/MCP server creation
-- HTTP server composes middleware, routes, and UI static assets
-- Service layer integrates Qdrant vector storage, embedding providers, and optional Redis cache
-- UI is a React application served from the same origin
-- CLI provides HTTP-based command-line access
+The repository organizes functionality into clear layers:
+- Entry points and bootstrap logic
+- HTTP and stdio transports for MCP
+- Tool registry and schemas
+- Services for memory, embeddings, Qdrant vector store, Redis cache, and key-value stores
+- Resource bootstrapping for embedded resources
+- Authentication middleware and OIDC scopes
+- Observability (metrics, structured logging, audit events)
+- UI integration and widget capabilities
 
 ```mermaid
 graph TB
-subgraph "Bootstrap"
-BOOT["src/bootstrap.ts"]
-ENTRY["src/index.ts"]
+subgraph "Transports"
+HTTP["HTTP Server"]
+STDIO["STDIO Server"]
 end
-subgraph "HTTP Server"
-HTTP["src/http/http-server.ts"]
-ROUTES["Route handlers"]
-UI["UI static assets"]
-end
-subgraph "MCP Server"
-SERVER["src/server.ts"]
-TOOLS["Tools: activate/forward/train/reward/tune/delete/export/spaces"]
+subgraph "MCP Layer"
+Handler["MCP Handler"]
+Tools["Tool Registry<br/>search, forward, activate, export, train, tune"]
+Resources["Resource Bootstrap"]
 end
 subgraph "Services"
-MEMSTORE["MemoryQdrantStore"]
-QDRANT["QdrantService"]
-CONFIG["src/config.ts"]
+Memory["Memory Store"]
+Embedding["Embedding Service"]
+Qdrant["Qdrant Service"]
+KV["Key-Value Store Factory"]
+Redis["Redis Cache"]
 end
-subgraph "External Systems"
-QDRANT_DB["Qdrant vector DB"]
-REDIS_DB["Redis cache"]
-OPENAI["OpenAI embeddings"]
-TEI["Self-hosted TEI"]
+subgraph "Auth & Security"
+AuthMW["Auth Middleware"]
+OIDC["OIDC Scopes"]
 end
-BOOT --> ENTRY
-ENTRY --> HTTP
-ENTRY --> SERVER
-HTTP --> ROUTES
-HTTP --> UI
-SERVER --> TOOLS
-TOOLS --> MEMSTORE
-MEMSTORE --> QDRANT
-MEMSTORE --> QDRANT_DB
-QDRANT --> QDRANT_DB
-CONFIG --> QDRANT
-CONFIG --> REDIS_DB
-CONFIG --> OPENAI
-CONFIG --> TEI
+subgraph "Observability"
+Metrics["Metrics Server"]
+Logger["Structured Logger"]
+Audit["Audit Events"]
+end
+subgraph "UI"
+UICap["UI Capability"]
+end
+HTTP --> Handler
+STDIO --> Handler
+Handler --> Tools
+Handler --> Resources
+Tools --> Memory
+Memory --> Qdrant
+Memory --> Embedding
+Tools --> KV
+KV --> Redis
+HTTP --> AuthMW
+AuthMW --> OIDC
+HTTP --> Metrics
+Handler --> Logger
+Handler --> Audit
+Handler --> UICap
 ```
 
 **Diagram sources**
-- [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
-- [src/index.ts:74-134](file://src/index.ts#L74-L134)
-- [src/http/http-server.ts:22-58](file://src/http/http-server.ts#L22-L58)
-- [src/server.ts:125-193](file://src/server.ts#L125-L193)
-- [src/services/memory/store.ts:20-53](file://src/services/memory/store.ts#L20-L53)
-- [src/services/qdrant/service.ts:16-46](file://src/services/qdrant/service.ts#L16-L46)
-- [src/config.ts:276-330](file://src/config.ts#L276-L330)
+- [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/stdio/stdio-server.ts](file://src/stdio/stdio-server.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/tools/forward.ts](file://src/tools/forward.ts)
+- [src/tools/activate.ts](file://src/tools/activate.ts)
+- [src/tools/export.ts](file://src/tools/export.ts)
+- [src/tools/train.ts](file://src/tools/train.ts)
+- [src/tools/tune.ts](file://src/tools/tune.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
+- [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/oidc-scopes.ts](file://src/http/oidc-scopes.ts)
+- [src/metrics-server.ts](file://src/metrics-server.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
+- [src/mcp-apps/kairos-ui-capability.ts](file://src/mcp-apps/kairos-ui-capability.ts)
 
 **Section sources**
-- [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
-- [src/index.ts:74-134](file://src/index.ts#L74-L134)
-- [src/http/http-server.ts:22-58](file://src/http/http-server.ts#L22-L58)
-- [src/server.ts:125-193](file://src/server.ts#L125-L193)
-- [src/config.ts:276-330](file://src/config.ts#L276-L330)
+- [README.md](file://README.md)
+- [src/index.ts](file://src/index.ts)
+- [src/server.ts](file://src/server.ts)
+- [src/bootstrap.ts](file://src/bootstrap.ts)
+- [src/config.ts](file://src/config.ts)
 
 ## Core Components
-- Memory and vector storage: Qdrant-backed adapter store with collection management and health checks
-- Embedding service: vector generation via OpenAI or TEI with dimension probing
-- Authentication: optional Keycloak OIDC integration with bearer/JWT validation
-- UI: React SPA served from the same origin under /ui
-- CLI: HTTP client wrapper for server interactions
-- Observability: dedicated metrics server on a separate port
-
-Key runtime configuration includes port settings, embedding provider selection, search tuning, and optional Redis and Keycloak integration.
+- MCP Transport Layer
+  - HTTP transport exposing JSON-RPC endpoints for MCP clients
+  - STDIO transport for local or process-scoped MCP sessions
+- MCP Handler and Tool Registry
+  - Central handler routes MCP requests to registered tools
+  - Tools include semantic search, workflow orchestration (activate, forward), training, tuning, and export
+- Memory Store and Vector Retrieval
+  - Memory store abstracts retrieval and updates
+  - Qdrant service implements vector search and persistence
+  - Embedding service converts text to vectors for semantic search
+- Key-Value Stores and Caching
+  - Key-value store factory configures backends
+  - Redis cache supports session state and performance-sensitive lookups
+- Resource Bootstrap
+  - Loads embedded resources for MCP resource reads
+- Authentication and Authorization
+  - HTTP auth middleware validates OIDC tokens and enforces scopes
+- Observability
+  - Structured logger for consistent logs
+  - Audit events for compliance and traceability
+  - Metrics server for operational monitoring
+- UI Integration
+  - UI capability registers UI offerings and widgets for MCP clients
 
 **Section sources**
-- [src/services/memory/store.ts:20-152](file://src/services/memory/store.ts#L20-L152)
-- [src/services/qdrant/service.ts:16-152](file://src/services/qdrant/service.ts#L16-L152)
-- [src/config.ts:224-330](file://src/config.ts#L224-L330)
-- [src/http/http-server.ts:22-58](file://src/http/http-server.ts#L22-L58)
-- [package.json:30-32](file://package.json#L30-L32)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/tools/forward.ts](file://src/tools/forward.ts)
+- [src/tools/activate.ts](file://src/tools/activate.ts)
+- [src/tools/export.ts](file://src/tools/export.ts)
+- [src/tools/train.ts](file://src/tools/train.ts)
+- [src/tools/tune.ts](file://src/tools/tune.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
+- [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/oidc-scopes.ts](file://src/http/oidc-scopes.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
+- [src/metrics-server.ts](file://src/metrics-server.ts)
+- [src/mcp-apps/kairos-ui-capability.ts](file://src/mcp-apps/kairos-ui-capability.ts)
 
 ## Architecture Overview
-The system enforces a strict startup sequence to ensure readiness before serving traffic:
-1. Install global error handlers
-2. Initialize Qdrant client and wait for health
-3. Probe embedding dimension
-4. Initialize memory store and inject embedded resources
-5. Start metrics server
-6. Start HTTP server
+Kairos MCP follows a layered architecture:
+- Transport layer (HTTP/STDIO) receives MCP requests
+- Handler resolves tools and resources
+- Tools invoke services (memory, embeddings, qdrant, kv/redis)
+- Auth middleware secures endpoints using OIDC
+- Observability captures metrics, logs, and audit events
+- UI capability integrates client-side experiences
 
 ```mermaid
 sequenceDiagram
-participant PROC as Process
-participant GEH as GlobalErrorHandlers
-participant MEM as MemoryQdrantStore
-participant QD as Qdrant
-participant EMB as Embedding probe
-participant SNAP as SnapshotService
-participant RES as EmbeddedResources
-participant MT as MetricsServer
-participant HTTP as HTTPServer
-PROC->>GEH : installGlobalErrorHandlers()
-PROC->>MEM : new MemoryQdrantStore()
-loop up to 30 attempts × 1s
-MEM->>QD : checkHealth() — 5s timeout
-QD-->>MEM : healthy ✓ / error ✗
-end
-PROC->>EMB : probeEmbeddingDimension()
-EMB-->>PROC : resolved vector size
-MEM->>QD : init() — ensure collection exists / migrate schema
-alt QDRANT_SNAPSHOT_ON_START = true
-PROC->>SNAP : triggerQdrantSnapshot(reason=startup)
-SNAP-->>PROC : success / warn and continue
-else disabled
-Note over PROC,SNAP : snapshot skipped
-end
-PROC->>RES : injectMemResourcesAtBoot(force=true)
-PROC->>MT : startMetricsServer()
-PROC->>HTTP : startServer(memoryStore)
+participant Client as "MCP Client"
+participant HTTP as "HTTP Server"
+participant Auth as "Auth Middleware"
+participant Handler as "MCP Handler"
+participant Tool as "Tool (e.g., search)"
+participant Mem as "Memory Store"
+participant Q as "Qdrant Service"
+participant Emb as "Embedding Service"
+participant Obs as "Logger/Audit/Metrics"
+Client->>HTTP : "POST /mcp"
+HTTP->>Auth : "Validate OIDC token"
+Auth-->>HTTP : "Authenticated context"
+HTTP->>Handler : "Dispatch request"
+Handler->>Tool : "Invoke tool"
+Tool->>Obs : "Log + emit audit event"
+Tool->>Mem : "Search query"
+Mem->>Emb : "Generate embeddings"
+Emb-->>Mem : "Vectors"
+Mem->>Q : "Vector similarity search"
+Q-->>Mem : "Results"
+Mem-->>Tool : "Ranked results"
+Tool-->>Handler : "Response"
+Handler-->>Client : "JSON-RPC response"
 ```
 
 **Diagram sources**
-- [src/index.ts:44-121](file://src/index.ts#L44-L121)
-- [src/services/memory/store.ts:59-121](file://src/services/memory/store.ts#L59-L121)
-
-The internal wiring connects HTTP/MCP routes to tool implementations, which delegate to service layer components. Qdrant stores durable adapter data; Redis caches transient state; embedding providers supply vectors.
-
-```mermaid
-flowchart LR
-subgraph "Client"
-AGT["AI Agent or HTTP client"]
-end
-subgraph "Transport"
-EXP["Express Router"]
-MCPH["MCP over HTTP handler"]
-API["REST route handlers"]
-end
-subgraph "MCP Tools"
-T_ACT["activate"]
-T_FWD["forward"]
-T_TRAIN["train"]
-T_REW["reward"]
-T_TUNE["tune"]
-T_DEL["delete"]
-T_EXP["export"]
-T_SPC["spaces"]
-end
-subgraph "Services"
-MEM_SVC["MemoryQdrantStore"]
-QDRANT_SVC["QdrantService"]
-EMB_SVC["EmbeddingService"]
-POW_SVC["ProofOfWorkStore"]
-end
-subgraph "Infra"
-QDRANT_DB["Qdrant :6333"]
-REDIS_DB["Redis :6379"]
-OPENAI["OpenAI text-embedding-*"]
-TEI["TEI self-hosted"]
-end
-AGT --> |"HTTP POST /mcp"| EXP
-AGT --> |"HTTP /api/*"| EXP
-EXP --> MCPH
-EXP --> API
-MCPH --> T_ACT & T_FWD & T_TRAIN & T_REW & T_TUNE & T_DEL & T_EXP & T_SPC
-T_ACT --> MEM_SVC
-T_FWD --> MEM_SVC & POW_SVC & QDRANT_SVC
-T_TRAIN --> MEM_SVC
-T_REW --> QDRANT_SVC
-T_TUNE --> QDRANT_SVC
-T_DEL --> QDRANT_SVC
-T_EXP --> MEM_SVC
-T_SPC --> MEM_SVC
-API --> MEM_SVC & QDRANT_SVC
-MEM_SVC --> EMB_SVC
-MEM_SVC --> QDRANT_DB
-QDRANT_SVC --> QDRANT_DB
-POW_SVC --> REDIS_DB
-EMB_SVC --> |"provider = openai"| OPENAI
-EMB_SVC --> |"provider = tei"| TEI
-```
-
-**Diagram sources**
-- [docs/architecture/infrastructure.md:170-257](file://docs/architecture/infrastructure.md#L170-L257)
-- [src/server.ts:125-193](file://src/server.ts#L125-L193)
-- [src/http/http-server.ts:22-48](file://src/http/http-server.ts#L22-L48)
-
-**Section sources**
-- [src/index.ts:44-121](file://src/index.ts#L44-L121)
-- [docs/architecture/infrastructure.md:110-163](file://docs/architecture/infitecture.md#L110-L163)
-- [docs/architecture/infrastructure.md:170-257](file://docs/architecture/infrastructure.md#L170-L257)
+- [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
 
 ## Detailed Component Analysis
 
-### Three Execution Phases
-The protocol execution proceeds deterministically across three phases:
-
-1) Activate
-- Purpose: Match adapters to the input query and return ranked choices
-- Behavior: Agents select one choice and follow its next_action exactly
-- Outputs include adapter URIs, roles (match/refine/create), activation scores, and guidance for subsequent steps
-
-2) Forward
-- Purpose: Execute adapter layers in sequence
-- Behavior: For the first call, omit solution; for subsequent calls, supply a solution whose type matches the layer’s contract
-- Loop continues until the server signals to call reward
-
-3) Reward
-- Purpose: Finalize the run by attaching a reward signal
-- Behavior: Submit outcome (success/failure) and optional evaluator fields; server propagates metrics and closes the execution
+### MCP Transport and Handler
+- HTTP transport initializes routes and CORS settings, then delegates to the MCP handler
+- STDIO transport starts a process-local MCP server for CLI or local agent use
+- The MCP handler centralizes routing, schema validation, and dispatch to tools and resources
 
 ```mermaid
-flowchart LR
-A["activate"] --> B["forward"]
-B -.-> B
-B --> D["reward"]
-style A fill:#4a6fa5,stroke:#2d4a7a,color:#fff
-style B fill:#ffb74d,stroke:#f57c00,color:#333
-style D fill:#81c784,stroke:#388e3c,color:#333
+flowchart TD
+Start(["Request Received"]) --> Transport{"Transport Type?"}
+Transport --> |HTTP| HTTPRoute["HTTP Route"]
+Transport --> |STDIO| StdioRoute["STDIO Channel"]
+HTTPRoute --> AuthCheck["Auth Middleware"]
+StdioRoute --> NoAuth["No HTTP Auth"]
+AuthCheck --> Handler["MCP Handler"]
+NoAuth --> Handler
+Handler --> Dispatch["Resolve Tool/Resource"]
+Dispatch --> End(["Return Response"])
 ```
 
 **Diagram sources**
-- [README.md:35-43](file://README.md#L35-L43)
-- [README.md:67-83](file://README.md#L67-L83)
+- [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/stdio/stdio-server.ts](file://src/stdio/stdio-server.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
 
 **Section sources**
-- [README.md:28-83](file://README.md#L28-L83)
-- [src/tools/activate.ts:43-200](file://src/tools/activate.ts#L43-L200)
-- [src/tools/forward.ts:93-200](file://src/tools/forward.ts#L93-L200)
-- [src/tools/reward.ts:27-156](file://src/tools/reward.ts#L27-L156)
+- [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/stdio/stdio-server.ts](file://src/stdio/stdio-server.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
 
-### Relationship Between Qdrant, Keycloak, and React UI
-- Qdrant vector storage: Durable adapter and step storage with collection management and health checks
-- Keycloak authentication: Optional OIDC integration enabling browser sessions and Bearer JWT validation
-- React UI: Served from the same origin at /ui with route-based code splitting and navigation
-
-```mermaid
-graph TB
-subgraph "Browser"
-UI["React UI (/ui)"]
-end
-subgraph "Server"
-HTTP["HTTP server :3000"]
-AUTH["Keycloak OIDC (optional)"]
-QDRANT["QdrantService"]
-end
-subgraph "Vector DB"
-QD["Qdrant :6333"]
-end
-UI --> |"Authenticated requests"| HTTP
-HTTP --> |"QdrantService"| QDRANT
-QDRANT --> |"REST API"| QD
-HTTP --> |"Optional OIDC"| AUTH
-```
-
-**Diagram sources**
-- [src/http/http-server.ts:22-48](file://src/http/http-server.ts#L22-L48)
-- [src/services/qdrant/service.ts:16-46](file://src/services/qdrant/service.ts#L16-L46)
-- [src/config.ts:113-171](file://src/config.ts#L113-L171)
-- [src/ui/App.tsx:1-133](file://src/ui/App.tsx#L1-L133)
-
-**Section sources**
-- [src/services/memory/store.ts:20-53](file://src/services/memory/store.ts#L20-L53)
-- [src/config.ts:113-171](file://src/config.ts#L113-L171)
-- [src/ui/App.tsx:1-133](file://src/ui/App.tsx#L1-L133)
-
-### Practical Examples: Agent Interactions via MCP
-Agents interact with KAIROS by invoking tools in the prescribed order. The authoritative behavior is defined in the embedded tool resources and enforced by strict input/output schemas. Agents must:
-- Obey next_action verbatim
-- Echo server-issued nonces, proof hashes, and URIs exactly
-- Not invent URIs, skip layers, or submit mismatched solution types
+### Semantic Memory Search
+- The search tool accepts queries and optional filters, leveraging the memory store
+- The memory store uses the embedding service to convert queries to vectors and performs similarity search via the Qdrant service
+- Results are ranked and returned to the caller
 
 ```mermaid
 sequenceDiagram
-participant Agent as "AI Agent"
-participant MCP as "MCP Server"
-participant Store as "MemoryQdrantStore"
-participant Qdrant as "QdrantService"
-Agent->>MCP : activate(query)
-MCP->>Store : search adapters
-Store-->>MCP : choices with next_action
-MCP-->>Agent : choices + guidance
-Agent->>MCP : forward(uri, solution?)
-MCP->>Store : load layer + validate contract
-Store-->>MCP : layer metadata + contract
-MCP-->>Agent : layer view + proofHash
-Agent->>MCP : forward(...) until told to reward
-Agent->>MCP : reward(layerUri, outcome, evaluator fields)
-MCP->>Qdrant : propagate reward metrics
-Qdrant-->>MCP : confirm
-MCP-->>Agent : final results
+participant Client as "Client"
+participant Tool as "search tool"
+participant Mem as "Memory Store"
+participant Emb as "Embedding Service"
+participant Q as "Qdrant Service"
+Client->>Tool : "search(query, filters)"
+Tool->>Mem : "execute(query, filters)"
+Mem->>Emb : "embed(query)"
+Emb-->>Mem : "vector"
+Mem->>Q : "similarity_search(vector, filters)"
+Q-->>Mem : "points"
+Mem-->>Tool : "results"
+Tool-->>Client : "ranked results"
 ```
 
 **Diagram sources**
-- [README.md:62-92](file://README.md#L62-L92)
-- [src/server.ts:42-108](file://src/server.ts#L42-L108)
-- [src/tools/activate.ts:43-200](file://src/tools/activate.ts#L43-L200)
-- [src/tools/forward.ts:93-200](file://src/tools/forward.ts#L93-L200)
-- [src/tools/reward.ts:27-156](file://src/tools/reward.ts#L27-L156)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
 
 **Section sources**
-- [README.md:62-92](file://README.md#L62-L92)
-- [src/server.ts:42-108](file://src/server.ts#L42-L108)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
 
-## Dependency Analysis
-The system exhibits clear separation of concerns:
-- Bootstrap and server orchestration depend on configuration and service initialization
-- HTTP server depends on middleware, routes, and UI static assets
-- MCP server registers tools that depend on memory store and Qdrant service
-- Services depend on external systems (Qdrant, Redis, embedding providers) configured via environment variables
+### Workflow Engine (Activate, Forward, Reward)
+- Activate prepares a workflow instance with initial parameters and returns a runnable session
+- Forward advances the workflow step-by-step, supporting continuation and first-call flows
+- Reward records feedback for learning and evaluation
 
 ```mermaid
-graph TB
-BOOT["src/bootstrap.ts"] --> ENTRY["src/index.ts"]
-ENTRY --> HTTP["src/http/http-server.ts"]
-ENTRY --> SERVER["src/server.ts"]
-SERVER --> ACT["src/tools/activate.ts"]
-SERVER --> FWD["src/tools/forward.ts"]
-SERVER --> RWD["src/tools/reward.ts"]
-ACT --> MEM["src/services/memory/store.ts"]
-FWD --> MEM
-RWD --> QDRANT["src/services/qdrant/service.ts"]
-MEM --> CFG["src/config.ts"]
-QDRANT --> CFG
-CFG --> QDRANT_DB["Qdrant"]
-CFG --> REDIS_DB["Redis"]
-CFG --> EMB["Embedding Providers"]
+sequenceDiagram
+participant Client as "Client"
+participant Act as "activate tool"
+participant Fwd as "forward tool"
+participant Rwd as "reward tool"
+participant KV as "KV Store"
+participant Redis as "Redis Cache"
+Client->>Act : "activate(params)"
+Act->>KV : "create session"
+KV->>Redis : "cache session state"
+Act-->>Client : "session_id"
+Client->>Fwd : "forward(session_id, step_input)"
+Fwd->>KV : "load session"
+Fwd->>Redis : "update state"
+Fwd-->>Client : "next_step or completion"
+Client->>Rwd : "reward(session_id, score)"
+Rwd->>KV : "persist reward"
+Rwd-->>Client : "acknowledgement"
 ```
 
 **Diagram sources**
-- [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
-- [src/index.ts:74-134](file://src/index.ts#L74-L134)
-- [src/http/http-server.ts:22-58](file://src/http/http-server.ts#L22-L58)
-- [src/server.ts:125-193](file://src/server.ts#L125-L193)
-- [src/tools/activate.ts:1-28](file://src/tools/activate.ts#L1-L28)
-- [src/tools/forward.ts:1-36](file://src/tools/forward.ts#L1-L36)
-- [src/tools/reward.ts:1-16](file://src/tools/reward.ts#L1-L16)
-- [src/services/memory/store.ts:1-11](file://src/services/memory/store.ts#L1-L11)
-- [src/services/qdrant/service.ts:1-14](file://src/services/qdrant/service.ts#L1-L14)
-- [src/config.ts:276-330](file://src/config.ts#L276-L330)
+- [src/tools/activate.ts](file://src/tools/activate.ts)
+- [src/tools/forward.ts](file://src/tools/forward.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
 
 **Section sources**
-- [src/bootstrap.ts:1-55](file://src/bootstrap.ts#L1-L55)
-- [src/index.ts:74-134](file://src/index.ts#L74-L134)
-- [src/http/http-server.ts:22-58](file://src/http/http-server.ts#L22-L58)
-- [src/server.ts:125-193](file://src/server.ts#L125-L193)
-- [src/config.ts:276-330](file://src/config.ts#L276-L330)
+- [src/tools/activate.ts](file://src/tools/activate.ts)
+- [src/tools/forward.ts](file://src/tools/forward.ts)
+
+### Artifact Management and Export
+- Export tool packages artifacts and metadata into bundles for portability
+- Artifact management handles multi-modal content types and relative paths
+- UI capability can present artifacts inline or via hosted resources
+
+```mermaid
+flowchart TD
+Start(["Export Request"]) --> Resolve["Resolve Artifacts"]
+Resolve --> Sanitize["Sanitize Content"]
+Sanitize --> Bundle["Assemble Bundle"]
+Bundle --> Persist["Persist Metadata"]
+Persist --> Return["Return Export Reference"]
+```
+
+**Diagram sources**
+- [src/tools/export.ts](file://src/tools/export.ts)
+- [src/mcp-apps/kairos-ui-capability.ts](file://src/mcp-apps/kairos-ui-capability.ts)
+
+**Section sources**
+- [src/tools/export.ts](file://src/tools/export.ts)
+- [src/mcp-apps/kairos-ui-capability.ts](file://src/mcp-apps/kairos-ui-capability.ts)
+
+### Training and Tuning
+- Train ingests datasets and builds models or indexes based on configured adapters
+- Tune adjusts model parameters or prompts using feedback loops and evaluation metrics
+
+```mermaid
+sequenceDiagram
+participant Client as "Client"
+participant Train as "train tool"
+participant Tune as "tune tool"
+participant Mem as "Memory Store"
+participant Q as "Qdrant Service"
+Client->>Train : "train(dataset, adapter)"
+Train->>Mem : "store artifacts"
+Train->>Q : "index vectors"
+Train-->>Client : "model/index reference"
+Client->>Tune : "tune(model_ref, params)"
+Tune->>Q : "evaluate and update"
+Tune-->>Client : "updated model/index"
+```
+
+**Diagram sources**
+- [src/tools/train.ts](file://src/tools/train.ts)
+- [src/tools/tune.ts](file://src/tools/tune.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+
+**Section sources**
+- [src/tools/train.ts](file://src/tools/train.ts)
+- [src/tools/tune.ts](file://src/tools/tune.ts)
+
+### Authentication System
+- HTTP auth middleware validates OIDC tokens and maps claims to user context
+- OIDC scopes define permitted actions and resource access
+- Clients must obtain valid tokens before invoking protected endpoints
+
+```mermaid
+flowchart TD
+Req(["Incoming Request"]) --> Validate["Validate Token"]
+Validate --> Valid{"Valid?"}
+Valid --> |Yes| Attach["Attach User Context"]
+Valid --> |No| Deny["Reject Request"]
+Attach --> Next["Proceed to Handler"]
+Deny --> End(["Error Response"])
+```
+
+**Diagram sources**
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/oidc-scopes.ts](file://src/http/oidc-scopes.ts)
+
+**Section sources**
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/http/oidc-scopes.ts](file://src/http/oidc-scopes.ts)
+
+### Resource Bootstrap
+- Resource bootstrap loads embedded resources for MCP resource reads
+- Provides static assets and documentation references to clients
+
+**Section sources**
+- [src/resources/resource-bootstrap.ts](file://src/resources/resource-bootstrap.ts)
+
+## Dependency Analysis
+Kairos MCP exhibits clear separation of concerns:
+- Transports depend on the handler and middleware
+- Tools depend on services (memory, qdrant, embedding, kv/redis)
+- Services encapsulate external integrations (Qdrant, Redis)
+- Observability components are cross-cutting dependencies
+
+```mermaid
+graph LR
+HTTP["HTTP Server"] --> Handler["MCP Handler"]
+STDIO["STDIO Server"] --> Handler
+Handler --> Tools["Tools"]
+Tools --> Memory["Memory Store"]
+Memory --> Qdrant["Qdrant Service"]
+Memory --> Embedding["Embedding Service"]
+Tools --> KV["KV Store Factory"]
+KV --> Redis["Redis Cache"]
+HTTP --> Auth["Auth Middleware"]
+Handler --> Logger["Structured Logger"]
+Handler --> Audit["Audit Events"]
+HTTP --> Metrics["Metrics Server"]
+```
+
+**Diagram sources**
+- [src/http/http-server.ts](file://src/http/http-server.ts)
+- [src/stdio/stdio-server.ts](file://src/stdio/stdio-server.ts)
+- [src/http/http-mcp-handler.ts](file://src/http/http-mcp-handler.ts)
+- [src/tools/search.ts](file://src/tools/search.ts)
+- [src/services/memory/store.ts](file://src/services/memory/store.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
+- [src/metrics-server.ts](file://src/metrics-server.ts)
+
+**Section sources**
+- [src/index.ts](file://src/index.ts)
+- [src/server.ts](file://src/server.ts)
+- [src/bootstrap.ts](file://src/bootstrap.ts)
+- [src/config.ts](file://src/config.ts)
 
 ## Performance Considerations
-- Startup health checks prevent serving until Qdrant is ready, reducing early failures
-- Dedicated metrics server isolates monitoring overhead from application requests
-- Embedding dimension probing avoids misalignment costs
-- Optional Redis cache reduces repeated computation for transient state
-- Rate limiting and input size caps protect against abuse and excessive resource usage
+- Use Redis cache for hot paths such as session state and frequent lookups
+- Configure embedding service rate limits and batch processing where applicable
+- Optimize Qdrant queries with appropriate filters and payload projections
+- Monitor metrics and adjust concurrency limits based on workload characteristics
+- Employ structured logging selectively to reduce overhead
 
 [No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
-Common operational issues and remedies:
-- Server does not start: inspect container logs and verify required ports are free
-- Health check returns 503: wait for Qdrant to become ready
-- Embeddings fail on startup: configure a working embedding backend in environment variables
-- Auth-enabled development failing: use the fullstack profile and configure realms
-- CLI keeps asking for login: confirm API URL, token validity, and Keycloak issuer/audience alignment
+- Authentication failures: verify OIDC configuration and token validity
+- Search errors: check embedding provider health and Qdrant connectivity
+- Workflow issues: inspect KV store and Redis availability for session persistence
+- Observability: review structured logs and audit events for detailed traces
+- Metrics: scrape metrics endpoint to identify bottlenecks and anomalies
 
 **Section sources**
-- [README.md:346-401](file://README.md#L346-L401)
+- [src/http/http-auth-middleware.ts](file://src/http/http-auth-middleware.ts)
+- [src/services/qdrant/service.ts](file://src/services/qdrant/service.ts)
+- [src/services/embedding/service.ts](file://src/services/embedding/service.ts)
+- [src/services/key-value-store-factory.ts](file://src/services/key-value-store-factory.ts)
+- [src/services/redis-cache.ts](file://src/services/redis-cache.ts)
+- [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
+- [src/utils/audit-log-events.ts](file://src/utils/audit-log-events.ts)
+- [src/metrics-server.ts](file://src/metrics-server.ts)
 
 ## Conclusion
-KAIROS MCP delivers a robust platform for AI agents to execute deterministic, persistent protocol chains. Its architecture integrates Qdrant vector storage, optional Keycloak authentication, a React UI, and a CLI, all orchestrated through a strict startup sequence and MCP tool contracts. The three-phase execution model—activate, forward, reward—ensures reliable, agent-friendly workflows with strong observability and resilience.
+Kairos MCP delivers a robust, extensible platform for AI workflow orchestration via the Model Context Protocol. Its layered architecture separates transport, tooling, services, and observability, enabling secure, scalable, and observable interactions. With semantic memory search, a powerful workflow engine, strong authentication, and multi-modal artifact support, it fits seamlessly into broader AI ecosystems as a reliable backend for agents and applications.
 
 [No sources needed since this section summarizes without analyzing specific files]
+
+## Appendices
+
+### Practical Examples
+- Creating custom tools: register new handlers in the MCP handler and implement tool logic using existing services
+- Managing workflows: use activate to start sessions, forward to progress steps, and reward to provide feedback
+- Integrating with external services: extend the memory store or add new services behind the tool registry
+
+[No sources needed since this section provides general guidance]

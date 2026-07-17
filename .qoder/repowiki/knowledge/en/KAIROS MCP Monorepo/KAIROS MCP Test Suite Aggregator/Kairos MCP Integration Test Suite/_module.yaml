@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: tests/integration_tests
+title: Kairos MCP Integration Test Suite
+scope:
+    - tests/integration/
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,1 @@
+Computes per-contribution quality scores, implementation/healer bonuses, and protocol-level workflow ratings, persisting aggregated stats to Redis-backed key-value store.

@@ -1,88 +1,82 @@
 # KAIROS MCP documentation
 
-This directory documents the current behavior of the repository: how to run the
-server, connect clients, use the CLI, understand the adapter execution engine, and work
-on the codebase.
+This directory holds **curated knowledge that is not derivable from the code**,
+plus a few **functional inputs** consumed by the build and tests. Everything
+that *can* be regenerated from the source tree — architecture, transport, auth
+internals, storage, search, the adapter execution engine, tool workflows, UI,
+and testing topology — lives in the auto-generated **project Wiki**, which is
+the single source of truth for those topics.
 
-Start with the root [README](../README.md) for the product overview and the
-quick start.
+- Product overview and quick start: root [README](../README.md)
+- Code-derivable reference (architecture, auth, workflows, search, logging,
+  deployment, testing): **[project Wiki](https://github.com/debian777/kairos-mcp/wiki)**
 
-## Getting started
+> Rule of one: a fact has exactly one home. Pages here link to the Wiki for
+> code-derivable topics instead of restating them. See the
+> `documentation-authority` rule under `.qoder/rules/` for the full doctrine.
 
-All installation guides are under **[install/](install/README.md)**. Highlights:
+## Install and CLI (functional inputs)
+
+Sources under `install/` and `CLI.md` are functional inputs consumed by the
+build and tests; keep them build-accurate.
 
 - [Install index](install/README.md) — entry point and diagram
-- [Environment variables and secrets](install/env-and-secrets.md) — `.env`,
-  embeddings, Redis URL, variable table
+- [Prerequisites](install/prerequisites.md)
 - [Docker Compose — simple stack](install/docker-compose-simple.md) — Qdrant +
   app (default profile)
-- [Optional `fullstack` Compose note](install/docker-compose-full-stack.md) — not
-  a Keycloak install guide
-- [Keycloak notes (operators)](keycloak/google-auth-dev.md) — outside install path
-- [Cursor and MCP](install/README.md#cursor-and-mcp) — `mcp.json`, HTTP-only MCP
-  (not stdio)
+- [Optional `fullstack` Compose note](install/docker-compose-full-stack.md) —
+  not a Keycloak install guide
+- [Helm deployment](install/helm.md)
 - [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch
   training
 - [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
 
-## Architecture and behavior
+## Curated operator knowledge (not in the code)
 
-- [Architecture overview](architecture/README.md) — entry point into transport,
-  auth, storage, UI, and tool workflow docs
-- [Authentication overview](architecture/auth-overview.md) — browser session,
-  Bearer validation, shared CLI/MCP token storage, and well-known discovery
-- [Infrastructure](architecture/infrastructure.md) — Compose topology, ports,
-  volumes, startup, and service relationships
-- [Search query architecture](architecture/search-query.md) — hybrid Qdrant
-  search, space scoping, and score shaping
-- [Logging](architecture/logging.md) — logger behavior, audit stream, and
-  metrics-related env vars
+- [Keycloak notes (operators)](keycloak/README.md) — outside the install path
+- [Google sign-in for Keycloak (dev)](keycloak/google-auth-dev.md)
 
-## Tool workflows
+## Examples and adapter authoring (test fixtures)
 
-- [Architecture and adapter workflows](architecture/README.md) — how the
-  adapter runs end-to-end (**activate** → **forward** → **reward**),
-  per-tool references, response shapes, and companion workflow page mapping.
-- [Full execution workflow](architecture/workflow-full-execution.md) —
-  end-to-end walkthrough with example calls.
-- Companion workflow pages:
-  [workflow-activate](architecture/workflow-activate.md),
-  [workflow-forward-first-call](architecture/workflow-forward-first-call.md),
-  [workflow-forward-continue](architecture/workflow-forward-continue.md),
-  [workflow-reward](architecture/workflow-reward.md),
-  [workflow-train](architecture/workflow-train.md),
-  [workflow-tune](architecture/workflow-tune.md),
-  [workflow-delete](architecture/workflow-delete.md),
-  [workflow-export](architecture/workflow-export.md).
-
-## Examples and adapter authoring
+Files under `examples/` are read by
+`tests/integration/kairos-train-docs-examples.test.ts`; treat them as fixtures.
 
 - [Adapter examples](examples/README.md) — trainable example adapters
 - [Challenge types](examples/challenge-types.md) — challenge/solution shapes
 
-## Security and operations
+## Business use-cases
 
-- [Known issues and limitations](known-issues-and-limitations.md)
+- [Business overview](business/README.md)
+- [Compliance review from PDF](business/case-compliance-review-from-pdf.md)
+- [Standardize commits and merge requests](business/case-standardize-commits-and-merge-requests.md)
+- [Terraform module standardization](business/case-terraform-module-standardization.md)
+
+## Security and operations (curated)
+
 - [Security policy](../SECURITY.md)
 - [Threat model](security/threat-model.md)
 - [Incident runbook](security/incident-runbook.md)
 - [Code security setup](security/code-security-setup.md)
-- [Skills that ship KAIROS adapters](../skills/README.md) — how a skill can
-  bundle an adapter, declare requirements, and run **activate** → **train** if
-  missing → **forward** / **reward**.
+- [Audit log](security/audit-log.md)
+- [Known issues and limitations](known-issues-and-limitations.md)
+
+## Specs and test-snapshot operations
+
+- [Artifact export parity spec](specs/artifact-export-parity-spec.md)
+- [Test snapshot — quick start](test-snapshot-quick-start.md)
+- [Test snapshot — seeding](test-snapshot-seeding.md)
+- [Test snapshot — caching](test-snapshot-caching.md)
+- [Test snapshot — final summary](test-snapshot-final-summary.md)
 
 ## Skills and contributor guidance
 
-- [Skills README](../skills/README.md)
-- [Skills structure reference](../skills/SKILLS.md)
+- [Agent skills README](../.agents/skills/README.md) — the two shipped skills
+  (`kairos`, `kairos-dev`) and their reference index.
+- [Skill authoring guide](../.agents/skills/kairos-dev/references/skill-authoring.md)
+  — how a skill can bundle an adapter, declare requirements, and run
+  **activate** → **train** if missing → **forward** / **reward**.
 - [Contributing](../CONTRIBUTING.md)
 - [Developer commands](../CONTRIBUTING.md#developer-commands) — build, deploy,
   and test (`dev:build`, `dev:deploy`, `dev:test`). Always deploy before testing.
 - [Agent-facing design principles](../CONTRIBUTING.md#agent-facing-design-principles)
   — doctrine for MCP tools, schemas, descriptions, and error shapes.
-
-## Archived material
-
-Older or superseded documents (phase snapshots, one-off reports, raw scenario
-data) are kept for reference only and may not reflect current behavior. Contact
-the maintainers if you need to locate a specific historical document.
