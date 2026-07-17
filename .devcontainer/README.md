@@ -137,6 +137,34 @@ python3 --version  # Should be 3.11.x
 which python3      # Should be /usr/local/bin/python3
 ```
 
+### "Unable to open '${localWorkspaceFolderBasename}'" error
+
+This error means VS Code/Cursor is not resolving the `${localWorkspaceFolderBasename}` variable in `workspaceFolder`.
+
+**Diagnosis:**
+```bash
+# Test variable resolution with devcontainer CLI
+npm install -g @devcontainers/cli
+devcontainer read-configuration --workspace-folder .
+```
+
+If the CLI shows `"workspaceFolder": "/workspaces/kairos-mcp-dev-containers"` (resolved), but VS Code shows the literal `${localWorkspaceFolderBasename}`, the issue is with your VS Code/Cursor Dev Containers extension.
+
+**Fixes:**
+1. **Update Dev Containers extension** to the latest version
+2. **Restart VS Code/Cursor** completely (not just reload window)
+3. **Check for conflicting extensions** that may interfere with variable resolution
+4. **Use devcontainer CLI directly** as a workaround:
+   ```bash
+   devcontainer up --workspace-folder .
+   ```
+
+**Why this happens:**
+- `${localWorkspaceFolderBasename}` is a VS Code-specific variable
+- It's resolved by the Dev Containers extension when opening via VS Code UI
+- The devcontainer CLI always resolves it correctly
+- If the extension fails to resolve it, the literal string is used as the folder name
+
 ### Need more help?
 
 - Full installation guide: `docs/install/README.md`
@@ -160,6 +188,7 @@ This validates:
 - Required fields in devcontainer.json
 - Referenced files exist (Dockerfile.dev, compose.yaml)
 - Docker Compose merge compatibility
+- **Variable resolution** (catches `${localWorkspaceFolderBasename}` issues via devcontainer CLI)
 
 **Full validation** (includes build test):
 ```bash
@@ -194,7 +223,8 @@ Workflow: `.github/workflows/devcontainer.yml`
 3. Symlink verification
 4. Required field checks
 5. Referenced file existence
-6. Container builds (on main branch only)
+6. Variable resolution (devcontainer CLI)
+7. Container builds (on main branch only)
 
 ### What Gets Tested
 
@@ -206,6 +236,7 @@ Workflow: `.github/workflows/devcontainer.yml`
 | Required fields | ✓ | ✓ | ✓ |
 | File references | ✓ | ✓ | ✓ |
 | Docker Compose merge | ✓ | ✓ | ✓ |
+| Variable resolution | ✓ | ✓ | ✓ |
 | Container build | - | ✓ | ✓ |
 | npm install | - | - | ✓ |
 | npm run dev:build | - | - | ✓ |

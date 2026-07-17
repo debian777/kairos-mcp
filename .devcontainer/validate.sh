@@ -173,7 +173,52 @@ else
 fi
 
 # ============================================
-# TEST 6: Docker Compose Validation (if docker available)
+# TEST 6: Dev Container CLI Variable Resolution
+# ============================================
+if command -v devcontainer &> /dev/null; then
+  section "Dev Container CLI Variable Resolution"
+  
+  # Test that CLI can read and resolve variables (catches ${localWorkspaceFolderBasename} issues)
+  if CONFIG_OUTPUT=$(devcontainer read-configuration --workspace-folder "$PROJECT_DIR" 2>&1); then
+    # Extract workspaceFolder and verify it's resolved (not literal ${...})
+    WORKSPACE_FOLDER=$(echo "$CONFIG_OUTPUT" | node -e "
+      const chunks = [];
+      process.stdin.on('data', chunk => chunks.push(chunk));
+      process.stdin.on('end', () => {
+        try {
+          const lines = Buffer.concat(chunks).toString().split('\n');
+          const jsonLine = lines.find(l => l.startsWith('{'));
+          const data = JSON.parse(jsonLine);
+          console.log(data.workspace?.workspaceFolder || data.configuration?.workspaceFolder || '');
+        } catch (e) {
+          process.exit(1);
+        }
+      });
+    " 2>/dev/null)
+    
+    if [[ -n "$WORKSPACE_FOLDER" ]] && [[ "$WORKSPACE_FOLDER" != *'${'* ]]; then
+      pass "workspaceFolder resolved: $WORKSPACE_FOLDER"
+    else
+      fail "workspaceFolder not resolved (got: $WORKSPACE_FOLDER)"
+    fi
+    
+    # Verify no unresolved variables in config
+    if echo "$CONFIG_OUTPUT" | grep -q '\${'; then
+      fail "Unresolved variables detected in configuration"
+    else
+      pass "No unresolved variables in configuration"
+    fi
+  else
+    fail "devcontainer read-configuration failed"
+  fi
+else
+  section "Dev Container CLI"
+  warn "devcontainer CLI not installed. Install with: npm install -g @devcontainers/cli"
+  warn "Skipping variable resolution tests"
+fi
+
+# ============================================
+# TEST 7: Docker Compose Validation (if docker available)
 # ============================================
 if command -v docker &> /dev/null && command -v docker compose &> /dev/null; then
   section "Docker Compose Config Validation"
@@ -193,24 +238,24 @@ else
 fi
 
 # ============================================
-# TEST 7: Build Containers (Full Mode Only)
+# TEST 8: Build Containers (Full Mode Only)
 # ============================================
 if [ "$MODE" = "--full" ]; then
   section "Container Build Test (--full mode)"
   
   if command -v devcontainer &> /dev/null; then
     echo "Building simple config..."
-    if devcontainer build --workspace-folder "$PROJECT_DIR" --quiet 2>&1; then
+    if devcontainer build --workspace-folder "$PROJECT_DIR" --log-level info 2>&1 | tee /tmp/devcontainer-build.log; then
       pass "Simple config builds successfully"
     else
-      fail "Simple config build failed"
+      fail "Simple config build failed (see /tmp/devcontainer-build.log)"
     fi
     
     echo "Building fullstack config..."
-    if devcontainer build --workspace-folder "$PROJECT_DIR" --config "$SCRIPT_DIR/devcontainer-fullstack.json" --quiet 2>&1; then
+    if devcontainer build --workspace-folder "$PROJECT_DIR" --config "$SCRIPT_DIR/devcontainer-fullstack.json" --log-level info 2>&1 | tee /tmp/devcontainer-build-fullstack.log; then
       pass "Fullstack config builds successfully"
     else
-      fail "Fullstack config build failed"
+      fail "Fullstack config build failed (see /tmp/devcontainer-build-fullstack.log)"
     fi
   else
     warn "devcontainer CLI not installed. Install with: npm install -g @devcontainers/cli"
