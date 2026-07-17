@@ -23,6 +23,27 @@ type KeytarModule = {
     deletePassword: (service: string, account: string) => Promise<boolean>;
 };
 
+/** Timeout for keyring operations. macOS Keychain can hang indefinitely if locked or unresponsive. */
+const KEYRING_TIMEOUT_MS = 10_000;
+
+/**
+ * Race a keyring promise against a timeout. Returns the fallback on timeout instead of hanging.
+ * The timer is cleared once the race settles and is unref'd so it never keeps the CLI process
+ * alive on its own — otherwise a resolved keyring op would still block exit until the timer fires.
+ *
+ * Exported for unit testing of the no-leak contract; not part of the public keyring API.
+ */
+export function withKeyringTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), KEYRING_TIMEOUT_MS);
+        timer.unref?.();
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timer) clearTimeout(timer);
+    });
+}
+
 let keytar: KeytarModule | null | undefined = undefined;
 
 function loadKeyring(): KeytarModule | null {
@@ -51,7 +72,7 @@ export async function getToken(account: string): Promise<string | null> {
     const mod = loadKeyring();
     if (!mod) return null;
     try {
-        const password = await mod.getPassword(SERVICE, account);
+        const password = await withKeyringTimeout(mod.getPassword(SERVICE, account), null);
         return password ?? null;
     } catch {
         return null;
@@ -65,8 +86,11 @@ export async function setToken(account: string, token: string): Promise<boolean>
     const mod = loadKeyring();
     if (!mod) return false;
     try {
-        await mod.setPassword(SERVICE, account, token);
-        return true;
+        const result = await withKeyringTimeout<{ timedOut: false } | { timedOut: true }>(
+            mod.setPassword(SERVICE, account, token).then(() => ({ timedOut: false as const })),
+            { timedOut: true },
+        );
+        return !result.timedOut;
     } catch {
         return false;
     }
@@ -79,7 +103,7 @@ export async function deleteToken(account: string): Promise<boolean> {
     const mod = loadKeyring();
     if (!mod) return false;
     try {
-        await mod.deletePassword(SERVICE, account);
+        await withKeyringTimeout(mod.deletePassword(SERVICE, account), false);
         return true;
     } catch {
         return false;
@@ -90,7 +114,7 @@ export async function getRefreshToken(account: string): Promise<string | null> {
     const mod = loadKeyring();
     if (!mod) return null;
     try {
-        const password = await mod.getPassword(SERVICE, refreshAccount(account));
+        const password = await withKeyringTimeout(mod.getPassword(SERVICE, refreshAccount(account)), null);
         return password ?? null;
     } catch {
         return null;
@@ -101,8 +125,11 @@ export async function setRefreshToken(account: string, token: string): Promise<b
     const mod = loadKeyring();
     if (!mod) return false;
     try {
-        await mod.setPassword(SERVICE, refreshAccount(account), token);
-        return true;
+        const result = await withKeyringTimeout<{ timedOut: false } | { timedOut: true }>(
+            mod.setPassword(SERVICE, refreshAccount(account), token).then(() => ({ timedOut: false as const })),
+            { timedOut: true },
+        );
+        return !result.timedOut;
     } catch {
         return false;
     }
@@ -112,7 +139,7 @@ export async function deleteRefreshToken(account: string): Promise<boolean> {
     const mod = loadKeyring();
     if (!mod) return false;
     try {
-        await mod.deletePassword(SERVICE, refreshAccount(account));
+        await withKeyringTimeout(mod.deletePassword(SERVICE, refreshAccount(account)), false);
         return true;
     } catch {
         return false;
