@@ -613,9 +613,12 @@ test() {
                 # Stdio transport: no HTTP server, no MCP_URL needed (createMcpConnection spawns stdio subprocess).
                 # --forceExit: stdio tests spawn child server processes whose open handles (Qdrant, stdio pipes)
                 # would otherwise prevent Jest from exiting after all tests complete.
-                # --bail 1: stop at first failure to prevent cascading timeouts when the shared stdio
-                # server fails to start (each test file would otherwise wait for the full timeout).
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --bail 1 --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                # --bail=1 (equals form): stop at first failure to prevent cascading timeouts when the
+                # shared stdio server fails to start. Use `=` so jest does not parse the value as a
+                # positional test-path pattern (`--bail 1` would treat `1` as a path pattern).
+                # Reporter array (--reporters) is variadic and MUST be terminal: jest/yargs would
+                # otherwise swallow any trailing positional test paths as reporter module names.
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --bail=1 --testTimeout=30000 "${args[@]}" "${summary_reporter[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             elif [ ${#args[@]} -eq 0 ]; then
                 # Scenario matrix: http-simple + stdio wrappers require the matching stack (see tests/integration/scenarios/).
                 if [ "$ENV" = "dev" ]; then
@@ -637,7 +640,9 @@ test() {
                     MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1 | tee -a "$REPORT_LOG_FILE"
                 fi
             else
-                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                # Reporter array (--reporters) is variadic and MUST be terminal: jest/yargs would
+                # otherwise swallow the trailing positional test paths as reporter module names.
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${args[@]}" "${summary_reporter[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)
