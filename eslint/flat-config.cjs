@@ -44,8 +44,6 @@ function createFlatConfig(rootDir) {
         '**/.git/**',
         '.turbo/**',
         '.next/**',
-        '.devcontainer/*.json',
-        '.devcontainer/*.json.base',
         'eslint.config.cjs',
         '.markdownlint.jsonc', // Markdown lint config (not JS)
         // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.

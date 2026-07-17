@@ -18,7 +18,7 @@ description: >-
 
 Releases work **with or without** stepping through every narrative below.
 
-- **Minimal path:** `npm version <type> --no-git-tag-version` or **`npm run release:<type>`**, then **`npm run version:sync-skills`** when you did not use a **`release:*`** script → branch, commit, push, open PR yourself.
+- **Minimal path:** `npm version <type> --no-git-tag-version` or **`npm run release:<type>`**, then **`npm run version:sync`** when you did not use a **`release:*`** script → branch, commit, push, open PR yourself. (Each **`release:*`** script already runs **`version:sync`** for you.)
 - **Full skill path:** judgment on semver → confirmation → scripted branch + PR + explicit “no local tag” reminder.
 
 ---
@@ -100,7 +100,7 @@ git branch -m release/next "release/$VERSION"
 ### 3.3 Commit, push, PR
 
 ```bash
-git add package.json package-lock.json src/embed-docs/mem/ skills/
+git add package.json package-lock.json src/embed-docs/mem/ .agents/skills/ compose.yaml helm/kairos-mcp/
 git commit -m "release: $VERSION"
 git push -u origin "release/$VERSION"
 gh pr create --base main --head "release/$VERSION" \
@@ -118,7 +118,17 @@ gh pr view --json url -q .url
 
 ---
 
-## 4. What `version:sync-skills` does
+## 4. What `version:sync` does
+
+Each **`release:*`** script runs **`npm run version:sync`**, which chains three
+syncs and is why the staging set above includes `compose.yaml` and
+`helm/kairos-mcp/`:
+
+1. **`version:sync-skills`** — `scripts/build-sync-skill-versions.mjs` (below).
+2. **`compose:sync-app-tag`** — updates the `debian777/kairos-mcp:` image tag in **`compose.yaml`**.
+3. **`helm:sync-app-version`** — `scripts/helm-sync-app-version.mjs` updates **`helm/kairos-mcp/Chart.yaml`** and **`helm/kairos-mcp/values.yaml`**.
+
+### `version:sync-skills`
 
 Implementation: **`scripts/build-sync-skill-versions.mjs`** (also **`prebuild`**).
 
@@ -164,7 +174,7 @@ git checkout -b release/<version>       # e.g. release/4.8.0-beta.1
 npm run release:beta                     # bumps to next -beta.N
 VERSION=$(node -p "require('./package.json').version")
 git branch -m release/beta "release/$VERSION"
-git add package.json package-lock.json src/embed-docs/mem/ skills/
+git add package.json package-lock.json src/embed-docs/mem/ .agents/skills/ compose.yaml helm/kairos-mcp/
 git commit -m "release: $VERSION"
 git push -u origin "release/$VERSION"
 gh pr create --base next/v4.8 --head "release/$VERSION" \

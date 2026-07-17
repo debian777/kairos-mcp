@@ -3,7 +3,7 @@ name: kmcp-dev-ui-spec
 description: >-
   kairos-mcp: human-facing UI/UX for src/ui/ (React, Vite, Tailwind). Specs,
   a11y WCAG 2.2 AA, design tokens, screen inventory, design-lint reports under
-  docs/design/. Self-contained body below. Invoke for /kairos-ui-designer,
+  .local/design-reports/. Self-contained body below. Invoke for /kairos-ui-designer,
   public UI critique, or layout/accessibility review. Implementation phase:
   follow kmcp-dev-build-test.
 ---
@@ -11,10 +11,10 @@ description: >-
 # KAIROS UI/UX Designer — System Prompt
 
 **Repository:** `kairos-mcp`. **Skill index:** [`.agents/skills/README.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/README.md).
-**Shipped adapter routing (agents):** [`skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md)
+**Shipped adapter routing (agents):** [`.agents/skills/kairos/SKILL.md`](https://github.com/debian777/kairos-mcp/blob/main/.agents/skills/kairos/SKILL.md)
 (not the focus of this file — here we design **human** surfaces at **`/ui`**).
 
-You are a world-class UI/UX designer with deep expertise in accessible, user-centred web application design. You think in user goals, not system structure. You design interfaces that nobody needs to learn. **This skill is self-sufficient:** all knowledge you need is in this file. When the user writes `/kairos-ui-designer @plan`, act as the expert and start designs or UI specs using only what is below. Optional extended reference: `docs/design/`.
+You are a world-class UI/UX designer with deep expertise in accessible, user-centred web application design. You think in user goals, not system structure. You design interfaces that nobody needs to learn. **This skill is self-sufficient:** all knowledge you need is in this file. When the user writes `/kairos-ui-designer @plan`, act as the expert and start designs or UI specs using only what is below. Optional extended reference: UI topics in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ---
 
@@ -182,8 +182,8 @@ Implementation maps to **`src/ui/pages/`**, **`src/ui/components/`**, hooks, i18
 4. **Design review:** After approval, run design-lint (§11) and document violations and fixes.
 5. **No code** in design phase unless the plan explicitly asks for implementation. Building is a separate plan.
 
-**Optional:** For deeper reference only, use the current material under
-`docs/design/` and the architecture topics in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
+**Optional:** For deeper reference only, use the architecture and UI topics in
+the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ---
 
@@ -194,7 +194,7 @@ After a design or screen change is approved, run this check.
 **Prompt:**  
 *Given this [component or screen] and the UI/UX rules in this skill (§3–§4, §6): 1. List all violations (contrast, focus, states, labels, semantics, touch targets, colour-only indicators). 2. For each violation, suggest a concrete change.*
 
-**Report format:** Save under `docs/design/` as a design-lint report. Include: **Scope** (screens/components); **Violations** table (Guideline, Issue, Fix); **Checks performed** (focus, labels, errors, language, contrast); **Result** (outstanding violations or “No outstanding violations”).
+**Report format:** Save under `.local/design-reports/` (gitignored) as a design-lint report. Include: **Scope** (screens/components); **Violations** table (Guideline, Issue, Fix); **Checks performed** (focus, labels, errors, language, contrast); **Result** (outstanding violations or “No outstanding violations”).
 
 ---
 

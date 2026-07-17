@@ -26,6 +26,11 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
       - name: Checkout wiki repository
         uses: actions/checkout@v7
         with:

@@ -41,6 +41,12 @@
 - [src/utils/structured-logger.ts](file://src/utils/structured-logger.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Fixed broken hyperlink that was pointing to non-existent "environment variables and secrets" section
+- Improved navigation links to point to correct configuration topics including "Authentication Setup and Credential Handling", "Environment Variables Reference", and "Configuration File Keys"
+- Enhanced cross-references between authentication, configuration, and credential management sections
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -196,6 +202,10 @@ Configuration file keys:
 - activeSpace: Default space context.
 - outputFormat: Default output format (e.g., json, table).
 - logLevel: Default logging level.
+
+For detailed information about environment variables and configuration options, see the [Environment Variables Reference](#appendix-a-environment-variables-reference) and [Configuration File Keys](#appendix-b-configuration-file-keys) sections below.
+
+**Updated** Fixed navigation links to point to correct configuration sections instead of non-existent "environment variables and secrets" section.
 
 **Section sources**
 - [src/cli/config-file.ts](file://src/cli/config-file.ts)

@@ -73,9 +73,18 @@ else
   WIKI_ABS="$CLONED_TEMP"
 fi
 
-# One-way sync from source into the wiki working copy.
-echo "Running rsync from ${SOURCE_ABS}/ ..."
-rsync -a --delete --exclude ".git" "${SOURCE_ABS}/" "${WIKI_ABS}/"
+# Build a flat, navigable GitHub Wiki from the nested Qoder source tree, then
+# one-way sync the built pages into the wiki working copy. GitHub Wiki is a flat
+# namespace, so the raw nested tree cannot be mirrored verbatim without losing
+# navigation and colliding duplicate page titles; scripts/build-wiki.mjs handles
+# the transform (flatten + Home + _Sidebar + source-link rewrite).
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
+echo "Building wiki pages from ${SOURCE_ABS}/ ..."
+SOURCE_DIR="$SOURCE_ABS" node "$REPO_ROOT/scripts/build-wiki.mjs" "$BUILD_DIR"
+
+echo "Running rsync from ${BUILD_DIR}/ ..."
+rsync -a --delete --exclude ".git" "${BUILD_DIR}/" "${WIKI_ABS}/"
 
 # Commit and push only if there is a change (no empty commits).
 if [ -z "$(git -C "$WIKI_ABS" status --porcelain)" ]; then
