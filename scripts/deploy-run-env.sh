@@ -532,18 +532,33 @@ test() {
         args=("${args[@]:1}")
     fi
 
-    # dev_simple and dev_stdio: run the full integration suite.
+    # dev_simple and dev_stdio: default to the full integration suite ONLY when the caller
+    # passed no explicit test selection. If the caller passed explicit test paths (positional
+    # args) or their own --testPathPatterns/--testPathIgnorePatterns, respect that selection
+    # verbatim and do NOT append the broad pattern: jest ORs positional args with
+    # --testPathPatterns, so appending it to a smoke run (a few explicit files) would silently
+    # widen the run to the entire integration suite (heavy OpenAI/embedding spend).
     # HTTP-dependent tests self-skip via isHttpTransport() when TRANSPORT_TYPE=stdio.
     # Scenario tests with specific stack requirements self-skip via their harness contracts.
     if [ "$ENV" = "dev_simple" ] || [ "$ENV" = "dev_stdio" ]; then
-        has_ignore_patterns=false
+        has_test_selection=false
         for arg in "${args[@]}"; do
-            if [[ "$arg" == "--testPathIgnorePatterns" ]]; then
-                has_ignore_patterns=true
-                break
-            fi
+            case "$arg" in
+                --testPathPatterns|--testPathIgnorePatterns)
+                    has_test_selection=true
+                    break
+                    ;;
+                -*)
+                    # Other jest flag (e.g. --bail); not a test-path selection.
+                    ;;
+                *)
+                    # Positional arg = explicit test path selection.
+                    has_test_selection=true
+                    break
+                    ;;
+            esac
         done
-        if [ "$has_ignore_patterns" = false ]; then
+        if [ "$has_test_selection" = false ]; then
             args+=(
                 --testPathPatterns "tests/integration/"
             )
@@ -598,22 +613,36 @@ test() {
                 # Stdio transport: no HTTP server, no MCP_URL needed (createMcpConnection spawns stdio subprocess).
                 # --forceExit: stdio tests spawn child server processes whose open handles (Qdrant, stdio pipes)
                 # would otherwise prevent Jest from exiting after all tests complete.
-                # --bail 1: stop at first failure to prevent cascading timeouts when the shared stdio
-                # server fails to start (each test file would otherwise wait for the full timeout).
-                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --bail 1 --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                # --bail=1 (equals form): stop at first failure to prevent cascading timeouts when the
+                # shared stdio server fails to start. Use `=` so jest does not parse the value as a
+                # positional test-path pattern (`--bail 1` would treat `1` as a path pattern).
+                # Reporter array (--reporters) is variadic and MUST be terminal: jest/yargs would
+                # otherwise swallow any trailing positional test paths as reporter module names.
+                NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --bail=1 --testTimeout=30000 "${args[@]}" "${summary_reporter[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             elif [ ${#args[@]} -eq 0 ]; then
                 # Scenario matrix: http-simple + stdio wrappers require the matching stack (see tests/integration/scenarios/).
-                dev_ignore_scenarios=""
                 if [ "$ENV" = "dev" ]; then
+                    # AUTH stack, read-only-first fail-fast (tests/integration reorg: readonly/ write/ mode/).
+                    # Phase 1 runs read-only + shared tests (everything except the mutating write/ and
+                    # mode/ buckets). Only if Phase 1 passes do we run the expensive mutating phase
+                    # (write/ + mode/auth/), which is where embedding/OpenAI quota is consumed. A cheap
+                    # read regression therefore short-circuits before any write work.
                     dev_ignore_scenarios='tests/integration/scenarios/spaces-tool.http-simple.test.ts|tests/integration/scenarios/spaces-tool.stdio-simple.test.ts'
-                fi
-                if [ -n "$dev_ignore_scenarios" ]; then
-                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" --testPathIgnorePatterns "$dev_ignore_scenarios" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                    print_info "Integration Phase 1/2 (read-only + shared, fail-fast)"
+                    if ! MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" --testPathIgnorePatterns "$dev_ignore_scenarios|tests/integration/write/|tests/integration/mode/" 2>&1 | tee -a "$REPORT_LOG_FILE"; then
+                        print_error "Read-only phase failed — skipping write phase to conserve embedding quota."
+                        exit 1
+                    fi
+                    print_info "Integration Phase 2/2 (write + auth-mode)"
+                    MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/write/|tests/integration/mode/auth/" 2>&1 | tee -a "$REPORT_LOG_FILE"
                 else
+                    # dev_simple: full suite in one pass (transport self-skips handle stack-specific tests).
                     MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" --testPathPatterns "tests/integration/" 2>&1 | tee -a "$REPORT_LOG_FILE"
                 fi
             else
-                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${summary_reporter[@]}" "${args[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
+                # Reporter array (--reporters) is variadic and MUST be terminal: jest/yargs would
+                # otherwise swallow the trailing positional test paths as reporter module names.
+                MCP_URL="http://localhost:${test_port}/mcp" NODE_OPTIONS='--experimental-vm-modules' jest $silent_flag --runInBand --forceExit --testTimeout=30000 "${args[@]}" "${summary_reporter[@]}" 2>&1 | tee -a "$REPORT_LOG_FILE"
             fi
             ;;
         prod)
