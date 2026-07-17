@@ -1,0 +1,1 @@
+Process entrypoint that wires environment configuration, Qdrant readiness, optional metrics server, and the stdio/HTTP MCP transports for the KAIROS adapter tooling.

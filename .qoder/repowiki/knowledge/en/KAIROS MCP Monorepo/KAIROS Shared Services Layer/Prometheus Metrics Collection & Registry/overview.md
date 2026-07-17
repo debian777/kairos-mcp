@@ -1,0 +1,1 @@
+Defines and registers all KAIROS Prometheus metrics (counters, histograms, gauges) under a shared registry with default service labels, covering HTTP, system, agent, embedding, MCP, Qdrant, memory, export, and anomaly domains.

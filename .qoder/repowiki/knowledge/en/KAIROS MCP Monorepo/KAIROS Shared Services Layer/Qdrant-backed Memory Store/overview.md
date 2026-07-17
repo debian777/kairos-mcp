@@ -1,0 +1,1 @@
+Orchestrates a Qdrant vector store for Markdown adapter memories, wiring the low-level client, the adapter-parsing pipeline, and the core search/CRUD facade behind a single `MemoryQdrantStore` entry point.

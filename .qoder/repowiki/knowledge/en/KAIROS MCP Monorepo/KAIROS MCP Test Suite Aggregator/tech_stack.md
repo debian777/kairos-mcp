@@ -1,0 +1,1 @@
+Jest (unit + integration) and Vitest + react-testing-library (UI), sharing a common set of Node-based harness utilities under `utils/` and fixture trees under `test-data/`.

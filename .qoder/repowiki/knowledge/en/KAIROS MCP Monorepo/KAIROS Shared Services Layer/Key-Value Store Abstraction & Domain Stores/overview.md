@@ -1,0 +1,1 @@
+Provides a pluggable key-value store (Redis or in-memory) and domain-specific stores for OIDC state, proof-of-work challenges, forward runtime tensors, and execution traces persisted to Qdrant.

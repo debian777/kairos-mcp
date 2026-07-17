@@ -1,0 +1,1 @@
+Vite + React + TypeScript; react-i18next for English-only localization; react-query for server state; Tiptap for rich editing; CSS custom properties (design tokens) for theming.

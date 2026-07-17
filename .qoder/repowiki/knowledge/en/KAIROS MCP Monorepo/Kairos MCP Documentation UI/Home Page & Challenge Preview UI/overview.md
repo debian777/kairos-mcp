@@ -1,0 +1,1 @@
+Renders the app's landing page with search, navigation cards, and space stats, plus shared challenge-type preview components used by editor mockups.

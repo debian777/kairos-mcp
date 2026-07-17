@@ -1,0 +1,1 @@
+Express route registration and the /api/activate and /api/tune HTTP endpoints that validate input via Zod schemas, execute tools under tenant context, and return structured JSON responses.

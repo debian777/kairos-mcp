@@ -1,0 +1,1 @@
+Supports the export tool by resolving user-provided URIs to concrete adapters/layers and fetching their source artifacts from memory or Qdrant.

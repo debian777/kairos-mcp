@@ -1,0 +1,1 @@
+Shared wire-format helpers for the KAIROS protocol: URI parsing/building, the immutable genesis proof hash, and read-only challenge-shape construction for MCP display.

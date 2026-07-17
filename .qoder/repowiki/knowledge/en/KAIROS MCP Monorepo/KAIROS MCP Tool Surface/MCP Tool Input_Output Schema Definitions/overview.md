@@ -1,0 +1,1 @@
+Zod schemas that define the input, output, and solution contracts for the activate, forward, and reward MCP tools.
