@@ -22,6 +22,12 @@
 - [src/services/qdrant/connection.ts](file://src/services/qdrant/connection.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated references to reflect the removal of extensive installation guides and Docker Compose configurations from skills/.system/kairos-install/ directory
+- Added guidance to refer to consolidated skill structure at .agents/skills/kairos/references/install.md for simplified installation documentation
+- Maintained all existing Docker Compose development environment functionality while updating installation references
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -37,6 +43,8 @@
 ## Introduction
 This document explains how to run the Kairos MCP development environment using Docker Compose. It covers the full service stack (PostgreSQL, Redis, Qdrant vector database, and Keycloak), environment configuration via .env files, database initialization, Keycloak realm setup with default users and roles, container networking, volume management, port mappings, development-specific features (hot reload, debugging ports, dev dependencies), and common issues such as port conflicts, memory limits, and network connectivity problems. It also provides commands for starting, stopping, and managing the environment.
 
+**Updated** Installation documentation has been simplified and moved to a consolidated skill structure. Users should refer to .agents/skills/kairos/references/install.md for streamlined installation instructions instead of the previous extensive guides that were removed from skills/.system/kairos-install/.
+
 ## Project Structure
 The repository includes:
 - A top-level Docker Compose file that defines the local development services.
@@ -44,6 +52,7 @@ The repository includes:
 - Scripts to generate a .env file and bootstrap runtime configuration.
 - Keycloak realm import JSONs for development and production.
 - Application code that reads environment variables to configure services at runtime.
+- Consolidated installation documentation in the new skill structure.
 
 ```mermaid
 graph TB
@@ -209,13 +218,13 @@ Recommendations:
 ### Keycloak Realm Setup and Default Users/Roles
 - Import a development realm JSON into Keycloak during first boot.
 - The realm JSON contains clients, roles, and example users suitable for development.
-- Configure the app’s OIDC settings to match the imported realm and client.
+- Configure the app's OIDC settings to match the imported realm and client.
 
 Steps:
 1. Mount the realm JSON into Keycloak and enable auto-import on startup.
 2. Verify the realm exists and the client is configured.
 3. Update .env with the correct realm, client ID, client secret, and issuer URL.
-4. Test login flow through the app’s OIDC redirect.
+4. Test login flow through the app's OIDC redirect.
 
 ```mermaid
 flowchart TD
@@ -376,8 +385,6 @@ APP --> |KEYCLOAK_*| KC
 - Persistence:
   - Use SSD-backed volumes for databases to improve I/O performance.
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 Common issues and resolutions:
 - Port Conflicts:
@@ -411,7 +418,7 @@ Useful commands:
 ## Conclusion
 The Docker Compose development environment provides a complete, reproducible stack for Kairos MCP. By configuring environment variables, initializing the database, importing the Keycloak realm, and leveraging development features like hot reload and debugging, you can efficiently develop and test the application locally. Follow the troubleshooting guide to resolve common issues and ensure smooth operation.
 
-[No sources needed since this section summarizes without analyzing specific files]
+For installation guidance, refer to the consolidated skill structure at .agents/skills/kairos/references/install.md, which provides simplified installation instructions replacing the previous extensive guides that were removed from skills/.system/kairos-install/.
 
 ## Appendices
 

@@ -37,26 +37,72 @@
 
 ## Update Summary
 **Changes Made**
-- Updated documentation structure to reflect migration from manual 'Considerations.md' file to automated documentation system
-- Preserved all architectural overview content within the wiki structure
-- Enhanced source tracking for better traceability of architectural decisions
-- Maintained comprehensive coverage of service-oriented design patterns and component boundaries
+- Updated documentation infrastructure section to reflect migration from manual docs/architecture/** directory to automated Qoder RepoWiki system
+- Added new Documentation Authority Framework section describing the new content-class policies and maintainer skills structure
+- Enhanced source tracking to align with automated Wiki system requirements
+- Maintained all existing architectural overview content while updating infrastructure references
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+2. [Documentation Infrastructure](#documentation-infrastructure)
+3. [Project Structure](#project-structure)
+4. [Core Components](#core-components)
+5. [Architecture Overview](#architecture-overview)
+6. [Detailed Component Analysis](#detailed-component-analysis)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
 This document describes the architecture of the Kairos MCP system with a focus on service-oriented design, layered boundaries, and integration points. It explains how HTTP/API handlers orchestrate business logic implemented as tools, which in turn coordinate memory services, workflow execution, authentication, and UI resources. The system integrates external identity (Keycloak), vector search (Qdrant), relational storage (PostgreSQL via operators), and caching/pub-sub (Redis). Deployment is containerized and orchestrated via Helm, with horizontal scaling and observability built-in.
 
-**Updated** Documentation now reflects the migration from manual architectural decision files to an automated documentation system while preserving all architectural overview content in the wiki structure.
+**Updated** The documentation infrastructure has been modernized with Qoder RepoWiki as the single source of truth, replacing the previous manual docs/architecture/** directory structure with an automated Wiki system that provides better maintainability and accessibility.
+
+## Documentation Infrastructure
+The project has undergone a major documentation infrastructure overhaul to establish Qoder RepoWiki as the authoritative source for all architectural documentation.
+
+### Migration from Manual to Automated System
+- **Previous Structure**: 21 individual markdown files in docs/architecture/** directory
+- **Current System**: Centralized automated Wiki powered by Qoder RepoWiki
+- **Authority Framework**: Established through .qoder/rules/documentation-authority.md with content-class policies and maintainer skills
+
+### Documentation Authority Framework
+The new system implements a structured approach to documentation governance:
+- **Content-Class Policies**: Define classification levels for different types of documentation
+- **Maintainer Skills**: Establish expertise requirements for documentation contributors
+- **Automated Generation**: Wiki content is automatically generated and maintained
+- **Single Source of Truth**: Eliminates duplication and ensures consistency across all architectural documentation
+
+```mermaid
+flowchart TD
+A["Code Changes"] --> B["Automated Analysis"]
+B --> C["Wiki Content Generation"]
+C --> D["Content Classification"]
+D --> E["Authority Validation"]
+E --> F["Published Documentation"]
+G["Manual Review"] --> H["Quality Assurance"]
+H --> I["Expertise Verification"]
+I --> J["Final Approval"]
+J --> F
+K["Contributor Guidelines"] --> L["Skill Requirements"]
+L --> M["Content Standards"]
+M --> N["Review Process"]
+N --> O["Publication"]
+```
+
+**Diagram sources**
+- [.qoder/rules/documentation-authority.md](file://.qoder/rules/documentation-authority.md)
+
+### Benefits of Automated Wiki System
+- **Consistency**: Automated generation ensures uniform formatting and structure
+- **Accuracy**: Direct linkage between code and documentation reduces drift
+- **Accessibility**: Centralized access point for all architectural information
+- **Maintainability**: Reduced manual overhead for documentation updates
+- **Governance**: Clear authority framework for content management
+
+**Section sources**
+- [.qoder/rules/documentation-authority.md](file://.qoder/rules/documentation-authority.md)
 
 ## Project Structure
 The codebase follows a layered and modular organization:
@@ -506,4 +552,4 @@ Operational references:
 ## Conclusion
 Kairos MCP implements a clear layered architecture with strong separation between HTTP/API, business logic, and services. The system integrates Keycloak for identity, Qdrant for semantic search, PostgreSQL for relational needs, and Redis for caching and coordination. Helm-based deployment supports scalable, observable operation with horizontal scaling and robust external dependencies.
 
-**Updated** The documentation structure now reflects the successful migration from manual architectural decision files to an automated documentation system, with all architectural overview content preserved and enhanced within the wiki structure for better maintainability and accessibility.
+**Updated** The documentation infrastructure now reflects the successful migration from manual architectural decision files to an automated documentation system, with all architectural overview content preserved and enhanced within the wiki structure for better maintainability and accessibility. The new Qoder RepoWiki system provides a centralized, authoritative source for all architectural documentation with improved governance through content-class policies and maintainer skills frameworks.

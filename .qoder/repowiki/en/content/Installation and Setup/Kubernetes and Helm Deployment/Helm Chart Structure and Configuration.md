@@ -37,6 +37,13 @@
 - [helm-sync-app-version.mjs](file://scripts/helm-sync-app-version.mjs)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated project structure section to reflect removal of development utilities and helper scripts
+- Simplified dependency analysis to focus on core Helm chart components only
+- Removed references to deprecated eslint configuration and skill authoring templates
+- Streamlined troubleshooting guide to remove outdated development tool references
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -58,6 +65,8 @@ The Helm chart resides under helm/kairos-mcp and follows standard Helm conventio
 - Default values and environment overrides are provided in values.yaml and additional values files.
 - Templates render Kubernetes resources conditionally based on values.
 - A JSON schema validates user-provided values.
+
+**Updated** Development utilities and helper scripts have been streamlined to focus on core deployment functionality.
 
 ```mermaid
 graph TB
@@ -145,7 +154,7 @@ Key responsibilities:
 - [kairos-mcp-deployment.yaml](file://helm/kairos-mcp/templates/kairos-mcp-deployment.yaml)
 - [kairos-mcp-service.yaml](file://helm/kairos-mcp/templates/kairos-mcp-service.yaml)
 - [app-hpa.yaml](file://helm/kairos-mcp/templates/app-hpa.yaml)
-- [app-vpa.yaml](file://helm/kairos-mcp/templates/app-vpa.yaml)
+- [app-vva.yaml](file://helm/kairos-mcp/templates/app-vpa.yaml)
 - [app-servicemonitor.yaml](file://helm/kairos-mcp/templates/app-servicemonitor.yaml)
 - [prometheusrule.yaml](file://helm/kairos-mcp/templates/prometheusrule.yaml)
 - [gateway.yaml](file://helm/kairos-mcp/templates/gateway.yaml)
@@ -365,7 +374,9 @@ Configuration highlights:
 - [NOTES.txt](file://helm/kairos-mcp/templates/NOTES.txt)
 
 ## Dependency Analysis
-The chart’s dependency graph shows how values drive template rendering and which components depend on each other.
+The chart's dependency graph shows how values drive template rendering and which components depend on each other.
+
+**Updated** Simplified to focus on core Helm chart dependencies without development utility references.
 
 ```mermaid
 graph LR
@@ -411,14 +422,14 @@ V --> T11["Jobs"]
 - Configure readiness/liveness probes to balance fast recovery and false positives.
 - For stateful components (Postgres, Redis, Qdrant), choose suitable storage classes and sizing to meet I/O requirements.
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 - Validate values against the schema before installing/upgrading to catch misconfigurations early.
 - Check NOTES.txt output for endpoints and credential locations.
 - Inspect Job logs for credentials generation and operator precheck failures.
 - Review Gateway and HTTPRoute status for routing issues; verify TLS certificates are issued.
 - Confirm ServiceMonitor and PrometheusRule are created and scraped successfully.
+
+**Updated** Removed references to deprecated development tools and simplified troubleshooting steps.
 
 **Section sources**
 - [values.schema.json](file://helm/kairos-mcp/values.schema.json)
@@ -433,8 +444,6 @@ V --> T11["Jobs"]
 
 ## Conclusion
 The Kairos MCP Helm chart provides a comprehensive, configurable, and validated way to deploy the application and its optional infrastructure components. By leveraging values.yaml and values.schema.json, operators can tailor deployments for development, staging, and production environments. Helper templates ensure consistency, while conditional rendering supports flexible architectures. Versioning and upgrade processes are streamlined with supporting scripts.
-
-[No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 
