@@ -26,12 +26,22 @@ type KeytarModule = {
 /** Timeout for keyring operations. macOS Keychain can hang indefinitely if locked or unresponsive. */
 const KEYRING_TIMEOUT_MS = 10_000;
 
-/** Race a keyring promise against a timeout. Returns null/false on timeout instead of hanging. */
-function withKeyringTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
-    return Promise.race([
-        promise,
-        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), KEYRING_TIMEOUT_MS)),
-    ]);
+/**
+ * Race a keyring promise against a timeout. Returns the fallback on timeout instead of hanging.
+ * The timer is cleared once the race settles and is unref'd so it never keeps the CLI process
+ * alive on its own — otherwise a resolved keyring op would still block exit until the timer fires.
+ *
+ * Exported for unit testing of the no-leak contract; not part of the public keyring API.
+ */
+export function withKeyringTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), KEYRING_TIMEOUT_MS);
+        timer.unref?.();
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timer) clearTimeout(timer);
+    });
 }
 
 let keytar: KeytarModule | null | undefined = undefined;
