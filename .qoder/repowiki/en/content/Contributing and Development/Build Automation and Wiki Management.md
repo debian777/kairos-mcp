@@ -22,10 +22,11 @@
 
 ## Update Summary
 **Changes Made**
-- Enhanced build-wiki.mjs script with additional functionality for improved automated documentation generation
-- Expanded wiki synchronization capabilities for embedded resources
-- Updated architecture diagrams to reflect enhanced build pipeline
-- Added new sections covering advanced wiki management features
+- Enhanced GitHub Actions workflow for wiki synchronization to include scripts/build-wiki.mjs in path filters
+- Improved automatic rebuild triggers when wiki build logic is modified
+- Updated development workflow reliability by eliminating manual intervention requirements
+- Enhanced documentation to reflect improved CI/CD pipeline automation
+- Updated for version 4.8.0-rc.2 release preparation including routine maintenance updates
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -34,20 +35,21 @@
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
 6. [Enhanced Wiki Management Features](#enhanced-wiki-management-features)
-7. [Dependency Analysis](#dependency-analysis)
-8. [Performance Considerations](#performance-considerations)
-9. [Troubleshooting Guide](#troubleshooting-guide)
-10. [Conclusion](#conclusion)
+7. [GitHub Actions Workflow Enhancements](#github-actions-workflow-enhancements)
+8. [Dependency Analysis](#dependency-analysis)
+9. [Performance Considerations](#performance-considerations)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
 
 ## Introduction
 This document explains the build automation and wiki management capabilities of the project. It focuses on how documentation is processed, embedded into the application, and synchronized to GitHub Wiki, as well as how containerization, UI builds, and Helm chart versioning are automated. The goal is to provide a clear understanding for contributors who need to modify or extend these workflows.
 
-**Updated** Enhanced with expanded wiki management capabilities and improved automated documentation generation for embedded resources.
+**Updated** Enhanced with improved GitHub Actions workflow automation that automatically triggers wiki rebuilds when build logic changes, eliminating manual intervention requirements. Updated for version 4.8.0-rc.2 release preparation with routine maintenance improvements.
 
 ## Project Structure
 Build and wiki-related assets are primarily located under:
 - scripts: Node.js and shell utilities for building docs, embedding content, syncing wiki, and managing Helm versions
-- .github/workflows: CI orchestration that invokes the scripts above
+- .github/workflows: CI orchestration that invokes the scripts above with enhanced path filtering
 - Root configuration files: package.json, vite.config.ts, tsconfig.json, Dockerfile, compose.yaml define build tooling and containerization
 
 ```mermaid
@@ -60,7 +62,7 @@ DOCKER["Dockerfile"]
 COMPOSE["compose.yaml"]
 end
 subgraph "Enhanced Scripts"
-BUILDWIKI["scripts/build-wiki.mjs<br/>(Enhanced)"]
+BUILDWIKI["scripts/build-wiki.mjs<br/>(Enhanced Path Filtering)"]
 SYNCWIKI["scripts/sync-wiki.sh"]
 SETUPPERMS["scripts/setup-github-wiki-permissions.sh"]
 BUILDEMBEDSLUG["scripts/build-embed-docs-slug-meta.ts"]
@@ -71,6 +73,10 @@ HELMSYNC["scripts/helm-sync-app-version.mjs"]
 CIPARALLEL["scripts/ci-parallel-checks.mjs"]
 CISUMMARY["scripts/ci-github-step-summary.mjs"]
 EMBEDDOCS["Embedded Resources<br/>Generator"]
+end
+subgraph "CI/CD Pipeline"
+GHA["GitHub Actions<br/>(Enhanced Path Filters)"]
+AUTOBUILD["Automatic Rebuild Trigger"]
 end
 PKG --> BUILDWIKI
 PKG --> BUILDEMBEDSLUG
@@ -88,6 +94,8 @@ CIPARALLEL --> BUILDEMBED
 CIPARALLEL --> BUILDWIKI
 CISUMMARY --> CIPARALLEL
 EMBEDDOCS --> BUILDWIKI
+GHA --> AUTOBUILD
+AUTOBUILD --> BUILDWIKI
 ```
 
 **Diagram sources**
@@ -106,6 +114,7 @@ EMBEDDOCS --> BUILDWIKI
 - [scripts/helm-sync-app-version.mjs](file://scripts/helm-sync-app-version.mjs)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
+- [.github/workflows](file://.github/workflows)
 
 **Section sources**
 - [package.json](file://package.json)
@@ -126,13 +135,14 @@ EMBEDDOCS --> BUILDWIKI
 
 ## Core Components
 - Documentation embedding pipeline: Converts markdown-based docs into structured metadata and embeddable resources consumed by the application at runtime.
-- **Enhanced** Wiki synchronization: Builds and pushes documentation to GitHub Wiki using configured permissions and tokens, with improved automated resource handling.
+- **Enhanced** Wiki synchronization: Builds and pushes documentation to GitHub Wiki using configured permissions and tokens, with improved automated resource handling and automatic rebuild triggers.
 - UI environment generation: Produces build-time constants for the UI based on environment variables.
 - Helm versioning helpers: Automates bumping and synchronizing Helm chart versions with application versions.
 - CI orchestration: Runs checks in parallel and generates step summaries for better visibility.
 - **New** Embedded resource generator: Provides advanced capabilities for processing and synchronizing embedded documentation resources.
+- **Enhanced** GitHub Actions workflow: Includes scripts/build-wiki.mjs in path filters for automatic rebuilds when wiki build logic is modified.
 
-**Updated** Enhanced core components with improved wiki management and embedded resource handling capabilities.
+**Updated** Enhanced core components with improved GitHub Actions workflow automation and automatic rebuild capabilities.
 
 **Section sources**
 - [scripts/build-embed-docs.ts](file://scripts/build-embed-docs.ts)
@@ -147,17 +157,18 @@ EMBEDDOCS --> BUILDWIKI
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
 
 ## Architecture Overview
-The build system integrates multiple stages with enhanced wiki management capabilities:
+The build system integrates multiple stages with enhanced GitHub Actions workflow automation:
 - Source docs (markdown) are transformed into metadata and embedded artifacts.
-- **Enhanced** Wiki pipeline processes embedded resources with improved automation.
+- **Enhanced** Wiki pipeline processes embedded resources with improved automation and automatic rebuild triggers.
 - UI build injects environment-specific constants.
 - Container images include prebuilt assets.
 - Helm charts are versioned consistently with app releases.
-- CI orchestrates steps and reports results.
+- **Enhanced** CI orchestrates steps with intelligent path filtering and reports results.
 
 ```mermaid
 sequenceDiagram
 participant Dev as "Developer"
+participant GHA as "GitHub Actions<br/>(Enhanced)"
 participant NPM as "npm Scripts"
 participant Embed as "build-embed-docs.ts"
 participant Slug as "build-embed-docs-slug-meta.ts"
@@ -168,23 +179,22 @@ participant Docker as "Dockerfile"
 participant Compose as "compose.yaml"
 participant HelmBump as "helm-bump-version.mjs"
 participant HelmSync as "helm-sync-app-version.mjs"
-participant CI as "CI Workflows"
 participant Wiki as "GitHub Wiki"
 participant EmbedRes as "Embedded Resources"
-Dev->>NPM : Run build tasks
-NPM->>Embed : Generate embedded docs
-NPM->>Slug : Generate slug metadata
-NPM->>WikiEnh : Execute enhanced wiki build
-NPM->>EnvDef : Define UI env constants
-NPM->>Vite : Build UI bundle
-NPM->>Docker : Build container image
-NPM->>Compose : Orchestrate local services
-NPM->>HelmBump : Bump chart version
-NPM->>HelmSync : Sync app version in chart
+Dev->>GHA : Push code changes
+GHA->>NPM : Check path filters
+Note over GHA,NPM : Auto-trigger if scripts/build-wiki.mjs changed
+GHA->>Embed : Generate embedded docs
+GHA->>Slug : Generate slug metadata
+GHA->>WikiEnh : Execute enhanced wiki build
+GHA->>EnvDef : Define UI env constants
+GHA->>Vite : Build UI bundle
+GHA->>Docker : Build container image
+GHA->>Compose : Orchestrate local services
+GHA->>HelmBump : Bump chart version
+GHA->>HelmSync : Sync app version in chart
 WikiEnh->>EmbedRes : Process embedded resources
 WikiEnh->>Wiki : Synchronize with enhanced capabilities
-CI->>Embed : Run in CI
-CI->>WikiEnh : Trigger enhanced wiki sync
 Wiki-->>Dev : Updated wiki pages with embedded resources
 ```
 
@@ -232,25 +242,30 @@ InjectEnv --> End(["Done"])
 - [scripts/build-vite-ui-env-define.ts](file://scripts/build-vite-ui-env-define.ts)
 
 ### Enhanced Wiki Synchronization Workflow
-Purpose: Build documentation and synchronize it to GitHub Wiki with improved automated resource handling.
+Purpose: Build documentation and synchronize it to GitHub Wiki with improved automated resource handling and automatic rebuild triggers.
 
-**Updated** Enhanced workflow now includes advanced embedded resource processing and improved synchronization capabilities.
+**Updated** Enhanced workflow now includes advanced embedded resource processing, improved synchronization capabilities, and automatic rebuild triggers when build logic changes.
 
 Workflow overview:
 - Prepare wiki repository and credentials
 - **Enhanced** Process embedded resources with improved automation
 - Build wiki content using the enhanced build script
 - Push updates to GitHub Wiki with better error handling
+- **New** Automatic trigger detection for build logic modifications
 
 ```mermaid
 sequenceDiagram
 participant User as "User/CI"
+participant GHA as "GitHub Actions"
 participant BuildWiki as "Enhanced build-wiki.mjs"
 participant EmbedRes as "Embedded Resource Processor"
 participant Sync as "sync-wiki.sh"
 participant Perms as "setup-github-wiki-permissions.sh"
 participant GH as "GitHub API"
-User->>BuildWiki : Execute enhanced wiki build
+User->>GHA : Push code changes
+GHA->>BuildWiki : Check path filters
+Note over GHA,BuildWiki : Auto-trigger if build-wiki.mjs modified
+GHA->>BuildWiki : Execute enhanced wiki build
 BuildWiki->>Perms : Configure permissions
 BuildWiki->>EmbedRes : Process embedded resources
 EmbedRes-->>BuildWiki : Enhanced resource artifacts
@@ -263,6 +278,7 @@ GH-->>User : Success/Failure with detailed feedback
 - [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
 - [scripts/sync-wiki.sh](file://scripts/sync-wiki.sh)
 - [scripts/setup-github-wiki-permissions.sh](file://scripts/setup-github-wiki-permissions.sh)
+- [.github/workflows](file://.github/workflows)
 
 **Section sources**
 - [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
@@ -323,6 +339,7 @@ Highlights:
 - Run multiple checks concurrently
 - Aggregate results and generate step summaries
 - Integrate with GitHub Actions reporting
+- **Enhanced** Intelligent path filtering for automatic rebuild triggers
 
 ```mermaid
 sequenceDiagram
@@ -375,6 +392,46 @@ The enhanced system provides seamless integration between the main documentation
 - [scripts/build-embed-docs.ts](file://scripts/build-embed-docs.ts)
 - [scripts/build-embed-docs-slug-meta.ts](file://scripts/build-embed-docs-slug-meta.ts)
 
+## GitHub Actions Workflow Enhancements
+
+### Automatic Rebuild Triggers
+The GitHub Actions workflow has been enhanced to include scripts/build-wiki.mjs in path filters, ensuring automatic rebuilds when wiki build logic is modified. This improvement eliminates the need for manual intervention and improves development workflow reliability.
+
+Key improvements:
+- **Intelligent path filtering**: Automatically detects changes to wiki build logic
+- **Automatic trigger activation**: Rebuilds wiki content without manual intervention
+- **Enhanced development workflow**: Reduces friction in documentation updates
+- **Improved reliability**: Ensures wiki stays synchronized with build logic changes
+
+### Workflow Optimization Benefits
+The enhanced workflow provides several benefits for developers and maintainers:
+- **Reduced manual overhead**: No need to manually trigger wiki rebuilds after build script changes
+- **Faster iteration**: Immediate wiki updates when build logic is modified
+- **Better developer experience**: Seamless integration between code changes and documentation updates
+- **Improved reliability**: Consistent wiki state aligned with build system changes
+
+```mermaid
+flowchart TD
+CodeChange["Code Change to scripts/build-wiki.mjs"] --> PathFilter["GitHub Actions Path Filter"]
+PathFilter --> AutoTrigger["Automatic Workflow Trigger"]
+AutoTrigger --> BuildProcess["Execute Build Process"]
+BuildProcess --> WikiRebuild["Rebuild Wiki Content"]
+WikiRebuild --> Publish["Publish Updated Wiki"]
+Publish --> Developer["Developer Notification"]
+style CodeChange fill:#e1f5fe
+style AutoTrigger fill:#f3e5f5
+style WikiRebuild fill:#e8f5e8
+style Publish fill:#fff3e0
+```
+
+**Diagram sources**
+- [.github/workflows](file://.github/workflows)
+- [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
+
+**Section sources**
+- [.github/workflows](file://.github/workflows)
+- [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
+
 ## Dependency Analysis
 Build scripts depend on:
 - Node.js runtime and npm packages defined in package.json
@@ -383,6 +440,7 @@ Build scripts depend on:
 - Shell utilities for wiki operations
 - Docker and Compose for containerization
 - **Enhanced** Additional dependencies for improved wiki management and embedded resource processing
+- **New** GitHub Actions workflow dependencies for path filtering and automatic triggers
 
 ```mermaid
 graph LR
@@ -396,6 +454,10 @@ SCRIPTS --> SHELL["Shell Utilities"]
 ENHANCED["Enhanced Wiki Features"] --> NODE
 ENHANCED --> WEBLIBS["Web Libraries"]
 ENHANCED --> FILESYS["File System APIs"]
+WORKFLOW["GitHub Actions Workflow"] --> PATHFILTER["Path Filtering"]
+WORKFLOW --> AUTOTRIGGER["Auto Triggers"]
+PATHFILTER --> SCRIPTS
+AUTOTRIGGER --> WORKFLOW
 ```
 
 **Diagram sources**
@@ -406,6 +468,7 @@ ENHANCED --> FILESYS["File System APIs"]
 - [compose.yaml](file://compose.yaml)
 - [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
 - [scripts/sync-wiki.sh](file://scripts/sync-wiki.sh)
+- [.github/workflows](file://.github/workflows)
 
 **Section sources**
 - [package.json](file://package.json)
@@ -421,6 +484,7 @@ ENHANCED --> FILESYS["File System APIs"]
 - Use incremental builds where possible to speed up iterative development.
 - **Enhanced** Leverage improved caching mechanisms in the enhanced wiki synchronization process.
 - **Enhanced** Utilize optimized resource processing pipelines for better performance with large documentation sets.
+- **New** Benefit from automatic rebuild triggers that only activate when necessary, reducing unnecessary CI runs.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -430,8 +494,10 @@ Common issues and resolutions:
 - CI timeouts or partial runs: Review parallel check logs and adjust concurrency settings if necessary.
 - **Enhanced** Embedded resource processing errors: Check enhanced logging output for detailed error information and resource validation failures.
 - **Enhanced** Wiki synchronization timeouts: Monitor enhanced retry mechanisms and consider adjusting timeout configurations for large documentation sets.
+- **New** GitHub Actions path filter issues: Verify that scripts/build-wiki.mjs is properly included in path filters for automatic triggers.
+- **New** Manual intervention still required: Check GitHub Actions workflow configuration to ensure automatic rebuild triggers are functioning correctly.
 
-**Updated** Added troubleshooting guidance for enhanced wiki management features.
+**Updated** Added troubleshooting guidance for enhanced wiki management features and GitHub Actions workflow improvements.
 
 **Section sources**
 - [scripts/setup-github-wiki-permissions.sh](file://scripts/setup-github-wiki-permissions.sh)
@@ -440,8 +506,9 @@ Common issues and resolutions:
 - [scripts/helm-sync-app-version.mjs](file://scripts/helm-sync-app-version.mjs)
 - [scripts/ci-parallel-checks.mjs](file://scripts/ci-parallel-checks.mjs)
 - [scripts/build-wiki.mjs](file://scripts/build-wiki.mjs)
+- [.github/workflows](file://.github/workflows)
 
 ## Conclusion
-The project's build automation integrates documentation processing, UI environment definition, containerization, Helm versioning, and CI orchestration with significantly enhanced wiki management capabilities. The improved build-wiki.mjs script provides advanced automated documentation generation and synchronization capabilities for embedded resources, making the entire build and documentation pipeline more robust and efficient. By following the documented workflows and leveraging the provided scripts, contributors can reliably build, test, and publish both application artifacts and documentation with enhanced reliability and performance.
+The project's build automation integrates documentation processing, UI environment definition, containerization, Helm versioning, and CI orchestration with significantly enhanced wiki management capabilities. The improved build-wiki.mjs script provides advanced automated documentation generation and synchronization capabilities for embedded resources, while the enhanced GitHub Actions workflow ensures automatic rebuilds when wiki build logic is modified. This eliminates manual intervention requirements and improves development workflow reliability. By following the documented workflows and leveraging the provided scripts, contributors can reliably build, test, and publish both application artifacts and documentation with enhanced reliability, performance, and automation.
 
-**Updated** Enhanced conclusion reflecting the improved wiki management capabilities and embedded resource handling.
+**Updated** Enhanced conclusion reflecting the improved wiki management capabilities, embedded resource handling, and GitHub Actions workflow automation that eliminates manual intervention requirements. Updated for version 4.8.0-rc.2 release preparation with routine maintenance improvements.
