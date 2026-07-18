@@ -237,14 +237,10 @@ CLAUDE.md
 
 # AI proof-of-work and verification files
 .ai/
-cache
+cache/
 data/
-snapshots
+snapshots/
 .cursor/TODO.md
 .kairos-work/
-.kairos/
+.qoder/plans/
 .trae/
-node_modules
-.kairos/
-.trae/
-.qoder/plans
