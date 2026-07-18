@@ -29,15 +29,16 @@
 - [compose.yaml](file://compose.yaml)
 - [tests/jest-sequencer.cjs](file://tests/jest-sequencer.cjs)
 - [tests/reporters/jest-github-summary-reporter.cjs](file://tests/reporters/jest-github-summary-reporter.cjs)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Updated GitHub Actions workflow configuration to reflect consolidation of three separate integration workflows into single unified integration.yml
-- Added documentation for new two-phase testing strategy with read-only-first fail-fast behavior
-- Updated CI pipeline architecture diagrams to show streamlined workflow structure
-- Enhanced parallel test execution strategy section to reflect optimized testing approach
-- Updated troubleshooting guide with new workflow-specific debugging information
+- Updated build configuration section to reflect removal of npm scripts referencing deleted sync-kairos-install-references.py script
+- Enhanced GitHub Actions workflow documentation for wiki synchronization improvements
+- Updated configuration files section with knip.config.ts and eslint/flat-config.cjs adjustments
+- Streamlined CI pipeline documentation to reflect build configuration optimizations
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -54,7 +55,7 @@
 ## Introduction
 This document explains the continuous integration setup and automation workflows for Kairos MCP. It covers GitHub Actions configuration for automated testing, building, and deployment; parallel test execution strategy and performance optimizations; pre-commit hooks with Husky; CI pipeline stages, job dependencies, and artifact management; security scanning and compliance checks; caching strategies; debugging guidance; and examples of custom CI scripts and automation tasks.
 
-The CI/CD pipeline has been significantly streamlined through consolidation of three separate integration workflows (Integration, Integration Simple, Integration Stdio) into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior for improved efficiency and faster feedback loops.
+The CI/CD pipeline has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior for improved efficiency and faster feedback loops. Recent updates have further optimized the build configuration by removing deprecated npm scripts and enhancing GitHub Actions workflows for wiki synchronization.
 
 ## Project Structure
 The CI and automation surface is composed of:
@@ -65,6 +66,7 @@ The CI and automation surface is composed of:
 - Pre-commit hooks under .husky
 - Security scanning configuration (.trivyignore)
 - Dependency updates via Dependabot
+- Build configuration files (knip.config.ts, eslint/flat-config.cjs)
 
 ```mermaid
 graph TB
@@ -105,6 +107,11 @@ subgraph "Hooks & Security"
 HUSKY[".husky/pre-commit"]
 TRIVY[".trivyignore"]
 end
+subgraph "Build Config"
+KNIP["knip.config.ts"]
+ESLINT["eslint/flat-config.cjs"]
+PKG["package.json"]
+end
 GH --> W1
 GH --> W2
 GH --> W3
@@ -130,6 +137,9 @@ W1 --> DKRS
 W1 --> CMP
 W1 --> HUSKY
 W1 --> TRIVY
+W1 --> KNIP
+W1 --> ESLINT
+W1 --> PKG
 GH --> DEP
 ```
 
@@ -160,6 +170,9 @@ GH --> DEP
 - [compose.yaml](file://compose.yaml)
 - [.husky/pre-commit](file://.husky/pre-commit)
 - [.trivyignore](file://.trivyignore)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
+- [package.json](file://package.json)
 
 **Section sources**
 - [.github/workflows/ci.yml](file://.github/workflows/ci.yml)
@@ -177,6 +190,8 @@ GH --> DEP
 - [compose.yaml](file://compose.yaml)
 - [.husky/pre-commit](file://.husky/pre-commit)
 - [.trivyignore](file://.trivyignore)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 
 ## Core Components
 - **Consolidated CI workflow orchestrator**: Streamlined workflow that combines previously separate integration tests into unified pipeline with optimized job orchestration, matrix builds, caching, artifacts, and step summaries.
@@ -187,10 +202,12 @@ GH --> DEP
 - **Helm chart validation**: Runs chart linting and tests.
 - **Snapshot import/seed**: Prepares deterministic test data.
 - **Build helpers**: UI environment definition and embedded docs build.
+- **Streamlined build configuration**: Optimized npm scripts with removal of deprecated references and enhanced wiki synchronization.
 - **Container images**: Multi-stage builds for app, dev, and stdio variants.
 - **Local automation**: Husky pre-commit hook to enforce quality gates locally.
 - **Security scanning**: Trivy vulnerability scanning with ignore rules.
 - **Dependency updates**: Dependabot configuration for automated PRs.
+- **Enhanced configuration management**: Updated knip.config.ts and eslint/flat-config.cjs for improved code analysis and linting.
 
 **Section sources**
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
@@ -209,6 +226,8 @@ GH --> DEP
 - [.husky/pre-commit](file://.husky/pre-commit)
 - [.trivyignore](file://.trivyignore)
 - [.github/dependabot.yml](file://.github/dependabot.yml)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 
 ## Architecture Overview
 The CI architecture coordinates multiple jobs that share caches and artifacts with a streamlined workflow structure. Jobs are grouped into logical stages: prepare, build, test (two-phase), package, and deploy. Matrix strategies run subsets in parallel with optimized resource allocation. Artifacts are uploaded for later jobs or manual inspection.
@@ -243,7 +262,7 @@ K --> L
 ## Detailed Component Analysis
 
 ### Consolidated GitHub Actions Workflow Configuration
-**Updated** The CI workflow has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow.
+**Updated** The CI workflow has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow, with recent enhancements for wiki synchronization and build configuration optimization.
 
 - **Unified Workflow**: Single integration.yml replaces separate Integration, Integration Simple, and Integration Stdio workflows
 - **Two-Phase Testing Strategy**: 
@@ -252,6 +271,7 @@ K --> L
 - **Optimized Job Dependencies**: Streamlined dependency chain reduces workflow complexity
 - **Enhanced Matrix Strategy**: Consolidated matrix configurations for better resource utilization
 - **Improved Artifact Management**: Centralized artifact handling across all test phases
+- **Wiki Synchronization Enhancement**: Improved GitHub Actions workflow for automated wiki updates
 
 ```mermaid
 sequenceDiagram
@@ -262,12 +282,14 @@ participant PHASE1 as "Phase 1 : Read-Only Tests"
 participant PHASE2 as "Phase 2 : Write Operations"
 participant SEC as "Security Scan Job"
 participant SUM as "Summary Job"
+participant WIKI as "Wiki Sync"
 GH->>PREP : "Start"
 PREP-->>GH : "Cache restored"
 GH->>BUILD : "Depends on Prepare"
 BUILD-->>GH : "Artifacts uploaded"
 GH->>PHASE1 : "Depends on Build"
 GH->>SEC : "Depends on Build"
+GH->>WIKI : "Sync Wiki Content"
 PHASE1-->>GH : "Read-only test results"
 alt Phase 1 Success
 GH->>PHASE2 : "Execute write operations"
@@ -276,6 +298,7 @@ else Phase 1 Failure
 GH->>SUM : "Skip Phase 2, fail fast"
 end
 SEC-->>SUM : "Security findings"
+WIKI-->>SUM : "Wiki sync status"
 SUM-->>GH : "Step Summary"
 ```
 
@@ -323,6 +346,36 @@ Summarize --> End(["Exit with Status"])
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 - [tests/jest-sequencer.cjs](file://tests/jest-sequencer.cjs)
 - [tests/reporters/jest-github-summary-reporter.cjs](file://tests/reporters/jest-github-summary-reporter.cjs)
+
+### Streamlined Build Configuration
+**Updated** Build configuration has been optimized with removal of deprecated npm scripts and enhanced wiki synchronization capabilities.
+
+- **Removed Deprecated Scripts**: Eliminated npm scripts referencing deleted sync-kairos-install-references.py script
+- **Enhanced Wiki Synchronization**: Improved GitHub Actions workflow for automated wiki content updates
+- **Configuration Optimization**: Updated knip.config.ts and eslint/flat-config.cjs for better code analysis
+- **Simplified Build Pipeline**: Reduced complexity while maintaining functionality
+
+```mermaid
+flowchart TD
+BuildStart(["Build Process"]) --> CleanConfig["Clean Build Configuration"]
+CleanConfig --> RemoveDeprecated["Remove Deprecated Scripts"]
+RemoveDeprecated --> OptimizeKnip["Optimize Knip Configuration"]
+OptimizeKnip --> UpdateESLint["Update ESLint Flat Config"]
+UpdateESLint --> EnhanceWiki["Enhance Wiki Sync"]
+EnhanceWiki --> BuildComplete(["Build Complete"])
+```
+
+**Diagram sources**
+- [package.json](file://package.json)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
+
+**Section sources**
+- [package.json](file://package.json)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
+- [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
 
 ### Infrastructure Provisioning and Snapshots
 - Wait-for-infra script ensures external services are ready before running integration tests.
@@ -493,6 +546,7 @@ The CI workflow depends on:
 - External services provisioned by Compose or CI-hosted services.
 - Helm CLI for chart validation.
 - Security scanners (Trivy, CodeQL).
+- Updated configuration tools (Knip, ESLint flat config).
 
 ```mermaid
 graph TB
@@ -506,6 +560,8 @@ HELM["scripts/test-helm.sh"]
 TRIVY[".trivyignore"]
 CODEQL[".github/workflows/codeql-analysis.yml"]
 INTEGRATION[".github/workflows/integration.yml"]
+KNIP["knip.config.ts"]
+ESLINT["eslint/flat-config.cjs"]
 PKG --> JEST
 PKG --> VITEST
 JEST --> SEQ
@@ -515,6 +571,8 @@ HELM --> JEST
 TRIVY --> CODEQL
 INTEGRATION --> JEST
 INTEGRATION --> RPT
+KNIP --> INTEGRATION
+ESLINT --> INTEGRATION
 ```
 
 **Diagram sources**
@@ -528,6 +586,8 @@ INTEGRATION --> RPT
 - [.trivyignore](file://.trivyignore)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 
 **Section sources**
 - [package.json](file://package.json)
@@ -540,9 +600,11 @@ INTEGRATION --> RPT
 - [.trivyignore](file://.trivyignore)
 - [.github/workflows/codeql-analysis.yml](file://.github/workflows/codeql-analysis.yml)
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 
 ## Performance Considerations
-**Updated** Performance optimizations have been enhanced through workflow consolidation and two-phase testing strategy.
+**Updated** Performance optimizations have been enhanced through workflow consolidation, two-phase testing strategy, and streamlined build configuration.
 
 - **Caching**:
   - Restore and save Node modules and build caches between jobs to minimize install times.
@@ -564,9 +626,13 @@ INTEGRATION --> RPT
   - **New**: Fail-fast behavior eliminates unnecessary Phase 2 execution when Phase 1 fails.
   - **New**: Read-only tests execute faster, providing quicker feedback.
   - **New**: Reduced overall workflow duration through intelligent test ordering.
+- **Build Configuration Optimization**:
+  - **New**: Removed deprecated npm scripts reduce build complexity and improve performance.
+  - **New**: Enhanced wiki synchronization minimizes overhead in CI pipelines.
+  - **New**: Optimized Knip and ESLint configurations provide faster analysis.
 
 ## Troubleshooting Guide
-**Updated** Enhanced troubleshooting guidance for the consolidated workflow and two-phase testing strategy.
+**Updated** Enhanced troubleshooting guidance for the consolidated workflow, two-phase testing strategy, and streamlined build configuration.
 
 - **Debugging CI failures**:
   - Inspect step summaries generated by the summary script for aggregated results.
@@ -574,6 +640,7 @@ INTEGRATION --> RPT
   - Use wait-for-infra logs to verify external service readiness.
   - **New**: Check Phase 1 vs Phase 2 failure indicators in workflow output.
   - **New**: Review consolidated workflow logs instead of separate integration workflow logs.
+  - **New**: Verify build configuration changes don't break existing workflows.
 - **Common issues**:
   - Missing environment variables: Ensure create-env and deploy-run-env scripts are executed in the correct order.
   - Snapshot mismatches: Re-seed or import snapshots if test data drift occurs.
@@ -581,12 +648,14 @@ INTEGRATION --> RPT
   - Security findings: Adjust .trivyignore only when justified; otherwise remediate vulnerabilities.
   - **New**: Phase 1 failures preventing Phase 2 execution - verify read-only test dependencies.
   - **New**: Resource contention in unified workflow - adjust matrix configuration if needed.
+  - **New**: Build configuration issues - check for removed npm scripts and updated configuration files.
 - **Optimization tips**:
   - Increase cache keys specificity to avoid stale caches.
   - Reduce suite size or shard further if tests exceed timeouts.
   - Pin Node.js versions to ensure consistent builds.
   - **New**: Optimize test partitioning between phases for balanced execution time.
   - **New**: Monitor Phase 1 completion time to identify slow read-only tests.
+  - **New**: Leverage streamlined build configuration for faster CI execution.
 
 **Section sources**
 - [scripts/ci-github-step-summary.mjs](file://scripts/ci-github-step-summary.mjs)
@@ -598,9 +667,11 @@ INTEGRATION --> RPT
 - [scripts/test-helm.sh](file://scripts/test-helm.sh)
 - [.trivyignore](file://.trivyignore)
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)
 
 ## Conclusion
-Kairos MCP's CI system has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior. This enhancement delivers faster feedback loops, improved resource utilization, and simplified maintenance while maintaining comprehensive test coverage. The modular scripts and clear separation of concerns make it straightforward to extend pipelines, add new checks, and optimize performance. Adopting the recommended practices will help maintain high-quality releases and secure deployments with enhanced efficiency.
+Kairos MCP's CI system has been significantly streamlined through consolidation of three separate integration workflows into a single unified integration.yml workflow, implementing a new two-phase testing strategy with read-only-first fail-fast behavior. Recent enhancements have further optimized the build configuration by removing deprecated npm scripts and improving GitHub Actions workflows for wiki synchronization. These improvements deliver faster feedback loops, improved resource utilization, simplified maintenance, and reduced build complexity while maintaining comprehensive test coverage. The modular scripts and clear separation of concerns make it straightforward to extend pipelines, add new checks, and optimize performance. Adopting the recommended practices will help maintain high-quality releases and secure deployments with enhanced efficiency.
 
 ## Appendices
 
@@ -616,6 +687,8 @@ Kairos MCP's CI system has been significantly streamlined through consolidation 
 - **Build helpers**: Define UI env variables and build embedded docs for runtime consumption.
 - **Deploy environment**: Prepare runtime environment variables and secrets for deployment jobs.
 - **Stdio entrypoint**: Configure CLI runtime behavior for headless operations.
+- **Streamlined build configuration**: Optimized npm scripts with enhanced wiki synchronization.
+- **Configuration management**: Updated Knip and ESLint configurations for improved code analysis.
 
 **Section sources**
 - [.github/workflows/integration.yml](file://.github/workflows/integration.yml)
@@ -630,3 +703,5 @@ Kairos MCP's CI system has been significantly streamlined through consolidation 
 - [scripts/build-embed-docs.ts](file://scripts/build-embed-docs.ts)
 - [scripts/deploy-run-env.sh](file://scripts/deploy-run-env.sh)
 - [scripts/stdio/entrypoint.sh](file://scripts/stdio/entrypoint.sh)
+- [knip.config.ts](file://knip.config.ts)
+- [eslint/flat-config.cjs](file://eslint/flat-config.cjs)

@@ -3,12 +3,6 @@
 <cite>
 **Referenced Files in This Document**
 - [compose.yaml](file://compose.yaml)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
 - [Dockerfile.dev](file://Dockerfile.dev)
 - [scripts/env/create-env.sh](file://scripts/env/create-env.sh)
 - [scripts/deploy-run-env.sh](file://scripts/deploy-run-env.sh)
@@ -24,9 +18,10 @@
 
 ## Update Summary
 **Changes Made**
-- Updated references to reflect the removal of extensive installation guides and Docker Compose configurations from skills/.system/kairos-install/ directory
-- Added guidance to refer to consolidated skill structure at .agents/skills/kairos/references/install.md for simplified installation documentation
-- Maintained all existing Docker Compose development environment functionality while updating installation references
+- Updated to reflect the removal of complex Docker Compose-based devcontainer configurations
+- Simplified development environment setup with streamlined local development approach
+- Removed references to extensive DevContainer configurations and related scripts
+- Maintained core Docker Compose functionality for service orchestration while simplifying the overall development workflow
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -43,16 +38,15 @@
 ## Introduction
 This document explains how to run the Kairos MCP development environment using Docker Compose. It covers the full service stack (PostgreSQL, Redis, Qdrant vector database, and Keycloak), environment configuration via .env files, database initialization, Keycloak realm setup with default users and roles, container networking, volume management, port mappings, development-specific features (hot reload, debugging ports, dev dependencies), and common issues such as port conflicts, memory limits, and network connectivity problems. It also provides commands for starting, stopping, and managing the environment.
 
-**Updated** Installation documentation has been simplified and moved to a consolidated skill structure. Users should refer to .agents/skills/kairos/references/install.md for streamlined installation instructions instead of the previous extensive guides that were removed from skills/.system/kairos-install/.
+**Updated** The development environment setup has been significantly simplified by removing complex Docker Compose-based devcontainer configurations. Local development now uses a streamlined approach without containerized environments, focusing on essential Docker Compose services for infrastructure components while allowing direct local application development.
 
 ## Project Structure
 The repository includes:
 - A top-level Docker Compose file that defines the local development services.
-- DevContainer extensions that add optional services and convenience scripts.
 - Scripts to generate a .env file and bootstrap runtime configuration.
 - Keycloak realm import JSONs for development and production.
 - Application code that reads environment variables to configure services at runtime.
-- Consolidated installation documentation in the new skill structure.
+- Simplified development workflow without complex DevContainer configurations.
 
 ```mermaid
 graph TB
@@ -86,11 +80,6 @@ KC -.-> NET
 ```
 
 [No sources needed since this diagram shows conceptual workflow, not actual code structure]
-
-**Section sources**
-- [compose.yaml:1-200](file://compose.yaml#L1-L200)
-- [.devcontainer/docker-compose.extend.yml:1-200](file://.devcontainer/docker-compose.extend.yml#L1-L200)
-- [.devcontainer/docker-compose-fullstack.extend.yml:1-200](file://.devcontainer/docker-compose-fullstack.extend.yml#L1-L200)
 
 ## Core Components
 - PostgreSQL: Relational store for application data.
@@ -176,11 +165,6 @@ Dev->>App : Open http : //localhost : <APP_HTTP_PORT>
 - [src/services/redis.ts:1-200](file://src/services/redis.ts#L1-L200)
 - [src/services/qdrant/connection.ts:1-200](file://src/services/qdrant/connection.ts#L1-L200)
 
-**Section sources**
-- [compose.yaml:1-200](file://compose.yaml#L1-L200)
-- [.devcontainer/docker-compose.extend.yml:1-200](file://.devcontainer/docker-compose.extend.yml#L1-L200)
-- [.devcontainer/docker-compose-fullstack.extend.yml:1-200](file://.devcontainer/docker-compose-fullstack.extend.yml#L1-L200)
-
 ### Environment Variables and .env Configuration
 - Use the provided script to scaffold a .env file with defaults and comments.
 - Required variables include:
@@ -240,11 +224,6 @@ CreateRoles --> Ready(["Keycloak Ready"])
 - [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
 - [compose.yaml:1-200](file://compose.yaml#L1-L200)
 
-**Section sources**
-- [scripts/keycloak/import/kairos-dev-realm.json:1-200](file://scripts/keycloak/import/kairos-dev-realm.json#L1-L200)
-- [helm/kairos-mcp/files/kairos-realm.json:1-200](file://helm/kairos-mcp/files/kairos-realm.json#L1-L200)
-- [compose.yaml:1-200](file://compose.yaml#L1-L200)
-
 ### Container Networking and Volume Management
 - Networking:
   - Custom bridge network ensures stable service discovery by name.
@@ -262,11 +241,6 @@ Best practices:
 - Keep internal ports consistent between Compose and environment variables.
 - Use named volumes to avoid accidental data loss.
 
-**Section sources**
-- [compose.yaml:1-200](file://compose.yaml#L1-L200)
-- [.devcontainer/docker-compose.extend.yml:1-200](file://.devcontainer/docker-compose.extend.yml#L1-L200)
-- [.devcontainer/docker-compose-fullstack.extend.yml:1-200](file://.devcontainer/docker-compose-fullstack.extend.yml#L1-L200)
-
 ### Development-Specific Configurations
 - Hot Reload:
   - The development image mounts source directories and triggers rebuilds on changes.
@@ -279,15 +253,11 @@ Best practices:
   - Useful for running tests and linting inside the container.
 
 Tips:
-- Use the DevContainer configurations to streamline VS Code integration.
-- Leverage the provided scripts to validate environment readiness.
+- Leverage the simplified development workflow without complex DevContainer configurations.
+- Use the provided scripts to validate environment readiness.
 
 **Section sources**
 - [Dockerfile.dev:1-200](file://Dockerfile.dev#L1-L200)
-- [.devcontainer/devcontainer.json.base:1-200](file://.devcontainer/devcontainer.json.base#L1-L200)
-- [.devcontainer/devcontainer-fullstack.json:1-200](file://.devcontainer/devcontainer-fullstack.json#L1-L200)
-- [.devcontainer/use-config.sh:1-200](file://.devcontainer/use-config.sh#L1-L200)
-- [.devcontainer/validate.sh:1-200](file://.devcontainer/validate.sh#L1-L200)
 
 ### Application Integration Points
 - PostgreSQL:
@@ -416,9 +386,7 @@ Useful commands:
 - [compose.yaml:1-200](file://compose.yaml#L1-L200)
 
 ## Conclusion
-The Docker Compose development environment provides a complete, reproducible stack for Kairos MCP. By configuring environment variables, initializing the database, importing the Keycloak realm, and leveraging development features like hot reload and debugging, you can efficiently develop and test the application locally. Follow the troubleshooting guide to resolve common issues and ensure smooth operation.
-
-For installation guidance, refer to the consolidated skill structure at .agents/skills/kairos/references/install.md, which provides simplified installation instructions replacing the previous extensive guides that were removed from skills/.system/kairos-install/.
+The Docker Compose development environment provides a complete, reproducible stack for Kairos MCP. By configuring environment variables, initializing the database, importing the Keycloak realm, and leveraging development features like hot reload and debugging, you can efficiently develop and test the application locally. The simplified development workflow removes complex DevContainer configurations while maintaining essential Docker Compose functionality for infrastructure services. Follow the troubleshooting guide to resolve common issues and ensure smooth operation.
 
 ## Appendices
 
