@@ -41,6 +41,8 @@
 - Removed references to old skills directory structure and SKILLS.md file
 - Updated development environment setup to reference new skills organization
 - Enhanced contributor guidelines for working with the new skill architecture
+- Updated kairos-dev skill references including major revisions to skill-authoring.md with 57 additions and 29 deletions
+- Updated references for bugfix-ship.md, build-test.md, dev-environment.md, mcp-qa-e2e.md, release-semver.md, ui-spec.md, and worktree-env.md reflecting current development practices and tooling changes
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -69,7 +71,7 @@
 
 This document provides comprehensive guidance for contributing to Kairos MCP development. It covers the development environment setup using VS Code dev containers, coding standards, testing requirements, code review processes, pull request workflows, release management, versioning strategy, changelog maintenance, architectural guidelines, design principles, and community contribution practices. The goal is to make it easy for new and experienced contributors to understand how to contribute effectively and consistently.
 
-**Updated** The project has undergone a significant skills organization restructuring, consolidating 15 individual skills into two streamlined discoverable skills under .agents/skills/. This change simplifies the development experience while maintaining comprehensive functionality through the new 'kairos' user-facing skill and 'kairos-dev' internal maintainer skill architecture.
+**Updated** The project has undergone a significant skills organization restructuring, consolidating 15 individual skills into two streamlined discoverable skills under .agents/skills/. This change simplifies the development experience while maintaining comprehensive functionality through the new 'kairos' user-facing skill and 'kairos-dev' internal maintainer skill architecture. Recent updates include major revisions to skill-authoring.md with enhanced guidance for developers and maintainers.
 
 ## Project Structure
 
@@ -101,21 +103,24 @@ H[".agents/skills/kairos/SKILL.md"]
 I[".agents/skills/kairos-dev/SKILL.md"]
 J["User-facing Interface"]
 K["Internal Maintainer Umbrella"]
+L["Skill Authoring Guide"]
+M["Development Practices"]
 end
 subgraph "Dev & CI"
-L[".devcontainer/*"]
-M[".github/workflows/*"]
-N["compose.yaml"]
-O["Dockerfile.dev"]
+N[".devcontainer/*"]
+O[".github/workflows/*"]
+P["compose.yaml"]
+Q["Dockerfile.dev"]
 end
 subgraph "Tests"
-P["tests/unit/*"]
-Q["tests/integration/*"]
-R["tests/ui/*"]
+R["tests/unit/*"]
+S["tests/integration/*"]
+T["tests/ui/*"]
 end
 subgraph "Documentation"
-S["docs/*"]
-T["Automated Wiki System"]
+U["docs/*"]
+V["Automated Wiki System"]
+W["Contributing Guidelines"]
 end
 A --> D
 B --> A
@@ -125,14 +130,17 @@ D --> F
 D --> G
 H --> J
 I --> K
-P --> E
-Q --> D
-R --> G
-L --> A
-M --> A
+I --> L
+I --> M
+R --> E
+S --> D
+T --> G
 N --> A
 O --> A
-S --> T
+P --> A
+Q --> A
+U --> V
+W --> V
 ```
 
 **Diagram sources**
@@ -164,7 +172,7 @@ S --> T
 
 ## Skills Organization
 
-The project has undergone a major restructuring of its skills architecture, moving from 15 individual skills to a streamlined two-skill system designed for better discoverability and maintainability.
+The project has undergone a major restructuring of its skills architecture, moving from 15 individual skills to a streamlined two-skill system designed for better discoverability and maintainability. This restructuring includes significant updates to the kairos-dev skill with enhanced authoring guidance and development practices.
 
 ### New Skills Architecture
 
@@ -179,6 +187,7 @@ The project has undergone a major restructuring of its skills architecture, movi
 - Provides advanced tools and administrative capabilities
 - Includes debugging, testing, and deployment utilities
 - Offers deeper access to internal APIs and configuration
+- **Updated**: Major revisions to skill-authoring.md with enhanced guidance for skill development and maintenance
 
 ### Migration Benefits
 
@@ -186,6 +195,7 @@ The project has undergone a major restructuring of its skills architecture, movi
 - **Reduced Complexity**: Consolidation eliminates redundant skills and streamlines the learning curve
 - **Better Maintainability**: Centralized skill definitions reduce duplication and improve consistency
 - **Enhanced User Experience**: Clear separation between user-facing and developer-facing capabilities
+- **Updated Development Practices**: Comprehensive updates to development workflow documentation including bugfix-ship.md, build-test.md, dev-environment.md, mcp-qa-e2e.md, release-semver.md, ui-spec.md, and worktree-env.md
 
 ### Working with Skills
 
@@ -194,6 +204,7 @@ When contributing to skills:
 - Add internal tools and utilities to `.agents/skills/kairos-dev/`
 - Follow the established SKILL.md format for consistent documentation
 - Ensure proper categorization based on target audience (users vs. developers)
+- **Updated**: Refer to the revised skill-authoring.md for detailed guidance on skill development practices
 
 **Section sources**
 - [.agents/skills/kairos/SKILL.md](file://.agents/skills/kairos/SKILL.md)
@@ -205,7 +216,7 @@ Use VS Code dev containers to ensure consistent local development:
 - Open the repository in VS Code and use the "Reopen in Container" command or follow instructions in the dev container README.
 - The base dev container configuration is provided; extend as needed via compose overrides.
 - Local services (e.g., databases, caches) can be started with Docker Compose using the provided compose file.
-- **Updated**: The development environment now includes the new consolidated skills structure under `.agents/skills/`.
+- **Updated**: The development environment now includes the new consolidated skills structure under `.agents/skills/` with enhanced kairos-dev skill support.
 
 Key steps:
 - Install VS Code and Docker.
@@ -213,6 +224,7 @@ Key steps:
 - Start dependent services with Docker Compose before running the app.
 - Verify the server starts and health endpoints respond.
 - **New**: Explore the new skills structure in `.agents/skills/kairos/` and `.agents/skills/kairos-dev/` to understand the updated skill organization.
+- **Updated**: Utilize the enhanced kairos-dev skill for development tasks including debugging, testing, and deployment workflows.
 
 **Section sources**
 - [.devcontainer/README.md](file://.devcontainer/README.md)
@@ -240,10 +252,11 @@ Key steps:
 - Logging and metrics:
   - Use structured logging utilities.
   - Expose relevant metrics for observability.
-- **New**: Skills documentation:
+- **Updated**: Skills documentation:
   - Follow SKILL.md format for all skill definitions.
   - Maintain clear separation between user-facing and developer-facing skills.
   - Include comprehensive examples and usage instructions.
+  - **New**: Adhere to the revised skill-authoring.md guidelines for consistent skill development practices.
 
 **Section sources**
 - [eslint.config.cjs](file://eslint.config.cjs)
@@ -267,10 +280,11 @@ Key steps:
 - Quality gates:
   - All tests must pass before merging.
   - Add tests for new features and bug fixes.
-- **New**: Skills testing:
+- **Updated**: Skills testing:
   - Validate skill definitions and documentation format.
   - Test skill discovery and loading mechanisms.
   - Ensure backward compatibility during skill migrations.
+  - **New**: Utilize the enhanced kairos-dev skill for comprehensive testing workflows including MCP QA and end-to-end testing procedures.
 
 **Section sources**
 - [jest.config.js](file://jest.config.js)
@@ -286,13 +300,13 @@ Key steps:
   - Clear description of changes and rationale.
   - Links to related issues or specs when applicable.
   - Updated tests and documentation if needed.
-  - **New**: For skills-related changes, explain the impact on the new two-skill architecture.
+  - **Updated**: For skills-related changes, explain the impact on the new two-skill architecture and adherence to revised skill-authoring.md guidelines.
 - Review checklist:
   - Does the change meet coding standards?
   - Are there sufficient tests covering the change?
   - Is the change backward compatible or properly versioned?
   - Are there any security or performance implications?
-  - **New**: For skills changes, verify proper categorization between user-facing and developer-facing functionality.
+  - **Updated**: For skills changes, verify proper categorization between user-facing and developer-facing functionality and compliance with updated development practices.
 - Feedback and iteration:
   - Address reviewer comments promptly.
   - Re-run tests and linters after updates.
@@ -308,7 +322,7 @@ Key steps:
 - PR template:
   - Fill out all required fields in the PR template.
   - Include screenshots or recordings for UI changes.
-  - **New**: For skills changes, specify whether modifications affect the user-facing 'kairos' skill or internal 'kairos-dev' skill.
+  - **Updated**: For skills changes, specify whether modifications affect the user-facing 'kairos' skill or internal 'kairos-dev' skill and reference relevant sections in the updated skill-authoring.md.
 - CI expectations:
   - Ensure all CI checks pass (lint, test, build).
   - Resolve conflicts before requesting review.
@@ -318,15 +332,15 @@ Key steps:
 - Pre-release validation:
   - Run full test suites locally and in CI.
   - Validate Helm chart packaging and values.
-  - **New**: Verify skills migration completeness and backward compatibility.
+  - **Updated**: Verify skills migration completeness and backward compatibility with the new two-skill architecture.
 - Publishing artifacts:
   - Build Docker images using provided Dockerfiles.
   - Package Helm charts and update versions accordingly.
-  - **New**: Update skills documentation and migration guides as needed.
+  - **Updated**: Update skills documentation and migration guides as needed, ensuring alignment with revised skill-authoring.md and development practices.
 - Post-release verification:
   - Confirm deployment on staging environments.
   - Monitor logs and metrics for anomalies.
-  - **New**: Validate skills functionality in production environments.
+  - **Updated**: Validate skills functionality in production environments and ensure compatibility with updated development workflows.
 
 **Section sources**
 - [Dockerfile.dev](file://Dockerfile.dev)
@@ -344,10 +358,11 @@ Key steps:
   - Use scripts to synchronize Helm chart versions with application versions.
 - Deprecation policy:
   - Announce deprecations in advance and provide migration paths.
-- **New**: Skills versioning:
+- **Updated**: Skills versioning:
   - Coordinate skill updates with application releases.
   - Maintain backward compatibility for skill interfaces.
   - Provide clear migration guides for breaking skill changes.
+  - **New**: Align skill versioning with the revised release-semver.md guidelines and updated development practices.
 
 **Section sources**
 - [scripts/helm-bump-version.mjs](file://scripts/helm-bump-version.mjs)
@@ -360,7 +375,7 @@ Key steps:
 - Categorize entries (Features, Fixes, Breaking Changes, Docs, etc.).
 - Link PRs and issues to changelog entries for traceability.
 - Update changelog during release preparation.
-- **New**: Include skills migration notes and breaking changes in the new two-skill architecture.
+- **Updated**: Include skills migration notes and breaking changes in the new two-skill architecture, referencing the updated skill-authoring.md and development practice changes.
 
 ## Architectural Guidelines
 
@@ -374,10 +389,11 @@ Key steps:
 - Observability:
   - Emit metrics and logs at key boundaries.
   - Provide health endpoints for readiness and liveness.
-- **New**: Skills architecture:
+- **Updated**: Skills architecture:
   - Clear separation between user-facing and developer-facing capabilities.
   - Consistent skill definition format and discovery mechanism.
   - Proper scoping and access control for different skill types.
+  - **New**: Enhanced kairos-dev skill provides comprehensive development tooling and maintains alignment with updated development practices.
 
 ```mermaid
 sequenceDiagram
@@ -387,6 +403,7 @@ participant Tool as "Tool Layer"
 participant Service as "Service Layer"
 participant Store as "Qdrant/Storage"
 participant Skills as "Skills System"
+participant DevTools as "Kairos-Dev Skill"
 Client->>HTTP : "Request"
 HTTP->>Tool : "Invoke tool"
 Tool->>Service : "Call service"
@@ -396,6 +413,7 @@ Service-->>Tool : "Processed result"
 Tool-->>HTTP : "Response payload"
 HTTP-->>Client : "HTTP Response"
 Skills-->>Tool : "Skill context and metadata"
+DevTools-->>Tool : "Development utilities and debugging"
 ```
 
 **Diagram sources**
@@ -427,10 +445,11 @@ Skills-->>Tool : "Skill context and metadata"
   - Validate inputs, sanitize outputs, and follow least privilege access.
 - Performance:
   - Optimize hot paths and avoid unnecessary allocations.
-- **New**: Skills design:
+- **Updated**: Skills design:
   - Clear separation of concerns between user and developer interfaces.
   - Consistent patterns across all skill implementations.
   - Forward-compatible skill evolution strategies.
+  - **New**: Enhanced kairos-dev skill design supports comprehensive development workflows and maintains alignment with updated skill-authoring.md guidelines.
 
 ## Adding New Features
 
@@ -441,7 +460,7 @@ Steps:
 - Expose new capabilities via HTTP routes or MCP offerings.
 - Write unit and integration tests.
 - Update documentation and examples.
-- **New**: Create or update skill documentation following the established SKILL.md format.
+- **Updated**: Create or update skill documentation following the established SKILL.md format and revised skill-authoring.md guidelines.
 
 ```mermaid
 flowchart TD
@@ -451,7 +470,8 @@ Categorize --> Implement["Implement Tool/Service"]
 Implement --> Integrate["Integrate with HTTP/MCP"]
 Integrate --> Test["Add Tests"]
 Test --> SkillsDoc["Update Skill Documentation"]
-SkillsDoc --> Docs["Update Docs"]
+SkillsDoc --> DevGuidance["Follow Revised Skill-Authoring.md"]
+DevGuidance --> Docs["Update Docs"]
 Docs --> Review["Code Review"]
 Review --> Merge["Merge to Target Branch"]
 Merge --> End(["Feature Complete"])
@@ -472,7 +492,7 @@ Steps:
 - Ensure existing tests continue to pass.
 - Add regression tests to prevent recurrence.
 - Document known limitations if applicable.
-- **New**: For skills-related bugs, verify the fix works across both user-facing and developer-facing skill contexts.
+- **Updated**: For skills-related bugs, verify the fix works across both user-facing and developer-facing skill contexts and align with the revised kairos-dev skill development practices.
 
 **Section sources**
 - [tests/integration](file://tests/integration)
@@ -485,7 +505,7 @@ Guidelines:
 - Refactor incrementally with tests guarding behavior.
 - Update schemas and contracts carefully to maintain compatibility.
 - Communicate changes through PR descriptions and docs.
-- **New**: When improving skills, ensure changes align with the new two-skill architecture and maintain clear separation of concerns.
+- **Updated**: When improving skills, ensure changes align with the new two-skill architecture, maintain clear separation of concerns, and adhere to the revised skill-authoring.md guidelines and updated development practices.
 
 **Section sources**
 - [src/services/memory/store.ts](file://src/services/memory/store.ts)
@@ -499,7 +519,7 @@ Guidelines:
 - Focus on constructive feedback and collaboration.
 - Follow the code of conduct and legal notices.
 - Acknowledge contributions and recognize effort.
-- **New**: Understand and respect the new skills architecture when discussing feature proposals or improvements.
+- **Updated**: Understand and respect the new skills architecture when discussing feature proposals or improvements, particularly the enhanced kairos-dev skill and revised development practices.
 
 **Updated** The project has transitioned from manual strategy documentation to an automated documentation system. All contributing guidelines, development approaches, and project strategies are now maintained in a structured wiki format for better accessibility and maintainability. Contributors should refer to the wiki pages for up-to-date project direction and development guidelines rather than looking for standalone strategy documents.
 
@@ -509,7 +529,7 @@ Guidelines:
 - Engage in PR discussions for technical decisions.
 - Refer to documentation for setup and usage details.
 - Check the wiki for project strategy and development guidelines.
-- **New**: Discuss skills-related changes in the context of the new two-skill architecture.
+- **Updated**: Discuss skills-related changes in the context of the new two-skill architecture and enhanced kairos-dev skill capabilities.
 
 **Updated** With the migration to automated documentation, the wiki serves as the central source for project strategy, development approaches, and contributing guidelines.
 
@@ -519,7 +539,7 @@ Guidelines:
   - Commits and PR authorship.
   - Mentions in release notes and changelogs.
   - Community acknowledgments in discussions.
-- **New**: Special recognition for contributions to the skills architecture migration and improvements.
+- **Updated**: Special recognition for contributions to the skills architecture migration, enhanced kairos-dev skill development, and improvements to skill-authoring.md and related development practice documentation.
 
 ## Troubleshooting Guide
 
@@ -533,10 +553,12 @@ Common issues and resolutions:
 - Linting errors:
   - Run linter locally and fix reported issues.
   - Ensure Husky hooks are installed.
-- **New**: Skills-related issues:
+- **Updated**: Skills-related issues:
   - Verify skills are properly located in `.agents/skills/` directory.
   - Check SKILL.md format compliance for new or modified skills.
   - Ensure proper categorization between user-facing and developer-facing skills.
+  - **New**: Utilize the enhanced kairos-dev skill for debugging and troubleshooting development environment issues.
+  - **New**: Reference the updated dev-environment.md and worktree-env.md for current development environment setup and troubleshooting procedures.
 
 **Section sources**
 - [.devcontainer/README.md](file://.devcontainer/README.md)
@@ -550,4 +572,4 @@ Common issues and resolutions:
 
 Contributing to Kairos MCP involves setting up a consistent development environment, adhering to coding standards, writing thorough tests, following code review practices, and aligning with the release and versioning strategy. By following these guidelines, contributors can help improve the project's quality, reliability, and extensibility while collaborating effectively within the community.
 
-**Updated** The recent skills organization restructuring demonstrates the project's commitment to continuous improvement and user-centric design. The new two-skill architecture provides a clearer path for contributors to understand their role in enhancing either the user experience or developer capabilities. The project's commitment to maintaining high-quality documentation through automated systems ensures that contributors always have access to current and accurate information about development practices, project strategy, and contribution guidelines.
+**Updated** The recent skills organization restructuring demonstrates the project's commitment to continuous improvement and user-centric design. The new two-skill architecture provides a clearer path for contributors to understand their role in enhancing either the user experience or developer capabilities. The major revisions to the kairos-dev skill, including enhanced skill-authoring.md guidance and updated development practices, ensure that contributors have comprehensive support for all aspects of Kairos MCP development. The project's commitment to maintaining high-quality documentation through automated systems ensures that contributors always have access to current and accurate information about development practices, project strategy, and contribution guidelines.

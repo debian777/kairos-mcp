@@ -26,10 +26,10 @@
 
 ## Update Summary
 **Changes Made**
-- Updated integration test structure to reflect new logical categorization with readonly/, write/, and mode/auth/ directories
-- Added documentation for the new static spec-parity gate for fast-failure detection
-- Enhanced test organization guidelines to include the new partitioning strategy
-- Updated architecture diagrams to show the reorganized test structure
+- Removed references to deprecated test snapshot documentation files (test-snapshot-caching.md, test-snapshot-final-summary.md, test-snapshot-quick-start.md, test-snapshot-seeding.md)
+- Updated testing strategy documentation to reflect current implementation approaches
+- Streamlined content to focus on active testing practices and frameworks
+- Enhanced clarity around dual framework approach using Jest and Vitest
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -43,12 +43,12 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains the testing strategy and framework setup for Kairos MCP. It covers the dual testing approach using Jest for unit tests and Vitest for modern TypeScript and UI tests, including configuration, environment setup, global fixtures, authentication testing with Keycloak integration, test data management, database seeding, service mocking patterns, and guidelines for organizing and naming tests. The testing infrastructure has been reorganized with integration tests partitioned into logical categories for better maintainability and faster execution.
+This document explains the testing strategy and framework setup for Kairos MCP. It covers the dual testing approach using Jest for unit tests and Vitest for modern TypeScript and UI tests, including configuration, environment setup, global fixtures, authentication testing with Keycloak integration, test data management, database seeding, service mocking patterns, and guidelines for organizing and naming tests. The testing infrastructure emphasizes clear separation of concerns and efficient execution through logical test categorization.
 
 ## Project Structure
 The repository organizes tests under a dedicated tests directory with clear categorization:
 - Unit tests: Pure logic and utility functions without external dependencies
-- Integration tests: End-to-end flows against real or containerized services (Keycloak, Redis, Qdrant), now partitioned into logical categories
+- Integration tests: End-to-end flows against real or containerized services (Keycloak, Redis, Qdrant), organized into logical categories
   - **readonly/**: Read-only operations and queries
   - **write/**: Mutation operations and state changes
   - **mode/auth/**: Authentication-specific tests
@@ -125,8 +125,8 @@ I --> SP
   - MCP client utilities for tool invocation and assertions
 - Data and fixtures:
   - Centralized test data and artifact fixtures
-  - Seeding scripts and snapshot utilities
-- **Updated**: Logical test categorization for improved organization and execution efficiency
+  - Seeding scripts and utilities
+- Logical test categorization for improved organization and execution efficiency
 
 **Section sources**
 - [tests/setup.ts](file://tests/setup.ts)
@@ -144,7 +144,7 @@ The testing architecture separates concerns by framework and scope, with enhance
 - Jest runs unit and integration suites with global auth lifecycle and sequencer control
 - Vitest runs UI tests with its own setup and DOM environment
 - Shared utilities provide consistent auth, MCP client behavior, and fixture management
-- **Updated**: Integration tests are now partitioned into logical categories for better maintainability and faster parallel execution
+- Integration tests are partitioned into logical categories for better maintainability and faster parallel execution
 
 ```mermaid
 sequenceDiagram
@@ -193,7 +193,7 @@ end
   - Test environment selection and setup files
   - Custom sequencer for deterministic ordering when needed
   - Coverage thresholds and reporting
-  - **Updated**: Enhanced support for categorized test execution
+  - Enhanced support for categorized test execution
 
 **Section sources**
 - [jest.config.js](file://jest.config.js)
@@ -322,7 +322,7 @@ Guidelines:
 ### Guidelines for Organizing Tests, Naming, and Categorization
 - Organization:
   - Group by concern: unit, integration, ui, load
-  - **Updated**: Integration tests are now partitioned into logical categories:
+  - Integration tests are partitioned into logical categories:
     - **readonly/**: Read-only operations like search, dump, activate, and listing
     - **write/**: Mutation operations like train, update, delete, and reward
     - **mode/auth/**: Authentication-specific tests for different modes
@@ -342,7 +342,7 @@ Best practices:
 - Keep tests independent and idempotent
 - Use shared setup only for expensive initialization; reset state per suite
 - Avoid flakiness by controlling time and randomness deterministically
-- **Updated**: Place tests in appropriate categories based on their operation type (read vs write) and authentication requirements
+- Place tests in appropriate categories based on their operation type (read vs write) and authentication requirements
 
 **Section sources**
 - [tests/integration/readonly/http-api-activate.test.ts](file://tests/integration/readonly/http-api-activate.test.ts)
@@ -350,7 +350,7 @@ Best practices:
 - [tests/integration/mode/auth/http-auth.test.ts](file://tests/integration/mode/auth/http-auth.test.ts)
 
 ### Static Spec-Parity Gate for Fast-Failure Detection
-- **New**: A dedicated test file (`api-mcp-parity.test.ts`) serves as a static spec-parity gate
+- A dedicated test file (`api-mcp-parity.test.ts`) serves as a static spec-parity gate
 - Purpose:
   - Ensures API and MCP contract consistency
   - Provides fast-failure detection for breaking changes
@@ -369,20 +369,20 @@ Best practices:
   - Example: OAuth refresh flow edge cases
 - Integration tests:
   - Exercise HTTP APIs and MCP tool contracts end-to-end
-  - **Updated**: Now organized by operation type (readonly/write) and authentication requirements
+  - Now organized by operation type (readonly/write) and authentication requirements
   - Example: Activation and forward workflows
 - UI tests:
   - Render components and assert interactions and rendered output
 - Contract tests:
   - Ensure schema consistency and backward compatibility
-  - **Updated**: Includes static spec-parity gate for fast-failure detection
+  - Includes static spec-parity gate for fast-failure detection
 
 Examples:
 - OAuth refresh unit test
 - Keycloak integration test
 - HTTP API helper usage
 - v4 activation integration test
-- **Updated**: Categorized integration tests demonstrating the new structure
+- Categorized integration tests demonstrating the new structure
 
 **Section sources**
 - [tests/unit/oauth-refresh.test.ts](file://tests/unit/oauth-refresh.test.ts)
@@ -396,7 +396,7 @@ The testing stack depends on configuration files and shared utilities:
 - Jest and Vitest configurations drive runner behavior
 - Package scripts orchestrate execution
 - Shared utilities centralize auth, MCP client, and harness logic
-- **Updated**: New test categorization structure affects dependency routing
+- New test categorization structure affects dependency routing
 
 ```mermaid
 graph LR
@@ -452,10 +452,8 @@ JestCfg --> SP["tests/integration/api-mcp-parity.test.ts"]
 - Parallelize independent suites; limit concurrency for resource-heavy tests
 - Cache snapshots and fixtures locally; invalidate selectively
 - Profile slow tests and refactor into smaller, focused suites
-- **Updated**: Leverage the new test categorization to run read-only tests in parallel with write tests for improved performance
-- **Updated**: Utilize the static spec-parity gate for fast-failure detection to catch breaking changes early
-
-[No sources needed since this section provides general guidance]
+- Leverage the new test categorization to run read-only tests in parallel with write tests for improved performance
+- Utilize the static spec-parity gate for fast-failure detection to catch breaking changes early
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -465,15 +463,15 @@ Common issues and resolutions:
 - Flaky integration tests:
   - Add explicit waits for service readiness
   - Isolate state changes per suite and reset after each run
-  - **Updated**: Check if tests are in the correct category (readonly vs write) to avoid state conflicts
+  - Check if tests are in the correct category (readonly vs write) to avoid state conflicts
 - UI test failures due to environment:
   - Confirm Vitest DOM setup is loaded and polyfills are present
 - Slow test runs:
   - Reduce scope of seeded data
   - Use targeted test filters to run specific suites
-  - **Updated**: Run only relevant test categories instead of the entire suite
+  - Run only relevant test categories instead of the entire suite
 - Spec parity failures:
-  - **New**: Check api-mcp-parity.test.ts for contract violations
+  - Check api-mcp-parity.test.ts for contract violations
   - Ensure API and MCP interfaces remain synchronized
 
 **Section sources**
@@ -483,4 +481,4 @@ Common issues and resolutions:
 - [tests/integration/api-mcp-parity.test.ts](file://tests/integration/api-mcp-parity.test.ts)
 
 ## Conclusion
-Kairos MCP employs a robust dual-framework testing strategy: Jest for unit and integration tests and Vitest for modern TypeScript and UI tests. The architecture emphasizes clear separation of concerns, reusable authentication and MCP utilities, and disciplined organization. The recent reorganization of integration tests into logical categories (readonly/, write/, mode/auth/) enhances maintainability and execution efficiency. By following the provided guidelines and leveraging shared fixtures and harnesses, teams can maintain fast, reliable, and comprehensive test coverage across all layers of the system. The addition of the static spec-parity gate ensures contract consistency and enables fast-failure detection for breaking changes.
+Kairos MCP employs a robust dual-framework testing strategy: Jest for unit and integration tests and Vitest for modern TypeScript and UI tests. The architecture emphasizes clear separation of concerns, reusable authentication and MCP utilities, and disciplined organization. The reorganization of integration tests into logical categories (readonly/, write/, mode/auth/) enhances maintainability and execution efficiency. By following the provided guidelines and leveraging shared fixtures and harnesses, teams can maintain fast, reliable, and comprehensive test coverage across all layers of the system. The addition of the static spec-parity gate ensures contract consistency and enables fast-failure detection for breaking changes. The streamlined documentation now focuses on current implementation approaches, removing references to deprecated snapshot testing documentation while maintaining comprehensive coverage of the active testing infrastructure.

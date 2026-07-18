@@ -2,384 +2,309 @@
 
 <cite>
 **Referenced Files in This Document**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
+- [README.md](file://README.md)
+- [CONTRIBUTING.md](file://CONTRIBUTING.md)
+- [package.json](file://package.json)
 - [tsconfig.json](file://tsconfig.json)
 - [tsconfig.ui.json](file://tsconfig.ui.json)
 - [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
+- [Dockerfile.dev](file://Dockerfile.dev)
+- [Dockerfile.stdio](file://Dockerfile.stdio)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Removed all references to .devcontainer directory and dev container configurations
+- Updated introduction to reflect simplified local development approach
+- Replaced dev container sections with local development instructions
+- Updated troubleshooting guide for common local development issues
+- Removed architecture diagrams related to containerized development
+- Added guidance for direct Node.js development environment setup
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+2. [Local Development Setup](#local-development-setup)
+3. [Development Environment Requirements](#development-environment-requirements)
+4. [Project Structure](#project-structure)
+5. [TypeScript Compilation Settings](#typescript-compilation-settings)
+6. [Development Dependencies and Scripts](#development-dependencies-and-scripts)
+7. [Remote Debugging Setup](#remote-debugging-setup)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
-This document explains how to use the VS Code Dev Container setup for Kairos MCP development. It covers the dev container configuration, Node.js and TypeScript settings used during development, multi-stage build process, local code mounting, remote debugging, automatic extension installation, and environment customization. It also provides troubleshooting guidance for common issues such as permissions, network access, and performance optimization, along with instructions for extending the dev container to meet specific needs.
+This document explains how to set up a local development environment for Kairos MCP development. The project has moved away from containerized development in favor of a simpler, more direct approach using your local machine's Node.js installation. This change provides faster iteration cycles, easier debugging, and reduced complexity while maintaining consistent development experiences across different machines through standardized toolchain versions.
+
+The local development approach eliminates the overhead of container management while providing full access to your system resources for optimal performance during development and testing.
+
+## Local Development Setup
+Setting up the development environment is straightforward and requires only Node.js and npm:
+
+### Prerequisites
+- **Node.js**: Version specified in package.json engines field
+- **npm**: Latest stable version compatible with your Node.js installation
+- **Git**: For cloning the repository and managing dependencies
+
+### Quick Start
+```bash
+# Clone the repository
+git clone https://github.com/debian777/kairos-mcp.git
+cd kairos-mcp
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+```
+
+### Development Workflow
+1. **Install dependencies**: `npm install` - installs all required packages
+2. **Start development server**: `npm run dev` - starts the application with hot reload
+3. **Run TypeScript compilation**: `npm run build` - compiles TypeScript to JavaScript
+4. **Execute tests**: `npm test` - runs unit and integration tests
+5. **Build production artifacts**: `npm run build:prod` - creates optimized production builds
+
+**Section sources**
+- [README.md](file://README.md)
+- [CONTRIBUTING.md](file://CONTRIBUTING.md)
+- [package.json](file://package.json)
+
+## Development Environment Requirements
+The project uses specific versions of development tools to ensure consistency across different machines and environments.
+
+### Node.js Version Management
+The project specifies Node.js requirements in package.json to maintain compatibility:
+- Uses Node.js engines field to define minimum supported versions
+- Compatible with both LTS and current Node.js releases within specified ranges
+- Supports development on macOS, Linux, and Windows platforms
+
+### Toolchain Consistency
+- **TypeScript**: Configured for strict type checking and modern ECMAScript features
+- **Vite**: Used for fast development server and optimized builds
+- **Testing Framework**: Jest for unit tests and Puppeteer for UI testing
+- **Linting**: ESLint with custom rules for code quality enforcement
+
+**Section sources**
+- [package.json](file://package.json)
+- [tsconfig.json](file://tsconfig.json)
+- [vite.config.ts](file://vite.config.ts)
 
 ## Project Structure
-The dev container configuration is organized under .devcontainer with a base configuration and optional full-stack profile that adds additional services via Docker Compose. The project includes multiple Dockerfiles for different runtime targets (development server and stdio-based server), and TypeScript/Vite configurations that define compilation and UI build behavior.
+The project follows a modular architecture with clear separation between core functionality, HTTP APIs, and user interface components.
 
 ```mermaid
 graph TB
-subgraph "Dev Container Config"
-A["devcontainer.json.base"]
-B["devcontainer-fullstack.json"]
-C["docker-compose.extend.yml"]
-D["docker-compose-fullstack.extend.yml"]
-E["use-config.sh"]
-F["validate.sh"]
+subgraph "Core Application"
+A["src/index.ts"] --> B["src/server.ts"]
+B --> C["src/bootstrap.ts"]
+C --> D["src/config.ts"]
 end
-subgraph "Build Targets"
-G["Dockerfile.dev"]
-H["Dockerfile.stdio"]
+subgraph "HTTP Layer"
+E["src/http/"] --> F["API Routes"]
+F --> G["Authentication"]
+G --> H["MCP Handlers"]
 end
-subgraph "TypeScript & Build"
-I["tsconfig.json"]
-J["tsconfig.ui.json"]
-K["vite.config.ts"]
+subgraph "Services"
+I["src/services/"] --> J["Memory Store"]
+J --> K["Qdrant Integration"]
+K --> L["Redis Cache"]
 end
-subgraph "Runtime"
-L["package.json"]
+subgraph "User Interface"
+M["src/ui/"] --> N["React Components"]
+N --> O["Vite Build System"]
 end
-A --> G
-B --> G
-B --> D
-C --> G
-D --> G
-E --> A
-F --> A
-I --> G
-J --> G
-K --> G
-L --> G
 ```
 
 **Diagram sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
+- [src/index.ts](file://src/index.ts)
+- [src/server.ts](file://src/server.ts)
+- [src/bootstrap.ts](file://src/bootstrap.ts)
+- [src/config.ts](file://src/config.ts)
+- [src/http/](file://src/http/)
+- [src/services/](file://src/services/)
+- [src/ui/](file://src/ui/)
 
 **Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
+- [src/index.ts](file://src/index.ts)
+- [src/server.ts](file://src/server.ts)
+- [src/bootstrap.ts](file://src/bootstrap.ts)
+- [src/config.ts](file://src/config.ts)
 
-## Core Components
-- Base dev container configuration: Defines the image, features, extensions, and default lifecycle hooks for a consistent development experience.
-- Full-stack profile: Extends the base configuration with additional services (e.g., databases or caches) via Docker Compose overrides.
-- Dockerfiles: Provide multi-stage builds for development and stdio server targets, including Node.js version pinning and dependency caching.
-- TypeScript and Vite configs: Define compilation targets, module resolution, and UI build behavior used inside the dev container.
-- Utility scripts: Validate and switch between dev container configurations.
+## TypeScript Compilation Settings
+TypeScript configuration defines the compilation target, module system, path aliases, and strictness flags used throughout the development process.
 
-Key responsibilities:
-- Ensure reproducible Node.js and toolchain versions across machines.
-- Mount local source code into the container for fast iteration.
-- Install recommended VS Code extensions automatically.
-- Provide optional service composition for full-stack scenarios.
-- Support remote debugging by exposing ports and configuring launch profiles.
+### Core TypeScript Configuration
+- **Target**: ES2022 for modern JavaScript features
+- **Module**: CommonJS for Node.js compatibility
+- **Strict Mode**: Enabled for comprehensive type checking
+- **Path Aliases**: Configured for clean imports across packages
 
-**Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
+### UI-Specific Configuration
+- **Separate tsconfig.ui.json**: Tailored for frontend build pipeline
+- **Vite Integration**: Optimized for React component development
+- **Hot Module Replacement**: Enabled for rapid UI development
 
-## Architecture Overview
-The dev container architecture layers a base image with Node.js and development tools, then applies VS Code features and extensions. Optional Docker Compose files add backend services required by the application. The build pipeline uses multi-stage Dockerfiles to optimize cache usage and reduce image size while preserving debuggability.
-
-```mermaid
-graph TB
-Client["VS Code (Host)"] --> DevContainer["Dev Container (Node.js + Tools)"]
-DevContainer --> App["Kairos MCP App"]
-DevContainer --> Services["Optional Services<br/>via docker-compose.override"]
-DevContainer --> Debug["Remote Debugger"]
-App --> Services
-Debug --> App
-```
-
-[No sources needed since this diagram shows conceptual workflow, not actual code structure]
-
-## Detailed Component Analysis
-
-### Dev Container Base Configuration
-The base configuration defines the development image, Node.js version, VS Code extensions, and lifecycle hooks. It typically:
-- Selects a Node.js image or feature set aligned with the project’s requirements.
-- Installs recommended extensions for TypeScript, linting, testing, and debugging.
-- Sets up workspace folders and mounts the local repository into the container.
-- Provides pre/post-create and post-start hooks to install dependencies and validate the environment.
-
-Customization points:
-- Change the Node.js version by updating the image or feature selection.
-- Add or remove VS Code extensions to tailor the IDE experience.
-- Adjust volume mounts if you need to share additional host directories.
-
-**Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-
-### Full-Stack Profile and Docker Compose Overrides
-The full-stack profile extends the base configuration by composing additional services required for end-to-end development (for example, database or cache services). It leverages Docker Compose override files to inject extra containers without modifying the base image.
-
-Highlights:
-- docker-compose.extend.yml: Adds shared services or volumes commonly used across profiles.
-- docker-compose-fullstack.extend.yml: Adds services specific to the full-stack scenario.
-- The profile references these compose files from the dev container configuration.
-
-Usage:
-- Open the repository in VS Code and select the full-stack dev container profile.
-- The compose files will start auxiliary services alongside your app.
-
-**Section sources**
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-
-### Multi-Stage Build Process
-The project uses separate Dockerfiles for different targets:
-- Development server target: Optimized for interactive development, hot reload, and debugging.
-- Stdio server target: Minimal image suitable for running the CLI/stdio mode.
-
-Typical stages:
-- Builder stage: Installs dependencies and compiles TypeScript using tsconfig definitions.
-- Runtime stage: Copies only necessary artifacts and sets the entrypoint for the app.
-
-Benefits:
-- Faster rebuilds due to layer caching.
-- Smaller runtime images.
-- Consistent toolchain across environments.
-
-Customization:
-- Update Node.js version in the builder stage to match package.json engines.
-- Add additional build steps (e.g., asset generation) before copying artifacts.
-
-**Section sources**
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
-
-### TypeScript Compilation Settings
-TypeScript configuration defines the compilation target, module system, path aliases, and strictness flags. The UI-specific config tailors output for the frontend build pipeline.
-
-Key aspects:
-- Target and module options ensure compatibility with the Node.js runtime used in the dev container.
-- Path mappings support clean imports across packages.
-- Separate UI config aligns with Vite’s expectations.
-
-Recommendations:
-- Keep tsconfig settings aligned with the Node.js version in the dev container.
-- Use incremental builds to speed up recompilation during development.
+### Development Benefits
+- **Incremental Builds**: Faster compilation during development
+- **Type Safety**: Comprehensive error detection and auto-completion
+- **Cross-Platform Compatibility**: Consistent behavior across operating systems
 
 **Section sources**
 - [tsconfig.json](file://tsconfig.json)
 - [tsconfig.ui.json](file://tsconfig.ui.json)
 - [vite.config.ts](file://vite.config.ts)
 
-### Development Dependencies and Scripts
-Development dependencies include linters, formatters, test runners, and build tools. Scripts orchestrate tasks like building, testing, and serving the application.
+## Development Dependencies and Scripts
+The project includes comprehensive development tooling for building, testing, and maintaining code quality.
 
-Guidance:
-- Ensure all dev dependencies are installed inside the container via lifecycle hooks.
-- Pin versions in package.json to maintain consistency across machines.
+### Key Development Dependencies
+- **Build Tools**: Vite for fast development server and optimized builds
+- **Testing**: Jest for unit tests, Puppeteer for UI testing
+- **Code Quality**: ESLint, Prettier for consistent code formatting
+- **Development Utilities**: TypeScript compiler, source maps for debugging
+
+### Essential NPM Scripts
+- `npm run dev`: Start development server with hot reload
+- `npm run build`: Compile TypeScript and bundle assets
+- `npm test`: Execute test suite with coverage reporting
+- `npm run lint`: Check code quality and formatting
+- `npm run typecheck`: Validate TypeScript types without compilation
+
+### Custom Development Scripts
+The project includes specialized scripts for various development tasks:
+- Database initialization and seeding
+- API endpoint testing
+- Documentation generation
+- Performance profiling
 
 **Section sources**
 - [package.json](file://package.json)
 
-### Remote Debugging Setup
-To enable remote debugging:
-- Expose the debugger port in the dev container configuration.
-- Configure a VS Code launch profile to attach to the running process.
-- Start the app with debugging flags enabled.
+## Remote Debugging Setup
+The project supports comprehensive debugging capabilities for both Node.js backend and browser-based UI components.
 
-Best practices:
-- Use named ports to avoid conflicts.
-- Restrict debugging exposure to localhost when possible.
-- Leverage VS Code’s integrated terminal inside the container for streamlined workflows.
+### Node.js Backend Debugging
+- **VS Code Launch Configuration**: Pre-configured for attaching to running processes
+- **Source Maps**: Enabled for accurate breakpoint mapping
+- **Environment Variables**: Support for development-specific configurations
 
-**Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
+### Browser UI Debugging
+- **Vite Dev Server**: Built-in debugging support for React components
+- **React Developer Tools**: Recommended extension for component inspection
+- **Network Tab**: Monitor API calls and WebSocket connections
 
-### Local Code Mounting and Hot Reload
-Local code is mounted into the container so changes on the host reflect immediately. For optimal performance:
-- Prefer bind mounts over copy-on-build for source code.
-- Exclude node_modules from sync to avoid overhead.
-- Enable file watching optimizations in the editor and build tools.
+### Debugging Best Practices
+- Use conditional breakpoints for complex logic paths
+- Leverage console logging with structured output
+- Utilize Chrome DevTools for performance analysis
+- Test debugging setup in clean environments regularly
 
 **Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-
-### Automatic Extension Installation
-Recommended extensions are installed automatically when the dev container starts. This ensures consistent tooling across team members.
-
-How it works:
-- The dev container configuration lists extensions to install.
-- VS Code installs them on first run and updates them according to policy.
-
-Customization:
-- Add language-specific or productivity extensions as needed.
-- Remove unnecessary extensions to reduce startup time.
-
-**Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-
-### Environment Validation and Switching Utilities
-Utility scripts help validate the dev container environment and switch between configurations:
-- validate.sh: Checks prerequisites and environment variables.
-- use-config.sh: Switches between base and full-stack profiles.
-
-Usage:
-- Run validation after opening the dev container to catch misconfiguration early.
-- Use the switching script to toggle profiles without manual edits.
-
-**Section sources**
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-
-## Dependency Analysis
-The dev container depends on:
-- Node.js runtime and toolchain defined in the Dockerfiles.
-- TypeScript and Vite configurations for compilation and UI builds.
-- Optional Docker Compose files for auxiliary services.
-- VS Code extensions for IDE capabilities.
-
-```mermaid
-graph LR
-DC["devcontainer.json.base"] --> DF["Dockerfile.dev"]
-DC --> DFC["Dockerfile.stdio"]
-DFCF["devcontainer-fullstack.json"] --> DF
-DFCF --> COMPOSE1["docker-compose.extend.yml"]
-DFCF --> COMPOSE2["docker-compose-fullstack.extend.yml"]
-TS["tsconfig.json"] --> DF
-TSI["tsconfig.ui.json"] --> DF
-VITE["vite.config.ts"] --> DF
-PKG["package.json"] --> DF
-```
-
-**Diagram sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
-- [package.json](file://package.json)
-
-**Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
 - [vite.config.ts](file://vite.config.ts)
 - [package.json](file://package.json)
 
 ## Performance Considerations
-- Cache Node.js modules in Docker layers to speed up rebuilds.
-- Avoid syncing large directories (e.g., node_modules) into the container.
-- Use incremental TypeScript builds and Vite’s dev server for fast feedback.
-- Limit background processes and heavy extensions in the dev container.
-- Prefer Linux-native filesystems for better file watch performance.
+Optimizing the local development environment for maximum productivity and responsiveness.
 
-[No sources needed since this section provides general guidance]
+### File System Optimization
+- **Native File Watching**: Leverages OS-native file system events
+- **Selective Compilation**: Only compiles changed files during development
+- **Memory Management**: Configured heap sizes for large projects
 
-## Troubleshooting Guide
-Common issues and resolutions:
-- Permission problems:
-  - Ensure the user inside the container has write access to mounted directories.
-  - Adjust volume mount ownership or use rootless modes appropriately.
-- Network access:
-  - Verify proxy settings and DNS resolution inside the container.
-  - Confirm that required ports are exposed and not blocked by host firewalls.
-- Slow builds:
-  - Check that dependency caching is effective.
-  - Reduce unnecessary file syncs and disable unused extensions.
-- Service connectivity:
-  - Validate Docker Compose services are running and reachable via internal networking.
-  - Inspect logs for initialization errors.
+### Build Performance
+- **Incremental Builds**: TypeScript incremental compilation reduces rebuild times
+- **Parallel Processing**: Multi-threaded compilation and testing
+- **Dependency Caching**: npm cache optimization for faster installations
 
-Validation helpers:
-- Use the provided validation script to check prerequisites and environment variables.
-- Switch profiles using the configuration utility to isolate issues.
+### Development Server Optimization
+- **Hot Module Replacement**: Instant updates without full page reloads
+- **Lazy Loading**: On-demand loading of large modules
+- **Compression**: Gzip compression for development assets
 
 **Section sources**
-- [.devcontainer/validate.sh](file://.devcontainer/validate.sh)
-- [.devcontainer/use-config.sh](file://.devcontainer/use-config.sh)
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
+- [vite.config.ts](file://vite.config.ts)
+- [package.json](file://package.json)
+
+## Troubleshooting Guide
+Common issues and solutions for local development environment problems.
+
+### Node.js and Dependency Issues
+- **Version Conflicts**: Use nvm or similar tools to manage Node.js versions
+- **Permission Errors**: Ensure proper file permissions for global packages
+- **Cache Corruption**: Clear npm cache with `npm cache clean --force`
+
+### TypeScript Compilation Problems
+- **Type Errors**: Review strict mode settings and update type definitions
+- **Slow Compilation**: Enable incremental builds and exclude unnecessary files
+- **Import Resolution**: Verify path aliases and module resolution settings
+
+### Development Server Issues
+- **Port Conflicts**: Change default ports in configuration files
+- **Memory Limitations**: Increase Node.js heap size for large applications
+- **File Watch Failures**: Adjust inotify limits on Linux systems
+
+### Testing Environment Problems
+- **Database Connectivity**: Ensure test databases are properly initialized
+- **Mock Configuration**: Verify test mocks and stubs are correctly configured
+- **Test Isolation**: Clean up test data between test runs
+
+### Performance Optimization
+- **Large Projects**: Use selective compilation and dependency caching
+- **Memory Usage**: Monitor and optimize memory consumption patterns
+- **Build Times**: Analyze build bottlenecks and optimize accordingly
+
+**Section sources**
+- [package.json](file://package.json)
+- [tsconfig.json](file://tsconfig.json)
 
 ## Conclusion
-The Kairos MCP dev container setup provides a consistent, reproducible development environment across machines. By leveraging a base configuration, optional full-stack profile, multi-stage Dockerfiles, and well-defined TypeScript/Vite settings, developers can focus on coding rather than environment management. With proper debugging, extension automation, and performance tuning, teams can collaborate efficiently and minimize “works on my machine” issues.
+The simplified local development approach for Kairos MCP provides a streamlined, efficient development experience without the complexity of container orchestration. By leveraging your local machine's native capabilities and standardized toolchain versions, developers can focus on coding rather than environment management.
 
-[No sources needed since this section summarizes without analyzing specific files]
+This approach offers faster iteration cycles, easier debugging, and better integration with your preferred development tools while maintaining consistency across team members through well-defined version requirements and comprehensive documentation.
+
+The transition from containerized to local development represents a strategic decision to prioritize developer productivity and simplicity while ensuring reliable, reproducible development environments through standardized toolchain management.
 
 ## Appendices
 
-### How to Customize the Development Environment
-- Change Node.js version:
-  - Update the image or feature selection in the dev container configuration and align Dockerfiles accordingly.
-- Add new services:
-  - Extend docker-compose.override files to include additional containers.
-- Tailor VS Code extensions:
-  - Modify the extension list in the dev container configuration.
-- Adjust build behavior:
-  - Edit tsconfig and vite configurations to change compilation targets or UI build options.
+### Migration from Containerized Development
+For teams transitioning from the previous containerized setup:
+
+#### Environment Parity
+- **Node.js Versions**: Match container Node.js versions with local installations
+- **System Dependencies**: Install equivalent system libraries locally
+- **Environment Variables**: Replicate container environment variables in local configs
+
+#### Development Workflow Changes
+- **Direct Execution**: Run commands directly instead of through containers
+- **Volume Mounting**: Use symbolic links or direct file access instead of mounted volumes
+- **Service Composition**: Set up local services (databases, caches) independently
+
+#### Benefits of Local Development
+- **Faster Iteration**: Direct file system access improves hot reload performance
+- **Simplified Debugging**: Native debugging tools work without container limitations
+- **Resource Efficiency**: No container overhead reduces memory and CPU usage
+- **Tool Integration**: Better integration with IDE features and extensions
+
+### Advanced Development Scenarios
+For complex development needs:
+
+#### Microservices Architecture
+- **Service Discovery**: Use local service mesh or manual service management
+- **Configuration Management**: Centralized configuration for multiple services
+- **Inter-service Communication**: Configure local networking for service communication
+
+#### CI/CD Pipeline Integration
+- **Local Testing**: Mirror CI/CD environment configurations locally
+- **Automated Workflows**: Set up local automation scripts for repetitive tasks
+- **Artifact Generation**: Reproduce build artifacts for testing and deployment
 
 **Section sources**
-- [.devcontainer/devcontainer.json.base](file://.devcontainer/devcontainer.json.base)
-- [.devcontainer/devcontainer-fullstack.json](file://.devcontainer/devcontainer-fullstack.json)
-- [.devcontainer/docker-compose.extend.yml](file://.devcontainer/docker-compose.extend.yml)
-- [.devcontainer/docker-compose-fullstack.extend.yml](file://.devcontainer/docker-compose-fullstack.extend.yml)
-- [Dockerfile.dev](file://Dockerfile.dev)
-- [Dockerfile.stdio](file://Dockerfile.stdio)
-- [tsconfig.json](file://tsconfig.json)
-- [tsconfig.ui.json](file://tsconfig.ui.json)
-- [vite.config.ts](file://vite.config.ts)
+- [README.md](file://README.md)
+- [CONTRIBUTING.md](file://CONTRIBUTING.md)
+- [package.json](file://package.json)

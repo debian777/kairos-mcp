@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".qoder/repowiki/en/content/**"
+      - "scripts/build-wiki.mjs"
       - ".github/workflows/sync-qoder-repowiki-to-github-wiki.yml"
 
   workflow_dispatch:
