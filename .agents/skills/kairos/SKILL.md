@@ -13,7 +13,7 @@ description: >-
   → respond. Also covers first-time install and updates for end users.
 
 metadata:
-  version: "4.8.0-rc.2"
+  version: "4.8.0"
   author: kairos-mcp
   always_active: true
 allowed-tools: activate forward reward train tune export delete spaces
