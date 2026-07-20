@@ -6,6 +6,7 @@
 import { AuthRequiredError, isBrowserDisabled } from './auth-error.js';
 import { getApiUrl } from './config.js';
 import { getDefaultApiUrlFromFile, readConfig, writeConfig } from './config-file.js';
+import { describeFetchError, networkErrorWithHint } from './fetch-error.js';
 import { loginWithBrowser } from './commands/login.js';
 import { jwtExpiresInSeconds, refreshAccessToken } from './oauth-refresh.js';
 import { rewriteLoginUrlRedirectToApiBase } from './rewrite-login-url.js';
@@ -161,7 +162,7 @@ export class ApiClient {
                     const delayMs = Math.min(1000 * 2 ** (attempt - 1), 10_000) + Math.random() * 200;
                     const label = err instanceof Error && err.name === 'AbortError'
                         ? `timed out after ${requestTimeoutMs / 1000}s`
-                        : (err instanceof Error ? err.message : 'network error');
+                        : describeFetchError(err);
                     process.stderr.write(
                         `[kairos] retry ${attempt}/${this.maxRetries}: ${label} — waiting ${(delayMs / 1000).toFixed(1)}s\n`
                     );
@@ -171,6 +172,9 @@ export class ApiClient {
                 }
                 if (err instanceof Error && err.name === 'AbortError') {
                     throw new Error(`Request to ${url} timed out after ${requestTimeoutMs / 1000}s`);
+                }
+                if (isRetryableNetworkError(err)) {
+                    throw networkErrorWithHint(`Request to ${url} failed`, err);
                 }
                 throw err;
             }
@@ -253,7 +257,7 @@ export class ApiClient {
             return data as T;
         }
         throw lastErr instanceof Error
-            ? lastErr
+            ? networkErrorWithHint(`Request to ${url} failed after ${maxAttempts} attempts`, lastErr)
             : new Error(`Request to ${url} failed after ${maxAttempts} attempts`);
     }
     async activate(query: string): Promise<ActivateOutput> {
