@@ -1,9 +1,9 @@
-# Install — npx zero-config stdio (end users)
+# Install — global npm package (end users)
 
 First-time setup for an end user who just wants their MCP host (Claude
-Desktop, Cursor, Claude Code, …) to talk to KAIROS. The command is
-**`npx -y @debian777/kairos-mcp serve`** — **no `--transport` flag**, because
-`serve` already defaults to **stdio**.
+Desktop, Cursor, Claude Code, …) to talk to KAIROS. Install the package
+globally, then point your host at **`kairos serve`** — **no `--transport`
+flag**, because `serve` already defaults to **stdio**.
 
 This mirrors the user quick start in the repository
 [README](https://github.com/debian777/kairos-mcp/blob/main/README.md). If the
@@ -11,7 +11,7 @@ two ever disagree, the README is authoritative.
 
 ## Prerequisites
 
-- **Node.js 24 or later** (npx ships with npm).
+- **Node.js 24 or later**.
 - **A Qdrant reachable on `localhost:6333`** with **no auth**. The server
   cannot boot without a vector store. If you do not already run one, the
   quickest option is:
@@ -24,6 +24,16 @@ two ever disagree, the README is authoritative.
   `localhost:6333` works.
 - **One embedding backend.** Pick exactly one and set its env (see below).
 
+## Install
+
+```bash
+npm install -g @debian777/kairos-mcp
+kairos --help
+```
+
+The global install provides both the **`kairos`** CLI (bulk operations, auth,
+server management) and the MCP server binary used by your agent host.
+
 ## Host `mcp.json`
 
 Add KAIROS to your MCP host configuration. The command is flagless — stdio is
@@ -33,8 +43,8 @@ the default transport:
 {
   "mcpServers": {
     "kairos": {
-      "command": "npx",
-      "args": ["-y", "@debian777/kairos-mcp", "serve"],
+      "command": "kairos",
+      "args": ["serve"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
         "QDRANT_API_KEY": "",
@@ -69,7 +79,7 @@ After the host connects, KAIROS tools (`activate`, `forward`, `reward`, …)
 should be listed. If the host lets you run the CLI directly:
 
 ```bash
-npx -y @debian777/kairos-mcp --help
+kairos --help
 ```
 
 ## HTTP listener (optional)

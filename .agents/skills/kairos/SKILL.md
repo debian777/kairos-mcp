@@ -59,9 +59,9 @@ router.
   complete routing discipline: when to route vs. execute directly, chain
   execution rules, proof types, safety/validation, and the unavailability
   procedure. Read this before routing any action intent.
-- **[Install (npx, zero-config stdio)](references/install.md)** — first-time
-  end-user setup: `npx -y @debian777/kairos-mcp serve` against a localhost
-  Qdrant, embedding backend, and host `mcp.json`.
+- **[Install (global npm, stdio)](references/install.md)** — first-time
+  end-user setup: `npm install -g @debian777/kairos-mcp` then `kairos serve`
+  against a localhost Qdrant, embedding backend, and host `mcp.json`.
 - **[Updates](references/updates.md)** — refresh the npm CLI (`@latest`) and
   installed skills (`npx skills update`).
 - **[Bug report](references/bug-report.md)** — capture a structured MCP bug
