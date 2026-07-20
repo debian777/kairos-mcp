@@ -27,7 +27,7 @@ build and tests; keep them build-accurate.
 - [Optional `fullstack` Compose note](install/docker-compose-full-stack.md) —
   not a Keycloak install guide
 - [Helm deployment](install/helm.md)
-- [CLI reference](CLI.md) — `kairos` / `npx @debian777/kairos-mcp`, auth, batch
+- [CLI reference](CLI.md) — `kairos`, auth, batch
   training
 - [KAIROS bundles](kairos-bundles.md) — bundle layout plus export/import paths
 

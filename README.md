@@ -124,7 +124,7 @@ Use one transport mode per process:
 
 KAIROS runs as a local MCP server that your agent host launches over **stdio**
 (the default transport). You do not need to clone this repo or run Docker
-Compose — `npx` fetches and runs the published package.
+Compose — install the package globally and point your host at `kairos serve`.
 
 ### Prerequisites
 
@@ -139,6 +139,16 @@ Compose — `npx` fetches and runs the published package.
 
 - **One embedding backend**, supplied through the host `env` below.
 
+### Install
+
+```bash
+npm install -g @debian777/kairos-mcp
+kairos --help
+```
+
+The global install provides both the **`kairos`** CLI (bulk operations, auth,
+server management) and the MCP server binary used by your agent host.
+
 ### Configure your MCP host
 
 Add KAIROS to your host's `mcp.json` (Cursor, Claude Desktop, Claude Code, …).
@@ -148,8 +158,8 @@ Add KAIROS to your host's `mcp.json` (Cursor, Claude Desktop, Claude Code, …).
 {
   "mcpServers": {
     "KAIROS": {
-      "command": "npx",
-      "args": ["-y", "@debian777/kairos-mcp", "serve"],
+      "command": "kairos",
+      "args": ["serve"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
         "QDRANT_API_KEY": "",
@@ -183,23 +193,14 @@ descriptions are the runtime authority if they differ from this file.
 > Keycloak / Redis / Postgres) for local development and testing, see
 > [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Install the CLI (optional)
+## CLI
 
-The `kairos` CLI talks to a running KAIROS HTTP server. It is optional — the
-MCP quick start above does not require it.
-
-Node.js 24 or later is required.
-
-Run once without installing globally:
+The `kairos` CLI is installed as part of the global package (see
+[Install](#install) above). It provides bulk adapter operations, authentication,
+export/import, and server management — the same binary your MCP host uses for
+`kairos serve`.
 
 ```bash
-npx @debian777/kairos-mcp --help
-```
-
-Or install globally:
-
-```bash
-npm install -g @debian777/kairos-mcp
 kairos --help
 ```
 

@@ -11,12 +11,6 @@ npm install -g @debian777/kairos-mcp
 kairos --help
 ```
 
-Run once without global installation:
-
-```bash
-npx @debian777/kairos-mcp --help
-```
-
 The package also installs the **`kairos-mcp`** command (same binary as **`kairos`**).
 
 ## Run the MCP server (`serve`)
@@ -37,7 +31,7 @@ Main HTTP listener port when **`TRANSPORT_TYPE=http`** (UI, REST, `/mcp`) is res
 
 ```bash
 kairos serve
-npx @debian777/kairos-mcp serve --env-file .env
+kairos serve --env-file .env
 kairos serve --metrics-port 9091
 kairos serve --transport http --server-port 4300
 TRANSPORT_TYPE=http kairos serve
@@ -49,12 +43,6 @@ Equivalent:
 
 ```bash
 kairos-mcp serve --transport stdio
-```
-
-With **`npx`** (Node 25+):
-
-```bash
-npx -y @debian777/kairos-mcp serve
 ```
 
 - **`--env-file`** — if the path exists, it is loaded with `dotenv` before the server reads configuration. If the file is missing, the command continues (environment-only startup).

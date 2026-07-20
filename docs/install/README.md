@@ -100,15 +100,9 @@ npm install -g @debian777/kairos-mcp
 kairos --help
 ```
 
-If you do not want a global installation, run the package with `npx`:
-
-```sh
-npx @debian777/kairos-mcp --help
-```
-
 To start the HTTP/MCP server from the CLI when Qdrant and `.env` are already in
 place (same expectations as Compose), see **Run the server locally (`serve`)** in
-[CLI](../CLI.md) (`kairos serve` / `npx @debian777/kairos-mcp serve`).
+[CLI](../CLI.md) (`kairos serve`).
 
 For URL selection, authentication, and the full command surface, see
 [CLI](../CLI.md).
@@ -181,7 +175,7 @@ Use stdio mode when your host spawns the MCP server process directly.
    ```
 
 3. Configure your host command (pick one):
-   - **From npm (Node 25+):** `command`: `npx`, `args`: `["-y", "@debian777/kairos-mcp", "serve"]` (stdio is the default transport), plus `env` for Qdrant/embedding.
+   - **Global install (recommended):** `command`: `kairos`, `args`: `["serve"]` (stdio is the default transport), plus `env` for Qdrant/embedding.
    - **From a checkout:** `command`: `node`, `args`: `["/absolute/path/to/kairos-mcp/dist/bootstrap.js"]`, `env`: `TRANSPORT_TYPE=stdio` (or run `kairos serve --transport stdio` from the repo after `npm run build`).
 
 Host snippets:
