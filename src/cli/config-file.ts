@@ -17,6 +17,7 @@ import {
   setRefreshToken,
   setToken,
 } from './keyring.js';
+import { writeStderr } from './output.js';
 import {
   getConfigPath,
   isKeychainTokenPlaceholder,
@@ -39,6 +40,18 @@ export interface CliConfig {
 function extractInlineSecret(value: string | undefined): { inlineValue: string | undefined; hadPlaceholder: boolean } {
   if (isKeychainTokenPlaceholder(value)) return { inlineValue: undefined, hadPlaceholder: true };
   return { inlineValue: value, hadPlaceholder: false };
+}
+
+let keychainUnreachableWarned = false;
+/**
+ * One-time warning for the placeholder dead-end: the file marks a token as keychain-stored
+ * (__KEYCHAIN__) but the keyring can no longer return it (binding gone or timed out). Without this
+ * the CLI silently drops the session; here we tell the user how to recover.
+ */
+function warnKeychainUnreachableOnce(): void {
+  if (keychainUnreachableWarned) return;
+  keychainUnreachableWarned = true;
+  writeStderr('Token was saved to the OS keychain but the keyring is now unavailable — run `kairos login` to re-authenticate.');
 }
 
 function persistEnvironmentSentinel(path: string, url: string, opts: { bearer?: boolean; refresh?: boolean }): void {
@@ -165,7 +178,10 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
       token = tokenFromFile;
     }
   }
-  if (hadTokenPlaceholder && !fromKeyring) token = null;
+  if (hadTokenPlaceholder && !fromKeyring) {
+    if (!isKeyringAvailable()) warnKeychainUnreachableOnce();
+    token = null;
+  }
 
   const fromKeyringRefresh = await getRefreshToken(effectiveUrl);
   let refreshToken = fromKeyringRefresh ?? null;
@@ -178,7 +194,10 @@ export async function readConfig(baseUrl?: string): Promise<CliConfig> {
       refreshToken = refreshFromFile;
     }
   }
-  if (hadRefreshPlaceholder && !fromKeyringRefresh) refreshToken = null;
+  if (hadRefreshPlaceholder && !fromKeyringRefresh) {
+    if (!isKeyringAvailable()) warnKeychainUnreachableOnce();
+    refreshToken = null;
+  }
 
   const out: CliConfig = {};
   if (apiUrlOut) out.apiUrl = apiUrlOut;

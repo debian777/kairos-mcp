@@ -5,6 +5,7 @@
 import {
     deleteRefreshToken,
     deleteToken,
+    getKeyringUnavailableReason,
     isKeyringAvailable,
     setRefreshToken,
     setToken,
@@ -24,8 +25,12 @@ import {
 let fallbackWarned = false;
 
 function warnFallbackOnce(): void {
-    if (!fallbackWarned) {
-        fallbackWarned = true;
+    if (fallbackWarned) return;
+    fallbackWarned = true;
+    const reason = getKeyringUnavailableReason();
+    if (reason) {
+        writeStderr(`Keyring unavailable (${reason}); storing token in config file.`);
+    } else {
         writeStderr('Keyring unavailable; storing token in config file.');
     }
 }
