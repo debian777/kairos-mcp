@@ -4,14 +4,7 @@ Keep both the KAIROS server/CLI and the installed agent skills current.
 
 ## Update the server / CLI (npm package)
 
-The npx quick start in [install.md](install.md) always resolves the published
-package. To force the latest release explicitly, use the `@latest` tag:
-
-```bash
-npx -y @debian777/kairos-mcp@latest serve
-```
-
-If you installed the CLI globally, upgrade it with npm:
+Upgrade the globally installed package to the latest release:
 
 ```bash
 npm install -g @debian777/kairos-mcp@latest
@@ -42,6 +35,6 @@ end users do not install it.
 
 ## After updating
 
-- Restart your MCP host so it re-launches `npx ... serve` with the new version.
+- Restart your MCP host so it re-launches `kairos serve` with the new version.
 - If a KAIROS tool misbehaves after an update, capture a report per
   [bug-report.md](bug-report.md).
