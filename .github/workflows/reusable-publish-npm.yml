@@ -83,7 +83,7 @@ jobs:
         run: npm run lint
 
       - name: Set up Python (skills-ref)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
