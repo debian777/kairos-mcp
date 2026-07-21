@@ -173,7 +173,7 @@
     "@jest/test-sequencer": "^30.2.0",
     "@mermaid-js/mermaid-cli": "^11.15.0",
     "@tailwindcss/postcss": "^4.0.0",
-    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
     "@types/express": "^5.0.6",
