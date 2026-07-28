@@ -1,6 +1,6 @@
 {
   "name": "@debian777/kairos-mcp",
-  "version": "4.8.1",
+  "version": "4.8.2",
   "description": "MCP server for agent automation: persistent memory and deterministic workflow execution for AI agents and chats",
   "type": "module",
   "main": "dist/index.js",
@@ -217,6 +217,7 @@
     "js-yaml": "^4.2.0",
     "markdown-it": "^14.2.0",
     "shell-quote": "^1.10.0",
+    "react-router": "^8.3.0",
     "typescript": "^5.9.3"
   }
 }
