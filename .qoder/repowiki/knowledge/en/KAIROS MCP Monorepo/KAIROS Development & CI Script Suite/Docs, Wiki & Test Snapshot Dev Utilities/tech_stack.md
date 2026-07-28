@@ -1,0 +1,1 @@
+Python 3 + stdlib regex for the wording pass; Bash + curl + python3 one-liners for JSON parsing in snapshot scripts; `@mermaid-js/mermaid-cli` (`mmdc`) invoked via Puppeteer for diagram validation; `gh` CLI for repository/wiki configuration.

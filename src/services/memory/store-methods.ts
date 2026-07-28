@@ -25,8 +25,6 @@ import {
 export class MemoryQdrantStoreMethods {
   private client: QdrantClient;
   private collection: string;
-  private cache = new Map<string, Memory>();
-  private cacheLoaded = false;
   private url: string;
   private codeBlockProcessor: CodeBlockProcessor;
 
@@ -37,15 +35,11 @@ export class MemoryQdrantStoreMethods {
     this.codeBlockProcessor = codeBlockProcessor;
   }
 
-  // Invalidate local in-memory cache so subsequent searches reload from Qdrant
-  invalidateLocalCache(): void {
-    this.cache.clear();
-    this.cacheLoaded = false;
-  }
-
   async getMemory(memory_uuid: string): Promise<Memory | null> {
     if (!memory_uuid) return null;
-    const cached = this.cache.get(memory_uuid);
+
+    // Check shared cache first (Redis when configured, in-memory otherwise)
+    const cached = await redisCacheService.getMemoryResource(memory_uuid);
     if (cached) return cached;
 
     const retrieveReq = {
@@ -73,7 +67,8 @@ export class MemoryQdrantStoreMethods {
     }
 
     const memory = this.pointToMemory(point);
-    this.cache.set(memory.memory_uuid, memory);
+    // Populate shared cache for subsequent reads
+    await redisCacheService.setMemoryResource(memory);
     return memory;
   }
 
@@ -265,30 +260,6 @@ export class MemoryQdrantStoreMethods {
 
   private pointToMemory(point: any): Memory {
     return mapQdrantPointToMemory(point);
-  }
-
-  /** @deprecated No longer used by searchMemories (replaced by Qdrant vector search). Kept for optional full-load paths. */
-  private async ensureCache(): Promise<void> {
-    if (this.cacheLoaded) return;
-    let pageOffset: any = undefined;
-    do {
-      const filter = buildSpaceFilter(getSpaceContext().allowedSpaceIds);
-      const page = await this.client.scroll(this.collection, {
-        filter,
-        with_payload: true,
-        with_vector: false,
-        limit: 128,
-        offset: pageOffset
-      } as any);
-      (page.points || []).forEach((point: any) => {
-        const memory = this.pointToMemory(point);
-        this.cache.set(memory.memory_uuid, memory);
-      });
-
-      pageOffset = page.next_page_offset;
-    } while (pageOffset);
-
-    this.cacheLoaded = true;
   }
 
   buildHeaderMemoryAdapter(markdownDoc: string, llmModelId: string, now: Date): Memory[] {

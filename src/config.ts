@@ -52,7 +52,10 @@ function getEnvBoolean(key: string, defaultValue: boolean): boolean {
 const KEY_VALUE_STORE_URL_RAW = getEnvString('KEY_VALUE_STORE_URL', getEnvString('REDIS_URL', ''));
 const KEY_VALUE_STORE_PASSWORD = getEnvString('KEY_VALUE_STORE_PASSWORD', getEnvString('REDIS_PASSWORD', ''));
 export const REDIS_URL = normalizeRedisUrl(KEY_VALUE_STORE_URL_RAW, KEY_VALUE_STORE_PASSWORD);
+/** Single source of truth: whether a shared key-value backend is available. */
+export const isRedisConfigured = REDIS_URL.length > 0;
 export const KAIROS_REDIS_PREFIX = getEnvString('KAIROS_KEY_VALUE_PREFIX', getEnvString('KAIROS_REDIS_PREFIX', 'kairos:'));
+export const OIDC_STATE_KEY_PREFIX = 'oidc-state:';
 /**
  * Ordered URI hints emitted as the `kairos_local_artifact_dir` response field
  * (preferred first). The client resolves a hint on its own filesystem and
@@ -64,8 +67,6 @@ export const KAIROS_LOCAL_ARTIFACT_DIRS: readonly string[] = parseLocalArtifactD
 );
 /** Memory cache key prefix; keys starting with this are global (no space namespace). One key per UUID. */
 export const MEMORY_CACHE_KEY_PREFIX = 'mem:';
-/** OIDC login-transaction state key prefix; global (no space namespace) because login has no space context. */
-export const OIDC_STATE_KEY_PREFIX = 'oidc-state:';
 export const OPENAI_EMBEDDING_MODEL = getEnvString('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
 /** Base URL for OpenAI API (e.g. https://api.openai.com or Azure endpoint). No trailing slash. */
 export const OPENAI_API_URL = getEnvString('OPENAI_API_URL', 'https://api.openai.com').replace(/\/$/, '');
@@ -77,10 +78,14 @@ export const TEI_API_KEY = getEnvString('TEI_API_KEY', '');
 export const EMBEDDING_LATENCY_WARN_MS = getEnvInt('EMBEDDING_LATENCY_WARN_MS', 5000);
 export const EMBEDDING_NORM_MIN = getEnvFloat('EMBEDDING_NORM_MIN', 0.5);
 export const EMBEDDING_NORM_MAX = getEnvFloat('EMBEDDING_NORM_MAX', 2.0);
-/**
- * Wall-clock cap for comment PoW semantic check (two embedding calls). On timeout, fail open (same as embedding errors)
- * so MCP `forward` stays within agent-usable latency (well under typical ~30s client limits). Set to 0 to skip semantic check.
- */
+/** Retry policy for embedding 429/5xx/network. Exponential backoff+jitter; Retry-After honored; insufficient_quota fails fast. */
+export const EMBEDDING_MAX_RETRIES = Math.max(0, getEnvInt('EMBEDDING_MAX_RETRIES', 2));
+export const EMBEDDING_RETRY_BASE_DELAY_MS = Math.max(0, getEnvInt('EMBEDDING_RETRY_BASE_DELAY_MS', 500));
+export const EMBEDDING_RETRY_MAX_DELAY_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_MAX_DELAY_MS', 8_000));
+export const EMBEDDING_RETRY_AFTER_CAP_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_AFTER_CAP_MS', 10_000));
+/** Total wall-clock budget for all embedding retries. Once exceeded, no further retries. */
+export const EMBEDDING_RETRY_BUDGET_MS = Math.max(1, getEnvInt('EMBEDDING_RETRY_BUDGET_MS', 15_000));
+/** Wall-clock cap for comment PoW semantic check. On timeout, fail open. Set to 0 to skip. */
 export const COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS = getEnvInt('COMMENT_SEMANTIC_VALIDATION_TIMEOUT_MS', 10_000);
 export const SEARCH_SCORE_WARN_THRESHOLD = getEnvFloat('SEARCH_SCORE_WARN_THRESHOLD', 0.1);
 export const LOG_LEVEL = getEnvString('LOG_LEVEL', 'info');
@@ -229,8 +234,8 @@ export const GROUP_SPACE_PATH_EXAMPLE: string = (() => {
   return `/shared/${KAIROS_GROUP_SPACE_EXAMPLE_SUFFIX}`;
 })();
 
-// Int configurations
-export const PORT = getEnvInt('PORT', 3000);
+/** Main HTTP listener when `TRANSPORT_TYPE=http`: UI, REST API, and Streamable HTTP MCP. Ignored in stdio mode (no HTTP server). */
+export const SERVER_PORT = getEnvInt('SERVER_PORT', 3000);
 
 const AUTH_ENABLED_EXPLICIT = process.env['AUTH_ENABLED'] !== undefined;
 
@@ -275,8 +280,11 @@ export const RUNS_FULL_CONFIDENCE = getEnvInt('RUNS_FULL_CONFIDENCE', 10);
 /** Max additive boost from attest (tiebreaker within RRF bands). */
 export const ATTEST_BOOST_MAX = getEnvFloat('ATTEST_BOOST_MAX', 0.08);
 
-// Transport: stdio | http. Logging and server use this single source.
-const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', 'stdio');
+// Transport: stdio | http. Default http for non-CLI entrypoints (Docker/CI/bootstrap).
+// `kairos serve` sets KAIROS_CLI_SERVE=1 before spawning bootstrap so missing TRANSPORT_TYPE defaults to stdio there only.
+const _transportDefault =
+  process.env['KAIROS_CLI_SERVE'] === '1' && !process.env['TRANSPORT_TYPE']?.trim() ? 'stdio' : 'http';
+const TRANSPORT_TYPE_RAW = getEnvString('TRANSPORT_TYPE', _transportDefault);
 export const TRANSPORT_TYPE: 'stdio' | 'http' =
   TRANSPORT_TYPE_RAW === 'http' ? 'http' : 'stdio';
 

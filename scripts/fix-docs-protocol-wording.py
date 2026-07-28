@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Doc wording pass: reduce kairos-forbidden-text/review-protocol-wording hits.
-Skip lines with URL path /protocol/ (Keycloak OIDC). Do not edit skills/kairos/SKILL.md
-(whole-file opt-out via HTML comment).
+Skip lines with URL path /protocol/ (Keycloak OIDC). The `.agents/skills/**`
+tree is exempt from the review-protocol-wording rule (see eslint/flat-config.cjs)
+and is intentionally not processed here.
 """
 from __future__ import annotations
 
@@ -87,11 +88,7 @@ SUBS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
-SKIP_FILES = frozenset(
-    {
-        ROOT / "skills" / "kairos" / "SKILL.md",
-    }
-)
+SKIP_FILES: frozenset[Path] = frozenset()
 
 
 def process_file(path: Path) -> bool:
@@ -119,7 +116,6 @@ def process_file(path: Path) -> bool:
 def main() -> int:
     patterns = [
         "docs/**/*.md",
-        "skills/**/*.md",
         "src/mcp-apps/**/*.md",
         "scripts/**/*.md",
         "README.md",

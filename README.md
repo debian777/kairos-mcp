@@ -88,150 +88,125 @@ and `must_obey` fields in real runs.
 **Must never:** Invent URIs; skip layers; submit a solution whose type does not
 match `contract.type`.
 
-For a longer narrative, see
-[docs/architecture/workflow-full-execution.md](docs/architecture/workflow-full-execution.md).
+For a longer narrative, see the **Workflow Engine** pages in the
+[KAIROS wiki](https://github.com/debian777/kairos-mcp/wiki).
 
 ## What runs in this repository
 
 The current codebase includes:
 
 - **HTTP application server** — Express app for MCP, REST, auth routes, and UI
+- **stdio MCP transport** — direct local-host launch path for desktop/IDE MCP clients
 - **Qdrant-backed adapter store** — required for runtime
 - **Optional Redis cache / proof-of-work state store** — enabled when `REDIS_URL` is set
 - **Optional Keycloak auth integration** — browser session + Bearer JWT validation
 - **React UI** — served from the same origin at `/ui`
 - **CLI** — talks to the HTTP API
 
+## Transport modes
+
+Use one transport mode per process:
+
+**`kairos serve` / `kairos-mcp serve`** (run the MCP server from the npm package):
+
+- **`--transport stdio|http`** overrides **`TRANSPORT_TYPE`** for that process only.
+- If neither is set, **`serve` defaults to stdio** (good for local MCP hosts).
+- Other **`kairos`** commands (login, train, …) do not use `--transport`; they only see
+  **`TRANSPORT_TYPE`** if you set it in the environment (normally leave it unset for CLI-only use).
+
+- **`TRANSPORT_TYPE=http`**: serves `/mcp`, `/api/*`, `/ui`, and `/health`; this is
+  the default for Docker Compose deployments.
+- **`TRANSPORT_TYPE=stdio`**: runs MCP over stdin/stdout for local hosts such as
+  Claude Desktop, Cursor, or Claude Code. In this mode, stdout is reserved for
+  MCP protocol frames and logs go to stderr.
+
 ## Quick start
 
-If your agent supports installable skills, start with the guided setup below.
-If not, use the manual Docker path that follows.
+KAIROS runs as a local MCP server that your agent host launches over **stdio**
+(the default transport). You do not need to clone this repo or run Docker
+Compose — install the package globally and point your host at `kairos serve`.
 
-### Guided setup with the `kairos-install` skill
+### Prerequisites
 
-Use this when you want a guided first-time setup for Ollama, `.env`
-configuration, and the minimal local stack.
-The repo stores `kairos-install` under `skills/.system/`, but you still
-install it by name.
+- **Node.js 24+**.
+- **A Qdrant instance on `http://localhost:6333`** — KAIROS cannot start
+  without it, and no auth is required for local use. If you don't already run
+  one, this is the quickest option (optional convenience):
 
-1. Install the setup skill:
+  ```bash
+  docker run -p 6333:6333 qdrant/qdrant
+  ```
 
-   ```bash
-   npx skills add debian777/kairos-mcp --skill kairos-install
-   ```
+- **One embedding backend**, supplied through the host `env` below.
 
-2. Ask your agent to run `kairos-install` for this repo. The skill confirms
-   each system-changing step before it installs Ollama, prepares `.env`, and
-   starts the minimal Docker stack.
-
-3. Verify the server:
-
-   ```bash
-   curl http://localhost:3000/health
-   ```
-
-4. Open the UI or MCP endpoint:
-   - UI: `http://localhost:3000/ui`
-   - MCP: `http://localhost:3000/mcp`
-   - Metrics: `http://localhost:9090/metrics`
-
-### Manual minimal Docker stack
-
-Use this when you want the smallest working server deployment without the
-guided skill. The default Compose profile starts **Qdrant + app only**.
-
-1. Create **`.env`** at the repository root. Copy the template from
-   [Docker Compose — simple stack — Environment file](docs/install/docker-compose-simple.md#3-environment-file),
-   then set at least:
-   - `QDRANT_API_KEY`
-   - one embedding provider:
-     - `OPENAI_API_KEY`, or
-     - `OPENAI_API_URL` + `OPENAI_EMBEDDING_MODEL` + `OPENAI_API_KEY=ollama`, or
-     - `TEI_BASE_URL` (+ optional `TEI_MODEL`)
-
-2. Start the stack:
-
-   ```bash
-   docker compose -p kairos-mcp up -d
-   ```
-
-3. Verify the server:
-
-   ```bash
-   curl http://localhost:3000/health
-   ```
-
-4. Open the UI or MCP endpoint:
-   - UI: `http://localhost:3000/ui`
-   - MCP: `http://localhost:3000/mcp`
-   - Metrics: `http://localhost:9090/metrics`
-
-### Optional `fullstack` Compose profile
-
-Extra services (cache, DB, OIDC container) are **optional** and **not** covered as a step-by-step install in **`docs/install/`**. **Keycloak / IdP configuration is your responsibility.** See [Infrastructure](docs/architecture/infrastructure.md) and [`scripts/env/.env.template`](scripts/env/.env.template). Short [operator note](docs/install/docker-compose-full-stack.md).
-
-```bash
-docker compose -p kairos-mcp --profile fullstack up -d
-```
-
-If you want the repo’s full local development flow, use the documented scripts:
-
-```bash
-npm ci
-npm run infra:up
-npm run dev:deploy
-```
-
-The dev scripts default the app to port **3300** (see `scripts/env/.env.template` and
-`scripts/deploy-run-env.sh`). The Docker minimal stack above defaults **3000** unless you
-set `PORT` in `.env`. Use the same host and port in health checks, the UI, and MCP
-URLs.
-
-See [docs/install/README.md](docs/install/README.md) and
-[CONTRIBUTING.md](CONTRIBUTING.md) for the exact env variables and dev workflow.
-
-### Cursor MCP (`KAIROS-DEVELOPMENT`)
-
-This repository ships [`.cursor/mcp.json`](.cursor/mcp.json) with a **streamable
-HTTP** entry keyed **`KAIROS-DEVELOPMENT`**, aimed at local MCP on
-`http://localhost:3300/mcp` (match **`npm run dev:deploy`** when `PORT=3300`).
-If you run the minimal Compose stack without overriding `PORT`, point MCP at
-`http://localhost:3000/mcp` instead. Cursor may show a longer **agent-visible**
-server id (for example one ending in `-KAIROS-DEVELOPMENT`); see
-[AGENTS.md](AGENTS.md) and [docs/install/README.md#cursor-and-mcp](docs/install/README.md#cursor-and-mcp).
-
-When executing over MCP, follow **[Protocol execution](#protocol-execution)**
-above and each tool result’s `next_action`. The connected server’s tool
-descriptions are the runtime authority if they differ from this file.
-
-## Installation options
-
-### Run the server with Docker Compose
-
-Use the Compose quick start above. This repository ships `compose.yaml`,
-inline **`.env`** templates in the install guides under `docs/install/`, and
-the scripts used for local development and CI.
-
-### Install the CLI
-
-Node.js 24 or later is required.
-
-Run once without installing globally:
-
-```bash
-npx @debian777/kairos-mcp --help
-```
-
-Or install globally:
+### Install
 
 ```bash
 npm install -g @debian777/kairos-mcp
 kairos --help
 ```
 
-The CLI talks to a running KAIROS server over HTTP. See [docs/CLI.md](docs/CLI.md).
+The global install provides both the **`kairos`** CLI (bulk operations, auth,
+server management) and the MCP server binary used by your agent host.
 
-### Add KAIROS to your agent instructions
+### Configure your MCP host
+
+Add KAIROS to your host's `mcp.json` (Cursor, Claude Desktop, Claude Code, …).
+`serve` uses **stdio** by default, so **no `--transport` flag is needed**:
+
+```json
+{
+  "mcpServers": {
+    "KAIROS": {
+      "command": "kairos",
+      "args": ["serve"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "QDRANT_API_KEY": "",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+`QDRANT_API_KEY=""` selects no-auth localhost Qdrant. For the embedding backend,
+supply **one** of:
+
+- **OpenAI** — `OPENAI_API_KEY`
+- **Ollama / OpenAI-compatible** — `OPENAI_API_URL`, `OPENAI_EMBEDDING_MODEL`,
+  and `OPENAI_API_KEY=ollama`
+- **TEI** — `TEI_BASE_URL` (+ optional `TEI_MODEL`)
+
+Every parameter is **ENV-overridable**. To run KAIROS as an HTTP listener
+instead of stdio, add `"--transport", "http"` to `args` (see
+[Transport modes](#transport-modes)).
+
+Some hosts show a longer **agent-visible** server id (for example one ending in
+`-KAIROS`); see [AGENTS.md](AGENTS.md) for the runtime authority note.
+
+When executing over MCP, follow **[Protocol execution](#protocol-execution)**
+above and each tool result's `next_action`. The connected server's tool
+descriptions are the runtime authority if they differ from this file.
+
+> **Developers:** to run the full Docker Compose stack (Qdrant + app + optional
+> Keycloak / Redis / Postgres) for local development and testing, see
+> [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## CLI
+
+The `kairos` CLI is installed as part of the global package (see
+[Install](#install) above). It provides bulk adapter operations, authentication,
+export/import, and server management — the same binary your MCP host uses for
+`kairos serve`.
+
+```bash
+kairos --help
+```
+
+See [docs/CLI.md](docs/CLI.md).
+
+## Add KAIROS to your agent instructions
 
 This repo ships the **kairos** skill for running protocols. Use `--list`
 to see what the skills registry reports for this repo.
@@ -247,23 +222,15 @@ instruction such as:
 
 ## Agent skills shipped in this repo
 
-This repository currently ships three installable skills. The primary
-workflow skill lives in `skills/`. The helper skills live in
-`skills/.system/`, but you still install them by name.
+This repository ships its agent skills under
+[`.agents/skills/`](.agents/skills/). Two skills are published:
 
-| Skill | Purpose |
-|-------|---------|
-| `kairos` | Run KAIROS adapters |
-| `kairos-bug-report` | Capture structured MCP bug reports in `reports/` |
-| `kairos-install` | First-time local setup guidance |
+| Skill | Audience | Purpose |
+|-------|----------|---------|
+| `kairos` | Users | Run KAIROS protocols; install and update guidance; bug reports |
+| `kairos-dev` | Developers | Docker Compose dev environment and maintainer workflows (internal; not installed by `npx skills add`) |
 
-Install all shipped skills:
-
-```bash
-npx skills add debian777/kairos-mcp
-```
-
-Install one specific skill:
+Install the user skill:
 
 ```bash
 npx skills add debian777/kairos-mcp --skill kairos
@@ -279,59 +246,22 @@ Popular global installs:
 
 | Agents | Command |
 |--------|---------|
-| Cursor | `npx skills add debian777/kairos-mcp -y -g -a cursor` |
-| Claude Code | `npx skills add debian777/kairos-mcp -y -g -a claude-code` |
-| Cursor + Claude Code | `npx skills add debian777/kairos-mcp -y -g -a cursor -a claude-code` |
-| All detected agents | `npx skills add debian777/kairos-mcp -y -g` |
+| Cursor | `npx skills add debian777/kairos-mcp --skill kairos -y -g -a cursor` |
+| Claude Code | `npx skills add debian777/kairos-mcp --skill kairos -y -g -a claude-code` |
+| Cursor + Claude Code | `npx skills add debian777/kairos-mcp --skill kairos -y -g -a cursor -a claude-code` |
 
-More detail: [skills/README.md](skills/README.md)
+More detail: [.agents/skills/README.md](.agents/skills/README.md)
 
-## Helm Chart Testing
+## Helm (advanced)
 
-This repository includes a comprehensive npm target for testing the Helm chart, matching the GitHub Actions CI pipeline.
-
-### Quick Start
+A Helm chart for Kubernetes deployment lives under [`helm/`](helm/). To
+validate the chart locally (matches the GitHub Actions CI pipeline):
 
 ```bash
-# Run complete Helm test workflow (matches GitHub Actions)
 npm run test:helm
 ```
 
-This runs `scripts/test-helm.sh` which provides clear progress indicators and handles all validation steps.
-
-### Test Location Recommendation
-
-**Use `helm/` for chart-related tests** - This follows Helm conventions and keeps tests close to the chart files:
-
-- ✅ **`helm/kairos-mcp/tests/`** - Chart unit tests (already exists)
-- ✅ **`helm/kairos-mctests/`** - Additional chart validation tests
-- ❌ **`tests/`** - Better suited for application code tests
-
-### What the Target Tests
-
-The single `npm run test:helm` command runs the complete CI workflow:
-
-1. **Dependencies** - Add repos, build chart dependencies
-2. **Helm Lint** - Strict validation of chart structure
-3. **Unit Tests** - helm-unittest plugin validation  
-4. **Chart Testing** - ct lint validation
-5. **Resource Validation** - kubeconform Kubernetes schema checks
-
-### Expected Behavior
-
-- ✅ **All steps pass** - Chart is ready for deployment
-- ⚠️ **kubeconform CRD failures** - Normal for custom resources (Gateway, HTTPRoute, Keycloak, etc.)
-- ❌ **Other failures** - Requires fixes before deployment
-
-### Tool Requirements
-
-The target checks for required tools and provides clear installation instructions:
-
-- **chart-testing (ct)**: `brew install chart-testing`
-- **kubeconform**: `brew install kubeconform`  
-- **helm-unittest**: `helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.0.3`
-
-The target will fail fast with clear error messages if any tools are missing, avoiding unnecessary installation attempts.
+See [docs/install/helm.md](docs/install/helm.md) for deployment details.
 
 ## Documentation map
 
@@ -339,7 +269,7 @@ The target will fail fast with clear error messages if any tools are missing, av
 - [Install and environment](docs/install/README.md)
 - [Cursor and MCP](docs/install/README.md#cursor-and-mcp)
 - [CLI reference](docs/CLI.md)
-- [Architecture](docs/architecture/README.md)
+- [Architecture (KAIROS wiki)](https://github.com/debian777/kairos-mcp/wiki)
 - [Adapter examples](docs/examples/README.md)
 - [Contributing](CONTRIBUTING.md)
 
@@ -347,44 +277,30 @@ The target will fail fast with clear error messages if any tools are missing, av
 
 ### The server does not start
 
-Check container logs:
+In stdio mode KAIROS logs to **stderr** (stdout is reserved for MCP frames).
+Check your host's MCP log panel for the `KAIROS` server. The most common cause
+is Qdrant not being reachable.
+
+### KAIROS cannot reach Qdrant
+
+KAIROS requires a Qdrant instance and only becomes healthy once Qdrant is
+ready. Confirm one is listening on your `QDRANT_URL` (default
+`http://localhost:6333`):
 
 ```bash
-docker compose -p kairos-mcp logs app-prod
+curl http://localhost:6333/readyz
 ```
 
-Also verify that required ports are free:
-
-- minimal stack: app `3000` (or your `PORT`), Qdrant `6333`, metrics `9090` (or
-  your `METRICS_PORT`)
-- repo dev scripts: app often `3300`, metrics often `9390` (see `.env`)
-- full stack adds: `6379`, `5432`, `8080`, `9000`
-
-### Health check returns `503`
-
-KAIROS only reports healthy when Qdrant is ready. Wait for Qdrant to finish
-starting, then retry:
-
-```bash
-curl http://localhost:3000/health
-```
+If you run KAIROS in HTTP mode (`--transport http`), you can also check its own
+health endpoint (`curl http://localhost:3000/health`).
 
 ### Embeddings fail on startup
 
-Set one working embedding backend in `.env`:
+Set one working embedding backend in the host `env`:
 
 - OpenAI: `OPENAI_API_KEY`
 - Ollama/OpenAI-compatible: `OPENAI_API_URL`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_API_KEY=ollama`
 - TEI: `TEI_BASE_URL` (+ optional `TEI_MODEL`)
-
-### Auth-enabled development is failing
-
-Use the fullstack env example, start the `fullstack` profile, and configure
-realms:
-
-```bash
-npm run infra:up
-```
 
 ### The CLI keeps asking for login
 
@@ -399,6 +315,9 @@ Use:
 ```bash
 kairos token --validate
 ```
+
+> **Developers:** for Docker Compose, fullstack, and auth troubleshooting, see
+> [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Support
 

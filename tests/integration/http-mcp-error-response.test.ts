@@ -4,9 +4,10 @@
  * helpful client-facing messages and error_code/retry_hint, never raw "Internal server error".
  */
 
-import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, getAuthHeaders, isHttpTransport } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function postMcp(body: object) {
   return fetch(`${BASE_URL}/mcp`, {
@@ -16,7 +17,7 @@ function postMcp(body: object) {
   });
 }
 
-describe('MCP 500 error response shape', () => {
+_d('MCP 500 error response shape', () => {
   test('concurrent POST /mcp: 500 responses have helpful message and error.data', async () => {
     const req = (id: number) =>
       postMcp({

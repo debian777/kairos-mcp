@@ -1,0 +1,1 @@
+Node.js ESM modules (`import ... from 'node:*'`) for the four `.mjs` scripts, CPython 3 stdlib for the trivyignore checker, and POSIX bash with `docker compose exec` plus `curl`/`redis-cli`/`pg_isready` for infra readiness probing.

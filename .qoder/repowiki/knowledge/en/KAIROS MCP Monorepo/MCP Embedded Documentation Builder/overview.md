@@ -1,0 +1,1 @@
+Build-time script that scans src/embed-docs/*.md and emits a static TypeScript module plus dist/embed-docs/mem/ for the MCP server to serve guides, tools, templates, and protocol docs at runtime.

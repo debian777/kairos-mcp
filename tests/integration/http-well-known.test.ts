@@ -7,12 +7,13 @@
  * well-known discovery must be reachable without credentials.
  */
 
-import { getTestAuthBaseUrl, serverRequiresAuth } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 import { setupServerCheck } from './cli-commands-shared.js';
 
 const BASE_URL = getTestAuthBaseUrl();
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('Protected Resource Metadata (RFC 9728)', () => {
+_d('Protected Resource Metadata (RFC 9728)', () => {
   let serverAvailable = false;
 
   beforeAll(async () => {

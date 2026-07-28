@@ -1,0 +1,1 @@
+CLI helpers that bump the Helm chart version, sync appVersion/image tag to package.json, and copy install docs into the Agent Skills bundle with link fixes.

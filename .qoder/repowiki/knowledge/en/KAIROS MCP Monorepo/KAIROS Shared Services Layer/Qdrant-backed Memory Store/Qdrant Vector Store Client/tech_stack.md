@@ -1,0 +1,1 @@
+Qdrant JavaScript REST client (`@qdrant/js-client-rest`) with optional mTLS via custom CA certificate; rescore quantization toggled through `QDRANT_RESCORE`; alias creation falls back across three REST endpoints to support multiple Qdrant server versions.

@@ -2,7 +2,7 @@
 /**
  * Sync or check versions with two targets:
  * - src/embed-docs/mem/*.md frontmatter = package.json version (current app, can be prerelease).
- * - skills/** (SKILL.md metadata.version + references/KAIROS.md frontmatter) = last stable
+ * - .agents/skills/** (SKILL.md metadata.version + references/KAIROS.md frontmatter) = last stable
  *   (latest git tag vX.Y.Z or 1.0.0).
  * - Default: update files to the appropriate target.
  * - --check: compare; exit 1 if any version differs from its target.
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SKILLS_DIR = path.join(REPO_ROOT, 'skills');
+const SKILLS_DIR = path.join(REPO_ROOT, '.agents', 'skills');
 const MEM_DIR = path.join(REPO_ROOT, 'src', 'embed-docs', 'mem');
 
 const CHECK = process.argv.includes('--check');

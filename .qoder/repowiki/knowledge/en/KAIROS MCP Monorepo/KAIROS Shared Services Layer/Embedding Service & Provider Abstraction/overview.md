@@ -1,0 +1,1 @@
+Provides a unified embedding API over OpenAI and TEI backends, with BM25 sparse tokenization, anomaly auditing, retry/backoff, health checks, and runtime dimension resolution.

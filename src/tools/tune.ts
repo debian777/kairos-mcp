@@ -7,7 +7,7 @@ import { mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpTool
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
 import { executeTune } from './tune-execute.js';
-import { invalidateTuneInProcessCache } from './tune-cache-invalidation.js';
+import { invalidateTuneCache } from './tune-cache-invalidation.js';
 
 export { executeTune } from './tune-execute.js';
 
@@ -48,9 +48,8 @@ export function registerTuneTool(server: any, memoryStore: MemoryQdrantStore, op
         }
         const result = await executeTune(qdrantService, input);
 
-        // Invalidate the in-process MemoryQdrantStore cache so subsequent
-        // reads (export, forward, activate) see the freshly written data.
-        invalidateTuneInProcessCache(memoryStore, result);
+        // Invalidate caches so subsequent reads see the freshly written data.
+        await invalidateTuneCache(result);
 
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
         mcpToolOutputSize.observe({ tool: toolName, tenant_id: tenantId }, JSON.stringify(result).length);

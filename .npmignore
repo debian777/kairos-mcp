@@ -124,7 +124,6 @@ docs/.obsidian
 # MCP / project specific
 .kilocode/
 mcp-logs/
-.devcontainer.disable/
 CLAUDE.md
 store-ai-rules.cjs
 verify-ai-rules.cjs

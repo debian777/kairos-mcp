@@ -1,0 +1,1 @@
+Plain Node.js ESM (`.mjs`) with `child_process.execSync`/`spawnSync` for git/npm orchestration; TypeScript (`.ts`) executed via `ts-node` for the doc-embedding generator; YAML frontmatter parsed with hand-written regex (no external parser).

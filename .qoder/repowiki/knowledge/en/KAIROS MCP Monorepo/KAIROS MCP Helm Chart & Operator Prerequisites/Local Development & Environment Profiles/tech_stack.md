@@ -1,0 +1,1 @@
+Bash orchestration over `kubectl`, `helm`, and `jq`; optional ArgoCD Kustomize overlays as a preferred operator-install path when available; profiles drive installation of Keycloak K8s operator (Quarkus SDK, CRDs fetched from GitHub releases) and Percona PostgreSQL operator (Helm repo).

@@ -1,0 +1,1 @@
+Native Node `fetch` with `AbortController` timeouts; optional OS keyring backend via `./keyring.js` (with fallback to plaintext file); XDG base-dir layout for config path resolution.

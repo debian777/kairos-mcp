@@ -66,15 +66,25 @@ export async function refreshAccessToken(
 ): Promise<RefreshTokenResult | null> {
     const endpoints = await fetchOAuthProtectedResourceMetadata(baseUrl, fetchImpl);
     if (!endpoints) return null;
-    const tokenRes = await fetchImpl(endpoints.tokenEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-            client_id: KAIROS_CLI_CLIENT_ID,
-        }),
-    });
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 30_000);
+    let tokenRes: Response;
+    try {
+        tokenRes = await fetchImpl(endpoints.tokenEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                client_id: KAIROS_CLI_CLIENT_ID,
+            }),
+            signal: ac.signal,
+        });
+    } catch {
+        return null;
+    } finally {
+        clearTimeout(timeout);
+    }
     if (!tokenRes.ok) return null;
     const body = (await tokenRes.json()) as { access_token?: string; refresh_token?: string };
     if (!body.access_token) return null;

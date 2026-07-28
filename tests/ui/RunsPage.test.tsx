@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { RunsPage } from "@/pages/RunsPage";
 import { useRunSessions } from "@/hooks/useRunSession";
 import type { RunSession } from "@/hooks/useRunSession";

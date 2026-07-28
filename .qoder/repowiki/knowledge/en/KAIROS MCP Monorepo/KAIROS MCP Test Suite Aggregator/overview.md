@@ -1,0 +1,1 @@
+Aggregates Jest unit/integration, Vitest UI, and shared harness layers that exercise the Kairos server across HTTP, stdio, CLI, and browser transports.

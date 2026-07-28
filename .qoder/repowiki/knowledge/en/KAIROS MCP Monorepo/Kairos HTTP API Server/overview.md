@@ -1,0 +1,1 @@
+Express-based HTTP server that wires OIDC auth, REST/MCP routes, UI static files, health/metrics, and export downloads into a single tenant-scoped application.

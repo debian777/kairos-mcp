@@ -1,0 +1,1 @@
+Shared helpers for validating MCP tool submissions against proofs-of-work, loosening Zod schemas to return agent-teaching bodies, and formatting structured rate-limit errors.

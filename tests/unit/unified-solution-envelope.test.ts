@@ -120,4 +120,30 @@ describe('unified-solution-envelope', () => {
     expect(submission.nonce).toBe('abc');
     expect(submission.proof_hash).toBe('def');
   });
+
+  test('flat text field on comment solution is normalized into evidence.text', () => {
+    const parsed = forwardSolutionSchema.parse({
+      type: 'comment',
+      outcome: 'success',
+      text: 'my verification summary from flat field',
+      nonce: 'n1',
+      proof_hash: 'h1'
+    });
+    const submission = mapProofSolution(parsed);
+    expect(submission.type).toBe('comment');
+    expect(submission.comment?.text).toBe('my verification summary from flat field');
+    expect(submission.nonce).toBe('n1');
+    expect(submission.proof_hash).toBe('h1');
+  });
+
+  test('evidence.text takes precedence over flat text on comment solution', () => {
+    const parsed = forwardSolutionSchema.parse({
+      type: 'comment',
+      outcome: 'success',
+      evidence: { text: 'from evidence' },
+      text: 'from flat field'
+    });
+    const submission = mapProofSolution(parsed);
+    expect(submission.comment?.text).toBe('from evidence');
+  });
 });

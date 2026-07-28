@@ -14,14 +14,15 @@ import {
   setupCliConfigWithLogin,
   requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
-import { serverRequiresAuth } from '../utils/auth-headers.js';
+import { serverRequiresAuth, isHttpTransport } from '../utils/auth-headers.js';
 
 const AUTH_ERROR_PATTERN =
   /Authentication required|Unauthorized|Bearer token invalid|expired|login|Log in|SSO|invalid_token|sign in/i;
 
-const describeAuthNoToken = serverRequiresAuth() ? describe : describe.skip;
+const describeAuthNoToken = serverRequiresAuth() && isHttpTransport() ? describe : describe.skip;
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('CLI Commands Environment & Error Tests', () => {
+_d('CLI Commands Environment & Error Tests', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
 

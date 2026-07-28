@@ -1,0 +1,1 @@
+Persistent memory store backed by Qdrant, providing vector + BM25 hybrid search, collection/schema migration, and a Redis-cached read path for adapter memories.

@@ -23,7 +23,41 @@ type KeytarModule = {
     deletePassword: (service: string, account: string) => Promise<boolean>;
 };
 
+/** Timeout for keyring operations. macOS Keychain can hang indefinitely if locked or unresponsive. */
+const KEYRING_TIMEOUT_MS = 10_000;
+
+/**
+ * Race a keyring promise against a timeout. Returns the fallback on timeout instead of hanging.
+ * The timer is cleared once the race settles and is unref'd so it never keeps the CLI process
+ * alive on its own — otherwise a resolved keyring op would still block exit until the timer fires.
+ *
+ * Exported for unit testing of the no-leak contract; not part of the public keyring API.
+ */
+export function withKeyringTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), KEYRING_TIMEOUT_MS);
+        timer.unref?.();
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timer) clearTimeout(timer);
+    });
+}
+
 let keytar: KeytarModule | null | undefined = undefined;
+/** Captured error from the last failed require of the native keyring binding (null if load succeeded). */
+let keyringLoadError: Error | null = null;
+/**
+ * Degradation latch: set once any keyring operation times out. macOS Keychain can hang
+ * indefinitely with no answerable authorization prompt; without this latch every subsequent op
+ * would re-incur the full KEYRING_TIMEOUT_MS stall (readConfig runs several ops, and
+ * ApiClient.request calls readConfig multiple times — tens of seconds of hang). Once latched, ops
+ * short-circuit to the config-file fallback immediately.
+ */
+let keyringDegraded = false;
+
+/** Sentinel distinguishing a timed-out keyring op from a legitimate null/absent value. */
+const KEYRING_TIMED_OUT = Symbol('keyring-timed-out');
 
 function loadKeyring(): KeytarModule | null {
     if (keytar !== undefined) return keytar;
@@ -31,17 +65,58 @@ function loadKeyring(): KeytarModule | null {
         const mod = requireMod('@napi-rs/keyring/keytar') as KeytarModule;
         keytar = mod;
         return mod;
-    } catch {
+    } catch (err) {
         keytar = null;
+        keyringLoadError = err instanceof Error ? err : new Error(String(err));
         return null;
     }
 }
 
 /**
- * Whether the keyring backend is available (module loaded; may still throw at runtime on some systems).
+ * Run a keyring operation under the shared timeout. On timeout, latch degradation and return the
+ * sentinel so callers can distinguish "timed out" from a real result.
+ */
+async function runKeyringOp<T>(op: Promise<T>): Promise<T | typeof KEYRING_TIMED_OUT> {
+    const result = await withKeyringTimeout<T | typeof KEYRING_TIMED_OUT>(op, KEYRING_TIMED_OUT);
+    if (result === KEYRING_TIMED_OUT) keyringDegraded = true;
+    return result;
+}
+
+/**
+ * Whether the keyring backend is usable: the native module loaded AND it has not degraded (a prior
+ * operation did not time out). Returns false once degraded so callers fall back to the config file
+ * instead of stalling on every op.
  */
 export function isKeyringAvailable(): boolean {
-    return loadKeyring() !== null;
+    return loadKeyring() !== null && !keyringDegraded;
+}
+
+/** The error captured when the native keyring binding failed to load, or null if it loaded. */
+export function getKeyringLoadError(): Error | null {
+    loadKeyring();
+    return keyringLoadError;
+}
+
+/**
+ * Human-readable reason the keyring is unavailable, or null when it is usable. Distinguishes a
+ * missing/broken native binding from a keychain that loaded but stopped responding (timed out).
+ */
+export function getKeyringUnavailableReason(): string | null {
+    if (loadKeyring() === null) {
+        const detail = keyringLoadError?.message ?? 'unknown error';
+        return `native keyring binding unavailable (${detail})`;
+    }
+    if (keyringDegraded) {
+        return `keychain did not respond (timed out after ${KEYRING_TIMEOUT_MS / 1000}s)`;
+    }
+    return null;
+}
+
+/** Test-only: inject a fake keyring module (or null) and reset the degradation latch. */
+export function __setKeyringForTest(mod: KeytarModule | null, loadError: Error | null = null): void {
+    keytar = mod;
+    keyringLoadError = loadError;
+    keyringDegraded = false;
 }
 
 /**
@@ -49,10 +124,11 @@ export function isKeyringAvailable(): boolean {
  */
 export async function getToken(account: string): Promise<string | null> {
     const mod = loadKeyring();
-    if (!mod) return null;
+    if (!mod || keyringDegraded) return null;
     try {
-        const password = await mod.getPassword(SERVICE, account);
-        return password ?? null;
+        const result = await runKeyringOp(mod.getPassword(SERVICE, account));
+        if (result === KEYRING_TIMED_OUT) return null;
+        return result ?? null;
     } catch {
         return null;
     }
@@ -63,10 +139,10 @@ export async function getToken(account: string): Promise<string | null> {
  */
 export async function setToken(account: string, token: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return false;
+    if (!mod || keyringDegraded) return false;
     try {
-        await mod.setPassword(SERVICE, account, token);
-        return true;
+        const result = await runKeyringOp(mod.setPassword(SERVICE, account, token));
+        return result !== KEYRING_TIMED_OUT;
     } catch {
         return false;
     }
@@ -77,10 +153,10 @@ export async function setToken(account: string, token: string): Promise<boolean>
  */
 export async function deleteToken(account: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return false;
+    if (!mod || keyringDegraded) return false;
     try {
-        await mod.deletePassword(SERVICE, account);
-        return true;
+        const result = await runKeyringOp(mod.deletePassword(SERVICE, account));
+        return result !== KEYRING_TIMED_OUT;
     } catch {
         return false;
     }
@@ -88,10 +164,11 @@ export async function deleteToken(account: string): Promise<boolean> {
 
 export async function getRefreshToken(account: string): Promise<string | null> {
     const mod = loadKeyring();
-    if (!mod) return null;
+    if (!mod || keyringDegraded) return null;
     try {
-        const password = await mod.getPassword(SERVICE, refreshAccount(account));
-        return password ?? null;
+        const result = await runKeyringOp(mod.getPassword(SERVICE, refreshAccount(account)));
+        if (result === KEYRING_TIMED_OUT) return null;
+        return result ?? null;
     } catch {
         return null;
     }
@@ -99,10 +176,10 @@ export async function getRefreshToken(account: string): Promise<string | null> {
 
 export async function setRefreshToken(account: string, token: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return false;
+    if (!mod || keyringDegraded) return false;
     try {
-        await mod.setPassword(SERVICE, refreshAccount(account), token);
-        return true;
+        const result = await runKeyringOp(mod.setPassword(SERVICE, refreshAccount(account), token));
+        return result !== KEYRING_TIMED_OUT;
     } catch {
         return false;
     }
@@ -110,10 +187,10 @@ export async function setRefreshToken(account: string, token: string): Promise<b
 
 export async function deleteRefreshToken(account: string): Promise<boolean> {
     const mod = loadKeyring();
-    if (!mod) return false;
+    if (!mod || keyringDegraded) return false;
     try {
-        await mod.deletePassword(SERVICE, refreshAccount(account));
-        return true;
+        const result = await runKeyringOp(mod.deletePassword(SERVICE, refreshAccount(account)));
+        return result !== KEYRING_TIMED_OUT;
     } catch {
         return false;
     }

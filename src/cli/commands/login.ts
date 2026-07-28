@@ -122,24 +122,33 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
 
             try {
                 const redirectUri = `http://localhost:${listenPort}${expectedPath}`;
-                const tokenRes = await fetch(tokenEndpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        grant_type: 'authorization_code',
-                        code,
-                        redirect_uri: redirectUri,
-                        client_id: clientId,
-                        code_verifier: codeVerifier,
-                    }),
-                });
+                const tokenAc = new AbortController();
+                const tokenTimeout = setTimeout(() => tokenAc.abort(), 30_000);
+                let tokenRes: Response;
+                try {
+                    tokenRes = await fetch(tokenEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            grant_type: 'authorization_code',
+                            code,
+                            redirect_uri: redirectUri,
+                            client_id: clientId,
+                            code_verifier: codeVerifier,
+                        }),
+                        signal: tokenAc.signal,
+                    });
+                } finally {
+                    clearTimeout(tokenTimeout);
+                }
                 if (!tokenRes.ok) {
                     const text = await tokenRes.text();
                     writeError(`Token exchange failed: ${tokenRes.status} ${text}`);
                     resolve(false);
                     return;
                 }
-                const tokens = (await tokenRes.json()) as { access_token?: string; refresh_token?: string };
+                const bodyText = await tokenRes.text();
+                const tokens = JSON.parse(bodyText) as { access_token?: string; refresh_token?: string };
                 if (!tokens.access_token) {
                     writeError('No access_token in response.');
                     resolve(false);
@@ -157,7 +166,11 @@ export async function loginWithBrowser(baseUrl: string, options?: LoginWithBrows
                 writeStdout('Login successful. Token stored.');
                 resolve(true);
             } catch (e) {
-                writeError(e instanceof Error ? e.message : String(e));
+                if (e instanceof DOMException && e.name === 'AbortError') {
+                    writeError('Token exchange timed out after 30 seconds. Check your network connection and try again.');
+                } else {
+                    writeError(e instanceof Error ? e.message : String(e));
+                }
                 resolve(false);
             }
         });

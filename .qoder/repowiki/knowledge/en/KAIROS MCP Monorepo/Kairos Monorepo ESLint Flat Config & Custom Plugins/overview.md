@@ -1,0 +1,1 @@
+ESLint flat-config bundle that wires TypeScript, forbidden-text scanning, CodeQL comment integrity, and MCP widget safety rules across the Kairos monorepo.

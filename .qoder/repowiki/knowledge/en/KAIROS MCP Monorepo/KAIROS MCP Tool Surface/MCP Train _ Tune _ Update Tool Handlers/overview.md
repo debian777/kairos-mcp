@@ -1,0 +1,1 @@
+Registers MCP tools for training adapters, tuning adapter layers, and batch-updating layer content, wiring input validation, metrics, and error formatting around shared execution logic.

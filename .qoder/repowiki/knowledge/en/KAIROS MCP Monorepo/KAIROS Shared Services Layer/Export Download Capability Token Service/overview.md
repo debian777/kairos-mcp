@@ -1,0 +1,1 @@
+Generates and verifies short-lived, HMAC-signed opaque tokens that authorize public download of exported skill bundles and individual artifacts.

@@ -3,6 +3,8 @@
 This directory contains the bundled KAIROS-internal adapters and policy
 documents that are injected into the Kairos app space at boot.
 
+<!-- kairos-doc-keep: directory-local authority for the shipped meta-protocol bundle (slugs, versions, chain-linking rules); source of truth for these files, not a restatement of wiki Core Concepts -->
+
 Version: **4.2.0**
 
 ## Philosophy

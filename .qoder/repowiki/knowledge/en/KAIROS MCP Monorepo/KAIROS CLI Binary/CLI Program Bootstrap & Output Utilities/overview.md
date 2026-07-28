@@ -1,0 +1,1 @@
+Bootstraps the `kairos` Commander program, wires global options and subcommands, resolves the API base URL default, and provides stdout/stderr helpers used by CLI commands.

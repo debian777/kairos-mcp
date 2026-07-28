@@ -1,0 +1,1 @@
+Top-level `kairos` binary that bootstraps a Commander program, wires global options into environment variables, and registers every subcommand from the commands/ directory.

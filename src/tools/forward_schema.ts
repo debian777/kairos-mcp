@@ -132,6 +132,17 @@ function normalizeForwardSolutionCommentInput(raw: unknown): unknown {
   }
   return raw;
 }
+function normalizeCommentTextToEvidence(solution: Record<string, unknown>): Record<string, unknown> | null {
+  if (solution['type'] !== 'comment' || typeof solution['text'] !== 'string') return null;
+  const existingEvidence =
+    solution['evidence'] !== null && solution['evidence'] !== undefined && typeof solution['evidence'] === 'object' && !Array.isArray(solution['evidence'])
+      ? (solution['evidence'] as Record<string, unknown>)
+      : {};
+  if (existingEvidence['text'] === undefined) {
+    return { ...solution, evidence: { ...existingEvidence, text: solution['text'] } };
+  }
+  return null;
+}
 function normalizeForwardSolutionFormat(raw: unknown): unknown {
   if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
     return raw;
@@ -141,6 +152,10 @@ function normalizeForwardSolutionFormat(raw: unknown): unknown {
   if (normalizedWithComment !== solution) {
     return normalizeForwardSolutionFormat(normalizedWithComment);
   }
+
+  // Normalize flat comment text into evidence.text when type=comment
+  const withTextEvidence = normalizeCommentTextToEvidence(solution);
+  if (withTextEvidence) return withTextEvidence;
 
   if (solution['evidence'] !== undefined && typeof solution['evidence'] === 'object') {
     const outcome = solution['outcome'];
@@ -153,14 +168,7 @@ function normalizeForwardSolutionFormat(raw: unknown): unknown {
   if (typeof type === 'string' && ['tensor', 'shell', 'mcp', 'user_input', 'comment'].includes(type)) {
     const typeSpecificData = solution[type];
     if (typeSpecificData !== undefined && typeof typeSpecificData === 'object') {
-      const v2Solution: Record<string, unknown> = {
-        type,
-        outcome: 'success',
-        evidence: typeSpecificData,
-        nonce: solution['nonce'],
-        proof_hash: solution['proof_hash'],
-        trace: solution['trace']
-      };
+      const v2Solution: Record<string, unknown> = { type, outcome: 'success', evidence: typeSpecificData, nonce: solution['nonce'], proof_hash: solution['proof_hash'], trace: solution['trace'] };
       if (type === 'mcp' && (typeSpecificData as Record<string, unknown>)['result'] !== undefined) {
         const mcpData = typeSpecificData as Record<string, unknown>;
         const { result, ...rest } = mcpData;
@@ -193,16 +201,8 @@ const forwardSolutionShapeSchema = z.object({
     stderr: z.string().optional(),
     duration_seconds: z.number().optional()
   }).optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
-  mcp: z.object({
-    tool_name: z.string(),
-    arguments: z.any().optional(),
-    result: z.any(),
-    success: z.boolean()
-  }).optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
-  user_input: z.object({
-    confirmation: z.string(),
-    timestamp: z.string().optional()
-  }).optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
+  mcp: z.object({ tool_name: z.string(), arguments: z.any().optional(), result: z.any(), success: z.boolean() }).optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
+  user_input: z.object({ confirmation: z.string(), timestamp: z.string().optional() }).optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
   comment: forwardCommentSolutionCanonicalSchema.optional().describe('Deprecated: Use \'evidence\' envelope instead. Still accepted.'),
   trace: z.string().optional().describe('Optional reasoning trace stored with the execution trace')
 }).refine(
@@ -319,11 +319,7 @@ export const forwardMcpWireInputSchema = z
 
 export const forwardOutputSchema = z.object({
   must_obey: z.boolean(),
-  current_layer: z.object({
-    uri: layerUriSchema,
-    content: z.string(),
-    mimeType: z.literal('text/markdown')
-  }).optional().nullable(),
+  current_layer: z.object({ uri: layerUriSchema, content: z.string(), mimeType: z.literal('text/markdown') }).optional().nullable(),
   contract: forwardContractSchema,
   tensor_in: z.record(z.string(), z.unknown()).optional(),
   next_action: z.string(),
@@ -332,10 +328,7 @@ export const forwardOutputSchema = z.object({
   message: z.string().optional(),
   error_code: z.string().optional(),
   retry_count: z.number().optional(),
-  slug_disambiguation_note: z
-    .string()
-    .optional()
-    .describe('When forward started from a slug that matched multiple adapters, explains which was chosen'),
+  slug_disambiguation_note: z.string().optional().describe('When forward started from a slug that matched multiple adapters, explains which was chosen'),
   next_call: forwardNextCallSchema,
   activation_space_name: z.string().optional(),
   context_adapter_name: z.string().optional(),

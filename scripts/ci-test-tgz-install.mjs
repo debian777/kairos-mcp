@@ -37,9 +37,13 @@ try {
   run("npm", ["init", "-y"], testDir, "npm init");
   run("npm", ["install", tgzPath], testDir, "npm install <tgz>");
   run("npx", ["kairos", "--version"], testDir, "npx kairos --version");
+  run("npx", ["kairos-mcp", "--version"], testDir, "npx kairos-mcp --version");
   run("npx", ["kairos", "serve", "--help"], testDir, "npx kairos serve --help");
+  run("npx", ["kairos-mcp", "serve", "--help"], testDir, "npx kairos-mcp serve --help");
 } finally {
   rmSync(testDir, { recursive: true, force: true });
 }
 
-console.log("test:tgz OK — install, kairos --version, and kairos serve --help succeeded.");
+console.log(
+  "test:tgz OK — install, kairos --version, kairos-mcp --version, and serve --help succeeded."
+);

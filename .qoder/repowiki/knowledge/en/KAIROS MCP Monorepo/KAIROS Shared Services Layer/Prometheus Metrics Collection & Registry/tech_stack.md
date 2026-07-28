@@ -1,0 +1,1 @@
+Prometheus client for Node.js (`prom-client`) — uses Counter, Histogram, and Gauge types; no custom exposition server here (the registry is consumed elsewhere to expose `/metrics`).

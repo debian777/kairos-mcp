@@ -42,12 +42,12 @@ jobs:
       npm-tag: ${{ steps.version.outputs.npm_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: "npm"
@@ -83,7 +83,7 @@ jobs:
         run: npm run lint
 
       - name: Set up Python (skills-ref)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload npm SBOM
         if: inputs.upload-sbom
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: npm-sbom
           path: kairos-mcp-${{ steps.version.outputs.version }}-npm-sbom.cdx.json

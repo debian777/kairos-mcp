@@ -1,9 +1,11 @@
 import { parsePrometheusMetrics, validatePrometheusMetrics } from '../utils/prometheus-parser.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
 const METRICS_PORT = process.env.METRICS_PORT || '9390';
 const METRICS_URL = `http://localhost:${METRICS_PORT}/metrics`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
-describe('Prometheus Scrape Validation', () => {
+_d('Prometheus Scrape Validation', () => {
   beforeAll(async () => {
     // Metrics server MUST be available for these tests
     // Metrics server returns {"status":"ok"} not {"status":"healthy"}, so check directly

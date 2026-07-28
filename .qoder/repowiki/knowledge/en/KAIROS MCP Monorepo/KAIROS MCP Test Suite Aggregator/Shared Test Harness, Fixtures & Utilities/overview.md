@@ -1,0 +1,1 @@
+Reusable test infrastructure for Kairos integration and workflow tests: Keycloak container bootstrap, MIME artifact fixtures, ZIP export parsing, and a structured eval harness.

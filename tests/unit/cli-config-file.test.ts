@@ -12,6 +12,8 @@ const keyringState = {
 
 jest.unstable_mockModule('../../src/cli/keyring.js', () => ({
   isKeyringAvailable: () => keyringState.available,
+  getKeyringUnavailableReason: () => (keyringState.available ? null : 'test: keyring unavailable'),
+  getKeyringLoadError: () => null,
   getToken: async (account: string) => keyringState.tokens.get(account) ?? null,
   setToken: async (account: string, token: string) => {
     if (!keyringState.available) return false;

@@ -197,6 +197,32 @@ targets (for example **KAIROS LIVE**), not against Git.
 `.gitignore`). Do not add hook scripts to version control unless the
 maintainers explicitly choose to track them.
 
+## Development environment (Docker Compose full stack)
+
+Users launch KAIROS over stdio with `npx` (see the root
+[README](README.md)). Contributors instead run the full **Docker Compose**
+stack locally: Qdrant, the app, and optionally Redis, Postgres, and Keycloak.
+
+Requirements: Docker + Docker Compose v2, Node.js 24+, and a `.env` at the repo
+root (from [`scripts/env/.env.template`](scripts/env/.env.template)).
+
+```bash
+npm ci                 # install dependencies
+npm run infra:up       # start Qdrant, Redis, Postgres, Keycloak
+npm run dev:deploy     # build + (re)start the dev server
+npm run dev:test       # run the integration suite against the running server
+```
+
+The `fullstack` Compose profile provides the optional cache / DB / OIDC
+services. **Keycloak / IdP configuration is your responsibility** — see the
+Deployment and Operations pages in the
+[project Wiki](https://github.com/debian777/kairos-mcp/wiki).
+
+The [`kairos-dev`](.agents/skills/kairos-dev/SKILL.md) agent skill documents
+this environment plus every maintainer workflow (build/test, bug-fix ship,
+release, QA, wiki publishing). Its reference files live under
+[`.agents/skills/kairos-dev/references/`](.agents/skills/kairos-dev/references/).
+
 ## Setup from clone to passing tests
 
 1. Fork the repository on GitHub.
@@ -216,8 +242,8 @@ maintainers explicitly choose to track them.
 1. Create **`.env`** at the repository root from
    [`scripts/env/.env.template`](scripts/env/.env.template), then set variables
    for your dev stack (embeddings, Qdrant, Redis, session, and any IdP secrets you
-   use). **IdP setup is not part of `docs/install/`** — see
-   [Infrastructure](docs/architecture/infrastructure.md).
+   use). **IdP setup is not part of `docs/install/`** — see the
+   Deployment and Operations topic in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki).
 2. Start infrastructure (Compose `fullstack` profile and helpers as needed):
 
   ```bash
@@ -342,7 +368,7 @@ tests/test-data/   Test fixtures
 tests/workflow-test/ Workflow test harness; prompt in tests/workflow-test/PROMPT.md
 reports/           Workflow test output (gitignored except .gitkeep)
 docs/examples/     Mintable adapter examples for dev workflow tests
-skills/            Shipped agent skills (`kairos/` and `skills/.system/`)
+.agents/skills/    Shipped agent skills (kairos, kairos-dev)
 scripts/           Build and utility scripts
 ```
 
@@ -429,10 +455,10 @@ Full pipeline details, secrets, and manual publish options: [.github/workflows/R
 lint automatically; version-bump commits (only `package.json` and
 `package-lock.json` staged) skip hooks so no `--no-verify` is needed.
 - **Pre-commit hook (`.husky/pre-commit`):** Blocks commits on `main`, runs
-version/skills checks when relevant, `lint:skills` when `skills/` is staged,
+version/skills checks when relevant, `lint:skills` when `.agents/skills/` is staged,
 then drops any staged paths whose blob is missing from the object database
 immediately before and after `**npm run lint**`. For worktree index issues,
-see `**.agents/skills/kmcp-dev-git-index-repair/SKILL.md**`. Hook history:
+see `**.agents/skills/kairos-dev/references/git-index-repair.md**`. Hook history:
 `git log -- .husky/pre-commit`.
 - **Imports:** Use `.js` extensions on relative imports (Node ESM).
 - **Naming:** `camelCase` for variables and functions; `PascalCase` for
@@ -445,8 +471,8 @@ objects. Never swallow errors silently. Include `error_code` and
 `request_id` in log payloads at the call site.
 - **Logger:** Use `structuredLogger` (from
 `src/utils/structured-logger.ts`) for HTTP/MCP request flow. The same module
-also exports `logger` as an alias used by services. See
-[docs/architecture/logging.md](docs/architecture/logging.md) for levels, fields, and examples.
+also exports `logger` as an alias used by services. See the
+Testing and Observability topic in the [project Wiki](https://github.com/debian777/kairos-mcp/wiki) for levels, fields, and examples.
 - **Tests:** Write integration tests for new tools and API endpoints.
 Place them in `tests/integration/`.
 
@@ -469,7 +495,8 @@ space id + key). Each request runs inside `runWithSpaceContext()`.
 - **Optional space param:** Validate HTTP query `space` / `space_id`
 and MCP tool args against `allowedSpaceIds`; invalid → 400/403.
 
-See [docs/architecture/auth-overview.md](docs/architecture/auth-overview.md)
+See the Authentication and Security topic in the
+[project Wiki](https://github.com/debian777/kairos-mcp/wiki)
 for Keycloak URL routing and the current auth model.
 
 ## Constraints

@@ -182,7 +182,6 @@ export async function storeHeaderBasedAdapter(
   }
 
   await redisCacheService.invalidateAfterUpdate();
-  methods.invalidateLocalCache();
 
   for (const memory of headerAdapterMemories) {
     try {

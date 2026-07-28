@@ -49,7 +49,7 @@ const config: KnipConfig = {
     // Knip reports "Unlisted binaries: python3" because it's referenced in package.json scripts
     // but not declared as a dependency. It's a system binary used by infra:up for Keycloak
     // realm setup (scripts/deploy-configure-keycloak-realms.py).
-    ignoreBinaries: ['python3', 'devcontainer'],
+    ignoreBinaries: ['python3'],
     ignoreExportsUsedInFile: true,
 };
 

@@ -3,6 +3,8 @@
 Agent-facing guide for developing, maintaining, and debugging MCP Apps widgets
 in this codebase.
 
+<!-- kairos-doc-keep: directory-local widget implementation detail (file layout, IIFE pattern, ESLint rules); the wiki "Web Interface" topic covers user-facing UI, not this source-tree how-to -->
+
 ## What are MCP Apps?
 
 MCP Apps (SEP-1865 / `@modelcontextprotocol/ext-apps`) let an MCP server

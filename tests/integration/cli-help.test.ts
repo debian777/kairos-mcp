@@ -1,6 +1,9 @@
 import { CLI_PATH, execAsync } from './cli-commands-shared.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('CLI usage help', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('CLI usage help', () => {
   test('train without path or --source-adapter-uri prints error', async () => {
     try {
       await execAsync(`node ${CLI_PATH} train`, { timeout: 10000 });

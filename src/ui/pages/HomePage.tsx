@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useSpaces } from "@/hooks/useSpaces";
 import { SpaceTypeBadge } from "@/components/SpaceSelect";
 import { SurfaceCard } from "@/components/SurfaceCard";

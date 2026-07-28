@@ -9,7 +9,7 @@
 # Targets:
 #   runtime (default) — npm registry install (Release / publish-container).
 #   runtime-ci — same layers after install, but package from .ci/docker/package.tgz (Integration workflow).
-FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS base
+FROM node:26-alpine@sha256:e88a35be04478413b7c71c455cd9865de9b9360e1f43456be5951032d7ac1a66 AS base
 
 VOLUME /snapshots
 
@@ -17,7 +17,14 @@ VOLUME /snapshots
 RUN apk update && apk upgrade --no-cache
 
 # Pin global npm to a newer release than the default in the base image (bundled deps drift with the CLI).
-RUN npm install -g npm@11.17.0
+# npm 11.18.0 bundles tar 7.5.19 (CVE-2026-59873/CVE-2026-59874) but still ships brace-expansion 5.0.7,
+# so replace npm's bundled copy with 5.0.8 (CVE-2026-14257) until an npm release bundles it.
+RUN npm install -g npm@11.18.0 && \
+    cd /tmp && npm pack brace-expansion@5.0.8 --silent && \
+    rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
+    mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
+    tar -xzf brace-expansion-5.0.8.tgz -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion --strip-components=1 && \
+    rm brace-expansion-5.0.8.tgz && cd /
 
 ARG PACKAGE_VERSION
 RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
@@ -29,14 +36,14 @@ WORKDIR /app
 
 FROM base AS deps-registry
 ARG PACKAGE_VERSION
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.19\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
 
 FROM base AS deps-local
 COPY .ci/docker/package.tgz /tmp/pkg.tgz
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.19\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
@@ -46,13 +53,13 @@ FROM deps-local AS runtime-ci
 RUN mkdir -p logs storage/qdrant /snapshots && \
     chown -R kairos:nodejs /app logs storage /snapshots
 USER kairos
-ARG PORT=3000
-ENV PORT=${PORT}
+ARG SERVER_PORT=3000
+ENV SERVER_PORT=${SERVER_PORT}
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
-EXPOSE ${PORT} ${METRICS_PORT}
+EXPOSE ${SERVER_PORT} ${METRICS_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+    CMD node -e "require('http').get('http://localhost:' + process.env.SERVER_PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories
@@ -62,13 +69,13 @@ FROM deps-registry AS runtime
 RUN mkdir -p logs storage/qdrant /snapshots && \
     chown -R kairos:nodejs /app logs storage /snapshots
 USER kairos
-ARG PORT=3000
-ENV PORT=${PORT}
+ARG SERVER_PORT=3000
+ENV SERVER_PORT=${SERVER_PORT}
 ARG METRICS_PORT=9090
 ENV METRICS_PORT=${METRICS_PORT}
-EXPOSE ${PORT} ${METRICS_PORT}
+EXPOSE ${SERVER_PORT} ${METRICS_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+    CMD node -e "require('http').get('http://localhost:' + process.env.SERVER_PORT + '/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
 ENV NODE_ENV=production
 ENV QDRANT_URL=http://qdrant:6333
 ENV QDRANT_COLLECTION=kairos_memories

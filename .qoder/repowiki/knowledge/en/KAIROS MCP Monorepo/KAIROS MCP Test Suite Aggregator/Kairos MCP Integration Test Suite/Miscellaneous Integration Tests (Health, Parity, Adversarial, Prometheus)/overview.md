@@ -1,0 +1,1 @@
+Cross-cutting integration tests that exercise health preflight, HTTP/MCP response parity, adversarial inputs, adapter-space CRUD, session TTL, slug canonicalization, and Prometheus scraping against a live server.

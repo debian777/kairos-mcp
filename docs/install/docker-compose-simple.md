@@ -86,7 +86,7 @@ App on **host** (not container): use `OPENAI_API_URL=http://127.0.0.1:11434`.
 
 | Service | Port |
 |---------|------|
-| App | `PORT` (default 3000) |
+| App | `SERVER_PORT` → 3000 |
 | Qdrant | 6333, 6344 |
 | Metrics | `METRICS_PORT` (default 9090) |
 
@@ -96,7 +96,7 @@ App on **host** (not container): use `OPENAI_API_URL=http://127.0.0.1:11434`.
 
 ```sh
 docker compose -p kairos-mcp up -d
-curl -sS "http://localhost:${PORT:-3000}/health"
+curl -sS "http://localhost:${SERVER_PORT:-3000}/health"
 ```
 
 Use `kairos --url ...` for checks and operations once the
@@ -112,7 +112,7 @@ Use `kairos --url ...` for checks and operations once the
 
 ## 5. MCP client (`mcp.json`)
 
-Configure this only when an IDE or host needs MCP over HTTP. Match `PORT`, and
+Configure this only when an IDE or host needs MCP over HTTP. Match **`SERVER_PORT`**, and
 use the CLI for authentication and operational checks.
 
 ```json
@@ -151,8 +151,8 @@ use the CLI for authentication and operational checks.
 
 | Issue | Fix |
 |-------|-----|
-| `QDRANT_API_KEY must be set` | Add it to `.env`, then restart |
-| Port in use | Change `PORT` or `METRICS_PORT`, or stop the conflicting process |
+| `QDRANT_API_KEY must be set` | Add it to `.env`, then start the stack again |
+| Port in use | Change **`SERVER_PORT`** or `METRICS_PORT`, or stop the conflicting process |
 | App unhealthy | Run `docker compose -p kairos-mcp logs app-prod` |
 | Embedding errors | Re-check [embedding backend](prerequisites.md#embedding-backend); check server logs |
 

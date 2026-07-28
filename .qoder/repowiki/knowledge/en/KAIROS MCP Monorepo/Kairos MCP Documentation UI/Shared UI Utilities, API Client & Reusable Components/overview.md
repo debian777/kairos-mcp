@@ -1,0 +1,1 @@
+Cross-cutting frontend helpers: a JSON-API fetch wrapper, skill ZIP export pipeline, TipTap editor extensions, adapter-browse data shaping, confidence formatting, plus CopyButton and ErrorAlert components.

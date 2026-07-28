@@ -193,11 +193,16 @@ export async function handleProofSubmission(
   if (memory.memory_uuid) {
     const storedNonce = await proofOfWorkStore.getNonce(memory.memory_uuid);
     if (storedNonce != null && submission.nonce !== storedNonce) {
-      structuredLogger.getPinoLogger().debug(
+      structuredLogger.getPinoLogger().info(
         { event: 'pow_nonce_mismatch', memory_uuid: memory.memory_uuid, submitted_nonce: submission.nonce ?? null, stored_nonce: storedNonce },
-        'pow: submitted nonce does not match store'
+        'pow: submitted nonce does not match store — rotating nonce for recovery'
       );
-      return blocked('Nonce mismatch. Use the nonce from the current contract.', 'NONCE_MISMATCH');
+      // Rotate nonce so the error response carries a fresh challenge.
+      // Without rotation the response echoes the same stale nonce the agent
+      // already tried, creating an unrecoverable NONCE_MISMATCH loop.
+      const freshNonce = crypto.randomBytes(16).toString('hex');
+      await proofOfWorkStore.setNonce(memory.memory_uuid, freshNonce);
+      return blocked('Nonce mismatch. A fresh nonce has been issued — use the nonce from THIS response.', 'NONCE_MISMATCH');
     }
   }
 
@@ -266,7 +271,7 @@ export async function handleProofSubmission(
   } else if (proofType === 'comment') {
     const comment = submission.comment;
     if (!comment || !comment.text) {
-      return blocked('Comment proof requires comment.text', 'MISSING_FIELD');
+      return blocked('Comment proof requires evidence.text — include your verification summary in solution.evidence.text', 'MISSING_FIELD');
     }
     const minLength = proof.comment?.min_length || 10;
     if (comment.text.length < minLength) {

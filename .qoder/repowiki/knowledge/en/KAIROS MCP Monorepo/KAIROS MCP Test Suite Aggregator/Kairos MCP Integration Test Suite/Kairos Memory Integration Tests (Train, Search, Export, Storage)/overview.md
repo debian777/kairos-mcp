@@ -1,0 +1,1 @@
+Jest integration tests that exercise the Kairos MCP server's train/activate/export tools end-to-end against a live Qdrant-backed memory store.

@@ -1,6 +1,9 @@
 import { API_BASE, apiFetch, REVIEW_EVIDENCE_PARAM } from './http-api-test-helpers.js';
+import { isHttpTransport } from '../utils/auth-headers.js';
 
-describe('HTTP REST API Endpoints', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('HTTP REST API Endpoints', () => {
   describe('POST /api/train/raw', () => {
     test('accepts raw markdown and stores memories', async () => {
       expect.hasAssertions();

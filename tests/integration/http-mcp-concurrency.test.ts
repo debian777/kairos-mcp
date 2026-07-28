@@ -3,10 +3,11 @@
  * Proves no context bleed and no CONNECTION_CONFLICT / 5xx under parallel requests.
  */
 
-import { getTestAuthBaseUrl, getAuthHeaders } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, getAuthHeaders, isHttpTransport } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const PARALLEL = 25;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function postMcp(body: object) {
   return fetch(`${BASE_URL}/mcp`, {
@@ -20,7 +21,7 @@ function postMcp(body: object) {
   });
 }
 
-describe('MCP concurrent requests', () => {
+_d('MCP concurrent requests', () => {
   test(`${PARALLEL} parallel tools/list: all 200, valid JSON-RPC, no CONNECTION_CONFLICT`, async () => {
     const requests = Array.from({ length: PARALLEL }, (_, i) =>
       postMcp({

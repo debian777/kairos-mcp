@@ -1,7 +1,8 @@
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 
 const BASE_URL = getTestAuthBaseUrl();
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,7 +25,7 @@ async function fetchWithRateLimitRetry(url: string, init: RequestInit = {}, atte
   return lastResponse as Response;
 }
 
-describe('HTTP route error mapping', () => {
+_d('HTTP route error mapping', () => {
   test('POST /api/forward returns 404 for a non-existent layer uri', async () => {
     expect.hasAssertions();
 

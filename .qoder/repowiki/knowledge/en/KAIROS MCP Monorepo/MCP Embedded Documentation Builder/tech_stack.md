@@ -1,0 +1,1 @@
+Plain Node.js + TypeScript (ESM) executed via `ts-node` / `npx ts-node scripts/build-embed-docs.ts`; YAML frontmatter parsing is hand-rolled regex against the first `---` delimited block rather than a library.

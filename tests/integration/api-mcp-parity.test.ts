@@ -5,7 +5,7 @@
  */
 
 import { createMcpConnection } from '../utils/mcp-client-utils.js';
-import { getAuthHeaders, getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getAuthHeaders, getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 import { parseMcpJson } from '../utils/expect-with-raw.js';
 import { spacesOutputSchema } from '../../src/tools/spaces_schema.js';
 import { activateOutputSchema } from '../../src/tools/activate_schema.js';
@@ -16,6 +16,7 @@ import { rewardOutputSchema } from '../../src/tools/reward_schema.js';
 
 const BASE_URL = getTestAuthBaseUrl().replace(/\/$/, '');
 const API_BASE = `${BASE_URL}/api`;
+const _d = isHttpTransport() ? describe : describe.skip;
 
 /** Boot-injected creation adapter (by slug) — valid export input. */
 const SAMPLE_EXPORT_URI = 'kairos://adapter/create-new-protocol';
@@ -31,7 +32,7 @@ function sortedKeys(obj: Record<string, unknown>): string[] {
   return Object.keys(obj).sort();
 }
 
-describe('API-MCP parity: identical response shapes', () => {
+_d('API-MCP parity: identical response shapes', () => {
   let mcpConnection: { client: { callTool: (arg: { name: string; arguments: Record<string, unknown> }) => Promise<unknown> }; close: () => Promise<void> };
 
   beforeAll(async () => {

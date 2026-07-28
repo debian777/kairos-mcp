@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { TFunction } from "i18next";
 import { SurfaceCard } from "@/components/SurfaceCard";
 

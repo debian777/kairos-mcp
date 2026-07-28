@@ -44,12 +44,8 @@ function createFlatConfig(rootDir) {
         '**/.git/**',
         '.turbo/**',
         '.next/**',
-        '.devcontainer/*.json',
-        '.devcontainer/*.json.base',
         'eslint.config.cjs',
-        // Documentation files explaining architecture. Correct usage of forbidden strings.
         '.markdownlint.jsonc', // Markdown lint config (not JS)
-        'docs/architecture/artifacts.md',
         // Markdown is linted for forbidden strings (see 3d). Non-code: JSON/YAML/… + context7.json negation below.
         '**/*.json',
         '!context7.json',
@@ -116,8 +112,11 @@ function createFlatConfig(rootDir) {
 
     // -------------------------------------------------------------------------
     // 0b. No inline overrides (eslint-disable / eslint-env / file-level rule tweaks in comments)
+    // Exception: src/eslint-inline-allowed/** — duplicate backend blocks below with noInlineConfig: false.
     // -------------------------------------------------------------------------
     {
+      files: ['**/*.*'],
+      ignores: ['src/eslint-inline-allowed/**'],
       linterOptions: {
         noInlineConfig: true,
       },
@@ -185,7 +184,7 @@ function createFlatConfig(rootDir) {
         'src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
         'tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
       ],
-      ignores: ['src/ui/**'],
+      ignores: ['src/ui/**', 'src/eslint-inline-allowed/**'],
       languageOptions: {
         parser: tsParser,
         parserOptions: {
@@ -220,11 +219,63 @@ function createFlatConfig(rootDir) {
     },
 
     // -------------------------------------------------------------------------
+    // 2b-inline. Same as 2b; inline eslint comments allowed (upstream API names, etc.).
+    // -------------------------------------------------------------------------
+    {
+      files: ['src/eslint-inline-allowed/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+      languageOptions: {
+        parser: tsParser,
+        parserOptions: {
+          tsconfigRootDir: rootDir,
+          project: ['./tsconfig.json', './tsconfig.tests.json'],
+        },
+      },
+      linterOptions: {
+        noInlineConfig: false,
+      },
+      plugins: {
+        '@typescript-eslint': tsPlugin,
+        'kairos-codeql-comments': kairosCodeqlLineCommentsPlugin,
+      },
+      rules: {
+        'max-lines': [
+          'error',
+          {
+            max: 350,
+            skipBlankLines: false,
+            skipComments: false,
+          },
+        ],
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          {
+            argsIgnorePattern: '^_',
+            varsIgnorePattern: '^_',
+            caughtErrorsIgnorePattern: '^_',
+          },
+        ],
+        'kairos-codeql-comments/codeql-line-comment-integrity': 'error',
+        ...NO_AUTH_ENABLED_OVERRIDE_RULE,
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // 3. Backend: no console, no test mocks
     // -------------------------------------------------------------------------
     {
       files: ['src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
-      ignores: ['src/ui/**'],
+      ignores: ['src/ui/**', 'src/eslint-inline-allowed/**'],
+      rules: {
+        'no-console': 'error',
+        ...NO_TEST_MOCKS_RULE,
+      },
+    },
+
+    {
+      files: ['src/eslint-inline-allowed/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+      linterOptions: {
+        noInlineConfig: false,
+      },
       rules: {
         'no-console': 'error',
         ...NO_TEST_MOCKS_RULE,
@@ -240,7 +291,7 @@ function createFlatConfig(rootDir) {
         'scripts/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
         'tests/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}',
       ],
-      ignores: ['src/ui/**'],
+      ignores: ['src/ui/**', 'src/eslint-inline-allowed/**'],
       plugins: {
         'kairos-forbidden-text': kairosForbiddenTextPlugin,
       },
@@ -249,10 +300,15 @@ function createFlatConfig(rootDir) {
       },
     },
     {
-      // Files that must embed forbidden tokens by design (see comments in each file).
-      files: ['src/http/http-server-config.ts'],
+      files: ['src/eslint-inline-allowed/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}'],
+      linterOptions: {
+        noInlineConfig: false,
+      },
+      plugins: {
+        'kairos-forbidden-text': kairosForbiddenTextPlugin,
+      },
       rules: {
-        'kairos-forbidden-text/no-forbidden-kairos-text': 'off',
+        'kairos-forbidden-text/no-forbidden-kairos-text': 'error',
       },
     },
     // -------------------------------------------------------------------------
@@ -319,12 +375,6 @@ function createFlatConfig(rootDir) {
     },
     {
       files: ['src/embed-docs/mem/*.md'],
-      rules: {
-        'kairos-forbidden-text/review-protocol-wording': 'off',
-      },
-    },
-    {
-      files: ['skills/kairos/SKILL.md'],
       rules: {
         'kairos-forbidden-text/review-protocol-wording': 'off',
       },

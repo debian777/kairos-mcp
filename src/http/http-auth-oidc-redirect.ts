@@ -1,8 +1,8 @@
 /**
  * Browser OIDC login redirect + PKCE state shared by auth middleware and /auth/logout.
  *
- * OIDC state is stored via the shared oidcStateStore (Redis when REDIS_URL is
- * set, in-memory fallback otherwise) so that login works across replicas.
+ * OIDC state is stored via the shared oidcStateStore (Redis when configured,
+ * in-memory fallback otherwise) so that login works across instances.
  * See src/services/oidc-state-store.ts for details.
  */
 import type { Response } from 'express';

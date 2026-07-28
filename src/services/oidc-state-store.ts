@@ -1,21 +1,15 @@
 /**
  * OIDC login-transaction state store (PKCE code_verifier + state token).
  *
- * Background: the original implementation kept this state in a per-process
- * `Map`, which breaks when multiple app replicas sit behind round-robin
- * routing (the /auth/callback can land on a different pod than the one that
- * started login → silent redirect loop). See investigation report:
- * .local/login-redirect-loop-investigation-2026-06-10.md §8.
- *
- * This module moves the state to the shared Redis/Valkey store so any
- * replica can serve the callback. When Redis is not configured (local dev /
- * single-replica), it falls back to an in-memory Map with the same TTL
- * semantics.
+ * All state flows through the shared keyValueStore (Redis when configured,
+ * in-memory MemoryStore otherwise). There is a single backend-selection
+ * decision in key-value-store-factory.ts driven by `isRedisConfigured`;
+ * this module never checks REDIS_URL or deployment topology independently.
  *
  * Keys are global (no space namespace) because login has no space context.
  */
 
-import { REDIS_URL, OIDC_STATE_KEY_PREFIX } from '../config.js';
+import { isRedisConfigured, OIDC_STATE_KEY_PREFIX } from '../config.js';
 import { keyValueStore } from './key-value-store-factory.js';
 import { logger } from '../utils/structured-logger.js';
 
@@ -28,7 +22,7 @@ export interface OidcStateEntry {
   createdAt: number;
 }
 
-/** Redis key for a given state token. */
+/** Storage key for a given state token. */
 function stateKey(state: string): string {
   return `${OIDC_STATE_KEY_PREFIX}${state}`;
 }
@@ -50,78 +44,32 @@ export interface OidcStateStore {
 }
 
 // ---------------------------------------------------------------------------
-// Redis-backed implementation
+// Unified implementation — delegates to keyValueStore (Redis or MemoryStore)
 // ---------------------------------------------------------------------------
 
-class RedisOidcStateStore implements OidcStateStore {
-  readonly backend = 'redis' as const;
+class KeyValueOidcStateStore implements OidcStateStore {
+  readonly backend: 'redis' | 'memory' = isRedisConfigured ? 'redis' : 'memory';
 
   async set(state: string, entry: OidcStateEntry): Promise<void> {
     await keyValueStore.setJson(stateKey(state), entry, STATE_TTL_SECONDS);
   }
 
   async consume(state: string): Promise<OidcStateEntry | undefined> {
-    // Atomic GETDEL: single Redis command, no race window.
+    // Atomic GETDEL via keyValueStore: no race window.
     const entry = await keyValueStore.getdelJson<OidcStateEntry>(stateKey(state));
     return entry ?? undefined;
   }
 }
 
 // ---------------------------------------------------------------------------
-// In-memory fallback (single-replica / local dev without Redis)
+// Singleton
 // ---------------------------------------------------------------------------
 
-interface MemEntry {
-  entry: OidcStateEntry;
-  expiresAt: number;
-}
+logger.info(
+  isRedisConfigured
+    ? '[oidc-state] Using shared key-value store for OIDC state (Redis configured)'
+    : '[oidc-state] Using in-memory key-value store for OIDC state (Redis not configured)'
+);
 
-export class MemoryOidcStateStore implements OidcStateStore {
-  readonly backend = 'memory' as const;
-  private readonly store = new Map<string, MemEntry>();
-  private sweepTimer: ReturnType<typeof setInterval> | null = null;
-
-  constructor() {
-    // Periodic sweep to evict expired entries (same as the original pruneOidcStateStore).
-    this.sweepTimer = setInterval(() => this.sweep(), 60_000);
-    // Allow Node to exit even if the timer is still running.
-    if (typeof this.sweepTimer === 'object' && 'unref' in this.sweepTimer) {
-      this.sweepTimer.unref();
-    }
-  }
-
-  async set(state: string, entry: OidcStateEntry): Promise<void> {
-    this.store.set(state, { entry, expiresAt: Date.now() + STATE_TTL_SECONDS * 1000 });
-  }
-
-  async consume(state: string): Promise<OidcStateEntry | undefined> {
-    const mem = this.store.get(state);
-    if (!mem) return undefined;
-    this.store.delete(state);
-    if (Date.now() > mem.expiresAt) return undefined;
-    return mem.entry;
-  }
-
-  private sweep(): void {
-    const now = Date.now();
-    for (const [k, v] of this.store) {
-      if (now > v.expiresAt) this.store.delete(k);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Singleton + factory
-// ---------------------------------------------------------------------------
-
-function createOidcStateStore(): OidcStateStore {
-  if (REDIS_URL) {
-    logger.info('[oidc-state] Using Redis-backed OIDC state store (shared across replicas)');
-    return new RedisOidcStateStore();
-  }
-  logger.info('[oidc-state] Using in-memory OIDC state store (single-replica mode — not safe for HA)');
-  return new MemoryOidcStateStore();
-}
-
-/** Singleton OIDC state store. Backend is chosen once at startup from REDIS_URL. */
-export const oidcStateStore: OidcStateStore = createOidcStateStore();
+/** Singleton OIDC state store. Backend is determined by isRedisConfigured in config. */
+export const oidcStateStore: OidcStateStore = new KeyValueOidcStateStore();

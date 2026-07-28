@@ -15,8 +15,10 @@ import {
   setupCliConfigWithLogin,
   requireMcpServerAndCliLogin
 } from './cli-commands-shared.js';
-import { getAuthHeaders } from '../utils/auth-headers.js';
+import { getAuthHeaders, isHttpTransport } from '../utils/auth-headers.js';
 import { MOCK_REVIEW_EVIDENCE } from '../utils/mock-review-evidence.js';
+
+const _d = isHttpTransport() ? describe : describe.skip;
 
 interface TrainItem {
   uri?: string;
@@ -71,7 +73,7 @@ First step body.
 Done.`;
 }
 
-describe('CLI export selection union (--adapters / --all-adapters)', () => {
+_d('CLI export selection union (--adapters / --all-adapters)', () => {
   let serverAvailable = false;
   let cliLoggedIn = false;
 

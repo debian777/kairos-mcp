@@ -1,6 +1,8 @@
-import { getTestAuthBaseUrl } from '../utils/auth-headers.js';
+import { getTestAuthBaseUrl, isHttpTransport } from '../utils/auth-headers.js';
 
-describe('integration preflight: /health', () => {
+const _d = isHttpTransport() ? describe : describe.skip;
+
+_d('integration preflight: /health', () => {
   test(
     'server is healthy',
     async () => {

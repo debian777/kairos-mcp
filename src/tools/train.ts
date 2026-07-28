@@ -21,9 +21,9 @@ import {
 import { kairosTrainSimilarAdapterFound, mcpToolCalls, mcpToolDuration, mcpToolErrors, mcpToolInputSize, mcpToolOutputSize } from '../services/metrics/mcp-metrics.js';
 import { mcpLooseToolInput } from './mcp-loose-input-schema.js';
 import { mcpToolInputValidationErrorResult } from './mcp-tool-input-teaching.js';
+import { mcpRateLimitErrorResult } from './mcp-runtime-error.js';
 import { resolveCanonicalAdapterUriForArtifact } from './train-artifact-adapter-uri.js';
 import { assertReviewEvidencePassed } from './review-evidence-check.js';
-
 interface RegisterTrainOptions {
   toolName?: string;
   qdrantService?: QdrantService;
@@ -298,7 +298,6 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
         return mcpToolInputValidationErrorResult('train', parsedInput.error, params);
       }
       const input = parsedInput.data;
-
       try {
         const output = await executeTrain(memoryStore, input, (fn) => runWithSpaceContextAsync(narrowedContext, fn), qdrantService);
         mcpToolCalls.inc({ tool: toolName, status: 'success', tenant_id: tenantId });
@@ -338,10 +337,11 @@ export function registerTrainTool(server: any, memoryStore: MemoryQdrantStore, o
             content: [{ type: 'text' as const, text: JSON.stringify(formatTrainErrorPayload(err)) }]
           };
         }
-
         mcpToolCalls.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         mcpToolErrors.inc({ tool: toolName, status: 'error', tenant_id: tenantId });
         timer({ tool: toolName, status: 'error', tenant_id: tenantId });
+        const rateLimitResult = mcpRateLimitErrorResult(error);
+        if (rateLimitResult) return rateLimitResult;
         throw error;
       }
     }

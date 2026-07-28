@@ -1,7 +1,8 @@
 /**
- * In-memory key-value store for dev/simple setups without Redis.
+ * In-memory key-value store for setups without a shared Redis backend.
  * Same key prefix and space namespacing as RedisService; keys(pattern) uses simple glob.
  * publish() is a no-op (returns 0); no cross-process invalidation.
+ * Selected automatically by key-value-store-factory when isRedisConfigured is false.
  */
 
 import { logger } from '../utils/structured-logger.js';

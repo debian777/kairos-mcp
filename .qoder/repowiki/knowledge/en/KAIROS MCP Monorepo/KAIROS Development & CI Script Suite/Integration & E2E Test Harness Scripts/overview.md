@@ -1,0 +1,1 @@
+Node/Shell scripts that drive end-to-end validation of the KAIROS dev server, Helm chart, OpenAI embedding key, and UI viewport screenshots.

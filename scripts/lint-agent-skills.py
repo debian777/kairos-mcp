@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Validate skills under skills/ using the skills-ref Python API (Agent Skills spec).
-If skills_ref is not installed, the script will create/use repo .venv, install
-the dependency, and re-run. If auto-install is not possible, exit 0 with a hint.
+Validate skills under .agents/skills/ using the skills-ref Python API (Agent
+Skills spec). If skills_ref is not installed, the script will create/use repo
+.venv, install the dependency, and re-run. If auto-install is not possible,
+exit 0 with a hint.
 
 Usage (from repo root):
   python3 scripts/lint-agent-skills.py
@@ -19,7 +20,7 @@ import venv
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 VENV_DIR = REPO_ROOT / ".venv"
 SKILL_REF_SPEC = "skills-ref @ git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref"
 SKILL_REF_INSTALL = f'pip install "{SKILL_REF_SPEC}"'
@@ -35,7 +36,7 @@ def _find_relative_links(md_path: Path) -> list[str]:
     problems: list[str] = []
     for i, line in enumerate(text.splitlines(), start=1):
         if _RELATIVE_LINK_RE.search(line):
-            problems.append(f"{md_path.relative_to(REPO_ROOT)}:{i}: relative markdown link not allowed in skills/")
+            problems.append(f"{md_path.relative_to(REPO_ROOT)}:{i}: relative markdown link not allowed in .agents/skills/")
     return problems
 
 
@@ -100,27 +101,22 @@ def main() -> int:
         return 0
 
     failed = False
-    # skills/ (top-level) and skills/.system/ (one-time / system skills per vercel-labs/skills discovery)
-    dirs_to_scan = [SKILLS_DIR]
-    system_dir = SKILLS_DIR / ".system"
-    if system_dir.is_dir():
-        dirs_to_scan.append(system_dir)
-    for base in dirs_to_scan:
-        for skill_path in sorted(base.iterdir()):
-            if not skill_path.is_dir() or skill_path.name.startswith("."):
-                continue
-            skill_md = skill_path / "SKILL.md"
-            if not skill_md.exists():
-                continue
-            rel = skill_path.relative_to(REPO_ROOT)
-            problems = validate(skill_path)
-            problems.extend(_find_relative_links(skill_md))
-            if problems:
-                failed = True
-                print(f"{rel} .... FAIL")
-                print(f"  {'; '.join(problems)}")
-            else:
-                print(f"{rel} .... OK")
+    # Each subdirectory of .agents/skills/ with a SKILL.md is a discoverable skill.
+    for skill_path in sorted(SKILLS_DIR.iterdir()):
+        if not skill_path.is_dir() or skill_path.name.startswith("."):
+            continue
+        skill_md = skill_path / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        rel = skill_path.relative_to(REPO_ROOT)
+        problems = validate(skill_path)
+        problems.extend(_find_relative_links(skill_md))
+        if problems:
+            failed = True
+            print(f"{rel} .... FAIL")
+            print(f"  {'; '.join(problems)}")
+        else:
+            print(f"{rel} .... OK")
 
     return 1 if failed else 0
 
