@@ -1,5 +1,5 @@
 ---
-version: "4.8.2"
+version: "4.8.3"
 slug: phase-critic
 title: Phase Critic
 ---
