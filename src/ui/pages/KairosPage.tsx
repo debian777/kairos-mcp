@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { useActivate } from "@/hooks/useActivate";
 import { useSpaces } from "@/hooks/useSpaces";
 import { SpaceSelect } from "@/components/SpaceSelect";

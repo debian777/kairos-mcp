@@ -17,7 +17,14 @@ VOLUME /snapshots
 RUN apk update && apk upgrade --no-cache
 
 # Pin global npm to a newer release than the default in the base image (bundled deps drift with the CLI).
-RUN npm install -g npm@11.17.0
+# npm 11.18.0 bundles tar 7.5.19 (CVE-2026-59873/CVE-2026-59874) but still ships brace-expansion 5.0.7,
+# so replace npm's bundled copy with 5.0.8 (CVE-2026-14257) until an npm release bundles it.
+RUN npm install -g npm@11.18.0 && \
+    cd /tmp && npm pack brace-expansion@5.0.8 --silent && \
+    rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
+    mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
+    tar -xzf brace-expansion-5.0.8.tgz -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion --strip-components=1 && \
+    rm brace-expansion-5.0.8.tgz && cd /
 
 ARG PACKAGE_VERSION
 RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
@@ -29,14 +36,14 @@ WORKDIR /app
 
 FROM base AS deps-registry
 ARG PACKAGE_VERSION
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\",\"typescript\":\"5.9.3\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"${PACKAGE_VERSION}\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.19\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app
 
 FROM base AS deps-local
 COPY .ci/docker/package.tgz /tmp/pkg.tgz
-RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.11\",\"typescript\":\"5.9.3\"}}" > package.json && \
+RUN printf '%s\n' "{\"private\":true,\"dependencies\":{\"@debian777/kairos-mcp\":\"file:/tmp/pkg.tgz\"},\"overrides\":{\"minimatch\":\"^10.2.3\",\"tar\":\"^7.5.19\",\"typescript\":\"5.9.3\"}}" > package.json && \
     npm install --omit=dev && \
     npm cache clean --force && \
     chown -R kairos:nodejs /app

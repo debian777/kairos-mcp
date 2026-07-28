@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { TFunction } from "i18next";
 import { SpaceTypeBadge } from "@/components/SpaceSelect";
 import type { AdapterBrowseRow } from "@/utils/browse-adapters";

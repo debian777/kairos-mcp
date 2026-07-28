@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export interface ErrorAlertProps {
   /** Main error message (e.g. from API or 404) */

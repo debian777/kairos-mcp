@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useProtocol, parseProtocolMarkdown } from "@/hooks/useProtocol";
 import { fetchSkillZipBundle, suggestedSkillZipFilename, triggerFileDownload } from "@/lib/export-skill-zip";
