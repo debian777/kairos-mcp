@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { Layout } from "./components/Layout";
 
 /** Route-level code-splitting: each page is loaded on demand to keep initial chunk under 500 kB. */
