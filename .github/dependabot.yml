@@ -10,6 +10,12 @@ updates:
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # jsdom v30 breaks getComputedStyle used by @testing-library/dom (UI tests fail).
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]
+      # knip >=6.29 flags pre-existing unused exports; unpin after dead-code cleanup.
+      - dependency-name: "knip"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       # Bundle all npm version updates into a single PR (branch/title: npm-dependencies)
       npm-dependencies:
