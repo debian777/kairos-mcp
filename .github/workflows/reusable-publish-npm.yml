@@ -104,7 +104,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          out=$(npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
+          out=$(npm publish ./dist/jakub-plichcinski-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} 2>&1)
           code=$?
           echo "$out"
           if [ $code -eq 0 ]; then exit 0; fi
@@ -116,11 +116,11 @@ jobs:
 
       - name: Publish to npm (strict)
         if: ${{ !inputs.allow-existing-version && !inputs.force-publish }}
-        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish ./dist/jakub-plichcinski-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }}
 
       - name: Publish to npm (force)
         if: inputs.force-publish
-        run: npm publish ./dist/debian777-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} --force
+        run: npm publish ./dist/jakub-plichcinski-kairos-mcp-${{ steps.version.outputs.version }}.tgz --access public --tag ${{ steps.version.outputs.npm_tag }} --force
 
       - name: Generate npm CycloneDX SBOM
         if: inputs.upload-sbom

@@ -58,8 +58,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            debian777/kairos-mcp:latest
-            debian777/kairos-mcp:${{ steps.version.outputs.version }}
+            jakub-plichcinski/kairos-mcp:latest
+            jakub-plichcinski/kairos-mcp:${{ steps.version.outputs.version }}
             quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest
             quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
