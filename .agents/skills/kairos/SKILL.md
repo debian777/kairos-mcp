@@ -60,7 +60,7 @@ router.
   execution rules, proof types, safety/validation, and the unavailability
   procedure. Read this before routing any action intent.
 - **[Install (global npm, stdio)](references/install.md)** — first-time
-  end-user setup: `npm install -g @debian777/kairos-mcp` then `kairos serve`
+  end-user setup: `npm install -g @jakub-plichcinski/kairos-mcp` then `kairos serve`
   against a localhost Qdrant, embedding backend, and host `mcp.json`.
 - **[Updates](references/updates.md)** — refresh the npm CLI (`@latest`) and
   installed skills (`npx skills update`).
