@@ -1,6 +1,6 @@
 ---
 slug: bulk-insert-adapters-via-cli
-version: "4.8.3"
+version: "4.8.4"
 title: Bulk Insert Adapters via KAIROS CLI
 ---
 

@@ -137,7 +137,7 @@ services:
     restart: unless-stopped
 
   app-prod:
-    image: jakubplichcinski/kairos-mcp:v4.8.3
+    image: jakubplichcinski/kairos-mcp:v4.8.4
     #pull_policy: always
     labels:
       - "environment=prod"
