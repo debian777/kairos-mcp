@@ -1,6 +1,6 @@
 ---
 slug: create-new-protocol
-version: "4.8.4"
+version: "4.8.5"
 title: Create / Review / Refactor KAIROS Protocol
 ---
 
