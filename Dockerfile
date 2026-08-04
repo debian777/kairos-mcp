@@ -18,13 +18,13 @@ RUN apk update && apk upgrade --no-cache
 
 # Pin global npm to a newer release than the default in the base image (bundled deps drift with the CLI).
 # npm 11.18.0 bundles tar 7.5.19 (CVE-2026-59873/CVE-2026-59874) but still ships brace-expansion 5.0.7,
-# so replace npm's bundled copy with 5.0.8 (CVE-2026-14257) until an npm release bundles it.
+# so replace npm's bundled copy with 5.0.9 (CVE-2026-14257, CVE-2026-69152) until an npm release bundles it.
 RUN npm install -g npm@11.18.0 && \
-    cd /tmp && npm pack brace-expansion@5.0.8 --silent && \
+    cd /tmp && npm pack brace-expansion@5.0.9 --silent && \
     rm -rf /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
     mkdir -p /usr/local/lib/node_modules/npm/node_modules/brace-expansion && \
-    tar -xzf brace-expansion-5.0.8.tgz -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion --strip-components=1 && \
-    rm brace-expansion-5.0.8.tgz && cd /
+    tar -xzf brace-expansion-5.0.9.tgz -C /usr/local/lib/node_modules/npm/node_modules/brace-expansion --strip-components=1 && \
+    rm brace-expansion-5.0.9.tgz && cd /
 
 ARG PACKAGE_VERSION
 RUN test -n "$PACKAGE_VERSION" || (echo "Build-arg PACKAGE_VERSION is required" && exit 1)
