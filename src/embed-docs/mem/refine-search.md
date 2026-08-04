@@ -1,5 +1,5 @@
 ---
-version: "4.8.3"
+version: "4.8.4"
 slug: refine-search
 title: Get help refining your search
 ---

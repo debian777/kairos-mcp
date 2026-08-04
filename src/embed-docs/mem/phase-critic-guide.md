@@ -1,5 +1,5 @@
 ---
-version: "4.8.3"
+version: "4.8.4"
 slug: phase-critic-guide
 title: Phase Critic Integration and Mutation Gate Guide
 ---
