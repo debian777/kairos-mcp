@@ -101,8 +101,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            jakub-plichcinski/kairos-mcp:latest
-            jakub-plichcinski/kairos-mcp:${{ steps.version.outputs.version }}
+            jakubplichcinski/kairos-mcp:latest
+            jakubplichcinski/kairos-mcp:${{ steps.version.outputs.version }}
             quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest
             quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}
           cache-from: type=gha
@@ -115,15 +115,15 @@ jobs:
         env:
           COSIGN_YES: "true"
         run: |
-          cosign sign "jakub-plichcinski/kairos-mcp:${{ steps.version.outputs.version }}"
-          cosign sign "jakub-plichcinski/kairos-mcp:latest"
+          cosign sign "jakubplichcinski/kairos-mcp:${{ steps.version.outputs.version }}"
+          cosign sign "jakubplichcinski/kairos-mcp:latest"
           cosign sign "quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:${{ steps.version.outputs.version }}"
           cosign sign "quay.io/${{ vars.QUAY_NAMESPACE }}/kairos-mcp:latest"
 
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: jakub-plichcinski/kairos-mcp:${{ steps.version.outputs.version }}
+          image: jakubplichcinski/kairos-mcp:${{ steps.version.outputs.version }}
           format: cyclonedx-json
           output-file: kairos-mcp-${{ steps.version.outputs.version }}-sbom.cdx.json
           upload-artifact: false
@@ -138,7 +138,7 @@ jobs:
       - name: Trivy container scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: jakub-plichcinski/kairos-mcp:${{ steps.version.outputs.version }}
+          image-ref: jakubplichcinski/kairos-mcp:${{ steps.version.outputs.version }}
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
