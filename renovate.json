@@ -96,7 +96,7 @@
         "custom.regex"
       ],
       "matchDepNames": [
-        "quay.io/jakub-plichcinski/kairos-mcp"
+        "quay.io/jakubplichcinski/kairos-mcp"
       ],
       "enabled": false
     },
