@@ -51,7 +51,9 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          registry-url: "https://registry.npmjs.org"
+          # No registry-url: OIDC trusted publishing handles auth via
+          # ACTIONS_ID_TOKEN_REQUEST_TOKEN/URL. Setting registry-url would
+          # write a .npmrc _authToken entry that overrides OIDC auth.
 
       - name: Set version and npm tag
         id: version
