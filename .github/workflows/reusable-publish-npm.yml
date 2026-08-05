@@ -55,6 +55,15 @@ jobs:
           # ACTIONS_ID_TOKEN_REQUEST_TOKEN/URL. Setting registry-url would
           # write a .npmrc _authToken entry that overrides OIDC auth.
 
+      - name: Remove empty _authToken so npm uses OIDC
+        run: |
+          # setup-node writes _authToken=${NODE_AUTH_TOKEN} to .npmrc.
+          # When no NPM_TOKEN secret exists, this is empty and blocks OIDC auth.
+          # Remove it so npm falls back to OIDC (ACTIONS_ID_TOKEN_REQUEST_TOKEN/URL).
+          sed -i '/_authToken/d' "$HOME/.npmrc" 2>/dev/null || true
+          echo "registry=https://registry.npmjs.org/" >> "$HOME/.npmrc"
+          cat "$HOME/.npmrc"
+
       - name: Set version and npm tag
         id: version
         shell: bash
